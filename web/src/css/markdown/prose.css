@@ -93,6 +93,16 @@
   font-size: 0.9em;
 }
 
+.prose :not(pre) > code {
+  padding: 0.08em 0.3em;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--text) 5%, transparent);
+  color: var(--text);
+  font-weight: 500;
+  white-space: break-spaces;
+}
+
 .callout {
   margin: 18px 0;
   padding: 13px 16px;
@@ -115,8 +125,6 @@
 }
 
 .callout-body code {
-  padding: 0.12em 0.34em;
-  border-radius: 4px;
   background: color-mix(in srgb, var(--text) 7%, transparent);
 }
 
