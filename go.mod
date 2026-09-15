@@ -21,6 +21,7 @@ require (
 	github.com/stretchr/testify v1.12.1
 	github.com/tetratelabs/wazero v1.12.0
 	github.com/yuin/goldmark v1.8.6
+	github.com/yuin/goldmark/v2 v2.1.1
 	golang.org/x/crypto v0.57.0
 	golang.org/x/net v0.59.0
 	golang.org/x/oauth2 v0.37.0
