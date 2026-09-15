@@ -30,6 +30,7 @@ func run(ctx context.Context, builder *builder, config Config, overrides map[str
 
 	result, err := builder.build(ctx, config)
 	if err != nil {
+		setupLogger.Error("Build failed", "error", err)
 		return err
 	}
 

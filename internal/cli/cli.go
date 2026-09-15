@@ -67,6 +67,7 @@ func Run(
 	pluginsSyncFile := pluginsSyncCommand.FlagSet.String("file", pluginproject.DefaultFile, "Plugin dependency file").
 		NotEmpty().
 		Placeholder("FILE")
+
 	pluginsSyncCommand.Run(func(ctx context.Context) error {
 		file, err := pluginproject.Load(*pluginsSyncFile.Value())
 		if err != nil {
@@ -88,6 +89,7 @@ func Run(
 	pluginsListFile := pluginsListCommand.FlagSet.String("file", pluginproject.DefaultFile, "Plugin dependency file").
 		NotEmpty().
 		Placeholder("FILE")
+
 	pluginsListCommand.Run(func(context.Context) error {
 		file, err := pluginproject.Load(*pluginsListFile.Value())
 		if err != nil {
