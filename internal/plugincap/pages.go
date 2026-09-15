@@ -136,6 +136,7 @@ func PageValue(page domain.Page) sdk.Page {
 	result := sdk.Page{
 		Slug:       page.Slug,
 		Title:      page.Title,
+		Icon:       page.Icon,
 		Status:     page.Status,
 		OwnerGroup: page.OwnerGroup,
 		UpdatedAt:  page.UpdatedAt,

@@ -340,7 +340,7 @@
                       <tr>
                         <td>{{ if .Name }}{{ .Name }}{{ else }}{{ .ID }}{{ end }}<small>{{ .ID }}</small></td>
                         <td>{{ .Type }}</td>
-                        <td>{{ .Stage }} {{ .Syntax }} {{ .Policy }} {{ if .CSS }}<span>Style {{ .CSS }}</span> {{ end }}{{ if .Capability }}Requires {{ .Capability }}{{ end }}{{ range .Requires }}<span>Requires {{ . }}</span> {{ end }}</td>
+                        <td>{{ .Stage }} {{ .Syntax }} {{ .Policy }} {{ if .Surface }}<span>Surface {{ .Surface }}</span> {{ end }}{{ if .Width }}<span>Width {{ .Width }}</span> {{ end }}{{ if .Order }}<span>Order {{ .Order }}</span> {{ end }}{{ if .CSS }}<span>Style {{ .CSS }}</span> {{ end }}{{ if .Capability }}Requires {{ .Capability }}{{ end }}{{ range .Requires }}<span>Requires {{ . }}</span> {{ end }}</td>
                       </tr>
                     {{ end }}
                   </tbody>

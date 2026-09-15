@@ -15,104 +15,28 @@
     </form>
   </section>
   <div class="dashboard">
-    <section class="panel wide continue-working">
-      <div class="panel-title">
-        <h2 class="heading-with-icon">{{ icon "pencil-line-lucide" 15 }}<span>Continue working</span></h2>
-      </div>
-      <div class="continue-working-grid">
-        <div>
-          <h3 class="continue-section-title">Drafts</h3>
-          <div class="continue-draft-list" data-home-drafts>
-            {{ range .Drafts }}
-            <div class="continue-draft{{ if .Stale }} stale{{ end }}"
-                 data-draft-item
-                 data-draft-key="{{ .Key }}"
-                 data-draft-edit-url="{{ if .PageID }}/edit/{{ .PageSlug }}{{ else }}/pages/new{{ end }}">
-              <a class="continue-item"
-                 href="{{ if .PageID }}/edit/{{ .PageSlug }}{{ else }}/pages/new{{ end }}"><span class="continue-icon">{{ icon "pencil-line-lucide" 16 }}</span><span><strong>{{ if .Title }}{{ .Title }}{{ else }}Untitled{{ end }}</strong><small>Private draft · {{ timeago .UpdatedAt }}{{ if .Stale }} · Page changed since draft started{{ end }}</small></span></a>
-              <button class="icon-button continue-draft-discard"
-                      type="button"
-                      data-draft-discard
-                      data-draft-key="{{ .Key }}"
-                      data-draft-server="true"
-                      aria-label="Discard draft"
-                      title="Discard draft">{{ icon "trash-2-lucide" 15 }}</button>
-              </div>
-            {{ else }}
-              <p class="muted" data-home-drafts-empty>No private drafts.</p>
+    {{ range .HomeWidgets }}
+      <section class="panel plugin-widget{{ if eq .Width "wide" }} wide{{ end }}"
+               data-kumbuka-plugin="{{ .PluginID }}"
+               data-kumbuka-module="{{ .ModuleID }}">
+        {{ .HTML }}
+        {{ if .Actions }}
+          <div class="plugin-widget-actions">
+            {{ range .Actions }}
+              {{ if eq .Kind "link" }}
+                <a class="widget-action"
+                   href="{{ .URL }}">{{ if .Icon }}{{ icon .Icon 14 }}{{ end }}<span>{{ .Label }}</span></a>
+              {{ else if eq .Kind "dialog" }}
+                <button class="widget-action"
+                        type="button"
+                        data-widget-dialog-open
+                        data-widget-dialog-url="{{ .URL }}"
+                        data-widget-dialog-title="{{ .Label }}">{{ if .Icon }}{{ icon .Icon 14 }}{{ end }}<span>{{ .Label }}</span>{{ icon "chevron-right-lucide" 13 }}</button>
+              {{ end }}
             {{ end }}
           </div>
-          <template data-home-draft-template>
-            <div class="continue-draft" data-draft-item>
-              <a class="continue-item" href="/">
-                <span class="continue-icon">{{ icon "pencil-line-lucide" 16 }}</span>
-                <span><strong></strong><small></small></span>
-              </a>
-              <button class="icon-button continue-draft-discard"
-                      type="button"
-                      data-draft-discard
-                      aria-label="Discard browser draft"
-                      title="Discard draft">{{ icon "trash-2-lucide" 15 }}</button>
-            </div>
-          </template>
-        </div>
-        <div>
-          <h3 class="continue-section-title">Recent edits</h3>
-          {{ range .RecentEdits }}
-            <a class="continue-item" href="/edit/{{ .Slug }}"><span class="continue-icon">{{ if .Icon }}
-              {{ icon .Icon 16 }}
-          {{ else }}
-            {{ icon "file-text-lucide" 16 }}
-          {{ end }}</span><span><strong>{{ .Title }}</strong><small>{{ if .RevisionMessage }}{{ .RevisionMessage }} ·{{ end }}{{ timeago .UpdatedAt }}</small></span></a>
-{{ else }}
-  <p class="muted">Pages you edit will appear here.</p>
-{{ end }}
-</div>
-</div>
-</section>
-<section class="panel wide">
-  <div class="panel-title">
-    <h2>Recent changes</h2>
-    <a href="/search">View all</a>
+        {{ end }}
+      </section>
+    {{ end }}
   </div>
-  {{ range .Recent }}
-    {{ template "page-row" . }}
-  {{ else }}
-    <div class="empty">
-      <strong>Your Kumbuka knowledge base is ready.</strong>
-      <p>Create the first page and start linking knowledge together.</p>
-    </div>
-  {{ end }}
-</section>
-<section class="panel">
-  <div class="panel-title">
-    <h2 class="heading-with-icon">{{ icon "star-lucide" 15 }}<span>Favorites</span></h2>
-  </div>
-  {{ range .Favorites }}
-    {{ template "compact-row" . }}
-  {{ else }}
-    <p class="muted">Star useful pages to keep them close.</p>
-  {{ end }}
-</section>
-<section class="panel">
-  <div class="panel-title">
-    <h2>Popular pages</h2>
-  </div>
-  {{ range .Popular }}
-    {{ template "compact-row" . }}
-  {{ else }}
-    <p class="muted">Popular pages appear after they are viewed.</p>
-  {{ end }}
-</section>
-<section class="panel wide">
-  <div class="panel-title">
-    <h2>Recently viewed</h2>
-  </div>
-  {{ range .Pages }}
-    {{ template "page-row" . }}
-  {{ else }}
-    <p class="muted">Pages you open will appear here.</p>
-  {{ end }}
-</section>
-</div>
 {{ end }}

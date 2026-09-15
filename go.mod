@@ -2,8 +2,6 @@ module github.com/kumbuka-me/kumbuka
 
 go 1.27.0
 
-tool github.com/kumbuka-me/sdk/cmd/kumbuka-plugin
-
 require (
 	github.com/aymerick/douceur v0.2.0
 	github.com/containeroo/httpgrace v0.2.0
@@ -14,7 +12,7 @@ require (
 	github.com/go-jose/go-jose/v4 v4.1.5
 	github.com/jackc/pgx/v5 v5.11.0
 	github.com/kaugesaar/lucide-go v0.26.0
-	github.com/kumbuka-me/sdk v0.4.0
+	github.com/kumbuka-me/sdk v0.5.0
 	github.com/microcosm-cc/bluemonday v1.0.27
 	github.com/pelletier/go-toml/v2 v2.4.3
 	github.com/pmezard/go-difflib v1.0.0

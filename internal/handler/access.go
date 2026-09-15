@@ -181,3 +181,92 @@ func visibleKnowledgeGraph(ctx context.Context, access pageAccessReader, user do
 
 	return graph, nil
 }
+
+// personalWidgetSource binds personal page lists to the authenticated viewer and access policy.
+type personalWidgetSource struct {
+	catalog sidebarCatalogService
+	access  pageAccessReader
+	user    domain.User
+}
+
+// Favorites returns visible favorites for the current viewer.
+func (s personalWidgetSource) Favorites(ctx context.Context, limit int) ([]domain.Page, error) {
+	pages, err := s.catalog.Favorites(ctx, s.user.ID)
+	if err != nil {
+		return nil, err
+	}
+	pages, err = s.access.FilterPages(ctx, s.user, pages)
+	if err != nil {
+		return nil, err
+	}
+	return limitPages(pages, limit), nil
+}
+
+// RecentViewed returns visible recently viewed pages for the current viewer.
+func (s personalWidgetSource) RecentViewed(ctx context.Context, limit int) ([]domain.Page, error) {
+	pages, err := s.catalog.RecentViewed(ctx, s.user.ID, limit)
+	if err != nil {
+		return nil, err
+	}
+	return s.access.FilterPages(ctx, s.user, pages)
+}
+
+// homeWidgetSource extends personal page lists with dashboard activity and private drafts.
+type homeWidgetSource struct {
+	catalog homeCatalogService
+	drafts  draftListService
+	access  pageAccessReader
+	user    domain.User
+}
+
+// Favorites returns visible favorites for the current viewer.
+func (s homeWidgetSource) Favorites(ctx context.Context, limit int) ([]domain.Page, error) {
+	return personalWidgetSource{catalog: s.catalog, access: s.access, user: s.user}.Favorites(ctx, limit)
+}
+
+// RecentViewed returns visible recently viewed pages for the current viewer.
+func (s homeWidgetSource) RecentViewed(ctx context.Context, limit int) ([]domain.Page, error) {
+	return personalWidgetSource{catalog: s.catalog, access: s.access, user: s.user}.RecentViewed(ctx, limit)
+}
+
+// Recent returns the newest visible pages.
+func (s homeWidgetSource) Recent(ctx context.Context, limit int) ([]domain.Page, error) {
+	pages, err := s.catalog.ListPages(ctx, limit)
+	if err != nil {
+		return nil, err
+	}
+	return s.access.FilterPages(ctx, s.user, pages)
+}
+
+// Popular returns the most-viewed visible pages.
+func (s homeWidgetSource) Popular(ctx context.Context, limit int) ([]domain.Page, error) {
+	pages, err := s.catalog.Popular(ctx, limit)
+	if err != nil {
+		return nil, err
+	}
+	return s.access.FilterPages(ctx, s.user, pages)
+}
+
+// RecentEdited returns recent edits whose pages remain visible to the current viewer.
+func (s homeWidgetSource) RecentEdited(ctx context.Context, limit int) ([]domain.RecentEdit, error) {
+	edits, err := s.catalog.RecentEdited(ctx, s.user.ID, limit)
+	if err != nil {
+		return nil, err
+	}
+	return visibleRecentEdits(ctx, s.access, s.user, edits)
+}
+
+// Drafts returns private draft metadata only for users allowed to edit pages.
+func (s homeWidgetSource) Drafts(ctx context.Context, limit int) ([]domain.PageDraft, error) {
+	if s.user.Role != "admin" && s.user.Role != "editor" {
+		return nil, nil
+	}
+	return s.drafts.List(ctx, s.user.ID, limit)
+}
+
+func limitPages(pages []domain.Page, limit int) []domain.Page {
+	if limit <= 0 || len(pages) <= limit {
+		return pages
+	}
+	return pages[:limit]
+}

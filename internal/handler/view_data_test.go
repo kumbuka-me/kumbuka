@@ -143,11 +143,9 @@ func TestViewDataLoaderLoad(t *testing.T) {
 		assert.Equal(t, "platforms/kubernetes", data.Navigation[0].Children[0].Slug)
 		assert.True(t, data.Navigation[0].Children[0].Active)
 
-		require.Len(t, data.SidebarPinned, 1)
-		assert.Equal(t, int64(2), data.SidebarPinned[0].ID)
-		require.Len(t, data.SidebarRecent, 2)
-		assert.Equal(t, int64(4), data.SidebarRecent[0].ID)
-		assert.Equal(t, int64(5), data.SidebarRecent[1].ID)
+		assert.Empty(t, data.SidebarWidgets)
+		assert.True(t, data.PluginFeatures["kumbuka.preference.show-pinned-pages"])
+		assert.True(t, data.PluginFeatures["kumbuka.preference.show-recently-viewed"])
 	})
 
 	t.Run("skips navigation dependencies for admin pages", func(t *testing.T) {
@@ -174,8 +172,7 @@ func TestViewDataLoaderLoad(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.Empty(t, data.Navigation)
-		assert.Empty(t, data.SidebarPinned)
-		assert.Empty(t, data.SidebarRecent)
+		assert.Empty(t, data.SidebarWidgets)
 		assert.Equal(t, themes.DefaultTheme, data.ActiveTheme)
 		assert.Equal(t, domain.DefaultTypographySize, data.TypographySize)
 		assert.False(t, data.CanEdit)
@@ -246,34 +243,6 @@ func TestViewData(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, "Platforms", data.Title)
-}
-
-func TestPagesWithout(t *testing.T) {
-	t.Parallel()
-
-	pages := []domain.Page{{ID: 1}, {ID: 2}, {ID: 3}, {ID: 4}}
-
-	t.Run("excludes matching pages and respects limit", func(t *testing.T) {
-		t.Parallel()
-
-		result := pagesWithout(pages, []domain.Page{{ID: 2}}, 2)
-
-		assert.Equal(t, []domain.Page{{ID: 1}, {ID: 3}}, result)
-	})
-
-	t.Run("returns all available pages below limit", func(t *testing.T) {
-		t.Parallel()
-
-		result := pagesWithout(pages, []domain.Page{{ID: 2}, {ID: 4}}, 5)
-
-		assert.Equal(t, []domain.Page{{ID: 1}, {ID: 3}}, result)
-	})
-
-	t.Run("returns no pages for zero limit", func(t *testing.T) {
-		t.Parallel()
-
-		assert.Empty(t, pagesWithout(pages, nil, 0))
-	})
 }
 
 func TestActiveNavigationSlug(t *testing.T) {

@@ -19,6 +19,7 @@ import (
 type pluginWidgetView struct {
 	PluginID string
 	ModuleID string
+	Width    string
 	HTML     template.HTML
 	Actions  []sdk.WidgetAction
 }
@@ -71,26 +72,16 @@ type ViewData struct {
 	PageContents []markdown.Heading
 	// Pages contains the primary page collection for the current view.
 	Pages []domain.Page
-	// Favorites contains the current user's favorite pages.
-	Favorites []domain.Page
-	// SidebarPinned contains favorite pages shown above the navigation tree.
-	SidebarPinned []domain.Page
-	// SidebarRecent contains recently viewed pages shown above the navigation tree.
-	SidebarRecent []domain.Page
-	// Recent contains recently changed pages.
-	Recent []domain.Page
-	// Popular contains the most viewed pages.
-	Popular []domain.Page
-	// RecentEdits contains pages the current user recently changed.
-	RecentEdits []domain.RecentEdit
-	// Drafts contains the current user's private server-side page drafts.
-	Drafts []domain.PageDraft
 	// SavedSearches contains named smart collections for the current user.
 	SavedSearches []domain.SavedSearch
 	// Notifications contains recent inbox items for the current user.
 	Notifications []domain.Notification
 	// UnreadNotifications is the current unread inbox count.
 	UnreadNotifications int
+	// HomeWidgets contains sanitized plugin widgets for the home dashboard.
+	HomeWidgets []pluginWidgetView
+	// SidebarWidgets contains sanitized plugin widgets above structural navigation.
+	SidebarWidgets []pluginWidgetView
 	// PageDetailWidgets contains sanitized plugin widgets for the page details surface.
 	PageDetailWidgets []pluginWidgetView
 	// Comments contains anchored discussion items for the current page.

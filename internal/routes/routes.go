@@ -75,7 +75,7 @@ func addRoutes(
 
 	// Browser routes require the configured browser authenticator.
 	mux.Handle("POST /auth/logout", browserAuthn(auth.Logout(browserAuth.Local)))
-	mux.Handle("GET /{$}", browserAuthn(handler.Home(viewDataUseCases, catalogUseCases, draftUseCases, accessUseCases, views)))
+	mux.Handle("GET /{$}", browserAuthn(handler.Home(viewDataUseCases, catalogUseCases, draftUseCases, accessUseCases, renderer, views)))
 	mux.Handle("GET /search", browserAuthn(handler.Search(viewDataUseCases, catalogUseCases, accessUseCases, views)))
 	mux.Handle("GET /graph", browserAuthn(handler.KnowledgeGraphPage(viewDataUseCases, views)))
 	mux.Handle("GET /p/{id}", browserAuthn(handler.PagePermalink(catalogUseCases, logger)))

@@ -291,6 +291,10 @@ type WidgetModule struct {
 	ID string
 	// Surface selects the host placement.
 	Surface string
+	// Width is an optional host layout hint.
+	Width string
+	// Order controls deterministic placement within the surface.
+	Order int
 	// Widget performs sandboxed widget rendering.
 	Widget Widget
 }

@@ -89,7 +89,7 @@ func (i *Instance) Contributions() plugin.Contributions {
 			continue
 		}
 		if module.Type == "widget" {
-			result.Widgets = append(result.Widgets, plugin.WidgetModule{ID: module.ID, Surface: module.Surface, Widget: widgetModule{rendererModule{instance: i, module: module}}})
+			result.Widgets = append(result.Widgets, plugin.WidgetModule{ID: module.ID, Surface: module.Surface, Width: module.Width, Order: module.Order, Widget: widgetModule{rendererModule{instance: i, module: module}}})
 			continue
 		}
 		if module.Type == "macro" {

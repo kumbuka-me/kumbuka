@@ -25,7 +25,10 @@ func TestRenderWidgetsUsesSurfaceAndCentralSanitizer(t *testing.T) {
 
 	registry := &plugin.Registry{}
 	require.NoError(t, registry.Register(plugin.Descriptor{ID: "io.example.widget", Name: "Widget"}, plugin.Contributions{
-		Widgets: []plugin.WidgetModule{{ID: "details", Surface: "page.details", Widget: testWidget{}}},
+		Widgets: []plugin.WidgetModule{
+			{ID: "later", Surface: "page.details", Width: "wide", Order: 20, Widget: testWidget{}},
+			{ID: "details", Surface: "page.details", Order: 10, Widget: testWidget{}},
+		},
 	}))
 	renderer := NewWithRegistry(registry)
 	page := sdk.Page{Slug: "guide"}
@@ -33,9 +36,12 @@ func TestRenderWidgetsUsesSurfaceAndCentralSanitizer(t *testing.T) {
 	widgets, err := renderer.RenderWidgets(context.Background(), "page.details", &page, nil, nil)
 
 	require.NoError(t, err)
-	require.Len(t, widgets, 1)
+	require.Len(t, widgets, 2)
 	assert.Equal(t, "io.example.widget", widgets[0].PluginID)
 	assert.Equal(t, "details", widgets[0].ModuleID)
+	assert.Equal(t, "", widgets[0].Width)
+	assert.Equal(t, "later", widgets[1].ModuleID)
+	assert.Equal(t, "wide", widgets[1].Width)
 	assert.Contains(t, widgets[0].HTML, "<h2>Widget</h2>")
 	assert.Contains(t, widgets[0].HTML, `href="/pages/ok"`)
 	assert.NotContains(t, widgets[0].HTML, "<script")

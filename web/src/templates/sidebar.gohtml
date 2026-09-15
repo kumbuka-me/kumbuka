@@ -13,24 +13,11 @@
 <nav data-navigation
      data-navigation-state-url="/settings/preferences/navigation-state"
      data-navigation-remember="{{ if .Preferences.RememberNavigationState }}true{{ else }}false{{ end }}">
-    {{ if .SidebarPinned }}
-      <section class="sidebar-shortcuts" aria-labelledby="sidebar-pinned-label">
-        <p class="nav-label" id="sidebar-pinned-label">Pinned</p>
-        {{ range .SidebarPinned }}
-          <a class="sidebar-shortcut-link"
-             href="/pages/{{ .Slug }}"
-             title="{{ .Title }}">{{ icon "star-lucide" 14 }}<span>{{ .Title }}</span></a>
-        {{ end }}
-      </section>
-    {{ end }}
-    {{ if .SidebarRecent }}
-      <section class="sidebar-shortcuts" aria-labelledby="sidebar-recent-label">
-        <p class="nav-label" id="sidebar-recent-label">Recently viewed</p>
-        {{ range .SidebarRecent }}
-          <a class="sidebar-shortcut-link"
-             href="/pages/{{ .Slug }}"
-             title="{{ .Title }}">{{ icon "history-lucide" 14 }}<span>{{ .Title }}</span></a>
-        {{ end }}
+    {{ range .SidebarWidgets }}
+      <section class="sidebar-shortcuts plugin-widget"
+               data-kumbuka-plugin="{{ .PluginID }}"
+               data-kumbuka-module="{{ .ModuleID }}">
+        {{ .HTML }}
       </section>
     {{ end }}
     {{ if .SavedSearches }}

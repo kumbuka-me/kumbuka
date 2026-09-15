@@ -8,9 +8,11 @@ import (
 
 	"github.com/kumbuka-me/kumbuka/internal/auth"
 	"github.com/kumbuka-me/kumbuka/internal/domain"
+	md "github.com/kumbuka-me/kumbuka/internal/markdown"
 	"github.com/kumbuka-me/kumbuka/internal/navigation"
 	"github.com/kumbuka-me/kumbuka/internal/plugin"
 	"github.com/kumbuka-me/kumbuka/internal/pluginbrowser"
+	"github.com/kumbuka-me/kumbuka/internal/plugincap"
 	"github.com/kumbuka-me/kumbuka/themes"
 )
 
@@ -48,6 +50,7 @@ type ViewDataLoader struct {
 	notificationUseCases notificationReader
 	accessUseCases       pageAccessReader
 	pluginManager        *plugin.Manager
+	renderer             *md.Renderer
 }
 
 // NewViewDataLoader constructs the shared authenticated view-data loader.
@@ -59,8 +62,13 @@ func NewViewDataLoader(
 	savedSearches savedSearchReader,
 	notifications notificationReader,
 	access pageAccessReader,
-	plugins *plugin.Manager,
+	renderer *md.Renderer,
 ) *ViewDataLoader {
+	var plugins *plugin.Manager
+	if renderer != nil {
+		plugins = renderer.PluginManager()
+	}
+
 	return &ViewDataLoader{
 		preferenceUseCases:   preferences,
 		navigationUseCases:   navigation,
@@ -70,6 +78,7 @@ func NewViewDataLoader(
 		notificationUseCases: notifications,
 		accessUseCases:       access,
 		pluginManager:        plugins,
+		renderer:             renderer,
 	}
 }
 
@@ -85,8 +94,6 @@ func (l *ViewDataLoader) Load(r *http.Request, views *Views, title string) (View
 	}
 
 	var pageNavigation []navigation.Node
-	var sidebarPinned []domain.Page
-	var sidebarRecent []domain.Page
 
 	if !strings.HasPrefix(r.URL.Path, "/admin") {
 		stop = measurePageStage(r.Context(), "view_navigation_pages")
@@ -135,36 +142,6 @@ func (l *ViewDataLoader) Load(r *http.Request, views *Views, title string) (View
 		})
 		stop()
 
-		if preferences.ShowPinnedPages {
-			stop = measurePageStage(r.Context(), "view_sidebar_pinned")
-			sidebarPinned, err = l.catalogUseCases.Favorites(r.Context(), user.ID)
-			stop()
-			if err != nil {
-				return ViewData{}, err
-			}
-			stop = measurePageStage(r.Context(), "view_sidebar_pinned_filter")
-			sidebarPinned, err = l.accessUseCases.FilterPages(r.Context(), user, sidebarPinned)
-			stop()
-			if err != nil {
-				return ViewData{}, err
-			}
-		}
-		if preferences.ShowRecentlyViewed {
-			stop = measurePageStage(r.Context(), "view_sidebar_recent")
-			sidebarRecent, err = l.catalogUseCases.RecentViewed(r.Context(), user.ID, 8)
-			stop()
-			if err != nil {
-				return ViewData{}, err
-			}
-			stop = measurePageStage(r.Context(), "view_sidebar_recent_filter")
-			sidebarRecent, err = l.accessUseCases.FilterPages(r.Context(), user, sidebarRecent)
-			stop()
-			if err != nil {
-				return ViewData{}, err
-			}
-
-			sidebarRecent = pagesWithout(sidebarRecent, sidebarPinned, 5)
-		}
 	}
 
 	stop = measurePageStage(r.Context(), "view_application_settings")
@@ -226,7 +203,23 @@ func (l *ViewDataLoader) Load(r *http.Request, views *Views, title string) (View
 			}
 		}
 	}
+	pluginFeatures["kumbuka.preference.show-pinned-pages"] = preferences.ShowPinnedPages
+	pluginFeatures["kumbuka.preference.show-recently-viewed"] = preferences.ShowRecentlyViewed
 	stop()
+
+	var sidebarWidgets []pluginWidgetView
+	if !strings.HasPrefix(r.URL.Path, "/admin") && l.renderer != nil {
+		source := personalWidgetSource{catalog: l.catalogUseCases, access: l.accessUseCases, user: user}
+		capabilities := plugincap.MergeCapabilities(
+			plugincap.Capabilities(nil, nil, l.renderer.IconCatalog()),
+			plugincap.PageListCapabilities(source),
+		)
+		rendered, renderErr := l.renderer.RenderWidgets(r.Context(), "sidebar", nil, pluginFeatures, capabilities)
+		if renderErr != nil {
+			return ViewData{}, renderErr
+		}
+		sidebarWidgets = widgetViews(rendered)
+	}
 
 	pluginModules, err := pluginModulesJSON(l.pluginManager, "/plugins")
 	if err != nil {
@@ -241,8 +234,7 @@ func (l *ViewDataLoader) Load(r *http.Request, views *Views, title string) (View
 		TypographySize:      typographySize,
 		Navigation:          pageNavigation,
 		NewPageParent:       activeNavigationSlug(r.URL.Path),
-		SidebarPinned:       sidebarPinned,
-		SidebarRecent:       sidebarRecent,
+		SidebarWidgets:      sidebarWidgets,
 		SavedSearches:       savedSearches,
 		Notifications:       notifications,
 		UnreadNotifications: unreadNotifications,
@@ -277,34 +269,6 @@ func pluginModulesJSON(manager *plugin.Manager, prefix string) (template.JS, err
 // viewData loads shared authenticated view data through the handler's narrow dependency.
 func viewData(r *http.Request, loader viewDataService, views *Views, title string) (ViewData, error) {
 	return loader.Load(r, views, title)
-}
-
-// pagesWithout returns up to limit pages excluding any page present in excluded.
-func pagesWithout(pages, excluded []domain.Page, limit int) []domain.Page {
-	if limit <= 0 {
-		return nil
-	}
-
-	excludedIDs := make(map[int64]bool, len(excluded))
-
-	for _, page := range excluded {
-		excludedIDs[page.ID] = true
-	}
-
-	result := make([]domain.Page, 0, min(limit, len(pages)))
-
-	for _, page := range pages {
-		if excludedIDs[page.ID] {
-			continue
-		}
-
-		result = append(result, page)
-		if len(result) == limit {
-			break
-		}
-	}
-
-	return result
 }
 
 // activeNavigationSlug extracts the current page slug from browser page and editor routes.

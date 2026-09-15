@@ -60,6 +60,8 @@ type WidgetBinding struct {
 	PluginID string
 	ModuleID string
 	Surface  string
+	Width    string
+	Order    int
 	Module   Widget
 }
 
@@ -164,7 +166,7 @@ func buildRenderPlan(entries []Entry, generation uint64) *RenderPlan {
 		}
 		for _, module := range entry.Contributions.Widgets {
 			plan.Widgets = append(plan.Widgets, WidgetBinding{
-				PluginID: pluginID, ModuleID: module.ID, Surface: module.Surface, Module: module.Widget,
+				PluginID: pluginID, ModuleID: module.ID, Surface: module.Surface, Width: module.Width, Order: module.Order, Module: module.Widget,
 			})
 		}
 		plan.RenderPolicies = append(plan.RenderPolicies, entry.Contributions.RenderPolicies...)
@@ -176,6 +178,9 @@ func buildRenderPlan(entries []Entry, generation uint64) *RenderPlan {
 	for index := range plan.ContentPreprocessors {
 		plan.ContentPreprocessors[index].Order = index
 	}
+	sort.SliceStable(plan.Widgets, func(i, j int) bool {
+		return plan.Widgets[i].Order < plan.Widgets[j].Order
+	})
 	plan.UsageFingerprint = renderUsageFingerprint(plan.SourceUsage)
 	return plan
 }

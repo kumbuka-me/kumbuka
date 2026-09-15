@@ -190,7 +190,7 @@ func Run(
 		knowledgeUseCases,
 		notificationUseCases,
 		accessUseCases,
-		renderer.PluginManager(),
+		renderer,
 	)
 
 	router := routes.New(

@@ -1,12 +1,17 @@
 autolinks=1.0.1
 callouts=1.0.1
 coding-ligatures=1.0.2
+continue-working=1.0.0
 definition-lists=1.0.1
 details=1.0.1
+favorites=1.0.0
 footnotes=1.0.1
 includes=1.0.1
 mermaid=1.0.1
 page-report=1.0.2
+popular-pages=1.0.0
+recent-changes=1.0.0
+recently-viewed=1.0.0
 related-pages=1.0.0
 revision-history=1.0.0
 simple-icons=1.0.2

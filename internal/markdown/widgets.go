@@ -12,6 +12,7 @@ import (
 type RenderedWidget struct {
 	PluginID string
 	ModuleID string
+	Width    string
 	HTML     string
 	Actions  []sdk.WidgetAction
 }
@@ -57,6 +58,7 @@ func (r *Renderer) RenderWidgets(
 		result = append(result, RenderedWidget{
 			PluginID: binding.PluginID,
 			ModuleID: binding.ModuleID,
+			Width:    binding.Width,
 			HTML:     html,
 			Actions:  append([]sdk.WidgetAction(nil), rendered.Actions...),
 		})

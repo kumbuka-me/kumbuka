@@ -25,74 +25,29 @@ func Home(
 	catalogUseCases homeCatalogService,
 	draftUseCases draftListService,
 	accessUseCases pageAccessReader,
+	renderer *md.Renderer,
 	views *Views,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		user, _ := auth.User(r)
-
-		favorites, err := catalogUseCases.Favorites(r.Context(), user.ID)
-		if err != nil {
-			httpresponse.InternalServerError(views.logger, w, err)
-			return
-		}
-
-		recent, err := catalogUseCases.ListPages(r.Context(), 8)
-		if err != nil {
-			httpresponse.InternalServerError(views.logger, w, err)
-			return
-		}
-
-		viewed, err := catalogUseCases.RecentViewed(r.Context(), user.ID, 8)
-		if err != nil {
-			httpresponse.InternalServerError(views.logger, w, err)
-			return
-		}
-
-		popular, err := catalogUseCases.Popular(r.Context(), 8)
-		if err != nil {
-			httpresponse.InternalServerError(views.logger, w, err)
-			return
-		}
-
-		recentEdits, err := catalogUseCases.RecentEdited(r.Context(), user.ID, 6)
-		if err != nil {
-			httpresponse.InternalServerError(views.logger, w, err)
-			return
-		}
-
-		for _, collection := range []*[]domain.Page{&favorites, &recent, &viewed, &popular} {
-			filtered, filterErr := accessUseCases.FilterPages(r.Context(), user, *collection)
-			if filterErr != nil {
-				httpresponse.InternalServerError(views.logger, w, filterErr)
-				return
-			}
-			*collection = filtered
-		}
-		recentEdits, err = visibleRecentEdits(r.Context(), accessUseCases, user, recentEdits)
-		if err != nil {
-			httpresponse.InternalServerError(views.logger, w, err)
-			return
-		}
-
-		var drafts []domain.PageDraft
-
-		if user.Role == "admin" || user.Role == "editor" {
-			drafts, err = draftUseCases.List(r.Context(), user.ID, 6)
-			if err != nil {
-				httpresponse.InternalServerError(views.logger, w, err)
-				return
-			}
-		}
-
 		data, err := viewData(r, viewDataUseCases, views, "Home")
 		if err != nil {
 			httpresponse.InternalServerError(views.logger, w, err)
 			return
 		}
 
-		data.Favorites, data.Recent, data.Pages, data.Popular = favorites, recent, viewed, popular
-		data.RecentEdits = recentEdits
-		data.Drafts = drafts
+		user, _ := auth.User(r)
+		source := homeWidgetSource{catalog: catalogUseCases, drafts: draftUseCases, access: accessUseCases, user: user}
+		capabilities := plugincap.MergeCapabilities(
+			plugincap.Capabilities(nil, nil, renderer.IconCatalog()),
+			plugincap.PageListCapabilities(source),
+			plugincap.DraftCapabilities(source),
+		)
+		widgets, err := renderer.RenderWidgets(r.Context(), "home", nil, data.PluginFeatures, capabilities)
+		if err != nil {
+			httpresponse.InternalServerError(views.logger, w, err)
+			return
+		}
+		data.HomeWidgets = widgetViews(widgets)
 
 		render(views, w, "home", data)
 	}
