@@ -5,7 +5,7 @@ go 1.27.0
 require (
 	github.com/aymerick/douceur v0.2.0
 	github.com/containeroo/httpgrace v0.2.0
-	github.com/containeroo/notifykit v0.2.0
+	github.com/containeroo/notifykit v0.4.2
 	github.com/containeroo/tinyflags v0.0.86
 	github.com/containeroo/uuidv7 v0.0.2
 	github.com/coreos/go-oidc/v3 v3.21.0
