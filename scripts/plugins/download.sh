@@ -79,22 +79,23 @@ package_manifest() {
   unzip -p "$package" plugin.yaml 2>/dev/null
 }
 
+package_field() {
+  package=$1
+  field=$2
+
+  manifest=$(package_manifest "$package") || return 1
+
+  printf '%s\n' "$manifest" |
+    awk -v field="$field" '$1 == field ":" { print $2; exit }'
+}
+
 package_matches() {
   package=$1
   plugin=$2
   version=$3
 
-  manifest=$(package_manifest "$package") || return 1
-
-  installed_id=$(
-    printf '%s\n' "$manifest" |
-      awk '$1 == "id:" { print $2; exit }'
-  )
-
-  installed_version=$(
-    printf '%s\n' "$manifest" |
-      awk '$1 == "version:" { print $2; exit }'
-  )
+  installed_id=$(package_field "$package" id) || return 1
+  installed_version=$(package_field "$package" version) || return 1
 
   [ "$installed_id" = "me.kumbuka.$plugin" ] &&
     [ "$installed_version" = "$version" ]
@@ -148,10 +149,7 @@ while IFS='=' read -r plugin version; do
   checksum="$temporary/$asset.sha256"
 
   if [ -f "$installed" ]; then
-    current_version=$(
-      package_manifest "$installed" |
-        awk '$1 == "version:" { print $2; exit }'
-    )
+    current_version=$(package_field "$installed" version 2>/dev/null || true)
 
     if [ -n "$current_version" ]; then
       echo "Updating $plugin v$current_version -> v$version"
@@ -196,8 +194,7 @@ if [ "$count" -eq 0 ]; then
   exit 1
 fi
 
-# Publish changed packages only after all required downloads and checksums
-# have been verified successfully.
+# Publish new packages only after every download and verification succeeded.
 for package in "$temporary/packages"/*.kumbukaplugin; do
   [ -f "$package" ] || continue
   cp "$package" "$destination/"
