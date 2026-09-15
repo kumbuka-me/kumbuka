@@ -249,7 +249,7 @@ func manifestRequiredBySources(scanners []usageScanner, manifest pluginpackage.M
 
 func staticRenderModule(moduleType string) bool {
 	switch moduleType {
-	case "markdown-syntax", "code-highlighter", "content-style", "render-policy", "renderer-extension", "macro", "content-substitution":
+	case "markdown-syntax", "code-highlighter", "content-style", "render-policy", "renderer-extension", "macro", "content-substitution", "icon-resource":
 		return true
 	default:
 		return false

@@ -117,3 +117,29 @@ version = %q
 	assert.Equal(t, "me.kumbuka.mermaid", loaded[0].Manifest.ID)
 	assert.True(t, loaded[0].Enabled)
 }
+
+func TestProjectRendererLoadsDeclaredIconResources(t *testing.T) {
+	ctx := context.Background()
+	root := t.TempDir()
+	filename := filepath.Join(root, ".kumbukaplugins")
+	archive, err := plugins.Packages.ReadFile("simple-icons.kumbukaplugin")
+	require.NoError(t, err)
+	pkg, err := pluginpackage.Read(archive)
+	require.NoError(t, err)
+	dependencies := fmt.Sprintf(`format = 1
+
+[[plugin]]
+id = "me.kumbuka.simple-icons"
+repository = "kumbuka-me/plugins"
+tag_prefix = "simple-icons/v"
+asset = "simple-icons"
+version = %q
+`, pkg.Manifest().Version)
+	require.NoError(t, os.WriteFile(filename, []byte(dependencies), 0o644))
+
+	renderer, err := projectRenderer(ctx, filename, []sourcePage{{Markdown: "# Home"}})
+	require.NoError(t, err)
+	defer func() { require.NoError(t, renderer.Close(context.Background())) }()
+
+	assert.True(t, renderer.IconCatalog().IsIcon("github-simple"))
+}
