@@ -137,10 +137,22 @@ func Run(
 		ctx,
 		database,
 		wasm.WithStorage(database),
-		wasm.WithPermissions("settings:read", "settings:write", "storage:read", "storage:write"),
+		wasm.WithPermissions(
+			"activity:read",
+			"drafts:read",
+			"settings:read",
+			"settings:write",
+			"storage:read",
+			"storage:write",
+		),
 		wasm.WithLogger(logger.With("component", "plugins")),
 	)
 	if err != nil {
+		setupLogger.Error(
+			"create markdown renderer",
+			"event", "markdown_renderer_failed",
+			"error", err,
+		)
 		return err
 	}
 	renderer.SetArtifactBuild(version, commit)
