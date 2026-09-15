@@ -1,0 +1,75 @@
+.page-watch-menu {
+  position: relative;
+}
+
+.page-watch-menu > summary {
+  list-style: none;
+}
+
+.page-watch-menu > summary::-webkit-details-marker {
+  display: none;
+}
+
+.page-watch-popover {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 0.45rem);
+  right: 0;
+  width: 205px;
+  padding: 7px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: 0 12px 32px rgb(0 0 0 / 16%);
+}
+
+.page-watch-title {
+  display: block;
+  padding: 4px 7px 6px;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.page-watch-popover form {
+  display: grid;
+  gap: 2px;
+}
+
+.page-watch-option {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  min-height: 34px;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 450;
+  text-align: left;
+}
+
+.page-watch-option:hover,
+.page-watch-option:focus-visible {
+  background: var(--surface-hover);
+  color: var(--text);
+  outline: 0;
+}
+
+.page-watch-option.active {
+  background: color-mix(in srgb, var(--accent) 9%, var(--surface));
+  color: var(--accent);
+  font-weight: 550;
+}
+
+.page-watch-option.stop {
+  margin-top: 3px;
+  border-top: 1px solid var(--border-subtle);
+  border-radius: 0 0 7px 7px;
+  color: var(--text-tertiary);
+}

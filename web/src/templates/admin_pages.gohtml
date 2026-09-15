@@ -1,0 +1,88 @@
+{{ define "content" }}
+  <section class="admin-heading">
+    <div>
+      <p class="eyebrow">Administration</p>
+      <h1>Pages</h1>
+      <p>Apply lifecycle, ownership, movement, export, and cleanup actions to multiple pages.</p>
+    </div>
+  </section>
+  <form class="panel bulk-pages"
+        action="/admin/pages/bulk"
+        method="post"
+        data-bulk-pages>
+    <div class="bulk-pages-toolbar">
+      <label class="bulk-select-all">
+        <input type="checkbox" data-bulk-select-all /><span>Select all</span>
+      </label>
+      <span class="muted" data-bulk-count>0 selected</span>
+      <select name="action" data-bulk-action aria-label="Bulk action">
+        <option value="">Choose action…</option>
+        <option value="status">Set status</option>
+        <option value="tag">Add tag</option>
+        <option value="group">Assign group</option>
+        <option value="move">Move under path</option>
+        <option value="export">Export ZIP</option>
+        <option value="delete">Move to recycle bin</option>
+      </select>
+      <select name="status" data-bulk-field="status" hidden>
+        {{ range .PageStatuses }}
+          <option value="{{ . }}">{{ . }}</option>
+        {{ end }}
+      </select>
+      <input name="tag" data-bulk-field="tag" hidden placeholder="tag" />
+      <select name="group_id" data-bulk-field="group" hidden>
+        <option value="">Choose group…</option>
+        {{ range .Groups }}
+          <option value="{{ .ID }}">{{ .Name }}</option>
+        {{ end }}
+      </select>
+      <input data-path-input
+             name="target"
+             data-bulk-field="move"
+             hidden
+             placeholder="archive/2026" />
+      <button class="button primary" type="submit" data-bulk-submit disabled>Apply</button>
+    </div>
+    <div class="admin-page-table-wrap">
+      <table class="admin-page-table">
+        <thead>
+          <tr>
+            <th></th>
+            <th>Page</th>
+            <th>Status</th>
+            <th>Owner</th>
+            <th>Review</th>
+            <th>Updated</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{ range .AdminPages }}
+            <tr>
+              <td>
+                <input type="checkbox" name="slug" value="{{ .Slug }}" data-bulk-page />
+              </td>
+              <td>
+                <a href="/pages/{{ .Slug }}"><strong>{{ .Title }}</strong><small>{{ .Slug }}</small></a>
+              </td>
+              <td><span class="page-status-badge status-{{ .Status }}">{{ .Status }}</span></td>
+              <td>{{ if .OwnerGroup }}{{ .OwnerGroup }}{{ else }}<span class="muted">—</span>{{ end }}</td>
+              <td>
+                {{ if gt .ReviewIntervalDays 0 }}
+                  {{ if .LastReviewedAt }}{{ .LastReviewedAt.Format "2006-01-02" }}{{ else }}Never{{ end }} ·
+                  {{ .ReviewIntervalDays }}d
+                {{ else }}
+                  <span class="muted">Not scheduled</span>
+                {{ end }}
+              </td>
+              <td>{{ timeago .UpdatedAt }}</td>
+            </tr>
+          {{ else }}
+            <tr>
+              <td colspan="6">No pages.</td>
+            </tr>
+          {{ end }}
+        </tbody>
+      </table>
+    </div>
+  </form>
+{{ end }}

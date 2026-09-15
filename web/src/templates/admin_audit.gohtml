@@ -1,0 +1,26 @@
+{{ define "content" }}
+  <section class="admin-page">
+    <div class="settings-heading">
+      <p class="eyebrow">Administration</p>
+      <h1>Audit log</h1>
+      <p class="muted">Recent page and configuration changes performed through Kumbuka.</p>
+    </div>
+    <section class="panel settings-panel audit-panel">
+      <div class="audit-list">
+        {{ range .AuditEvents }}
+          <article class="audit-row">
+            <span class="audit-icon" aria-hidden="true">{{ icon "activity-lucide" 16 }}</span>
+            <div>
+              <strong>{{ .Actor }}</strong> <span>{{ .Action }}</span>{{ if .ObjectKey }}
+              <a href="{{ if eq .ObjectType "page" }}/pages/{{ .ObjectKey }}{{ else }}#{{ end }}">{{ .ObjectKey }}</a>
+              {{ end }}{{ if .Detail }}<small>{{ .Detail }}</small>{{ end }}
+            </div>
+            <time title="{{ .CreatedAt }}">{{ timeago .CreatedAt }}</time>
+          </article>
+        {{ else }}
+          <p class="muted">No audit events yet.</p>
+        {{ end }}
+      </div>
+    </section>
+  </section>
+{{ end }}

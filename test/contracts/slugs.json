@@ -1,0 +1,72 @@
+[
+  {
+    "name": "empty",
+    "value": "",
+    "slug": ""
+  },
+  {
+    "name": "ordinary title",
+    "value": "  Postgres Restore  ",
+    "slug": "postgres-restore"
+  },
+  {
+    "name": "hierarchy",
+    "value": "Platform/KUBERNETES/Ingress",
+    "slug": "platform/kubernetes/ingress"
+  },
+  {
+    "name": "punctuation",
+    "value": "A...B ! C",
+    "slug": "a-b-c"
+  },
+  {
+    "name": "punctuation at edges",
+    "value": "!!!Hello!!!",
+    "slug": "hello"
+  },
+  {
+    "name": "preserved separators",
+    "value": "_Name--X_/Part 2",
+    "slug": "_name--x_/part-2"
+  },
+  {
+    "name": "non-ASCII separators",
+    "value": "caf\u00e9 runbook",
+    "slug": "caf-runbook"
+  },
+  {
+    "name": "dotted capital I",
+    "value": "\u0130stanbul",
+    "slug": "istanbul"
+  },
+  {
+    "name": "dotted capital I after ASCII",
+    "value": "wiki\u0130page",
+    "slug": "wikiipage"
+  },
+  {
+    "name": "Kelvin sign",
+    "value": "\u212aubernetes",
+    "slug": "kubernetes"
+  },
+  {
+    "name": "emoji separator",
+    "value": "first\ud83d\ude00second",
+    "slug": "first-second"
+  },
+  {
+    "name": "no transliteration",
+    "value": "\u00df\u0141\u00e6",
+    "slug": ""
+  },
+  {
+    "name": "slash spacing",
+    "value": "a / b",
+    "slug": "a-/-b"
+  },
+  {
+    "name": "hyphen edges",
+    "value": "---Example---",
+    "slug": "example"
+  }
+]

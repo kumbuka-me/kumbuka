@@ -1,0 +1,70 @@
+/* Documentation health metrics and page lists. */
+
+.health-metrics {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.health-metrics a {
+  display: grid;
+  gap: 2px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 9px;
+  background: var(--surface);
+  padding: 12px;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.health-metrics strong {
+  font-size: 22px;
+}
+
+.health-metrics span,
+.health-page-row small {
+  color: var(--text-tertiary);
+  font-size: 11px;
+}
+
+.health-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.health-page-list {
+  display: grid;
+}
+
+.health-page-row {
+  display: grid;
+  gap: 2px;
+  border-top: 1px solid var(--border-subtle);
+  padding: 9px 0;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.health-page-row:first-child {
+  border-top: 0;
+}
+
+.health-page-row:hover strong {
+  color: var(--accent);
+}
+
+.health-empty {
+  margin: 0;
+}
+
+@media (max-width: 900px) {
+  .health-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .health-grid {
+    grid-template-columns: 1fr;
+  }
+}

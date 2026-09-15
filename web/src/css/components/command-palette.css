@@ -1,0 +1,155 @@
+/* Command palette and keyboard shortcut reference. */
+
+.command-palette {
+  --dialog-width: 620px;
+  --dialog-gutter: 28px;
+  max-height: min(620px, calc(100vh - 80px));
+  padding: 0;
+  overflow: hidden;
+}
+
+.command-palette-search {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid var(--border-subtle);
+  padding: 13px 15px;
+  color: var(--text-tertiary);
+}
+
+.command-palette-search input {
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+}
+
+.command-palette-search kbd {
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 2px 5px;
+  font-size: 9px;
+}
+
+.command-palette-options {
+  max-height: 480px;
+  overflow: auto;
+  padding: 6px;
+}
+
+.command-palette-option {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  border-radius: 7px;
+  padding: 9px 10px;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.command-palette-option span,
+.command-palette-option:not(:has(> span)) {
+  min-width: 0;
+}
+
+.command-palette-option strong,
+.command-palette-option small {
+  display: block;
+}
+
+.command-palette-option small {
+  margin-top: 1px;
+  color: var(--text-tertiary);
+  font-size: 10px;
+}
+
+.command-palette-option:hover,
+.command-palette-option[aria-selected="true"] {
+  background: var(--surface-hover);
+}
+
+/* Keyboard shortcut reference. */
+
+.shortcuts-dialog {
+  --dialog-width: 560px;
+}
+
+.shortcut-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px 14px;
+}
+
+.shortcut-grid > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.shortcut-grid kbd {
+  flex: 0 0 auto;
+  min-width: 48px;
+  padding: 3px 6px;
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  background: var(--surface-elevated);
+  color: var(--text-secondary);
+  font:
+    600 10px/1.35 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Consolas,
+    monospace;
+  text-align: center;
+}
+
+.shortcut-grid span {
+  min-width: 0;
+  color: var(--text-secondary);
+  font-size: 11px;
+  text-align: right;
+}
+
+@media (max-width: 560px) {
+  .shortcut-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 800px) {
+  .command-palette {
+    max-height: calc(100dvh - 16px);
+  }
+
+  .command-palette-search {
+    padding: 12px;
+  }
+
+  .command-palette-search input {
+    font-size: 16px;
+  }
+
+  .command-palette-search kbd {
+    display: none;
+  }
+
+  .command-palette-options {
+    max-height: calc(100dvh - 76px);
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .command-palette-option {
+    min-height: 48px;
+  }
+}

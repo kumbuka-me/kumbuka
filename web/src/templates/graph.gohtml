@@ -1,0 +1,39 @@
+{{ define "content" }}
+  <section class="content-heading graph-heading">
+    <div>
+      <p class="eyebrow">Explore</p>
+      <h1>Knowledge graph</h1>
+      <p class="muted">Follow relationships created by wiki links. Select a page to focus its neighborhood.</p>
+    </div>
+  </section>
+  <section class="knowledge-graph-panel"
+           data-knowledge-graph
+           data-graph-url="/api/graph"
+           data-graph-focus="{{ .Query }}">
+    <div class="knowledge-graph-toolbar">
+      <label class="graph-search">
+        {{ icon "search-lucide" 16 }}<input type="search"
+       placeholder="Find a page…"
+       data-graph-search
+       autocomplete="off" />
+      </label>
+      <button class="button" type="button" data-graph-fit>{{ icon "scan-lucide" 16 }}<span>Fit graph</span></button>
+    </div>
+    <div class="knowledge-graph-stage">
+      <svg data-graph-svg role="img" aria-label="Wiki relationship graph">
+      </svg>
+      <div class="graph-empty" data-graph-empty hidden>No linked pages match this view.</div>
+    </div>
+    <aside class="graph-inspector" data-graph-inspector hidden>
+      <button class="icon-button"
+              type="button"
+              data-graph-inspector-close
+              aria-label="Close page details">{{ icon "x-lucide" 16 }}</button>
+      <span class="page-status-badge" data-graph-status></span>
+      <h2 data-graph-title></h2>
+      <code data-graph-slug></code>
+      <p data-graph-degree></p>
+      <a class="button primary" data-graph-open href="#">Open page</a>
+    </aside>
+  </section>
+{{ end }}

@@ -1,0 +1,29 @@
+# syntax=docker/dockerfile:1.27
+
+FROM --platform=$BUILDPLATFORM alpine:3.24 AS prep
+
+# Create writable runtime directories owned by the root group.
+# The setgid bit keeps new files/directories in group 0, which supports
+# OpenShift's arbitrary UID model while still running as a non-root user.
+RUN install -d -o 0 -g 0 -m 2775 /outfs/app /outfs/tmp
+
+# Use distroless as minimal base image to package the manager binary.
+# Refer to https://github.com/GoogleContainerTools/distroless for more details.
+FROM gcr.io/distroless/static:nonroot
+
+ARG TARGETPLATFORM
+
+COPY ${TARGETPLATFORM}/kumbuka /kumbuka
+COPY --from=prep /outfs/app /app
+COPY --from=prep /outfs/tmp /tmp
+
+ENV HOME=/tmp
+WORKDIR /app
+
+# Run as a non-root user by default.
+# Use GID 0 so the process can write to root-group-owned writable paths,
+# which keeps the image compatible with OpenShift's arbitrary UID model.
+USER 65532:0
+
+ENTRYPOINT ["/kumbuka"]
+CMD ["serve"]

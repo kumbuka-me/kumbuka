@@ -1,0 +1,90 @@
+/* Personal and administrative access-token management. */
+
+.token-create-form select {
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+  padding: 8px;
+  color: var(--text);
+}
+
+.token-create-form input {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+  padding: 9px 10px;
+  color: var(--text);
+}
+
+.token-create-form {
+  display: grid;
+  grid-template-columns:
+    minmax(180px, 1fr) minmax(160px, 260px) minmax(160px, 220px)
+    auto;
+  align-items: end;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.settings-page:not(.admin-page) .token-create-form {
+  grid-template-columns: minmax(180px, 1fr) minmax(180px, 240px) auto;
+}
+
+.token-create-form label {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.token-create-form input,
+.token-create-form select {
+  display: block;
+  width: 100%;
+  margin-top: 5px;
+}
+
+.token-secret {
+  margin: 15px 0;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--warning) 60%, var(--border));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--warning) 8%, var(--surface));
+}
+
+.token-secret p {
+  margin: 0 0 8px;
+}
+
+.token-secret-value {
+  margin: 0;
+}
+
+.token-secret-value pre {
+  overflow: auto;
+  padding: 12px 76px 12px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-elevated);
+}
+
+.token-secret-value code {
+  user-select: all;
+}
+
+@media (max-width: 1000px) {
+  .token-create-form,
+  .settings-page:not(.admin-page) .token-create-form {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .token-create-form .button {
+    align-self: end;
+  }
+}
+
+@media (max-width: 640px) {
+  .token-create-form,
+  .settings-page:not(.admin-page) .token-create-form {
+    grid-template-columns: 1fr;
+  }
+}

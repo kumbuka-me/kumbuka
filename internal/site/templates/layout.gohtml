@@ -1,0 +1,124 @@
+{{ define "layout" }}
+  <!DOCTYPE html>
+  <html lang="{{ .Language }}" data-theme="{{ .ActiveTheme }}">
+    <head>
+      <meta charset="utf-8" />
+      <meta name="viewport"
+            content="width=device-width,initial-scale=1,viewport-fit=cover" />
+      <meta name="color-scheme" content="light dark" />
+      <title>{{ .Title }} · {{ .SiteName }}</title>
+      {{ if .FaviconURL }}<link rel="icon" href="{{ .FaviconURL }}" />{{ end }}
+      {{ if .FaviconICOURL }}<link rel="alternate icon" href="{{ .FaviconICOURL }}" type="image/x-icon" />{{ end }}
+      <link rel="stylesheet" href="{{ asseturl "css/app.css" }}" />
+      <link rel="stylesheet"
+            href="{{ .BasePath }}plugins/styles.css"
+            data-plugin-styles />
+      <script id="kumbuka-themes" type="application/json">{{ .ThemeData }}</script>
+      <script src="{{ asseturl "js/theme-init.js" }}"></script>
+      <script id="kumbuka-plugin-modules" type="application/json">{{ .PluginModules }}</script>
+      <script type="module" src="{{ asseturl "js/static.js" }}"></script>
+    </head>
+    <body class="static-site"
+          data-static-base-path="{{ .BasePath }}"
+          data-navigation-style="{{ .NavigationStyle }}"
+          data-navigation-density="{{ .NavigationDensity }}"
+          data-navigation-guides="true"
+          data-current-page="{{ .CurrentRoute }}"
+          style="--sidebar: {{ .SidebarWidth }}px">
+      <header class="topbar">
+        <button class="menu-button"
+                type="button"
+                data-menu
+                aria-label="Toggle navigation"
+                aria-controls="kumbuka-sidebar"
+                aria-expanded="false">{{ icon "menu-lucide" 20 }}</button>
+        <a class="brand"
+           href="{{ pageurl "" }}"
+           aria-label="{{ .SiteName }} home">{{ if .LogoURL }}<img class="kumbuka-logo" src="{{ .LogoURL }}" alt="{{ .SiteName }}" />{{ else }}<span>{{ .SiteName }}</span>{{ end }}</a>
+        <form class="global-search" action="{{ searchurl }}" data-static-search>
+          <span class="global-search-icon" aria-hidden="true">{{ icon "search-lucide" 15 }}</span>
+          <input type="search"
+                 name="q"
+                 placeholder="Search documentation…"
+                 autocomplete="off"
+                 aria-label="Search {{ .SiteName }}"
+                 aria-autocomplete="list"
+                 aria-expanded="false" />
+          <kbd>/</kbd>
+        </form>
+        {{ if .ExternalLinks }}
+          <nav class="external-links" aria-label="External links">
+            {{ range .ExternalLinks }}
+              <a class="external-link hover-{{ externalhovereffect . }}{{ if .Icon }} has-icon{{ end }}"
+                 href="{{ .URL }}"
+                 title="{{ externalhover . }}">
+                {{ if .Icon }}<span class="external-link-icon" aria-hidden="true">{{ icon .Icon 18 }}</span>{{ end }}
+                <span class="external-link-copy">
+                  <strong>{{ .Label }}</strong>
+                  {{ if .Description }}<small>{{ .Description }}</small>{{ end }}
+                </span>
+              </a>
+            {{ end }}
+          </nav>
+        {{ end }}
+      </header>
+      {{ template "top-navigation" . }}
+      <div class="shell">
+        <aside class="sidebar" id="kumbuka-sidebar" data-sidebar>
+          <nav data-navigation data-navigation-remember="false">
+            <div class="nav-section-heading">
+              <p class="nav-label">Documentation</p>
+              <div class="nav-tree-actions" aria-label="Navigation tree controls">
+                <button class="nav-tree-action"
+                        type="button"
+                        data-navigation-collapse-all
+                        title="Collapse all folders"
+                        aria-label="Collapse all folders">{{ icon "chevrons-up-lucide" 14 }}</button>
+                <button class="nav-tree-action"
+                        type="button"
+                        data-navigation-expand-all
+                        title="Expand all folders"
+                        aria-label="Expand all folders">{{ icon "chevrons-down-lucide" 14 }}</button>
+              </div>
+            </div>
+            <div class="navigation-tree">
+              <a class="nav-page-link nav-root-link{{ if eq .CurrentRoute "" }} active{{ end }}"
+                 href="{{ pageurl "" }}"
+                 {{ if eq .CurrentRoute "" }}aria-current="page"
+                 {{ end }}>
+                <span class="nav-icon" aria-hidden="true">{{ icon "house-lucide" 18 }}</span>
+                <span>Home</span>
+              </a>
+              {{ range .Navigation }}{{ template "nav-entry" . }}{{ end }}
+            </div>
+          </nav>
+          <div class="static-sidebar-footer">
+            <span>{{ icon "book-open-lucide" 14 }}</span>
+            <span>Read-only static site</span>
+          </div>
+        </aside>
+        <button class="sidebar-backdrop"
+                type="button"
+                data-sidebar-backdrop
+                aria-label="Close navigation"
+                hidden></button>
+        <button class="sidebar-visibility-toggle"
+                type="button"
+                data-sidebar-visibility-toggle
+                aria-controls="kumbuka-sidebar"
+                aria-expanded="true"
+                aria-label="Hide navigation"
+                title="Hide navigation">
+          <span class="sidebar-visibility-hide" aria-hidden="true">{{ icon "panel-left-close-lucide" 17 }}</span>
+          <span class="sidebar-visibility-show" aria-hidden="true">{{ icon "panel-left-open-lucide" 17 }}</span>
+        </button>
+        <main{{ if .PageContents }} class="with-page-contents"{{ end }}>
+          {{ template "content" . }}
+        </main>
+      </div>
+      <footer>
+        {{ .SiteName }}
+      </footer>
+    </body>
+  </html>
+{{ end }}

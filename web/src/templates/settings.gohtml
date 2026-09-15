@@ -1,0 +1,441 @@
+{{ define "content" }}
+  <section class="settings-page">
+    <div class="settings-heading">
+      <p class="eyebrow">Account</p>
+      <h1>Settings</h1>
+      <p class="muted">Review your account information, manage access tokens, and personalize how Kumbuka is displayed.</p>
+    </div>
+    <div class="settings-grid">
+      <section class="panel settings-panel" id="user">
+        <div class="panel-title">
+          <h2>User information</h2>
+        </div>
+        <dl class="user-details">
+          <div>
+            <dt>Display name</dt>
+            <dd>
+              {{ .User.DisplayName }}
+            </dd>
+          </div>
+          <div>
+            <dt>Username</dt>
+            <dd>
+              {{ .User.Username }}
+            </dd>
+          </div>
+          <div>
+            <dt>Email</dt>
+            <dd>
+              {{ if .User.Email }}{{ .User.Email }}{{ else }}<span class="muted">Not provided</span>{{ end }}
+            </dd>
+          </div>
+          <div>
+            <dt>Role</dt>
+            <dd>
+              <span class="role-badge">{{ .User.Role }}</span>
+            </dd>
+          </div>
+          <div>
+            <dt>Groups</dt>
+            <dd>
+              {{ if .Groups }}
+                <span class="settings-group-list">{{ range .Groups }}<span class="page-group-badge">{{ .Name }}</span>{{ end }}</span>
+              {{ else }}
+                <span class="muted">None</span>
+              {{ end }}
+            </dd>
+          </div>
+        </dl>
+        <p class="settings-note">
+          Identity information comes from the configured authentication source and is read-only here.
+        </p>
+        {{ if eq .User.Role "admin" }}
+          <p><a class="button" href="/admin">Open administration</a></p>
+        {{ end }}
+      </section>
+      {{ if .LocalCredentialAuthenticated }}
+        <section class="panel settings-panel" id="password">
+          <div class="panel-title">
+            <h2>Change password</h2>
+          </div>
+          <form class="stacked-form"
+                action="/settings/local-password"
+                method="post"
+                data-validate-form
+                novalidate>
+            <label>
+              Current password
+              <input type="password"
+                     name="current_password"
+                     autocomplete="current-password"
+                     data-error-required="Enter your current password."
+                     required />
+            </label>
+            <label>
+              New password
+              <input type="password"
+                     name="new_password"
+                     autocomplete="new-password"
+                     minlength="12"
+                     data-validate-password
+                     data-error-required="Enter a new password."
+                     data-error-minlength="Use at least 12 characters."
+                     required />
+              <small>At least 12 characters.</small>
+            </label>
+            <label>
+              Confirm new password
+              <input type="password"
+                     name="new_password_confirm"
+                     autocomplete="new-password"
+                     data-validate-match="new_password"
+                     data-error-required="Confirm your new password."
+                     data-error-match="Passwords do not match."
+                     required />
+            </label>
+            <div class="settings-actions">
+              <button class="button primary" type="submit">Change password</button>
+            </div>
+          </form>
+          <p class="settings-note">This form is available because you signed in with a local password. Changing it signs out your other local sessions while keeping this browser signed in.</p>
+        </section>
+      {{ end }}
+      <section class="panel settings-panel" id="preferences">
+        <div class="panel-title">
+          <h2>Preferences</h2>
+        </div>
+        <form class="preferences-form" action="/settings/preferences" method="post">
+          <label>
+            Theme
+            <select name="theme" data-theme-select>
+              {{ range .Themes }}
+                <option value="{{ .Title }}"
+                        {{ if eq $.ActiveTheme .Title }}selected{{ end }}>{{ .Title }}</option>
+              {{ end }}
+            </select>
+            <small>Theme changes are previewed immediately and saved to your user account.</small>
+          </label>
+          <label>
+            Typography size
+            <select name="typography_size"
+                    data-typography-size-setting
+                    data-default-typography-size="{{ .ApplicationSettings.Rendering.DefaultTypographySize }}">
+              <option value="" {{ if eq .Preferences.TypographySize "" }}selected{{ end }}>Application default</option>
+              <option value="compact"
+                      {{ if eq .Preferences.TypographySize "compact" }}selected{{ end }}>Compact</option>
+              <option value="standard"
+                      {{ if eq .Preferences.TypographySize "standard" }}selected{{ end }}>Standard</option>
+              <option value="large"
+                      {{ if eq .Preferences.TypographySize "large" }}selected{{ end }}>Large</option>
+            </select>
+            <small>Controls page titles, Markdown headings, and body text. Application default: {{ .ApplicationSettings.Rendering.DefaultTypographySize }}.</small>
+          </label>
+          <label class="toggle-row">
+            <span>
+              <strong>Show page contents</strong>
+              <small>Display a table of contents from Markdown headings when viewing a page. The page toggle updates this
+              preference too.</small>
+            </span>
+            <input type="checkbox"
+                   name="show_page_contents"
+                   {{ if .Preferences.ShowPageContents }}checked{{ end }} />
+          </label>
+          <fieldset class="preference-group">
+            <legend>Navigation</legend>
+            <fieldset class="navigation-style-setting">
+              <legend>Style</legend>
+              <div class="navigation-style-options">
+                <label class="navigation-style-option">
+                  <input type="radio"
+                         name="navigation_style"
+                         value="sidebar"
+                         {{ if eq .Preferences.NavigationStyle "sidebar" }}checked{{ end }} />
+                  <span class="navigation-style-preview navigation-style-preview-sidebar"
+                        aria-hidden="true"><i></i><b></b></span>
+                  <span><strong>Sidebar</strong><small>Full navigation with shortcuts and page hierarchy.</small></span>
+                </label>
+                <label class="navigation-style-option">
+                  <input type="radio"
+                         name="navigation_style"
+                         value="topbar"
+                         {{ if eq .Preferences.NavigationStyle "topbar" }}checked{{ end }} />
+                  <span class="navigation-style-preview navigation-style-preview-topbar"
+                        aria-hidden="true"><i></i><b></b></span>
+                  <span><strong>Top bar</strong><small>Horizontal page navigation with more room for content.</small></span>
+                </label>
+                <label class="navigation-style-option">
+                  <input type="radio"
+                         name="navigation_style"
+                         value="tree"
+                         {{ if eq .Preferences.NavigationStyle "tree" }}checked{{ end }} />
+                  <span class="navigation-style-preview navigation-style-preview-tree"
+                        aria-hidden="true"><i></i><b></b></span>
+                  <span><strong>Page tree</strong><small>Filterable explorer with hierarchy guides and current-page reveal.</small></span>
+                </label>
+              </div>
+            </fieldset>
+            <small>Style and density preview immediately. Save preferences to keep your changes.</small>
+            <label>
+              Density
+              <select name="navigation_density">
+                <option value="comfortable"
+                        {{ if eq .Preferences.NavigationDensity "comfortable" }}selected{{ end }}>Comfortable</option>
+                <option value="compact"
+                        {{ if eq .Preferences.NavigationDensity "compact" }}selected{{ end }}>Compact</option>
+              </select>
+              <small>Compact mode reduces vertical spacing when Kumbuka contains many pages.</small>
+            </label>
+            <fieldset class="sidebar-width-setting">
+              <legend>Sidebar width</legend>
+              <input type="hidden"
+                     name="sidebar_width"
+                     value="{{ .Preferences.SidebarWidth }}"
+                     data-sidebar-width-setting />
+              <div class="sidebar-width-presets"
+                   role="group"
+                   aria-label="Sidebar width presets">
+                <button type="button"
+                        class="sidebar-width-preset"
+                        data-sidebar-width-preset="240"
+                        aria-pressed="false">
+                  <span class="sidebar-width-preset-preview" aria-hidden="true"></span>
+                  <span class="sidebar-width-preset-name">Narrow</span>
+                  <span class="sidebar-width-preset-value">240 px</span>
+                </button>
+                <button type="button"
+                        class="sidebar-width-preset"
+                        data-sidebar-width-preset="280"
+                        aria-pressed="false">
+                  <span class="sidebar-width-preset-preview" aria-hidden="true"></span>
+                  <span class="sidebar-width-preset-name">Standard</span>
+                  <span class="sidebar-width-preset-value">280 px</span>
+                </button>
+                <button type="button"
+                        class="sidebar-width-preset"
+                        data-sidebar-width-preset="360"
+                        aria-pressed="false">
+                  <span class="sidebar-width-preset-preview" aria-hidden="true"></span>
+                  <span class="sidebar-width-preset-name">Wide</span>
+                  <span class="sidebar-width-preset-value">360 px</span>
+                </button>
+              </div>
+              <output class="sidebar-width-current"
+                      data-sidebar-width-output>Current · {{ .Preferences.SidebarWidth }} px</output>
+              <small>Choose a preset or drag the sidebar edge directly for a custom width.</small>
+            </fieldset>
+            <label class="toggle-row">
+              <span><strong>Show indentation guides</strong><small>Draw subtle tree lines so deeply nested folders are easier to follow.</small></span>
+              <input type="checkbox"
+                     name="show_navigation_guides"
+                     {{ if .Preferences.ShowNavigationGuides }}checked{{ end }} />
+            </label>
+            <label class="toggle-row">
+              <span><strong>Remember expanded folders</strong><small>Keep your open and closed navigation folders across browsers and sessions.</small></span>
+              <input type="checkbox"
+                     name="remember_navigation_state"
+                     {{ if .Preferences.RememberNavigationState }}checked{{ end }} />
+            </label>
+            <label class="toggle-row">
+              <span><strong>Show pinned pages</strong><small>Show your favorite pages at the top of the sidebar for quick access.</small></span>
+              <input type="checkbox"
+                     name="show_pinned_pages"
+                     {{ if .Preferences.ShowPinnedPages }}checked{{ end }} />
+            </label>
+            <label class="toggle-row">
+              <span><strong>Show recently viewed</strong><small>Show your five most recently opened pages above the page tree.</small></span>
+              <input type="checkbox"
+                     name="show_recently_viewed"
+                     {{ if .Preferences.ShowRecentlyViewed }}checked{{ end }} />
+            </label>
+            <label class="toggle-row">
+              <span><strong>Show page counts</strong><small>Display the number of pages contained in each navigation folder.</small></span>
+              <input type="checkbox"
+                     name="show_navigation_page_counts"
+                     {{ if .Preferences.ShowNavigationPageCounts }}checked{{ end }} />
+            </label>
+          </fieldset>
+          <div class="settings-actions">
+            <button class="button primary" type="submit">Save preferences</button>
+          </div>
+        </form>
+      </section>
+      <section class="panel settings-panel settings-wide" id="saved-searches">
+        <div class="panel-title">
+          <div>
+            <h2>Saved searches</h2>
+            <p class="muted">Create smart collections from any Kumbuka search query and pin them to the sidebar.</p>
+          </div>
+        </div>
+        <form class="saved-search-create"
+              action="/settings/saved-searches"
+              method="post">
+          <label>
+            Name<input name="name" required placeholder="Production databases" />
+          </label>
+          <label>
+            Query<input name="query"
+       required
+       placeholder="property:Environment=Production tag:database" />
+          </label>
+          <label class="toggle-row compact">
+            <span><strong>Pin to sidebar</strong></span><input type="checkbox" name="pinned" checked />
+          </label>
+          <button class="button primary"
+                  type="submit">{{ icon "bookmark-plus-lucide" 15 }}<span>Save search</span></button>
+        </form>
+        <div class="saved-search-list">
+          {{ range .SavedSearches }}
+            <article>
+              <a href="/search?q={{ .Query }}"><span>{{ icon "search-lucide" 15 }}</span><span><strong>{{ .Name }}</strong><small>{{ .Query }}</small></span></a>
+              <form action="/settings/saved-searches/{{ .ID }}/delete" method="post">
+                <button class="icon-button"
+                        type="submit"
+                        data-confirm="Delete saved search {{ .Name }}?"
+                        aria-label="Delete saved search">{{ icon "trash-2-lucide" 15 }}</button>
+              </form>
+            </article>
+          {{ else }}
+            <p class="muted">No saved searches yet.</p>
+          {{ end }}
+        </div>
+      </section>
+      <section class="panel settings-panel settings-wide" id="tokens">
+        <div class="panel-title">
+          <h2>Personal access tokens</h2>
+        </div>
+        <p class="settings-note">
+          Use a token as <code>Authorization: Bearer TOKEN</code> with the JSON API. Tokens inherit your current Kumbuka
+          role. The secret is shown only once.
+        </p>
+        <form class="token-create-form"
+              data-token-form
+              action="/settings/tokens"
+              method="post">
+          <label>
+            Name<input name="name" required maxlength="120" placeholder="laptop curl" />
+          </label>
+          <label>
+            Expires <span class="optional">optional</span><input type="date" name="expires" />
+          </label>
+          <button class="button primary" type="submit">Create token</button>
+        </form>
+        <div class="token-secret" data-token-secret hidden></div>
+        <div class="admin-table-wrap">
+          <table class="admin-table token-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Created</th>
+                <th>Last used</th>
+                <th>Expires</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody data-token-list>
+              {{ range .UserTokens }}
+                <tr data-token-row>
+                  <td><strong>{{ .Name }}</strong></td>
+                  <td>{{ timeago .CreatedAt }}</td>
+                  <td>
+                    {{ if .LastUsed }}
+                      {{ .LastUsed.Format "2006-01-02 15:04" }}
+                    {{ else }}
+                      <span class="muted">Never</span>
+                    {{ end }}
+                  </td>
+                  <td>{{ if .ExpiresAt }}{{ .ExpiresAt.Format "2006-01-02" }}{{ else }}Never{{ end }}</td>
+                  <td>
+                    <button class="button danger"
+                            type="button"
+                            data-token-delete
+                            data-delete-url="/settings/tokens/{{ .ID }}">Revoke</button>
+                  </td>
+                </tr>
+              {{ else }}
+                <tr data-token-empty>
+                  <td colspan="5" class="muted">No personal access tokens yet.</td>
+                </tr>
+              {{ end }}
+            </tbody>
+          </table>
+        </div>
+      </section>
+      {{ if .CanEdit }}
+        <section class="panel settings-panel settings-wide"
+                 id="media"
+                 data-media-settings-browser
+                 data-media-list-url="/api/images"
+                 data-media-scope="mine"
+                 data-media-mode="user"
+                 data-media-page-size="30"
+                 data-media-offset="{{ len .Images }}">
+          <div class="panel-title">
+            <h2>Your images</h2>
+            <span class="muted"
+                  data-media-settings-count>{{ len .Images }} shown{{ if .ImagesHasMore }} · more available{{ end }}</span>
+          </div>
+          <p class="settings-note">
+            Images are stored in PostgreSQL. You can delete your own unused images here. Administrators can manage every
+            image from Administration.
+          </p>
+          <form class="media-settings-search"
+                method="get"
+                action="/settings#media"
+                data-media-settings-search>
+            <input type="search"
+                   name="image_q"
+                   value="{{ .ImageQuery }}"
+                   maxlength="200"
+                   placeholder="Search your images…"
+                   aria-label="Search your images"
+                   data-media-settings-search-input />
+            <button class="button" type="submit">{{ icon "search-lucide" 16 }}<span>Search</span></button>
+            <a class="button"
+               href="/settings#media"
+               data-media-settings-clear
+               {{ if not .ImageQuery }}hidden{{ end }}>Clear</a>
+          </form>
+          <div class="media-settings-list" data-media-settings-list>
+            {{ range .Images }}
+              <article class="media-settings-row"
+                       data-media-settings-item
+                       data-media-id="{{ .ID }}">
+                <img src="{{ .URL }}" alt="" loading="lazy" />
+                <div class="media-settings-info">
+                  <strong>{{ .Filename }}</strong>
+                  <small>{{ filesize .SizeBytes }} · {{ timeago .CreatedAt }}</small>
+                  {{ if gt .UsageCount 0 }}
+                    <small class="media-used">Referenced {{ .UsageCount }} time{{ if ne .UsageCount 1 }}s{{ end }}</small>
+                  {{ else }}
+                    <small class="media-unused">Unused</small>
+                  {{ end }}
+                  <code>{{ .URL }}</code>
+                </div>
+                <div class="media-settings-actions">
+                  {{ if eq .UsageCount 0 }}
+                    <button class="button danger"
+                            type="button"
+                            data-media-delete
+                            data-media-usage="0"
+                            data-delete-url="/api/images/{{ .ID }}">Delete</button>
+                  {{ end }}
+                </div>
+              </article>
+            {{ else }}
+              <p class="muted" data-media-settings-empty>
+                {{ if .ImageQuery }}No images match your search.{{ else }}No images uploaded yet. Upload one from the page editor.{{ end }}
+              </p>
+            {{ end }}
+          </div>
+          <div class="media-settings-pagination">
+            <button class="button"
+                    type="button"
+                    data-media-load-more
+                    {{ if not .ImagesHasMore }}hidden{{ end }}>Load more</button>
+            <span class="muted" data-media-load-status></span>
+          </div>
+        </section>
+      {{ end }}
+    </div>
+  </section>
+{{ end }}

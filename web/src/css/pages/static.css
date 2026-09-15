@@ -1,0 +1,46 @@
+/* Read-only filesystem-backed static site presentation. */
+
+.static-site .topbar {
+  justify-content: flex-start;
+}
+
+.static-site .global-search {
+  max-width: 720px;
+}
+
+.static-sidebar-footer {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 12px 10px 2px;
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+
+.static-sidebar-footer svg {
+  flex: 0 0 auto;
+}
+
+.static-search-results .page-row {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 3px;
+  padding: 13px 7px;
+}
+
+.static-search-results .page-row > strong,
+.static-search-results .page-row > small,
+.static-search-results .page-row > p {
+  display: block;
+}
+
+.static-search-results .page-row > small {
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+
+.static-search-results .page-row > p {
+  margin: 3px 0 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+}

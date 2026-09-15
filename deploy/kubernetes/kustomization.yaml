@@ -1,0 +1,14 @@
+---
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: kumbuka
+resources:
+  - namespace.yaml
+  - postgres/secret.yaml
+  - postgres/service.yaml
+  - postgres/statefulset.yaml
+  - html2pdf/deployment.yaml
+  - html2pdf/service.yaml
+  - kumbuka/secret.yaml
+  - kumbuka/deployment.yaml
+  - kumbuka/service.yaml

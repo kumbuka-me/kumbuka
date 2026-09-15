@@ -1,0 +1,271 @@
+/* Markdown table formatting and insertion dialog. */
+
+.table-format-dialog {
+  --dialog-width: 680px;
+  max-height: min(760px, calc(100vh - 32px));
+  overflow: auto;
+}
+
+.table-format-body {
+  padding: 16px 20px 0;
+}
+
+.table-format-context {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 0 14px;
+}
+
+.table-format-context strong {
+  font-size: 14px;
+}
+
+.table-format-context .muted {
+  font-size: 12px;
+  text-align: right;
+}
+
+.table-format-section {
+  min-width: 0;
+  margin: 0;
+  padding: 14px 0 16px;
+  border: 0;
+  border-top: 1px solid var(--border);
+}
+
+.table-format-section legend {
+  margin: 0 0 10px;
+  padding: 0;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.table-format-section > small {
+  display: block;
+  margin-top: 8px;
+  font-size: 11px;
+}
+
+.table-format-section:disabled {
+  opacity: 0.56;
+}
+
+.table-format-toggles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.table-format-toggles .toggle-row.compact {
+  min-height: 64px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-elevated);
+}
+
+.table-format-toggles .toggle-row.compact small {
+  display: block;
+  margin-top: 2px;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.table-format-targets {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.table-format-targets label {
+  min-width: 0;
+  cursor: pointer;
+}
+
+.table-format-targets input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.table-format-targets span {
+  display: flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  padding: 7px 9px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.table-format-targets input:checked + span {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 11%, var(--surface));
+  color: var(--accent);
+}
+
+.table-format-targets input:focus-visible + span {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.table-format-targets input:disabled + span {
+  cursor: not-allowed;
+  opacity: 0.38;
+}
+
+.table-format-palette {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.table-color-choice {
+  position: relative;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.table-color-choice input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.table-color-choice span {
+  display: flex;
+  min-height: 42px;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 9px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.table-color-choice span::before {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  border: 1px solid color-mix(in srgb, var(--border-strong) 75%, transparent);
+  border-radius: 4px;
+  background: var(--surface);
+  content: "";
+}
+
+.table-color-choice input:checked + span {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+  color: var(--text);
+}
+
+.table-color-choice input:focus-visible + span {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.table-color-gray span::before {
+  background: color-mix(in srgb, var(--muted) 25%, var(--surface));
+}
+
+.table-color-blue span::before {
+  background: color-mix(in srgb, var(--accent) 45%, var(--surface));
+}
+
+.table-color-purple span::before {
+  background: color-mix(
+    in srgb,
+    var(--accent) 30%,
+    color-mix(in srgb, var(--danger) 25%, var(--surface))
+  );
+}
+
+.table-color-green span::before {
+  background: color-mix(in srgb, var(--success) 45%, var(--surface));
+}
+
+.table-color-yellow span::before {
+  background: color-mix(in srgb, var(--warning) 48%, var(--surface));
+}
+
+.table-color-orange span::before {
+  background: color-mix(
+    in srgb,
+    var(--warning) 35%,
+    color-mix(in srgb, var(--danger) 20%, var(--surface))
+  );
+}
+
+.table-color-red span::before {
+  background: color-mix(in srgb, var(--danger) 43%, var(--surface));
+}
+
+.table-format-actions {
+  justify-content: space-between;
+  padding: 4px 0 18px;
+}
+
+.table-insert-body > p {
+  margin: 0 0 16px;
+}
+
+.table-insert-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding-bottom: 18px;
+}
+
+.table-insert-grid label {
+  display: grid;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.table-insert-grid input {
+  width: 100%;
+}
+
+.table-insert-body .app-dialog-actions {
+  margin: 0 -20px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+@media (max-width: 620px) {
+  .table-format-context {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .table-format-context .muted {
+    text-align: left;
+  }
+
+  .table-format-toggles,
+  .table-insert-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .table-format-targets,
+  .table-format-palette {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

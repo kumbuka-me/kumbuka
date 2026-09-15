@@ -1,0 +1,257 @@
+/* Database-managed browser authentication settings. */
+
+.auth-settings-form {
+  margin-top: 14px;
+}
+
+.auth-mode-field {
+  max-width: 420px;
+}
+
+.auth-managed-setting {
+  display: grid;
+  gap: 6px;
+}
+
+.auth-managed-label {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.auth-managed-value,
+.auth-managed-label-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-wrap: wrap;
+}
+
+.auth-managed-value strong {
+  font-size: 13px;
+}
+
+.auth-managed-label-row {
+  justify-content: space-between;
+}
+
+.auth-settings-form input[readonly] {
+  cursor: default;
+  background: var(--surface-elevated);
+}
+
+.auth-mode-field small,
+.auth-mode-options small {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.auth-mode-options {
+  margin-top: 8px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.auth-mode-heading {
+  margin-bottom: 14px;
+}
+
+.auth-mode-heading h3 {
+  margin: 0 0 3px;
+  font-size: 14px;
+}
+
+.auth-secret-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.auth-group-sync {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.auth-group-sync > .toggle-row,
+.auth-group-sync-options > .toggle-row {
+  margin: 0;
+  padding: 10px 0;
+  border: 0;
+}
+
+.auth-group-sync-options {
+  display: grid;
+  gap: 12px;
+}
+
+.auth-group-sync-options[hidden] {
+  display: none;
+}
+
+.auth-group-sync-options > label:not(.toggle-row) {
+  display: grid;
+  max-width: 420px;
+  gap: 6px;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.auth-group-mappings {
+  display: grid;
+  gap: 9px;
+}
+
+.auth-group-mapping-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+}
+
+.auth-group-mapping-list {
+  display: grid;
+  gap: 7px;
+}
+
+.auth-group-mapping-row {
+  display: grid;
+  grid-template-columns: minmax(140px, 1fr) auto minmax(160px, 1fr) 32px;
+  align-items: center;
+  gap: 8px;
+}
+
+.auth-group-mapping-row > span {
+  color: var(--text-tertiary);
+}
+
+.auth-group-mapping-row .icon-button {
+  width: 32px;
+  height: 32px;
+}
+
+.auth-group-mappings > .button {
+  width: fit-content;
+}
+
+.auth-group-mapping-empty {
+  margin: 0;
+  font-size: 11px;
+}
+
+.auth-secret-summary > div {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 5px 12px;
+  align-items: center;
+  padding: 11px 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  background: var(--surface-elevated);
+}
+
+.auth-secret-summary span {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.auth-secret-summary small {
+  grid-column: 1 / -1;
+}
+
+.config-status {
+  display: inline-flex;
+  width: fit-content;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.config-status.configured {
+  background: color-mix(in srgb, var(--success) 10%, var(--surface));
+  color: var(--success);
+}
+
+.config-status.missing {
+  background: color-mix(in srgb, var(--warning) 10%, var(--surface));
+  color: var(--warning);
+}
+
+.config-status.managed {
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+  color: var(--accent);
+}
+
+.auth-settings-actions {
+  margin-top: 4px;
+}
+
+.auth-local-recovery {
+  display: grid;
+  gap: 12px;
+  margin-top: 22px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.auth-recovery-status {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.auth-recovery-status > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  background: var(--surface-elevated);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.auth-recovery-form {
+  margin-top: 2px;
+}
+
+.auth-recovery-note {
+  margin: 0;
+}
+
+@media (max-width: 700px) {
+  .auth-secret-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .auth-recovery-status {
+    grid-template-columns: 1fr;
+  }
+
+  .auth-group-mapping-row {
+    grid-template-columns: 1fr 32px;
+  }
+
+  .auth-group-mapping-row > span {
+    display: none;
+  }
+
+  .auth-group-mapping-row select {
+    grid-column: 1;
+  }
+
+  .auth-group-mapping-row .icon-button {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
+}

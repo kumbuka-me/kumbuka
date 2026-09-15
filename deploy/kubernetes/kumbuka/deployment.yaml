@@ -1,0 +1,64 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kumbuka
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kumbuka
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: kumbuka
+    spec:
+      containers:
+        - name: kumbuka
+          image: ghcr.io/kumbuka-me/kumbuka:latest
+          imagePullPolicy: Always
+          env:
+            - name: KUMBUKA__DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: kumbuka-db
+                  key: database-url
+            - name: KUMBUKA__LISTEN_ADDRESS
+              value: 0.0.0.0:8080
+            - name: KUMBUKA__PUBLIC_URL
+              value: https://kumbuka.example.test
+            - name: KUMBUKA__PDF_URL
+              value: http://html2pdf:8080/render
+            - name: KUMBUKA__LOG_FORMAT
+              value: json
+            - name: KUMBUKA__ACCESS_LOG
+              value: "true"
+          envFrom:
+            - secretRef:
+                name: kumbuka-config
+            # - secretRef:
+            #     name: kumbuka-oidc
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          startupProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 2
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          livenessProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 30
+            timeoutSeconds: 3
+            failureThreshold: 3

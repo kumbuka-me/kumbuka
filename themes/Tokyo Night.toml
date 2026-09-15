@@ -1,0 +1,34 @@
+color_scheme = "dark"
+
+[colors]
+# Core surfaces
+background = "#16161e"
+surface = "#1a1b26"
+surface_elevated = "#24283b"
+surface_hover = "#292e42"
+
+# Text
+text = "#c0caf5"
+text_secondary = "#a9b1d6"
+text_tertiary = "#787c99"
+muted = "#565f89"
+
+# Borders
+border = "#292e42"
+border_strong = "#414868"
+border_subtle = "#1f2335"
+
+# Accents
+accent = "#7aa2f7"
+accent_secondary = "#bb9af7"
+accent_soft = "#7dcfff"
+
+# Status
+success = "#9ece6a"
+warning = "#e0af68"
+error = "#f7768e"
+danger = "#db4b4b"
+
+# Selection
+selection_text = "#c0caf5"
+selection_background = "#283457"

@@ -1,0 +1,68 @@
+{{ define "content" }}
+  <section class="admin-page">
+    <div class="settings-heading">
+      <p class="eyebrow">Administration</p>
+      <h1>Navigation</h1>
+      <p class="muted">
+        Choose an icon for any page or folder in the sidebar. Page icons selected in the editor use the same
+        setting.
+      </p>
+    </div>
+    <section class="panel settings-panel">
+      <div class="admin-list navigation-settings-list">
+        {{ range .AdminNavigation }}
+          {{ $item := . }}
+          <form class="navigation-icon-form"
+                action="/admin/navigation"
+                method="post"
+                data-icon-picker-owner>
+            <input type="hidden" name="path" value="{{ $item.Path }}" />
+            <input type="hidden"
+                   name="icon"
+                   value="{{ $item.Icon }}"
+                   data-icon-picker-value />
+            <div class="navigation-section-name">
+              <span class="navigation-current-icon"
+                    data-icon-picker-preview>{{ if $item.Icon }}{{ icon $item.Icon 20 }}{{ end }}</span>
+              <span><strong>{{ $item.Title }}</strong><small>{{ $item.Path }}{{ if $item.Page }}· page{{ else }}· folder{{ end }}</small></span>
+            </div>
+            <button class="button navigation-icon-choose"
+                    type="button"
+                    data-icon-picker-open>
+              {{ icon "images-lucide" 16 }}
+              <span data-icon-picker-label>{{ if $item.Icon }}{{ $item.Icon }}{{ else }}No icon{{ end }}</span>
+            </button>
+            <button class="button" type="submit">Save</button>
+          </form>
+        {{ else }}
+          <p class="muted">Create a page first; navigation paths will appear here.</p>
+        {{ end }}
+      </div>
+    </section>
+  </section>
+  <dialog class="icon-picker-dialog"
+          data-icon-picker-dialog
+          data-icons-url="/api/icons"
+          aria-labelledby="icon-picker-title">
+    <div class="app-dialog-header">
+      <div>
+        <p class="eyebrow">Icons</p>
+        <h2 id="icon-picker-title">Choose icon</h2>
+      </div>
+      <button class="icon-button app-dialog-close"
+              type="button"
+              data-icon-picker-close
+              aria-label="Close icon picker">{{ icon "x-lucide" 20 }}</button>
+    </div>
+    <div class="icon-picker-search">
+      {{ icon "search-lucide" 17 }}
+      <input type="search"
+             placeholder="Search icons…"
+             autocomplete="off"
+             data-icon-picker-search
+             aria-label="Search icons" />
+    </div>
+    <div class="icon-picker-grid" data-icon-picker-grid></div>
+    <p class="icon-picker-empty-state muted" data-icon-picker-empty hidden>No matching icons.</p>
+  </dialog>
+{{ end }}

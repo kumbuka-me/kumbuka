@@ -1,0 +1,40 @@
+{{ define "account-menu" }}
+  <div class="sidebar-account" data-account-menu>
+    <button class="sidebar-account-trigger"
+            type="button"
+            data-account-menu-trigger
+            aria-haspopup="menu"
+            aria-expanded="false">
+      <span class="avatar">{{ icon "user-round-lucide" 17 }}</span>
+      <span class="sidebar-account-info">
+        <strong>{{ .User.DisplayName }}</strong>
+        <small>{{ .User.Role }}</small>
+      </span>
+      <span class="sidebar-account-chevron" aria-hidden="true">{{ icon "chevrons-up-down-lucide" 16 }}</span>
+    </button>
+    <div class="sidebar-account-popover"
+         data-account-menu-popover
+         role="menu"
+         hidden>
+      <a class="sidebar-account-item" href="/settings" role="menuitem">
+        {{ icon "settings-lucide" 17 }}
+        <span>Settings</span>
+      </a>
+      {{ if eq .User.Role "admin" }}
+        <a class="sidebar-account-item" href="/admin" role="menuitem">
+          {{ icon "shield-lucide" 17 }}
+          <span>Administration</span>
+        </a>
+      {{ end }}
+      <div class="sidebar-account-separator" role="separator"></div>
+      <form action="/auth/logout" method="post">
+        <button class="sidebar-account-item sidebar-account-signout"
+                type="submit"
+                role="menuitem">
+          {{ icon "log-out-lucide" 17 }}
+          <span>Sign out</span>
+        </button>
+      </form>
+    </div>
+  </div>
+{{ end }}

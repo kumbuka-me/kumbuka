@@ -1,0 +1,57 @@
+{{ define "content" }}
+  <section class="admin-heading">
+    <div>
+      <p class="eyebrow">Administration</p>
+      <h1>Import</h1>
+      <p>Bring existing documentation into Kumbuka while preserving folders whenever possible.</p>
+    </div>
+  </section>
+  {{ if .Query }}
+    <div class="notice success">{{ icon "check-circle-lucide" 18 }}<span>Imported {{ .Query }} page(s).</span></div>
+  {{ end }}
+  <section class="panel import-panel">
+    <div class="admin-card-heading">
+      <span class="admin-card-icon">{{ icon "import-lucide" 20 }}</span>
+      <div>
+        <h2>Import documentation</h2>
+        <p class="muted">Existing paths are updated and receive a new revision rather than creating duplicates.</p>
+      </div>
+    </div>
+    <form action="/admin/import"
+          method="post"
+          enctype="multipart/form-data"
+          class="stacked-form">
+      <div class="form-grid import-file-grid">
+        <label>
+          Source format<select name="format">
+          <option value="markdown">Markdown directory / ZIP</option>
+          <option value="wikijs">Wiki.js JSON / ZIP</option>
+          <option value="confluence">Confluence HTML / ZIP</option>
+          </select><small>Select the exact format contained in the uploaded files.</small>
+        </label>
+        <label>
+          Files or archive<input type="file"
+       name="files"
+       multiple
+       accept=".md,.markdown,.json,.html,.htm,.zip" /><small>Select individual files or an exported ZIP.</small>
+        </label>
+        <label>
+          Directory <span class="optional">optional</span><input type="file" name="files" multiple webkitdirectory /><small>Select a Markdown or HTML directory while preserving relative paths.</small>
+        </label>
+      </div>
+      <div class="import-formats">
+        <div>{{ icon "folder-up-lucide" 18 }}<strong>Markdown</strong><span>Folder structure becomes page paths.</span></div>
+        <div>
+          {{ icon "database-lucide" 18 }}<strong>Wiki.js</strong><span>Imports page path, title, and Markdown content from JSON.</span>
+        </div>
+        <div>
+          {{ icon "file-archive-lucide" 18 }}<strong>Confluence</strong><span>Converts exported HTML pages into clean Markdown.</span>
+        </div>
+        <div>{{ icon "package-open-lucide" 18 }}<strong>ZIP</strong><span>Mix supported files in one archive.</span></div>
+      </div>
+      <div class="form-actions">
+        <button class="button primary" type="submit">{{ icon "upload-lucide" 16 }}<span>Import pages</span></button>
+      </div>
+    </form>
+  </section>
+{{ end }}

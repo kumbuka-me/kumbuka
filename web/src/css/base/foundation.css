@@ -1,0 +1,134 @@
+:root {
+  --background: #f7f8fa;
+  --surface: #fff;
+  --surface-elevated: #f0f2f5;
+  --surface-hover: #eef1f5;
+  --text: #20242b;
+  --text-secondary: #3d4652;
+  --text-tertiary: #6e7681;
+  --muted: #8a939f;
+  --border: #dfe3e8;
+  --border-strong: #bcc4cf;
+  --border-subtle: #edf0f3;
+  --accent: #5b5bd6;
+  --accent-secondary: #4747b8;
+  --accent-soft: #7676dc;
+  --success: #2f855a;
+  --warning: #b7791f;
+  --error: #c53030;
+  --danger: #b91c1c;
+  --selection-text: #fff;
+  --selection-background: #5b5bd6;
+  --sidebar: 260px;
+  --content-font-size: 14px;
+  --content-title-size: clamp(28px, 5vw, 36px);
+  --radius: 10px;
+  --shadow: 0 1px 2px rgba(20, 24, 32, 0.08);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+::selection {
+  color: var(--selection-text);
+  background: var(--selection-background);
+}
+
+html {
+  font:
+    15px/1.55 Inter,
+    ui-sans-serif,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+  color: var(--text);
+  background: var(--background);
+}
+
+body {
+  margin: 0;
+}
+
+body[data-typography-size="standard"] {
+  --content-font-size: 16px;
+  --content-title-size: clamp(30px, 5vw, 42px);
+}
+
+body[data-typography-size="large"] {
+  --content-font-size: 18px;
+  --content-title-size: clamp(32px, 5vw, 48px);
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* Make inline code read as a literal token without changing fenced code blocks. */
+
+code:not(pre code) {
+  padding: 1px 4px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface-elevated);
+  color: var(--text);
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 0.92em;
+  font-weight: 600;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+/* Low-specificity defaults also cover controls outside dedicated form layouts. */
+
+:where(
+  input:not([type]),
+  input[type="text"],
+  input[type="search"],
+  input[type="email"],
+  input[type="password"],
+  input[type="url"],
+  input[type="tel"],
+  input[type="number"],
+  input[type="date"],
+  input[type="datetime-local"],
+  input[type="time"],
+  input[type="month"],
+  input[type="week"],
+  select,
+  textarea
+) {
+  min-width: 0;
+  max-width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 10px 12px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+:where(input, select, textarea):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+:where(input, textarea)::placeholder {
+  color: var(--text-tertiary);
+  opacity: 1;
+}
+
+:where(input, select, textarea):disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}

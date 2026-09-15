@@ -1,0 +1,30 @@
+/* Search result page. */
+
+.search-page {
+  max-width: 900px;
+  margin: auto;
+}
+
+.search-page h1 {
+  font-size: 38px;
+  font-size: 38px;
+  line-height: 1.1;
+  letter-spacing: -0.045em;
+  margin: 0 0 12px;
+}
+
+.results {
+  margin-top: 30px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 10px 18px;
+}
+
+.sidebar-empty {
+  padding: 8px 10px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+/* Search-page typography shared with the home hero. */

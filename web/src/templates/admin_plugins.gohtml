@@ -1,0 +1,382 @@
+{{ define "plugin-upload-field" }}
+  <div class="plugin-upload-picker">
+    <label class="plugin-upload-dropzone" data-plugin-upload-dropzone>
+      <input class="plugin-upload-input"
+             type="file"
+             name="package"
+             accept=".kumbukaplugin"
+             required
+             data-plugin-upload-input />
+      <span class="plugin-upload-icon" aria-hidden="true">{{ icon "upload-lucide" 22 }}</span>
+      <span class="plugin-upload-copy">
+        <strong>Drop plugin package here</strong>
+        <span>or click to choose a <code>.kumbukaplugin</code> file</span>
+        <small>Maximum 16 MiB</small>
+      </span>
+    </label>
+    <div class="plugin-upload-selection" data-plugin-upload-selection hidden>
+      <span class="plugin-upload-file-icon" aria-hidden="true">{{ icon "package-open-lucide" 20 }}</span>
+      <span class="plugin-upload-file">
+        <strong data-plugin-upload-name></strong>
+        <small data-plugin-upload-size></small>
+      </span>
+      <button class="icon-button"
+              type="button"
+              data-plugin-upload-clear
+              aria-label="Remove selected plugin package"
+              title="Remove selected package">{{ icon "x-lucide" 18 }}</button>
+    </div>
+    <p class="plugin-upload-error"
+       role="alert"
+       data-plugin-upload-error
+       hidden></p>
+  </div>
+{{ end }}
+{{ define "content" }}
+  <section class="admin-page plugin-admin-page">
+    <div class="settings-heading">
+      <p class="eyebrow">Administration</p>
+      <h1>Plugins</h1>
+      <p class="muted">Manage optional Kumbuka features, their settings, and installed packages.</p>
+    </div>
+    {{ if and .PluginMessage (not .OpenPluginID) }}
+      <p class="settings-note" role="alert">{{ .PluginMessage }}</p>
+    {{ end }}
+    <section class="panel settings-panel">
+      <div class="panel-title">
+        <div>
+          <h2>Plugins</h2>
+          <p class="muted">Enable optional features here, then open a plugin for documentation and settings.</p>
+        </div>
+      </div>
+      <div class="admin-table-wrap">
+        <table class="admin-table plugin-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Version</th>
+              <th>Provider</th>
+              <th>Source</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {{ range .AdminPlugins }}
+              <tr class="plugin-row"
+                  data-plugin-detail-open="{{ .Manifest.ID }}"
+                  tabindex="0"
+                  aria-label="Open {{ .Manifest.Name }} plugin details">
+                <td>
+                  <a href="/admin/plugins?plugin={{ .Manifest.ID | urlquery }}"><strong>{{ .Manifest.Name }}</strong></a>
+                  <small>{{ .Manifest.Description }}</small>
+                </td>
+                <td>{{ .Manifest.Version }}</td>
+                <td>{{ if .Manifest.Provider }}{{ .Manifest.Provider }}{{ else }}Not specified{{ end }}</td>
+                <td>{{ if eq .Source "bundled" }}Bundled{{ else }}Installed{{ end }}</td>
+                <td>
+                  <div class="plugin-state-control">
+                    <span class="plugin-state {{ if .Enabled }}enabled{{ else }}disabled{{ end }}">{{ if .Enabled }}Enabled{{ else }}Disabled{{ end }}</span>
+                    {{ if index $.PluginRequiredIDs .Manifest.ID }}
+                      <span class="muted">Required</span>
+                    {{ else }}
+                    <form method="post"
+                          action="/admin/plugins/{{ .Manifest.ID }}/{{ if .Enabled }}disable{{ else }}enable{{ end }}">
+                      <button class="button compact"
+                              type="submit">{{ if .Enabled }}Disable{{ else }}Enable{{ end }}</button>
+                      </form>
+                    {{ end }}
+                  </div>
+                </td>
+              </tr>
+            {{ else }}
+              <tr>
+                <td colspan="5">No plugins installed.</td>
+              </tr>
+            {{ end }}
+          </tbody>
+        </table>
+      </div>
+      <p class="settings-note">Provider names are supplied by plugin authors and are not verification badges.</p>
+    </section>
+    <section class="panel settings-panel">
+      <h2>Install a plugin</h2>
+      <p class="settings-note">Upload a <code>.kumbukaplugin</code> package up to 16 MiB.</p>
+      <form class="plugin-upload-form"
+            method="post"
+            enctype="multipart/form-data"
+            action="/admin/plugins"
+            data-plugin-upload
+            data-plugin-install>
+        {{ template "plugin-upload-field" . }}
+        <div class="plugin-upload-actions">
+          <button class="button primary" type="submit" data-plugin-upload-submit>Install and enable</button>
+        </div>
+      </form>
+    </section>
+  </section>
+  {{ range .AdminPlugins }}
+    {{ $plugin := . }}
+    <dialog class="app-dialog plugin-detail-dialog"
+            data-plugin-detail-dialog
+            data-plugin-id="{{ .Manifest.ID }}"
+            {{ if eq $.OpenPluginID .Manifest.ID }}data-plugin-detail-open-on-load{{ end }}
+            aria-labelledby="plugin-detail-title-{{ .Manifest.ID }}">
+      <div class="app-dialog-header plugin-detail-header">
+        <div>
+          <p class="eyebrow">Plugin</p>
+          <h2 id="plugin-detail-title-{{ .Manifest.ID }}">{{ .Manifest.Name }}</h2>
+          {{ if .Manifest.Description }}
+            <p class="muted">{{ .Manifest.Description }}</p>
+          {{ end }}
+        </div>
+        <button class="icon-button app-dialog-close"
+                type="button"
+                data-plugin-detail-close
+                aria-label="Close plugin details">{{ icon "x-lucide" 20 }}</button>
+      </div>
+      <div class="app-dialog-body plugin-detail-body">
+        {{ if and $.PluginMessage (eq $.OpenPluginID .Manifest.ID) }}
+          <p class="settings-note plugin-detail-message" role="alert">{{ $.PluginMessage }}</p>
+        {{ end }}
+        <section class="plugin-detail-section plugin-detail-overview">
+          <div class="plugin-detail-summary">
+            <div class="plugin-detail-facts">
+              <span><strong>Version</strong> {{ .Manifest.Version }}</span>
+              <span><strong>Provider</strong> {{ if .Manifest.Provider }}{{ .Manifest.Provider }}{{ else }}Not specified{{ end }}</span>
+              <span><strong>Source</strong> {{ if eq .Source "bundled" }}Bundled{{ else }}Installed{{ end }}</span>
+            </div>
+            <div class="plugin-state-control">
+              <span class="plugin-state {{ if .Enabled }}enabled{{ else }}disabled{{ end }}">{{ if .Enabled }}Enabled{{ else }}Disabled{{ end }}</span>
+              {{ if index $.PluginRequiredIDs .Manifest.ID }}
+                <span class="muted">Required system plugin</span>
+              {{ else }}
+              <form method="post"
+                    action="/admin/plugins/{{ .Manifest.ID }}/{{ if .Enabled }}disable{{ else }}enable{{ end }}?return=detail">
+                <button class="button compact"
+                        type="submit">{{ if .Enabled }}Disable{{ else }}Enable{{ end }} plugin</button>
+                </form>
+              {{ end }}
+            </div>
+          </div>
+        </section>
+        {{ with index $.PluginREADMEs .Manifest.ID }}
+          <section class="plugin-detail-section plugin-readme-section">
+            <div class="plugin-readme prose">{{ . }}</div>
+          </section>
+        {{ end }}
+        {{ if index $.PluginHasSettings .Manifest.ID }}
+          <section class="plugin-detail-section plugin-settings-panel">
+            <div class="panel-title">
+              <div>
+                <h3>Settings</h3>
+                <p class="muted">Configure behavior owned by this plugin.</p>
+              </div>
+            </div>
+            <form class="plugin-settings-form"
+                  method="post"
+                  action="/admin/plugins/{{ .Manifest.ID }}/settings?return=detail">
+              {{ range .Manifest.Modules }}
+                {{ if eq .Type "settings" }}
+                  <label class="toggle-row">
+                    <span>
+                      <strong>{{ .Name }}</strong>
+                      {{ if .Description }}<small>{{ .Description }}</small>{{ end }}
+                    </span>
+                    <input type="checkbox"
+                           name="setting_{{ .ID }}"
+                           {{ if index $plugin.Settings .ID }}checked{{ end }} />
+                  </label>
+                {{ end }}
+              {{ end }}
+              <div class="settings-actions">
+                <button class="button primary" type="submit">Save plugin settings</button>
+              </div>
+            </form>
+          </section>
+        {{ end }}
+        {{ with index $.PluginResources .Manifest.ID }}
+          <section class="plugin-detail-section plugin-resource-panel">
+            <div class="panel-title">
+              <div>
+                <h3>Data</h3>
+                <p class="muted">Manage records owned and used by this plugin.</p>
+              </div>
+            </div>
+            {{ range . }}
+              {{ $resource := . }}
+              <div class="plugin-resource">
+                <div class="plugin-resource-heading">
+                  <div>
+                    <h4>{{ .Module.Name }}</h4>
+                    {{ if .Module.Description }}
+                      <p class="muted">{{ .Module.Description }}</p>
+                    {{ end }}
+                  </div>
+                  <span class="count-chip">{{ len .Records }}</span>
+                </div>
+                <details class="plugin-resource-create">
+                  <summary>Add {{ .Module.Name }}</summary>
+                  <form class="stacked-form plugin-resource-form"
+                        method="post"
+                        action="/admin/plugins/{{ $plugin.Manifest.ID }}/resource-save?return=detail">
+                    <input type="hidden" name="resource_id" value="{{ .Module.ID }}" />
+                    {{ range .Module.Fields }}
+                      <label>
+                        <span>{{ .Name }}{{ if .Required }} <small>required</small>{{ end }}</span>
+                        {{ if eq .Type "textarea" }}
+                          <textarea name="resource_{{ .ID }}" {{ if .Required }}required{{ end }}></textarea>
+                        {{ else }}
+                          <input type="text"
+                                 name="resource_{{ .ID }}"
+                                 {{ if .Required }}required{{ end }} />
+                        {{ end }}
+                      </label>
+                    {{ end }}
+                    <div class="settings-actions">
+                      <button class="button primary" type="submit">Add</button>
+                    </div>
+                  </form>
+                </details>
+                <div class="plugin-resource-records">
+                  {{ range .Records }}
+                    {{ $record := . }}
+                    <details class="plugin-resource-record">
+                      <summary>{{ .Key }}</summary>
+                      <form class="stacked-form plugin-resource-form"
+                            method="post"
+                            action="/admin/plugins/{{ $plugin.Manifest.ID }}/resource-save?return=detail">
+                        <input type="hidden" name="resource_id" value="{{ $resource.Module.ID }}" />
+                        <input type="hidden" name="original_key" value="{{ .Key }}" />
+                        <input type="hidden" name="record_key" value="{{ .Key }}" />
+                        {{ range $resource.Module.Fields }}
+                          <label>
+                            <span>{{ .Name }}{{ if .Required }} <small>required</small>{{ end }}</span>
+                            {{ if eq .Type "textarea" }}
+                              <textarea name="resource_{{ .ID }}"
+                                        {{ if .Required }}required{{ end }}>{{ index $record.Values .ID }}</textarea>
+                            {{ else }}
+                              <input type="text"
+                                     name="resource_{{ .ID }}"
+                                     value="{{ index $record.Values .ID }}"
+                                     {{ if .Required }}required{{ end }} />
+                            {{ end }}
+                          </label>
+                        {{ end }}
+                        <div class="settings-actions plugin-resource-actions">
+                          <button class="button primary" type="submit">Save</button>
+                          <button class="button danger"
+                                  type="submit"
+                                  formaction="/admin/plugins/{{ $plugin.Manifest.ID }}/resource-delete?return=detail"
+                                  data-confirm="Delete {{ .Key }}?"
+                                  data-confirm-label="Delete">Delete</button>
+                        </div>
+                      </form>
+                    </details>
+                  {{ else }}
+                    <p class="settings-note">No records yet.</p>
+                  {{ end }}
+                </div>
+              </div>
+            {{ end }}
+          </section>
+        {{ end }}
+        <details class="plugin-detail-section plugin-technical">
+          <summary>Technical details</summary>
+          <div class="plugin-technical-body">
+            <dl class="plugin-metadata">
+              <dt>Plugin ID</dt>
+              <dd>
+                <code>{{ .Manifest.ID }}</code>
+              </dd>
+              <dt>Version</dt>
+              <dd>
+                {{ .Manifest.Version }}
+              </dd>
+              <dt>Provider</dt>
+              <dd>
+                {{ if .Manifest.Provider }}{{ .Manifest.Provider }}{{ else }}Not specified{{ end }}
+              </dd>
+              <dt>Source</dt>
+              <dd>
+                {{ if eq .Source "bundled" }}Bundled{{ else }}Installed{{ end }}
+              </dd>
+            </dl>
+            <div class="plugin-technical-section">
+              <h3>Permissions</h3>
+              <ul>
+                {{ range .Manifest.Permissions }}
+                  <li><code>{{ . }}</code></li>
+                {{ else }}
+                  <li>No capabilities requested.</li>
+                {{ end }}
+              </ul>
+            </div>
+            <div class="plugin-technical-section">
+              <h3>Dependencies</h3>
+              <ul>
+                {{ range .Manifest.Requires }}
+                  <li>
+                    <a href="/admin/plugins?plugin={{ . | urlquery }}"
+                       data-plugin-detail-open="{{ . }}">{{ . }}</a>
+                  </li>
+                {{ else }}
+                  <li>No plugin dependencies.</li>
+                {{ end }}
+              </ul>
+            </div>
+            <div class="plugin-technical-section">
+              <h3>Modules</h3>
+              <div class="admin-table-wrap">
+                <table class="admin-table">
+                  <thead>
+                    <tr>
+                      <th>Module</th>
+                      <th>Type</th>
+                      <th>Details</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {{ range .Manifest.Modules }}
+                      <tr>
+                        <td>{{ if .Name }}{{ .Name }}{{ else }}{{ .ID }}{{ end }}<small>{{ .ID }}</small></td>
+                        <td>{{ .Type }}</td>
+                        <td>{{ .Stage }} {{ .Syntax }} {{ .Policy }} {{ if .CSS }}<span>Style {{ .CSS }}</span> {{ end }}{{ if .Capability }}Requires {{ .Capability }}{{ end }}{{ range .Requires }}<span>Requires {{ . }}</span> {{ end }}</td>
+                      </tr>
+                    {{ end }}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </details>
+        <section class="plugin-detail-section">
+          <h3>Upgrade</h3>
+          <p class="settings-note">Upload a package with the same plugin ID. Its enabled state is preserved. The current version stays active if validation fails.</p>
+          <form class="plugin-upload-form"
+                method="post"
+                enctype="multipart/form-data"
+                action="/admin/plugins/{{ .Manifest.ID }}/upgrade?return=detail"
+                data-plugin-upload
+                data-plugin-upgrade>
+            {{ template "plugin-upload-field" . }}
+            <div class="plugin-upload-actions">
+              <button class="button primary" type="submit" data-plugin-upload-submit>Upgrade plugin</button>
+            </div>
+          </form>
+        </section>
+        {{ if and (eq .Source "installed") (not (index $.PluginRequiredIDs .Manifest.ID)) }}
+          <section class="plugin-detail-section plugin-danger-zone">
+            <h3>Uninstall</h3>
+            <p class="settings-note">Plugin settings and data are retained. If Kumbuka includes a bundled copy, it remains disabled after removing the installed version.</p>
+            <form method="post"
+                  action="/admin/plugins/{{ .Manifest.ID }}/uninstall"
+                  data-confirm="Uninstall {{ .Manifest.Name }}?"
+                  data-confirm-label="Uninstall plugin">
+              <button class="button danger" type="submit">Uninstall plugin</button>
+            </form>
+          </section>
+        {{ end }}
+      </div>
+    </dialog>
+  {{ end }}
+{{ end }}

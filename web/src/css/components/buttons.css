@@ -1,0 +1,65 @@
+/* Shared button primitives. Feature files own only feature-specific variants. */
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 7px 12px;
+  background: var(--surface);
+  cursor: pointer;
+  font-weight: 650;
+}
+
+.button:hover {
+  border-color: var(--border-strong);
+}
+
+.button.primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--background);
+}
+
+.button.primary:hover {
+  border-color: var(--accent-secondary);
+  background: var(--accent-secondary);
+}
+
+.button.danger {
+  border-color: color-mix(in srgb, var(--danger) 55%, var(--border));
+  color: var(--danger);
+}
+
+.button.danger:hover {
+  border-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 10%, var(--surface));
+}
+
+.button.icon-only {
+  width: 38px;
+  height: 36px;
+  gap: 0;
+  padding: 0;
+}
+
+.button.icon-only svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.icon-button {
+  display: inline-grid;
+  place-items: center;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}

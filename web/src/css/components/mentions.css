@@ -1,0 +1,87 @@
+.mention-suggestion-anchor {
+  position: relative;
+}
+
+.mention-suggestion-menu {
+  position: absolute;
+  z-index: 80;
+  max-height: 320px;
+  overflow: auto;
+  padding: 5px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--surface-elevated);
+  box-shadow: 0 16px 38px rgb(0 0 0 / 16%);
+}
+
+.mention-suggestion-menu[hidden] {
+  display: none;
+}
+
+.mention-suggestion-option {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 7px 9px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.mention-suggestion-option:hover,
+.mention-suggestion-option[aria-selected="true"] {
+  background: var(--surface-hover);
+}
+
+.mention-suggestion-avatar {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid color-mix(in srgb, var(--accent) 18%, var(--border));
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.mention-suggestion-text {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+}
+
+.mention-suggestion-text strong,
+.mention-suggestion-text small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mention-suggestion-text strong {
+  font-size: 12px;
+}
+
+.mention-suggestion-text small,
+.mention-suggestion-empty {
+  color: var(--text-tertiary);
+  font-size: 10px;
+}
+
+.mention-suggestion-text mark {
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: inherit;
+  font-weight: inherit;
+}
+
+.mention-suggestion-empty {
+  padding: 10px;
+}

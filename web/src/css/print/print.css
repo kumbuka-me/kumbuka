@@ -1,0 +1,91 @@
+/* Print-only reading presentation. */
+
+/* Printing */
+
+@media print {
+  :root {
+    color-scheme: light !important;
+  }
+
+  html,
+  body {
+    background: #fff !important;
+    color: #111 !important;
+  }
+
+  .topbar,
+  .sidebar,
+  footer,
+  .actions,
+  .contents-toggle,
+  .page-contents,
+  .relations,
+  .widget-dialog,
+  .page-details-icon {
+    display: none !important;
+  }
+
+  .shell {
+    display: block !important;
+    min-height: auto !important;
+  }
+
+  main {
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .page,
+  .page-reading,
+  .page-reading.with-contents,
+  .prose,
+  .page-meta {
+    display: block !important;
+    max-width: none !important;
+    width: 100% !important;
+    margin: 0 !important;
+  }
+
+  .page-heading {
+    border-bottom: 1px solid #bbb !important;
+    padding-bottom: 14px !important;
+  }
+
+  .page-heading h1 {
+    font-size: 30px !important;
+  }
+
+  .prose {
+    padding: 20px 0 !important;
+    color: #111 !important;
+  }
+
+  .prose a {
+    color: #111 !important;
+    text-decoration: underline !important;
+  }
+
+  .prose pre,
+  .code-block pre {
+    background: #f5f5f5 !important;
+    color: #111 !important;
+    border: 1px solid #ddd !important;
+    white-space: pre-wrap !important;
+  }
+
+  .code-copy-button {
+    display: none !important;
+  }
+
+  .callout {
+    background: #fafafa !important;
+    color: #111 !important;
+    border-color: #bbb !important;
+  }
+
+  .page-meta {
+    border-top: 1px solid #bbb !important;
+    color: #555 !important;
+  }
+}

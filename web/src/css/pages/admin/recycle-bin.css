@@ -1,0 +1,23 @@
+/* Recycle bin. */
+
+.recycle-bin-row small {
+  display: block;
+  color: var(--text-tertiary);
+}
+
+.recycle-bin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.recycle-bin-empty {
+  display: grid;
+  gap: 6px;
+  justify-items: center;
+}
+
+.recycle-bin-empty span {
+  font-size: 12px;
+}

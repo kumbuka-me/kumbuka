@@ -1,0 +1,171 @@
+// A loopback-only, in-memory fixture for the plugin administration browser test.
+package main
+
+import (
+	"archive/zip"
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"html/template"
+	"io"
+	"log/slog"
+	"net"
+	"net/http"
+	"os"
+	"strings"
+	"time"
+
+	"github.com/kumbuka-me/kumbuka/internal/auth"
+	"github.com/kumbuka-me/kumbuka/internal/domain"
+	"github.com/kumbuka-me/kumbuka/internal/handler"
+	"github.com/kumbuka-me/kumbuka/internal/markdown"
+	"github.com/kumbuka-me/kumbuka/internal/middleware"
+	"github.com/kumbuka-me/kumbuka/plugins"
+	"github.com/kumbuka-me/kumbuka/themes"
+	"github.com/kumbuka-me/kumbuka/web"
+	"github.com/kumbuka-me/sdk/pluginpackage"
+)
+
+type dataLoader struct{ catalog []themes.Theme }
+
+func (d dataLoader) Load(_ *http.Request, _ *handler.Views, title string) (handler.ViewData, error) {
+	data, _ := json.Marshal(d.catalog)
+	return handler.ViewData{
+		Preferences: domain.DefaultUserPreferences(),
+		Themes:      d.catalog,
+		Title:       title,
+		User: domain.User{
+			ID:       1,
+			Username: "admin",
+			Role:     "admin",
+		},
+		AssetVersion: "test",
+		ActiveTheme:  "Light",
+		ThemeData:    template.JS(data),
+	}, nil
+}
+
+func main() {
+	ctx := context.Background()
+	renderer, err := markdown.New(ctx)
+	if err != nil {
+		panic(err)
+	}
+	defer func() { _ = renderer.Close(ctx) }()
+	logger := slog.New(slog.NewTextHandler(os.Stderr, nil))
+	catalog, err := themes.Load("")
+	if err != nil {
+		panic(err)
+	}
+	views, err := handler.NewViews(
+		web.Assets,
+		logger,
+		"test",
+		"test",
+		catalog,
+		handler.RuntimeInfo{},
+	)
+	if err != nil {
+		panic(err)
+	}
+	admin := handler.NewAdminPlugins(
+		renderer.PluginManager(),
+		dataLoader{catalog: catalog},
+		views,
+	)
+	mux := http.NewServeMux()
+	secure := func(fn http.HandlerFunc) http.Handler { return middleware.RequireRole("admin")(fn) }
+	mux.Handle("GET /admin/plugins", secure(admin.List))
+	mux.Handle("POST /admin/plugins", secure(admin.Install))
+	mux.Handle("POST /admin/plugins/{pluginID}/{action}", secure(admin.Action))
+	mux.Handle("GET /assets/", handler.Assets(web.Assets))
+	mux.HandleFunc("GET /plugins/styles.css", handler.PluginPresentationStyles(renderer.PluginManager()))
+	mux.HandleFunc("GET /fixture/package", func(w http.ResponseWriter, r *http.Request) {
+		version := r.URL.Query().Get("version")
+		if version != "1.1.0" {
+			version = "1.0.0"
+		}
+		archive, err := fixturePackage(version)
+		if err != nil {
+			http.Error(w, "fixture failed", 500)
+			return
+		}
+		_, _ = w.Write(archive)
+	})
+	mux.HandleFunc("GET /fixture/render", func(w http.ResponseWriter, r *http.Request) {
+		result, err := renderer.Render("| A | B |\n| --- | --- |\n| one | two |\n")
+		if err != nil {
+			http.Error(w, "render failed", 500)
+			return
+		}
+		_, _ = w.Write([]byte(result))
+	})
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		panic(err)
+	}
+
+	handler := middleware.SecurityHeaders()(middleware.RejectCrossSiteWrites(logger)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		role := "admin"
+		if r.Header.Get("X-Fixture-Role") != "" {
+			role = r.Header.Get("X-Fixture-Role")
+		}
+		mux.ServeHTTP(w, auth.WithUser(r, domain.User{ID: 1, Role: role}))
+	})))
+
+	fmt.Println("http://" + listener.Addr().String())
+	server := &http.Server{
+		ReadHeaderTimeout: 5 * time.Second,
+		Handler:           handler,
+	}
+	if err := server.Serve(listener); err != nil && err != http.ErrServerClosed {
+		panic(err)
+	}
+}
+
+func fixturePackage(version string) ([]byte, error) {
+	original, err := plugins.Packages.ReadFile("callouts.kumbukaplugin")
+	if err != nil {
+		return nil, err
+	}
+	pkg, err := pluginpackage.Read(original)
+	if err != nil {
+		return nil, err
+	}
+	currentVersion := pkg.Manifest().Version
+	reader, err := zip.NewReader(bytes.NewReader(original), int64(len(original)))
+	if err != nil {
+		return nil, err
+	}
+	var output bytes.Buffer
+	writer := zip.NewWriter(&output)
+	for _, entry := range reader.File {
+		source, err := entry.Open()
+		if err != nil {
+			return nil, err
+		}
+		data, err := io.ReadAll(source)
+		_ = source.Close()
+		if err != nil {
+			return nil, err
+		}
+		if entry.Name == "plugin.yaml" {
+			s := strings.ReplaceAll(string(data), "me.kumbuka.callouts", "io.example.browser")
+			s = strings.ReplaceAll(s, "name: Callouts", "name: Browser Fixture")
+			s = strings.Replace(s, "version: "+currentVersion, "version: "+version, 1)
+			data = []byte(s)
+		}
+		destination, err := writer.Create(entry.Name)
+		if err != nil {
+			return nil, err
+		}
+		if _, err := destination.Write(data); err != nil {
+			return nil, err
+		}
+	}
+	if err := writer.Close(); err != nil {
+		return nil, err
+	}
+	return output.Bytes(), nil
+}

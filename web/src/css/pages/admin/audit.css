@@ -1,0 +1,39 @@
+/* Audit event list. */
+
+.audit-list {
+  display: grid;
+}
+
+.audit-row {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 9px;
+  border-top: 1px solid var(--border-subtle);
+  padding: 10px 0;
+}
+
+.audit-row:first-child {
+  border-top: 0;
+}
+
+.audit-icon {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  border-radius: 7px;
+  background: var(--surface-elevated);
+  color: var(--text-secondary);
+}
+
+.audit-row small {
+  display: block;
+  margin-top: 2px;
+  color: var(--text-tertiary);
+}
+
+.audit-row time {
+  color: var(--text-tertiary);
+  font-size: 10px;
+}

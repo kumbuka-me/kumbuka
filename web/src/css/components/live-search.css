@@ -1,0 +1,74 @@
+/* Live search wrappers, suggestions, and search affordances. */
+
+.global-search,
+.hero-search {
+  position: relative;
+}
+
+.search-suggestions {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  z-index: 60;
+  max-height: min(60vh, 520px);
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.16);
+  padding: 6px;
+}
+
+.search-suggestions[hidden] {
+  display: none;
+}
+
+.search-suggestion {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 9px 10px;
+  border-radius: 6px;
+}
+
+.search-suggestion:hover,
+.search-suggestion.active {
+  background: var(--surface-hover);
+}
+
+.search-suggestion strong {
+  color: var(--text);
+  font-size: 13px;
+}
+
+.search-suggestion small {
+  color: var(--text-tertiary);
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.search-suggestion-empty {
+  padding: 14px 10px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.hero-search .search-suggestions {
+  top: calc(100% + 10px);
+  text-align: left;
+}
+
+.global-search-icon {
+  display: inline-grid;
+  place-items: center;
+  color: var(--muted);
+}
+
+@media (max-width: 480px) {
+  .global-search-icon {
+    display: none;
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "name": "kumbuka",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build:ts": "tsc -p tsconfig.json && tsc -p web/src/ts/service-worker/tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p web/src/ts/service-worker/tsconfig.json --noEmit && tsc -p test/ts/tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "playwright": "^1.63.0",
+    "typescript": "7.0.2"
+  }
+}

@@ -1,0 +1,74 @@
+{{ define "content" }}
+  <section class="admin-page page-access">
+    <div class="settings-heading">
+      <p class="eyebrow">Administration</p>
+      <h1>Page access</h1>
+      <p class="muted">Restrict a path and its descendants to selected groups. The nearest configured path overrides inherited rules.</p>
+    </div>
+    <section class="panel">
+      <div class="panel-title">
+        <div>
+          <h2>Add access rule</h2>
+          <p class="muted">Paths without rules remain available according to normal Kumbuka roles.</p>
+        </div>
+      </div>
+      <form action="/admin/permissions"
+            method="post"
+            class="settings-grid page-access-form"
+            data-validate-form
+            data-error-title="Could not save access rule">
+        <label class="page-access-path">
+          Path
+          <input data-path-input
+                 name="path"
+                 required
+                 placeholder="platform/production"
+                 autocomplete="off"
+                 aria-describedby="page-access-path-help" />
+          <small id="page-access-path-help">The rule also applies below this path until a more specific path has its own rules.</small>
+        </label>
+        <label>
+          Group
+          <select name="group_id" required>
+            <option value="">Choose group</option>
+            {{ range .Groups }}
+              <option value="{{ .ID }}">{{ .Name }}</option>
+            {{ end }}
+          </select>
+        </label>
+        <label>
+          Access
+          <select name="access">
+            <option value="view">View</option>
+            <option value="edit">View and edit</option>
+          </select>
+        </label>
+        <div class="settings-actions">
+          <button class="button primary" type="submit">Save rule</button>
+        </div>
+      </form>
+    </section>
+    <section class="panel settings-wide">
+      <div class="panel-title">
+        <div>
+          <h2>Configured rules</h2>
+          <p class="muted">Multiple groups on the same path form an allow-list.</p>
+        </div>
+      </div>
+      {{ if .PageAccessRules }}
+        <div class="admin-list">
+          {{ range .PageAccessRules }}
+            <div class="admin-list-row">
+              <div><strong>{{ .Path }}</strong><small>{{ .GroupName }} · {{ if eq .Access "edit" }}View and edit{{ else }}View{{ end }}</small></div>
+              <form action="/admin/permissions/{{ .ID }}/delete" method="post">
+                <button class="button danger" type="submit">Delete</button>
+              </form>
+            </div>
+          {{ end }}
+        </div>
+      {{ else }}
+        <p class="muted">No restricted paths. All authenticated readers can view pages allowed by their Kumbuka role.</p>
+      {{ end }}
+    </section>
+  </section>
+{{ end }}

@@ -1,0 +1,134 @@
+/* Live group member management. */
+
+.group-admin-list {
+  display: grid;
+  gap: 14px;
+}
+
+.group-admin-card {
+  padding: 15px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  background: var(--surface-elevated);
+}
+
+.group-admin-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.group-admin-heading strong,
+.group-admin-heading small {
+  display: block;
+}
+
+.group-admin-heading small {
+  color: var(--text-tertiary);
+}
+
+.group-member-picker {
+  margin-top: 14px;
+}
+
+.group-member-picker > label {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.live-person-picker {
+  position: relative;
+}
+
+.live-person-picker input {
+  width: 100%;
+  padding: 9px 10px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+  outline: 0;
+}
+
+.live-person-picker input:focus {
+  border-color: var(--accent);
+}
+
+.live-person-results {
+  position: absolute;
+  z-index: 15;
+  top: calc(100% + 5px);
+  left: 0;
+  right: 0;
+  max-height: 260px;
+  overflow: auto;
+  padding: 5px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.live-person-result {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.live-person-result:hover,
+.live-person-result:focus {
+  background: var(--surface-hover);
+}
+
+.live-person-result span span,
+.group-member-chip span span {
+  display: block;
+  color: var(--text-tertiary);
+  font-size: 11px;
+}
+
+.group-members {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 12px;
+}
+
+.group-member-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 8px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.group-member-chip button {
+  display: grid;
+  place-items: center;
+  padding: 2px;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.group-member-chip button:hover {
+  color: var(--danger);
+}
+
+.live-person-result-empty {
+  padding: 9px 8px;
+  font-size: 12px;
+}

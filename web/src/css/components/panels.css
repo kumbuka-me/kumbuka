@@ -1,0 +1,40 @@
+/* Reusable elevated content surfaces. */
+
+.panel {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 18px;
+  box-shadow: var(--shadow);
+}
+
+.panel.wide {
+  grid-column: 1/-1;
+}
+
+.panel-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.panel-title a {
+  font-size: 12px;
+  color: var(--accent);
+}
+
+/* Shared panel heading typography. */
+
+.panel-title h2 {
+  font-size: 14px;
+  margin: 0;
+}
+
+/* Panel headings with inline icons. */
+
+.heading-with-icon {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}

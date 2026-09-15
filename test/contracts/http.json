@@ -1,0 +1,27 @@
+{
+  "problem_without_fields": {
+    "error": "Page not found.",
+    "problems": {}
+  },
+  "problem_with_fields": {
+    "error": "Page validation failed.",
+    "problems": {
+      "title": "Title is required."
+    }
+  },
+  "empty_collection": [],
+  "empty_graph": {
+    "nodes": [],
+    "edges": []
+  },
+  "empty_catalog": {
+    "pages": [],
+    "aliases": {},
+    "completions": [],
+    "inserts": []
+  },
+  "empty_notifications": {
+    "items": [],
+    "unread": 0
+  }
+}

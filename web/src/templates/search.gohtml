@@ -1,0 +1,20 @@
+{{ define "content" }}
+  <section class="search-page">
+    <p class="eyebrow">Global search</p>
+    <h1>{{ if .Query }}Results for “{{ .Query }}”{{ else }}All pages{{ end }}</h1>
+    <p class="muted">
+      Filter with <code>tag:</code>, <code>group:</code>, <code>title:</code>, <code>namespace:</code>, or
+      <code>author:</code>.
+    </p>
+    <div class="results">
+      {{ range .Pages }}
+        {{ template "page-row" . }}
+      {{ else }}
+        <div class="empty">
+          <strong>No pages found.</strong>
+          <p>Try fewer words or a different field filter.</p>
+        </div>
+      {{ end }}
+    </div>
+  </section>
+{{ end }}

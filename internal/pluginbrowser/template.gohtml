@@ -1,0 +1,19 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="{{.Policy}}"
+    >
+    <title>{{.Name}}</title>
+    {{if .CSS}}
+    <link rel="stylesheet" href="{{.CSS}}">
+    {{end}}
+    <script defer src="{{.Runtime}}"></script>
+  </head>
+  <body data-plugin-javascript="{{.JavaScript}}">
+    <main id="plugin-root"></main>
+  </body>
+</html>

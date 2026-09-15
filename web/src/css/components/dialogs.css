@@ -1,0 +1,113 @@
+/* Shared modal chrome. Width is a component contract, not a cascade accident. */
+
+:where(
+  .app-dialog,
+  .share-dialog,
+  .icon-picker-dialog,
+  .widget-dialog,
+  .media-dialog
+) {
+  --dialog-width: 520px;
+  --dialog-gutter: 32px;
+  --dialog-radius: 12px;
+  --dialog-shadow: 0 24px 80px rgba(0, 0, 0, 0.3);
+  --dialog-backdrop: rgba(0, 0, 0, 0.44);
+  width: min(var(--dialog-width), calc(100vw - var(--dialog-gutter)));
+  max-width: none;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--dialog-radius);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--dialog-shadow);
+}
+
+:where(
+  .app-dialog,
+  .share-dialog,
+  .icon-picker-dialog,
+  .widget-dialog,
+  .media-dialog
+)::backdrop {
+  background: var(--dialog-backdrop);
+  backdrop-filter: blur(2px);
+}
+
+.app-dialog-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.app-dialog-header .eyebrow {
+  margin-bottom: 3px;
+}
+
+.app-dialog-header h2 {
+  margin: 0;
+  font-size: 21px;
+}
+
+.app-dialog-close {
+  font-size: 24px;
+  line-height: 1;
+}
+
+.app-dialog-body {
+  padding: 18px 20px;
+  color: var(--text-secondary);
+}
+
+.app-dialog-body p {
+  margin: 0;
+}
+
+.app-dialog-body [data-notice-dialog-message] {
+  white-space: pre-line;
+}
+
+.app-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+  padding: 0 20px 18px;
+}
+
+@media (max-width: 800px) {
+  :where(
+    .app-dialog,
+    .share-dialog,
+    .icon-picker-dialog,
+    .widget-dialog,
+    .media-dialog
+  ) {
+    --dialog-gutter: 16px;
+    max-height: calc(100dvh - 16px);
+    margin: auto;
+  }
+
+  .app-dialog-header {
+    padding: 16px;
+  }
+
+  .app-dialog-body {
+    padding-right: 16px;
+    padding-left: 16px;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .app-dialog-actions {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 0 16px max(16px, env(safe-area-inset-bottom));
+  }
+
+  .app-dialog-actions .button {
+    min-width: min(100%, 140px);
+    flex: 1 1 140px;
+  }
+}

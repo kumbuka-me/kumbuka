@@ -1,0 +1,13 @@
+/* Parent-owned frame shell; plugin presentation CSS remains sandboxed. */
+
+.kumbuka-plugin-frame {
+  display: block;
+  width: 100%;
+  height: 0;
+  border: 0;
+  background: transparent;
+}
+
+.kumbuka-plugin-block > pre[hidden] {
+  display: none;
+}

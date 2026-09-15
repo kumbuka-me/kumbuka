@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 512 512"
+     role="img"
+     aria-labelledby="title desc">
+  <title id="title">Kumbuka logo</title>
+  <desc id="desc">An open book beneath a connected knowledge graph.</desc>
+  
+<defs>
+  <linearGradient id="kumbukaBlue" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0%" stop-color="#7CB7FF"/>
+    <stop offset="55%" stop-color="#3B82F6"/>
+    <stop offset="100%" stop-color="#2563EB"/>
+  </linearGradient>
+  <linearGradient id="kumbukaNavy" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0%" stop-color="#1E3A8A"/>
+    <stop offset="100%" stop-color="#0F172A"/>
+  </linearGradient>
+</defs>
+
+  
+<g id="mark">
+  <!-- Knowledge graph -->
+  <g fill="none" stroke="#3B82F6" stroke-width="18" stroke-linecap="round">
+    <path d="M256 188 L256 112"/>
+    <path d="M232 194 L178 146"/>
+    <path d="M280 194 L334 146"/>
+    <path d="M222 220 L154 208"/>
+    <path d="M290 220 L358 208"/>
+  </g>
+
+  <circle cx="256" cy="220" r="46" fill="url(#kumbukaNavy)"/>
+  <circle cx="256" cy="88" r="32" fill="#3B82F6"/>
+  <circle cx="156" cy="126" r="28" fill="#2563EB"/>
+  <circle cx="356" cy="126" r="28" fill="#7CB7FF"/>
+  <circle cx="126" cy="204" r="24" fill="#7CB7FF"/>
+  <circle cx="386" cy="204" r="24" fill="#2563EB"/>
+
+  <!-- Open book -->
+  <path d="M72 248
+           C132 238 191 250 240 282
+           L240 432
+           C190 397 132 383 72 389
+           Z"
+        fill="url(#kumbukaNavy)"/>
+
+  <path d="M440 248
+           C380 238 321 250 272 282
+           L272 432
+           C322 397 380 383 440 389
+           Z"
+        fill="url(#kumbukaBlue)"/>
+
+  <path d="M104 270
+           C152 266 194 277 224 298
+           L224 399
+           C190 379 150 369 104 371
+           Z"
+        fill="none" stroke="#93C5FD" stroke-width="14" stroke-linejoin="round"/>
+
+  <path d="M408 270
+           C360 266 318 277 288 298
+           L288 399
+           C322 379 362 369 408 371
+           Z"
+        fill="none" stroke="#BFDBFE" stroke-width="14" stroke-linejoin="round"/>
+
+  <path d="M256 282 L256 440"
+        stroke="#0F172A" stroke-width="12" stroke-linecap="round"/>
+
+  <circle cx="256" cy="438" r="12" fill="#0F172A"/>
+</g>
+
+</svg>
+

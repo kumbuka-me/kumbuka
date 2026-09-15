@@ -1,0 +1,74 @@
+/* Public shared-page shell. */
+
+.shared-page-heading h1 {
+  font-size: var(--content-title-size);
+  line-height: 1.1;
+  letter-spacing: -0.045em;
+  margin: 0 0 12px;
+}
+
+.shared-page-body {
+  min-height: 100vh;
+  background: var(--background);
+}
+
+.shared-page-shell {
+  width: min(980px, calc(100vw - 32px));
+  max-width: none;
+  margin: 0 auto;
+  padding: 28px 40px 56px;
+}
+
+.shared-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 48px;
+}
+
+.shared-page-brand {
+  display: inline-flex;
+  color: var(--text);
+}
+
+.shared-page-brand svg {
+  width: auto;
+  height: 28px;
+}
+
+.shared-page-badge {
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-tertiary);
+  font-size: 10px;
+  font-weight: 750;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.shared-page {
+  margin: 0 auto;
+}
+
+.shared-page-heading {
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--border);
+}
+
+.shared-page-heading .page-labels {
+  margin-top: 12px;
+}
+
+@media (max-width: 640px) {
+  .shared-page-shell {
+    width: min(100%, calc(100vw - 24px));
+    padding: 22px 0 40px;
+  }
+
+  .shared-page-header {
+    margin-bottom: 34px;
+  }
+}

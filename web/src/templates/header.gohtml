@@ -1,0 +1,75 @@
+{{ define "header" }}
+  <header class="topbar">
+    <button class="menu-button"
+            type="button"
+            data-menu
+            aria-label="Toggle navigation"
+            aria-controls="kumbuka-sidebar"
+            aria-expanded="false">{{ icon "menu-lucide" 20 }}</button>
+    <a class="brand" href="/" aria-label="Kumbuka home">{{ logo }}</a>
+    <form class="global-search" action="/search" data-live-search>
+      <span class="global-search-icon" aria-hidden="true">{{ icon "search-lucide" 15 }}</span>
+      <input type="search"
+             name="q"
+             value="{{ .Query }}"
+             placeholder="Search pages, tags, runbooks…"
+             autocomplete="off"
+             aria-label="Search Kumbuka"
+             aria-autocomplete="list"
+             aria-expanded="false" />
+      <kbd>/</kbd>
+    </form>
+    {{ if .ApplicationSettings.ExternalLinks }}
+      <nav class="external-links" aria-label="External links">
+        {{ range .ApplicationSettings.ExternalLinks }}
+          <a class="external-link hover-{{ externalhovereffect . }}{{ if .Icon }} has-icon{{ end }}"
+             href="{{ .URL }}"
+             aria-label="{{ .Label }}{{ if .Description }} — {{ .Description }}{{ end }}"
+             title="{{ externalhover . }}">
+            {{ if .Icon }}<span class="external-link-icon" aria-hidden="true">{{ icon .Icon 18 }}</span>{{ end }}
+            <span class="external-link-copy">
+              <strong>{{ .Label }}</strong>
+              {{ if .Description }}<small>{{ .Description }}</small>{{ end }}
+            </span>
+          </a>
+        {{ end }}
+      </nav>
+    {{ end }}
+    <details class="notification-menu" data-notification-menu>
+      <summary class="icon-button" aria-label="Notifications" title="Notifications">
+        {{ icon "bell-lucide" 18 }}{{ if gt .UnreadNotifications 0 }}
+        <span class="notification-badge">{{ .UnreadNotifications }}</span>
+{{ end }}
+</summary>
+<div class="notification-popover">
+  <div class="notification-heading">
+    <strong>Notifications</strong>{{ if gt .UnreadNotifications 0 }}
+    <button type="button" data-notifications-read-all>Mark all read</button>
+  {{ end }}
+</div>
+<div class="notification-list">
+  {{ range .Notifications }}
+    <form action="/notifications/{{ .ID }}/open" method="post">
+      <button type="submit"
+              class="notification-item{{ if not .ReadAt }} unread{{ end }}"
+              data-notification-id="{{ .ID }}">
+        <span class="notification-icon">{{ if eq .Kind "mention" }}
+          {{ icon "at-sign-lucide" 15 }}
+  {{ else }}
+    {{ icon "bell-lucide" 15 }}
+  {{ end }}</span><span><strong>{{ .Title }}</strong>{{ if .Body }}<small>{{ .Body }}</small>{{ end }}<time>{{ timeago .CreatedAt }}</time></span>
+</button>
+</form>
+{{ else }}
+<p class="muted notification-empty">Nothing new.</p>
+{{ end }}
+</div>
+</div>
+</details>
+{{ if .CanEdit }}
+  <a class="button primary"
+     href="/pages/new{{ if .NewPageParent }}?parent={{ .NewPageParent | urlquery }}{{ end }}"
+     aria-label="New page">{{ icon "plus-lucide" 16 }}<span>New page</span></a>
+{{ end }}
+</header>
+{{ end }}

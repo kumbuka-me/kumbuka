@@ -1,0 +1,20 @@
+/* Main content and footer geometry shared by application pages. */
+
+main {
+  min-width: 0;
+  width: 100%;
+  max-width: 1480px;
+  margin: 0 auto;
+  padding: 48px 56px;
+}
+
+footer {
+  padding: 20px;
+  color: var(--muted);
+  text-align: center;
+  font-size: 12px;
+}
+
+main.with-page-contents {
+  max-width: 1720px;
+}

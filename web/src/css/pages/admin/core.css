@@ -1,0 +1,274 @@
+/* Shared administration layout, tables, and list primitives. */
+
+.settings-wide,
+.admin-wide {
+  grid-column: 1/-1;
+}
+
+.admin-settings-grid {
+  align-items: start;
+}
+
+.admin-stats {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 10px;
+  margin: 0 0 22px;
+}
+
+.admin-stats > div {
+  display: flex;
+  flex-direction: column;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.admin-stats strong {
+  font-size: 22px;
+}
+
+.admin-stats span {
+  color: var(--text-tertiary);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.admin-table-wrap {
+  width: 100%;
+  overflow: auto;
+  margin-top: 14px;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.admin-table th,
+.admin-table td {
+  padding: 10px 9px;
+  border-top: 1px solid var(--border-subtle);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.admin-table thead th {
+  border-top: 0;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+.admin-table td small {
+  display: block;
+  color: var(--text-tertiary);
+  font-size: 11px;
+}
+
+.admin-table select {
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+  padding: 8px;
+  color: var(--text);
+}
+
+.inline-create-form {
+  display: flex;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.inline-create-form input {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+  padding: 9px 10px;
+  color: var(--text);
+}
+
+.admin-list {
+  margin-top: 10px;
+}
+
+.admin-scroll-list {
+  max-height: 390px;
+  overflow: auto;
+}
+
+.admin-list-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 0;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.admin-list-row:first-child {
+  border-top: 0;
+}
+
+.admin-list-row span strong,
+.admin-list-row span small {
+  display: block;
+}
+
+.admin-list-row span small {
+  color: var(--text-tertiary);
+  font-size: 11px;
+}
+
+@media (max-width: 1000px) {
+  .admin-stats {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .admin-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .settings-wide,
+  .admin-wide {
+    grid-column: auto;
+  }
+}
+
+/* Reusable administration cards and expandable rows. */
+
+.admin-card-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.admin-card-heading h2 {
+  margin: 0 0 3px;
+  font-size: 16px;
+}
+
+.admin-card-heading p {
+  margin: 0;
+  font-size: 11px;
+}
+
+.admin-card-icon,
+.admin-expand-icon {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 8px;
+  background: var(--surface-elevated);
+  color: var(--accent);
+}
+
+.admin-card-icon {
+  width: 36px;
+  height: 36px;
+}
+
+.count-chip {
+  display: inline-grid;
+  min-width: 25px;
+  height: 25px;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--surface-elevated);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.admin-expand-list {
+  display: grid;
+  gap: 8px;
+}
+
+.admin-expand-item {
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+  border-radius: 9px;
+  background: var(--surface-elevated);
+}
+
+.admin-expand-item > summary {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: 9px 11px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.admin-expand-item > summary::-webkit-details-marker {
+  display: none;
+}
+
+.admin-expand-item > summary:hover {
+  background: var(--surface-hover);
+}
+
+.admin-expand-item > summary > span:nth-child(2) {
+  min-width: 0;
+}
+
+.admin-expand-item > summary strong,
+.admin-expand-item > summary small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-expand-item > summary small {
+  margin-top: 2px;
+  color: var(--text-tertiary);
+  font-size: 10px;
+}
+
+.admin-expand-item > summary > svg:last-child {
+  color: var(--text-tertiary);
+  transition: transform 140ms ease;
+}
+
+.admin-expand-item[open] > summary > svg:last-child {
+  transform: rotate(180deg);
+}
+
+.admin-expand-icon {
+  width: 30px;
+  height: 30px;
+}
+
+.admin-expand-body {
+  padding: 15px;
+  border-top: 1px solid var(--border-subtle);
+  background: var(--surface);
+}
+
+/* Shared administrative library panel. */
+
+.admin-library-panel {
+  padding: 20px;
+}
+
+.admin-library-panel > .panel-title {
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+@media (max-width: 700px) {
+  .admin-library-panel {
+    padding: 15px;
+  }
+}

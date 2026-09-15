@@ -1,0 +1,470 @@
+/* Reading layout, page contents integration, subpage navigation, and review workflow. */
+
+.page-reading {
+  display: block;
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+.page-reading.with-contents {
+  display: grid;
+  grid-template-columns: minmax(0, 900px) minmax(210px, 240px);
+  gap: 30px;
+  align-items: start;
+}
+
+.page-reading.contents-hidden .page-contents {
+  display: none;
+}
+
+.page-reading:not(.with-contents) .prose {
+  max-width: 900px;
+}
+
+.page-reading .prose {
+  min-width: 0;
+  width: 100%;
+  padding-top: 22px;
+}
+
+.subpage-toc {
+  margin: 36px 0 8px;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-elevated);
+}
+
+.subpage-toc-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  color: var(--text-secondary);
+}
+
+.page-reading .prose .subpage-toc-heading h2 {
+  margin: 0;
+  color: inherit;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.subpage-toc-list {
+  margin: 4px 0 0 13px;
+  padding: 0 0 0 18px;
+  border-left: 1px solid var(--border);
+  list-style: none;
+}
+
+.subpage-toc-root {
+  margin-left: 0;
+  padding-left: 0;
+  border-left: 0;
+}
+
+.subpage-toc-item {
+  margin: 3px 0;
+}
+
+.page-reading .prose .subpage-toc-link,
+.subpage-toc-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 4px 7px;
+  border-radius: 6px;
+}
+
+.page-reading .prose .subpage-toc-link {
+  color: var(--text);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.page-reading .prose .subpage-toc-link:hover {
+  background: var(--surface-hover);
+  color: var(--accent);
+}
+
+.subpage-toc-label {
+  color: var(--text-secondary);
+  font-weight: 650;
+}
+
+.subpage-toc-node-icon {
+  display: grid;
+  flex: 0 0 18px;
+  place-items: center;
+  color: var(--accent);
+}
+
+.page-details {
+  width: 100%;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.page-details-summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  list-style: none;
+  cursor: pointer;
+}
+
+.page-details-summary::-webkit-details-marker {
+  display: none;
+}
+
+.page-details-summary .page-meta {
+  flex: 1;
+  max-width: none;
+  border-top: 0;
+}
+
+.page-details-icon {
+  flex: 0 0 32px;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 50%;
+  color: var(--text-tertiary);
+  transition:
+    color 0.15s,
+    border-color 0.15s,
+    background 0.15s;
+}
+
+.page-details-summary:hover .page-details-icon,
+.page-details-summary:focus-visible .page-details-icon,
+.page-details[open] .page-details-icon {
+  border-color: var(--border-strong);
+  background: var(--surface-hover);
+  color: var(--accent);
+}
+
+.page-details-summary:focus-visible {
+  outline: 0;
+}
+
+.page > .page-heading {
+  position: sticky;
+  top: 64px;
+  z-index: 15;
+  margin: -12px -18px 0;
+  padding: 12px 18px 18px;
+  background: color-mix(in srgb, var(--background) 96%, transparent);
+  backdrop-filter: blur(12px);
+}
+
+.page-reading .prose > :first-child {
+  margin-top: 0;
+}
+
+.page-reading .prose h1,
+.page-reading .prose h2,
+.page-reading .prose h3,
+.page-reading .prose h4,
+.page-reading .prose h5,
+.page-reading .prose h6 {
+  scroll-margin-top: calc(88px + var(--page-heading-height, 0px));
+}
+
+@media (max-width: 1050px) {
+  .page-reading.with-contents {
+    grid-template-columns: minmax(0, 1fr) 210px;
+    gap: 22px;
+  }
+
+  .page-contents {
+    max-width: 210px;
+  }
+}
+
+@media (max-width: 800px) {
+  .page-heading {
+    position: static;
+    margin: 0;
+    padding: 0 0 18px;
+    background: transparent;
+    backdrop-filter: none;
+  }
+
+  .page-reading .prose {
+    padding-top: 18px;
+  }
+}
+
+.page-reading.with-contents .page-contents {
+  position: sticky;
+  top: calc(80px + var(--page-heading-height, 0px));
+  max-height: calc(100vh - 96px - var(--page-heading-height, 0px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
+.page-review-workflow {
+  display: grid;
+  gap: 9px;
+  margin: 14px 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--surface-elevated) 72%, var(--surface));
+}
+
+.page-review-workflow.status-changes-requested {
+  border-color: color-mix(in srgb, var(--warning) 30%, var(--border-subtle));
+  background: color-mix(in srgb, var(--warning) 5%, var(--surface));
+}
+
+.page-review-summary {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+}
+
+.page-review-icon {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--accent) 9%, var(--surface));
+  color: var(--accent);
+}
+
+.page-review-workflow.status-changes-requested .page-review-icon {
+  background: color-mix(in srgb, var(--warning) 12%, var(--surface));
+  color: var(--warning);
+}
+
+.page-review-copy {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+}
+
+.page-review-copy strong {
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.page-review-copy span {
+  overflow: hidden;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.page-review-targets {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 5px;
+}
+
+.page-review-targets > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 24px;
+  padding: 3px 7px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+.page-review-note,
+.page-review-hint {
+  margin: 0 0 0 37px;
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+.page-review-hint {
+  color: var(--text-tertiary);
+}
+
+.page-review-action,
+.page-review-edit {
+  position: relative;
+}
+
+.page-review-action > summary,
+.page-review-edit > summary {
+  list-style: none;
+}
+
+.page-review-action > summary::-webkit-details-marker,
+.page-review-edit > summary::-webkit-details-marker {
+  display: none;
+}
+
+.page-review-action[open] > summary {
+  border-color: var(--border-strong);
+  color: var(--accent);
+}
+
+.page-review-request {
+  position: absolute;
+  z-index: 25;
+  top: calc(100% + 7px);
+  right: 0;
+  display: grid;
+  gap: 10px;
+  width: min(560px, calc(100vw - 32px));
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface);
+  box-shadow: 0 12px 32px rgb(0 0 0 / 16%);
+}
+
+.page-review-form-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(150px, 0.8fr);
+  gap: 9px;
+}
+
+.page-review-form-grid label,
+.page-review-decision label {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 550;
+}
+
+.page-review-note-field {
+  grid-column: 1 / -1;
+}
+
+.page-review-form-grid input,
+.page-review-form-grid textarea,
+.page-review-form-grid select,
+.page-review-decision input {
+  width: 100%;
+  min-height: 34px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  outline: 0;
+  background: var(--surface);
+  padding: 6px 9px;
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+}
+
+.page-review-form-grid textarea {
+  min-height: 34px;
+  max-height: 88px;
+  resize: vertical;
+}
+
+.page-review-form-grid input:focus,
+.page-review-form-grid textarea:focus,
+.page-review-form-grid select:focus,
+.page-review-decision input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+.page-review-request-footer,
+.page-review-edit-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.page-review-request-footer small {
+  color: var(--text-tertiary);
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.page-review-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 7px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.page-review-edit[open] {
+  flex: 1 0 100%;
+  order: 3;
+}
+
+.page-review-edit-form {
+  display: grid;
+  gap: 9px;
+  margin-top: 8px;
+  padding: 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.page-review-decision {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto;
+  align-items: end;
+  gap: 9px;
+  margin-left: auto;
+}
+
+.page-review-actions {
+  display: flex;
+  gap: 7px;
+}
+
+.page-review-request .button.compact,
+.page-review-workflow .button.compact {
+  min-height: 32px;
+  padding: 5px 9px;
+  font-size: 11px;
+}
+
+@media (max-width: 680px) {
+  .page-review-summary {
+    grid-template-columns: 28px minmax(0, 1fr);
+  }
+
+  .page-review-targets {
+    grid-column: 2;
+    justify-content: flex-start;
+  }
+
+  .page-review-action .page-review-request {
+    right: 0;
+    left: auto;
+    width: min(360px, calc(100vw - 32px));
+  }
+
+  .page-review-form-grid,
+  .page-review-decision {
+    grid-template-columns: 1fr;
+  }
+
+  .page-review-decision {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .page-review-actions,
+  .page-review-request-footer {
+    flex-wrap: wrap;
+  }
+}

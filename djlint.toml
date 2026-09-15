@@ -1,0 +1,4 @@
+profile = "golang"
+extension = "gohtml"
+indent = 2
+use_gitignore = true

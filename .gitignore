@@ -1,0 +1,21 @@
+/kumbuka
+/bin/*
+!/bin/dev-tools.mk
+
+coverage.out
+.DS_Store
+
+/web/dist/
+/internal/icons/catalog_gen.go
+/node_modules/
+
+/docs/site/
+
+/plugins/*.kumbukaplugin
+/plugins/.downloaded
+
+# Local development port assignments
+/.dev-ports.json
+/.dev-ports.json.lock
+
+

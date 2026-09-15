@@ -1,0 +1,135 @@
+/* Knowledge graph surface and inspector. */
+
+.knowledge-graph-panel {
+  position: relative;
+  min-height: 650px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-elevated);
+}
+
+.knowledge-graph-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.graph-search {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  gap: 8px;
+  max-width: 480px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.graph-search input {
+  width: 100%;
+  padding: 8px 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text);
+}
+
+.knowledge-graph-stage {
+  position: relative;
+  min-height: 600px;
+}
+
+.knowledge-graph-stage svg {
+  display: block;
+  width: 100%;
+  height: min(72vh, 760px);
+}
+
+.graph-edge {
+  stroke: var(--border-strong);
+  stroke-width: 1.2;
+  opacity: 0.58;
+}
+
+.graph-node {
+  cursor: pointer;
+}
+
+.graph-node circle {
+  fill: var(--surface);
+  stroke: var(--accent);
+  stroke-width: 2;
+  transition: 120ms ease;
+}
+
+.graph-node:hover circle,
+.graph-node.selected circle {
+  fill: color-mix(in srgb, var(--accent) 14%, var(--surface));
+  stroke-width: 3;
+}
+
+.graph-node.status-draft circle {
+  stroke: var(--warning);
+}
+
+.graph-node.status-deprecated circle {
+  stroke: var(--error);
+}
+
+.graph-node.status-archived circle {
+  stroke: var(--muted);
+}
+
+.graph-node text {
+  fill: var(--text);
+  font-size: 11px;
+  font-weight: 650;
+  pointer-events: none;
+}
+
+.graph-inspector {
+  position: absolute;
+  top: 70px;
+  right: 14px;
+  display: grid;
+  gap: 9px;
+  width: 280px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-elevated);
+  box-shadow: 0 16px 40px rgb(0 0 0 / 16%);
+}
+
+.graph-inspector[hidden] {
+  display: none;
+}
+
+.graph-inspector .icon-button {
+  justify-self: end;
+}
+
+.graph-inspector h2 {
+  margin: 0;
+}
+
+.graph-inspector code {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.graph-empty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--text-secondary);
+}
+
+.graph-empty[hidden] {
+  display: none;
+}

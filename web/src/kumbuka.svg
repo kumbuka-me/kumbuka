@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" class="kumbuka-logo"
+     viewBox="0 0 1200 512"
+     role="img"
+     aria-labelledby="title desc">
+  <title id="title">Kumbuka</title>
+  <desc id="desc">Kumbuka logo with an open book, connected knowledge graph, and Kumbuka wordmark.</desc>
+  
+<defs>
+  <linearGradient id="kumbukaBlue" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0%" stop-color="var(--accent-soft, #7CB7FF)"/>
+    <stop offset="55%" stop-color="var(--accent, #3B82F6)"/>
+    <stop offset="100%" stop-color="var(--accent-secondary, #2563EB)"/>
+  </linearGradient>
+  <linearGradient id="kumbukaNavy" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0%" stop-color="var(--accent-secondary, #1E3A8A)"/>
+    <stop offset="100%" stop-color="var(--text, #0F172A)"/>
+  </linearGradient>
+</defs>
+
+  <g transform="translate(18 0) scale(0.96)">
+    
+<g id="mark">
+  <!-- Knowledge graph -->
+  <g fill="none" stroke="var(--accent, #3B82F6)" stroke-width="18" stroke-linecap="round">
+    <path d="M256 188 L256 112"/>
+    <path d="M232 194 L178 146"/>
+    <path d="M280 194 L334 146"/>
+    <path d="M222 220 L154 208"/>
+    <path d="M290 220 L358 208"/>
+  </g>
+
+  <circle cx="256" cy="220" r="46" fill="url(#kumbukaNavy)"/>
+  <circle cx="256" cy="88" r="32" fill="var(--accent, #3B82F6)"/>
+  <circle cx="156" cy="126" r="28" fill="var(--accent-secondary, #2563EB)"/>
+  <circle cx="356" cy="126" r="28" fill="var(--accent-soft, #7CB7FF)"/>
+  <circle cx="126" cy="204" r="24" fill="var(--accent-soft, #7CB7FF)"/>
+  <circle cx="386" cy="204" r="24" fill="var(--accent-secondary, #2563EB)"/>
+
+  <!-- Open book -->
+  <path d="M72 248
+           C132 238 191 250 240 282
+           L240 432
+           C190 397 132 383 72 389
+           Z"
+        fill="url(#kumbukaNavy)"/>
+
+  <path d="M440 248
+           C380 238 321 250 272 282
+           L272 432
+           C322 397 380 383 440 389
+           Z"
+        fill="url(#kumbukaBlue)"/>
+
+  <path d="M104 270
+           C152 266 194 277 224 298
+           L224 399
+           C190 379 150 369 104 371
+           Z"
+        fill="none" stroke="var(--accent-soft, #93C5FD)" stroke-width="14" stroke-linejoin="round"/>
+
+  <path d="M408 270
+           C360 266 318 277 288 298
+           L288 399
+           C322 379 362 369 408 371
+           Z"
+        fill="none" stroke="var(--text-secondary, #BFDBFE)" stroke-width="14" stroke-linejoin="round"/>
+
+  <path d="M256 282 L256 440"
+        stroke="var(--text, #0F172A)" stroke-width="12" stroke-linecap="round"/>
+
+  <circle cx="256" cy="438" r="12" fill="var(--text, #0F172A)"/>
+</g>
+
+  </g>
+  <g transform="translate(560.00 335.00) scale(1.226521)">
+    <path d="M16.54,-131.23 L50.37,-131.23 L50.37,-25.57 L109.77,-25.57 L109.77,-0.00 L16.54,-0.00 L16.54,-131.23 Z M176.66,-78.30 Q166.19,-78.30 160.71,-70.79 Q155.23,-63.28 155.23,-49.13 Q155.23,-34.99 160.71,-27.45 Q166.19,-19.94 176.66,-19.94 Q186.95,-19.94 192.38,-27.45 Q197.83,-34.99 197.83,-49.13 Q197.83,-63.28 192.38,-70.79 Q186.95,-78.30 176.66,-78.30 Z M176.66,-100.80 Q202.05,-100.80 216.34,-87.08 Q230.63,-73.38 230.63,-49.13 Q230.63,-24.86 216.34,-11.14 Q202.05,2.56 176.66,2.56 Q151.18,2.56 136.80,-11.14 Q122.43,-24.86 122.43,-49.13 Q122.43,-73.38 136.80,-87.08 Q151.18,-100.80 176.66,-100.80 Z M326.62,-71.63 Q322.48,-73.58 318.38,-74.48 Q314.30,-75.40 310.16,-75.40 Q298.04,-75.40 291.49,-67.61 Q284.93,-59.85 284.93,-45.37 L284.93,-0.00 L253.49,-0.00 L253.49,-98.44 L284.93,-98.44 L284.93,-82.27 Q291.01,-91.94 298.86,-96.36 Q306.73,-100.80 317.73,-100.80 Q319.30,-100.80 321.13,-100.66 Q322.99,-100.55 326.50,-100.10 L326.62,-71.63 Z M440.50,-49.47 L440.50,-40.53 L366.95,-40.53 Q368.08,-29.45 374.94,-23.91 Q381.80,-18.37 394.09,-18.37 Q404.02,-18.37 414.43,-21.32 Q424.86,-24.27 435.86,-30.23 L435.86,-5.99 Q424.69,-1.77 413.53,0.39 Q402.36,2.56 391.20,2.56 Q364.48,2.56 349.66,-11.03 Q334.86,-24.61 334.86,-49.13 Q334.86,-73.21 349.40,-86.99 Q363.94,-100.80 389.45,-100.80 Q412.66,-100.80 426.58,-86.82 Q440.50,-72.87 440.50,-49.47 Z M408.16,-59.93 Q408.16,-68.91 402.93,-74.39 Q397.69,-79.90 389.26,-79.90 Q380.12,-79.90 374.41,-74.76 Q368.70,-69.61 367.29,-59.93 L408.16,-59.93 Z" fill="var(--text, #0F172A)"/>
+  </g>
+</svg>
+

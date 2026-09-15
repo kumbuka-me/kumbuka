@@ -1,0 +1,129 @@
+format = 1
+
+[[plugin]]
+id = "me.kumbuka.autolinks"
+repository = "kumbuka-me/plugins"
+tag_prefix = "autolinks/v"
+asset = "autolinks"
+version = "1.0.1"
+
+[[plugin]]
+id = "me.kumbuka.callouts"
+repository = "kumbuka-me/plugins"
+tag_prefix = "callouts/v"
+asset = "callouts"
+version = "1.0.1"
+
+[[plugin]]
+id = "me.kumbuka.coding-ligatures"
+repository = "kumbuka-me/plugins"
+tag_prefix = "coding-ligatures/v"
+asset = "coding-ligatures"
+version = "1.0.2"
+
+[[plugin]]
+id = "me.kumbuka.definition-lists"
+repository = "kumbuka-me/plugins"
+tag_prefix = "definition-lists/v"
+asset = "definition-lists"
+version = "1.0.1"
+
+[[plugin]]
+id = "me.kumbuka.details"
+repository = "kumbuka-me/plugins"
+tag_prefix = "details/v"
+asset = "details"
+version = "1.0.1"
+
+[[plugin]]
+id = "me.kumbuka.footnotes"
+repository = "kumbuka-me/plugins"
+tag_prefix = "footnotes/v"
+asset = "footnotes"
+version = "1.0.1"
+
+[[plugin]]
+id = "me.kumbuka.includes"
+repository = "kumbuka-me/plugins"
+tag_prefix = "includes/v"
+asset = "includes"
+version = "1.0.1"
+
+[[plugin]]
+id = "me.kumbuka.mermaid"
+repository = "kumbuka-me/plugins"
+tag_prefix = "mermaid/v"
+asset = "mermaid"
+version = "1.0.1"
+
+[[plugin]]
+id = "me.kumbuka.page-report"
+repository = "kumbuka-me/plugins"
+tag_prefix = "page-report/v"
+asset = "page-report"
+version = "1.0.2"
+
+[[plugin]]
+id = "me.kumbuka.snippets"
+repository = "kumbuka-me/plugins"
+tag_prefix = "snippets/v"
+asset = "snippets"
+version = "1.0.1"
+
+[[plugin]]
+id = "me.kumbuka.strikethrough"
+repository = "kumbuka-me/plugins"
+tag_prefix = "strikethrough/v"
+asset = "strikethrough"
+version = "1.0.2"
+
+[[plugin]]
+id = "me.kumbuka.subpages"
+repository = "kumbuka-me/plugins"
+tag_prefix = "subpages/v"
+asset = "subpages"
+version = "1.0.2"
+
+[[plugin]]
+id = "me.kumbuka.syntax-highlighting"
+repository = "kumbuka-me/plugins"
+tag_prefix = "syntax-highlighting/v"
+asset = "syntax-highlighting"
+version = "1.4.2"
+
+[[plugin]]
+id = "me.kumbuka.tables"
+repository = "kumbuka-me/plugins"
+tag_prefix = "tables/v"
+asset = "tables"
+version = "1.0.1"
+
+[[plugin]]
+id = "me.kumbuka.tabs"
+repository = "kumbuka-me/plugins"
+tag_prefix = "tabs/v"
+asset = "tabs"
+version = "1.0.1"
+
+[[plugin]]
+id = "me.kumbuka.task-lists"
+repository = "kumbuka-me/plugins"
+tag_prefix = "task-lists/v"
+asset = "task-lists"
+version = "1.0.2"
+
+[[plugin]]
+id = "me.kumbuka.typographer"
+repository = "kumbuka-me/plugins"
+tag_prefix = "typographer/v"
+asset = "typographer"
+version = "1.0.2"
+
+[[plugin]]
+id = "me.kumbuka.variables"
+repository = "kumbuka-me/plugins"
+tag_prefix = "variables/v"
+asset = "variables"
+version = "1.0.1"
+
+

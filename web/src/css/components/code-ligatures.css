@@ -1,0 +1,22 @@
+/* Shared font faces used by the optional Coding Ligatures plugin. Browsers do
+   not fetch these font resources until an enabled plugin style references them. */
+
+@font-face {
+  font-family: "Fira Code";
+  src: url("https://cdn.jsdelivr.net/npm/firacode@6.2.0/distr/woff2/FiraCode-Regular.woff2")
+    format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Fira Code Operators";
+  src: url("https://cdn.jsdelivr.net/npm/firacode@6.2.0/distr/woff2/FiraCode-Regular.woff2")
+    format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  unicode-range:
+    U+21, U+26, U+2A-2B, U+2D-2F, U+3A-3E, U+3F, U+5B-5E, U+5F, U+60, U+7B-7E;
+}

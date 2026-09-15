@@ -1,0 +1,91 @@
+{
+  "extends": [
+    "config:recommended"
+  ],
+  "labels": [
+    "dependency"
+  ],
+  "postUpdateOptions": [
+    "gomodTidy"
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/(^|/)Makefile$/"
+      ],
+      "matchStrings": [
+        "#\\srenovate:\\sdatasource=(?<datasource>.*?) depName=(?<depName>.*?)( versioning=(?<versioning>.*?))?( extractVersion=(?<extractVersion>.*?))?\\s.*?_VERSION(\\s+?\\?=\\s)(?<currentValue>.*)\\s"
+      ],
+      "versioningTemplate": "{{#if versioning}}{{{versioning}}}{{else}}semver{{/if}}"
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/(^|/)Dockerfile(\\.goreleaser)?$/"
+      ],
+      "matchStrings": [
+        "^#\\s*syntax=(?<depName>docker/dockerfile):(?<currentValue>\\S+)$"
+      ],
+      "datasourceTemplate": "docker",
+      "versioningTemplate": "semver"
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^plugins\\.lock$/"
+      ],
+      "matchStrings": [
+        "(?<plugin>[a-z0-9-]+)=(?<currentValue>\\d+\\.\\d+\\.\\d+)"
+      ],
+      "depNameTemplate": "kumbuka-plugin-{{{plugin}}}",
+      "packageNameTemplate": "kumbuka-me/plugins",
+      "datasourceTemplate": "github-releases",
+      "versioningTemplate": "semver",
+      "extractVersionTemplate": "^{{{plugin}}}/v(?<version>\\d+\\.\\d+\\.\\d+)$"
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/(^|/)\\.kumbukaplugins$/"
+      ],
+      "matchStrings": [
+        "repository\\s*=\\s*\"(?<repository>[^\"]+)\"\\s*\\ntag_prefix\\s*=\\s*\"(?<tagPrefix>[^\"]+)\"\\s*\\nasset\\s*=\\s*\"(?<plugin>[^\"]+)\"\\s*\\nversion\\s*=\\s*\"(?<currentValue>\\d+\\.\\d+\\.\\d+)\""
+      ],
+      "depNameTemplate": "kumbuka-plugin-{{{plugin}}}",
+      "packageNameTemplate": "{{{repository}}}",
+      "datasourceTemplate": "github-releases",
+      "versioningTemplate": "semver",
+      "extractVersionTemplate": "^{{{tagPrefix}}}(?<version>\\d+\\.\\d+\\.\\d+)$"
+    }
+  ],
+  "packageRules": [
+    {
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "docker/dockerfile"
+      ],
+      "automerge": true
+    },
+    {
+      "matchManagers": [
+        "github-actions"
+      ],
+      "matchPackageNames": [
+        "golangci/golangci-lint"
+      ],
+      "automerge": true
+    },
+    {
+      "matchManagers": [
+        "custom.regex"
+      ],
+      "matchPackageNames": [
+        "kumbuka-me/plugins"
+      ],
+      "groupName": "Kumbuka plugins"
+    }
+  ]
+}

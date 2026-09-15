@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ES2022",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "rootDir": "web/src/ts",
+    "outDir": "web/dist/js",
+    "strict": true,
+    "noEmitOnError": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "allowJs": false,
+    "rewriteRelativeImportExtensions": true
+  },
+  "include": ["web/src/ts/**/*.ts"],
+  "exclude": ["web/src/ts/service-worker/**/*.ts"]
+}

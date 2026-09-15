@@ -1,0 +1,110 @@
+/* Shared validation feedback for server-backed forms. */
+
+[data-validate-form] :is(input, select, textarea).is-invalid,
+[data-validate-form] :is(input, select, textarea).is-invalid:focus {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 12%, transparent);
+}
+
+[data-validate-form] .field-validation-error {
+  display: block;
+  color: var(--danger);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.form-validation-error {
+  padding: 9px 11px;
+  border: 1px solid color-mix(in srgb, var(--danger) 35%, var(--border));
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--danger) 7%, var(--surface));
+  color: var(--danger);
+  font-size: 12px;
+}
+
+.validation-shake {
+  animation: validation-shake 180ms ease-in-out;
+}
+
+@keyframes validation-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+
+  25% {
+    transform: translateX(-4px);
+  }
+
+  75% {
+    transform: translateX(4px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .validation-shake {
+    animation: none;
+  }
+}
+
+.problem-dialog {
+  --dialog-width: 560px;
+}
+
+.problem-dialog-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--danger);
+}
+
+.problem-dialog-eyebrow svg {
+  flex: 0 0 auto;
+}
+
+.problem-dialog-body {
+  display: grid;
+  gap: 16px;
+}
+
+.problem-dialog-details {
+  display: grid;
+  grid-template-columns: minmax(90px, 0.35fr) minmax(0, 1fr);
+  gap: 8px 14px;
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--danger) 28%, var(--border));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--danger) 5%, var(--surface));
+}
+
+.problem-dialog-details[hidden] {
+  display: none;
+}
+
+.problem-dialog-details dt,
+.problem-dialog-details dd {
+  margin: 0;
+}
+
+.problem-dialog-details dt {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.problem-dialog-details dd {
+  color: var(--danger);
+  font-size: 12px;
+}
+
+@media (max-width: 560px) {
+  .problem-dialog-details {
+    grid-template-columns: 1fr;
+    gap: 3px;
+  }
+
+  .problem-dialog-details dd + dt {
+    margin-top: 8px;
+  }
+}

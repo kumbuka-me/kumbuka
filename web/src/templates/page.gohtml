@@ -1,0 +1,669 @@
+{{ define "content" }}
+  <article class="page" data-page-layout>
+    <div class="page-heading">
+      <div>
+        <p class="breadcrumbs">Pages / {{ .Page.Slug }}</p>
+        <h1 class="page-title-with-icon" lang="{{ .PageContentLanguage }}">
+          {{ if .Page.Icon }}
+            <span class="page-title-icon" aria-hidden="true">{{ icon .Page.Icon 28 }}</span>
+            {{ end }}<span>{{ .Page.Title }}</span>
+            </h1>
+            <div class="page-labels">
+              <span class="page-status-badge status-{{ .Page.Status }}">{{ .Page.Status }}</span>
+              <div class="tags">{{ range .Page.Tags }}<a href="/search?q=tag%3A{{ . }}">{{ . }}</a>{{ end }}</div>
+              {{ if .Page.Groups }}
+                <div class="page-groups" aria-label="Page groups">
+                  {{ range .Page.Groups }}
+                    <span class="page-group-badge" title="Collaboration group">{{ .Name }}</span>
+                  {{ end }}
+                </div>
+              {{ end }}
+              {{ if .Page.OwnerGroup }}
+                <span class="page-owner-badge"
+                      title="Documentation owner">{{ icon "shield-check-lucide" 13 }}<span>{{ .Page.OwnerGroup }}</span></span>
+              {{ end }}
+            </div>
+            {{ if .Page.Properties }}
+              <dl class="page-property-strip">
+                {{ range .Page.Properties }}
+                  <div>
+                    <dt>{{ .Key }}</dt>
+                    <dd>
+                      {{ .Value }}
+                    </dd>
+                  </div>
+                {{ end }}
+              </dl>
+            {{ end }}
+            </div>
+            <div class="actions">
+              {{ range $index, $inspector := .PluginInspectors }}
+                <button class="button plugin-inspector-button"
+                        type="button"
+                        data-plugin-inspector-open="{{ $index }}"
+                        aria-expanded="false"
+                        aria-controls="plugin-inspector-{{ $index }}"
+                        aria-label="Show {{ .Name }} details"
+                        title="{{ .Name }}: {{ len .Items }} item{{ if ne (len .Items) 1 }}s{{ end }}">
+                  {{ icon "braces-lucide" 17 }}<span>{{ len .Items }}</span>
+                </button>
+              {{ end }}
+              <form action="/pages/{{ .Page.Slug }}/favorite" method="post">
+                <input type="hidden"
+                       name="on"
+                       value="{{ if .PageFavorite }}false{{ else }}true{{ end }}" />
+          <button class="button icon-only page-favorite-button{{ if .PageFavorite }} active{{ end }}"
+                  type="submit"
+                  aria-pressed="{{ if .PageFavorite }}true{{ else }}false{{ end }}"
+                  aria-label="{{ if .PageFavorite }}Remove from pinned pages{{ else }}Pin page{{ end }}"
+                  title="{{ if .PageFavorite }}Remove from pinned pages{{ else }}Pin page{{ end }}">
+              {{ icon "star-lucide" 17 }}
+            </button>
+            </form>
+            <details class="page-watch-menu">
+          <summary class="button icon-only{{ if .PageWatchScope }} active{{ end }}"
+                   aria-label="Watch page"
+                   title="{{ if .PageWatchScope }}Watching {{ .PageWatchScope }}{{ else }}Watch page{{ end }}">
+              {{ icon "bell-lucide" 17 }}
+            </summary>
+            <div class="page-watch-popover">
+              <span class="page-watch-title">Watch</span>
+              <form action="/page-watch/{{ .Page.Slug }}" method="post">
+                <button class="page-watch-option{{ if eq .PageWatchScope "page" }} active{{ end }}"
+                        name="scope"
+                        value="page"
+                        type="submit">
+                  {{ icon "file-lucide" 14 }}<span>This page</span>
+                </button>
+                <button class="page-watch-option{{ if eq .PageWatchScope "subtree" }} active{{ end }}"
+                        name="scope"
+                        value="subtree"
+                        type="submit">
+                  {{ icon "folder-tree-lucide" 14 }}<span>Page &amp; subtree</span>
+                </button>
+                {{ if .PageWatchScope }}
+                  <button class="page-watch-option stop" name="scope" value="" type="submit">
+                    {{ icon "bell-off-lucide" 14 }}<span>Stop watching</span>
+                  </button>
+                {{ end }}
+              </form>
+            </div>
+            </details>
+            {{ if and .CanEdit (not .PageReviewRequest.ID) }}
+              <details class="page-review-action">
+                <summary class="button icon-only"
+                         aria-label="Request review"
+                         title="Request review">{{ icon "send-lucide" 17 }}</summary>
+                <form action="/pages/approval/request/{{ .Page.Slug }}"
+                      method="post"
+                      class="page-review-request"
+                      data-validate-form
+                      data-error-title="Could not request review">
+                  <div class="page-review-form-grid">
+                    <label class="page-review-reviewers">
+                      <span>Reviewers <span class="optional">Optional</span></span>
+                      <textarea name="reviewers"
+                                rows="1"
+                                data-mention-autocomplete
+                                data-mention-roles="admin,editor"
+                                placeholder="@alice @bob"></textarea>
+                    </label>
+                    <label>
+                      <span>Group <span class="optional">Optional</span></span>
+                      <select name="reviewer_group_id">
+                        <option value="">No group</option>
+                        {{ range .ReviewGroups }}
+                          <option value="{{ .ID }}"
+                                  {{ if eq .ID $.Page.OwnerGroupID }}
+                                  selected{{ end }}>
+                            {{ .Name }}{{ if eq .ID $.Page.OwnerGroupID }} · owner{{ end }}
+                          </option>
+                        {{ end }}
+                      </select>
+                    </label>
+                    <label class="page-review-note-field">
+                      <span>Note <span class="optional">Optional</span></span>
+                      <input name="note" placeholder="What should they focus on?" />
+                    </label>
+                  </div>
+                  <div class="page-review-request-footer">
+                    <small>Any assigned reviewer can approve. With no target, Kumbuka uses the owner group or administrators.</small>
+                    <button class="button primary compact" type="submit">Request</button>
+                  </div>
+                </form>
+              </details>
+            {{ end }}
+            <button class="button icon-only"
+                    type="button"
+                    data-share-dialog-open
+                    aria-label="Share or export page"
+                    title="Share or export">{{ icon "share-2-lucide" 17 }}</button>
+            <a class="button icon-only"
+               href="/graph?slug={{ .Page.Slug }}"
+               aria-label="Explore page relationships"
+               title="Knowledge graph">{{ icon "network-lucide" 17 }}</a>
+            {{ if .ApplicationSettings.DiscussionsEnabled }}
+              <button class="button icon-only"
+                      type="button"
+                      data-comment-dialog-open
+                      aria-label="Comment on page"
+                      title="Comment">{{ icon "message-square-plus-lucide" 17 }}</button>
+            {{ end }}
+            {{ if .CanEdit }}
+              <a class="button icon-only"
+                 href="/edit/{{ .Page.Slug }}"
+                 aria-label="Edit page"
+                 title="Edit page">{{ icon "pencil-lucide" 17 }}</a>
+              <button class="button icon-only"
+                      type="button"
+                      data-move-page-open
+                      aria-label="Move page"
+                      title="Move page">{{ icon "folder-input-lucide" 17 }}</button>
+            {{ end }}
+            {{ if eq .User.Role "admin" }}
+              <form action="/pages/delete/{{ .Page.Slug }}"
+                    method="post"
+                    data-confirm="Move {{ .Page.Title }} to the recycle bin? An administrator can restore it later."
+                    data-confirm-title="Move page to recycle bin"
+                    data-confirm-label="Move to bin">
+                <button class="button icon-only danger"
+                        type="submit"
+                        aria-label="Delete page"
+                        title="Delete page">{{ icon "trash-2-lucide" 17 }}</button>
+              </form>
+            {{ end }}
+            </div>
+            </div>
+            {{ range $index, $inspector := .PluginInspectors }}
+              <section class="plugin-inspector-panel"
+                       id="plugin-inspector-{{ $index }}"
+                       data-plugin-inspector-panel="{{ $index }}"
+                       hidden
+                       aria-labelledby="plugin-inspector-title-{{ $index }}">
+                <div class="plugin-inspector-heading">
+                  <div>
+                    <h2 id="plugin-inspector-title-{{ $index }}">{{ .Name }} used on this page</h2>
+                    <p>Saved values are shown below. Editing remains with the owning plugin.</p>
+                  </div>
+                  <button class="icon-button"
+                          type="button"
+                          data-plugin-inspector-close
+                          aria-label="Close {{ .Name }}">{{ icon "x-lucide" 18 }}</button>
+                </div>
+                <label class="toggle-row compact plugin-inspector-highlight-toggle">
+                  <span><strong>Highlight in page</strong><small>Hover, focus or tap marked text to inspect its source.</small></span>
+                  <input type="checkbox" data-plugin-inspector-highlight />
+                </label>
+                <dl class="plugin-inspector-list">
+                  {{ range .Items }}
+                    <div class="plugin-inspector-entry"
+                         data-plugin-inspector-entry="{{ .Annotation }}"
+                         data-plugin-inspector-label="{{ .Label }}">
+                      <dt><code>{{ .Label }}</code><small>{{ .Occurrences }} occurrence{{ if ne .Occurrences 1 }}s{{ end }}</small></dt>
+                      <dd class="plugin-inspector-saved" data-plugin-inspector-saved>
+                        {{ .Value }}
+                      </dd>
+                      {{ if .Description }}
+                        <dd class="plugin-inspector-description">
+                          {{ .Description }}
+                        </dd>
+                      {{ end }}
+                    </div>
+                  {{ end }}
+                </dl>
+                <p class="plugin-inspector-hint">Values used only in links, image attributes, or complex Markdown may not have highlightable text.</p>
+              </section>
+            {{ end }}
+            {{ if .PluginInspectors }}
+              <div class="plugin-inspector-tooltip"
+                   id="plugin-inspector-tooltip"
+                   data-plugin-inspector-tooltip
+                   role="tooltip"
+                   hidden>
+                <strong><span data-plugin-inspector-tooltip-name></span></strong>
+                <span class="plugin-inspector-tooltip-label">Saved value</span><span data-plugin-inspector-tooltip-value></span>
+              </div>
+            {{ end }}
+            {{ if eq .Page.Status "deprecated" }}
+              <aside class="page-lifecycle-banner deprecated">
+                {{ icon "triangle-alert-lucide" 18 }}
+                <div>
+                  <strong>This page is deprecated.</strong>{{ if .Page.DeprecatedTarget }}
+                  <span>Use <a href="/pages/{{ .Page.DeprecatedTarget }}">{{ .Page.DeprecatedTarget }}</a> instead.</span>
+            {{ else }}
+              <span>Review it before following these instructions.</span>
+            {{ end }}
+            </div>
+            </aside>
+          {{ else if eq .Page.Status "draft" }}
+            <aside class="page-lifecycle-banner draft">
+              {{ icon "file-pen-line-lucide" 18 }}
+              <div><strong>Draft documentation.</strong> <span>This page has not been verified yet.</span></div>
+            </aside>
+          {{ else if eq .Page.Status "archived" }}
+            <aside class="page-lifecycle-banner archived">
+              {{ icon "archive-lucide" 18 }}
+              <div><strong>Archived documentation.</strong> <span>This page is retained for historical context.</span></div>
+            </aside>
+          {{ end }}
+          {{ if eq .PageReviewRequest.Status "pending" }}
+            <aside class="page-review-workflow status-pending">
+              <div class="page-review-summary">
+                <span class="page-review-icon" aria-hidden="true">{{ icon "clipboard-clock-lucide" 16 }}</span>
+                <div class="page-review-copy">
+                  <strong>Review requested</strong>
+                  <span>Revision {{ .PageReviewRequest.RevisionNumber }} by {{ .PageReviewRequest.RequestedByName }}</span>
+                </div>
+                <div class="page-review-targets" aria-label="Assigned reviewers">
+                  {{ range .PageReviewRequest.Reviewers }}<span>@{{ .Username }}</span>{{ end }}
+                  {{ if .PageReviewRequest.ReviewerGroupName }}
+                    <span>{{ icon "users-lucide" 12 }}{{ .PageReviewRequest.ReviewerGroupName }}</span>
+                  {{ end }}
+                  {{ if and (not .PageReviewRequest.Reviewers) (not .PageReviewRequest.ReviewerGroupName) }}
+                    <span>{{ icon "shield-lucide" 12 }}Administrators</span>
+                  {{ end }}
+                </div>
+              </div>
+              {{ if .PageReviewRequest.Note }}
+                <p class="page-review-note">{{ .PageReviewRequest.Note }}</p>
+              {{ end }}
+              <div class="page-review-controls">
+                {{ if .CanManageReview }}
+                  <details class="page-review-edit">
+                    <summary class="button compact">{{ icon "pencil-lucide" 13 }}<span>Edit request</span></summary>
+                    <form action="/pages/approval/update/{{ .PageReviewRequest.ID }}"
+                          method="post"
+                          class="page-review-edit-form"
+                          data-validate-form
+                          data-error-title="Could not update review">
+                      <input type="hidden" name="slug" value="{{ .Page.Slug }}" />
+                      <div class="page-review-form-grid">
+                        <label class="page-review-reviewers">
+                          <span>Reviewers <span class="optional">Optional</span></span>
+                          <textarea name="reviewers"
+                                    rows="1"
+                                    data-mention-autocomplete
+                                    data-mention-roles="admin,editor"
+                                    placeholder="@alice @bob">{{ range .PageReviewRequest.Reviewers }}@{{ .Username }} {{ end }}</textarea>
+                        </label>
+                        <label>
+                          <span>Group <span class="optional">Optional</span></span>
+                          <select name="reviewer_group_id">
+                            <option value="">No group</option>
+                            {{ range .ReviewGroups }}
+                              <option value="{{ .ID }}"
+                                      {{ if eq .ID $.PageReviewRequest.ReviewerGroupID }}
+                                      selected{{ end }}>{{ .Name }}</option>
+                            {{ end }}
+                          </select>
+                        </label>
+                        <label class="page-review-note-field">
+                          <span>Note <span class="optional">Optional</span></span>
+                          <input name="note"
+                                 value="{{ .PageReviewRequest.Note }}"
+                                 placeholder="What should they focus on?" />
+                        </label>
+                      </div>
+                      <div class="page-review-edit-actions">
+                        <button class="button primary compact" type="submit">Save changes</button>
+                      </div>
+                    </form>
+                  </details>
+                  <form action="/pages/approval/cancel/{{ .PageReviewRequest.ID }}"
+                        method="post"
+                        data-validate-form
+                        data-error-title="Could not cancel review">
+                    <input type="hidden" name="slug" value="{{ .Page.Slug }}" />
+                    <button class="button compact"
+                            type="submit">{{ icon "x-lucide" 13 }}<span>Cancel review</span></button>
+                  </form>
+                {{ end }}
+                {{ if .CanReviewPage }}
+                  <form action="/pages/approval/decide/{{ .PageReviewRequest.ID }}"
+                        method="post"
+                        class="page-review-decision"
+                        data-validate-form
+                        data-error-title="Could not submit review">
+                    <input type="hidden" name="slug" value="{{ .Page.Slug }}" />
+                    <label>
+                      <span>Decision note <span class="optional">Optional</span></span>
+                      <input name="note" placeholder="What did you check?" />
+                    </label>
+                    <div class="page-review-actions">
+                      <button class="button compact"
+                              name="decision"
+                              value="changes_requested"
+                              type="submit">{{ icon "message-square-warning-lucide" 14 }}<span>Request changes</span></button>
+                      <button class="button primary compact"
+                              name="decision"
+                              value="approved"
+                              type="submit">{{ icon "badge-check-lucide" 14 }}<span>Approve</span></button>
+                    </div>
+                  </form>
+                {{ end }}
+              </div>
+            </aside>
+          {{ else if and (eq .PageReviewRequest.Status "changes_requested") .CanEdit }}
+            <aside class="page-review-workflow status-changes-requested">
+              <div class="page-review-summary">
+                <span class="page-review-icon" aria-hidden="true">{{ icon "message-square-warning-lucide" 16 }}</span>
+                <div class="page-review-copy">
+                  <strong>Changes requested</strong>
+                  <span>Revision {{ .PageReviewRequest.RevisionNumber }}{{ if .PageReviewRequest.ReviewedByName }} by {{ .PageReviewRequest.ReviewedByName }}{{ end }}</span>
+                </div>
+              </div>
+              {{ if .PageReviewRequest.DecisionNote }}
+                <p class="page-review-note">{{ .PageReviewRequest.DecisionNote }}</p>
+              {{ end }}
+              <p class="page-review-hint">Edit the page to address the feedback, then request a new review.</p>
+            </aside>
+          {{ end }}
+<div class="page-reading{{ if .PageContents }} {{ if .Preferences.ShowPageContents }}with-contents{{ else }}contents-hidden{{ end }} {{ end }}">
+    <div class="prose"
+         lang="{{ .PageContentLanguage }}"
+         data-plugin-annotation-content>{{ .HTML }}</div>
+    {{ template "page-contents" . }}
+  </div>
+  <details class="page-details">
+    <summary class="page-details-summary" title="Show page details">
+      <span class="page-meta">Updated {{ timeago .Page.UpdatedAt }} by {{ .Page.Author }} · {{ .Page.ViewCount }}
+      views{{ if gt .Page.ReviewIntervalDays 0 }}· review every {{ .Page.ReviewIntervalDays }}d{{ end }}</span>
+      <span class="page-details-icon" aria-hidden="true">{{ icon "info-lucide" 17 }}</span>
+      <span class="sr-only">Show page details</span>
+    </summary>
+    <div class="relations">
+      {{ range .PageDetailWidgets }}
+        <section class="plugin-widget"
+                 data-kumbuka-plugin="{{ .PluginID }}"
+                 data-kumbuka-module="{{ .ModuleID }}">
+          {{ .HTML }}
+          {{ if .Actions }}
+            <div class="plugin-widget-actions">
+              {{ range .Actions }}
+                {{ if eq .Kind "link" }}
+                  <a class="widget-action"
+                     href="{{ .URL }}">{{ if .Icon }}{{ icon .Icon 14 }}{{ end }}<span>{{ .Label }}</span></a>
+                {{ else if eq .Kind "dialog" }}
+                  <button class="widget-action"
+                          type="button"
+                          data-widget-dialog-open
+                          data-widget-dialog-url="{{ .URL }}"
+                          data-widget-dialog-title="{{ .Label }}">{{ if .Icon }}{{ icon .Icon 14 }}{{ end }}<span>{{ .Label }}</span>{{ icon "chevron-right-lucide" 13 }}</button>
+                {{ end }}
+              {{ end }}
+            </div>
+          {{ end }}
+        </section>
+      {{ end }}
+      {{ if gt .Page.ReviewIntervalDays 0 }}
+        <section>
+          <h2>Documentation review</h2>
+          <p class="muted">
+            {{ if .Page.LastReviewedAt }}
+              Last reviewed {{ .Page.LastReviewedAt.Format "2006-01-02" }}.
+            {{ else }}
+              This page has never been explicitly reviewed.
+            {{ end }}{{ if .Page.OwnerGroup }}Owner: {{ .Page.OwnerGroup }}.{{ end }}
+          </p>
+          {{ if .CanEdit }}
+            <form action="/pages/review/{{ .Page.Slug }}" method="post">
+              <button class="button" type="submit">{{ icon "badge-check-lucide" 15 }}<span>Mark reviewed</span></button>
+            </form>
+          {{ end }}
+        </section>
+      {{ end }}
+    </div>
+  </details>
+  {{ if .ApplicationSettings.DiscussionsEnabled }}
+    <section class="page-comments" id="comments">
+      <div class="panel-title">
+        <div>
+          <h2>Discussion</h2>
+          <p class="muted">Comments can be anchored to selected page text.</p>
+        </div>
+        <button class="button compact" type="button" data-comment-dialog-open>
+          {{ icon "message-square-plus-lucide" 15 }}<span>Comment</span>
+        </button>
+      </div>
+      <div class="page-comment-list">
+        {{ range .Comments }}
+          <article class="page-comment{{ if .Resolved }}resolved{{ end }}">
+            <header>
+              <div><strong>{{ .Author }}</strong><span class="muted">{{ timeago .CreatedAt }}</span></div>
+              {{ if .Resolved }}<span class="page-status-badge status-archived">Resolved</span>{{ end }}
+            </header>
+            {{ if .Anchor }}
+              <blockquote>
+                {{ .Anchor }}
+              </blockquote>
+            {{ end }}
+            <p>{{ .Body }}</p>
+            {{ if $.CanEdit }}
+              <form action="/page-comments/resolve/{{ .ID }}" method="post">
+            <input type="hidden" name="next" value="/pages/{{ $.Page.Slug }}" /><input type="hidden"
+       name="resolved"
+       value="{{ if .Resolved }}
+                      false
+                    {{ else }}
+                      true
+                    {{ end }}" /><button class="button compact" type="submit">
+                {{ if .Resolved }}
+                  Reopen
+                {{ else }}
+                  Resolve
+                {{ end }}
+              </button>
+              </form>
+            {{ end }}
+          </article>
+        {{ else }}
+          <p class="muted">No discussion yet.</p>
+        {{ end }}
+      </div>
+    </section>
+  {{ end }}
+  </article>
+  {{ if .PageContents }}
+    <button class="contents-backdrop"
+            type="button"
+            data-page-contents-backdrop
+            aria-label="Close page contents"
+            hidden></button>
+    <button class="contents-toggle"
+            type="button"
+            data-page-contents-toggle
+            data-preference-url="/settings/preferences/page-contents"
+            aria-controls="page-contents"
+            aria-expanded="false"
+            aria-pressed="{{ if .Preferences.ShowPageContents }}
+        true
+      {{ else }}
+        false
+      {{ end }}"
+            aria-label="{{ if .Preferences.ShowPageContents }}
+        Hide page contents
+      {{ else }}
+        Show page contents
+      {{ end }}"
+            title="{{ if .Preferences.ShowPageContents }}
+        Hide page contents
+      {{ else }}
+        Show page contents
+      {{ end }}">{{ icon "list-lucide" 17 }}</button>
+  {{ end }}
+  <dialog class="share-dialog"
+          data-share-dialog
+          data-preview-url="/export/preview/{{ .Page.Slug }}"
+          aria-labelledby="share-dialog-title">
+    <div class="app-dialog-header">
+      <div>
+        <p class="eyebrow">{{ .Page.Title }}</p>
+        <h2 id="share-dialog-title">Share and export</h2>
+      </div>
+      <button class="icon-button app-dialog-close"
+              type="button"
+              data-share-dialog-close
+              aria-label="Close">{{ icon "x-lucide" 20 }}</button>
+    </div>
+    {{ if .PluginExportFields }}
+      <details class="export-parameters" data-export-parameters>
+        <summary>Customize content <small>Optional temporary values for this print or PDF only.</small></summary>
+        <form class="export-parameters-form"
+              data-export-parameters-form
+              autocomplete="off">
+          {{ range $index, $field := .PluginExportFields }}
+            <div class="export-parameter-field">
+              <label for="export-parameter-{{ $index }}"><code>{{ .Label }}</code></label>
+              {{ if .Description }}
+                <p class="plugin-inspector-description">{{ .Description }}</p>
+              {{ end }}
+              <p class="export-parameter-saved">Saved: <span>{{ .Value }}</span></p>
+              <textarea id="export-parameter-{{ $index }}" data-export-plugin="{{ .PluginID }}" data-export-module="{{ .ModuleID }}" data-export-key="{{ .Key }}" rows="2" autocomplete="off" spellcheck="false" aria-label="Value for this export: {{ .Label }}">
+{{ .Value }}</textarea>
+            </div>
+          {{ end }}
+          <p class="plugin-inspector-hint">These values never update the page or plugin data. Closing this dialog discards them. Markdown export is unchanged.</p>
+          <button class="button compact" type="reset" data-export-reset>Reset to saved values</button>
+        </form>
+      </details>
+    {{ end }}
+    <div class="share-dialog-options">
+      <button class="share-option"
+              type="button"
+              data-share-permalink
+              data-url="/p/{{ .Page.ID }}">
+        <span class="share-option-icon">{{ icon "link-lucide" 22 }}</span>
+        <span><strong>Copy permalink</strong><small data-share-permalink-status>Stable page link. Kumbuka sign-in is still required.</small></span>
+      </button>
+      <button class="share-option" type="button" data-share-preview>
+        <span class="share-option-icon">{{ icon "eye-lucide" 22 }}</span>
+        <span><strong>Preview print / PDF</strong><small>Check the content with your current export values.</small></span>
+      </button>
+      <button class="share-option" type="button" data-share-print>
+        <span class="share-option-icon">{{ icon "printer-lucide" 22 }}</span>
+        <span><strong>Print</strong><small>Open the browser print dialog.</small></span>
+      </button>
+      <button class="share-option"
+              type="button"
+              data-share-pdf
+              data-url="/export/pdf/{{ .Page.Slug }}">
+        <span class="share-option-icon">{{ icon "file-down-lucide" 22 }}</span>
+        <span><strong>Export PDF</strong><small>Generate a printable PDF on the server.</small></span>
+      </button>
+      <a class="share-option"
+         href="/export/markdown/{{ .Page.Slug }}"
+         data-share-markdown>
+        <span class="share-option-icon">{{ icon "file-text-lucide" 22 }}</span>
+        <span><strong>Export Markdown</strong><small>Download .md directly; a ZIP is used only when referenced images must be included.</small></span>
+      </a>
+    </div>
+    <p class="export-status"
+       data-export-status
+       role="status"
+       aria-live="polite"
+       hidden></p>
+    <p class="export-error" data-share-error role="alert" hidden></p>
+    <section class="export-preview"
+             data-export-preview-panel
+             hidden
+             aria-label="Export preview">
+      <div class="export-preview-heading">
+        <strong>Content preview</strong>
+        <button class="button compact" type="button" data-export-preview-hide>Hide preview</button>
+      </div>
+      <p class="plugin-inspector-hint">Pagination is finalized by the browser or PDF service. Inspection highlights are not exported.</p>
+      <div data-export-preview-host></div>
+    </section>
+    <div class="share-progress" data-share-progress hidden>
+      <span class="spinner" aria-hidden="true"></span><span>Generating PDF…</span>
+    </div>
+  </dialog>
+  <dialog class="app-dialog"
+          data-move-page-dialog
+          aria-labelledby="move-page-title">
+    <div class="app-dialog-header">
+      <div>
+        <p class="eyebrow">Refactor</p>
+        <h2 id="move-page-title">Move page</h2>
+      </div>
+      <button class="icon-button app-dialog-close"
+              type="button"
+              data-move-page-close
+              aria-label="Close">{{ icon "x-lucide" 20 }}</button>
+    </div>
+    <form action="/pages/move/{{ .Page.Slug }}"
+          method="post"
+          class="app-dialog-body stacked-form">
+      <label>
+        New page path<input data-path-input
+       name="slug"
+       value="{{ .Page.Slug }}"
+       required
+       autocomplete="off" />
+      </label>
+      <label class="toggle-row compact">
+        <span><strong>Move child pages</strong><small>Move the complete subtree under the new path.</small></span><input type="checkbox" name="move_children" checked />
+      </label>
+      <label class="toggle-row compact">
+        <span><strong>Update incoming links</strong><small>Refactor direct <code>[[path]]</code> references and create revisions for changed pages.</small></span><input type="checkbox" name="update_links" checked />
+      </label>
+      <label class="toggle-row compact">
+        <span><strong>Keep redirects</strong><small>Old paths continue to redirect to the moved pages.</small></span><input type="checkbox" name="keep_aliases" checked />
+      </label>
+      <div class="app-dialog-actions">
+        <button class="button" type="button" data-move-page-close>Cancel</button><button class="button primary" type="submit">{{ icon "folder-input-lucide" 16 }}<span>Move page</span></button>
+      </div>
+    </form>
+  </dialog>
+  {{ if .ApplicationSettings.DiscussionsEnabled }}
+    <dialog class="app-dialog"
+            data-comment-dialog
+            aria-labelledby="comment-dialog-title">
+      <div class="app-dialog-header">
+        <div>
+          <p class="eyebrow">Discussion</p>
+          <h2 id="comment-dialog-title">Add comment</h2>
+        </div>
+        <button class="icon-button app-dialog-close"
+                type="button"
+                data-comment-dialog-close
+                aria-label="Close">{{ icon "x-lucide" 20 }}</button>
+      </div>
+      <form action="/page-comments/{{ .Page.Slug }}"
+            method="post"
+            class="app-dialog-body stacked-form">
+        <label>
+          Anchor <span class="optional">optional</span><textarea name="anchor"
+          rows="2"
+          data-comment-anchor
+          placeholder="Select text on the page before opening this dialog, or describe the section here."></textarea>
+        </label>
+        <label>
+          Comment<textarea name="body"
+          rows="5"
+          required
+          placeholder="Add context or mention @username…"
+          data-mention-autocomplete></textarea>
+        </label>
+        <div class="app-dialog-actions">
+          <button class="button" type="button" data-comment-dialog-close>Cancel</button><button class="button primary" type="submit">{{ icon "send-lucide" 15 }}<span>Add comment</span></button>
+        </div>
+      </form>
+    </dialog>
+  {{ end }}
+  <dialog class="widget-dialog"
+          data-widget-dialog
+          aria-labelledby="widget-dialog-title">
+    <div class="widget-dialog-header">
+      <div>
+        <p class="eyebrow">{{ .Page.Title }}</p>
+        <h2 id="widget-dialog-title" data-widget-dialog-title>Details</h2>
+      </div>
+      <button class="icon-button widget-dialog-close"
+              type="button"
+              data-widget-dialog-close
+              aria-label="Close dialog">{{ icon "x-lucide" 20 }}</button>
+    </div>
+    <div class="widget-dialog-body" data-widget-dialog-body></div>
+  </dialog>
+{{ end }}

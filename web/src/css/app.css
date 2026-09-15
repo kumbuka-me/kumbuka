@@ -1,0 +1,160 @@
+/* CSS manifest only. Keep selectors in the partial that owns the behavior.
+   Order is deliberate: foundation -> layout -> components -> rendering -> features/pages -> responsive -> print. */
+
+/* Base. */
+
+@import "./base/foundation.css";
+
+@import "./base/utilities.css";
+
+/* Application layout. */
+
+@import "./layout/shell.css";
+
+@import "./layout/content.css";
+
+/* Shared components. */
+
+@import "./components/buttons.css";
+
+@import "./components/panels.css";
+
+@import "./components/forms.css";
+
+@import "./components/dialogs.css";
+
+@import "./components/icons.css";
+
+@import "./components/icon-picker.css";
+
+@import "./components/live-search.css";
+
+@import "./components/tag-editor.css";
+
+@import "./components/mentions.css";
+
+@import "./components/groups.css";
+
+@import "./components/page-contents.css";
+
+@import "./components/code-blocks.css";
+
+@import "./components/sharing.css";
+
+@import "./components/command-palette.css";
+
+@import "./components/form-validation.css";
+
+@import "./components/plugin-frame.css";
+
+@import "./components/plugin-inspectors.css";
+
+@import "./components/export-preview.css";
+
+@import "./components/page-report.css";
+
+@import "./components/page-watches.css";
+
+@import "./components/path-picker.css";
+
+@import "./components/code-ligatures.css";
+
+@import "./components/widgets.css";
+
+@import "./components/revisions.css";
+
+/* Markdown rendering. */
+
+@import "./markdown/prose.css";
+
+@import "./markdown/extensions.css";
+
+/* Navigation. */
+
+@import "./navigation/tree.css";
+
+@import "./navigation/account.css";
+
+@import "./navigation/preferences.css";
+
+/* Editor. */
+
+@import "./editor/editor.css";
+
+@import "./editor/preview.css";
+
+@import "./editor/toolbar.css";
+
+@import "./editor/media.css";
+
+@import "./editor/table-format.css";
+
+/* Page surfaces. */
+
+@import "./pages/home.css";
+
+@import "./pages/not-found.css";
+
+@import "./pages/page.css";
+
+@import "./pages/reading.css";
+
+@import "./pages/graph.css";
+
+@import "./pages/shared.css";
+
+@import "./pages/search.css";
+
+@import "./pages/static.css";
+
+@import "./pages/auth.css";
+
+@import "./pages/settings/core.css";
+
+@import "./pages/settings/saved-searches.css";
+
+/* Administration. */
+
+@import "./pages/admin/shell.css";
+
+@import "./pages/admin/core.css";
+
+@import "./pages/admin/navigation.css";
+
+@import "./pages/admin/users.css";
+
+@import "./pages/admin/access-tokens.css";
+
+@import "./pages/admin/exports.css";
+
+@import "./pages/admin/page-access.css";
+
+@import "./pages/admin/configuration.css";
+
+@import "./pages/admin/authentication.css";
+
+@import "./pages/admin/plugins.css";
+
+@import "./pages/admin/recycle-bin.css";
+
+@import "./pages/admin/groups.css";
+
+@import "./pages/admin/health.css";
+
+@import "./pages/admin/templates.css";
+
+@import "./pages/admin/audit.css";
+
+@import "./pages/admin/bulk-pages.css";
+
+@import "./pages/admin/import.css";
+
+@import "./pages/admin/webhooks.css";
+
+/* Coordinated mobile overrides. */
+
+@import "./responsive/mobile.css";
+
+/* Print. */
+
+@import "./print/print.css";

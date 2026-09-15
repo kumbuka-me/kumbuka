@@ -1,0 +1,83 @@
+{{ define "health-page-list" }}
+  {{ range . }}
+    <a class="health-page-row" href="/pages/{{ .Slug }}"><strong>{{ .Title }}</strong><small>{{ .Slug }}</small></a>
+  {{ else }}
+    <p class="muted health-empty">Nothing to fix.</p>
+  {{ end }}
+{{ end }}
+{{ define "content" }}
+  <section class="admin-page">
+    <div class="settings-heading">
+      <p class="eyebrow">Administration</p>
+      <h1>Documentation health</h1>
+      <p class="muted">Find broken links, disconnected pages, lifecycle issues, and documentation that needs review.</p>
+    </div>
+    <div class="health-metrics">
+      <a href="#broken"><strong>{{ len .DocumentationHealth.BrokenLinks }}</strong><span>Broken wiki links</span></a>
+      <a href="#orphans"><strong>{{ len .DocumentationHealth.OrphanPages }}</strong><span>Orphan pages</span></a>
+      <a href="#untagged"><strong>{{ len .DocumentationHealth.UntaggedPages }}</strong><span>Without tags</span></a>
+      <a href="#icons"><strong>{{ len .DocumentationHealth.UniconedPages }}</strong><span>Without icons</span></a>
+      <a href="#review"><strong>{{ len .DocumentationHealth.ReviewDue }}</strong><span>Review due</span></a>
+      <a href="#drafts"><strong>{{ len .DocumentationHealth.DraftPages }}</strong><span>Draft pages</span></a>
+      <a href="#deprecated"><strong>{{ len .DocumentationHealth.Deprecated }}</strong><span>Deprecated</span></a>
+      <a href="#stale"><strong>{{ len .DocumentationHealth.StalePages }}</strong><span>Stale pages</span></a>
+    </div>
+    <div class="health-grid">
+      <section class="panel settings-panel" id="broken">
+        <div class="panel-title">
+          <h2>Broken wiki links</h2>
+        </div>
+        <div class="health-page-list">
+          {{ range .DocumentationHealth.BrokenLinks }}
+            <a class="health-page-row"
+               href="/edit/{{ .SourceSlug }}"><strong>{{ .SourceTitle }}</strong><small>Missing → {{ .TargetSlug }}</small></a>
+          {{ else }}
+            <p class="muted health-empty">No broken wiki links.</p>
+          {{ end }}
+        </div>
+      </section>
+      <section class="panel settings-panel" id="orphans">
+        <div class="panel-title">
+          <h2>Orphan pages</h2>
+        </div>
+        <div class="health-page-list">{{ template "health-page-list" .DocumentationHealth.OrphanPages }}</div>
+      </section>
+      <section class="panel settings-panel" id="untagged">
+        <div class="panel-title">
+          <h2>Pages without tags</h2>
+        </div>
+        <div class="health-page-list">{{ template "health-page-list" .DocumentationHealth.UntaggedPages }}</div>
+      </section>
+      <section class="panel settings-panel" id="icons">
+        <div class="panel-title">
+          <h2>Pages without icons</h2>
+        </div>
+        <div class="health-page-list">{{ template "health-page-list" .DocumentationHealth.UniconedPages }}</div>
+      </section>
+      <section class="panel settings-panel" id="review">
+        <div class="panel-title">
+          <h2>Review due</h2>
+        </div>
+        <div class="health-page-list">{{ template "health-page-list" .DocumentationHealth.ReviewDue }}</div>
+      </section>
+      <section class="panel settings-panel" id="drafts">
+        <div class="panel-title">
+          <h2>Draft pages</h2>
+        </div>
+        <div class="health-page-list">{{ template "health-page-list" .DocumentationHealth.DraftPages }}</div>
+      </section>
+      <section class="panel settings-panel" id="deprecated">
+        <div class="panel-title">
+          <h2>Deprecated pages</h2>
+        </div>
+        <div class="health-page-list">{{ template "health-page-list" .DocumentationHealth.Deprecated }}</div>
+      </section>
+      <section class="panel settings-panel" id="stale">
+        <div class="panel-title">
+          <h2>Stale pages</h2>
+        </div>
+        <div class="health-page-list">{{ template "health-page-list" .DocumentationHealth.StalePages }}</div>
+      </section>
+    </div>
+  </section>
+{{ end }}
