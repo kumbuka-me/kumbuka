@@ -1,0 +1,81 @@
+{{ define "content" }}
+  <section class="admin-page">
+    <div class="settings-heading">
+      <p class="eyebrow">Administration</p>
+      <h1>Images</h1>
+      <p class="muted">Inspect all uploaded media, reference counts, and clean up files when appropriate.</p>
+    </div>
+    <section class="panel settings-panel"
+             id="images"
+             data-media-settings-browser
+             data-media-list-url="/api/images"
+             data-media-scope="all"
+             data-media-mode="admin"
+             data-media-page-size="30"
+             data-media-offset="{{ len .Images }}">
+      <div class="panel-title">
+        <h2>All images</h2>
+        <span class="muted"
+              data-media-settings-count>{{ len .Images }} shown{{ if .ImagesHasMore }} · more available{{ end }}</span>
+      </div>
+      <p class="settings-note">
+        Reference counts count every Markdown occurrence. Administrators may delete referenced images; doing so leaves
+        broken references in affected pages.
+      </p>
+      <form class="media-settings-search"
+            method="get"
+            action="/admin/images#images"
+            data-media-settings-search>
+        <input type="search"
+               name="image_q"
+               value="{{ .ImageQuery }}"
+               maxlength="200"
+               placeholder="Search by filename or uploader…"
+               aria-label="Search images by filename or uploader"
+               data-media-settings-search-input />
+        <button class="button" type="submit">{{ icon "search-lucide" 16 }}<span>Search</span></button>
+        <a class="button"
+           href="/admin/images#images"
+           data-media-settings-clear
+           {{ if not .ImageQuery }}hidden{{ end }}>Clear</a>
+      </form>
+      <div class="media-settings-list" data-media-settings-list>
+        {{ range .Images }}
+          <article class="media-settings-row"
+                   data-media-settings-item
+                   data-media-id="{{ .ID }}">
+            <img src="{{ .URL }}" alt="" loading="lazy" />
+            <div class="media-settings-info">
+              <strong>{{ .Filename }}</strong>
+              <small>{{ filesize .SizeBytes }} · {{ if .Uploader }}{{ .Uploader }}{{ else }}Unknown uploader{{ end }} · {{ timeago .CreatedAt }}</small>
+              {{ if gt .UsageCount 0 }}
+                <small class="media-used">Referenced {{ .UsageCount }} time{{ if ne .UsageCount 1 }}s{{ end }}</small>
+              {{ else }}
+                <small class="media-unused">Unused</small>
+              {{ end }}
+              <code>{{ .URL }}</code>
+            </div>
+            <div class="media-settings-actions">
+              <button class="button danger"
+                      type="button"
+                      data-media-delete
+                      data-media-usage="{{ .UsageCount }}"
+                      data-delete-url="/api/images/{{ .ID }}">Delete</button>
+            </div>
+          </article>
+        {{ else }}
+          <p class="muted" data-media-settings-empty>
+            {{ if .ImageQuery }}No images match your search.{{ else }}No images uploaded yet.{{ end }}
+          </p>
+        {{ end }}
+      </div>
+      <div class="media-settings-pagination">
+        <button class="button"
+                type="button"
+                data-media-load-more
+                {{ if not .ImagesHasMore }}hidden{{ end }}>Load more</button>
+        <span class="muted" data-media-load-status></span>
+      </div>
+    </section>
+  </section>
+{{ end }}

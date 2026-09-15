@@ -1,0 +1,138 @@
+/* Bulk page administration table and toolbar. */
+
+.bulk-pages-toolbar input,
+.bulk-pages-toolbar select {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  outline: 0;
+  background: var(--surface);
+  padding: 8px 10px;
+  color: var(--text);
+  font: inherit;
+  min-height: 38px;
+}
+
+.bulk-pages-toolbar input:focus,
+.bulk-pages-toolbar select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.bulk-pages {
+  overflow: hidden;
+  padding: 0;
+}
+
+.bulk-pages-toolbar {
+  display: grid;
+  grid-template-columns:
+    auto auto minmax(160px, 220px) minmax(150px, 220px)
+    auto;
+  align-items: center;
+  gap: 9px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.bulk-select-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.bulk-select-all input,
+.admin-page-table input[type="checkbox"] {
+  width: 17px;
+  height: 17px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.bulk-pages-toolbar [hidden] {
+  display: none !important;
+}
+
+.admin-page-table-wrap {
+  overflow-x: auto;
+}
+
+.admin-page-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.admin-page-table th,
+.admin-page-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.admin-page-table th {
+  color: var(--text-tertiary);
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.admin-page-table tbody tr:hover {
+  background: var(--surface-hover);
+}
+
+.admin-page-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.admin-page-table td:nth-child(2) {
+  min-width: 230px;
+}
+
+.admin-page-table td:nth-child(2) a {
+  color: var(--text);
+  text-decoration: none;
+}
+
+.admin-page-table td:nth-child(2) a:hover strong {
+  color: var(--accent);
+}
+
+.admin-page-table td:nth-child(2) strong,
+.admin-page-table td:nth-child(2) small {
+  display: block;
+}
+
+.admin-page-table td:nth-child(2) small {
+  margin-top: 2px;
+  color: var(--text-tertiary);
+  font:
+    10px/1.4 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Consolas,
+    monospace;
+}
+
+@media (max-width: 980px) {
+  .bulk-pages-toolbar {
+    grid-template-columns: auto 1fr minmax(150px, 1fr) minmax(150px, 1fr) auto;
+  }
+}
+
+@media (max-width: 700px) {
+  .bulk-pages-toolbar {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .bulk-pages-toolbar > select,
+  .bulk-pages-toolbar > input,
+  .bulk-pages-toolbar > button {
+    grid-column: 1 / -1;
+  }
+}

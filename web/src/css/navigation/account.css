@@ -1,0 +1,128 @@
+/* Sidebar account menu keeps personal and administrative actions out of page navigation. */
+
+.sidebar-account {
+  position: relative;
+  flex: none;
+  margin-top: auto;
+  padding: 12px 8px 0;
+  border-top: 1px solid var(--border);
+}
+
+.sidebar-account .avatar {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border-radius: 8px;
+  background: var(--surface-elevated);
+  color: var(--accent);
+}
+
+.sidebar-account-trigger {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 7px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.sidebar-account-trigger:hover,
+.sidebar-account-trigger:focus-visible,
+.sidebar-account-trigger[aria-expanded="true"] {
+  background: var(--surface-hover);
+}
+
+.sidebar-account-trigger:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.sidebar-account-info {
+  min-width: 0;
+}
+
+.sidebar-account-info strong,
+.sidebar-account-info small {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.sidebar-account-info small {
+  margin-top: 1px;
+  color: var(--muted);
+  text-transform: capitalize;
+}
+
+.sidebar-account-chevron {
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+}
+
+.sidebar-account-popover {
+  position: absolute;
+  z-index: 50;
+  right: 8px;
+  bottom: calc(100% + 8px);
+  left: 8px;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface-elevated);
+  box-shadow: 0 12px 32px color-mix(in srgb, var(--text) 14%, transparent);
+}
+
+.sidebar-account-popover[hidden] {
+  display: none;
+}
+
+.sidebar-account-popover form {
+  margin: 0;
+}
+
+.sidebar-account-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 8px 9px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.sidebar-account-item:hover,
+.sidebar-account-item:focus-visible {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.sidebar-account-item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.sidebar-account-separator {
+  height: 1px;
+  margin: 5px 4px;
+  background: var(--border);
+}
+
+.sidebar-account-signout {
+  color: var(--text-tertiary);
+}

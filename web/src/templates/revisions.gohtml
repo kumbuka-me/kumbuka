@@ -1,0 +1,93 @@
+{{ define "revision-item" }}
+  <div class="revision">
+    <div class="revision-heading">
+      <strong>{{ .Author }}</strong>
+      <span class="revision-number">r{{ .Number }}</span>
+    </div>
+    {{ if .Message }}<span class="revision-message">{{ .Message }}</span>{{ end }}
+    <small class="revision-meta">
+      <span>{{ timeago .CreatedAt }}</span>
+      {{ if or .AddedLines .RemovedLines }}
+        <span class="revision-diff"><span class="revision-added">+{{ .AddedLines }}</span><span class="revision-removed">−{{ .RemovedLines }}</span> lines</span>
+      {{ else if eq .Number 1 }}
+        <span>created page</span>
+      {{ else }}
+        <span>metadata-only save</span>
+      {{ end }}
+    </small>
+  </div>
+{{ end }}
+{{ define "revision-list" }}
+  {{ $root := . }}
+  <div class="revision-list" data-revision-list>
+    {{ if .Revisions }}
+      <div class="revision-list-toolbar">
+        <button class="button revision-toggle-all"
+                type="button"
+                data-revision-toggle-all
+                aria-expanded="false">
+          {{ icon "chevrons-down-lucide" 14 }}<span>Show all changes</span>
+        </button>
+      </div>
+    {{ end }}
+    {{ range $index, $revision := .Revisions }}
+      <article class="revision-entry{{ if eq $index 0 }}is-open{{ end }}"
+               data-revision-entry
+               data-revision-number="{{ $revision.Number }}">
+        <div class="revision-entry-heading">
+          <button class="revision-entry-toggle"
+                  type="button"
+                  data-revision-toggle
+                  aria-expanded="{{ if eq $index 0 }}
+              true
+            {{ else }}
+              false
+            {{ end }}"
+                  aria-controls="revision-content-{{ $revision.Number }}"
+                  aria-label="{{ if eq $index 0 }}
+              Hide
+            {{ else }}
+              Show
+            {{ end }} changes for revision {{ $revision.Number }}"
+                  title="{{ if eq $index 0 }}
+              Hide
+            {{ else }}
+              Show
+            {{ end }} changes">{{ icon "chevron-right-lucide" 16 }}</button>
+          {{ template "revision-item" $revision }}
+          {{ if $root.CanEdit }}
+            <form action="/revisions/{{ $revision.Number }}/restore/{{ $root.RevisionSlug }}"
+                  method="post"
+                  data-confirm="Restore revision {{ $revision.Number }}? Kumbuka will create a new revision with this content."
+                  data-confirm-title="Restore revision"
+                  data-confirm-label="Restore revision">
+              <button class="button revision-restore-button" type="submit">
+                {{ icon "history-lucide" 14 }}<span>Restore</span>
+              </button>
+            </form>
+          {{ end }}
+        </div>
+        <div class="revision-entry-content"
+             id="revision-content-{{ $revision.Number }}"
+             data-revision-content
+             {{ if ne $index 0 }}hidden{{ end }}>
+          {{ if $revision.Diff }}
+            <div class="revision-patch"
+                 role="region"
+                 aria-label="Changes in revision {{ $revision.Number }}">
+              {{ range $revision.Diff }}
+                <div class="revision-patch-line revision-patch-{{ .Kind }}">
+                  <span class="revision-patch-marker" aria-hidden="true">{{ .Marker }}</span><code>{{ .Text }}</code>
+                </div>
+              {{ end }}
+            </div>
+          {{ else }}
+            <p class="revision-no-changes">No content changes.</p>
+          {{ end }}
+        </div>
+      </article>
+    {{ else }}
+      <p class="muted">No revision history available.</p>
+    {{ end }}
+  </div>
+{{ end }}

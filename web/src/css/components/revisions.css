@@ -1,0 +1,167 @@
+/* Revision history, diffs, and restore controls. */
+
+.revision {
+  display: flex;
+  flex-direction: column;
+  padding: 10px 3px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.revision:last-child {
+  border-bottom: 0;
+}
+
+.revision span,
+.revision small {
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+
+.revision-history-button {
+  width: 100%;
+  margin-top: 10px;
+}
+
+.revision-history-button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.revision-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.revision-number {
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--surface-elevated);
+  color: var(--text-tertiary);
+  font:
+    600 11px/1.6 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+}
+
+.revision-message {
+  margin-top: 2px;
+  color: var(--text-secondary) !important;
+  font-size: 13px !important;
+}
+
+.revision-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  align-items: center;
+}
+
+.revision-diff {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.revision-added {
+  color: var(--success);
+}
+
+.revision-removed {
+  color: var(--danger);
+}
+
+.revision-entry {
+  padding: 12px 0 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.revision-entry:last-child {
+  border-bottom: 0;
+}
+
+.revision-entry > .revision {
+  border-bottom: 0;
+}
+
+.revision-patch {
+  margin-top: 8px;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface-elevated);
+  font:
+    12px/1.55 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Consolas,
+    monospace;
+}
+
+.revision-patch-line {
+  display: grid;
+  grid-template-columns: 22px minmax(max-content, 1fr);
+  min-height: 19px;
+  padding: 0 8px;
+  white-space: pre;
+}
+
+.revision-patch-line code {
+  font: inherit;
+}
+
+.revision-patch-marker {
+  color: var(--text-tertiary);
+  user-select: none;
+}
+
+.revision-patch-added {
+  background: color-mix(in srgb, var(--success) 13%, transparent);
+  color: var(--success);
+}
+
+.revision-patch-removed {
+  background: color-mix(in srgb, var(--danger) 13%, transparent);
+  color: var(--danger);
+}
+
+.revision-patch-header {
+  color: var(--text-secondary);
+  font-weight: 700;
+}
+
+.revision-patch-hunk {
+  margin: 3px 0;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  color: var(--accent);
+}
+
+.revision-patch-note {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.revision-no-changes {
+  margin: 7px 2px 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.revision-entry-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.revision-entry-heading > .revision {
+  flex: 1;
+}
+
+.revision-restore-button {
+  flex: none;
+  padding: 5px 8px;
+  font-size: 11px;
+}

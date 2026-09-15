@@ -1,0 +1,29 @@
+{{ define "content" }}
+  <section class="admin-page">
+    <div class="settings-heading">
+      <p class="eyebrow">Administration</p>
+      <h1>Tags</h1>
+      <p class="muted">Review the shared tag vocabulary and remove tags from all pages.</p>
+    </div>
+    <section class="panel settings-panel">
+      <div class="panel-title">
+        <h2>All tags</h2>
+        <span class="muted">{{ len .AdminTags }} tags</span>
+      </div>
+      <div class="admin-list">
+        {{ range .AdminTags }}
+          <div class="admin-list-row">
+            <span><strong>{{ .Name }}</strong><small>{{ .PageCount }} page{{ if ne .PageCount 1 }}s{{ end }}</small></span>
+            <form action="/admin/tags/{{ .ID }}/delete"
+                  method="post"
+                  data-confirm="Delete tag {{ .Name }} from all pages?">
+              <button class="button danger" type="submit">Delete</button>
+            </form>
+          </div>
+        {{ else }}
+          <p class="muted">No tags yet.</p>
+        {{ end }}
+      </div>
+    </section>
+  </section>
+{{ end }}

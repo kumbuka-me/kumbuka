@@ -1,0 +1,810 @@
+{{ define "content" }}
+<form class="editor"
+      action="/pages"
+      method="post"
+      data-editor-form
+      data-validate-form
+      data-error-title="Could not save page"
+      data-preview-url="/api/preview"
+      data-draft-key="{{ if .Page }}page:{{ .Page.ID }}{{ else }}new{{ end }}"
+      data-draft-url="/api/drafts/{{ if .Page }}page:{{ .Page.ID }}{{ else }}new{{ end }}"
+      data-page-id="{{ if .Page }}{{ .Page.ID }}{{ else }}0{{ end }}"
+      data-editor-new="{{ if .Page }} false {{ else }} true {{ end }}"
+      data-editor-exit-url="{{ if .Page }} /pages/{{ .Page.Slug }} {{ else }} / {{ end }}">
+  <input type="hidden"
+         name="original_slug"
+         value="{{ if .Page }}{{ .Page.Slug }}{{ end }}" />
+  {{ if and (not .Page) .EditorTemplate }}<input type="hidden"
+       name="template_id"
+       value="{{ .EditorTemplate.ID }}" />{{ end }}
+  <header class="editor-chrome">
+    <div class="editor-chrome-left">
+      <a class="editor-back"
+         href="{{ if .Page }} /pages/{{ .Page.Slug }} {{ else }} / {{ end }}"
+         data-editor-leave
+         aria-label="Leave editor"
+         title="Leave editor">{{ icon "x-lucide" 18 }}</a>
+      <div>
+        <span class="editor-chrome-context">{{ if .Page }}Editing{{ else }}New page{{ end }}</span>
+        <strong data-editor-chrome-title>{{ if .Page }}{{ .Page.Title }}{{ else }}Untitled{{ end }}</strong>
+      </div>
+    </div>
+    <div class="editor-chrome-actions">
+      <span class="editor-save-status {{ if .Page }}saved{{ end }}"
+            data-editor-save-status
+            aria-live="polite">
+        {{ if .Page }}
+          Saved
+        {{ else }}
+          Ready
+        {{ end }}
+      </span>
+      <div class="editor-mode-switcher" role="group" aria-label="Editor view">
+        <button class="editor-mode-button"
+                type="button"
+                data-editor-mode="write"
+                aria-pressed="true"
+                title="Write">
+          {{ icon "pencil-lucide" 16 }}<span>Write</span>
+        </button>
+        <button class="editor-mode-button"
+                type="button"
+                data-editor-mode="split"
+                aria-pressed="false"
+                title="Split view">
+          {{ icon "columns-2-lucide" 16 }}<span>Split</span>
+        </button>
+        <button class="editor-mode-button"
+                type="button"
+                data-editor-mode="preview"
+                aria-pressed="false"
+                title="Preview">
+          {{ icon "eye-lucide" 16 }}<span>Preview</span>
+        </button>
+      </div>
+      <button class="button editor-focus-button"
+              type="button"
+              data-editor-focus-toggle
+              aria-pressed="false"
+              title="Focus mode">
+        {{ icon "maximize-2-lucide" 16 }}<span data-editor-focus-label>Focus</span>
+      </button>
+      <button class="button editor-discard-button"
+              type="button"
+              data-editor-discard
+              title="Discard changes">
+        {{ icon "undo-2-lucide" 16 }}<span>Discard</span>
+      </button>
+      <button class="button primary" type="submit" title="Save page (⌘/Ctrl+S)">
+        {{ icon "save-lucide" 16 }}<span>Save page</span>
+      </button>
+    </div>
+  </header>
+  <div class="editor-draft-banner" data-editor-draft-banner hidden>
+    <div>{{ icon "history-lucide" 17 }}<span data-editor-draft-message>A newer private draft is available.</span></div>
+    <div>
+      <button class="button" type="button" data-editor-draft-discard>Discard</button>
+      <button class="button primary" type="button" data-editor-draft-restore>Restore draft</button>
+    </div>
+  </div>
+  {{ if not .Page }}
+    {{ if .PageTemplates }}
+      <div class="editor-template-strip">
+        <span class="muted">Start from</span>
+        <a class="editor-template-chip{{ if not .EditorTemplate }}active{{ end }}"
+           href="/pages/new{{ if .EditorInitialSlug }}?slug={{ .EditorInitialSlug | urlquery }}{{ else if .EditorParentPath }}?parent={{ .EditorParentPath | urlquery }}{{ end }}">Blank</a>
+        {{ range .PageTemplates }}
+          <a class="editor-template-chip{{ if $.EditorTemplate }} {{ if eq $.EditorTemplate.ID .ID }}active{{ end }} {{ end }}" href="/pages/new?template={{ .ID }}{{ if $.EditorInitialSlug }}&slug={{ $.EditorInitialSlug | urlquery }}{{ else if $.EditorParentPath }}&parent={{ $.EditorParentPath | urlquery }}{{ end }}" title="{{ .Description }}">{{ .Name }}</a>
+        {{ end }}
+      </div>
+    {{ end }}
+    {{ if and .EditorTemplate .EditorTemplate.Fields }}
+      <section class="editor-blueprint-fields" data-blueprint-fields>
+        <div><strong>{{ .EditorTemplate.Name }} fields</strong><span class="muted">Values replace matching <code>{{ "{{field:name}}" }}</code> placeholders when saved.</span></div>
+        <div class="form-grid">
+          {{ range .EditorTemplate.Fields }}
+            <label>
+              {{ .Label }}{{ if not .Required }} <span class="optional">optional</span>{{ end }}
+              <input name="blueprint_{{ .Name }}"
+                     value="{{ .Default }}"
+                     {{ if .Required }}required{{ end }}
+                     data-blueprint-field="{{ .Name }}" />
+            </label>
+          {{ end }}
+        </div>
+      </section>
+    {{ end }}
+  {{ end }}
+  <section class="editor-document-head">
+    <div class="editor-page-icon" data-icon-picker-owner>
+      <input type="hidden"
+             name="icon"
+             value="{{ if .Page }}{{ .Page.Icon }}{{ else if .EditorTemplate }}{{ .EditorTemplate.Icon }}{{ end }}"
+             data-icon-picker-value />
+      <button class="editor-page-icon-button"
+              type="button"
+              data-icon-picker-open
+              aria-label="Choose page icon"
+              title="Choose page icon">
+        <span data-icon-picker-preview data-icon-picker-empty="plus">{{ if .Page }}
+          {{ if .Page.Icon }}{{ icon .Page.Icon 25 }}{{ else }}{{ icon "plus-lucide" 25 }}{{ end }}
+{{ else if .EditorTemplate }}
+  {{ if .EditorTemplate.Icon }}{{ icon .EditorTemplate.Icon 25 }}{{ else }}{{ icon "plus-lucide" 25 }}{{ end }}
+{{ else }}
+  {{ icon "plus-lucide" 25 }}
+{{ end }}</span>
+</button>
+</div>
+<div class="editor-title-stack">
+  <input class="editor-title-input"
+         name="title"
+         required
+         {{ if not .Page }}autofocus{{ end }}
+         value="{{ if .Page }}{{ .Page.Title }}{{ end }}"
+         placeholder="Untitled"
+         aria-label="Page title"
+         autocomplete="off"
+         lang="{{ .PageContentLanguage }}" />
+  <div class="editor-path-preview" data-editor-path-preview>Pages / new-page</div>
+</div>
+</section>
+<details class="editor-page-settings" data-editor-page-settings>
+  <summary>
+    {{ icon "settings-2-lucide" 16 }}<span>Page settings</span><span class="muted">Path, metadata, ownership and revision</span>{{ icon "chevron-down-lucide" 16 }}
+  </summary>
+  <div class="editor-page-settings-body">
+    <div class="form-grid">
+      <div class="editor-location-field">
+        <label for="editor-page-location">Page location</label>
+        <input id="editor-page-location"
+               type="text"
+               name="parent_path"
+               value="{{ .EditorParentPath }}"
+               data-path-input
+               data-editor-parent-path
+               data-error-field="slug"
+               placeholder="Find or enter a folder path…"
+               autocomplete="off" />
+        <input type="hidden"
+               name="slug"
+               data-error-label="Page location"
+               data-editor-path-segment="{{ .EditorPathSegment }}"
+               value="{{ if .Page }}{{ .Page.Slug }}{{ else }}{{ .EditorInitialSlug }}{{ end }}" />
+        <small>Choose an existing location or type a new folder path. Leave empty for the top level.</small>
+      </div>
+      <label>
+        Tags
+        <span class="tag-editor" data-tag-editor data-tag-source="/api/tags">
+          <span class="tag-chips" data-tag-chips></span>
+          <input class="tag-input"
+                 type="text"
+                 data-tag-input
+                 autocomplete="off"
+                 placeholder="Add a tag…"
+                 aria-label="Add tag"
+                 aria-autocomplete="list" />
+          <input type="hidden"
+                 name="tags"
+                 data-tag-value
+                 value="{{ if .Page }}{{ join .Page.Tags "," }}{{ else if .EditorTemplate }}{{ join .EditorTemplate.Tags "," }}{{ end }}" />
+          <span class="tag-suggestions" data-tag-suggestions role="listbox" hidden></span>
+        </span>
+        <small>Choose an existing tag or type a new one.</small>
+      </label>
+    </div>
+    <fieldset class="editor-groups">
+      <legend>Groups <span class="optional">optional</span></legend>
+      {{ if .Groups }}
+        <div class="page-group-options">
+          {{ $page := .Page }}
+          {{ range .Groups }}
+            <label class="page-group-option">
+              <input type="checkbox" name="group_id" value="{{ .ID }}" {{ if $page }}{{ if hasgroupid $page.Groups .ID }}checked{{ end }}{{ end }} />
+              <span>{{ .Name }}</span>
+            </label>
+          {{ end }}
+        </div>
+        <small>Assign this page to collaboration groups you belong to. Administrators can assign any group.</small>
+      {{ else }}
+        <p class="muted editor-group-empty">
+          You are not a member of any groups. An administrator can add memberships under Administration → Users.
+        </p>
+      {{ end }}
+    </fieldset>
+    <div class="form-grid editor-workflow-fields">
+      <label>
+        Content language <span class="optional">optional</span>
+        <select name="language">
+          <option value="">Use default ({{ .ApplicationSettings.ContentLanguage }})</option>
+          {{ range .ContentLanguages }}
+            <option value="{{ .Code }}" {{ if $.Page }}{{ if eq $.Page.Language .Code }}selected{{ end }}{{ end }}>
+              {{ .Label }}
+            </option>
+          {{ end }}
+        </select>
+        <small>Override the default content language for spell checking, accessibility, and PDF export.</small>
+      </label>
+      <label>
+        Status
+        <select name="status" data-page-status>
+          {{ range .PageStatuses }}
+          <option value="{{ . }}" {{ if $.Page }} {{ if eq $.Page.Status . }}selected{{ end }} {{ else if $.EditorTemplate }} {{ if eq $.EditorTemplate.Status . }}selected{{ end }} {{ else }} {{ if eq . "verified" }}selected{{ end }} {{ end }}>
+            {{ . }}
+            </option>
+          {{ end }}
+        </select>
+        <small>Draft, verified, deprecated, or archived.</small>
+      </label>
+      <label>
+        Documentation owner <span class="optional">optional</span>
+        <select name="owner_group_id">
+          <option value="">No owner</option>
+          {{ if .Page }}
+            {{ if .Page.OwnerGroup }}
+              {{ if not (hasgroupid .Groups .Page.OwnerGroupID) }}
+                <option value="{{ .Page.OwnerGroupID }}" selected>{{ .Page.OwnerGroup }}</option>
+              {{ end }}
+            {{ end }}
+          {{ end }}
+          {{ $page := .Page }}{{ $blueprint := .EditorTemplate }}{{ range .Groups }}
+        <option value="{{ .ID }}" {{ if $page }}{{ if eq $page.OwnerGroupID .ID }}selected{{ end }} {{ else if $blueprint }}{{ if eq $blueprint.OwnerGroupID .ID }}selected{{ end }}{{ end }}>
+          {{ .Name }}
+          </option>
+        {{ end }}
+      </select>
+      <small>Ownership feeds documentation review and health views.</small>
+    </label>
+    <label>
+      Review every <span class="optional">days</span>
+      <input type="number"
+             min="0"
+             max="3650"
+             name="review_interval_days"
+             value="{{ if .Page }}
+                {{ .Page.ReviewIntervalDays }}
+              {{ else if .EditorTemplate }}
+                {{ .EditorTemplate.ReviewIntervalDays }}
+              {{ else }}
+                0
+              {{ end }}" />
+      <small>Use 0 to disable scheduled reviews.</small>
+    </label>
+  </div>
+  <label class="editor-deprecated-target" data-deprecated-target>
+    Replacement page <span class="optional">for deprecated pages</span>
+    <input data-path-input
+           name="deprecated_target"
+           value="{{ if .Page }}{{ .Page.DeprecatedTarget }}{{ end }}"
+           placeholder="applications/new-service" />
+    <small>Readers of deprecated content are pointed at this replacement.</small>
+  </label>
+  <label class="toggle-row compact editor-review-toggle">
+    <span><strong>Mark reviewed now</strong><small>Record today as the latest documentation review.</small></span>
+    <input type="checkbox" name="mark_reviewed" />
+  </label>
+  <fieldset class="editor-properties" data-page-properties>
+    <legend>Properties <span class="optional">optional</span></legend>
+    <div class="editor-property-list" data-page-property-list>
+      {{ if .Page }}
+        {{ range .Page.Properties }}
+          <div class="editor-property-row">
+            <input name="property_key" value="{{ .Key }}" placeholder="Environment" /><input name="property_value" value="{{ .Value }}" placeholder="Production" /><button class="icon-button"
+        type="button"
+        data-page-property-remove
+        aria-label="Remove property">{{ icon "x-lucide" 15 }}</button>
+          </div>
+        {{ end }}
+      {{ else if .EditorTemplate }}
+        {{ range $key, $value := .EditorTemplate.Properties }}
+          <div class="editor-property-row">
+            <input name="property_key" value="{{ $key }}" placeholder="Environment" /><input name="property_value" value="{{ $value }}" placeholder="Production" /><button class="icon-button"
+        type="button"
+        data-page-property-remove
+        aria-label="Remove property">{{ icon "x-lucide" 15 }}</button>
+          </div>
+        {{ end }}
+      {{ end }}
+    </div>
+    <button class="button compact editor-property-add"
+            type="button"
+            data-page-property-add>
+      {{ icon "plus-lucide" 14 }}<span>Add property</span>
+    </button>
+    <small>Search with <code>property:Environment=Production</code>.</small>
+  </fieldset>
+  <label>
+    Revision message <span class="optional">optional</span><input name="message" placeholder="What changed?" />
+  </label>
+</div>
+</details>
+<section class="editor-writing">
+  <div class="editor-writing-heading">
+    <div>
+      <strong data-editor-section-title>Markdown</strong>
+      <span class="muted" data-editor-section-description>Markdown stays the source of truth.</span>
+    </div>
+    <span class="editor-shortcuts muted">⌘/Ctrl+S save · ⌘/Ctrl+F find · ⌘/Ctrl+Shift+P preview</span>
+  </div>
+  <div class="markdown-toolbar"
+       data-markdown-toolbar
+       role="toolbar"
+       aria-label="Markdown formatting">
+    <div class="markdown-toolbar-group" aria-label="Text formatting">
+      <span class="markdown-toolbar-group-label"></span>
+      <button type="button"
+              data-markdown-action="bold"
+              title="Bold (⌘/Ctrl+B)"
+              aria-label="Bold">{{ icon "bold-lucide" 16 }}</button>
+      <button type="button"
+              data-markdown-action="italic"
+              title="Italic (⌘/Ctrl+I)"
+              aria-label="Italic">{{ icon "italic-lucide" 16 }}</button>
+      {{ range .EditorInserts }}
+        {{ if eq .Group "text" }}
+          <button type="button"
+                  data-plugin-insert-markdown="{{ .Markdown }}"
+                  data-plugin-insert-suffix="{{ .Suffix }}"
+                  data-plugin-insert-placeholder="{{ .Placeholder }}"
+                  data-plugin-insert-mode="{{ .Mode }}"
+                  data-plugin-insert-inline="{{ .Inline }}"
+                  title="{{ if .Description }}{{ .Description }}{{ else }}{{ .Name }}{{ end }}"
+                  aria-label="{{ .Name }}">{{ if .Icon }}{{ icon .Icon 16 }}{{ else }}{{ icon "braces-lucide" 16 }}{{ end }}</button>
+        {{ end }}
+      {{ end }}
+      <details class="markdown-toolbar-menu">
+        <summary title="Heading"
+                 aria-label="Heading">{{ icon "heading-lucide" 16 }}{{ icon "chevron-down-lucide" 12 }}</summary>
+        <div class="markdown-toolbar-popover">
+          <button type="button" data-markdown-action="heading-1">Heading 1</button>
+          <button type="button" data-markdown-action="heading-2">Heading 2</button>
+          <button type="button" data-markdown-action="heading-3">Heading 3</button>
+          <button type="button" data-markdown-action="heading-4">Heading 4</button>
+        </div>
+      </details>
+    </div>
+    <div class="markdown-toolbar-group" aria-label="Blocks">
+      <span class="markdown-toolbar-group-label"></span>
+      <button type="button"
+              data-markdown-action="quote"
+              title="Quote"
+              aria-label="Quote">{{ icon "quote-lucide" 16 }}</button>
+      <button type="button"
+              data-markdown-action="inline-code"
+              title="Inline code"
+              aria-label="Inline code">{{ icon "code-lucide" 16 }}</button>
+      <button type="button"
+              data-markdown-action="code-block"
+              title="Code block"
+              aria-label="Code block">{{ icon "square-code-lucide" 16 }}</button>
+      <button type="button"
+              data-markdown-action="bullet-list"
+              title="Bulleted list"
+              aria-label="Bulleted list">{{ icon "list-lucide" 16 }}</button>
+      <button type="button"
+              data-markdown-action="ordered-list"
+              title="Numbered list"
+              aria-label="Numbered list">{{ icon "list-ordered-lucide" 16 }}</button>
+      {{ range .EditorInserts }}
+        {{ if eq .Group "blocks" }}
+          <button type="button"
+                  data-plugin-insert-markdown="{{ .Markdown }}"
+                  data-plugin-insert-suffix="{{ .Suffix }}"
+                  data-plugin-insert-placeholder="{{ .Placeholder }}"
+                  data-plugin-insert-mode="{{ .Mode }}"
+                  data-plugin-insert-inline="{{ .Inline }}"
+                  title="{{ if .Description }}{{ .Description }}{{ else }}{{ .Name }}{{ end }}"
+                  aria-label="{{ .Name }}">{{ if .Icon }}{{ icon .Icon 16 }}{{ else }}{{ icon "braces-lucide" 16 }}{{ end }}</button>
+        {{ end }}
+      {{ end }}
+    </div>
+    <div class="markdown-toolbar-group" aria-label="Insert">
+      <span class="markdown-toolbar-group-label"></span>
+      <details class="markdown-toolbar-menu markdown-toolbar-insert-menu">
+        <summary title="Insert" aria-label="Insert">
+          {{ icon "plus-lucide" 16 }}<span></span>{{ icon "chevron-down-lucide" 12 }}
+        </summary>
+        <div class="markdown-toolbar-popover">
+          <button type="button"
+                  data-markdown-action="mention">{{ icon "at-sign-lucide" 15 }}<span>Mention</span></button>
+          {{ range .EditorInserts }}
+            {{ if eq .Group "insert" }}
+              <button type="button"
+                      data-plugin-insert-markdown="{{ .Markdown }}"
+                      data-plugin-insert-suffix="{{ .Suffix }}"
+                      data-plugin-insert-placeholder="{{ .Placeholder }}"
+                      data-plugin-insert-mode="{{ .Mode }}"
+                      data-plugin-insert-inline="{{ .Inline }}"
+                      title="{{ if .Description }}{{ .Description }}{{ else }}{{ .Name }}{{ end }}">{{ if .Icon }}{{ icon .Icon 15 }}{{ else }}{{ icon "braces-lucide" 15 }}{{ end }}<span>{{ .Name }}</span></button>
+            {{ end }}
+          {{ end }}
+        </div>
+      </details>
+      <button type="button"
+              data-markdown-action="link"
+              title="Link (⌘/Ctrl+Shift+K)"
+              aria-label="Link">{{ icon "link-lucide" 16 }}</button>
+      <details class="markdown-toolbar-menu">
+        <summary title="Callout" aria-label="Callout">
+          {{ icon "triangle-alert-lucide" 16 }}{{ icon "chevron-down-lucide" 12 }}
+        </summary>
+        <div class="markdown-toolbar-popover">
+          <button type="button" data-markdown-action="callout-note">Note</button>
+          <button type="button" data-markdown-action="callout-info">Info</button>
+          <button type="button" data-markdown-action="callout-tip">Tip</button>
+          <button type="button" data-markdown-action="callout-success">Success</button>
+          <button type="button" data-markdown-action="callout-warning">Warning</button>
+          <button type="button" data-markdown-action="callout-danger">Danger</button>
+        </div>
+      </details>
+      <button type="button"
+              data-markdown-action="tabs"
+              title="Tabs"
+              aria-label="Tabs">{{ icon "panels-top-left-lucide" 16 }}</button>
+      <button type="button"
+              data-markdown-action="details"
+              title="Collapsible details"
+              aria-label="Collapsible details">{{ icon "list-collapse-lucide" 16 }}</button>
+      <button type="button"
+              data-markdown-action="subpages"
+              title="Sub-page table of contents"
+              aria-label="Insert sub-page table of contents">{{ icon "list-tree-lucide" 16 }}</button>
+      {{ if index .PluginFeatures "me.kumbuka.tables" }}
+        <button type="button"
+                data-table-format-open
+                title="Insert or format table"
+                aria-label="Insert or format table">{{ icon "table-properties-lucide" 16 }}</button>
+      {{ else }}
+        <button type="button"
+                disabled
+                title="Markdown tables are disabled by an administrator"
+                aria-label="Table formatting unavailable">{{ icon "table-properties-lucide" 16 }}</button>
+      {{ end }}
+      <button type="button"
+              data-media-dialog-open
+              title="Insert image"
+              aria-label="Insert image">{{ icon "image-lucide" 16 }}</button>
+      <button type="button"
+              data-attachment-dialog-open
+              title="Insert attachment"
+              aria-label="Insert attachment">{{ icon "paperclip-lucide" 16 }}</button>
+      <button type="button"
+              data-markdown-action="horizontal-rule"
+              title="Horizontal rule"
+              aria-label="Horizontal rule">{{ icon "minus-lucide" 16 }}</button>
+    </div>
+    <div class="markdown-toolbar-group markdown-toolbar-tools"
+         aria-label="Tools">
+      <span class="markdown-toolbar-group-label"></span>
+      <button type="button"
+              data-markdown-action="find"
+              title="Find and replace (⌘/Ctrl+F)"
+              aria-label="Find and replace">{{ icon "search-lucide" 16 }}</button>
+      <button type="button"
+              data-editor-inspector-toggle="problems"
+              title="Document diagnostics"
+              aria-label="Document diagnostics">{{ icon "circle-alert-lucide" 16 }}</button>
+      <button type="button"
+              data-editor-inspector-toggle="outline"
+              title="Document outline"
+              aria-label="Document outline">{{ icon "list-tree-lucide" 16 }}</button>
+      <button type="button"
+              data-markdown-action="format-document"
+              title="Format complete document"
+              aria-label="Format complete document">{{ icon "wand-sparkles-lucide" 16 }}</button>
+    </div>
+  </div>
+  <div class="editor-search-panel" data-editor-search hidden>
+    <div class="editor-search-fields">
+      <label>
+        Find<input type="text" data-editor-find autocomplete="off" />
+      </label>
+      <label>
+        Replace<input type="text" data-editor-replace autocomplete="off" />
+      </label>
+      <label class="editor-search-case">
+        <input type="checkbox" data-editor-find-case />
+        Match case
+      </label>
+    </div>
+    <div class="editor-search-actions">
+      <span class="muted" data-editor-find-status>Ready.</span>
+      <button class="button"
+              type="button"
+              data-editor-find-previous
+              title="Previous match">{{ icon "chevron-up-lucide" 16 }}</button>
+      <button class="button" type="button" data-editor-find-next title="Next match">
+        {{ icon "chevron-down-lucide" 16 }}
+      </button>
+      <button class="button" type="button" data-editor-replace-one>Replace</button>
+      <button class="button" type="button" data-editor-replace-all>Replace all</button>
+      <button class="icon-button"
+              type="button"
+              data-editor-find-close
+              aria-label="Close find and replace">{{ icon "x-lucide" 18 }}</button>
+    </div>
+  </div>
+  <div class="editor-workspace-shell">
+    <div class="editor-workspace"
+         data-editor-workspace
+         data-editor-mode="write">
+      <div class="editor-source-pane" data-editor-source-pane>
+        <textarea class="editor-source"
+                  name="markdown"
+                  {{ if .Page }}autofocus{{ end }}
+                  required
+                  spellcheck="true"
+                  aria-autocomplete="list"
+                  aria-expanded="false"
+                  lang="{{ .PageContentLanguage }}"
+                  placeholder="# Start writing…"
+                  data-markdown-editor
+                  data-mention-autocomplete
+                  data-plugin-completions>{{ if .Page }}{{ .Page.Markdown }}{{ else if .EditorTemplate }}{{ .EditorTemplate.Markdown }}{{ end }}</textarea>
+        <div class="editor-source-statusbar">
+          <span data-editor-word-count>0 words</span>
+          <span data-editor-character-count>0 characters</span>
+          <span data-editor-line-count>1 line</span>
+          <span class="editor-upload-status"
+                data-editor-upload-status>Paste or drop images directly into the editor.</span>
+        </div>
+        <div class="editor-drop-overlay" aria-hidden="true">
+          {{ icon "image-plus-lucide" 30 }}<strong>Drop image to upload and insert</strong>
+        </div>
+      </div>
+      <section class="editor-preview"
+               data-editor-preview
+               hidden
+               aria-label="Markdown preview">
+        <div class="editor-preview-status muted" data-editor-preview-status>Preview will render here.</div>
+        <div class="prose editor-preview-prose"
+             lang="{{ .PageContentLanguage }}"
+             data-editor-preview-content></div>
+      </section>
+    </div>
+    <aside class="editor-inspector"
+           data-editor-inspector
+           hidden
+           aria-label="Document tools">
+      <div class="editor-inspector-header">
+        <div class="editor-inspector-tabs" role="tablist">
+          <button type="button" data-editor-inspector-tab="problems" role="tab">
+            Problems <span data-editor-problem-count>0</span>
+          </button>
+          <button type="button" data-editor-inspector-tab="outline" role="tab">Outline</button>
+        </div>
+        <button class="icon-button"
+                type="button"
+                data-editor-inspector-close
+                aria-label="Close document tools">{{ icon "x-lucide" 16 }}</button>
+      </div>
+      <div class="editor-inspector-body" data-editor-problems role="tabpanel"></div>
+      <div class="editor-inspector-body"
+           data-editor-outline
+           role="tabpanel"
+           hidden></div>
+    </aside>
+  </div>
+</section>
+</form>
+<dialog class="app-dialog table-format-dialog"
+        data-table-format-dialog
+        aria-labelledby="table-format-title">
+  <div class="app-dialog-header">
+    <div>
+      <p class="eyebrow">Markdown table</p>
+      <h2 id="table-format-title">Table formatting</h2>
+    </div>
+    <button class="icon-button app-dialog-close"
+            type="button"
+            data-table-format-close
+            aria-label="Close table formatting">{{ icon "x-lucide" 20 }}</button>
+  </div>
+  <div class="table-format-body" data-table-format-existing hidden>
+    <div class="table-format-context">
+      <strong data-table-format-context>Table options</strong>
+      <span class="muted">Changes are written to the Markdown immediately.</span>
+    </div>
+    <fieldset class="table-format-section">
+      <legend>Interaction</legend>
+      <div class="table-format-toggles">
+        <label class="toggle-row compact">
+          <span><strong>Sortable</strong><small>Click column headers to sort rows.</small></span>
+          <input type="checkbox"
+                 data-table-format-sortable{{ if index .PluginFeatures "me.kumbuka.tables.sorting" }}
+                 {{ else }}
+                 disabled
+                 {{ end }} />
+        </label>
+        <label class="toggle-row compact">
+          <span><strong>Filterable</strong><small>Add a filter control to each column header.</small></span>
+          <input type="checkbox"
+                 data-table-format-filterable{{ if index .PluginFeatures "me.kumbuka.tables.filtering" }}
+                 {{ else }}
+                 disabled
+                 {{ end }} />
+        </label>
+      </div>
+      {{ if index .PluginFeatures "me.kumbuka.tables.sorting" }}
+      {{ else }}
+        <small class="muted">Table sorting is disabled in the Tables plugin settings.</small>
+      {{ end }}
+      {{ if index .PluginFeatures "me.kumbuka.tables.filtering" }}
+      {{ else }}
+        <small class="muted">Table filtering is disabled in the Tables plugin settings.</small>
+      {{ end }}
+    </fieldset>
+    <fieldset class="table-format-section">
+      <legend>Apply color to</legend>
+      <div class="table-format-targets">
+        <label>
+          <input type="radio"
+                 name="table-format-target"
+                 value="header"
+                 data-table-target="header" /><span data-table-target-label="header">Header</span>
+        </label>
+        <label>
+          <input type="radio"
+                 name="table-format-target"
+                 value="row:1"
+                 data-table-target="row" /><span data-table-target-label="row">Row 1</span>
+        </label>
+        <label>
+          <input type="radio"
+                 name="table-format-target"
+                 value="col:1"
+                 data-table-target="column" /><span data-table-target-label="column">Column 1</span>
+        </label>
+        <label>
+          <input type="radio"
+                 name="table-format-target"
+                 value="cell:1,1"
+                 data-table-target="cell" /><span data-table-target-label="cell">Cell 1,1</span>
+        </label>
+      </div>
+    </fieldset>
+  <fieldset class="table-format-section"
+            {{ if index .PluginFeatures "me.kumbuka.tables.styles" }}
+            {{ else }}
+            disabled
+            {{ end }}>
+    <legend>Color</legend>
+    <div class="table-format-palette"
+         role="radiogroup"
+         aria-label="Table color">
+      <label class="table-color-choice table-color-default" title="Default">
+        <input type="radio" name="table-format-tone" value="" /><span>Default</span>
+      </label>
+      <label class="table-color-choice table-color-gray" title="Gray">
+        <input type="radio" name="table-format-tone" value="gray" /><span>Gray</span>
+      </label>
+      <label class="table-color-choice table-color-blue" title="Blue">
+        <input type="radio" name="table-format-tone" value="blue" /><span>Blue</span>
+      </label>
+      <label class="table-color-choice table-color-purple" title="Purple">
+        <input type="radio" name="table-format-tone" value="purple" /><span>Purple</span>
+      </label>
+      <label class="table-color-choice table-color-green" title="Green">
+        <input type="radio" name="table-format-tone" value="green" /><span>Green</span>
+      </label>
+      <label class="table-color-choice table-color-yellow" title="Yellow">
+        <input type="radio" name="table-format-tone" value="yellow" /><span>Yellow</span>
+      </label>
+      <label class="table-color-choice table-color-orange" title="Orange">
+        <input type="radio" name="table-format-tone" value="orange" /><span>Orange</span>
+      </label>
+      <label class="table-color-choice table-color-red" title="Red">
+        <input type="radio" name="table-format-tone" value="red" /><span>Red</span>
+      </label>
+    </div>
+    {{ if index .PluginFeatures "me.kumbuka.tables.styles" }}
+    {{ else }}
+      <small class="muted">Table colors are disabled in the Tables plugin settings.</small>
+    {{ end }}
+    </fieldset>
+    <div class="app-dialog-actions table-format-actions">
+      <button class="button" type="button" data-table-format-clear>
+        {{ icon "eraser-lucide" 16 }}<span>Clear table options</span>
+      </button>
+      <button class="button primary" type="button" data-table-format-close>Done</button>
+    </div>
+  </div>
+  <div class="table-format-body table-insert-body" data-table-format-insert>
+    <p class="muted">Place the cursor in an existing Markdown table to format it, or insert a new table here.</p>
+    <div class="table-insert-grid">
+      <label>
+        Body rows<input type="number" min="1" max="20" value="3" data-table-insert-rows />
+      </label>
+      <label>
+        Columns<input type="number" min="1" max="10" value="3" data-table-insert-columns />
+      </label>
+    </div>
+    <div class="app-dialog-actions">
+      <button class="button" type="button" data-table-format-close>Cancel</button>
+      <button class="button primary" type="button" data-table-insert-submit>
+        {{ icon "table-2-lucide" 16 }}<span>Insert table</span>
+      </button>
+    </div>
+  </div>
+</dialog>
+<dialog class="icon-picker-dialog"
+        data-page-icon-picker-dialog
+        data-icons-url="/api/icons"
+        aria-labelledby="page-icon-picker-title">
+  <div class="app-dialog-header">
+    <div>
+      <p class="eyebrow">Icons</p>
+      <h2 id="page-icon-picker-title">Choose page icon</h2>
+    </div>
+    <button class="icon-button app-dialog-close"
+            type="button"
+            data-icon-picker-close
+            aria-label="Close icon picker">{{ icon "x-lucide" 20 }}</button>
+  </div>
+  <div class="icon-picker-search">
+    {{ icon "search-lucide" 17 }}
+    <input type="search"
+           placeholder="Search icons…"
+           autocomplete="off"
+           data-icon-picker-search
+           aria-label="Search icons" />
+  </div>
+  <div class="icon-picker-grid" data-icon-picker-grid></div>
+  <p class="icon-picker-empty-state muted" data-icon-picker-empty hidden>No matching icons.</p>
+</dialog>
+<dialog class="media-dialog"
+        data-attachment-dialog
+        data-attachment-list-url="/api/attachments"
+        data-attachment-upload-url="/api/attachments"
+        aria-labelledby="attachment-dialog-title">
+  <div class="media-dialog-header">
+    <div>
+      <p class="eyebrow">Files</p>
+      <h2 id="attachment-dialog-title">Insert attachment</h2>
+    </div>
+    <button class="icon-button media-dialog-close"
+            type="button"
+            data-attachment-dialog-close
+            aria-label="Close attachments">{{ icon "x-lucide" 20 }}</button>
+  </div>
+  <div class="media-upload">
+    <label class="button">
+      {{ icon "upload-lucide" 16 }}<span>Upload file</span><input type="file"
+       accept=".pdf,.txt,.md,.json,.yaml,.yml,.csv,.log,.toml,.zip"
+       data-attachment-upload
+       hidden />
+    </label>
+    <span class="muted" data-attachment-status>PDF, text, Markdown, JSON, YAML, CSV, TOML or ZIP · max 25 MiB</span>
+  </div>
+  <div class="media-dialog-body" data-attachment-dialog-body>
+    <p class="muted">Files are loaded when the library opens.</p>
+  </div>
+</dialog>
+<dialog class="media-dialog"
+        data-media-dialog
+        data-media-list-url="/api/images"
+        data-media-upload-url="/api/images">
+  <div class="media-dialog-header">
+    <div>
+      <p class="eyebrow">Media</p>
+      <h2>Insert image</h2>
+    </div>
+    <button class="icon-button media-dialog-close"
+            type="button"
+            data-media-dialog-close
+            aria-label="Close image library">{{ icon "x-lucide" 20 }}</button>
+  </div>
+  <div class="media-upload">
+    <label class="button">
+      {{ icon "upload-lucide" 16 }}<span>Upload image</span>
+      <input type="file"
+             accept="image/jpeg,image/png,image/gif,image/webp"
+             data-media-upload-input
+             hidden />
+    </label>
+    <span class="muted" data-media-upload-status>JPEG, PNG, GIF or WebP · max 10 MiB</span>
+  </div>
+  <div class="media-dialog-body" data-media-dialog-body>
+    <p class="muted">Images are loaded when the library opens.</p>
+  </div>
+</dialog>
+{{ end }}

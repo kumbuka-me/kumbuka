@@ -1,0 +1,57 @@
+/* Dynamic page-query reports rendered by the {{pages}} function. */
+
+.kumbuka-page-report {
+  margin: 1.25rem 0;
+}
+
+.kumbuka-page-report-table {
+  margin: 0;
+}
+
+.kumbuka-page-report-list {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.kumbuka-page-report-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem 0.9rem;
+  padding: 0.55rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.kumbuka-page-report-list li > span {
+  color: var(--text-secondary);
+  font-size: 0.88em;
+}
+
+.kumbuka-page-report-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 0.75rem;
+}
+
+.page-reading .prose .kumbuka-page-report-card {
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.85rem 0.95rem;
+  color: inherit;
+  text-decoration: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.65rem;
+}
+
+.page-reading .prose .kumbuka-page-report-card:hover {
+  border-color: var(--accent);
+}
+
+.kumbuka-page-report-card span {
+  color: var(--text-secondary);
+  font-size: 0.84em;
+}

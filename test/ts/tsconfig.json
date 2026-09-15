@@ -1,0 +1,8 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "../.."
+  },
+  "include": ["../../web/src/ts/**/*.ts", "./**/*.ts"],
+  "exclude": ["../../web/src/ts/service-worker/**/*.ts"]
+}

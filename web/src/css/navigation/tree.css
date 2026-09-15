@@ -1,0 +1,81 @@
+/* Navigation icons */
+
+.nav-root {
+  margin: 2px 0;
+}
+
+.nav-root-summary {
+  list-style: none;
+  padding: 0 !important;
+}
+
+.nav-root-summary::-webkit-details-marker {
+  display: none;
+}
+
+.nav-root-title,
+.nav-root-link {
+  display: flex !important;
+  align-items: center;
+  gap: 10px;
+  min-height: 38px;
+  padding: 8px 10px !important;
+  border-radius: 7px;
+  font-weight: 720;
+  color: var(--text-secondary);
+}
+
+.nav-root-title:hover,
+.nav-root-link:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.nav-root-title > a {
+  padding: 0 !important;
+  flex: 1;
+}
+
+.nav-icon {
+  display: inline-flex;
+  flex: 0 0 22px;
+  width: 22px;
+  height: 22px;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+}
+
+.nav-icon svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.nav-root-children {
+  padding: 2px 0 7px 34px;
+}
+
+.nav-root-children > .nav-page-link,
+.nav-root-children > .nav-branch > summary {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.nav-branch summary {
+  padding: 5px 8px !important;
+}
+
+.nav-root-children .nested {
+  padding-left: 12px;
+}
+
+.nav-icon .lucide-icon,
+.nav-icon .simple-icon {
+  width: 18px;
+  height: 18px;
+}

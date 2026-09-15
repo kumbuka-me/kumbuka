@@ -1,0 +1,54 @@
+/* Themed 404 surface. */
+
+.not-found-page {
+  width: min(620px, 100%);
+  margin: clamp(48px, 9vh, 96px) auto;
+  padding: clamp(28px, 5vw, 48px);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  text-align: center;
+}
+
+.not-found-icon {
+  display: grid;
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 18px;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--border));
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--accent) 9%, var(--surface));
+  color: var(--accent);
+}
+
+.not-found-code {
+  margin: 0;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.not-found-page h1 {
+  margin: 7px 0 8px;
+  color: var(--text);
+  font-size: clamp(26px, 4vw, 36px);
+  line-height: 1.15;
+}
+
+.not-found-page > p:not(.not-found-code) {
+  max-width: 460px;
+  margin: 0 auto;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.not-found-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 24px;
+}

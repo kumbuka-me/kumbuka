@@ -1,0 +1,53 @@
+/* Administrative export selection and actions. */
+
+.export-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 12px 0;
+}
+
+.export-actions label {
+  margin-left: auto;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.export-pages {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  max-height: 420px;
+  overflow: auto;
+  border: 1px solid var(--border-subtle);
+  border-radius: 7px;
+}
+
+.export-pages > label {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 12px;
+}
+
+.export-pages > label span strong,
+.export-pages > label span small {
+  display: block;
+}
+
+.export-pages > label span small {
+  color: var(--text-tertiary);
+}
+
+.export-pages input {
+  margin-top: 3px;
+  accent-color: var(--accent);
+}
+
+@media (max-width: 1000px) {
+  .export-pages {
+    grid-template-columns: 1fr;
+  }
+}

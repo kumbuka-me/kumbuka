@@ -1,0 +1,80 @@
+/* Explicit navigation icon administration */
+
+.navigation-settings-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.navigation-icon-form {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(220px, 320px) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 0;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.navigation-icon-form:first-child {
+  border-top: 0;
+}
+
+.navigation-section-name {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.navigation-section-name .nav-icon {
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 7px;
+  background: var(--surface-elevated);
+}
+
+.navigation-section-name .nav-icon svg {
+  width: 17px;
+  height: 17px;
+}
+
+.navigation-section-name span strong,
+.navigation-section-name span small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.navigation-section-name span small {
+  color: var(--text-tertiary);
+  font-size: 11px;
+}
+
+.navigation-icon-form select {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+  padding: 8px 10px;
+  color: var(--text);
+}
+
+.markdown-toolbar-insert-menu > summary span {
+  white-space: nowrap;
+}
+
+.markdown-toolbar-insert-menu .markdown-toolbar-popover button {
+  gap: 7px;
+}
+
+@media (max-width: 720px) {
+  .navigation-icon-form {
+    grid-template-columns: 1fr;
+  }
+
+  .navigation-icon-form .button {
+    justify-self: start;
+  }
+}

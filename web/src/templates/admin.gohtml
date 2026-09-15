@@ -1,0 +1,40 @@
+{{ define "content" }}
+  <section class="admin-page">
+    <div class="settings-heading">
+      <p class="eyebrow">Administration</p>
+      <h1>Overview</h1>
+      <p class="muted">Manage Kumbuka configuration, identities, metadata, access tokens, exports, and uploaded media.</p>
+    </div>
+    <div class="admin-stats">
+      <a href="/admin/users"><strong>{{ .AdminStats.Users }}</strong><span>Users</span></a>
+      <a href="/admin/groups"><strong>{{ .AdminStats.Groups }}</strong><span>Groups</span></a>
+      <a href="/admin/tags"><strong>{{ .AdminStats.Tags }}</strong><span>Tags</span></a>
+      <a href="/admin/exports"><strong>{{ .AdminStats.Pages }}</strong><span>Pages</span></a>
+      <a href="/admin/bin"><strong>{{ .AdminStats.DeletedPages }}</strong><span>In bin</span></a>
+      <a href="/admin/images"><strong>{{ .AdminStats.Images }}</strong><span>Images</span></a>
+      <a href="/admin/tokens"><strong>{{ .AdminStats.Tokens }}</strong><span>Tokens</span></a>
+    </div>
+    <div class="admin-overview-grid">
+      <a class="panel admin-overview-card"
+         href="/admin/configuration"><strong>Configuration</strong><span>Runtime information and application settings.</span></a>
+      <a class="panel admin-overview-card"
+         href="/admin/plugins"><strong>Plugins</strong><span>Install, enable, disable, upgrade, and remove plugins.</span></a>
+      <a class="panel admin-overview-card"
+         href="/admin/users"><strong>Users</strong><span>Roles and group memberships.</span></a>
+      <a class="panel admin-overview-card"
+         href="/admin/groups"><strong>Groups</strong><span>Organize users into named groups.</span></a>
+      <a class="panel admin-overview-card"
+         href="/admin/navigation"><strong>Navigation</strong><span>Assign top-level section icons explicitly.</span></a>
+      <a class="panel admin-overview-card"
+         href="/admin/bin"><strong>Recycle bin</strong><span>Restore pages that were deleted accidentally.</span></a>
+      <a class="panel admin-overview-card"
+         href="/admin/tags"><strong>Tags</strong><span>Review and clean up the shared tag vocabulary.</span></a>
+      <a class="panel admin-overview-card"
+         href="/admin/tokens"><strong>Access tokens</strong><span>Issue and revoke personal access tokens.</span></a>
+      <a class="panel admin-overview-card"
+         href="/admin/exports"><strong>Exports</strong><span>Export one, several, or all pages with media.</span></a>
+      <a class="panel admin-overview-card"
+         href="/admin/images"><strong>Images</strong><span>Inspect references and clean up uploaded media.</span></a>
+    </div>
+  </section>
+{{ end }}

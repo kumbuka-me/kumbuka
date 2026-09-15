@@ -1,0 +1,79 @@
+{{ define "nav-icon" }}
+  {{ if . }}<span class="nav-icon" aria-hidden="true">{{ icon . 18 }}</span>{{ end }}
+{{ end }}
+{{ define "nav-page-count" }}
+  {{ if .ShowPageCount }}
+    <span class="nav-page-count"
+          title="{{ .PageCount }} page{{ if ne .PageCount 1 }}s{{ end }}">{{ .PageCount }}</span>
+  {{ end }}
+{{ end }}
+{{ define "nav-entry" }}
+  {{ if .Children }}
+  <details class="nav-node {{ if .Root }} nav-root {{ else }} nav-branch {{ end }}{{ if .ContainsActive }}contains-active{{ end }}"
+           data-nav-node
+           data-nav-path="{{ .Slug }}"
+           {{ if .Open }}open{{ end }}>
+  <summary class="{{ if .Root }}nav-root-summary{{ else }}nav-branch-summary{{ end }}"
+           title="{{ .Title }}">
+    <span class="nav-chevron" aria-hidden="true">{{ icon "chevron-right-lucide" 14 }}</span>
+    {{ template "nav-icon" .Icon }}
+    {{ if .Page }}
+      <a class="nav-node-link{{ if .Active }} active{{ end }}"
+         href="/pages/{{ .Slug }}"
+         {{ if .Active }}aria-current="page"
+         {{ end }}>{{ .Title }}</a>
+    {{ else }}
+      <span class="nav-node-label">{{ .Title }}</span>
+    {{ end }}
+    {{ template "nav-page-count" . }}
+    </summary>
+    <div class="nav-children">{{ range .Children }}{{ template "nav-entry" . }}{{ end }}</div>
+    </details>
+  {{ else if .Page }}
+    <a class="nav-page-link{{ if .Root }} nav-root-link{{ end }}{{ if .Active }} active{{ end }}"
+       href="/pages/{{ .Slug }}"
+       title="{{ .Title }}"
+       {{ if .Active }}aria-current="page"
+       {{ end }}>
+      {{ template "nav-icon" .Icon }}
+      <span>{{ .Title }}</span>
+      {{ template "nav-page-count" . }}
+    </a>
+  {{ end }}
+{{ end }}
+{{ define "top-navigation" }}
+  <nav class="desktop-top-navigation" aria-label="Page navigation">
+    <div class="desktop-top-navigation-inner">
+      <a class="top-navigation-home" href="/">{{ icon "house-lucide" 15 }}<span>Home</span></a>
+      {{ range .Navigation }}
+        {{ if .Children }}
+          <details class="top-navigation-group">
+            <summary{{ if .ContainsActive }} class="contains-active"{{ end }}>
+              {{ template "nav-icon" .Icon }}<span>{{ .Title }}</span>{{ icon "chevron-down-lucide" 13 }}
+            </summary>
+            <div class="top-navigation-popover">
+              {{ if .Page }}
+                <a class="top-navigation-root-link{{ if .Active }} active{{ end }}"
+                   href="/pages/{{ .Slug }}"
+                   {{ if .Active }}
+                   aria-current="page"
+                   {{ end }}>
+                  {{ template "nav-icon" .Icon }}<span>{{ .Title }}</span>
+                </a>
+              {{ end }}
+              <div class="navigation-tree">{{ range .Children }}{{ template "nav-entry" . }}{{ end }}</div>
+            </div>
+          </details>
+        {{ else if .Page }}
+          <a class="top-navigation-page{{ if .Active }} active{{ end }}"
+             href="/pages/{{ .Slug }}"
+             {{ if .Active }}
+             aria-current="page"
+             {{ end }}>
+            {{ template "nav-icon" .Icon }}<span>{{ .Title }}</span>
+          </a>
+        {{ end }}
+      {{ end }}
+    </div>
+  </nav>
+{{ end }}

@@ -1,0 +1,274 @@
+/* Page-template administration. */
+
+.template-create-panel {
+  margin-bottom: 24px;
+  padding: 0;
+  overflow: hidden;
+}
+
+.template-panel-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.template-panel-icon,
+.template-summary-icon {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: var(--surface-elevated);
+  color: var(--accent);
+}
+
+.template-panel-heading h2,
+.template-section-heading h2 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.template-panel-heading p,
+.template-section-heading p,
+.template-empty p {
+  margin: 3px 0 0;
+  font-size: 12px;
+}
+
+.template-form {
+  display: grid;
+  gap: 18px;
+}
+
+.template-create-form {
+  padding: 20px;
+}
+
+.template-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.template-field {
+  display: block;
+  min-width: 0;
+}
+
+.template-field-label {
+  display: block;
+  margin-bottom: 7px;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.template-field input,
+.template-field textarea {
+  display: block;
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  outline: 0;
+  background: var(--surface);
+  color: var(--text);
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.template-field input {
+  height: 40px;
+  padding: 0 11px;
+  font: inherit;
+}
+
+.template-field textarea {
+  min-height: 190px;
+  resize: vertical;
+  padding: 13px 14px;
+  font:
+    12px/1.6 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Consolas,
+    monospace;
+  tab-size: 2;
+}
+
+.template-field input:focus,
+.template-field textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.template-field > small {
+  display: block;
+  margin-top: 6px;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.template-field-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 7px;
+}
+
+.template-field-heading .template-field-label {
+  margin-bottom: 0;
+}
+
+.template-field-heading small {
+  color: var(--text-tertiary);
+  font-size: 11px;
+}
+
+.template-form-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.template-form-footer > .muted {
+  font-size: 11px;
+}
+
+.template-form-footer .button,
+.template-delete-form .button {
+  gap: 7px;
+}
+
+.template-section-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0 2px 10px;
+}
+
+.template-admin-list {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.template-admin-item {
+  padding: 0;
+  overflow: hidden;
+}
+
+.template-admin-item > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 62px;
+  padding: 13px 16px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.template-admin-item > summary::-webkit-details-marker {
+  display: none;
+}
+
+.template-admin-item > summary:hover {
+  background: var(--surface-hover);
+}
+
+.template-summary-main {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 11px;
+}
+
+.template-summary-icon {
+  width: 32px;
+  height: 32px;
+}
+
+.template-summary-copy {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.template-summary-copy strong,
+.template-summary-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.template-summary-copy small {
+  color: var(--text-tertiary);
+  font-size: 11px;
+}
+
+.template-summary-chevron {
+  display: grid;
+  place-items: center;
+  color: var(--text-tertiary);
+  transition: transform 140ms ease;
+}
+
+.template-admin-item[open] .template-summary-chevron {
+  transform: rotate(180deg);
+}
+
+.template-admin-body {
+  padding: 18px 20px 20px;
+  border-top: 1px solid var(--border-subtle);
+  background: color-mix(in srgb, var(--surface-elevated) 42%, var(--surface));
+}
+
+.template-delete-form {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 10px;
+}
+
+.template-empty {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 18px;
+}
+
+.template-empty strong {
+  display: block;
+  font-size: 13px;
+}
+
+@media (max-width: 720px) {
+  .template-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .template-field-heading,
+  .template-form-footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .template-form-footer .button,
+  .template-delete-form .button {
+    width: 100%;
+  }
+
+  .template-delete-form {
+    justify-content: stretch;
+  }
+}

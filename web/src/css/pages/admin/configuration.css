@@ -1,0 +1,554 @@
+/* Administration configuration overview and integrations. */
+
+.configuration-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+}
+
+.configuration-panel-title {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.configuration-panel-title h2 {
+  margin: 0;
+}
+
+.configuration-panel-title p {
+  margin: 5px 0 0;
+  font-size: 12px;
+}
+
+.configuration-runtime-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));
+  gap: 10px;
+  margin: 16px 0 0;
+}
+
+.configuration-runtime-grid > div {
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  background: var(--surface-elevated);
+}
+
+.configuration-runtime-grid dt {
+  margin-bottom: 5px;
+  color: var(--text-tertiary);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.configuration-runtime-grid dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.configuration-application .toggle-row:first-of-type {
+  margin-top: 14px;
+}
+
+.configuration-application .settings-actions {
+  margin-top: 18px;
+}
+
+.configuration-choice-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  min-height: 72px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.configuration-choice-copy {
+  display: block;
+  min-width: 0;
+}
+
+.configuration-choice-copy strong {
+  display: block;
+  font-size: 13px;
+}
+
+.configuration-choice-copy small {
+  display: block;
+  max-width: 760px;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.45;
+}
+
+.configuration-choice-row select {
+  flex: 0 0 210px;
+  width: 210px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+  padding: 9px 32px 9px 10px;
+  color: var(--text);
+}
+
+.external-link-settings {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.external-link-settings-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.external-link-settings-title > div {
+  display: grid;
+  gap: 2px;
+}
+
+.external-link-settings-title strong {
+  font-size: 12px;
+}
+
+.external-link-settings-title small {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.external-link-settings-list {
+  display: grid;
+  gap: 8px;
+}
+
+.external-link-settings-row {
+  display: grid;
+  grid-template-columns:
+    minmax(120px, 0.7fr) minmax(210px, 1.3fr) minmax(120px, 0.7fr)
+    minmax(110px, 0.55fr) auto;
+  align-items: end;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  background: var(--surface-elevated);
+}
+
+.external-link-settings-row > label {
+  display: grid;
+  gap: 5px;
+}
+
+.external-link-settings-row > .external-link-hover-text {
+  grid-column: 1 / -2;
+}
+
+.external-link-settings-row > label > span {
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.external-link-settings-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  min-height: 38px;
+}
+
+.external-link-icon-button {
+  max-width: 150px;
+}
+
+.external-link-icon-preview {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+}
+
+.external-link-icon-button [data-icon-picker-label] {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pdf-settings-form {
+  margin-top: 14px;
+}
+
+.pdf-settings-form > label {
+  display: grid;
+  gap: 6px;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.pdf-settings-form > label small {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.pdf-header-settings {
+  display: grid;
+  gap: 10px;
+  padding-top: 4px;
+}
+
+.pdf-header-settings-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.pdf-header-settings-title > div {
+  display: grid;
+  gap: 2px;
+}
+
+.pdf-header-settings-title strong {
+  font-size: 12px;
+}
+
+.pdf-header-settings-title small,
+.pdf-header-encryption-note {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.pdf-header-encryption-note {
+  margin: 0;
+}
+
+.pdf-header-encryption-note.warning {
+  color: var(--warning);
+}
+
+.pdf-header-list {
+  display: grid;
+  gap: 8px;
+}
+
+.pdf-header-row {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.85fr) minmax(220px, 1.5fr) auto;
+  align-items: end;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  background: var(--surface-elevated);
+}
+
+.pdf-header-name,
+.pdf-header-value {
+  display: grid;
+  gap: 5px;
+}
+
+.pdf-header-name > span,
+.pdf-header-value > span {
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.pdf-header-sensitive {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  margin: 0;
+  cursor: pointer;
+}
+
+.pdf-header-sensitive input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.pdf-header-sensitive-icon {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--muted);
+}
+
+.pdf-header-sensitive:hover .pdf-header-sensitive-icon {
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+  color: var(--text);
+}
+
+.pdf-header-sensitive input:checked + .pdf-header-sensitive-icon {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+  color: var(--accent);
+}
+
+.pdf-header-sensitive input:focus-visible + .pdf-header-sensitive-icon {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.pdf-header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  min-height: 38px;
+}
+
+.pdf-settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.pdf-test-status {
+  min-height: 18px;
+  margin: 0;
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.pdf-test-status[data-state="testing"] {
+  color: var(--text-secondary);
+}
+
+.pdf-test-status[data-state="success"] {
+  color: var(--success);
+}
+
+.pdf-test-status[data-state="error"] {
+  color: var(--danger);
+}
+
+.pdf-test-dialog {
+  --dialog-width: 1040px;
+  max-height: calc(100dvh - 32px);
+}
+
+.pdf-test-dialog-body {
+  display: grid;
+  gap: 16px;
+  overflow: auto;
+}
+
+.pdf-test-summary {
+  display: grid;
+  gap: 4px;
+}
+
+.pdf-test-summary strong {
+  color: var(--text);
+  font-size: 14px;
+}
+
+.pdf-test-summary span {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.pdf-test-checks {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.pdf-test-check {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  background: var(--surface-elevated);
+}
+
+.pdf-test-check-mark {
+  display: grid;
+  place-items: center;
+  flex: 0 0 22px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--success) 12%, var(--surface));
+  color: var(--success);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.pdf-test-check > span:last-child {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+}
+
+.pdf-test-check strong {
+  color: var(--text);
+  font-size: 11px;
+}
+
+.pdf-test-check small {
+  overflow-wrap: anywhere;
+  color: var(--text-secondary);
+  font-size: 10px;
+}
+
+.pdf-test-check[data-state="warning"] .pdf-test-check-mark {
+  background: color-mix(in srgb, var(--warning) 12%, var(--surface));
+  color: var(--warning);
+}
+
+.pdf-test-preview-shell {
+  overflow: hidden;
+  min-height: 560px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface-elevated);
+}
+
+.pdf-test-preview-shell iframe {
+  display: block;
+  width: 100%;
+  height: min(68dvh, 760px);
+  min-height: 560px;
+  border: 0;
+  background: white;
+}
+
+.configuration-override-note {
+  display: grid;
+  gap: 4px;
+  margin: 14px 0;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--warning) 35%, var(--border));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--warning) 7%, var(--surface));
+  font-size: 12px;
+}
+
+.configuration-override-note strong {
+  font-size: 12px;
+}
+
+.configuration-override-note span {
+  color: var(--text-secondary);
+}
+
+.config-status.warning {
+  background: color-mix(in srgb, var(--warning) 10%, var(--surface));
+  color: var(--warning);
+}
+
+@media (max-width: 900px) {
+  .configuration-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .configuration-runtime,
+  .configuration-authentication {
+    grid-column: auto;
+  }
+
+  .external-link-settings-row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .external-link-settings-actions {
+    grid-column: 1 / -1;
+  }
+
+  .pdf-header-row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .pdf-header-actions {
+    grid-column: 1 / -1;
+    align-self: center;
+  }
+
+  .pdf-test-checks {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .configuration-choice-row {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .configuration-choice-row select {
+    flex-basis: auto;
+    width: 100%;
+  }
+
+  .external-link-settings-title {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .external-link-settings-row {
+    grid-template-columns: 1fr;
+  }
+
+  .external-link-settings-actions {
+    justify-content: flex-start;
+  }
+
+  .pdf-header-settings-title {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .pdf-header-row {
+    grid-template-columns: 1fr;
+  }
+
+  .pdf-header-actions {
+    justify-content: flex-start;
+  }
+
+  .pdf-test-checks {
+    grid-template-columns: 1fr;
+  }
+
+  .pdf-test-preview-shell,
+  .pdf-test-preview-shell iframe {
+    min-height: 460px;
+  }
+}

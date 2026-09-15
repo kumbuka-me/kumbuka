@@ -1,0 +1,79 @@
+{{ define "sidebar" }}
+  <aside class="sidebar" id="kumbuka-sidebar" data-sidebar>
+    <div class="tree-explorer-tools">
+      <strong>Page explorer</strong>
+      <input type="search"
+             data-tree-filter
+             aria-label="Filter page tree"
+             placeholder="Filter pages…"
+             autocomplete="off" />
+      <button type="button" data-tree-reveal>Reveal current page</button>
+      <p data-tree-filter-status role="status" hidden></p>
+    </div>
+<nav data-navigation
+     data-navigation-state-url="/settings/preferences/navigation-state"
+     data-navigation-remember="{{ if .Preferences.RememberNavigationState }}true{{ else }}false{{ end }}">
+    {{ if .SidebarPinned }}
+      <section class="sidebar-shortcuts" aria-labelledby="sidebar-pinned-label">
+        <p class="nav-label" id="sidebar-pinned-label">Pinned</p>
+        {{ range .SidebarPinned }}
+          <a class="sidebar-shortcut-link"
+             href="/pages/{{ .Slug }}"
+             title="{{ .Title }}">{{ icon "star-lucide" 14 }}<span>{{ .Title }}</span></a>
+        {{ end }}
+      </section>
+    {{ end }}
+    {{ if .SidebarRecent }}
+      <section class="sidebar-shortcuts" aria-labelledby="sidebar-recent-label">
+        <p class="nav-label" id="sidebar-recent-label">Recently viewed</p>
+        {{ range .SidebarRecent }}
+          <a class="sidebar-shortcut-link"
+             href="/pages/{{ .Slug }}"
+             title="{{ .Title }}">{{ icon "history-lucide" 14 }}<span>{{ .Title }}</span></a>
+        {{ end }}
+      </section>
+    {{ end }}
+    {{ if .SavedSearches }}
+      <section class="sidebar-shortcuts" aria-labelledby="sidebar-collections-label">
+        <p class="nav-label" id="sidebar-collections-label">Collections</p>
+        {{ range .SavedSearches }}
+          {{ if .Pinned }}
+            <a class="sidebar-shortcut-link"
+               href="/search?q={{ .Query }}"
+               title="{{ .Query }}">{{ icon "search-lucide" 14 }}<span>{{ .Name }}</span></a>
+          {{ end }}
+        {{ end }}
+      </section>
+    {{ end }}
+    {{ if .Navigation }}
+      <div class="nav-section-heading">
+        <p class="nav-label">Pages</p>
+        <div class="nav-tree-actions" aria-label="Navigation tree controls">
+          <button class="nav-tree-action"
+                  type="button"
+                  data-navigation-collapse-all
+                  title="Collapse all folders"
+                  aria-label="Collapse all folders">{{ icon "chevrons-up-lucide" 14 }}</button>
+          <button class="nav-tree-action"
+                  type="button"
+                  data-navigation-expand-all
+                  title="Expand all folders"
+                  aria-label="Expand all folders">{{ icon "chevrons-down-lucide" 14 }}</button>
+        </div>
+      </div>
+      <div class="navigation-tree">{{ range .Navigation }}{{ template "nav-entry" . }}{{ end }}</div>
+    {{ else }}
+      <p class="sidebar-empty">No pages yet.</p>
+    {{ end }}
+  </nav>
+  {{ template "account-menu" . }}
+  <div class="sidebar-resizer"
+       data-sidebar-resizer
+       data-sidebar-width-url="/settings/preferences/sidebar-width"
+       role="separator"
+       aria-orientation="vertical"
+       aria-label="Resize sidebar"
+       tabindex="0"></div>
+  <span data-navigation-scroll-ready hidden></span>
+  </aside>
+{{ end }}

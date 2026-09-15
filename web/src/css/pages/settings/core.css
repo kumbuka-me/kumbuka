@@ -1,0 +1,93 @@
+/* Personal settings and user preferences. */
+
+.settings-page {
+  max-width: 900px;
+  margin: auto;
+}
+
+.settings-heading {
+  margin-bottom: 28px;
+}
+
+.settings-heading h1 {
+  font-size: clamp(30px, 5vw, 44px);
+  line-height: 1.1;
+  letter-spacing: -0.04em;
+  margin: 0 0 10px;
+}
+
+.settings-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 20px;
+}
+
+.settings-panel {
+  padding: 22px;
+}
+
+.user-details {
+  margin: 4px 0 0;
+}
+
+.user-details > div {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 20px;
+  padding: 11px 0;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.user-details > div:first-child {
+  border-top: 0;
+}
+
+.user-details dt {
+  color: var(--text-tertiary);
+  font-size: 13px;
+}
+
+.user-details dd {
+  margin: 0;
+  font-weight: 650;
+}
+
+.role-badge {
+  display: inline-flex;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--surface-elevated);
+  color: var(--text-secondary);
+  font-size: 12px;
+  text-transform: capitalize;
+}
+
+.preferences-form > label:not(.toggle-row) {
+  display: block;
+  margin-top: 16px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.preferences-form select {
+  display: block;
+  width: 100%;
+  max-width: 360px;
+  margin-top: 7px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+  padding: 9px 10px;
+  color: var(--text);
+}
+
+.preferences-form small {
+  display: block;
+  margin-top: 5px;
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.settings-form > .button {
+  margin-top: 18px;
+}

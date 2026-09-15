@@ -1,0 +1,161 @@
+{{ define "template-blueprint-fields" }}
+  <div class="template-fields">
+    <label class="template-field">
+      <span class="template-field-label">Name</span>
+      <input name="name"
+             required
+             value="{{ .Name }}"
+             placeholder="Service"
+             autocomplete="off" />
+      <small>Shown when authors choose a blueprint.</small>
+    </label>
+    <label class="template-field">
+      <span class="template-field-label">Description <span class="optional">Optional</span></span>
+      <input name="description"
+             value="{{ .Description }}"
+             placeholder="Standard service documentation"
+             autocomplete="off" />
+      <small>Explain when this blueprint should be used.</small>
+    </label>
+    <label class="template-field">
+      <span class="template-field-label">Path prefix <span class="optional">Optional</span></span>
+      <input data-path-input
+             name="path_prefix"
+             value="{{ .PathPrefix }}"
+             placeholder="services" />
+      <small>Preselect this location for new pages.</small>
+    </label>
+    <label class="template-field">
+      <span class="template-field-label">Default icon <span class="optional">Optional</span></span>
+      <input name="icon" value="{{ .Icon }}" placeholder="server-lucide" />
+      <small>Use an explicit Kumbuka icon identifier.</small>
+    </label>
+    <label class="template-field">
+      <span class="template-field-label">Default tags <span class="optional">Optional</span></span>
+      <input name="tags"
+             value="{{ join .Tags "," }}"
+             placeholder="service,platform" />
+    </label>
+    <label class="template-field">
+      <span class="template-field-label">Default status</span>
+      <select name="status">
+        {{ range $status := $.PageStatuses }}
+          <option value="{{ $status }}" {{ if eq $.Status $status }}selected{{ end }}>{{ $status }}</option>
+        {{ end }}
+      </select>
+    </label>
+    <label class="template-field">
+      <span class="template-field-label">Default owner <span class="optional">Optional</span></span>
+      <select name="owner_group_id">
+        <option value="">No owner</option>
+        {{ range $.Groups }}
+          <option value="{{ .ID }}" {{ if eq $.OwnerGroupID .ID }}selected{{ end }}>{{ .Name }}</option>
+        {{ end }}
+      </select>
+    </label>
+    <label class="template-field">
+      <span class="template-field-label">Review every <span class="optional">days</span></span>
+      <input type="number"
+             min="0"
+             max="3650"
+             name="review_interval_days"
+             value="{{ .ReviewIntervalDays }}" />
+    </label>
+  </div>
+  <div class="template-fields">
+    <label class="template-field">
+      <span class="template-field-label">Default properties <span class="optional">Optional</span></span>
+      <textarea name="properties"
+                rows="5"
+                placeholder="Tier=1&#10;Environment=Production">{{ templateproperties .Properties }}</textarea>
+      <small>One <code>key=value</code> pair per line.</small>
+    </label>
+    <label class="template-field">
+      <span class="template-field-label">Author fields <span class="optional">Optional</span></span>
+      <textarea name="fields"
+                rows="5"
+                placeholder="service_name | Service name | | required&#10;repository | Repository URL | |">{{ templatefields .Fields }}</textarea>
+      <small><code>name | Label | default | required</code>. Use values in Markdown as <code>{{ "{{field:name}}" }}</code>.</small>
+    </label>
+  </div>
+  <label class="template-field template-markdown-field">
+    <span class="template-field-heading">
+      <span class="template-field-label">Markdown</span>
+      <small>Starter content. Blueprint fields are resolved when the new page is saved.</small>
+    </span>
+    <textarea name="markdown" rows="10" placeholder="# {{ "{{field:service_name}}" }}&#10;&#10;## Overview">{{ .Markdown }}</textarea>
+  </label>
+{{ end }}
+{{ define "content" }}
+  <section class="admin-page">
+    <div class="settings-heading">
+      <p class="eyebrow">Administration</p>
+      <h1>Page blueprints</h1>
+      <p class="muted">Create reusable page types with content, metadata defaults, and author-supplied fields.</p>
+    </div>
+    <section class="panel template-create-panel">
+      <div class="template-panel-heading">
+        <span class="template-panel-icon">{{ icon "layout-template-lucide" 20 }}</span>
+        <div>
+          <h2>New blueprint</h2>
+          <p>Define a consistent starting point for a recurring kind of documentation.</p>
+        </div>
+      </div>
+      <form action="/admin/templates"
+            method="post"
+            class="template-form template-create-form">
+        {{ template "template-blueprint-fields" (blueprintcontext (blankblueprint) .Groups .PageStatuses) }}
+        <div class="template-form-footer">
+          <span class="muted">Metadata defaults remain editable by the author before saving.</span>
+          <button class="button primary" type="submit">{{ icon "plus-lucide" 16 }}<span>Create blueprint</span></button>
+        </div>
+      </form>
+    </section>
+    <div class="template-section-heading">
+      <div>
+        <h2>Saved blueprints</h2>
+        <p class="muted">Manage the page types available in the editor.</p>
+      </div>
+    </div>
+    <div class="template-admin-list">
+      {{ range .PageTemplates }}
+        {{ $item := . }}
+        <details class="panel template-admin-item">
+          <summary>
+            <span class="template-summary-main"><span class="template-summary-icon">{{ icon "layout-template-lucide" 17 }}</span><span class="template-summary-copy"><strong>{{ .Name }}</strong><small>{{ if .Description }}{{ .Description }}{{ else }}No description{{ end }}</small></span></span>
+            <span class="template-summary-chevron">{{ icon "chevron-down-lucide" 16 }}</span>
+          </summary>
+          <div class="template-admin-body">
+            <form action="/admin/templates/{{ .ID }}"
+                  method="post"
+                  class="template-form">
+              {{ template "template-blueprint-fields" (blueprintcontext . $.Groups $.PageStatuses) }}
+              <div class="template-form-footer template-item-actions">
+                <span></span>
+                <button class="button primary"
+                        type="submit">{{ icon "save-lucide" 16 }}<span>Save changes</span></button>
+              </div>
+            </form>
+            <form class="template-delete-form"
+                  action="/admin/templates/{{ .ID }}/delete"
+                  method="post"
+                  data-confirm="Delete the {{ .Name }} page blueprint?"
+                  data-confirm-title="Delete page blueprint"
+                  data-confirm-label="Delete blueprint">
+              <button class="button danger"
+                      type="submit">{{ icon "trash-2-lucide" 16 }}<span>Delete blueprint</span></button>
+            </form>
+          </div>
+        </details>
+      {{ else }}
+        <div class="panel template-empty">
+          <span class="template-panel-icon">{{ icon "layout-template-lucide" 20 }}</span>
+          <div>
+            <strong>No page blueprints yet</strong>
+            <p class="muted">Create your first blueprint above.</p>
+          </div>
+        </div>
+      {{ end }}
+    </div>
+  </section>
+{{ end }}

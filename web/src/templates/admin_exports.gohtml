@@ -1,0 +1,36 @@
+{{ define "content" }}
+  <section class="admin-page">
+    <div class="settings-heading">
+      <p class="eyebrow">Administration</p>
+      <h1>Exports</h1>
+      <p class="muted">Export selected pages as Markdown together with every referenced image.</p>
+    </div>
+    <section class="panel settings-panel">
+      <p class="settings-note">
+        A single page without uploaded-image references downloads directly as <code>.md</code>. Multiple pages, or a
+        page with referenced images, use a ZIP with Markdown under <code>pages/</code> and images under
+        <code>media/</code>.
+      </p>
+      <form action="/admin/export" method="post" data-export-form>
+        <div class="export-actions">
+          <button class="button primary" type="submit">Export selected</button>
+          <button class="button" type="submit" name="all" value="true">Export all</button>
+          <label>
+            <input type="checkbox" data-export-all />
+            Select all
+          </label>
+        </div>
+        <div class="export-pages">
+          {{ range .AdminPages }}
+            <label>
+              <input type="checkbox" name="slug" value="{{ .Slug }}" />
+              <span><strong>{{ .Title }}</strong><small>{{ .Slug }}</small></span>
+            </label>
+          {{ else }}
+            <p class="muted">No pages to export.</p>
+          {{ end }}
+        </div>
+      </form>
+    </section>
+  </section>
+{{ end }}

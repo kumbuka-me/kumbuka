@@ -1,0 +1,79 @@
+{{ define "layout" }}
+  <!DOCTYPE html>
+  <html lang="en" data-theme="{{ .ActiveTheme }}">
+    <head>
+      <meta charset="utf-8" />
+      <meta name="viewport"
+            content="width=device-width,initial-scale=1,viewport-fit=cover" />
+      <meta name="color-scheme" content="light dark" />
+      <title>{{ .Title }} · Kumbuka</title>
+      <link rel="icon"
+            href="/assets/v-{{ .AssetVersion }}/favicon.svg"
+            type="image/svg+xml" />
+      <link rel="manifest"
+            href="/assets/v-{{ .AssetVersion }}/manifest.webmanifest" />
+      <link rel="stylesheet" href="/assets/v-{{ .AssetVersion }}/css/app.css" />
+      <link rel="stylesheet"
+            href="/plugins/styles.css?v={{ .PluginStylesVersion }}"
+            data-plugin-styles />
+      <script type="module"
+              src="/assets/v-{{ .AssetVersion }}/js/form-validation.js"></script>
+      <script src="/assets/v-{{ .AssetVersion }}/js/navigation-scroll-restore.js"></script>
+      <script id="kumbuka-themes" type="application/json">{{ .ThemeData }}</script>
+      <script src="/assets/v-{{ .AssetVersion }}/js/theme-init.js"></script>
+      <script id="kumbuka-plugin-modules" type="application/json">{{ .PluginModules }}</script>
+      <script type="module" src="/assets/v-{{ .AssetVersion }}/js/main.js"></script>
+    </head>
+<body data-navigation-style="{{ .Preferences.NavigationStyle }}"
+      data-navigation-density="{{ .Preferences.NavigationDensity }}"
+      data-typography-size="{{ .TypographySize }}"
+      data-navigation-guides="{{ if .Preferences.ShowNavigationGuides }}true{{ else }}false{{ end }}"
+      data-current-page="{{ if .Page }}{{ .Page.Slug }}{{ end }}"
+      data-user-id="{{ .User.ID }}"
+      data-can-edit="{{ if .CanEdit }}true{{ else }}false{{ end }}"
+      style="--sidebar: {{ .Preferences.SidebarWidth }}px">
+    {{ template "header" . }}
+    {{ if not .AdminSection }}{{ template "top-navigation" . }}{{ end }}
+    <div class="shell{{ if .AdminSection }} admin-shell{{ end }}">
+      {{ if .AdminSection }}
+        {{ template "admin-sidebar" . }}
+      {{ else }}
+        {{ template "sidebar" . }}
+      {{ end }}
+      <button class="sidebar-backdrop"
+              type="button"
+              data-sidebar-backdrop
+              aria-label="Close navigation"
+              hidden></button>
+      {{ if not .AdminSection }}
+        <button class="sidebar-visibility-toggle"
+                type="button"
+                data-sidebar-visibility-toggle
+                aria-controls="kumbuka-sidebar"
+                aria-expanded="true"
+                aria-label="Hide navigation"
+                title="Hide navigation">
+          <span class="sidebar-visibility-hide" aria-hidden="true">{{ icon "panel-left-close-lucide" 17 }}</span>
+          <span class="sidebar-visibility-show" aria-hidden="true">{{ icon "panel-left-open-lucide" 17 }}</span>
+        </button>
+      {{ end }}
+<main {{ if .AdminSection }}
+      class="admin-main"
+      {{ else if .PageContents }}
+      class="with-page-contents"
+      {{ end }}>
+    {{ template "content" . }}
+  </main>
+  </div>
+  <footer>
+    Kumbuka {{ .Version }} · Markdown-first knowledge
+  </footer>
+  {{ template "app-dialogs" . }}
+  <div data-path-catalog hidden>
+    {{ range .PagePathOptions }}<span data-path-option
+      data-slug="{{ .Slug }}"
+      data-label="{{ .Label }}"></span>{{ end }}
+  </div>
+  </body>
+  </html>
+{{ end }}

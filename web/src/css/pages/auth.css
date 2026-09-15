@@ -1,0 +1,63 @@
+/* First-run setup and optional local recovery login. */
+
+.auth-page {
+  display: grid;
+  min-height: 100vh;
+  grid-template-rows: 1fr auto;
+  background: var(--background);
+}
+
+.auth-shell {
+  display: grid;
+  width: min(440px, calc(100vw - 32px));
+  place-self: center;
+  gap: 18px;
+  padding: 40px 0;
+}
+
+.auth-brand {
+  display: flex;
+  justify-content: center;
+}
+
+.auth-brand svg {
+  width: auto;
+  height: 34px;
+}
+
+.auth-card {
+  padding: 24px;
+}
+
+.auth-card-heading {
+  margin-bottom: 18px;
+}
+
+.auth-card-heading h1 {
+  margin: 3px 0 6px;
+  font-size: 22px;
+}
+
+.auth-card-heading p {
+  margin-bottom: 0;
+}
+
+.auth-login-form .button {
+  width: 100%;
+  justify-content: center;
+  margin-top: 4px;
+}
+
+.auth-form-error {
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--danger) 35%, var(--border));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--danger) 7%, var(--surface));
+  color: var(--danger);
+  font-size: 12px;
+}
+
+.auth-setup-note {
+  margin: 18px 0 0;
+}

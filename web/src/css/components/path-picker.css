@@ -1,0 +1,94 @@
+.path-crumb {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 28px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--surface-elevated);
+  padding: 4px 7px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+}
+
+.path-crumb:hover,
+.path-crumb:focus-visible {
+  background: var(--surface-hover);
+  color: var(--accent);
+  outline: 0;
+}
+
+.path-suggestion {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  padding: 8px 9px;
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+}
+
+.path-suggestion:hover,
+.path-suggestion.active {
+  background: var(--surface-hover);
+  color: var(--accent);
+}
+
+.path-suggestion small {
+  color: var(--text-tertiary);
+  font-size: 10px;
+}
+
+.shared-path-picker {
+  position: relative;
+  min-width: 0;
+  width: 100%;
+}
+
+.shared-path-picker[hidden],
+.shared-path-suggestions[hidden] {
+  display: none;
+}
+
+.shared-path-crumbs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 8px;
+  color: var(--text-tertiary);
+}
+
+.shared-path-crumbs .path-crumb {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  text-align: left;
+}
+
+.shared-path-picker > input {
+  width: 100%;
+}
+
+.shared-path-suggestions {
+  position: absolute;
+  z-index: 50;
+  top: 100%;
+  left: 0;
+  right: 0;
+  max-height: 240px;
+  overflow: auto;
+  padding: 5px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}

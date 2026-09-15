@@ -1,0 +1,132 @@
+/* Administration navigation and section layout */
+
+.admin-shell .admin-sidebar nav {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.admin-sidebar nav a {
+  padding: 8px 10px;
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.admin-sidebar nav a:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.admin-sidebar nav a.active {
+  background: var(--surface-elevated);
+  color: var(--accent);
+}
+
+.admin-back-link {
+  margin-top: auto;
+  padding: 10px;
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+
+.admin-back-link:hover {
+  color: var(--accent);
+}
+
+.admin-main {
+  max-width: 1440px;
+  padding-top: 42px;
+}
+
+.admin-page {
+  width: 100%;
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+.admin-stats > a {
+  display: flex;
+  flex-direction: column;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.admin-stats > a:hover {
+  border-color: var(--border-strong);
+  background: var(--surface-hover);
+}
+
+.admin-stats > a strong {
+  font-size: 22px;
+}
+
+.admin-stats > a span {
+  color: var(--text-tertiary);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.admin-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.admin-overview-card {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-height: 100px;
+  justify-content: center;
+}
+
+.admin-overview-card:hover {
+  border-color: var(--border-strong);
+  background: var(--surface-hover);
+}
+
+.admin-overview-card strong {
+  font-size: 15px;
+}
+
+.admin-overview-card span {
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+
+.admin-page > .settings-grid {
+  grid-template-columns: 1fr;
+}
+
+.admin-page .admin-list {
+  max-height: none;
+}
+
+@media (max-width: 800px) {
+  .markdown-toolbar {
+    scrollbar-width: thin;
+  }
+
+  .admin-overview-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-shell .admin-sidebar {
+    transform: translateX(-100%);
+  }
+
+  .admin-shell .admin-sidebar.open {
+    transform: none;
+  }
+}
+
+.admin-sidebar nav a,
+.admin-back-link {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}

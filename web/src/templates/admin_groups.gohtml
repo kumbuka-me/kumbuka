@@ -1,0 +1,55 @@
+{{ define "content" }}
+  <section class="admin-page">
+    <div class="settings-heading">
+      <p class="eyebrow">Administration</p>
+      <h1>Groups</h1>
+      <p class="muted">Create collaboration groups and manage their members directly.</p>
+    </div>
+    <section class="panel settings-panel">
+      <form class="inline-create-form" action="/admin/groups" method="post">
+        <input name="name" required maxlength="120" placeholder="New group" />
+        <button class="button primary" type="submit">Add group</button>
+      </form>
+      <div class="admin-list group-admin-list">
+        {{ range .Groups }}
+          <article class="group-admin-card"
+                   data-group-members
+                   data-group-id="{{ .ID }}"
+                   data-members-url="/api/admin/groups/{{ .ID }}/members"
+                   data-users-url="/api/admin/users">
+            <div class="group-admin-heading">
+              <span><strong>{{ .Name }}</strong><small><span data-group-member-count>{{ .UserCount }}</span> user{{ if ne .UserCount 1 }}s{{ end }} ·
+              {{ .PageCount }} page{{ if ne .PageCount 1 }}s{{ end }}</small></span>
+              <form action="/admin/groups/{{ .ID }}/delete"
+                    method="post"
+                    data-confirm="Delete group {{ .Name }}?">
+                <button class="button danger" type="submit">Delete</button>
+              </form>
+            </div>
+            <div class="group-member-picker">
+              <label for="group-person-{{ .ID }}">Add person</label>
+              <div class="live-person-picker">
+                <input id="group-person-{{ .ID }}"
+                       type="search"
+                       autocomplete="off"
+                       placeholder="Type at least 2 characters…"
+                       data-group-person-input
+                       aria-autocomplete="list" />
+                <div class="live-person-results"
+                     data-group-person-results
+                     role="listbox"
+                     hidden></div>
+              </div>
+              <small class="muted">Searches registered people live after two characters.</small>
+            </div>
+            <div class="group-members" data-group-member-list>
+              <p class="muted">Loading members…</p>
+            </div>
+          </article>
+        {{ else }}
+          <p class="muted">No groups yet.</p>
+        {{ end }}
+      </div>
+    </section>
+  </section>
+{{ end }}

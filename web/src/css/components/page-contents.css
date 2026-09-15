@@ -1,0 +1,138 @@
+/* Page-contents navigation shared by dynamic and static reading surfaces. */
+
+.page-contents {
+  position: sticky;
+  top: 88px;
+  width: 100%;
+  min-width: 0;
+  max-width: 240px;
+  max-height: calc(100vh - 112px);
+  overflow: auto;
+  padding: 4px 0 4px 15px;
+  border-left: 1px solid var(--border);
+}
+
+.page-contents-heading > strong,
+.page-contents > strong {
+  display: block;
+  margin-bottom: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.page-contents nav {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.page-contents a {
+  width: 100%;
+  min-width: 0;
+  padding: 4px 0;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.page-contents a:hover,
+.page-contents a.active {
+  color: var(--accent);
+}
+
+.page-contents a.active {
+  font-weight: 700;
+}
+
+.page-contents .contents-level-2 {
+  padding-left: 8px;
+}
+
+.page-contents .contents-level-3 {
+  padding-left: 16px;
+}
+
+.page-contents .contents-level-4,
+.page-contents .contents-level-5,
+.page-contents .contents-level-6 {
+  padding-left: 24px;
+}
+
+.page-contents-close,
+.contents-backdrop {
+  display: none;
+}
+
+.contents-toggle {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 35;
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--surface) 94%, transparent);
+  color: var(--text-secondary);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14);
+  cursor: pointer;
+  font-size: 23px;
+  line-height: 1;
+}
+
+.contents-toggle:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  transform: translateY(-1px);
+}
+
+.contents-toggle[aria-pressed="false"] {
+  color: var(--muted);
+}
+
+.contents-toggle:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+.contents-toggle svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.contents-toggle span {
+  display: none;
+}
+
+@media (max-width: 1180px) {
+  .page-contents {
+    position: static;
+    max-height: none;
+    margin-top: 30px;
+    padding: 16px 0 0 15px;
+    border-top: 1px solid var(--border);
+    border-left: 0;
+  }
+
+  .page-contents nav {
+    width: auto;
+  }
+
+  .page-contents a {
+    width: auto;
+    white-space: normal;
+  }
+}

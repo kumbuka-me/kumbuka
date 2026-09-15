@@ -1,0 +1,43 @@
+/* Page access-rule administration. */
+
+.page-access > .panel + .panel {
+  margin-top: 24px;
+}
+
+.page-access-form {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.page-access-form > label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.page-access-form :is(input, select) {
+  width: 100%;
+  min-height: 44px;
+}
+
+.page-access-form small {
+  color: var(--text-tertiary);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+.page-access-path,
+.page-access-form > .settings-actions {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 600px) {
+  .page-access-form {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

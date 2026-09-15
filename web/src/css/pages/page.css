@@ -1,0 +1,235 @@
+/* Page shell, metadata, relationships, lifecycle state, and comments. */
+
+.page-heading h1 {
+  font-size: var(--content-title-size);
+  line-height: 1.1;
+  letter-spacing: -0.045em;
+  margin: 0 0 12px;
+}
+
+.relations h2 {
+  font-size: 14px;
+  margin: 0;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.page {
+  max-width: 1180px;
+  margin: auto;
+}
+
+.page-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  padding-bottom: 26px;
+  border-bottom: 1px solid var(--border);
+}
+
+.breadcrumbs {
+  color: var(--muted);
+  font-size: 12px;
+  margin: 0 0 10px;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tags a {
+  padding: 3px 8px;
+  border-radius: 20px;
+  background: var(--surface-elevated);
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.page-meta {
+  padding: 15px 0;
+  border-top: 1px solid var(--border-subtle);
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+
+.relations {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  margin-top: 20px;
+}
+
+.relations section {
+  min-width: 0;
+}
+
+.page-status-badge,
+.page-owner-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  width: fit-content;
+  padding: 3px 7px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-transform: capitalize;
+}
+
+.page-status-badge.status-draft {
+  border-color: color-mix(in srgb, var(--warning) 50%, var(--border));
+  color: var(--warning);
+}
+
+.page-status-badge.status-verified {
+  border-color: color-mix(in srgb, var(--success) 45%, var(--border));
+  color: var(--success);
+}
+
+.page-status-badge.status-deprecated {
+  border-color: color-mix(in srgb, var(--error) 45%, var(--border));
+  color: var(--error);
+}
+
+.page-status-badge.status-archived {
+  color: var(--text-tertiary);
+}
+
+.page-property-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin: 10px 0 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.page-property-strip > div {
+  display: flex;
+  gap: 5px;
+}
+
+.page-property-strip dt {
+  font-weight: 700;
+}
+
+.page-property-strip dd {
+  margin: 0;
+}
+
+.page-lifecycle-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0 0 20px;
+  padding: 11px 13px;
+  border: 1px solid var(--border);
+  border-left-width: 4px;
+  border-radius: 9px;
+  background: var(--surface-elevated);
+}
+
+.page-lifecycle-banner.deprecated {
+  border-left-color: var(--error);
+}
+
+.page-lifecycle-banner.draft {
+  border-left-color: var(--warning);
+}
+
+.page-lifecycle-banner.archived {
+  border-left-color: var(--muted);
+}
+
+.page-comments {
+  width: 100%;
+  max-width: 900px;
+  margin: 30px 0 0;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+
+.page-comment-list {
+  display: grid;
+  gap: 9px;
+}
+
+.page-comment {
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-elevated);
+}
+
+.page-comment.resolved {
+  opacity: 0.68;
+}
+
+.page-comment header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.page-comment header > div {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.page-comment blockquote {
+  margin: 9px 0;
+  padding: 7px 10px;
+  border-left: 3px solid var(--accent);
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.page-comment p {
+  margin: 9px 0;
+  white-space: pre-wrap;
+}
+
+/* Page favorite-state icon treatment. */
+
+.page-favorite-button.active {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+  color: var(--accent);
+}
+
+.page-favorite-button.active svg {
+  fill: currentColor;
+}
+
+/* Page-title icon layout. */
+
+.page-title-with-icon {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.page-title-icon {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  color: var(--accent);
+}

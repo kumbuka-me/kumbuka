@@ -1,0 +1,77 @@
+{{ define "content" }}
+  <section class="admin-page">
+    <div class="settings-heading">
+      <p class="eyebrow">Administration</p>
+      <h1>Access tokens</h1>
+      <p class="muted">Issue and revoke personal access tokens for any account.</p>
+    </div>
+    <section class="panel settings-panel">
+      <p class="settings-note">
+        Tokens authenticate as the selected user and inherit that user's current role. Choose an administrator account
+        for full API access.
+      </p>
+      <form class="token-create-form"
+            data-token-form
+            action="/admin/tokens"
+            method="post">
+        <label>
+          Name<input name="name" required maxlength="120" placeholder="automation" />
+        </label>
+        <label>
+          User<select name="user_id" required>
+          {{ range .AdminUsers }}
+            <option value="{{ .User.ID }}"
+                    {{ if eq .User.ID $.User.ID }}selected{{ end }}>{{ .User.Username }} ({{ .User.Role }})</option>
+          {{ end }}
+          </select>
+        </label>
+        <label>
+          Expires <span class="optional">optional</span><input type="date" name="expires" />
+        </label>
+        <button class="button primary" type="submit">Create token</button>
+      </form>
+      <div class="token-secret" data-token-secret hidden></div>
+      <div class="admin-table-wrap">
+        <table class="admin-table token-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>User</th>
+              <th>Created</th>
+              <th>Last used</th>
+              <th>Expires</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody data-token-list>
+            {{ range .AdminTokens }}
+              <tr data-token-row>
+                <td><strong>{{ .Name }}</strong><small>issued by {{ .Creator }}</small></td>
+                <td>{{ .Username }}</td>
+                <td>{{ timeago .CreatedAt }}</td>
+                <td>
+                  {{ if .LastUsed }}
+                    {{ .LastUsed.Format "2006-01-02 15:04" }}
+                  {{ else }}
+                    <span class="muted">Never</span>
+                  {{ end }}
+                </td>
+                <td>{{ if .ExpiresAt }}{{ .ExpiresAt.Format "2006-01-02" }}{{ else }}Never{{ end }}</td>
+                <td>
+                  <button class="button danger"
+                          type="button"
+                          data-token-delete
+                          data-delete-url="/admin/tokens/{{ .ID }}">Revoke</button>
+                </td>
+              </tr>
+            {{ else }}
+              <tr data-token-empty>
+                <td colspan="6" class="muted">No tokens yet.</td>
+              </tr>
+            {{ end }}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </section>
+{{ end }}

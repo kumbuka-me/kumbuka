@@ -1,0 +1,81 @@
+{{ define "admin-sidebar" }}
+  <aside class="sidebar admin-sidebar" id="kumbuka-sidebar" data-sidebar>
+    <nav>
+      <p class="nav-label">Administration</p>
+      <a href="/admin"
+         {{ if eq .AdminSection "overview" }}class="active"
+         aria-current="page"
+         {{ end }}>{{ icon "layout-dashboard-lucide" 17 }}<span>Overview</span></a>
+      <a href="/admin/configuration"
+         {{ if eq .AdminSection "configuration" }}class="active"
+         aria-current="page"
+         {{ end }}>{{ icon "settings-2-lucide" 17 }}<span>Configuration</span></a>
+      <a href="/admin/plugins"
+         {{ if eq .AdminSection "plugins" }}class="active"
+         aria-current="page"
+         {{ end }}>{{ icon "settings-2-lucide" 17 }}<span>Plugins</span></a>
+      <a href="/admin/users"
+         {{ if eq .AdminSection "users" }}class="active"
+         aria-current="page"
+         {{ end }}>{{ icon "users-lucide" 17 }}<span>Users</span></a>
+      <a href="/admin/groups"
+         {{ if eq .AdminSection "groups" }}class="active"
+         aria-current="page"
+         {{ end }}>{{ icon "users-round-lucide" 17 }}<span>Groups</span></a>
+      <a href="/admin/tokens"
+         {{ if eq .AdminSection "tokens" }}class="active"
+         aria-current="page"
+         {{ end }}>{{ icon "key-round-lucide" 17 }}<span>Access tokens</span></a>
+      <a href="/admin/pages"
+         {{ if eq .AdminSection "pages" }}class="active"
+         aria-current="page"
+         {{ end }}>{{ icon "files-lucide" 17 }}<span>Pages</span></a>
+      <a href="/admin/navigation"
+         {{ if eq .AdminSection "navigation" }}class="active"
+         aria-current="page"
+         {{ end }}>{{ icon "panel-left-lucide" 17 }}<span>Navigation</span></a>
+      <a href="/admin/templates"
+         {{ if eq .AdminSection "templates" }}class="active"
+         aria-current="page"
+         {{ end }}>{{ icon "layout-template-lucide" 17 }}<span>Page templates</span></a>
+      <a href="/admin/permissions"
+         {{ if eq .AdminSection "permissions" }}class="active"
+         aria-current="page"
+         {{ end }}>{{ icon "shield-check-lucide" 17 }}<span>Page access</span></a>
+      <a href="/admin/webhooks"
+         {{ if eq .AdminSection "webhooks" }}class="active"
+         aria-current="page"
+         {{ end }}>{{ icon "webhook-lucide" 17 }}<span>Webhooks</span></a>
+      <a href="/admin/tags"
+         {{ if eq .AdminSection "tags" }}class="active"
+         aria-current="page"
+         {{ end }}>{{ icon "tags-lucide" 17 }}<span>Tags</span></a>
+      <a href="/admin/images"
+         {{ if eq .AdminSection "images" }}class="active"
+         aria-current="page"
+         {{ end }}>{{ icon "images-lucide" 17 }}<span>Images</span></a>
+      <a href="/admin/import"
+         {{ if eq .AdminSection "import" }}class="active"
+         aria-current="page"
+         {{ end }}>{{ icon "import-lucide" 17 }}<span>Import</span></a>
+      <a href="/admin/exports"
+         {{ if eq .AdminSection "exports" }}class="active"
+         aria-current="page"
+         {{ end }}>{{ icon "download-lucide" 17 }}<span>Exports</span></a>
+      <a href="/admin/health"
+         {{ if eq .AdminSection "health" }}class="active"
+         aria-current="page"
+         {{ end }}>{{ icon "heart-pulse-lucide" 17 }}<span>Documentation health</span></a>
+      <a href="/admin/audit"
+         {{ if eq .AdminSection "audit" }}class="active"
+         aria-current="page"
+         {{ end }}>{{ icon "scroll-text-lucide" 17 }}<span>Audit log</span></a>
+      <a href="/admin/bin"
+         {{ if eq .AdminSection "bin" }}class="active"
+         aria-current="page"
+         {{ end }}>{{ icon "trash-2-lucide" 17 }}<span>Recycle bin</span></a>
+    </nav>
+    <a class="admin-back-link" href="/">{{ icon "arrow-left-lucide" 17 }}<span>Back to Kumbuka</span></a>
+    {{ template "account-menu" . }}
+  </aside>
+{{ end }}

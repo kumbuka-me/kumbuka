@@ -1,0 +1,168 @@
+/* Page sharing, public links, and export progress. */
+
+.share-dialog {
+  --dialog-width: 560px;
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
+}
+
+.share-dialog-options {
+  display: flex;
+  flex-direction: column;
+  padding: 10px;
+}
+
+.share-option {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.share-option:hover,
+.share-option:focus-visible {
+  background: var(--surface-hover);
+  outline: 0;
+}
+
+.share-option:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.share-option-icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: var(--surface-elevated);
+  color: var(--accent);
+}
+
+.share-option-icon svg {
+  width: 19px;
+  height: 19px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.share-option span:last-child strong,
+.share-option span:last-child small {
+  display: block;
+}
+
+.share-option span:last-child small {
+  margin-top: 2px;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.share-progress {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0 20px 18px;
+  padding: 10px 12px;
+  border-radius: 7px;
+  background: var(--surface-elevated);
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.share-progress[hidden] {
+  display: none;
+}
+
+.spinner {
+  width: 15px;
+  height: 15px;
+  border: 2px solid var(--border-strong);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: kumbuka-spin 0.75s linear infinite;
+}
+
+@keyframes kumbuka-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.share-options-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 5px 12px;
+  color: var(--text-tertiary);
+  font-size: 10px;
+  font-weight: 750;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+}
+
+.share-options-divider::before,
+.share-options-divider::after {
+  height: 1px;
+  flex: 1;
+  background: var(--border-subtle);
+  content: "";
+}
+
+.share-link-result {
+  margin: 4px 12px 12px;
+  padding: 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  background: var(--surface-elevated);
+}
+
+.share-link-result[hidden] {
+  display: none;
+}
+
+.share-link-result > strong,
+.share-link-result > small {
+  display: block;
+}
+
+.share-link-result > strong {
+  margin-bottom: 7px;
+  font-size: 12px;
+}
+
+.share-link-result > small {
+  margin-top: 6px;
+  color: var(--text-tertiary);
+  font-size: 11px;
+}
+
+.share-link-value {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 7px;
+}
+
+.share-link-value input {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+  padding: 8px 9px;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 11px;
+}

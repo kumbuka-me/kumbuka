@@ -1,0 +1,52 @@
+name: kumbuka
+
+services:
+  kumbuka:
+    build:
+      context: ..
+    environment:
+      KUMBUKA__DATABASE_URL: postgres://kumbuka:kumbuka@postgres:5432/kumbuka?sslmode=disable
+      KUMBUKA__LISTEN_ADDRESS: 0.0.0.0:8080
+      KUMBUKA__PUBLIC_URL: http://localhost:8080
+      KUMBUKA__PDF_URL: http://localhost:8081/render
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  html2pdf:
+    image: ghcr.io/gi8lino/html2pdf:latest
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${KUMBUKA_PDF_PORT:-8081}:8080"
+    read_only: true
+    tmpfs:
+      - /tmp:size=128m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 1g
+    cpus: 2
+
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: kumbuka
+      POSTGRES_USER: kumbuka
+      POSTGRES_PASSWORD: kumbuka
+    volumes:
+      - kumbuka-postgres:/var/lib/postgresql
+    ports:
+      - "127.0.0.1:${KUMBUKA_POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kumbuka -d kumbuka"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  kumbuka-postgres:

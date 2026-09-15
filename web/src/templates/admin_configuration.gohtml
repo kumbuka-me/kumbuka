@@ -1,0 +1,799 @@
+{{ define "content" }}
+  {{ $root := . }}
+  <section class="admin-page">
+    <div class="settings-heading">
+      <p class="eyebrow">Administration</p>
+      <h1>Configuration</h1>
+      <p class="muted">Manage Kumbuka's application settings, integrations, and authentication.</p>
+    </div>
+    <div class="settings-grid configuration-grid">
+      <section class="panel settings-panel settings-wide configuration-runtime">
+        <div class="panel-title configuration-panel-title">
+          <div>
+            <h2>Runtime</h2>
+            <p class="muted">Read-only values supplied by the process or deployment.</p>
+          </div>
+        </div>
+        <dl class="configuration-runtime-grid">
+          <div>
+            <dt>Version</dt>
+            <dd>
+              {{ .Version }}
+            </dd>
+          </div>
+          <div>
+            <dt>Commit</dt>
+            <dd>
+              <code>{{ .Commit }}</code>
+            </dd>
+          </div>
+          <div>
+            <dt>Listen address</dt>
+            <dd>
+              <code>{{ .Runtime.ListenAddress }}</code>
+            </dd>
+          </div>
+          <div>
+            <dt>Public URL</dt>
+            <dd>
+              {{ .Runtime.PublicURL }}
+            </dd>
+          </div>
+          <div>
+            <dt>Themes</dt>
+            <dd>
+              {{ if .Runtime.ThemeDirectory }}
+                {{ .Runtime.ThemeDirectory }}
+              {{ else }}
+                Embedded only
+              {{ end }}
+            </dd>
+          </div>
+          <div>
+            <dt>Application encryption</dt>
+            <dd>
+              {{ if .Runtime.EncryptionKeyConfigured }}
+                Configured
+              {{ else }}
+                Not configured
+              {{ end }}
+            </dd>
+          </div>
+        </dl>
+      </section>
+      <section class="panel settings-panel settings-wide configuration-application">
+        <div class="panel-title configuration-panel-title">
+          <div>
+            <h2>Application</h2>
+            <p class="muted">General behavior shared by all Kumbuka users.</p>
+          </div>
+        </div>
+        <form class="settings-form"
+              action="/admin/settings"
+              method="post"
+              data-validate-form
+              novalidate>
+          <label class="toggle-row">
+            <span>
+              <strong>Allow new users</strong>
+              <small>Allow unknown OIDC or trusted-proxy identities to create Kumbuka accounts automatically.</small>
+            </span>
+            <input type="checkbox"
+                   name="allow_user_registration"
+                   {{ if .ApplicationSettings.AllowUserRegistration }}checked{{ end }} />
+          </label>
+          <label class="toggle-row">
+            <span>
+              <strong>Page discussions</strong>
+              <small>Allow users to add anchored comments to wiki pages.</small>
+            </span>
+            <input type="checkbox"
+                   name="discussions_enabled"
+                   {{ if .ApplicationSettings.DiscussionsEnabled }}checked{{ end }} />
+          </label>
+          <label class="configuration-choice-row">
+            <span class="configuration-choice-copy">
+              <strong>Content language</strong>
+              <small>Default language for pages, spell checking, accessibility, search, and PDF exports.</small>
+            </span>
+            <select name="content_language" aria-label="Content language">
+              {{ range .ContentLanguages }}
+                <option value="{{ .Code }}"
+                        {{ if eq $.ApplicationSettings.ContentLanguage .Code }}selected{{ end }}>{{ .Label }}</option>
+              {{ end }}
+            </select>
+          </label>
+          <label class="configuration-choice-row">
+            <span class="configuration-choice-copy">
+              <strong>robots.txt</strong>
+              <small>Controls public crawler discovery. Allowing crawling also publishes <code>/sitemap.xml</code> with verified and deprecated page paths. Kumbuka defaults to disallowing crawling.</small>
+            </span>
+            <select name="robots_policy" aria-label="robots.txt policy">
+              <option value="disallow"
+                      {{ if eq .ApplicationSettings.RobotsPolicy "disallow" }}selected{{ end }}>Disallow crawling</option>
+              <option value="allow"
+                      {{ if eq .ApplicationSettings.RobotsPolicy "allow" }}selected{{ end }}>Allow crawling</option>
+              <option value="none"
+                      {{ if eq .ApplicationSettings.RobotsPolicy "none" }}selected{{ end }}>Disabled</option>
+            </select>
+          </label>
+          <label class="configuration-choice-row">
+            <span class="configuration-choice-copy">
+              <strong>Default typography size</strong>
+              <small>Used when a user has not selected a personal typography size. New installations default to Compact.</small>
+            </span>
+            <select name="default_typography_size" aria-label="Default typography size">
+              <option value="compact"
+                      {{ if eq .ApplicationSettings.Rendering.DefaultTypographySize "compact" }}selected{{ end }}>Compact</option>
+              <option value="standard"
+                      {{ if eq .ApplicationSettings.Rendering.DefaultTypographySize "standard" }}selected{{ end }}>Standard</option>
+              <option value="large"
+                      {{ if eq .ApplicationSettings.Rendering.DefaultTypographySize "large" }}selected{{ end }}>Large</option>
+            </select>
+          </label>
+          <div class="external-link-settings" data-external-link-settings>
+            <div class="external-link-settings-title">
+              <div>
+                <strong>External links</strong>
+                <small>Add links beside search. Hover feedback and tooltip text can be configured per link; tooltip templates support <code>{{ "{{label}}" }}</code> and <code>{{ "{{description}}" }}</code>.</small>
+              </div>
+              <button class="button compact"
+                      type="button"
+                      data-external-link-add>{{ icon "plus-lucide" 14 }}<span>Add link</span></button>
+            </div>
+            <div class="external-link-settings-list" data-external-link-list>
+              {{ range .ApplicationSettings.ExternalLinks }}
+                <div class="external-link-settings-row"
+                     data-external-link-row
+                     data-icon-picker-owner>
+                  <label>
+                    <span>Label</span>
+                    <input type="text"
+                           name="external_link_label"
+                           value="{{ .Label }}"
+                           placeholder="Repository"
+                           data-error-required="Enter a label."
+                           required />
+                  </label>
+                  <label>
+                    <span>URL</span>
+                    <input type="url"
+                           name="external_link_url"
+                           value="{{ .URL }}"
+                           placeholder="https://github.com/example/project"
+                           data-error-required="Enter a URL."
+                           data-error-type="Enter a valid URL."
+                           required />
+                  </label>
+                  <label>
+                    <span>Description</span>
+                    <input type="text"
+                           name="external_link_description"
+                           value="{{ .Description }}"
+                           placeholder="v2.4.1" />
+                  </label>
+                  <label>
+                    <span>Hover effect</span>
+                    <select name="external_link_hover_effect">
+                      <option value="highlight"
+                              {{ if or (eq .HoverEffect "") (eq .HoverEffect "highlight") }}selected{{ end }}>Highlight</option>
+                      <option value="lift" {{ if eq .HoverEffect "lift" }}selected{{ end }}>Lift</option>
+                      <option value="none" {{ if eq .HoverEffect "none" }}selected{{ end }}>None</option>
+                    </select>
+                  </label>
+                  <label class="external-link-hover-text">
+                    <span>Hover text</span>
+                    <input type="text" name="external_link_hover_text" value="{{ .HoverText }}" placeholder="{{ "{{label}} — {{description}}" }}" />
+                  </label>
+                  <div class="external-link-settings-actions">
+                    <input type="hidden"
+                           name="external_link_icon"
+                           value="{{ .Icon }}"
+                           data-icon-picker-value />
+                    <button class="button compact external-link-icon-button"
+                            type="button"
+                            data-icon-picker-open>
+                      <span class="external-link-icon-preview"
+                            data-icon-picker-preview
+                            data-icon-picker-empty="plus">{{ if .Icon }}{{ icon .Icon 18 }}{{ else }}{{ icon "plus-lucide" 18 }}{{ end }}</span>
+                      <span data-icon-picker-label>{{ if .Icon }}{{ .Icon }}{{ else }}No icon{{ end }}</span>
+                    </button>
+                    <button class="icon-button"
+                            type="button"
+                            data-external-link-remove
+                            aria-label="Remove external link">{{ icon "trash-2-lucide" 15 }}</button>
+                  </div>
+                </div>
+              {{ end }}
+            </div>
+            <template data-external-link-template>
+              <div class="external-link-settings-row"
+                   data-external-link-row
+                   data-icon-picker-owner>
+                <label>
+                  <span>Label</span>
+                  <input type="text"
+                         name="external_link_label"
+                         placeholder="Repository"
+                         data-error-required="Enter a label."
+                         required />
+                </label>
+                <label>
+                  <span>URL</span>
+                  <input type="url"
+                         name="external_link_url"
+                         placeholder="https://github.com/example/project"
+                         data-error-required="Enter a URL."
+                         data-error-type="Enter a valid URL."
+                         required />
+                </label>
+                <label>
+                  <span>Description</span>
+                  <input type="text" name="external_link_description" placeholder="v2.4.1" />
+                </label>
+                <label>
+                  <span>Hover effect</span>
+                  <select name="external_link_hover_effect">
+                    <option value="highlight" selected>Highlight</option>
+                    <option value="lift">Lift</option>
+                    <option value="none">None</option>
+                  </select>
+                </label>
+                <label class="external-link-hover-text">
+                  <span>Hover text</span>
+                  <input type="text" name="external_link_hover_text" placeholder="{{ "{{label}} — {{description}}" }}" />
+                </label>
+                <div class="external-link-settings-actions">
+                  <input type="hidden" name="external_link_icon" data-icon-picker-value />
+                  <button class="button compact external-link-icon-button"
+                          type="button"
+                          data-icon-picker-open>
+                    <span class="external-link-icon-preview"
+                          data-icon-picker-preview
+                          data-icon-picker-empty="plus">{{ icon "plus-lucide" 18 }}</span>
+                    <span data-icon-picker-label>No icon</span>
+                  </button>
+                  <button class="icon-button"
+                          type="button"
+                          data-external-link-remove
+                          aria-label="Remove external link">{{ icon "trash-2-lucide" 15 }}</button>
+                </div>
+              </div>
+            </template>
+          </div>
+          <div class="settings-actions">
+            <button class="button primary" type="submit">Save application settings</button>
+          </div>
+        </form>
+      </section>
+      <section class="panel settings-panel configuration-pdf" id="pdf-rendering">
+        <div class="panel-title configuration-panel-title">
+          <div>
+            <h2>PDF rendering</h2>
+            <p class="muted">Connect Kumbuka to a generic HTML-to-PDF service.</p>
+          </div>
+          {{ if .Runtime.PDFURL }}
+            <span class="config-status warning">Runtime override</span>
+          {{ else if .ApplicationSettings.PDFURL }}
+            <span class="config-status configured">Configured</span>
+          {{ else }}
+            <span class="config-status missing">Not configured</span>
+          {{ end }}
+        </div>
+        {{ if .Runtime.PDFURL }}
+          <div class="configuration-override-note">
+            <strong>Runtime PDF override active</strong>
+            <span>
+              A deployment-level <code>--pdf-url</code> / <code>KUMBUKA__PDF_URL</code> override is currently used for exports: <code>{{ .Runtime.PDFURL }}</code>. The saved endpoint below becomes active after the override is removed and Kumbuka is restarted.
+            </span>
+          </div>
+        {{ end }}
+        <form class="stacked-form pdf-settings-form"
+              action="/admin/pdf"
+              method="post"
+              data-pdf-settings
+              data-validate-form
+              novalidate>
+          <label>
+            {{ if .Runtime.PDFURL }}Saved endpoint{{ else }}Endpoint{{ end }}
+            <input type="url"
+                   name="pdf_url"
+                   value="{{ .ApplicationSettings.PDFURL }}"
+                   placeholder="http://html2pdf:8080/render"
+                   autocomplete="off"
+                   data-error-type="Enter a valid HTTP or HTTPS URL." />
+            <small>Complete <code>POST</code> endpoint including the render path. Leave empty to disable PDF export.</small>
+          </label>
+          <div class="pdf-header-settings">
+            <div class="pdf-header-settings-title">
+              <div>
+                <strong>Request headers</strong>
+                <small>Add headers sent with every PDF render and service-test request.</small>
+              </div>
+              <button class="button compact"
+                      type="button"
+                      data-pdf-header-add>{{ icon "plus-lucide" 14 }}<span>Add header</span></button>
+            </div>
+            {{ if .Runtime.EncryptionKeyConfigured }}
+              <p class="pdf-header-encryption-note">Sensitive values are encrypted at rest with <code>KUMBUKA__ENCRYPTION_KEY</code> and hidden until explicitly revealed.</p>
+            {{ else }}
+              <p class="pdf-header-encryption-note warning">Configure <code>KUMBUKA__ENCRYPTION_KEY</code> before saving, revealing, or reusing stored sensitive headers. Non-sensitive headers do not require an encryption key.</p>
+            {{ end }}
+            <div class="pdf-header-list" data-pdf-header-list>
+              {{ range .PDFHeaders }}
+                <div class="pdf-header-row"
+                     data-pdf-header-row
+                     data-pdf-header-existing="true">
+                  <input type="hidden" name="pdf_header_row" value="h{{ .ID }}" />
+                  <input type="hidden" name="pdf_header_h{{ .ID }}_id" value="{{ .ID }}" />
+                  <label class="pdf-header-name">
+                    <span>Name</span>
+                    <input type="text"
+                           name="pdf_header_h{{ .ID }}_name"
+                           value="{{ .Name }}"
+                           autocomplete="off"
+                           placeholder="Authorization"
+                           data-pdf-header-name />
+                  </label>
+                  <label class="pdf-header-value">
+                    <span>Value</span>
+                    <input type="{{ if .Sensitive }}password{{ else }}text{{ end }}"
+                           name="pdf_header_h{{ .ID }}_value"
+                           value="{{ if not .Sensitive }}{{ .Value }}{{ end }}"
+                           {{ if and .Sensitive .Configured }}placeholder="•••••••• configured"
+                           {{ else }}placeholder="Bearer token"
+                           {{ end }}
+                           autocomplete="off"
+                           data-pdf-header-value />
+                  </label>
+                  <div class="pdf-header-actions">
+                    <label class="pdf-header-sensitive"
+                           title="Sensitive: encrypt this header value at rest">
+                      <input type="checkbox"
+                             name="pdf_header_h{{ .ID }}_sensitive"
+                             {{ if .Sensitive }}checked{{ end }}
+                             data-pdf-header-sensitive
+                             aria-label="Encrypt this header value at rest" />
+                      <span class="pdf-header-sensitive-icon" aria-hidden="true">{{ icon "key-round-lucide" 14 }}</span>
+                    </label>
+                    {{ if and .Sensitive .Configured }}
+                      <button class="button compact"
+                              type="button"
+                              data-pdf-header-reveal
+                              data-pdf-header-id="{{ .ID }}"
+                              {{ if not $.Runtime.EncryptionKeyConfigured }}disabled{{ end }}>Reveal</button>
+                    {{ end }}
+                    <button class="icon-button"
+                            type="button"
+                            data-pdf-header-remove
+                            aria-label="Remove PDF request header">{{ icon "trash-2-lucide" 15 }}</button>
+                  </div>
+                </div>
+              {{ end }}
+            </div>
+            <template data-pdf-header-template>
+              <div class="pdf-header-row"
+                   data-pdf-header-row
+                   data-pdf-header-existing="false">
+                <input type="hidden" data-pdf-header-row-key />
+                <input type="hidden" data-pdf-header-id />
+                <label class="pdf-header-name">
+                  <span>Name</span>
+                  <input type="text"
+                         autocomplete="off"
+                         placeholder="Authorization"
+                         data-pdf-header-name />
+                </label>
+                <label class="pdf-header-value">
+                  <span>Value</span>
+                  <input type="text"
+                         autocomplete="off"
+                         placeholder="Bearer token"
+                         data-pdf-header-value />
+                </label>
+                <div class="pdf-header-actions">
+                  <label class="pdf-header-sensitive"
+                         title="Sensitive: encrypt this header value at rest">
+                    <input type="checkbox"
+                           data-pdf-header-sensitive
+                           aria-label="Encrypt this header value at rest" />
+                    <span class="pdf-header-sensitive-icon" aria-hidden="true">{{ icon "key-round-lucide" 14 }}</span>
+                  </label>
+                  <button class="icon-button"
+                          type="button"
+                          data-pdf-header-remove
+                          aria-label="Remove PDF request header">{{ icon "trash-2-lucide" 15 }}</button>
+                </div>
+              </div>
+            </template>
+          </div>
+          <div class="pdf-settings-actions">
+            <button class="button"
+                    type="button"
+                    data-pdf-test>{{ icon "activity-lucide" 15 }}<span>Test endpoint</span></button>
+            <button class="button primary" type="submit">Save PDF settings</button>
+          </div>
+          <p class="pdf-test-status" data-pdf-test-status aria-live="polite"></p>
+        </form>
+        <dialog class="app-dialog pdf-test-dialog"
+                data-pdf-test-dialog
+                aria-labelledby="pdf-test-dialog-title">
+          <div class="app-dialog-header">
+            <div>
+              <p class="eyebrow">PDF rendering</p>
+              <h2 id="pdf-test-dialog-title">PDF service test</h2>
+            </div>
+            <button class="icon-button app-dialog-close"
+                    type="button"
+                    data-pdf-test-close
+                    aria-label="Close">{{ icon "x-lucide" 18 }}</button>
+          </div>
+          <div class="app-dialog-body pdf-test-dialog-body">
+            <div class="pdf-test-summary">
+              <strong>PDF service is working.</strong>
+              <span>Review the generated document below to confirm that fonts, colors, images, tables, code, and page breaks look acceptable.</span>
+            </div>
+            <div class="pdf-test-checks" aria-label="PDF service checks">
+              <div class="pdf-test-check" data-state="success">
+                <span class="pdf-test-check-mark" aria-hidden="true">✓</span>
+                <span><strong>Endpoint</strong><small>Reachable</small></span>
+              </div>
+              <div class="pdf-test-check" data-state="success">
+                <span class="pdf-test-check-mark" aria-hidden="true">✓</span>
+                <span><strong>PDF</strong><small>Valid response</small></span>
+              </div>
+              <div class="pdf-test-check" data-pdf-test-pages-check>
+                <span class="pdf-test-check-mark" aria-hidden="true">✓</span>
+                <span><strong>Pages</strong><small data-pdf-test-pages>2 pages</small></span>
+              </div>
+              <div class="pdf-test-check" data-state="success">
+                <span class="pdf-test-check-mark" aria-hidden="true">✓</span>
+                <span><strong>Size</strong><small data-pdf-test-size>—</small></span>
+              </div>
+            </div>
+            <div class="pdf-test-preview-shell">
+              <iframe data-pdf-test-preview title="Generated PDF service test document"></iframe>
+            </div>
+          </div>
+          <div class="app-dialog-actions">
+            <a class="button" data-pdf-test-open target="_blank" rel="noopener">Open PDF</a>
+            <button class="button primary" type="button" data-pdf-test-close>Close</button>
+          </div>
+        </dialog>
+      </section>
+      <section class="panel settings-panel settings-wide configuration-authentication">
+        <div class="panel-title configuration-panel-title">
+          <div>
+            <h2>Authentication</h2>
+            <p class="muted">Choose how people sign in and configure provider-specific identity settings.</p>
+          </div>
+        </div>
+<form class="stacked-form auth-settings-form"
+      action="/admin/authentication"
+      method="post"
+      data-auth-settings
+      data-auth-effective-mode="{{ if .Runtime.AuthModeOverride }}{{ .Runtime.AuthModeOverride }}{{ else }}{{ .ApplicationSettings.Authentication.Mode }}{{ end }}">
+    {{ if .Runtime.AuthModeOverride }}
+      <div class="auth-mode-field auth-managed-setting">
+        <span class="auth-managed-label">Authentication mode</span>
+        <div class="auth-managed-value">
+          <strong>{{ if eq .Runtime.AuthModeOverride "oidc" }}OpenID Connect (OIDC){{ else if eq .Runtime.AuthModeOverride "local" }}Local account{{ else if eq .Runtime.AuthModeOverride "trusted-proxy" }}Trusted proxy{{ else }}No authentication (development only){{ end }}</strong>
+          <span class="config-status managed">Managed by deployment</span>
+        </div>
+        <small>
+          The authentication mode is configured by <code>KUMBUKA__AUTH_MODE</code>.
+          <br />
+          Remove the runtime setting and restart Kumbuka to manage it here.
+        </small>
+      </div>
+    {{ else }}
+      <label class="auth-mode-field">
+        Authentication mode
+        <select name="auth_mode" data-auth-mode>
+          <option value="none"
+                  {{ if eq .ApplicationSettings.Authentication.Mode "none" }}selected{{ end }}>
+            No authentication (development only)
+          </option>
+          <option value="local"
+                  {{ if eq .ApplicationSettings.Authentication.Mode "local" }}selected{{ end }}>Local account</option>
+          <option value="trusted-proxy"
+                  {{ if eq .ApplicationSettings.Authentication.Mode "trusted-proxy" }}selected{{ end }}>
+            Trusted proxy
+          </option>
+          <option value="oidc"
+                  {{ if eq .ApplicationSettings.Authentication.Mode "oidc" }}selected{{ end }}>
+            OpenID Connect (OIDC)
+          </option>
+        </select>
+        <small>Changes take effect immediately after saving.</small>
+      </label>
+    {{ end }}
+    <div class="auth-mode-options"
+         data-auth-fields="local"
+         {{ if or (and .Runtime.AuthModeOverride (ne .Runtime.AuthModeOverride "local")) (and (not .Runtime.AuthModeOverride) (ne .ApplicationSettings.Authentication.Mode "local")) }}hidden{{ end }}>
+      <div class="admin-card-heading auth-mode-heading">
+        <div>
+          <h3>Local authentication</h3>
+          <p class="muted">Sign in with a Kumbuka-managed administrator password instead of an external provider.</p>
+        </div>
+      </div>
+      <p class="settings-note">At least one administrator must have a local password before this mode can be enabled.</p>
+    </div>
+    <div class="auth-mode-options"
+         data-auth-fields="trusted-proxy"
+         {{ if or (and .Runtime.AuthModeOverride (ne .Runtime.AuthModeOverride "trusted-proxy")) (and (not .Runtime.AuthModeOverride) (ne .ApplicationSettings.Authentication.Mode "trusted-proxy")) }}hidden{{ end }}>
+      <div class="admin-card-heading auth-mode-heading">
+        <div>
+          <h3>Trusted proxy headers</h3>
+          <p class="muted">Only use this mode behind a proxy that removes untrusted client-supplied headers.</p>
+        </div>
+      </div>
+      <div class="form-grid">
+        <label>
+          <span class="auth-managed-label-row">
+            <span>Username headers</span>
+            {{ if eq .Runtime.AuthModeOverride "trusted-proxy" }}<span class="config-status managed">Managed by deployment</span>{{ end }}
+          </span>
+          <input type="text"
+                 {{ if ne .Runtime.AuthModeOverride "trusted-proxy" }}name="trusted_username_headers"
+                 {{ end }}
+                 value="{{ if eq .Runtime.AuthModeOverride "trusted-proxy" }}{{ join .Runtime.TrustedUsernameHeadersOverride ", " }}{{ else }}{{ join .ApplicationSettings.Authentication.TrustedUsernameHeaders ", " }}{{ end }}"
+                 placeholder="X-Forwarded-User, X-Auth-Request-User"
+                 autocomplete="off"
+                 {{ if eq .Runtime.AuthModeOverride "trusted-proxy" }}readonly
+                 aria-readonly="true"
+                 {{ end }} />
+          <small>{{ if eq .Runtime.AuthModeOverride "trusted-proxy" }}Configured by <code>KUMBUKA__TRUSTED_USERNAME_HEADERS</code>.{{ else }}Required. Checked from left to right.{{ end }}</small>
+        </label>
+        <label>
+          <span class="auth-managed-label-row">
+            <span>Email headers</span>
+            {{ if eq .Runtime.AuthModeOverride "trusted-proxy" }}<span class="config-status managed">Managed by deployment</span>{{ end }}
+          </span>
+          <input type="text"
+                 {{ if ne .Runtime.AuthModeOverride "trusted-proxy" }}name="trusted_email_headers"
+                 {{ end }}
+                 value="{{ if eq .Runtime.AuthModeOverride "trusted-proxy" }}{{ join .Runtime.TrustedEmailHeadersOverride ", " }}{{ else }}{{ join .ApplicationSettings.Authentication.TrustedEmailHeaders ", " }}{{ end }}"
+                 placeholder="X-Forwarded-Email"
+                 autocomplete="off"
+                 {{ if eq .Runtime.AuthModeOverride "trusted-proxy" }}readonly
+                 aria-readonly="true"
+                 {{ end }} />
+          <small>{{ if eq .Runtime.AuthModeOverride "trusted-proxy" }}Configured by <code>KUMBUKA__TRUSTED_EMAIL_HEADERS</code>.{{ else }}Optional identity metadata.{{ end }}</small>
+        </label>
+        <label>
+          <span class="auth-managed-label-row">
+            <span>Display-name headers</span>
+            {{ if eq .Runtime.AuthModeOverride "trusted-proxy" }}<span class="config-status managed">Managed by deployment</span>{{ end }}
+          </span>
+          <input type="text"
+                 {{ if ne .Runtime.AuthModeOverride "trusted-proxy" }}name="trusted_display_name_headers"
+                 {{ end }}
+                 value="{{ if eq .Runtime.AuthModeOverride "trusted-proxy" }}{{ join .Runtime.TrustedDisplayNameHeadersOverride ", " }}{{ else }}{{ join .ApplicationSettings.Authentication.TrustedDisplayNameHeaders ", " }}{{ end }}"
+                 placeholder="X-Forwarded-Name"
+                 autocomplete="off"
+                 {{ if eq .Runtime.AuthModeOverride "trusted-proxy" }}readonly
+                 aria-readonly="true"
+                 {{ end }} />
+          <small>{{ if eq .Runtime.AuthModeOverride "trusted-proxy" }}Configured by <code>KUMBUKA__TRUSTED_DISPLAY_NAME_HEADERS</code>.{{ else }}Optional identity metadata.{{ end }}</small>
+        </label>
+        <label>
+          Group headers
+          <input type="text"
+                 name="trusted_group_headers"
+                 value="{{ join .ApplicationSettings.Authentication.TrustedGroupHeaders ", " }}"
+                 placeholder="X-Forwarded-Groups"
+                 autocomplete="off" />
+          <small>Comma-separated header names supplied and sanitized by the trusted proxy.</small>
+        </label>
+        <label>
+          Administrator group
+          <input type="text"
+                 name="trusted_admin_group"
+                 value="{{ .ApplicationSettings.Authentication.TrustedAdminGroup }}"
+                 placeholder="admins"
+                 autocomplete="off" />
+          <small>A matching value grants administrator access for each trusted request without changing the manually assigned role.</small>
+        </label>
+      </div>
+    </div>
+    <div class="auth-mode-options"
+         data-auth-fields="oidc"
+         {{ if or (and .Runtime.AuthModeOverride (ne .Runtime.AuthModeOverride "oidc")) (and (not .Runtime.AuthModeOverride) (ne .ApplicationSettings.Authentication.Mode "oidc")) }}hidden{{ end }}>
+      <div class="admin-card-heading auth-mode-heading">
+        <div>
+          <h3>OpenID Connect</h3>
+          <p class="muted">Configure the public provider details here. Secrets remain deployment-managed.</p>
+        </div>
+      </div>
+      <div class="form-grid">
+        <label>
+          <span class="auth-managed-label-row">
+            <span>Issuer URL</span>
+            {{ if eq .Runtime.AuthModeOverride "oidc" }}<span class="config-status managed">Managed by deployment</span>{{ end }}
+          </span>
+          <input type="url"
+                 {{ if ne .Runtime.AuthModeOverride "oidc" }}name="oidc_issuer"
+                 {{ end }}
+                 value="{{ if eq .Runtime.AuthModeOverride "oidc" }}{{ .Runtime.OIDCIssuerOverride }}{{ else }}{{ .ApplicationSettings.Authentication.OIDCIssuer }}{{ end }}"
+                 placeholder="https://sso.example.com/realms/kumbuka"
+                 autocomplete="off"
+                 {{ if eq .Runtime.AuthModeOverride "oidc" }}readonly
+                 aria-readonly="true"
+                 {{ end }} />
+          <small>{{ if eq .Runtime.AuthModeOverride "oidc" }}Configured by <code>KUMBUKA__OIDC_ISSUER</code>.{{ else }}Kumbuka verifies provider discovery before saving.{{ end }}</small>
+        </label>
+        <label>
+          <span class="auth-managed-label-row">
+            <span>Client ID</span>
+            {{ if eq .Runtime.AuthModeOverride "oidc" }}<span class="config-status managed">Managed by deployment</span>{{ end }}
+          </span>
+          <input type="text"
+                 {{ if ne .Runtime.AuthModeOverride "oidc" }}name="oidc_client_id"
+                 {{ end }}
+                 value="{{ if eq .Runtime.AuthModeOverride "oidc" }}{{ .Runtime.OIDCClientIDOverride }}{{ else }}{{ .ApplicationSettings.Authentication.OIDCClientID }}{{ end }}"
+                 placeholder="kumbuka"
+                 autocomplete="off"
+                 {{ if eq .Runtime.AuthModeOverride "oidc" }}readonly
+                 aria-readonly="true"
+                 {{ end }} />
+          <small>{{ if eq .Runtime.AuthModeOverride "oidc" }}Configured by <code>KUMBUKA__OIDC_CLIENT_ID</code>.{{ else }}The non-secret client identifier registered with the provider.{{ end }}</small>
+        </label>
+        <label>
+          Administrator group
+          <input type="text"
+                 name="oidc_admin_group"
+                 value="{{ .ApplicationSettings.Authentication.OIDCAdminGroup }}"
+                 placeholder="admins"
+                 autocomplete="off" />
+          <small>A matching value in the group claim grants administrator access at the next login without replacing the manually assigned Kumbuka role.</small>
+        </label>
+      </div>
+      <section class="auth-group-sync" data-oidc-group-sync>
+        <div class="admin-card-heading auth-mode-heading">
+          <div>
+            <h3>OIDC groups</h3>
+            <p class="muted">Read administrator membership and optional collaboration groups from an ID-token claim.</p>
+          </div>
+        </div>
+        <label>
+          Group claim
+          <input type="text"
+                 name="oidc_group_claim"
+                 value="{{ .ApplicationSettings.Authentication.OIDCGroupClaim }}"
+                 placeholder="groups"
+                 autocomplete="off" />
+          <small>Top-level ID-token claim containing a string or string array. Required for administrator-group elevation.</small>
+        </label>
+        <label class="toggle-row">
+          <span>
+            <strong>Synchronize mapped groups</strong>
+            <small>Apply configured group mappings after every successful OIDC login.</small>
+          </span>
+          <input type="checkbox"
+                 name="oidc_group_sync"
+                 data-oidc-group-sync-toggle
+                 {{ if .ApplicationSettings.Authentication.OIDCGroupSync }}checked{{ end }} />
+        </label>
+        <div class="auth-group-sync-options" data-oidc-group-sync-options>
+          <label class="toggle-row auth-group-authoritative">
+            <span>
+              <strong>Mapped groups are authoritative</strong>
+              <small>Remove memberships covered by these mappings when the corresponding OIDC group disappears. Other
+              manually managed Kumbuka groups are untouched.</small>
+            </span>
+            <input type="checkbox"
+                   name="oidc_groups_authoritative"
+                   {{ if .ApplicationSettings.Authentication.OIDCGroupsAuthoritative }}checked{{ end }} />
+          </label>
+          <div class="auth-group-mappings" data-oidc-group-mappings>
+            <div class="auth-group-mapping-heading">
+              <strong>Mappings</strong>
+              <small class="muted">OIDC group → Kumbuka group</small>
+            </div>
+            <div class="auth-group-mapping-list" data-oidc-group-mapping-list>
+              {{ range .ApplicationSettings.Authentication.OIDCGroupMappings }}
+                {{ $mapping := . }}
+                <div class="auth-group-mapping-row" data-oidc-group-mapping-row>
+                  <input type="text"
+                         name="oidc_group_source"
+                         value="{{ .OIDCGroup }}"
+                         placeholder="/platform"
+                         aria-label="OIDC group" />
+                  <span aria-hidden="true">→</span>
+                  <select name="oidc_group_id" aria-label="Kumbuka group">
+                    <option value="">Choose Kumbuka group…</option>
+                    {{ range $root.Groups }}
+                      <option value="{{ .ID }}" {{ if eq .ID $mapping.GroupID }}selected{{ end }}>{{ .Name }}</option>
+                    {{ end }}
+                  </select>
+                  <button class="icon-button"
+                          type="button"
+                          data-oidc-group-mapping-remove
+                          aria-label="Remove group mapping">{{ icon "x-lucide" 16 }}</button>
+                </div>
+              {{ end }}
+            </div>
+            {{ if .Groups }}
+              <button class="button compact" type="button" data-oidc-group-mapping-add>
+                {{ icon "plus-lucide" 15 }}<span>Add mapping</span>
+              </button>
+              <template data-oidc-group-mapping-template>
+                <div class="auth-group-mapping-row" data-oidc-group-mapping-row>
+                  <input type="text"
+                         name="oidc_group_source"
+                         placeholder="/platform"
+                         aria-label="OIDC group" />
+                  <span aria-hidden="true">→</span>
+                  <select name="oidc_group_id" aria-label="Kumbuka group">
+                    <option value="">Choose Kumbuka group…</option>
+                    {{ range .Groups }}
+                      <option value="{{ .ID }}">{{ .Name }}</option>
+                    {{ end }}
+                  </select>
+                  <button class="icon-button"
+                          type="button"
+                          data-oidc-group-mapping-remove
+                          aria-label="Remove group mapping">{{ icon "x-lucide" 16 }}</button>
+                </div>
+              </template>
+            {{ else }}
+              <p class="muted auth-group-mapping-empty">Create a Kumbuka group before adding OIDC mappings.</p>
+            {{ end }}
+          </div>
+        </div>
+      </section>
+      <div class="auth-secret-summary">
+        <div>
+          <span>OIDC client secret</span>
+          {{ if .Runtime.OIDCClientSecretConfigured }}
+            <strong class="config-status configured">Configured</strong>
+          {{ else }}
+            <strong class="config-status missing">Missing</strong>
+          {{ end }}
+          <small><code>KUMBUKA__OIDC_CLIENT_SECRET</code></small>
+        </div>
+        <div>
+          <span>Session secret</span>
+          {{ if .Runtime.OIDCSessionSecretConfigured }}
+            <strong class="config-status configured">Configured</strong>
+          {{ else }}
+            <strong class="config-status missing">Missing</strong>
+          {{ end }}
+          <small><code>KUMBUKA__OIDC_SESSION_SECRET</code>, at least 32 characters</small>
+        </div>
+      </div>
+    </div>
+    <div class="settings-actions auth-settings-actions">
+      <button class="button primary" type="submit">Save authentication settings</button>
+    </div>
+  </form>
+  </section>
+  </div>
+  </section>
+  <dialog class="icon-picker-dialog"
+          data-icon-picker-dialog
+          data-icons-url="/api/icons"
+          aria-labelledby="external-link-icon-picker-title">
+    <div class="app-dialog-header">
+      <div>
+        <p class="eyebrow">Icons</p>
+        <h2 id="external-link-icon-picker-title">Choose external link icon</h2>
+      </div>
+      <button class="icon-button app-dialog-close"
+              type="button"
+              data-icon-picker-close
+              aria-label="Close icon picker">{{ icon "x-lucide" 20 }}</button>
+    </div>
+    <div class="icon-picker-search">
+      {{ icon "search-lucide" 17 }}
+      <input type="search"
+             placeholder="Search icons…"
+             autocomplete="off"
+             data-icon-picker-search
+             aria-label="Search icons" />
+    </div>
+    <div class="icon-picker-grid" data-icon-picker-grid></div>
+    <p class="icon-picker-empty-state muted" data-icon-picker-empty hidden>No matching icons.</p>
+  </dialog>
+{{ end }}

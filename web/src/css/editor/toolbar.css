@@ -1,0 +1,231 @@
+/* Markdown editor toolbar */
+
+.markdown-toolbar {
+  position: sticky;
+  z-index: 17;
+  top: 122px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  margin: 0 0 8px;
+  padding: 6px 7px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--surface-elevated) 96%, transparent);
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--background) 35%, transparent);
+  backdrop-filter: blur(12px);
+  flex-wrap: wrap;
+}
+
+.markdown-toolbar-group {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding-right: 7px;
+  border-right: 1px solid var(--border);
+}
+
+.markdown-toolbar-group:last-child {
+  padding-right: 0;
+  border-right: 0;
+}
+
+.markdown-toolbar-group-label {
+  margin: 0 3px 0 2px;
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.markdown-toolbar button,
+.markdown-toolbar-menu > summary {
+  flex: 0 0 auto;
+  min-width: 32px;
+  height: 31px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  padding: 0 7px;
+  font:
+    600 12px/1 ui-sans-serif,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+  cursor: pointer;
+}
+
+.markdown-toolbar button:hover,
+.markdown-toolbar button:focus-visible,
+.markdown-toolbar-menu > summary:hover,
+.markdown-toolbar-menu > summary:focus-visible,
+.markdown-toolbar-menu[open] > summary {
+  background: var(--surface-hover);
+  color: var(--accent);
+  outline: 0;
+}
+
+.markdown-toolbar button:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+}
+
+.markdown-toolbar-menu {
+  position: relative;
+}
+
+.markdown-toolbar-menu > summary {
+  list-style: none;
+}
+
+.markdown-toolbar-menu > summary::-webkit-details-marker {
+  display: none;
+}
+
+.markdown-toolbar-popover {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 7px);
+  left: 0;
+  display: grid;
+  min-width: 150px;
+  padding: 5px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.18);
+}
+
+.markdown-toolbar-popover button {
+  width: 100%;
+  height: auto;
+  min-height: 31px;
+  justify-content: flex-start;
+  padding: 7px 9px;
+  text-align: left;
+}
+
+.editor.focus-mode .markdown-toolbar {
+  top: 66px;
+}
+
+.editor[data-editor-mode="preview"] .markdown-toolbar,
+.editor[data-editor-mode="preview"] .editor-search-panel {
+  display: none;
+}
+
+.editor-search-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  margin-bottom: 8px;
+  padding: 9px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-elevated);
+}
+
+.editor-search-panel[hidden] {
+  display: none;
+}
+
+.editor-search-fields,
+.editor-search-actions {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.editor-search-fields label {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: var(--text-tertiary);
+  font-size: 10px;
+}
+
+.editor-search-fields input[type="text"] {
+  min-width: 100px;
+  margin: 0 !important;
+  padding: 6px 8px !important;
+}
+
+.editor-search-fields .editor-search-case {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.editor-search-case input {
+  margin: 0;
+}
+
+.editor-search-actions .muted {
+  min-width: 86px;
+  font-size: 10px;
+}
+
+.editor-search-actions .button {
+  padding: 6px 8px;
+  font-size: 11px;
+}
+
+@media (max-width: 1100px) {
+  .markdown-toolbar-group-label {
+    display: none;
+  }
+
+  .editor-search-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .editor-search-actions {
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 700px) {
+  .markdown-toolbar {
+    top: 160px;
+    gap: 3px;
+  }
+
+  .editor.focus-mode .markdown-toolbar {
+    top: 105px;
+  }
+
+  .editor-search-fields {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .editor-search-fields label {
+    width: 100%;
+  }
+
+  .editor-search-case {
+    justify-content: flex-start;
+  }
+}
+
+.markdown-toolbar .lucide-icon,
+.markdown-toolbar .simple-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.markdown-toolbar button:disabled:hover {
+  background: transparent;
+  color: var(--text-secondary);
+}

@@ -1,0 +1,18 @@
+name: kumbuka-screenshots
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: kumbuka
+      POSTGRES_USER: kumbuka
+      POSTGRES_PASSWORD: kumbuka
+    ports:
+      - "127.0.0.1:${SCREENSHOT_DB_PORT:-55432}:5432"
+    tmpfs:
+      - /var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kumbuka -d kumbuka"]
+      interval: 1s
+      timeout: 3s
+      retries: 30

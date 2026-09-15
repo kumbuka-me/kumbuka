@@ -1,0 +1,134 @@
+/* Core rendered Markdown typography and block presentation. */
+
+.prose {
+  padding: 30px 0;
+  font-size: var(--content-font-size);
+}
+
+.prose h1,
+.prose h2,
+.prose h3 {
+  line-height: 1.25;
+  letter-spacing: -0.025em;
+  margin-top: 1.7em;
+}
+
+.prose h1,
+.prose h2,
+.prose h3,
+.prose h4,
+.prose h5,
+.prose h6 {
+  scroll-margin-top: 88px;
+}
+
+.prose a {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.prose img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+}
+
+.prose table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.prose th,
+.prose td {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  text-align: left;
+}
+
+.prose .table-tone-accent {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.prose .table-tone-accent-soft {
+  background: color-mix(in srgb, var(--accent-soft) 22%, transparent);
+}
+
+.prose .table-tone-info {
+  background: color-mix(in srgb, var(--accent-secondary) 20%, transparent);
+}
+
+.prose .table-tone-success {
+  background: color-mix(in srgb, var(--success) 20%, transparent);
+}
+
+.prose .table-tone-warning {
+  background: color-mix(in srgb, var(--warning) 22%, transparent);
+}
+
+.prose .table-tone-danger {
+  background: color-mix(in srgb, var(--danger) 18%, transparent);
+}
+
+.prose .table-tone-neutral {
+  background: var(--surface-elevated);
+}
+
+.prose blockquote {
+  margin-left: 0;
+  padding-left: 17px;
+  border-left: 3px solid var(--accent);
+  color: var(--text-secondary);
+}
+
+.prose pre {
+  padding: 16px;
+  border-radius: 8px;
+  overflow: auto;
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.prose code {
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 0.9em;
+}
+
+.callout {
+  margin: 18px 0;
+  padding: 13px 16px;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--accent-soft);
+  border-radius: 7px;
+  background: var(--surface-elevated);
+}
+
+.callout p {
+  margin: 3px 0;
+}
+
+.callout-body > :first-child {
+  margin-top: 3px;
+}
+
+.callout-body > :last-child {
+  margin-bottom: 3px;
+}
+
+.callout-body code {
+  padding: 0.12em 0.34em;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--text) 7%, transparent);
+}
+
+.callout.warning {
+  border-left-color: var(--warning);
+}
+
+.callout.tip {
+  border-left-color: var(--success);
+}
+
+.prose a.wiki-link-broken {
+  color: var(--danger);
+  text-decoration-style: dashed;
+}

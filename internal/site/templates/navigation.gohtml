@@ -1,0 +1,68 @@
+{{ define "nav-entry" }}
+  {{ if .Children }}
+  <details class="nav-node {{ if .Root }}nav-root{{ else }}nav-branch{{ end }}{{ if .ContainsActive }} contains-active{{ end }}"
+           data-nav-node
+           data-nav-path="{{ .Slug }}"
+           {{ if or .Open .ContainsActive }}open{{ end }}>
+  <summary class="{{ if .Root }}nav-root-summary{{ else }}nav-branch-summary{{ end }}"
+           title="{{ .Title }}">
+    <span class="nav-chevron" aria-hidden="true">{{ icon "chevron-right-lucide" 14 }}</span>
+    {{ if .Page }}
+      <a class="nav-node-link{{ if .Active }} active{{ end }}"
+         href="{{ pageurl .Slug }}"
+         {{ if .Active }}aria-current="page"
+         {{ end }}>{{ .Title }}</a>
+    {{ else }}
+      <span class="nav-node-label">{{ .Title }}</span>
+    {{ end }}
+    </summary>
+    <div class="nav-children">{{ range .Children }}{{ template "nav-entry" . }}{{ end }}</div>
+    </details>
+  {{ else if .Page }}
+    <a class="nav-page-link{{ if .Root }} nav-root-link{{ end }}{{ if .Active }} active{{ end }}"
+       href="{{ pageurl .Slug }}"
+       title="{{ .Title }}"
+       {{ if .Active }}aria-current="page"
+       {{ end }}>
+      <span>{{ .Title }}</span>
+    </a>
+  {{ end }}
+{{ end }}
+{{ define "top-navigation" }}
+  <nav class="desktop-top-navigation" aria-label="Page navigation">
+    <div class="desktop-top-navigation-inner">
+      <a class="top-navigation-home" href="{{ pageurl "" }}">
+        {{ icon "house-lucide" 15 }}<span>Home</span>
+      </a>
+      {{ range .Navigation }}
+        {{ if .Children }}
+          <details class="top-navigation-group">
+            <summary{{ if .ContainsActive }} class="contains-active"{{ end }}>
+              <span>{{ .Title }}</span>{{ icon "chevron-down-lucide" 13 }}
+            </summary>
+            <div class="top-navigation-popover">
+              {{ if .Page }}
+                <a class="top-navigation-root-link{{ if .Active }} active{{ end }}"
+                   href="{{ pageurl .Slug }}"
+                   {{ if .Active }}
+                   aria-current="page"
+                   {{ end }}>
+                  <span>{{ .Title }}</span>
+                </a>
+              {{ end }}
+              <div class="navigation-tree">{{ range .Children }}{{ template "nav-entry" . }}{{ end }}</div>
+            </div>
+          </details>
+        {{ else if .Page }}
+          <a class="top-navigation-page{{ if .Active }} active{{ end }}"
+             href="{{ pageurl .Slug }}"
+             {{ if .Active }}
+             aria-current="page"
+             {{ end }}>
+            <span>{{ .Title }}</span>
+          </a>
+        {{ end }}
+      {{ end }}
+    </div>
+  </nav>
+{{ end }}

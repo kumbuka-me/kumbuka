@@ -1,0 +1,53 @@
+{{ define "shared-head" }}
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="color-scheme" content="light dark" />
+  <meta name="robots" content="noindex,nofollow,noarchive" />
+  <meta name="referrer" content="no-referrer" />
+  <title>{{ .Title }} · Kumbuka</title>
+  <link rel="icon"
+        href="/assets/v-{{ .AssetVersion }}/favicon.svg"
+        type="image/svg+xml" />
+  <link rel="stylesheet" href="/assets/v-{{ .AssetVersion }}/css/app.css" />
+  <link rel="stylesheet"
+        href="/plugins/styles.css?v={{ .PluginStylesVersion }}"
+        data-plugin-styles />
+{{ end }}
+{{ define "shared-layout" }}
+  <!DOCTYPE html>
+  <html lang="en" data-theme="{{ .ActiveTheme }}">
+    <head>
+      {{ template "shared-head" . }}
+      <script id="kumbuka-themes" type="application/json">{{ .ThemeData }}</script>
+      <script src="/assets/v-{{ .AssetVersion }}/js/theme-init.js"></script>
+      <script id="kumbuka-plugin-modules" type="application/json">{{ .PluginModules }}</script>
+      <script type="module" src="/assets/v-{{ .AssetVersion }}/js/main.js"></script>
+    </head>
+    <body class="shared-page-body"
+          data-typography-size="{{ .ApplicationSettings.Rendering.DefaultTypographySize }}">
+      <main class="shared-page-shell">
+        <header class="shared-page-header">
+          <span class="shared-page-brand" aria-label="Kumbuka">{{ logo }}</span>
+          <span class="shared-page-badge">Public share</span>
+        </header>
+        <article class="page shared-page">
+          <div class="shared-page-heading">
+            <p class="eyebrow">Shared page</p>
+            <h1 class="page-title-with-icon" lang="{{ .PageContentLanguage }}">
+              {{ if .Page.Icon }}
+                <span class="page-title-icon" aria-hidden="true">{{ icon .Page.Icon 28 }}</span>
+                {{ end }}<span>{{ .Page.Title }}</span>
+                </h1>
+                <div class="page-labels">
+                  <span class="page-status-badge status-{{ .Page.Status }}">{{ .Page.Status }}</span>
+                </div>
+                </div>
+                <div class="prose" lang="{{ .PageContentLanguage }}">{{ .HTML }}</div>
+                </article>
+                </main>
+                <footer>
+                  Shared via Kumbuka {{ .Version }}
+                </footer>
+                </body>
+                </html>
+              {{ end }}

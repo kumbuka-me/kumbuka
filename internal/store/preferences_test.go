@@ -1,0 +1,37 @@
+package store
+
+import (
+	"testing"
+
+	"github.com/kumbuka-me/kumbuka/internal/domain"
+	"github.com/stretchr/testify/assert"
+)
+
+func TestDefaultUserPreferences(t *testing.T) {
+	t.Parallel()
+
+	preferences := domain.DefaultUserPreferences()
+
+	assert.True(t, preferences.ShowPageContents)
+	assert.Equal(t, domain.NavigationStyleSidebar, preferences.NavigationStyle)
+	assert.Equal(t, domain.NavigationDensityComfortable, preferences.NavigationDensity)
+	assert.Empty(t, preferences.TypographySize)
+	assert.Equal(t, domain.DefaultSidebarWidth, preferences.SidebarWidth)
+	assert.True(t, preferences.ShowNavigationGuides)
+	assert.True(t, preferences.RememberNavigationState)
+	assert.True(t, preferences.ShowPinnedPages)
+	assert.False(t, preferences.ShowRecentlyViewed)
+	assert.False(t, preferences.ShowNavigationPageCounts)
+	assert.Empty(t, preferences.ExpandedNavigation)
+}
+
+func TestNormalizeNavigationPaths(t *testing.T) {
+	t.Parallel()
+
+	assert.Equal(t, []string{"applications", "applications/identity"}, normalizeNavigationPaths([]string{
+		" /applications/ ",
+		"applications",
+		"",
+		"applications/identity",
+	}))
+}

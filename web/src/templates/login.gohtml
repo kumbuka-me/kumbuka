@@ -1,0 +1,33 @@
+{{ define "content" }}
+  <section class="panel auth-card">
+    <div class="auth-card-heading">
+      <p class="eyebrow">Local access</p>
+      <h1>Sign in to Kumbuka</h1>
+      <p class="muted">Use a Kumbuka-managed administrator account.</p>
+    </div>
+    {{ if .AuthError }}
+      <div class="auth-form-error" role="alert">{{ .AuthError }}</div>
+    {{ end }}
+    <form class="stacked-form auth-login-form"
+          action="/auth/local"
+          method="post">
+      {{ if .AuthNext }}<input type="hidden" name="next" value="{{ .AuthNext }}" />{{ end }}
+      <label>
+        Username
+        <input type="text"
+               name="username"
+               autocomplete="username"
+               autofocus
+               required />
+      </label>
+      <label>
+        Password
+        <input type="password"
+               name="password"
+               autocomplete="current-password"
+               required />
+      </label>
+      <button class="button primary" type="submit">Sign in</button>
+    </form>
+  </section>
+{{ end }}

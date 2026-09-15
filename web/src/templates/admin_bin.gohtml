@@ -1,0 +1,46 @@
+{{ define "content" }}
+  <section class="admin-page">
+    <div class="settings-heading">
+      <p class="eyebrow">Administration</p>
+      <h1>Recycle bin</h1>
+      <p class="muted">
+        Deleted pages stay here with their revision history and relationships intact until an administrator restores or
+        permanently deletes them.
+      </p>
+    </div>
+    <section class="panel settings-panel">
+      <div class="panel-title">
+        <h2>Deleted pages</h2>
+        <span class="muted">{{ len .DeletedPages }} page{{ if ne (len .DeletedPages) 1 }}s{{ end }}</span>
+      </div>
+      <div class="admin-list">
+        {{ range .DeletedPages }}
+          <div class="admin-list-row recycle-bin-row">
+            <span>
+              <strong>{{ .Title }}</strong>
+              <small>{{ .Slug }} · deleted {{ timeago .DeletedAt }}{{ if .DeletedBy }}by {{ .DeletedBy }}{{ end }}</small>
+            </span>
+            <div class="recycle-bin-actions">
+              <form action="/admin/bin/restore/{{ .Slug }}" method="post">
+                <button class="button" type="submit">{{ icon "rotate-ccw-lucide" 16 }}<span>Restore</span></button>
+              </form>
+              <form action="/admin/bin/delete/{{ .Slug }}"
+                    method="post"
+                    data-confirm="Permanently delete {{ .Title }}? Its content and revision history cannot be recovered."
+                    data-confirm-title="Permanently delete page"
+                    data-confirm-label="Delete permanently">
+                <button class="button danger" type="submit">
+                  {{ icon "trash-2-lucide" 16 }}<span>Delete permanently</span>
+                </button>
+              </form>
+            </div>
+          </div>
+        {{ else }}
+          <div class="empty recycle-bin-empty">
+            {{ icon "trash-2-lucide" 24 }}<strong>Recycle bin is empty</strong><span>Deleted pages will appear here and can be restored by an administrator.</span>
+          </div>
+        {{ end }}
+      </div>
+    </section>
+  </section>
+{{ end }}
