@@ -1,7 +1,6 @@
 package markdown
 
 import (
-	"context"
 	"errors"
 	"strings"
 	"sync"
@@ -10,9 +9,7 @@ import (
 	"github.com/kumbuka-me/kumbuka/internal/icons"
 	"github.com/kumbuka-me/kumbuka/internal/navigation"
 	"github.com/kumbuka-me/kumbuka/internal/plugin"
-	"github.com/kumbuka-me/kumbuka/internal/plugin/wasm"
 	"github.com/kumbuka-me/kumbuka/internal/plugincap"
-	"github.com/kumbuka-me/kumbuka/plugins"
 	"github.com/kumbuka-me/sdk"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -118,7 +115,7 @@ func TestMacroCodeBoundaries(t *testing.T) {
 
 // TestCalloutsCanBeRemovedAndRegisteredWithoutReplacingRenderer verifies callouts can be removed and registered without replacing renderer behavior.
 func TestCalloutsCanBeRemovedAndRegisteredWithoutReplacingRenderer(t *testing.T) {
-	renderer := testRenderer(t, "callouts")
+	renderer := isolatedTestRenderer(t, "callouts")
 	registry := renderer.registry
 	var callouts plugin.Entry
 	for _, entry := range registry.Snapshot().Entries {
@@ -145,7 +142,7 @@ func TestCalloutsCanBeRemovedAndRegisteredWithoutReplacingRenderer(t *testing.T)
 
 // TestRenderSnapshotSurvivesRemovalDuringNestedRender verifies render snapshot survives removal during nested render behavior.
 func TestRenderSnapshotSurvivesRemovalDuringNestedRender(t *testing.T) {
-	renderer := testRenderer(t, "callouts")
+	renderer := isolatedTestRenderer(t, "callouts")
 	registry := renderer.registry
 	var once sync.Once
 	require.NoError(t, registry.Register(plugin.Descriptor{ID: "remove", Name: "Remove"}, plugin.Contributions{
@@ -204,7 +201,7 @@ func TestModuleRecursionIsBounded(t *testing.T) {
 
 // TestRemovedMacrosCannotBeActivatedByRequestBindings verifies removed macros cannot be activated by request bindings behavior.
 func TestRemovedMacrosCannotBeActivatedByRequestBindings(t *testing.T) {
-	renderer := testRenderer(t, "subpages")
+	renderer := isolatedTestRenderer(t, "subpages")
 	registry := renderer.registry
 	require.NoError(t, registry.Unregister("me.kumbuka.subpages"))
 	got, err := NewWithRegistry(registry).RenderPageResolvedWithFunctions("{{subpages}}", Slug, DefaultOptions(), Functions{
@@ -245,8 +242,7 @@ func TestSanitizerRejectsActiveSVGAndUnsafeMacroMarkup(t *testing.T) {
 
 // Native Goldmark adapters can register AST transformers and node renderers;
 // their generated HTML still traverses the same final sanitizer.
-type testASTExtension struct {
-}
+type testASTExtension struct{}
 
 // Extend handles the extend operation.
 func (testASTExtension) Extend(m goldmark.Markdown) {
@@ -255,8 +251,7 @@ func (testASTExtension) Extend(m goldmark.Markdown) {
 }
 
 // testTransformer groups the state and data associated with test transformer.
-type testTransformer struct {
-}
+type testTransformer struct{}
 
 // Transform handles the transform operation.
 func (testTransformer) Transform(node *ast.Document, _ text.Reader, _ parser.Context) {
@@ -264,8 +259,7 @@ func (testTransformer) Transform(node *ast.Document, _ text.Reader, _ parser.Con
 }
 
 // testNodeRenderer groups the state and data associated with test node renderer.
-type testNodeRenderer struct {
-}
+type testNodeRenderer struct{}
 
 // RegisterFuncs registers funcs.
 func (testNodeRenderer) RegisterFuncs(r gmrenderer.NodeRendererFuncRegisterer) {
@@ -317,29 +311,4 @@ func TestMacroCapabilitiesStayRequestLocal(t *testing.T) {
 	got, err := renderer.Render("{{subpages}}")
 	require.NoError(t, err)
 	assert.Empty(t, strings.TrimSpace(got))
-}
-
-// testRenderer returns a cheap core renderer unless specific bundled plugins are required.
-func testRenderer(t testing.TB, names ...string) *Renderer {
-	t.Helper()
-	if len(names) == 0 {
-		return NewWithRegistry(nil)
-	}
-
-	ctx := context.Background()
-	runtime, err := wasm.New(ctx, wasm.Limits{}, wasm.WithPermissions("pages:read", "pages:content", "browser:render"))
-	require.NoError(t, err)
-	registry := &plugin.Registry{}
-	manager := plugin.NewManager(registry, runtime)
-	t.Cleanup(func() { require.NoError(t, manager.Close(context.Background())) })
-
-	archives := make([][]byte, 0, len(names))
-	for _, name := range names {
-		archive, err := plugins.Packages.ReadFile(name + ".kumbukaplugin")
-		require.NoError(t, err)
-		archives = append(archives, archive)
-	}
-	require.NoError(t, manager.Bootstrap(ctx, archives))
-
-	return NewWithManager(registry, manager)
 }

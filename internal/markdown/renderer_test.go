@@ -366,7 +366,7 @@ func TestConfluenceInteractiveTableDirective(t *testing.T) {
 func TestDisabledInteractiveTableDirectiveRemainsMarkdown(t *testing.T) {
 	t.Parallel()
 
-	renderer := testRenderer(t, "tables")
+	renderer := isolatedTestRenderer(t, "tables")
 	manager := renderer.PluginManager()
 	require.NotNil(t, manager)
 	require.NoError(t, manager.UpdateSettings(context.Background(), "me.kumbuka.tables", map[string]bool{
@@ -434,7 +434,7 @@ Do not restart.
 func TestPluginSettingsDisableTableStyles(t *testing.T) {
 	t.Parallel()
 
-	renderer := testRenderer(t, "tables")
+	renderer := isolatedTestRenderer(t, "tables")
 	manager := renderer.PluginManager()
 	require.NotNil(t, manager)
 	require.NoError(t, manager.UpdateSettings(context.Background(), "me.kumbuka.tables", map[string]bool{
@@ -459,7 +459,7 @@ func TestPluginSettingsDisableTableStyles(t *testing.T) {
 func TestFootnotesCanBeEnabled(t *testing.T) {
 	t.Parallel()
 
-	renderer := testRenderer(t, "footnotes")
+	renderer := isolatedTestRenderer(t, "footnotes")
 	manager := renderer.PluginManager()
 	require.NotNil(t, manager)
 	require.NoError(t, manager.Enable(context.Background(), "me.kumbuka.footnotes"))
@@ -473,7 +473,7 @@ func TestFootnotesCanBeEnabled(t *testing.T) {
 func TestDefinitionListsCanBeEnabled(t *testing.T) {
 	t.Parallel()
 
-	renderer := testRenderer(t, "definition-lists")
+	renderer := isolatedTestRenderer(t, "definition-lists")
 	manager := renderer.PluginManager()
 	require.NotNil(t, manager)
 	require.NoError(t, manager.Enable(context.Background(), "me.kumbuka.definition-lists"))
@@ -503,7 +503,7 @@ func TestTaskListsOwnPresentationInPlugin(t *testing.T) {
 func TestCodingLigaturesPreserveTypographerOperatorSequences(t *testing.T) {
 	t.Parallel()
 
-	renderer := testRenderer(t, "typographer", "coding-ligatures")
+	renderer := isolatedTestRenderer(t, "typographer", "coding-ligatures")
 	manager := renderer.PluginManager()
 	require.NotNil(t, manager)
 	require.NoError(t, manager.Enable(context.Background(), "me.kumbuka.typographer"))
@@ -533,7 +533,7 @@ func TestSyntaxHighlightingEmitsChromaClasses(t *testing.T) {
 func TestSyntaxHighlightingCanBeDisabled(t *testing.T) {
 	t.Parallel()
 
-	renderer := testRenderer(t, "syntax-highlighting")
+	renderer := isolatedTestRenderer(t, "syntax-highlighting")
 	require.NoError(t, renderer.PluginManager().Disable(context.Background(), "me.kumbuka.syntax-highlighting"))
 
 	got, err := renderer.Render("```go\npackage main\n```\n")

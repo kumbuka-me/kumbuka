@@ -10,7 +10,7 @@ import (
 
 func TestMermaidUsesRuntimeRegistryAndCentralSanitizer(t *testing.T) {
 	ctx := context.Background()
-	r := testRenderer(t, "mermaid")
+	r := isolatedTestRenderer(t, "mermaid")
 	source := "```mermaid\ngraph LR; A --> B\n```"
 	rendered, err := r.Render(source)
 	require.NoError(t, err)
