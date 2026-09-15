@@ -55,8 +55,6 @@ func TestViewDataLoaderLoad(t *testing.T) {
 		preferences := domain.DefaultUserPreferences()
 		preferences.Theme = "Dark"
 		preferences.TypographySize = ""
-		preferences.ShowPinnedPages = true
-		preferences.ShowRecentlyViewed = true
 		preferences.ShowNavigationPageCounts = true
 		preferences.ExpandedNavigation = []string{"platforms"}
 
@@ -144,8 +142,6 @@ func TestViewDataLoaderLoad(t *testing.T) {
 		assert.True(t, data.Navigation[0].Children[0].Active)
 
 		assert.Empty(t, data.SidebarWidgets)
-		assert.True(t, data.PluginFeatures["kumbuka.preference.show-pinned-pages"])
-		assert.True(t, data.PluginFeatures["kumbuka.preference.show-recently-viewed"])
 	})
 
 	t.Run("skips navigation dependencies for admin pages", func(t *testing.T) {

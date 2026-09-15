@@ -42,7 +42,7 @@ func Home(
 			plugincap.PageListCapabilities(source),
 			plugincap.DraftCapabilities(source),
 		)
-		widgets, err := renderer.RenderWidgets(r.Context(), "home", nil, data.PluginFeatures, capabilities)
+		widgets, err := renderer.RenderWidgets(r.Context(), "home", nil, data.PluginFeatures, capabilities, data.Preferences.HiddenPluginWidgets)
 		if err != nil {
 			httpresponse.InternalServerError(views.logger, w, err)
 			return
@@ -249,7 +249,7 @@ func ViewPage(
 
 		stop = measurePageStage(r.Context(), "page_detail_widgets")
 		pageValue := plugincap.PageValue(page)
-		widgets, err := renderer.RenderWidgets(r.Context(), "page.details", &pageValue, data.PluginFeatures, capabilities)
+		widgets, err := renderer.RenderWidgets(r.Context(), "page.details", &pageValue, data.PluginFeatures, capabilities, data.Preferences.HiddenPluginWidgets)
 		stop()
 		if err != nil {
 			httpresponse.InternalServerError(views.logger, w, err)

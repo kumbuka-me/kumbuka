@@ -24,6 +24,7 @@ func (r *Renderer) RenderWidgets(
 	page *sdk.Page,
 	features map[string]bool,
 	capabilities map[string]plugin.Capability,
+	hiddenWidgets []string,
 ) ([]RenderedWidget, error) {
 	if !sdk.ValidWidgetSurface(surface) {
 		return nil, errors.New("invalid widget surface")
@@ -42,9 +43,13 @@ func (r *Renderer) RenderWidgets(
 	}
 	request := plugin.WidgetRequest{Surface: surface, Page: page}
 	result := make([]RenderedWidget, 0, len(plan.Widgets))
+	hidden := make(map[string]bool, len(hiddenWidgets))
+	for _, key := range hiddenWidgets {
+		hidden[key] = true
+	}
 
 	for _, binding := range plan.Widgets {
-		if binding.Surface != surface {
+		if binding.Surface != surface || hidden[plugin.WidgetKey(binding.PluginID, binding.ModuleID)] {
 			continue
 		}
 		rendered, err := binding.Module.Render(widgetContext, request)

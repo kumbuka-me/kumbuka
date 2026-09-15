@@ -657,10 +657,8 @@ type UserPreferences struct {
 	ShowNavigationGuides bool
 	// RememberNavigationState persists expanded and collapsed navigation folders.
 	RememberNavigationState bool
-	// ShowPinnedPages displays favorites at the top of the sidebar.
-	ShowPinnedPages bool
-	// ShowRecentlyViewed displays recently viewed pages above the page tree.
-	ShowRecentlyViewed bool
+	// HiddenPluginWidgets contains plugin/module keys hidden by this user.
+	HiddenPluginWidgets []string
 	// ShowNavigationPageCounts displays descendant page counts for folders.
 	ShowNavigationPageCounts bool
 	// ExpandedNavigation contains folder slugs the user explicitly left expanded.
@@ -878,9 +876,8 @@ func DefaultUserPreferences() UserPreferences {
 		SidebarWidth:             DefaultSidebarWidth,
 		ShowNavigationGuides:     true,
 		RememberNavigationState:  true,
-		ShowPinnedPages:          true,
-		ShowRecentlyViewed:       false,
 		ShowNavigationPageCounts: false,
 		ExpandedNavigation:       []string{},
+		HiddenPluginWidgets:      []string{},
 	}
 }

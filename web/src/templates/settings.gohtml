@@ -236,24 +236,28 @@
                      {{ if .Preferences.RememberNavigationState }}checked{{ end }} />
             </label>
             <label class="toggle-row">
-              <span><strong>Show pinned pages</strong><small>Show your favorite pages at the top of the sidebar for quick access.</small></span>
-              <input type="checkbox"
-                     name="show_pinned_pages"
-                     {{ if .Preferences.ShowPinnedPages }}checked{{ end }} />
-            </label>
-            <label class="toggle-row">
-              <span><strong>Show recently viewed</strong><small>Show your five most recently opened pages above the page tree.</small></span>
-              <input type="checkbox"
-                     name="show_recently_viewed"
-                     {{ if .Preferences.ShowRecentlyViewed }}checked{{ end }} />
-            </label>
-            <label class="toggle-row">
               <span><strong>Show page counts</strong><small>Display the number of pages contained in each navigation folder.</small></span>
               <input type="checkbox"
                      name="show_navigation_page_counts"
                      {{ if .Preferences.ShowNavigationPageCounts }}checked{{ end }} />
             </label>
           </fieldset>
+          {{ if .PluginWidgetPreferences }}
+            <fieldset class="preference-group">
+              <legend>Plugin widgets</legend>
+              <small>Choose which widgets from enabled plugins appear in your interface.</small>
+              {{ range .PluginWidgetPreferences }}
+                <input type="hidden" name="plugin_widget" value="{{ .Key }}" />
+                <label class="toggle-row">
+                  <span><strong>{{ .Label }}</strong><small>{{ .Surface }}{{ if .Description }} · {{ .Description }}{{ end }}</small></span>
+                  <input type="checkbox"
+                         name="visible_plugin_widget"
+                         value="{{ .Key }}"
+                         {{ if .Visible }}checked{{ end }} />
+                </label>
+              {{ end }}
+            </fieldset>
+          {{ end }}
           <div class="settings-actions">
             <button class="button primary" type="submit">Save preferences</button>
           </div>

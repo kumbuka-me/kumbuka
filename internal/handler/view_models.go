@@ -38,6 +38,8 @@ type ViewData struct {
 	PluginREADMEs map[string]template.HTML
 	// PluginFeatures contains enabled plugin and plugin-setting flags for browser UI decisions.
 	PluginFeatures map[string]bool
+	// PluginWidgetPreferences contains enabled plugin widgets and their user visibility.
+	PluginWidgetPreferences []pluginWidgetPreferenceView
 	// PluginModules is the current browser-module catalog embedded in the page.
 	PluginModules template.JS
 	// PluginStylesVersion fingerprints active plugin presentation styles for immutable browser caching.

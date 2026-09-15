@@ -191,9 +191,11 @@ func (l *ViewDataLoader) Load(r *http.Request, views *Views, title string) (View
 	stop = measurePageStage(r.Context(), "view_plugin_features")
 	pluginFeatures := make(map[string]bool)
 	var editorInserts []plugin.EditorInsertContribution
+	var loadedPlugins []plugin.LoadedPlugin
 	if l.pluginManager != nil {
 		editorInserts = l.pluginManager.EditorInserts()
-		for _, item := range l.pluginManager.Plugins() {
+		loadedPlugins = l.pluginManager.Plugins()
+		for _, item := range loadedPlugins {
 			pluginFeatures[item.Manifest.ID] = item.Enabled
 			if !item.Enabled {
 				continue
@@ -203,8 +205,6 @@ func (l *ViewDataLoader) Load(r *http.Request, views *Views, title string) (View
 			}
 		}
 	}
-	pluginFeatures["kumbuka.preference.show-pinned-pages"] = preferences.ShowPinnedPages
-	pluginFeatures["kumbuka.preference.show-recently-viewed"] = preferences.ShowRecentlyViewed
 	stop()
 
 	var sidebarWidgets []pluginWidgetView
@@ -214,7 +214,7 @@ func (l *ViewDataLoader) Load(r *http.Request, views *Views, title string) (View
 			plugincap.Capabilities(nil, nil, l.renderer.IconCatalog()),
 			plugincap.PageListCapabilities(source),
 		)
-		rendered, renderErr := l.renderer.RenderWidgets(r.Context(), "sidebar", nil, pluginFeatures, capabilities)
+		rendered, renderErr := l.renderer.RenderWidgets(r.Context(), "sidebar", nil, pluginFeatures, capabilities, preferences.HiddenPluginWidgets)
 		if renderErr != nil {
 			return ViewData{}, renderErr
 		}
@@ -228,31 +228,32 @@ func (l *ViewDataLoader) Load(r *http.Request, views *Views, title string) (View
 	pluginStylesVersion := pluginbrowser.PresentationStylesVersion(l.pluginManager)
 
 	return ViewData{
-		Title:               title,
-		User:                user,
-		Preferences:         preferences,
-		TypographySize:      typographySize,
-		Navigation:          pageNavigation,
-		NewPageParent:       activeNavigationSlug(r.URL.Path),
-		SidebarWidgets:      sidebarWidgets,
-		SavedSearches:       savedSearches,
-		Notifications:       notifications,
-		UnreadNotifications: unreadNotifications,
-		PageStatuses:        domain.PageStatuses(),
-		Version:             views.version,
-		AssetVersion:        views.assetVersion,
-		Commit:              views.commit,
-		Runtime:             views.runtime,
-		ThemeData:           template.JS(themeData),
-		Themes:              views.themes,
-		ActiveTheme:         activeTheme,
-		ApplicationSettings: applicationSettings,
-		PluginFeatures:      pluginFeatures,
-		PluginModules:       pluginModules,
-		PluginStylesVersion: pluginStylesVersion,
-		EditorInserts:       editorInserts,
-		CanEdit:             user.Role == "admin" || user.Role == "editor",
-		PageContentLanguage: applicationSettings.ContentLanguage,
+		Title:                   title,
+		User:                    user,
+		Preferences:             preferences,
+		TypographySize:          typographySize,
+		Navigation:              pageNavigation,
+		NewPageParent:           activeNavigationSlug(r.URL.Path),
+		SidebarWidgets:          sidebarWidgets,
+		SavedSearches:           savedSearches,
+		Notifications:           notifications,
+		UnreadNotifications:     unreadNotifications,
+		PageStatuses:            domain.PageStatuses(),
+		Version:                 views.version,
+		AssetVersion:            views.assetVersion,
+		Commit:                  views.commit,
+		Runtime:                 views.runtime,
+		ThemeData:               template.JS(themeData),
+		Themes:                  views.themes,
+		ActiveTheme:             activeTheme,
+		ApplicationSettings:     applicationSettings,
+		PluginFeatures:          pluginFeatures,
+		PluginWidgetPreferences: pluginWidgetPreferences(loadedPlugins, preferences.HiddenPluginWidgets),
+		PluginModules:           pluginModules,
+		PluginStylesVersion:     pluginStylesVersion,
+		EditorInserts:           editorInserts,
+		CanEdit:                 user.Role == "admin" || user.Role == "editor",
+		PageContentLanguage:     applicationSettings.ContentLanguage,
 	}, nil
 }
 

@@ -19,10 +19,9 @@ func TestDefaultUserPreferences(t *testing.T) {
 	assert.Equal(t, domain.DefaultSidebarWidth, preferences.SidebarWidth)
 	assert.True(t, preferences.ShowNavigationGuides)
 	assert.True(t, preferences.RememberNavigationState)
-	assert.True(t, preferences.ShowPinnedPages)
-	assert.False(t, preferences.ShowRecentlyViewed)
 	assert.False(t, preferences.ShowNavigationPageCounts)
 	assert.Empty(t, preferences.ExpandedNavigation)
+	assert.Empty(t, preferences.HiddenPluginWidgets)
 }
 
 func TestNormalizeNavigationPaths(t *testing.T) {

@@ -33,7 +33,7 @@ func TestRenderWidgetsUsesSurfaceAndCentralSanitizer(t *testing.T) {
 	renderer := NewWithRegistry(registry)
 	page := sdk.Page{Slug: "guide"}
 
-	widgets, err := renderer.RenderWidgets(context.Background(), "page.details", &page, nil, nil)
+	widgets, err := renderer.RenderWidgets(context.Background(), "page.details", &page, nil, nil, nil)
 
 	require.NoError(t, err)
 	require.Len(t, widgets, 2)
@@ -53,6 +53,33 @@ func TestRenderWidgetsRejectsUnknownSurface(t *testing.T) {
 	t.Parallel()
 
 	renderer := NewWithRegistry(&plugin.Registry{})
-	_, err := renderer.RenderWidgets(context.Background(), "unknown", nil, nil, nil)
+	_, err := renderer.RenderWidgets(context.Background(), "unknown", nil, nil, nil, nil)
 	require.Error(t, err)
+}
+
+func TestRenderWidgetsSkipsHiddenPluginWidgets(t *testing.T) {
+	t.Parallel()
+
+	registry := &plugin.Registry{}
+	require.NoError(t, registry.Register(plugin.Descriptor{ID: "io.example.widget", Name: "Widget"}, plugin.Contributions{
+		Widgets: []plugin.WidgetModule{
+			{ID: "first", Surface: "page.details", Order: 10, Widget: testWidget{}},
+			{ID: "second", Surface: "page.details", Order: 20, Widget: testWidget{}},
+		},
+	}))
+	renderer := NewWithRegistry(registry)
+	page := sdk.Page{Slug: "guide"}
+
+	widgets, err := renderer.RenderWidgets(
+		context.Background(),
+		"page.details",
+		&page,
+		nil,
+		nil,
+		[]string{plugin.WidgetKey("io.example.widget", "first")},
+	)
+
+	require.NoError(t, err)
+	require.Len(t, widgets, 1)
+	assert.Equal(t, "second", widgets[0].ModuleID)
 }

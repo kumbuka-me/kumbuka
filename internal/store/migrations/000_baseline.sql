@@ -70,10 +70,9 @@ CREATE TABLE user_preferences (
   sidebar_width integer NOT NULL DEFAULT 280 CHECK (sidebar_width BETWEEN 220 AND 420),
   show_navigation_guides boolean NOT NULL DEFAULT true,
   remember_navigation_state boolean NOT NULL DEFAULT true,
-  show_pinned_pages boolean NOT NULL DEFAULT true,
-  show_recently_viewed boolean NOT NULL DEFAULT false,
   show_navigation_page_counts boolean NOT NULL DEFAULT false,
   expanded_navigation text[] NOT NULL DEFAULT '{}',
+  hidden_plugin_widgets text[] NOT NULL DEFAULT '{}',
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 
@@ -502,4 +501,3 @@ CREATE TABLE plugin_installations (
     OR (source = 'installed' AND package IS NOT NULL AND octet_length(package) BETWEEN 1 AND 16777216)
   )
 );
-

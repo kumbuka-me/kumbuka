@@ -10,6 +10,7 @@ import (
 	"github.com/kumbuka-me/kumbuka/internal/auth"
 	"github.com/kumbuka-me/kumbuka/internal/domain"
 	"github.com/kumbuka-me/kumbuka/internal/httpresponse"
+	"github.com/kumbuka-me/kumbuka/internal/plugin"
 	"github.com/kumbuka-me/kumbuka/themes"
 )
 
@@ -128,7 +129,7 @@ func ChangeLocalPassword(local *auth.Local, logger *slog.Logger) http.HandlerFun
 }
 
 // SavePreferences validates and stores all presentation preferences shown on the settings page.
-func SavePreferences(preferenceUseCases preferenceService, views *Views) http.HandlerFunc {
+func SavePreferences(preferenceUseCases preferenceService, pluginManager *plugin.Manager, views *Views) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := auth.User(r)
 		if !ok {
@@ -182,6 +183,11 @@ func SavePreferences(preferenceUseCases preferenceService, views *Views) http.Ha
 			return
 		}
 
+		var loadedPlugins []plugin.LoadedPlugin
+		if pluginManager != nil {
+			loadedPlugins = pluginManager.Plugins()
+		}
+
 		preferences := domain.UserPreferences{
 			Theme:                    selectedTheme.Title,
 			ShowPageContents:         r.FormValue("show_page_contents") == "on",
@@ -191,10 +197,14 @@ func SavePreferences(preferenceUseCases preferenceService, views *Views) http.Ha
 			SidebarWidth:             sidebarWidth,
 			ShowNavigationGuides:     r.FormValue("show_navigation_guides") == "on",
 			RememberNavigationState:  r.FormValue("remember_navigation_state") == "on",
-			ShowPinnedPages:          r.FormValue("show_pinned_pages") == "on",
-			ShowRecentlyViewed:       r.FormValue("show_recently_viewed") == "on",
 			ShowNavigationPageCounts: r.FormValue("show_navigation_page_counts") == "on",
 			ExpandedNavigation:       current.ExpandedNavigation,
+			HiddenPluginWidgets: hiddenPluginWidgets(
+				loadedPlugins,
+				current.HiddenPluginWidgets,
+				r.Form["plugin_widget"],
+				r.Form["visible_plugin_widget"],
+			),
 		}
 		if err := preferenceUseCases.SavePreferences(r.Context(), user.ID, preferences); err != nil {
 			writePreferencesProblem(views.logger, w, err)

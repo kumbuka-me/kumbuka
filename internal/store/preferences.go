@@ -22,10 +22,9 @@ SELECT
   sidebar_width,
   show_navigation_guides,
   remember_navigation_state,
-  show_pinned_pages,
-  show_recently_viewed,
   show_navigation_page_counts,
-  expanded_navigation
+  expanded_navigation,
+  hidden_plugin_widgets
 FROM user_preferences
 WHERE user_id=$1`, userID).Scan(
 		&preferences.Theme,
@@ -36,10 +35,9 @@ WHERE user_id=$1`, userID).Scan(
 		&preferences.SidebarWidth,
 		&preferences.ShowNavigationGuides,
 		&preferences.RememberNavigationState,
-		&preferences.ShowPinnedPages,
-		&preferences.ShowRecentlyViewed,
 		&preferences.ShowNavigationPageCounts,
 		&preferences.ExpandedNavigation,
+		&preferences.HiddenPluginWidgets,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return preferences, nil
@@ -61,13 +59,12 @@ INSERT INTO user_preferences(
   sidebar_width,
   show_navigation_guides,
   remember_navigation_state,
-  show_pinned_pages,
-  show_recently_viewed,
   show_navigation_page_counts,
   expanded_navigation,
+  hidden_plugin_widgets,
   updated_at
 )
-VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,now())
+VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,now())
 ON CONFLICT(user_id) DO UPDATE
 SET theme=EXCLUDED.theme,
     show_page_contents=EXCLUDED.show_page_contents,
@@ -77,11 +74,10 @@ SET theme=EXCLUDED.theme,
     sidebar_width=EXCLUDED.sidebar_width,
     show_navigation_guides=EXCLUDED.show_navigation_guides,
     remember_navigation_state=EXCLUDED.remember_navigation_state,
-    show_pinned_pages=EXCLUDED.show_pinned_pages,
-    show_recently_viewed=EXCLUDED.show_recently_viewed,
     show_navigation_page_counts=EXCLUDED.show_navigation_page_counts,
     expanded_navigation=EXCLUDED.expanded_navigation,
-    updated_at=now()`, userID, preferences.Theme, preferences.ShowPageContents, preferences.NavigationStyle, preferences.NavigationDensity, preferences.TypographySize, preferences.SidebarWidth, preferences.ShowNavigationGuides, preferences.RememberNavigationState, preferences.ShowPinnedPages, preferences.ShowRecentlyViewed, preferences.ShowNavigationPageCounts, normalizeNavigationPaths(preferences.ExpandedNavigation))
+    hidden_plugin_widgets=EXCLUDED.hidden_plugin_widgets,
+    updated_at=now()`, userID, preferences.Theme, preferences.ShowPageContents, preferences.NavigationStyle, preferences.NavigationDensity, preferences.TypographySize, preferences.SidebarWidth, preferences.ShowNavigationGuides, preferences.RememberNavigationState, preferences.ShowNavigationPageCounts, normalizeNavigationPaths(preferences.ExpandedNavigation), preferences.HiddenPluginWidgets)
 	return err
 }
 
