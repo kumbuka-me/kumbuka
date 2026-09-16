@@ -14,6 +14,28 @@ const (
 	pendingOIDCStatusRejected = "rejected"
 )
 
+// oidcIdentityProfile contains normalized identity-provider attributes used during login.
+type oidcIdentityProfile struct {
+	// issuer identifies the verified OIDC provider namespace.
+	issuer string
+	// subject is the stable provider-assigned user identifier.
+	subject string
+	// username is the normalized Kumbuka username asserted by the provider.
+	username string
+	// email is the normalized email asserted by the provider.
+	email string
+	// displayName is the normalized display name asserted by the provider.
+	displayName string
+}
+
+// oidcGroupMembershipPlan separates mapped memberships from memberships currently desired.
+type oidcGroupMembershipPlan struct {
+	// managed contains every Kumbuka group controlled by the supplied OIDC mappings.
+	managed map[int64]bool
+	// desired contains mapped Kumbuka groups asserted by the current identity claim.
+	desired map[int64]bool
+}
+
 // SetExternalAdminStatus records the most recently asserted external administrator state.
 func (s *Store) SetExternalAdminStatus(ctx context.Context, userID int64, method string, admin bool) error {
 	var query string
@@ -117,39 +139,62 @@ func (s *Store) SyncOIDCGroups(
 	mappings []domain.OIDCGroupMapping,
 	authoritative bool,
 ) error {
-	claimed := make(map[string]bool, len(claimedGroups))
+	plan := buildOIDCGroupMembershipPlan(claimedGroups, mappings)
 
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	if err := applyOIDCGroupMembershipPlan(ctx, tx, userID, plan, authoritative); err != nil {
+		return err
+	}
+
+	return tx.Commit(ctx)
+}
+
+// buildOIDCGroupMembershipPlan resolves provider claims through the configured group mappings.
+func buildOIDCGroupMembershipPlan(
+	claimedGroups []string,
+	mappings []domain.OIDCGroupMapping,
+) oidcGroupMembershipPlan {
+	claimed := make(map[string]bool, len(claimedGroups))
 	for _, group := range claimedGroups {
 		if group = strings.TrimSpace(group); group != "" {
 			claimed[group] = true
 		}
 	}
 
-	managed := make(map[int64]bool, len(mappings))
-	desired := make(map[int64]bool, len(mappings))
-
+	plan := oidcGroupMembershipPlan{
+		managed: make(map[int64]bool, len(mappings)),
+		desired: make(map[int64]bool, len(mappings)),
+	}
 	for _, mapping := range mappings {
 		if mapping.GroupID <= 0 {
 			continue
 		}
 
-		managed[mapping.GroupID] = true
-
+		plan.managed[mapping.GroupID] = true
 		if claimed[strings.TrimSpace(mapping.OIDCGroup)] {
-			desired[mapping.GroupID] = true
+			plan.desired[mapping.GroupID] = true
 		}
 	}
 
-	tx, err := s.pool.Begin(ctx)
-	if err != nil {
-		return err
-	}
+	return plan
+}
 
-	defer func() { _ = tx.Rollback(ctx) }()
-
+// applyOIDCGroupMembershipPlan updates mapped group memberships inside an existing transaction.
+func applyOIDCGroupMembershipPlan(
+	ctx context.Context,
+	tx pgx.Tx,
+	userID int64,
+	plan oidcGroupMembershipPlan,
+	authoritative bool,
+) error {
 	if authoritative {
-		for groupID := range managed {
-			if desired[groupID] {
+		for groupID := range plan.managed {
+			if plan.desired[groupID] {
 				continue
 			}
 			if _, err := tx.Exec(ctx, `
@@ -159,7 +204,8 @@ WHERE user_id=$1 AND group_id=$2`, userID, groupID); err != nil {
 			}
 		}
 	}
-	for groupID := range desired {
+
+	for groupID := range plan.desired {
 		if _, err := tx.Exec(ctx, `
 INSERT INTO user_groups(user_id,group_id)
 VALUES($1,$2)
@@ -168,7 +214,7 @@ ON CONFLICT DO NOTHING`, userID, groupID); err != nil {
 		}
 	}
 
-	return tx.Commit(ctx)
+	return nil
 }
 
 // PendingOIDCIdentities returns identities waiting for an administrator decision.
@@ -241,107 +287,121 @@ func (s *Store) LoginOIDCUser(
 	ctx context.Context,
 	issuer, subject, username, email, displayName string,
 ) (domain.User, error) {
-	issuer = strings.TrimSpace(issuer)
-	subject = strings.TrimSpace(subject)
-	username = strings.TrimSpace(username)
-	email = strings.TrimSpace(email)
-	displayName = strings.TrimSpace(displayName)
-	if issuer == "" || subject == "" || username == "" {
-		return domain.User{}, domain.NewValidationError("identity", "The identity provider must supply issuer, subject, and username.")
+	identity, err := normalizeOIDCIdentityProfile(issuer, subject, username, email, displayName)
+	if err != nil {
+		return domain.User{}, err
 	}
 
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return domain.User{}, err
 	}
-
 	defer func() { _ = tx.Rollback(ctx) }()
 
-	user, found, err := oidcUserForUpdate(ctx, tx, issuer, subject)
+	user, found, err := oidcUserForUpdate(ctx, tx, identity.issuer, identity.subject)
 	if err != nil {
 		return domain.User{}, err
 	}
 	if found {
-		user, err = refreshOIDCUser(ctx, tx, user, username, email, displayName)
-		if err != nil {
-			return domain.User{}, err
-		}
-		if _, err := tx.Exec(ctx, `
-DELETE FROM pending_oidc_identities
-WHERE issuer=$1 AND subject=$2`, issuer, subject); err != nil {
-			return domain.User{}, err
-		}
-		if err := tx.Commit(ctx); err != nil {
-			return domain.User{}, err
-		}
-
-		return user, nil
+		return refreshAndCompleteOIDCLogin(ctx, tx, user, identity)
 	}
 
-	pendingStatus, err := pendingOIDCStatusForUpdate(ctx, tx, issuer, subject)
+	pendingStatus, err := pendingOIDCStatusForUpdate(ctx, tx, identity.issuer, identity.subject)
 	if err != nil {
 		return domain.User{}, err
 	}
 
 	// An administrator may have linked this identity while we waited for the
 	// pending-row lock. Recheck the binding before creating another account.
-	user, found, err = oidcUserForUpdate(ctx, tx, issuer, subject)
+	user, found, err = oidcUserForUpdate(ctx, tx, identity.issuer, identity.subject)
 	if err != nil {
 		return domain.User{}, err
 	}
 	if found {
-		user, err = refreshOIDCUser(ctx, tx, user, username, email, displayName)
-		if err != nil {
-			return domain.User{}, err
-		}
-		if _, err := tx.Exec(ctx, `
-DELETE FROM pending_oidc_identities
-WHERE issuer=$1 AND subject=$2`, issuer, subject); err != nil {
-			return domain.User{}, err
-		}
-		if err := tx.Commit(ctx); err != nil {
-			return domain.User{}, err
-		}
-
-		return user, nil
+		return refreshAndCompleteOIDCLogin(ctx, tx, user, identity)
 	}
 
 	if pendingStatus == pendingOIDCStatusRejected {
-		if _, err := upsertPendingOIDCIdentity(ctx, tx, issuer, subject, username, email, displayName); err != nil {
-			return domain.User{}, err
-		}
-		if err := tx.Commit(ctx); err != nil {
-			return domain.User{}, err
-		}
-
-		return domain.User{}, domain.ErrIdentityRejected
+		return recordPendingOIDCOutcome(ctx, tx, identity, domain.ErrIdentityRejected)
 	}
 
-	var registrationEnabled bool
-	if err := tx.QueryRow(ctx, `
-SELECT allow_user_registration
-FROM application_settings
-WHERE singleton=true`).Scan(&registrationEnabled); err != nil {
-		return domain.User{}, err
-	}
-	if !registrationEnabled {
-		if _, err := upsertPendingOIDCIdentity(ctx, tx, issuer, subject, username, email, displayName); err != nil {
-			return domain.User{}, err
-		}
-		if err := tx.Commit(ctx); err != nil {
-			return domain.User{}, err
-		}
-
-		return domain.User{}, domain.ErrIdentityApprovalRequired
-	}
-
-	user, err = createOIDCUser(ctx, tx, issuer, subject, username, email, displayName)
+	registrationEnabled, err := oidcRegistrationEnabled(ctx, tx)
 	if err != nil {
 		return domain.User{}, err
 	}
+	if !registrationEnabled {
+		return recordPendingOIDCOutcome(ctx, tx, identity, domain.ErrIdentityApprovalRequired)
+	}
+
+	user, err = createOIDCUser(
+		ctx,
+		tx,
+		identity.issuer,
+		identity.subject,
+		identity.username,
+		identity.email,
+		identity.displayName,
+	)
+	if err != nil {
+		return domain.User{}, err
+	}
+
+	return completeOIDCLogin(ctx, tx, user, identity)
+}
+
+// normalizeOIDCIdentityProfile trims provider attributes and validates required identity fields.
+func normalizeOIDCIdentityProfile(
+	issuer, subject, username, email, displayName string,
+) (oidcIdentityProfile, error) {
+	identity := oidcIdentityProfile{
+		issuer:      strings.TrimSpace(issuer),
+		subject:     strings.TrimSpace(subject),
+		username:    strings.TrimSpace(username),
+		email:       strings.TrimSpace(email),
+		displayName: strings.TrimSpace(displayName),
+	}
+	if identity.issuer == "" || identity.subject == "" || identity.username == "" {
+		return oidcIdentityProfile{}, domain.NewValidationError(
+			"identity",
+			"The identity provider must supply issuer, subject, and username.",
+		)
+	}
+
+	return identity, nil
+}
+
+// refreshAndCompleteOIDCLogin updates a bound account and commits the successful login.
+func refreshAndCompleteOIDCLogin(
+	ctx context.Context,
+	tx pgx.Tx,
+	user domain.User,
+	identity oidcIdentityProfile,
+) (domain.User, error) {
+	user, err := refreshOIDCUser(
+		ctx,
+		tx,
+		user,
+		identity.username,
+		identity.email,
+		identity.displayName,
+	)
+	if err != nil {
+		return domain.User{}, err
+	}
+
+	return completeOIDCLogin(ctx, tx, user, identity)
+}
+
+// completeOIDCLogin removes stale approval state and commits a successful login.
+func completeOIDCLogin(
+	ctx context.Context,
+	tx pgx.Tx,
+	user domain.User,
+	identity oidcIdentityProfile,
+) (domain.User, error) {
 	if _, err := tx.Exec(ctx, `
 DELETE FROM pending_oidc_identities
-WHERE issuer=$1 AND subject=$2`, issuer, subject); err != nil {
+WHERE issuer=$1 AND subject=$2`, identity.issuer, identity.subject); err != nil {
 		return domain.User{}, err
 	}
 	if err := tx.Commit(ctx); err != nil {
@@ -349,6 +409,42 @@ WHERE issuer=$1 AND subject=$2`, issuer, subject); err != nil {
 	}
 
 	return user, nil
+}
+
+// recordPendingOIDCOutcome persists the latest profile before returning an approval outcome.
+func recordPendingOIDCOutcome(
+	ctx context.Context,
+	tx pgx.Tx,
+	identity oidcIdentityProfile,
+	outcome error,
+) (domain.User, error) {
+	if _, err := upsertPendingOIDCIdentity(
+		ctx,
+		tx,
+		identity.issuer,
+		identity.subject,
+		identity.username,
+		identity.email,
+		identity.displayName,
+	); err != nil {
+		return domain.User{}, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return domain.User{}, err
+	}
+
+	return domain.User{}, outcome
+}
+
+// oidcRegistrationEnabled reports whether automatic OIDC user creation is enabled.
+func oidcRegistrationEnabled(ctx context.Context, tx pgx.Tx) (bool, error) {
+	var enabled bool
+	err := tx.QueryRow(ctx, `
+SELECT allow_user_registration
+FROM application_settings
+WHERE singleton=true`).Scan(&enabled)
+
+	return enabled, err
 }
 
 // ApprovePendingOIDCIdentity creates a new Kumbuka user for an administrator-approved identity.
@@ -368,10 +464,8 @@ func (s *Store) ApprovePendingOIDCIdentity(ctx context.Context, pendingID int64)
 		return domain.User{}, domain.ErrForbidden
 	}
 
-	if _, found, err := oidcUserForUpdate(ctx, tx, pending.Issuer, pending.Subject); err != nil {
+	if err := ensureOIDCIdentityUnbound(ctx, tx, pending.Issuer, pending.Subject); err != nil {
 		return domain.User{}, err
-	} else if found {
-		return domain.User{}, domain.ErrAlreadyExists
 	}
 
 	user, err := createOIDCUser(
@@ -404,7 +498,6 @@ func (s *Store) LinkPendingOIDCIdentity(ctx context.Context, pendingID, userID i
 	if err != nil {
 		return domain.User{}, err
 	}
-
 	defer func() { _ = tx.Rollback(ctx) }()
 
 	pending, err := pendingOIDCIdentityForUpdate(ctx, tx, pendingID)
@@ -414,34 +507,72 @@ func (s *Store) LinkPendingOIDCIdentity(ctx context.Context, pendingID, userID i
 	if pending.Status != pendingOIDCStatusPending {
 		return domain.User{}, domain.ErrForbidden
 	}
-
-	if _, found, err := oidcUserForUpdate(ctx, tx, pending.Issuer, pending.Subject); err != nil {
+	if err := ensureOIDCIdentityUnbound(ctx, tx, pending.Issuer, pending.Subject); err != nil {
 		return domain.User{}, err
-	} else if found {
-		return domain.User{}, domain.ErrAlreadyExists
 	}
 
-	var user domain.User
+	user, err := oidcUserProfileForUpdate(ctx, tx, userID)
+	if err != nil {
+		return domain.User{}, err
+	}
+	if err := replaceOIDCIdentityBinding(ctx, tx, user, pending); err != nil {
+		return domain.User{}, err
+	}
 
-	if err := tx.QueryRow(ctx, `
+	if _, err := tx.Exec(ctx, `
+DELETE FROM pending_oidc_identities
+WHERE id=$1`, pendingID); err != nil {
+		return domain.User{}, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return domain.User{}, err
+	}
+
+	return user, nil
+}
+
+// ensureOIDCIdentityUnbound rejects attempts to bind an identity that already belongs to a user.
+func ensureOIDCIdentityUnbound(ctx context.Context, tx pgx.Tx, issuer, subject string) error {
+	_, found, err := oidcUserForUpdate(ctx, tx, issuer, subject)
+	if err != nil {
+		return err
+	}
+	if found {
+		return domain.ErrAlreadyExists
+	}
+
+	return nil
+}
+
+// oidcUserProfileForUpdate locks the local account receiving an OIDC identity binding.
+func oidcUserProfileForUpdate(ctx context.Context, tx pgx.Tx, userID int64) (domain.User, error) {
+	var user domain.User
+	err := tx.QueryRow(ctx, `
 SELECT id,username,email,display_name,role
 FROM users
 WHERE id=$1
-FOR UPDATE`, userID).Scan(&user.ID, &user.Username, &user.Email, &user.DisplayName, &user.Role); errors.Is(err, pgx.ErrNoRows) {
+FOR UPDATE`, userID).Scan(&user.ID, &user.Username, &user.Email, &user.DisplayName, &user.Role)
+	if errors.Is(err, pgx.ErrNoRows) {
 		return domain.User{}, domain.ErrNotFound
-	} else if err != nil {
-		return domain.User{}, err
 	}
 
-	// Replacing the binding invalidates sessions created with the previous
-	// subject and blocks that identity from silently registering again.
+	return user, err
+}
+
+// replaceOIDCIdentityBinding swaps the user's provider binding and rejects the displaced subject.
+func replaceOIDCIdentityBinding(
+	ctx context.Context,
+	tx pgx.Tx,
+	user domain.User,
+	pending domain.PendingOIDCIdentity,
+) error {
 	var previousSubject string
-	err = tx.QueryRow(ctx, `
+	err := tx.QueryRow(ctx, `
 DELETE FROM oidc_identities
 WHERE user_id=$1 AND issuer=$2
-RETURNING subject`, userID, pending.Issuer).Scan(&previousSubject)
+RETURNING subject`, user.ID, pending.Issuer).Scan(&previousSubject)
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
-		return domain.User{}, err
+		return err
 	}
 
 	if previousSubject != "" && previousSubject != pending.Subject {
@@ -454,25 +585,14 @@ RETURNING subject`, userID, pending.Issuer).Scan(&previousSubject)
 			user.Email,
 			user.DisplayName,
 		); err != nil {
-			return domain.User{}, err
+			return err
 		}
 	}
 
-	if _, err := tx.Exec(ctx, `
+	_, err = tx.Exec(ctx, `
 INSERT INTO oidc_identities(issuer,subject,user_id)
-VALUES($1,$2,$3)`, pending.Issuer, pending.Subject, userID); err != nil {
-		return domain.User{}, err
-	}
-	if _, err := tx.Exec(ctx, `
-DELETE FROM pending_oidc_identities
-WHERE id=$1`, pendingID); err != nil {
-		return domain.User{}, err
-	}
-	if err := tx.Commit(ctx); err != nil {
-		return domain.User{}, err
-	}
-
-	return user, nil
+VALUES($1,$2,$3)`, pending.Issuer, pending.Subject, user.ID)
+	return err
 }
 
 // RemoveOIDCIdentity disconnects and blocks one external identity.
@@ -486,15 +606,8 @@ func (s *Store) RemoveOIDCIdentity(ctx context.Context, userID int64, issuer, su
 
 	defer func() { _ = tx.Rollback(ctx) }()
 
-	var username, email, displayName string
-
-	if err := tx.QueryRow(ctx, `
-SELECT username,email,display_name
-FROM users
-WHERE id=$1
-FOR UPDATE`, userID).Scan(&username, &email, &displayName); errors.Is(err, pgx.ErrNoRows) {
-		return domain.ErrNotFound
-	} else if err != nil {
+	user, err := oidcUserProfileForUpdate(ctx, tx, userID)
+	if err != nil {
 		return err
 	}
 
@@ -507,7 +620,7 @@ WHERE user_id=$1 AND issuer=$2 AND subject=$3`, userID, issuer, subject)
 	if tag.RowsAffected() == 0 {
 		return domain.ErrNotFound
 	}
-	if err := rejectOIDCIdentity(ctx, tx, issuer, subject, username, email, displayName); err != nil {
+	if err := rejectOIDCIdentity(ctx, tx, issuer, subject, user.Username, user.Email, user.DisplayName); err != nil {
 		return err
 	}
 
