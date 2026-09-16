@@ -207,47 +207,104 @@ func (i *Instance) invoke(ctx context.Context, request sdk.RenderRequest) (resul
 }
 
 // call writes one request into guest memory and decodes its bounded response.
-func (i *Instance) call(ctx context.Context, request sdk.RenderRequest, metrics *renderprofile.WASMCall, profiled bool) (sdk.RenderResult, error) {
-	var result sdk.RenderResult
+func (i *Instance) call(
+	ctx context.Context,
+	request sdk.RenderRequest,
+	metrics *renderprofile.WASMCall,
+	profiled bool,
+) (sdk.RenderResult, error) {
+	input, err := i.encodeRequest(request, metrics, profiled)
+	if err != nil {
+		return sdk.RenderResult{}, err
+	}
 
-	encodeStarted := timingStarted(profiled)
+	pointer, err := i.writeRequest(ctx, input, metrics, profiled)
+	if err != nil {
+		return sdk.RenderResult{}, err
+	}
+
+	response, err := i.executeRequest(ctx, pointer, len(input), metrics, profiled)
+	if err != nil {
+		return sdk.RenderResult{}, err
+	}
+
+	result, err := decodeRenderResult(response, metrics, profiled)
+	if err != nil {
+		return sdk.RenderResult{}, err
+	}
+	if err := i.validateRenderResult(result, request.Stage, metrics, profiled); err != nil {
+		return result, err
+	}
+
+	return result, nil
+}
+
+// encodeRequest serializes one guest request and enforces the wire-size limit.
+func (i *Instance) encodeRequest(
+	request sdk.RenderRequest,
+	metrics *renderprofile.WASMCall,
+	profiled bool,
+) ([]byte, error) {
+	started := timingStarted(profiled)
 	input, err := json.Marshal(request)
 	if profiled {
-		metrics.Encode = time.Since(encodeStarted)
+		metrics.Encode = time.Since(started)
 		metrics.RequestBytes = len(input)
 	}
 	if err != nil {
-		return result, err
+		return nil, err
 	}
 	if len(input) > i.runtime.limits.WireBytes {
-		return result, errors.New("plugin request exceeds size limit")
+		return nil, errors.New("plugin request exceeds size limit")
 	}
 
-	allocateStarted := timingStarted(profiled)
+	return input, nil
+}
+
+// writeRequest allocates guest memory and copies the serialized request into it.
+func (i *Instance) writeRequest(
+	ctx context.Context,
+	input []byte,
+	metrics *renderprofile.WASMCall,
+	profiled bool,
+) (uint32, error) {
+	started := timingStarted(profiled)
 	allocated, err := i.module.ExportedFunction("kumbuka_alloc").Call(ctx, uint64(len(input)))
 	if profiled {
-		metrics.Allocate = time.Since(allocateStarted)
+		metrics.Allocate = time.Since(started)
 	}
 	if err != nil {
-		return result, fmt.Errorf("allocate plugin request: %w", err)
-	}
-	pointer := uint32(allocated[0])
-	memoryWriteStarted := timingStarted(profiled)
-	written := pointer != 0 && i.module.Memory().Write(pointer, input)
-	if profiled {
-		metrics.MemoryWrite = time.Since(memoryWriteStarted)
-	}
-	if !written {
-		return result, errors.New("plugin returned invalid request memory")
+		return 0, fmt.Errorf("allocate plugin request: %w", err)
 	}
 
-	executeStarted := timingStarted(profiled)
-	output, err := i.module.ExportedFunction("kumbuka_transform").Call(ctx, uint64(pointer), uint64(len(input)))
+	pointer := uint32(allocated[0])
+	started = timingStarted(profiled)
+	written := pointer != 0 && i.module.Memory().Write(pointer, input)
 	if profiled {
-		metrics.Execute = time.Since(executeStarted)
+		metrics.MemoryWrite = time.Since(started)
+	}
+	if !written {
+		return 0, errors.New("plugin returned invalid request memory")
+	}
+
+	return pointer, nil
+}
+
+// executeRequest invokes the guest transform and returns its bounded response bytes.
+func (i *Instance) executeRequest(
+	ctx context.Context,
+	pointer uint32,
+	inputLength int,
+	metrics *renderprofile.WASMCall,
+	profiled bool,
+) ([]byte, error) {
+	started := timingStarted(profiled)
+	output, err := i.module.ExportedFunction("kumbuka_transform").Call(ctx, uint64(pointer), uint64(inputLength))
+	if profiled {
+		metrics.Execute = time.Since(started)
 	}
 	if err != nil {
-		return result, fmt.Errorf("call plugin: %w", err)
+		return nil, fmt.Errorf("call plugin: %w", err)
 	}
 
 	pointer, length := uint32(output[0]), uint32(output[0]>>32)
@@ -255,84 +312,88 @@ func (i *Instance) call(ctx context.Context, request sdk.RenderRequest, metrics 
 		metrics.ResponseBytes = int(length)
 	}
 	if length == 0 || uint64(length) > uint64(i.runtime.limits.WireBytes) {
-		return result, errors.New("plugin response exceeds size limit or is empty")
-	}
-	memoryReadStarted := timingStarted(profiled)
-	memory, ok := i.module.Memory().Read(pointer, length)
-	if profiled {
-		metrics.MemoryRead = time.Since(memoryReadStarted)
-	}
-	if !ok {
-		return result, errors.New("plugin returned invalid response memory")
+		return nil, errors.New("plugin response exceeds size limit or is empty")
 	}
 
-	decodeStarted := timingStarted(profiled)
+	started = timingStarted(profiled)
+	memory, ok := i.module.Memory().Read(pointer, length)
+	if profiled {
+		metrics.MemoryRead = time.Since(started)
+	}
+	if !ok {
+		return nil, errors.New("plugin returned invalid response memory")
+	}
+
+	return memory, nil
+}
+
+// decodeRenderResult decodes exactly one strict JSON response value from the guest.
+func decodeRenderResult(
+	memory []byte,
+	metrics *renderprofile.WASMCall,
+	profiled bool,
+) (sdk.RenderResult, error) {
+	started := timingStarted(profiled)
+	if profiled {
+		defer func() { metrics.Decode = time.Since(started) }()
+	}
+
+	var result sdk.RenderResult
 	decoder := json.NewDecoder(bytes.NewReader(memory))
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(&result); err != nil {
-		if profiled {
-			metrics.Decode = time.Since(decodeStarted)
-		}
 		return result, fmt.Errorf("decode plugin response: %w", err)
 	}
 
 	var extra any
 	if err := decoder.Decode(&extra); err != io.EOF {
-		if profiled {
-			metrics.Decode = time.Since(decodeStarted)
-		}
 		return result, errors.New("plugin response must contain one JSON value")
-	}
-	if profiled {
-		metrics.Decode = time.Since(decodeStarted)
-	}
-
-	validateStarted := timingStarted(profiled)
-	if result.Error != "" {
-		if profiled {
-			metrics.Validate = time.Since(validateStarted)
-		}
-		return result, fmt.Errorf("plugin returned error: %.1024s", result.Error)
-	}
-	if len(result.Parts) > i.runtime.limits.Parts {
-		if profiled {
-			metrics.Validate = time.Since(validateStarted)
-		}
-		return result, errors.New("plugin returned too many fragments")
-	}
-	for _, part := range result.Parts {
-		if !validRenderPart(part, request.Stage) {
-			if profiled {
-				metrics.Validate = time.Since(validateStarted)
-			}
-			return result, errors.New("invalid plugin render fragment")
-		}
-	}
-	if len(result.Actions) > 32 {
-		if profiled {
-			metrics.Validate = time.Since(validateStarted)
-		}
-		return result, errors.New("plugin returned too many widget actions")
-	}
-	for _, action := range result.Actions {
-		if !validWidgetAction(action, request.Stage) {
-			if profiled {
-				metrics.Validate = time.Since(validateStarted)
-			}
-			return result, errors.New("invalid plugin widget action")
-		}
-	}
-	if profiled {
-		metrics.Validate = time.Since(validateStarted)
 	}
 
 	return result, nil
 }
 
+// validateRenderResult enforces fragment and widget-action bounds for one render stage.
+func (i *Instance) validateRenderResult(
+	result sdk.RenderResult,
+	stage string,
+	metrics *renderprofile.WASMCall,
+	profiled bool,
+) error {
+	started := timingStarted(profiled)
+	if profiled {
+		defer func() { metrics.Validate = time.Since(started) }()
+	}
+
+	if result.Error != "" {
+		return fmt.Errorf("plugin returned error: %.1024s", result.Error)
+	}
+	if len(result.Parts) > i.runtime.limits.Parts {
+		return errors.New("plugin returned too many fragments")
+	}
+	for _, part := range result.Parts {
+		if !validRenderPart(part, stage) {
+			return errors.New("invalid plugin render fragment")
+		}
+	}
+	if len(result.Actions) > 32 {
+		return errors.New("plugin returned too many widget actions")
+	}
+	for _, action := range result.Actions {
+		if !validWidgetAction(action, stage) {
+			return errors.New("invalid plugin widget action")
+		}
+	}
+
+	return nil
+}
+
+// timingStarted returns the current time only when profiling is enabled.
 func timingStarted(enabled bool) time.Time {
 	if !enabled {
 		return time.Time{}
 	}
+
 	return time.Now()
 }
 
@@ -343,12 +404,19 @@ func validRenderPart(part sdk.RenderPart, stage string) bool {
 
 // validWidgetAction validates bounded host-rendered widget action metadata.
 func validWidgetAction(action sdk.WidgetAction, stage string) bool {
-	if stage != "widget" || !validWidgetIdentifier(action.ID) || len(action.Label) == 0 || len(action.Label) > 256 ||
-		len(action.URL) == 0 || len(action.URL) > 4096 || !strings.HasPrefix(action.URL, "/") ||
-		strings.HasPrefix(action.URL, "//") || strings.Contains(action.URL, "\\") ||
-		(action.Icon != "" && !validWidgetIdentifier(action.Icon)) {
+	if stage != "widget" {
 		return false
 	}
+	if !validWidgetIdentifier(action.ID) || len(action.Label) == 0 || len(action.Label) > 256 {
+		return false
+	}
+	if action.Icon != "" && !validWidgetIdentifier(action.Icon) {
+		return false
+	}
+	if !validWidgetActionURL(action.URL) {
+		return false
+	}
+
 	switch action.Kind {
 	case "link", "dialog":
 		return true
@@ -357,6 +425,15 @@ func validWidgetAction(action sdk.WidgetAction, stage string) bool {
 	}
 }
 
+// validWidgetActionURL reports whether an action target is a bounded local path.
+func validWidgetActionURL(value string) bool {
+	return len(value) > 0 && len(value) <= 4096 &&
+		strings.HasPrefix(value, "/") &&
+		!strings.HasPrefix(value, "//") &&
+		!strings.Contains(value, "\\")
+}
+
+// validWidgetIdentifier reports whether a widget identifier uses the supported ASCII syntax.
 func validWidgetIdentifier(value string) bool {
 	if len(value) == 0 || len(value) > 128 || !asciiAlphanumeric(value[0]) {
 		return false
@@ -370,6 +447,7 @@ func validWidgetIdentifier(value string) bool {
 	return true
 }
 
+// asciiAlphanumeric reports whether a byte is an ASCII letter or digit.
 func asciiAlphanumeric(value byte) bool {
 	return value >= 'a' && value <= 'z' || value >= 'A' && value <= 'Z' || value >= '0' && value <= '9'
 }

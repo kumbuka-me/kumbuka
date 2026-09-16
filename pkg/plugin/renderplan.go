@@ -90,101 +90,130 @@ type RenderPlan struct {
 	lifetimes []*lifetime
 }
 
-func buildRenderPlan(entries []Entry, generation uint64) *RenderPlan {
-	plan := &RenderPlan{
-		Generation: generation,
-		Macros:     make(map[string]MacroBinding),
-		lifetimes:  make([]*lifetime, 0, len(entries)),
-	}
-	seenUsage := make(map[string]bool)
+// renderPlanBuilder accumulates immutable bindings for one registry generation.
+type renderPlanBuilder struct {
+	// plan is the render plan being assembled.
+	plan *RenderPlan
+	// seenUsage tracks source-usage selectors already published to the plan.
+	seenUsage map[string]bool
+}
 
-	selector := func(pluginID string, candidate any) RenderSelector {
-		result := RenderSelector{PluginID: pluginID}
-		provider, ok := candidate.(SourceUsageProvider)
-		if !ok {
-			return result
-		}
-		usage := provider.SourceUsage()
-		usage.Rules = slices.Clone(usage.Rules)
-		result.ModuleID = usage.ModuleID
-		if usage.ModuleID != "" {
-			result.UsageKey = pluginID + "\x00" + usage.ModuleID
-		}
-		result.SourceAware = usage.ModuleID != "" && len(usage.Rules) != 0
-		if !result.SourceAware {
-			return result
-		}
-		if !seenUsage[result.UsageKey] {
-			seenUsage[result.UsageKey] = true
-			plan.SourceUsage = append(plan.SourceUsage, SourceUsageBinding{PluginID: pluginID, Usage: usage})
-		}
-		return result
+// buildRenderPlan constructs the immutable render view for one registry generation.
+func buildRenderPlan(entries []Entry, generation uint64) *RenderPlan {
+	builder := &renderPlanBuilder{
+		plan: &RenderPlan{
+			Generation: generation,
+			Macros:     make(map[string]MacroBinding),
+			lifetimes:  make([]*lifetime, 0, len(entries)),
+		},
+		seenUsage: make(map[string]bool),
 	}
 
 	for _, entry := range entries {
-		pluginID := entry.Descriptor.ID
-		plan.lifetimes = append(plan.lifetimes, entry.lifetime)
-
-		for _, module := range entry.Contributions.ContentPreprocessors {
-			plan.ContentPreprocessors = append(plan.ContentPreprocessors, ContentPreprocessorBinding{
-				Selector: selector(pluginID, module),
-				Module:   module,
-				Priority: module.Priority(),
-			})
-		}
-		for _, module := range entry.Contributions.Preprocessors {
-			plan.Preprocessors = append(plan.Preprocessors, PreprocessorBinding{
-				Selector: selector(pluginID, module),
-				Module:   module,
-				Order:    len(plan.Preprocessors),
-			})
-		}
-		for _, module := range entry.Contributions.MarkdownExtensions {
-			plan.MarkdownExtensions = append(plan.MarkdownExtensions, MarkdownExtensionBinding{
-				Selector: selector(pluginID, module),
-				Module:   module,
-			})
-		}
-		for _, module := range entry.Contributions.CodeHighlighters {
-			binding := CodeHighlighterBinding{
-				Selector: selector(pluginID, module.Highlighter),
-				Module:   module,
-			}
-			plan.CodeHighlighter = &binding
-		}
-		for _, module := range entry.Contributions.Macros {
-			plan.Macros[module.Name()] = MacroBinding{
-				Selector: selector(pluginID, module),
-				Module:   module,
-			}
-		}
-		for _, module := range entry.Contributions.Postprocessors {
-			plan.Postprocessors = append(plan.Postprocessors, PostprocessorBinding{
-				Selector: selector(pluginID, module),
-				Module:   module,
-			})
-		}
-		for _, module := range entry.Contributions.Widgets {
-			plan.Widgets = append(plan.Widgets, WidgetBinding{
-				PluginID: pluginID, ModuleID: module.ID, Surface: module.Surface, Width: module.Width, Order: module.Order, Module: module.Widget,
-			})
-		}
-		plan.RenderPolicies = append(plan.RenderPolicies, entry.Contributions.RenderPolicies...)
+		builder.addEntry(entry)
 	}
 
-	sort.SliceStable(plan.ContentPreprocessors, func(i, j int) bool {
-		return plan.ContentPreprocessors[i].Priority < plan.ContentPreprocessors[j].Priority
-	})
-	for index := range plan.ContentPreprocessors {
-		plan.ContentPreprocessors[index].Order = index
-	}
-	sort.SliceStable(plan.Widgets, func(i, j int) bool {
-		return plan.Widgets[i].Order < plan.Widgets[j].Order
-	})
-	plan.UsageFingerprint = renderUsageFingerprint(plan.SourceUsage)
-	return plan
+	return builder.finish()
 }
 
+// selector returns source-usage metadata for one contribution and records it once.
+func (b *renderPlanBuilder) selector(pluginID string, candidate any) RenderSelector {
+	selector := RenderSelector{PluginID: pluginID}
+	provider, ok := candidate.(SourceUsageProvider)
+	if !ok {
+		return selector
+	}
+
+	usage := provider.SourceUsage()
+	usage.Rules = slices.Clone(usage.Rules)
+	selector.ModuleID = usage.ModuleID
+	if usage.ModuleID != "" {
+		selector.UsageKey = pluginID + "\x00" + usage.ModuleID
+	}
+	selector.SourceAware = usage.ModuleID != "" && len(usage.Rules) != 0
+	if !selector.SourceAware || b.seenUsage[selector.UsageKey] {
+		return selector
+	}
+
+	b.seenUsage[selector.UsageKey] = true
+	b.plan.SourceUsage = append(b.plan.SourceUsage, SourceUsageBinding{PluginID: pluginID, Usage: usage})
+	return selector
+}
+
+// addEntry appends every contribution from one active plugin entry.
+func (b *renderPlanBuilder) addEntry(entry Entry) {
+	pluginID := entry.Descriptor.ID
+	b.plan.lifetimes = append(b.plan.lifetimes, entry.lifetime)
+
+	for _, module := range entry.Contributions.ContentPreprocessors {
+		b.plan.ContentPreprocessors = append(b.plan.ContentPreprocessors, ContentPreprocessorBinding{
+			Selector: b.selector(pluginID, module),
+			Module:   module,
+			Priority: module.Priority(),
+		})
+	}
+	for _, module := range entry.Contributions.Preprocessors {
+		b.plan.Preprocessors = append(b.plan.Preprocessors, PreprocessorBinding{
+			Selector: b.selector(pluginID, module),
+			Module:   module,
+			Order:    len(b.plan.Preprocessors),
+		})
+	}
+	for _, module := range entry.Contributions.MarkdownExtensions {
+		b.plan.MarkdownExtensions = append(b.plan.MarkdownExtensions, MarkdownExtensionBinding{
+			Selector: b.selector(pluginID, module),
+			Module:   module,
+		})
+	}
+	for _, module := range entry.Contributions.CodeHighlighters {
+		binding := CodeHighlighterBinding{
+			Selector: b.selector(pluginID, module.Highlighter),
+			Module:   module,
+		}
+		b.plan.CodeHighlighter = &binding
+	}
+	for _, module := range entry.Contributions.Macros {
+		b.plan.Macros[module.Name()] = MacroBinding{
+			Selector: b.selector(pluginID, module),
+			Module:   module,
+		}
+	}
+	for _, module := range entry.Contributions.Postprocessors {
+		b.plan.Postprocessors = append(b.plan.Postprocessors, PostprocessorBinding{
+			Selector: b.selector(pluginID, module),
+			Module:   module,
+		})
+	}
+	for _, module := range entry.Contributions.Widgets {
+		b.plan.Widgets = append(b.plan.Widgets, WidgetBinding{
+			PluginID: pluginID,
+			ModuleID: module.ID,
+			Surface:  module.Surface,
+			Width:    module.Width,
+			Order:    module.Order,
+			Module:   module.Widget,
+		})
+	}
+	b.plan.RenderPolicies = append(b.plan.RenderPolicies, entry.Contributions.RenderPolicies...)
+}
+
+// finish sorts order-sensitive bindings and computes the source-usage fingerprint.
+func (b *renderPlanBuilder) finish() *RenderPlan {
+	sort.SliceStable(b.plan.ContentPreprocessors, func(i, j int) bool {
+		return b.plan.ContentPreprocessors[i].Priority < b.plan.ContentPreprocessors[j].Priority
+	})
+	for index := range b.plan.ContentPreprocessors {
+		b.plan.ContentPreprocessors[index].Order = index
+	}
+	sort.SliceStable(b.plan.Widgets, func(i, j int) bool {
+		return b.plan.Widgets[i].Order < b.plan.Widgets[j].Order
+	})
+
+	b.plan.UsageFingerprint = renderUsageFingerprint(b.plan.SourceUsage)
+	return b.plan
+}
+
+// renderUsageFingerprint returns a stable digest for source-aware render selectors.
 func renderUsageFingerprint(descriptors []SourceUsageBinding) string {
 	hash := sha256.New()
 	for _, descriptor := range descriptors {
