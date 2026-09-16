@@ -1,6 +1,7 @@
 .DEFAULT_GOAL := help
 
 ## Frontend
+
 WEB_BUILD := scripts/web/build.sh
 CSS_BUILD := scripts/web/build-css.sh
 CSS_ENTRY := web/src/css/app.css
@@ -12,18 +13,21 @@ TSC ?= ./node_modules/.bin/tsc
 NODE_MODULES := node_modules/.package-lock.json
 
 ## Plugins
+
 PLUGIN_LOCK := plugins.lock
 PLUGIN_DOWNLOAD := scripts/plugins/download.sh
 PLUGIN_STAMP := plugins/.downloaded
 
 ## Tool Versions
+
 # renovate: datasource=github-releases depName=golangci/golangci-lint
 GOLANGCI_LINT_VERSION ?= v2.13.2
 
 # renovate: datasource=github-releases depName=gi8lino/dev-tools
-DEV_TOOLS_VERSION ?= v0.7.0
+DEV_TOOLS_VERSION ?= v0.8.0
 
 ## Shared development tools
+
 include bin/dev-tools.mk
 include $(call dev-tools-module,tag)
 include $(call dev-tools-module,port)
@@ -31,9 +35,12 @@ include $(call dev-tools-module,browser)
 include $(call dev-tools-module,help)
 
 ## Project-local tools
+
 GOLANGCI_LINT := bin/golangci-lint
+FAVICON_GENERATE := $(DEV_TOOLS_BIN)/favicon-generate
 
 ## Build Configuration
+
 BINARY ?= kumbuka
 COMMAND ?= ./cmd/kumbuka
 GO_TEST_RACE_FLAGS ?= -p=2 -parallel=4
@@ -45,6 +52,7 @@ BUILD_COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo none)
 LDFLAGS ?= -s -w -X main.Version=$(BUILD_VERSION) -X main.Commit=$(BUILD_COMMIT)
 
 ## Debugging
+
 COMPOSE_PROJECT ?= $(notdir $(CURDIR))
 COMPOSE_FILE := deploy/compose.yaml
 DB_CONTAINER_NAME ?= postgres
@@ -54,7 +62,8 @@ KUMBUKA_ASSIGNED_PORT ?= $(call dev-port,app)
 DB_ASSIGNED_PORT ?= $(call dev-port,postgres)
 PDF_ASSIGNED_PORT ?= $(call dev-port,pdf)
 
-## Screenshots
+## Assets
+
 SCREENSHOT_SCRIPT := scripts/screenshots/run.sh
 SCREENSHOT_CONTENT ?=
 SCREENSHOT_OUTPUT ?= build/screenshots
@@ -63,7 +72,12 @@ SCREENSHOT_VISITS ?=
 SCREENSHOT_BROWSER_CHANNEL ?=
 SCREENSHOT_SKIP_BROWSER_INSTALL ?= 0
 
+FAVICON_SOURCE ?= web/src/favicon.svg
+FAVICON_OUTPUT ?= web/src
+FAVICON_SIZES ?= 16x16 32x32
+
 ## Formatting
+
 PRETTIER_MD_SOURCES := README.md
 
 
@@ -180,18 +194,6 @@ run: dev-build html-pdf postgres $(OPEN_BROWSER) ## Build, start services, and r
 build: generate web ## Build the Kumbuka binary.
 	go build -ldflags="$(LDFLAGS)" -o $(BINARY) $(COMMAND)
 
-.PHONY: screenshots
-screenshots: ## Generate documentation screenshots from externally supplied Markdown.
-	@test -n "$(SCREENSHOT_CONTENT)" || { echo "SCREENSHOT_CONTENT is required" >&2; exit 2; }
-	@test -n "$(SCREENSHOT_EDITOR_SLUG)" || { echo "SCREENSHOT_EDITOR_SLUG is required" >&2; exit 2; }
-	@SCREENSHOT_BROWSER_CHANNEL="$(SCREENSHOT_BROWSER_CHANNEL)" \
-		SCREENSHOT_SKIP_BROWSER_INSTALL="$(SCREENSHOT_SKIP_BROWSER_INSTALL)" \
-		$(SCREENSHOT_SCRIPT) \
-			--content "$(SCREENSHOT_CONTENT)" \
-			--output "$(SCREENSHOT_OUTPUT)" \
-			--editor-slug "$(SCREENSHOT_EDITOR_SLUG)" \
-			--visits "$(SCREENSHOT_VISITS)"
-
 .PHONY: vet
 vet: generate web ## Run Go static analysis.
 	go vet ./...
@@ -215,6 +217,25 @@ clean: ## Clean up generated application files.
 	rm -f plugins/*.kumbukaplugin
 	rm -f "$(PLUGIN_STAMP)"
 	rm -rf web/dist
+
+
+##@ Assets
+
+.PHONY: screenshots
+screenshots: ## Generate documentation screenshots from externally supplied Markdown.
+	@test -n "$(SCREENSHOT_CONTENT)" || { echo "SCREENSHOT_CONTENT is required" >&2; exit 2; }
+	@test -n "$(SCREENSHOT_EDITOR_SLUG)" || { echo "SCREENSHOT_EDITOR_SLUG is required" >&2; exit 2; }
+	@SCREENSHOT_BROWSER_CHANNEL="$(SCREENSHOT_BROWSER_CHANNEL)" \
+		SCREENSHOT_SKIP_BROWSER_INSTALL="$(SCREENSHOT_SKIP_BROWSER_INSTALL)" \
+		$(SCREENSHOT_SCRIPT) \
+			--content "$(SCREENSHOT_CONTENT)" \
+			--output "$(SCREENSHOT_OUTPUT)" \
+			--editor-slug "$(SCREENSHOT_EDITOR_SLUG)" \
+			--visits "$(SCREENSHOT_VISITS)"
+
+.PHONY: favicon
+favicon: $(FAVICON_GENERATE) $(FAVICON_SOURCE) ## Generate PNG favicons from the canonical SVG.
+	$(call run-tool,$(FAVICON_GENERATE),--apple-touch "$(FAVICON_SOURCE)" "$(FAVICON_OUTPUT)" $(FAVICON_SIZES))
 
 
 ##@ Formatting
@@ -262,8 +283,11 @@ lint-fix: generate web golangci-lint ## Run golangci-lint and apply fixes.
 $(NODE_MODULES): package.json package-lock.json
 	$(NPM) ci
 
+$(FAVICON_GENERATE): | $(DEV_TOOLS_BIN)
+	$(call download-dev-tool,favicon-generate,$@)
+
 .PHONY: dev-tools
-dev-tools: $(DEV_PORT) $(OPEN_BROWSER) $(DEV_TAG) $(MAKE_HELP) $(GO_INSTALL_TOOL) ## Download the pinned development tools.
+dev-tools: $(DEV_PORT) $(OPEN_BROWSER) $(DEV_TAG) $(MAKE_HELP) $(GO_INSTALL_TOOL) $(FAVICON_GENERATE) ## Download the pinned development tools.
 
 .PHONY: golangci-lint
 golangci-lint: $(GO_INSTALL_TOOL) ## Download golangci-lint locally if necessary.
@@ -271,10 +295,3 @@ golangci-lint: $(GO_INSTALL_TOOL) ## Download golangci-lint locally if necessary
 		--target "$(GOLANGCI_LINT)" \
 		--package github.com/golangci/golangci-lint/v2/cmd/golangci-lint \
 		--tool-version "$(GOLANGCI_LINT_VERSION)"
-
-
-
-
-
-
-
