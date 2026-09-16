@@ -92,6 +92,13 @@ func (i *Instance) Contributions() plugin.Contributions {
 			result.Widgets = append(result.Widgets, plugin.WidgetModule{ID: module.ID, Surface: module.Surface, Width: module.Width, Order: module.Order, Widget: widgetModule{rendererModule{instance: i, module: module}}})
 			continue
 		}
+		if module.Type == "exporter" {
+			result.Exporters = append(result.Exporters, plugin.ExporterModule{
+				ID: module.ID, Name: module.Name, Description: module.Description, Icon: module.Icon, Order: module.Order,
+				Exporter: exporterModule{rendererModule{instance: i, module: module}},
+			})
+			continue
+		}
 		if module.Type == "macro" {
 			result.Macros = append(result.Macros, macroModule{rendererModule{instance: i, module: module}})
 			continue
@@ -367,6 +374,15 @@ func (i *Instance) validateRenderResult(
 
 	if result.Error != "" {
 		return fmt.Errorf("plugin returned error: %.1024s", result.Error)
+	}
+	if stage == "export" {
+		if len(result.Parts) != 0 || len(result.Actions) != 0 || result.File == nil {
+			return errors.New("invalid plugin export response")
+		}
+		return nil
+	}
+	if result.File != nil {
+		return errors.New("unexpected plugin export file")
 	}
 	if len(result.Parts) > i.runtime.limits.Parts {
 		return errors.New("plugin returned too many fragments")

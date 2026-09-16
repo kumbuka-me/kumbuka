@@ -301,6 +301,34 @@ type WidgetModule struct {
 	Widget Widget
 }
 
+// ExportRequest contains the authorized current page and stored Markdown source.
+type ExportRequest struct {
+	// Page contains public metadata for the page being exported.
+	Page sdk.Page
+	// Source contains the stored Markdown source for the page.
+	Source string
+}
+
+// Exporter produces one bounded downloadable file for the current page.
+type Exporter interface {
+	// Export returns the complete file produced for one authorized page.
+	Export(Context, ExportRequest) (sdk.ExportFile, error)
+}
+
+// ExporterModule describes one executable page export contribution.
+type ExporterModule struct {
+	// ID identifies the exporter within its plugin.
+	ID string
+	// Name and Description are shown in host export UI.
+	Name, Description string
+	// Icon is the optional host icon shown for the exporter.
+	Icon string
+	// Order controls deterministic placement among plugin exporters.
+	Order int
+	// Exporter performs the sandboxed export operation.
+	Exporter Exporter
+}
+
 // BrowserModule declares browser assets contributed by one plugin module.
 type BrowserModule struct {
 	// ID, JavaScript, and CSS identify the module and its optional asset paths.
@@ -355,6 +383,8 @@ type Contributions struct {
 	Macros []Macro
 	// Widgets declares optional UI contributions rendered on host surfaces.
 	Widgets []WidgetModule
+	// Exporters declares optional page download formats implemented by plugins.
+	Exporters []ExporterModule
 	// BrowserModules declares browser assets exposed for enabled plugins.
 	BrowserModules []BrowserModule
 	// EditorExtensions declares editor integrations owned by the plugin.

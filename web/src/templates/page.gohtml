@@ -572,6 +572,14 @@
         <span class="share-option-icon">{{ icon "file-text-lucide" 22 }}</span>
         <span><strong>Export Markdown</strong><small>Download .md directly; a ZIP is used only when referenced images must be included.</small></span>
       </a>
+      {{ range .PluginExporters }}
+        <form method="post" action="{{ .URL }}">
+          <button class="share-option" type="submit">
+            <span class="share-option-icon">{{ if .Icon }}{{ icon .Icon 22 }}{{ else }}{{ icon "file-down-lucide" 22 }}{{ end }}</span>
+            <span><strong>{{ .Name }}</strong><small>{{ if .Description }}{{ .Description }}{{ else }}Export with {{ .Name }}.{{ end }}</small></span>
+          </button>
+        </form>
+      {{ end }}
     </div>
     <p class="export-status"
        data-export-status

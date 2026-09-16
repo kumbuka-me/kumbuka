@@ -88,6 +88,23 @@ func releaseRenderPlan(plan *RenderPlan) func() {
 	}
 }
 
+// AcquireEntry pins one active plugin entry while a non-render operation invokes it.
+func (r *Registry) AcquireEntry(id string) (Entry, func(), bool) {
+	r.mu.RLock()
+	index := slices.IndexFunc(r.entries, func(entry Entry) bool { return entry.Descriptor.ID == id })
+	if index < 0 {
+		r.mu.RUnlock()
+		return Entry{}, func() {}, false
+	}
+
+	entry := cloneEntry(r.entries[index])
+	entry.lifetime.acquire()
+	r.mu.RUnlock()
+
+	var once sync.Once
+	return entry, func() { once.Do(entry.lifetime.release) }, true
+}
+
 // transition validates a candidate before committing persistence or publication.
 // Replacement keeps contribution order and is never observable as remove/add.
 func (r *Registry) transition(id string, replacement *Entry, replace bool, commit func() error) (*lifetime, error) {

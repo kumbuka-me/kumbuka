@@ -230,6 +230,10 @@ func (r routeRegistrar) addPageRoutes() {
 		"GET /export/markdown/{slug...}",
 		browserAuthn(r.pageViewAuthz(handler.ExportPageMarkdown(config.Catalog, config.Media, config.Logger))),
 	)
+	r.mux.Handle(
+		"POST /export/plugin/{pluginID}/{moduleID}/{slug...}",
+		browserAuthn(r.pageViewAuthz(handler.ExportPagePlugin(config.Catalog, config.Navigation, config.Access, config.Renderer, config.Logger))),
+	)
 	exportPDF := browserAuthn(r.pageViewAuthz(handler.ExportPagePDF(
 		config.Catalog,
 		config.Settings,

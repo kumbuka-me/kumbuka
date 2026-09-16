@@ -166,6 +166,7 @@ func ViewPage(
 		data.PageContents = rendered.Contents
 		if manager := renderer.PluginManager(); manager != nil {
 			data.PluginPageActions = manager.PageActions(page.ID, page.Slug)
+			data.PluginExporters = manager.Exporters(page.Slug)
 		}
 
 		stop = measurePageStage(r.Context(), "page_detail_widgets")

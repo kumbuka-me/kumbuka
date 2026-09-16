@@ -172,6 +172,7 @@ func cloneEntry(entry Entry) Entry {
 	c.Postprocessors = slices.Clone(c.Postprocessors)
 	c.Macros = slices.Clone(c.Macros)
 	c.Widgets = slices.Clone(c.Widgets)
+	c.Exporters = slices.Clone(c.Exporters)
 	c.BrowserModules = slices.Clone(c.BrowserModules)
 	c.EditorExtensions = slices.Clone(c.EditorExtensions)
 	c.AdminResources = slices.Clone(c.AdminResources)
@@ -207,6 +208,14 @@ func validateIDs(c Contributions) error {
 	}
 	for _, m := range c.Widgets {
 		if err := check("widget", m.ID); err != nil {
+			return err
+		}
+	}
+	for _, m := range c.Exporters {
+		if m.Exporter == nil {
+			return fmt.Errorf("nil exporter %q", m.ID)
+		}
+		if err := check("exporter", m.ID); err != nil {
 			return err
 		}
 	}

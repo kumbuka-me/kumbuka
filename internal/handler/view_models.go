@@ -95,6 +95,8 @@ type ViewData struct {
 	PageDetailWidgets []pluginWidgetView
 	// PluginPageActions contains host-rendered navigation actions contributed for the current page.
 	PluginPageActions []plugin.PageActionContribution
+	// PluginExporters contains active plugin-owned page download formats.
+	PluginExporters []plugin.ExporterContribution
 	// Comments contains anchored discussion items for the current page.
 	Comments []domain.PageComment
 	// Revisions contains revision history rendered in the on-demand history dialog.
