@@ -15,8 +15,6 @@ test("slashCommandTrigger activates only at the current line start", () => {
 
 test("slash commands filter by label and description", () => {
   assert.equal(matchingSlashCommands("table")[0].id, "table");
-  assert.ok(
-    matchingSlashCommands("collapsible").some((item) => item.id === "details"),
-  );
   assert.equal(matchingSlashCommands("mention")[0].id, "mention");
+  assert.equal(matchingSlashCommands("collapsible").length, 0);
 });

@@ -129,14 +129,6 @@ export function applyEditorInsertAction(
   }
 }
 
-// Indents each selected Markdown line.
-function indentMarkdownBlock(value: string): string {
-  return value
-    .split("\n")
-    .map((line) => `    ${line}`)
-    .join("\n");
-}
-
 // Closes open Markdown toolbar menus.
 function closeToolbarMenus(toolbar: HTMLElement): void {
   for (const menu of toolbar.querySelectorAll(".markdown-toolbar-menu[open]")) {
@@ -174,21 +166,6 @@ function setupMarkdownToolbar(toolbar: HTMLElement): void {
         prefixMarkdownLines(editor, () => `${"#".repeat(level)} `, "Heading");
       }
 
-      return;
-    }
-
-    if (action.startsWith("callout-")) {
-      const type = action.slice("callout-".length);
-      const content = selectedText("Important information.");
-      const replacement = `!!! ${type}\n${content}`;
-      const offset = type.length + 5;
-
-      replaceMarkdownSelection(
-        editor,
-        replacement,
-        offset,
-        offset + content.length,
-      );
       return;
     }
 
@@ -233,23 +210,6 @@ function setupMarkdownToolbar(toolbar: HTMLElement): void {
         break;
       case "ordered-list":
         prefixMarkdownLines(editor, (index) => `${index + 1}. `, "item");
-        break;
-      case "tabs": {
-        const content = indentMarkdownBlock(selectedText("First tab content."));
-        const replacement = `=== "Tab 1"\n\n${content}\n\n=== "Tab 2"\n\n    Second tab content.`;
-
-        replaceMarkdownSelection(editor, replacement, 5, 10);
-        break;
-      }
-      case "details": {
-        const content = indentMarkdownBlock(selectedText("Hidden details."));
-        const replacement = `??? "Details"\n\n${content}`;
-
-        replaceMarkdownSelection(editor, replacement, 5, 12);
-        break;
-      }
-      case "subpages":
-        insertMarkdownAtSelection(editor, "{{subpages}}");
         break;
       case "horizontal-rule":
         insertMarkdownAtSelection(editor, "---");

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"html/template"
 	"net/http"
+	"slices"
 	"strings"
 
 	"github.com/kumbuka-me/kumbuka/internal/auth"
@@ -247,6 +248,33 @@ func (l *ViewDataLoader) loadNavigation(
 	return result, nil
 }
 
+// addPluginFeatures records namespaced plugin flags plus generic module capabilities used by core UI.
+func addPluginFeatures(features map[string]bool, item plugin.LoadedPlugin) {
+	features[item.Manifest.ID] = item.Enabled
+	if !item.Enabled {
+		return
+	}
+
+	for key, enabled := range item.Settings {
+		features[item.Manifest.ID+"."+key] = enabled
+	}
+
+	for _, module := range item.Manifest.Modules {
+		if module.Type != "markdown-syntax" || module.Syntax == "" {
+			continue
+		}
+
+		feature := "markdown-syntax." + module.Syntax
+		features[feature] = true
+		for _, setting := range item.Manifest.Modules {
+			if setting.Type != "settings" || !slices.Contains(setting.Requires, module.ID) {
+				continue
+			}
+			features[feature+"."+setting.ID] = item.Settings[setting.ID]
+		}
+	}
+}
+
 // loadPluginViewData resolves active plugin flags, browser assets, editor actions, and sidebar widgets.
 func (l *ViewDataLoader) loadPluginViewData(
 	r *http.Request,
@@ -261,13 +289,7 @@ func (l *ViewDataLoader) loadPluginViewData(
 		editorInserts = l.pluginManager.EditorInserts()
 		loadedPlugins = l.pluginManager.Plugins()
 		for _, item := range loadedPlugins {
-			features[item.Manifest.ID] = item.Enabled
-			if !item.Enabled {
-				continue
-			}
-			for key, enabled := range item.Settings {
-				features[item.Manifest.ID+"."+key] = enabled
-			}
+			addPluginFeatures(features, item)
 		}
 	}
 	stop()

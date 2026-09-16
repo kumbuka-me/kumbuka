@@ -44,29 +44,10 @@ const commands: SlashCommand[] = [
     markdown: "```\ncode\n```",
   },
   {
-    id: "callout",
-    label: "Callout",
-    description: "Highlighted note block",
-    markdown: "!!! note\nImportant information.",
-  },
-  {
     id: "table",
     label: "Table",
     description: "Insert or format a Markdown table",
     action: "table",
-  },
-  {
-    id: "tabs",
-    label: "Tabs",
-    description: "Tabbed content",
-    markdown:
-      '=== "Tab 1"\n\n    First tab content.\n\n=== "Tab 2"\n\n    Second tab content.',
-  },
-  {
-    id: "details",
-    label: "Details",
-    description: "Collapsible details block",
-    markdown: '??? "Details"\n\n    Hidden details.',
   },
   {
     id: "mention",
@@ -79,12 +60,6 @@ const commands: SlashCommand[] = [
     label: "Image",
     description: "Upload or choose an image",
     action: "image",
-  },
-  {
-    id: "subpages",
-    label: "Subpages",
-    description: "Insert child-page navigation",
-    markdown: "{{subpages}}",
   },
 ];
 
