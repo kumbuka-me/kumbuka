@@ -421,6 +421,30 @@ func collectPages(rows pgx.Rows) ([]domain.Page, error) {
 	return out, rows.Err()
 }
 
+// pageSaveRecord contains the normalized values persisted in the pages table.
+type pageSaveRecord struct {
+	// previousSlug identifies the existing page before a rename.
+	previousSlug string
+	// slug is the requested canonical page path.
+	slug string
+	// title is the page title.
+	title string
+	// language is the page content-language identifier.
+	language string
+	// markdown is the canonical Markdown source.
+	markdown string
+	// metadata contains lifecycle, ownership, and plugin-usage metadata.
+	metadata domain.PageMetadata
+	// render contains the reusable rendered page artifact.
+	render domain.PageRender
+	// pluginUsage is the JSON-ready plugin-usage value stored with the page.
+	pluginUsage any
+	// renderedContents is the JSON-encoded rendered contents metadata.
+	renderedContents json.RawMessage
+	// userID identifies the user performing the save.
+	userID int64
+}
+
 // SavePage persists page content, revision history, tags, and links transactionally.
 func (s *Store) SavePage(
 	ctx context.Context,
@@ -432,11 +456,75 @@ func (s *Store) SavePage(
 	render domain.PageRender,
 	user domain.User,
 ) (domain.Page, error) {
+	metadata, pluginUsage, renderedContents, render, err := preparePageSave(metadata, render)
+	if err != nil {
+		return domain.Page{}, err
+	}
+
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return domain.Page{}, mutationError(err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	if err := validateAssignableGroup(ctx, tx, metadata.OwnerGroupID, user); err != nil {
+		return domain.Page{}, mutationError(err)
+	}
+
+	id, err := savePageRecord(ctx, tx, pageSaveRecord{
+		previousSlug:     previousSlug,
+		slug:             slug,
+		title:            title,
+		language:         language,
+		markdown:         markdown,
+		metadata:         metadata,
+		render:           render,
+		pluginUsage:      pluginUsage,
+		renderedContents: renderedContents,
+		userID:           user.ID,
+	})
+	if err != nil {
+		return domain.Page{}, mutationError(err)
+	}
+
+	if err := savePageIcon(ctx, tx, slug, icon); err != nil {
+		return domain.Page{}, mutationError(err)
+	}
+	if err := appendPageRevision(ctx, tx, id, markdown, message, user.ID); err != nil {
+		return domain.Page{}, mutationError(err)
+	}
+	if err := supersedePageReviews(ctx, tx, id); err != nil {
+		return domain.Page{}, mutationError(err)
+	}
+	if err := replacePageTags(ctx, tx, id, tags); err != nil {
+		return domain.Page{}, mutationError(err)
+	}
+	if err := replacePageGroups(ctx, tx, id, groupIDs, user); err != nil {
+		return domain.Page{}, mutationError(err)
+	}
+	if err := replacePageProperties(ctx, tx, id, properties); err != nil {
+		return domain.Page{}, mutationError(err)
+	}
+	if err := replacePageLinks(ctx, tx, id, links); err != nil {
+		return domain.Page{}, mutationError(err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return domain.Page{}, mutationError(err)
+	}
+
+	return s.GetPage(ctx, slug)
+}
+
+// preparePageSave validates page metadata and encodes derived JSON values for persistence.
+func preparePageSave(
+	metadata domain.PageMetadata,
+	render domain.PageRender,
+) (domain.PageMetadata, any, json.RawMessage, domain.PageRender, error) {
 	if !domain.ValidPageStatus(metadata.Status) {
-		return domain.Page{}, domain.NewValidationError("status", "Choose a valid page status.")
+		return domain.PageMetadata{}, nil, nil, domain.PageRender{}, domain.NewValidationError("status", "Choose a valid page status.")
 	}
 	if metadata.ReviewIntervalDays < 0 {
-		return domain.Page{}, domain.NewValidationError("review_interval_days", "Choose a valid review interval.")
+		return domain.PageMetadata{}, nil, nil, domain.PageRender{}, domain.NewValidationError("review_interval_days", "Choose a valid review interval.")
 	}
 
 	metadata.DeprecatedTarget = strings.TrimSpace(metadata.DeprecatedTarget)
@@ -445,54 +533,46 @@ func (s *Store) SavePage(
 	if metadata.PluginUsage != nil {
 		encoded, err := json.Marshal(metadata.PluginUsage)
 		if err != nil {
-			return domain.Page{}, fmt.Errorf("encode page plugin usage: %w", err)
+			return domain.PageMetadata{}, nil, nil, domain.PageRender{}, fmt.Errorf("encode page plugin usage: %w", err)
 		}
 		pluginUsage = json.RawMessage(encoded)
 	}
 
 	renderedContents, err := json.Marshal(render.Contents)
 	if err != nil {
-		return domain.Page{}, fmt.Errorf("encode rendered page contents: %w", err)
+		return domain.PageMetadata{}, nil, nil, domain.PageRender{}, fmt.Errorf("encode rendered page contents: %w", err)
 	}
 	if render.Fingerprint == "" {
 		render.HTML = ""
 		renderedContents = []byte("[]")
 	}
 
-	tx, err := s.pool.Begin(ctx)
-	if err != nil {
-		return domain.Page{}, mutationError(err)
-	}
+	return metadata, pluginUsage, json.RawMessage(renderedContents), render, nil
+}
 
-	defer func() { _ = tx.Rollback(ctx) }()
-
-	if err := validateAssignableGroup(ctx, tx, metadata.OwnerGroupID, user); err != nil {
-		return domain.Page{}, mutationError(err)
-	}
-
-	lookupSlug := slug
-
-	if strings.TrimSpace(previousSlug) != "" {
-		lookupSlug = strings.TrimSpace(previousSlug)
+// savePageRecord creates or updates the pages row and records aliases for renames.
+func savePageRecord(ctx context.Context, tx pgx.Tx, record pageSaveRecord) (int64, error) {
+	lookupSlug := strings.TrimSpace(record.previousSlug)
+	if lookupSlug == "" {
+		lookupSlug = record.slug
 	}
 
 	var id int64
 	var deleted bool
-	err = tx.QueryRow(ctx, `
+	err := tx.QueryRow(ctx, `
 SELECT id,deleted_at IS NOT NULL
 FROM pages
-WHERE slug=$1 FOR UPDATE`, lookupSlug).
-		Scan(&id, &deleted)
+WHERE slug=$1 FOR UPDATE`, lookupSlug).Scan(&id, &deleted)
 
 	switch {
 	case errors.Is(err, pgx.ErrNoRows):
 		var aliasExists bool
-		if aliasErr := tx.QueryRow(ctx, `
-SELECT EXISTS(SELECT 1 FROM page_aliases WHERE alias=$1)`, slug).Scan(&aliasExists); aliasErr != nil {
-			return domain.Page{}, aliasErr
+		if err := tx.QueryRow(ctx, `
+SELECT EXISTS(SELECT 1 FROM page_aliases WHERE alias=$1)`, record.slug).Scan(&aliasExists); err != nil {
+			return 0, err
 		}
 		if aliasExists {
-			return domain.Page{}, domain.ErrAlreadyExists
+			return 0, domain.ErrAlreadyExists
 		}
 
 		err = tx.QueryRow(ctx, `
@@ -503,41 +583,28 @@ INSERT INTO pages(
   $1,$2,$3,$4,$5,$5,$6,NULLIF($7,0),CASE WHEN $8 THEN now() ELSE NULL END,$9,$10,$11::jsonb,
   $12,$13::jsonb,$14,CASE WHEN $14<>'' THEN now() ELSE NULL END
 ) RETURNING id`,
-			slug, title, language, markdown, user.ID, metadata.Status, metadata.OwnerGroupID, metadata.MarkReviewed, metadata.ReviewIntervalDays, metadata.DeprecatedTarget, pluginUsage, render.HTML, json.RawMessage(renderedContents), render.Fingerprint,
+			record.slug,
+			record.title,
+			record.language,
+			record.markdown,
+			record.userID,
+			record.metadata.Status,
+			record.metadata.OwnerGroupID,
+			record.metadata.MarkReviewed,
+			record.metadata.ReviewIntervalDays,
+			record.metadata.DeprecatedTarget,
+			record.pluginUsage,
+			record.render.HTML,
+			record.renderedContents,
+			record.render.Fingerprint,
 		).Scan(&id)
 	case err != nil:
-		return domain.Page{}, mutationError(err)
+		return 0, err
 	case deleted:
-		return domain.Page{}, domain.ErrPageInBin
+		return 0, domain.ErrPageInBin
 	default:
-		if lookupSlug != slug {
-			var conflict bool
-			if err = tx.QueryRow(ctx, `
-SELECT EXISTS(SELECT 1 FROM pages WHERE slug=$1 AND id<>$2) OR EXISTS(SELECT 1 FROM page_aliases WHERE alias=$1 AND page_id<>$2)`, slug, id).Scan(&conflict); err != nil {
-				return domain.Page{}, mutationError(err)
-			}
-			if conflict {
-				return domain.Page{}, domain.ErrAlreadyExists
-			}
-			if _, err = tx.Exec(ctx, `
-UPDATE pages
-SET slug=$2
-WHERE id=$1`, id, slug); err != nil {
-				return domain.Page{}, mutationError(err)
-			}
-			if _, err = tx.Exec(ctx, `
-UPDATE navigation_icons
-SET path=$2
-WHERE path=$1`, lookupSlug, slug); err != nil {
-				return domain.Page{}, mutationError(err)
-			}
-			if _, err = tx.Exec(ctx, `
-INSERT INTO page_aliases(alias,page_id)
-VALUES($1,$2)
-ON CONFLICT(alias) DO UPDATE
-SET page_id=EXCLUDED.page_id`, lookupSlug, id); err != nil {
-				return domain.Page{}, mutationError(err)
-			}
+		if err := renamePageRecord(ctx, tx, id, lookupSlug, record.slug); err != nil {
+			return 0, err
 		}
 
 		_, err = tx.Exec(ctx, `
@@ -549,53 +616,112 @@ SET title=$2,content_language=$3,markdown_content=$4,updated_by=$5,updated_at=no
     rendered_html=$12,rendered_contents=$13::jsonb,render_fingerprint=$14,
     rendered_at=CASE WHEN $14<>'' THEN now() ELSE NULL END
 WHERE id=$1`,
-			id, title, language, markdown, user.ID, metadata.Status, metadata.OwnerGroupID, metadata.MarkReviewed, metadata.ReviewIntervalDays, metadata.DeprecatedTarget, pluginUsage, render.HTML, json.RawMessage(renderedContents), render.Fingerprint,
+			id,
+			record.title,
+			record.language,
+			record.markdown,
+			record.userID,
+			record.metadata.Status,
+			record.metadata.OwnerGroupID,
+			record.metadata.MarkReviewed,
+			record.metadata.ReviewIntervalDays,
+			record.metadata.DeprecatedTarget,
+			record.pluginUsage,
+			record.render.HTML,
+			record.renderedContents,
+			record.render.Fingerprint,
 		)
 	}
-
 	if err != nil {
-		return domain.Page{}, mutationError(err)
+		return 0, err
 	}
 
-	icon = strings.TrimSpace(icon)
+	return id, nil
+}
 
+// renamePageRecord changes a page slug and preserves the previous slug as an alias.
+func renamePageRecord(ctx context.Context, tx pgx.Tx, id int64, oldSlug, newSlug string) error {
+	if oldSlug == newSlug {
+		return nil
+	}
+
+	var conflict bool
+	if err := tx.QueryRow(ctx, `
+SELECT EXISTS(SELECT 1 FROM pages WHERE slug=$1 AND id<>$2) OR EXISTS(SELECT 1 FROM page_aliases WHERE alias=$1 AND page_id<>$2)`, newSlug, id).Scan(&conflict); err != nil {
+		return err
+	}
+	if conflict {
+		return domain.ErrAlreadyExists
+	}
+
+	if _, err := tx.Exec(ctx, `
+UPDATE pages
+SET slug=$2
+WHERE id=$1`, id, newSlug); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx, `
+UPDATE navigation_icons
+SET path=$2
+WHERE path=$1`, oldSlug, newSlug); err != nil {
+		return err
+	}
+	_, err := tx.Exec(ctx, `
+INSERT INTO page_aliases(alias,page_id)
+VALUES($1,$2)
+ON CONFLICT(alias) DO UPDATE
+SET page_id=EXCLUDED.page_id`, oldSlug, id)
+	return err
+}
+
+// savePageIcon replaces or removes the navigation icon stored for a page path.
+func savePageIcon(ctx context.Context, tx pgx.Tx, slug, icon string) error {
+	icon = strings.TrimSpace(icon)
 	if icon == "" {
-		if _, err = tx.Exec(ctx, `
+		_, err := tx.Exec(ctx, `
 DELETE FROM navigation_icons
-WHERE path=$1`, slug); err != nil {
-			return domain.Page{}, mutationError(err)
-		}
-	} else if _, err = tx.Exec(ctx, `
+WHERE path=$1`, slug)
+		return err
+	}
+
+	_, err := tx.Exec(ctx, `
 INSERT INTO navigation_icons(path,icon)
 VALUES($1,$2)
-ON CONFLICT(path) DO UPDATE SET icon=EXCLUDED.icon`, slug, icon); err != nil {
-		return domain.Page{}, mutationError(err)
-	}
+ON CONFLICT(path) DO UPDATE SET icon=EXCLUDED.icon`, slug, icon)
+	return err
+}
 
-	var rev int
-	if err = tx.QueryRow(ctx, `
+// appendPageRevision appends the next immutable revision for a saved page.
+func appendPageRevision(ctx context.Context, tx pgx.Tx, pageID int64, markdown, message string, userID int64) error {
+	var revision int
+	if err := tx.QueryRow(ctx, `
 SELECT coalesce(max(revision_number),0)+1
 FROM page_revisions
-WHERE page_id=$1`, id).Scan(&rev); err != nil {
-		return domain.Page{}, mutationError(err)
-	}
-	if _, err = tx.Exec(ctx, `
-INSERT INTO page_revisions(page_id,revision_number,markdown_content,created_by,message)
-VALUES($1,$2,$3,$4,$5)`, id, rev, markdown, user.ID, message); err != nil {
-		return domain.Page{}, mutationError(err)
+WHERE page_id=$1`, pageID).Scan(&revision); err != nil {
+		return err
 	}
 
-	if _, err = tx.Exec(ctx, `
+	_, err := tx.Exec(ctx, `
+INSERT INTO page_revisions(page_id,revision_number,markdown_content,created_by,message)
+VALUES($1,$2,$3,$4,$5)`, pageID, revision, markdown, userID, message)
+	return err
+}
+
+// supersedePageReviews closes review requests invalidated by a new page revision.
+func supersedePageReviews(ctx context.Context, tx pgx.Tx, pageID int64) error {
+	_, err := tx.Exec(ctx, `
 UPDATE page_review_requests
 SET status='superseded',updated_at=now()
-WHERE page_id=$1 AND status IN ('pending','changes_requested')`, id); err != nil {
-		return domain.Page{}, mutationError(err)
-	}
+WHERE page_id=$1 AND status IN ('pending','changes_requested')`, pageID)
+	return err
+}
 
-	if _, err = tx.Exec(ctx, `
+// replacePageTags replaces all tags assigned to a page.
+func replacePageTags(ctx context.Context, tx pgx.Tx, pageID int64, tags []string) error {
+	if _, err := tx.Exec(ctx, `
 DELETE FROM page_tags
-WHERE page_id=$1`, id); err != nil {
-		return domain.Page{}, mutationError(err)
+WHERE page_id=$1`, pageID); err != nil {
+		return err
 	}
 
 	for _, tag := range tags {
@@ -605,50 +731,43 @@ WHERE page_id=$1`, id); err != nil {
 		}
 
 		var tagID int64
-		if err = tx.QueryRow(ctx, `
+		if err := tx.QueryRow(ctx, `
 INSERT INTO tags(name)
 VALUES($1)
 ON CONFLICT(name) DO UPDATE
 SET name=EXCLUDED.name
 RETURNING id`, tag).Scan(&tagID); err != nil {
-			return domain.Page{}, mutationError(err)
+			return err
 		}
-		if _, err = tx.Exec(ctx, `
+		if _, err := tx.Exec(ctx, `
 INSERT INTO page_tags(page_id,tag_id)
 VALUES($1,$2)
-ON CONFLICT DO NOTHING`, id, tagID); err != nil {
-			return domain.Page{}, mutationError(err)
+ON CONFLICT DO NOTHING`, pageID, tagID); err != nil {
+			return err
 		}
 	}
 
-	if err = replacePageGroups(ctx, tx, id, groupIDs, user); err != nil {
-		return domain.Page{}, mutationError(err)
-	}
+	return nil
+}
 
-	if err = replacePageProperties(ctx, tx, id, properties); err != nil {
-		return domain.Page{}, mutationError(err)
-	}
-
-	if _, err = tx.Exec(ctx, `
+// replacePageLinks replaces the normalized outgoing wiki-link targets for a page.
+func replacePageLinks(ctx context.Context, tx pgx.Tx, pageID int64, links []string) error {
+	if _, err := tx.Exec(ctx, `
 DELETE FROM page_links
-WHERE source_page_id=$1`, id); err != nil {
-		return domain.Page{}, mutationError(err)
+WHERE source_page_id=$1`, pageID); err != nil {
+		return err
 	}
 
 	for _, link := range links {
-		if _, err = tx.Exec(ctx, `
+		if _, err := tx.Exec(ctx, `
 INSERT INTO page_links(source_page_id,target_slug)
 VALUES($1,$2)
-ON CONFLICT DO NOTHING`, id, link); err != nil {
-			return domain.Page{}, mutationError(err)
+ON CONFLICT DO NOTHING`, pageID, link); err != nil {
+			return err
 		}
 	}
 
-	if err = tx.Commit(ctx); err != nil {
-		return domain.Page{}, mutationError(err)
-	}
-
-	return s.GetPage(ctx, slug)
+	return nil
 }
 
 // DeletePage moves a page into the recycle bin.

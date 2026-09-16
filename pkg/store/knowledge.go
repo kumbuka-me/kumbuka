@@ -338,31 +338,85 @@ WHERE slug=$1 AND deleted_at IS NULL`, slug)
 	return err
 }
 
+// movedPage describes one page path included in a tree move.
+type movedPage struct {
+	// id identifies the persisted page row.
+	id int64
+	// oldSlug is the canonical path before the move.
+	oldSlug string
+	// newSlug is the canonical path after the move.
+	newSlug string
+}
+
+// pageSourceEdit contains a Markdown source rewritten after a page move.
+type pageSourceEdit struct {
+	// id identifies the page whose Markdown changed.
+	id int64
+	// markdown contains the rewritten canonical Markdown source.
+	markdown string
+}
+
 // MovePage moves one page, optionally including descendants, and can refactor direct wiki-link targets.
 func (s *Store) MovePage(ctx context.Context, oldSlug, newSlug string, options domain.MovePageOptions, user domain.User) error {
-	oldSlug = strings.Trim(strings.TrimSpace(oldSlug), "/")
-	newSlug = strings.Trim(strings.TrimSpace(newSlug), "/")
-	if oldSlug == "" || newSlug == "" || oldSlug == newSlug {
-		return domain.NewValidationError("slug", "Choose a different, non-empty destination path.")
-	}
-	if options.MoveChildren && strings.HasPrefix(newSlug, oldSlug+"/") {
-		return domain.NewValidationError("slug", "A page tree cannot be moved inside itself.")
+	oldSlug, newSlug, err := normalizeMoveSlugs(oldSlug, newSlug, options)
+	if err != nil {
+		return err
 	}
 
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return mutationError(err)
 	}
-
 	defer func() { _ = tx.Rollback(ctx) }()
 
+	moved, err := loadMovedPages(ctx, tx, oldSlug, newSlug, options.MoveChildren)
+	if err != nil {
+		return mutationError(err)
+	}
+	if len(moved) == 0 {
+		return domain.ErrNotFound
+	}
+
+	if err := validateMoveDestinations(ctx, tx, moved); err != nil {
+		return mutationError(err)
+	}
+	if err := applyPageMoves(ctx, tx, moved, options.KeepAliases, user.ID); err != nil {
+		return mutationError(err)
+	}
+	if err := retargetMovedPageLinks(ctx, tx, moved); err != nil {
+		return mutationError(err)
+	}
+	if options.UpdateIncomingLinks {
+		if err := rewriteIncomingWikiLinks(ctx, tx, moved, user.ID); err != nil {
+			return mutationError(err)
+		}
+	}
+
+	return mutationError(tx.Commit(ctx))
+}
+
+// normalizeMoveSlugs normalizes and validates the source and destination paths for a move.
+func normalizeMoveSlugs(oldSlug, newSlug string, options domain.MovePageOptions) (string, string, error) {
+	oldSlug = strings.Trim(strings.TrimSpace(oldSlug), "/")
+	newSlug = strings.Trim(strings.TrimSpace(newSlug), "/")
+	if oldSlug == "" || newSlug == "" || oldSlug == newSlug {
+		return "", "", domain.NewValidationError("slug", "Choose a different, non-empty destination path.")
+	}
+	if options.MoveChildren && strings.HasPrefix(newSlug, oldSlug+"/") {
+		return "", "", domain.NewValidationError("slug", "A page tree cannot be moved inside itself.")
+	}
+
+	return oldSlug, newSlug, nil
+}
+
+// loadMovedPages loads the source page set and calculates each destination path.
+func loadMovedPages(ctx context.Context, tx pgx.Tx, oldSlug, newSlug string, moveChildren bool) ([]movedPage, error) {
 	query := `
 SELECT id,slug
 FROM pages
 WHERE deleted_at IS NULL AND slug=$1
 ORDER BY length(slug),slug`
-
-	if options.MoveChildren {
+	if moveChildren {
 		query = `
 SELECT id,slug
 FROM pages
@@ -372,152 +426,138 @@ ORDER BY length(slug),slug`
 
 	rows, err := tx.Query(ctx, query, oldSlug)
 	if err != nil {
-		return mutationError(err)
+		return nil, err
 	}
+	defer rows.Close()
 
-	type movedPage struct {
-		id  int64
-		old string
-		new string
-	}
 	var moved []movedPage
-
 	for rows.Next() {
 		var item movedPage
-		if err := rows.Scan(&item.id, &item.old); err != nil {
-			rows.Close()
-			return mutationError(err)
+		if err := rows.Scan(&item.id, &item.oldSlug); err != nil {
+			return nil, err
 		}
 
-		item.new = newSlug + strings.TrimPrefix(item.old, oldSlug)
+		item.newSlug = newSlug + strings.TrimPrefix(item.oldSlug, oldSlug)
 		moved = append(moved, item)
 	}
-
 	if err := rows.Err(); err != nil {
-		rows.Close()
-		return mutationError(err)
+		return nil, err
 	}
 
-	rows.Close()
-	if len(moved) == 0 {
-		return domain.ErrNotFound
-	}
+	return moved, nil
+}
 
+// validateMoveDestinations ensures no destination collides with pages or aliases outside the move set.
+func validateMoveDestinations(ctx context.Context, tx pgx.Tx, moved []movedPage) error {
 	movingIDs := make([]int64, 0, len(moved))
-
 	for _, item := range moved {
 		movingIDs = append(movingIDs, item.id)
 	}
+
 	for _, item := range moved {
 		var conflict bool
 		if err := tx.QueryRow(ctx, `
-SELECT EXISTS(SELECT 1 FROM pages WHERE slug=$1 AND id<>ALL($2::bigint[])) OR EXISTS(SELECT 1 FROM page_aliases WHERE alias=$1 AND page_id<>ALL($2::bigint[]))`, item.new, movingIDs).Scan(&conflict); err != nil {
-			return mutationError(err)
+SELECT EXISTS(SELECT 1 FROM pages WHERE slug=$1 AND id<>ALL($2::bigint[])) OR EXISTS(SELECT 1 FROM page_aliases WHERE alias=$1 AND page_id<>ALL($2::bigint[]))`, item.newSlug, movingIDs).Scan(&conflict); err != nil {
+			return err
 		}
 		if conflict {
 			return domain.ErrAlreadyExists
 		}
 	}
 
+	return nil
+}
+
+// applyPageMoves updates page paths, navigation icons, and optional aliases deepest-first.
+func applyPageMoves(ctx context.Context, tx pgx.Tx, moved []movedPage, keepAliases bool, userID int64) error {
 	// Update deepest paths first so unique path constraints never collide with descendants.
 	for _, item := range slices.Backward(moved) {
 		if _, err := tx.Exec(ctx, `
 UPDATE pages
 SET slug=$2,updated_by=$3,updated_at=now()
-WHERE id=$1`, item.id, item.new, user.ID); err != nil {
-			return mutationError(err)
+WHERE id=$1`, item.id, item.newSlug, userID); err != nil {
+			return err
 		}
 		if _, err := tx.Exec(ctx, `
 UPDATE navigation_icons
 SET path=$2
-WHERE path=$1`, item.old, item.new); err != nil {
-			return mutationError(err)
+WHERE path=$1`, item.oldSlug, item.newSlug); err != nil {
+			return err
 		}
-
-		if options.KeepAliases {
-			if _, err := tx.Exec(ctx, `
+		if !keepAliases {
+			continue
+		}
+		if _, err := tx.Exec(ctx, `
 INSERT INTO page_aliases(alias,page_id)
 VALUES($1,$2)
 ON CONFLICT(alias) DO UPDATE
-SET page_id=EXCLUDED.page_id`, item.old, item.id); err != nil {
-				return mutationError(err)
-			}
+SET page_id=EXCLUDED.page_id`, item.oldSlug, item.id); err != nil {
+			return err
 		}
 	}
 
+	return nil
+}
+
+// retargetMovedPageLinks updates normalized link targets that point at moved pages.
+func retargetMovedPageLinks(ctx context.Context, tx pgx.Tx, moved []movedPage) error {
 	for _, item := range moved {
 		if _, err := tx.Exec(ctx, `
 UPDATE page_links
 SET target_slug=$2
-WHERE target_slug=$1`, item.old, item.new); err != nil {
-			return mutationError(err)
+WHERE target_slug=$1`, item.oldSlug, item.newSlug); err != nil {
+			return err
 		}
 	}
 
-	if options.UpdateIncomingLinks {
-		rows, err := tx.Query(ctx, `
+	return nil
+}
+
+// rewriteIncomingWikiLinks updates direct wiki-link source text and records a revision for each changed page.
+func rewriteIncomingWikiLinks(ctx context.Context, tx pgx.Tx, moved []movedPage, userID int64) error {
+	rows, err := tx.Query(ctx, `
 SELECT id,markdown_content
 FROM pages
 WHERE deleted_at IS NULL AND markdown_content LIKE '%[[%'`)
-		if err != nil {
-			return mutationError(err)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	var edits []pageSourceEdit
+	for rows.Next() {
+		var item pageSourceEdit
+		if err := rows.Scan(&item.id, &item.markdown); err != nil {
+			return err
 		}
 
-		type sourceEdit struct {
-			id       int64
-			markdown string
+		updated := item.markdown
+		for _, page := range moved {
+			updated = rewriteDirectWikiTarget(updated, page.oldSlug, page.newSlug)
 		}
-		var edits []sourceEdit
-
-		for rows.Next() {
-			var item sourceEdit
-			if err := rows.Scan(&item.id, &item.markdown); err != nil {
-				rows.Close()
-				return mutationError(err)
-			}
-
-			updated := item.markdown
-
-			for _, page := range moved {
-				updated = rewriteDirectWikiTarget(updated, page.old, page.new)
-			}
-			if updated != item.markdown {
-				item.markdown = updated
-				edits = append(edits, item)
-			}
+		if updated != item.markdown {
+			item.markdown = updated
+			edits = append(edits, item)
 		}
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	rows.Close()
 
-		if err := rows.Err(); err != nil {
-			rows.Close()
-			return mutationError(err)
-		}
-
-		rows.Close()
-
-		for _, edit := range edits {
-			if _, err := tx.Exec(ctx, `
+	for _, edit := range edits {
+		if _, err := tx.Exec(ctx, `
 UPDATE pages
 SET markdown_content=$2,plugin_usage=NULL,updated_by=$3,updated_at=now()
-WHERE id=$1`, edit.id, edit.markdown, user.ID); err != nil {
-				return mutationError(err)
-			}
-
-			var revisionNumber int
-			if err := tx.QueryRow(ctx, `
-SELECT coalesce(max(revision_number),0)+1
-FROM page_revisions
-WHERE page_id=$1`, edit.id).Scan(&revisionNumber); err != nil {
-				return mutationError(err)
-			}
-			if _, err := tx.Exec(ctx, `
-INSERT INTO page_revisions(page_id,revision_number,markdown_content,created_by,message)
-VALUES($1,$2,$3,$4,$5)`, edit.id, revisionNumber, edit.markdown, user.ID, "Update links after page move"); err != nil {
-				return mutationError(err)
-			}
+WHERE id=$1`, edit.id, edit.markdown, userID); err != nil {
+			return err
+		}
+		if err := appendPageRevision(ctx, tx, edit.id, edit.markdown, "Update links after page move", userID); err != nil {
+			return err
 		}
 	}
 
-	return mutationError(tx.Commit(ctx))
+	return nil
 }
 
 // rewriteDirectWikiTarget updates direct wiki links while preserving their labels.
