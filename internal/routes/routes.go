@@ -1,51 +1,47 @@
 package routes
 
 import (
-	"io/fs"
-	"log/slog"
 	"net/http"
 
 	"github.com/kumbuka-me/kumbuka/internal/auth"
 	"github.com/kumbuka-me/kumbuka/internal/handler"
 	"github.com/kumbuka-me/kumbuka/internal/httpresponse"
 	"github.com/kumbuka-me/kumbuka/internal/middleware"
-	"github.com/kumbuka-me/kumbuka/internal/service"
-	"github.com/kumbuka-me/kumbuka/pkg/markdown"
 )
 
 // addRoutes registers the complete HTTP surface and applies route-specific access policies.
-func addRoutes(
-	mux *http.ServeMux,
-	appFS fs.FS,
-	views *handler.Views,
-	renderer *markdown.Renderer,
-	browserAuth auth.BrowserAuth,
-	administrationUseCases *service.Administration,
-	accessUseCases *service.Access,
-	catalogUseCases *service.Catalog,
-	draftUseCases *service.Drafts,
-	groupUseCases *service.Groups,
-	knowledgeUseCases *service.Knowledge,
-	notificationUseCases *service.Notifications,
-	mediaUseCases *service.Media,
-	navigationUseCases *service.Navigation,
-	pageUseCases *service.Pages,
-	preferenceUseCases *service.Preferences,
-	recycleBinUseCases *service.RecycleBin,
-	settingsUseCases *service.Settings,
-	systemUseCases *service.System,
-	templateUseCases *service.Templates,
-	tokenUseCases *service.Tokens,
-	userUseCases *service.Users,
-	webhookUseCases *service.Webhooks,
-	viewDataUseCases *handler.ViewDataLoader,
-	logger *slog.Logger,
-	browserAuthn middleware.Middleware,
-	mediaAuthn middleware.Middleware,
-	apiAuthn middleware.Middleware,
-	adminAuthz middleware.Middleware,
-	editorAuthz middleware.Middleware,
-) {
+func addRoutes(mux *http.ServeMux, config Config, policies routePolicies) {
+	appFS := config.Assets
+	views := config.Views
+	renderer := config.Renderer
+	browserAuth := config.BrowserAuth
+	administrationUseCases := config.Administration
+	accessUseCases := config.Access
+	catalogUseCases := config.Catalog
+	draftUseCases := config.Drafts
+	groupUseCases := config.Groups
+	knowledgeUseCases := config.Knowledge
+	notificationUseCases := config.Notifications
+	mediaUseCases := config.Media
+	navigationUseCases := config.Navigation
+	pageUseCases := config.Pages
+	preferenceUseCases := config.Preferences
+	recycleBinUseCases := config.RecycleBin
+	settingsUseCases := config.Settings
+	systemUseCases := config.System
+	templateUseCases := config.Templates
+	tokenUseCases := config.Tokens
+	userUseCases := config.Users
+	webhookUseCases := config.Webhooks
+	viewDataUseCases := config.ViewData
+	logger := config.Logger
+
+	browserAuthn := policies.browserAuthn
+	mediaAuthn := policies.mediaAuthn
+	apiAuthn := policies.apiAuthn
+	adminAuthz := policies.adminAuthz
+	editorAuthz := policies.editorAuthz
+
 	pageViewAuthz := middleware.RequirePageView(accessUseCases)
 	pageEditAuthz := middleware.RequirePageEdit(accessUseCases)
 

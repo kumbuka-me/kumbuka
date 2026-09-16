@@ -114,26 +114,7 @@ func Run(
 	templateUseCases := service.NewTemplates(database)
 	tokenUseCases := service.NewTokens(database)
 	userUseCases := service.NewUsers(database)
-	browserAuth, err := auth.ConfigureBrowserAuth(
-		ctx,
-		auth.BrowserConfig{
-			ModeOverride: cfg.AuthModeOverride,
-			TrustedProxy: auth.TrustedProxyHeaders{
-				Username:    cfg.TrustedUsernameHeaders,
-				Email:       cfg.TrustedEmailHeaders,
-				DisplayName: cfg.TrustedDisplayNameHeaders,
-			},
-			OIDC: auth.OIDCConfig{
-				ClientID:      cfg.OIDCClientID,
-				ClientSecret:  cfg.OIDCClientSecret,
-				Issuer:        cfg.OIDCIssuer,
-				SessionSecret: cfg.OIDCSessionSecret,
-				PublicURL:     cfg.PublicURL,
-			},
-			LocalLoginEnabled: cfg.LocalLogin,
-		},
-		database,
-	)
+	browserAuth, err := auth.ConfigureBrowserAuth(ctx, browserConfig(cfg), database)
 	if err != nil {
 		setupLogger.Error(
 			"configure browser auth",
@@ -190,22 +171,15 @@ func Run(
 	settingsUseCases.WithIconCatalog(iconCatalog)
 	templateUseCases.WithIconCatalog(iconCatalog)
 
-	views, err := handler.NewViews(appFS, logger, version, commit, availableThemes, handler.RuntimeInfo{
-		ListenAddress:                     cfg.ListenAddress,
-		PublicURL:                         cfg.PublicURL,
-		PDFURL:                            cfg.PDFURL,
-		AuthModeOverride:                  string(cfg.AuthModeOverride),
-		OIDCIssuerOverride:                cfg.OIDCIssuer,
-		OIDCClientIDOverride:              cfg.OIDCClientID,
-		TrustedUsernameHeadersOverride:    cfg.TrustedUsernameHeaders,
-		TrustedEmailHeadersOverride:       cfg.TrustedEmailHeaders,
-		TrustedDisplayNameHeadersOverride: cfg.TrustedDisplayNameHeaders,
-		OIDCClientSecretConfigured:        cfg.OIDCClientSecret != "",
-		OIDCSessionSecretConfigured:       len(cfg.OIDCSessionSecret) >= 32,
-		EncryptionKeyConfigured:           secretCipher.Configured(),
-		LocalLoginEnabled:                 cfg.LocalLogin,
-		ThemeDirectory:                    cfg.ThemeDirectory,
-	}, iconCatalog)
+	views, err := handler.NewViews(
+		appFS,
+		logger,
+		version,
+		commit,
+		availableThemes,
+		runtimeInfo(cfg, secretCipher.Configured()),
+		iconCatalog,
+	)
 	if err != nil {
 		setupLogger.Error(
 			"create views",
@@ -231,38 +205,78 @@ func Run(
 		renderer,
 	)
 
-	router := routes.New(
-		appFS,
-		views,
-		renderer,
-		browserAuth,
-		bearerAuth,
-		administrationUseCases,
-		accessUseCases,
-		catalogUseCases,
-		draftUseCases,
-		groupUseCases,
-		knowledgeUseCases,
-		notificationUseCases,
-		mediaUseCases,
-		navigationUseCases,
-		pageUseCases,
-		preferenceUseCases,
-		recycleBinUseCases,
-		settingsUseCases,
-		systemUseCases,
-		templateUseCases,
-		tokenUseCases,
-		userUseCases,
-		webhookUseCases,
-		viewDataUseCases,
-		logger.With("component", "server"),
-		cfg.AccessLog,
-	)
+	router := routes.New(routes.Config{
+		Assets:         appFS,
+		Views:          views,
+		Renderer:       renderer,
+		BrowserAuth:    browserAuth,
+		BearerAuth:     bearerAuth,
+		Administration: administrationUseCases,
+		Access:         accessUseCases,
+		Catalog:        catalogUseCases,
+		Drafts:         draftUseCases,
+		Groups:         groupUseCases,
+		Knowledge:      knowledgeUseCases,
+		Notifications:  notificationUseCases,
+		Media:          mediaUseCases,
+		Navigation:     navigationUseCases,
+		Pages:          pageUseCases,
+		Preferences:    preferenceUseCases,
+		RecycleBin:     recycleBinUseCases,
+		Settings:       settingsUseCases,
+		System:         systemUseCases,
+		Templates:      templateUseCases,
+		Tokens:         tokenUseCases,
+		Users:          userUseCases,
+		Webhooks:       webhookUseCases,
+		ViewData:       viewDataUseCases,
+		Logger:         logger.With("component", "server"),
+		AccessLog:      cfg.AccessLog,
+	})
 	if err := server.Run(ctx, cfg.ListenAddress, router, setupLogger, server.WithMaxHeaderValueCount(100)); err != nil {
 		setupLogger.Error("run server", "event", "server_run_failed", "error", err)
 		return err
 	}
 
 	return nil
+}
+
+// browserConfig translates deployment flags into browser authentication configuration.
+func browserConfig(cfg flags.Config) auth.BrowserConfig {
+	return auth.BrowserConfig{
+		ModeOverride: cfg.AuthModeOverride,
+		TrustedProxy: auth.TrustedProxyHeaders{
+			Username:    cfg.TrustedUsernameHeaders,
+			Email:       cfg.TrustedEmailHeaders,
+			DisplayName: cfg.TrustedDisplayNameHeaders,
+		},
+		OIDC: auth.OIDCConfig{
+			ClientID:      cfg.OIDCClientID,
+			ClientSecret:  cfg.OIDCClientSecret,
+			Issuer:        cfg.OIDCIssuer,
+			SessionSecret: cfg.OIDCSessionSecret,
+			PublicURL:     cfg.PublicURL,
+		},
+		LocalLoginEnabled: cfg.LocalLogin,
+	}
+}
+
+// runtimeInfo exposes deployment-level runtime state to administrative views.
+func runtimeInfo(cfg flags.Config, encryptionKeyConfigured bool) handler.RuntimeInfo {
+	return handler.RuntimeInfo{
+		ListenAddress:                     cfg.ListenAddress,
+		PublicURL:                         cfg.PublicURL,
+		PDFURL:                            cfg.PDFURL,
+		AuthModeOverride:                  string(cfg.AuthModeOverride),
+		OIDCIssuerOverride:                cfg.OIDCIssuer,
+		OIDCClientIDOverride:              cfg.OIDCClientID,
+		TrustedUsernameHeadersOverride:    cfg.TrustedUsernameHeaders,
+		TrustedEmailHeadersOverride:       cfg.TrustedEmailHeaders,
+		TrustedDisplayNameHeadersOverride: cfg.TrustedDisplayNameHeaders,
+		OIDCClientSecretConfigured:        cfg.OIDCClientSecret != "",
+		OIDCSessionSecretConfigured:       len(cfg.OIDCSessionSecret) >= 32,
+		EncryptionKeyConfigured:           encryptionKeyConfigured,
+		LocalLoginEnabled:                 cfg.LocalLogin,
+		ThemeDirectory:                    cfg.ThemeDirectory,
+	}
 }
