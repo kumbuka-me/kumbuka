@@ -133,6 +133,22 @@
                 </form>
               </details>
             {{ end }}
+            {{ range .PluginPageActions }}
+              {{ if eq .Kind "dialog" }}
+                <button class="button icon-only"
+                        type="button"
+                        data-widget-dialog-open
+                        data-widget-dialog-url="{{ .URL }}"
+                        data-widget-dialog-title="{{ .Name }}"
+                        aria-label="{{ .Name }}"
+                        title="{{ if .Description }}{{ .Description }}{{ else }}{{ .Name }}{{ end }}">{{ if .Icon }}{{ icon .Icon 17 }}{{ else }}{{ icon "puzzle-lucide" 17 }}{{ end }}</button>
+              {{ else }}
+                <a class="button icon-only"
+                   href="{{ .URL }}"
+                   aria-label="{{ .Name }}"
+                   title="{{ if .Description }}{{ .Description }}{{ else }}{{ .Name }}{{ end }}">{{ if .Icon }}{{ icon .Icon 17 }}{{ else }}{{ icon "puzzle-lucide" 17 }}{{ end }}</a>
+              {{ end }}
+            {{ end }}
             <button class="button icon-only"
                     type="button"
                     data-share-dialog-open

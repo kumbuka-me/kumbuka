@@ -164,6 +164,9 @@ func ViewPage(
 		data.PageFavorite = state.favorite
 		data.PageWatchScope = state.watch.Scope
 		data.PageContents = rendered.Contents
+		if manager := renderer.PluginManager(); manager != nil {
+			data.PluginPageActions = manager.PageActions(page.ID, page.Slug)
+		}
 
 		stop = measurePageStage(r.Context(), "page_detail_widgets")
 		pageValue := plugincap.PageValue(page)

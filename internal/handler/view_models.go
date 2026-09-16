@@ -93,6 +93,8 @@ type ViewData struct {
 	SidebarWidgets []pluginWidgetView
 	// PageDetailWidgets contains sanitized plugin widgets for the page details surface.
 	PageDetailWidgets []pluginWidgetView
+	// PluginPageActions contains host-rendered navigation actions contributed for the current page.
+	PluginPageActions []plugin.PageActionContribution
 	// Comments contains anchored discussion items for the current page.
 	Comments []domain.PageComment
 	// Revisions contains revision history rendered in the on-demand history dialog.
