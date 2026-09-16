@@ -22,7 +22,8 @@
           <div class="plugin-widget-actions">
             {{ range .Actions }}
               {{ if eq .Kind "link" }}
-                <a class="widget-action" href="{{ .URL }}">{{ if .Icon }}{{ icon .Icon 14 }}{{ end }}<span>{{ .Label }}</span></a>
+                <a class="widget-action"
+                   href="{{ .URL }}">{{ if .Icon }}{{ icon .Icon 14 }}{{ end }}<span>{{ .Label }}</span></a>
               {{ else if eq .Kind "dialog" }}
                 <button class="widget-action"
                         type="button"
@@ -32,10 +33,12 @@
               {{ else if eq .Kind "command" }}
                 <form method="post"
                       action="{{ .URL }}"
-                      {{ if .Confirm }}data-confirm="{{ .Confirm }}"{{ end }}>
+                      {{ if .Confirm }}data-confirm="{{ .Confirm }}"
+                      {{ end }}>
                   <input type="hidden" name="surface" value="{{ .Surface }}" />
                   <input type="hidden" name="next" value="{{ .Next }}" />
-                  <button class="widget-action" type="submit">{{ if .Icon }}{{ icon .Icon 14 }}{{ end }}<span>{{ .Label }}</span></button>
+                  <button class="widget-action"
+                          type="submit">{{ if .Icon }}{{ icon .Icon 14 }}{{ end }}<span>{{ .Label }}</span></button>
                 </form>
               {{ end }}
             {{ end }}

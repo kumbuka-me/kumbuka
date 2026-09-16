@@ -408,11 +408,13 @@
                 {{ else if eq .Kind "command" }}
                   <form method="post"
                         action="{{ .URL }}"
-                        {{ if .Confirm }}data-confirm="{{ .Confirm }}"{{ end }}>
+                        {{ if .Confirm }}data-confirm="{{ .Confirm }}"
+                        {{ end }}>
                     <input type="hidden" name="surface" value="{{ .Surface }}" />
                     {{ if .PageSlug }}<input type="hidden" name="page" value="{{ .PageSlug }}" />{{ end }}
                     <input type="hidden" name="next" value="{{ .Next }}" />
-                    <button class="widget-action" type="submit">{{ if .Icon }}{{ icon .Icon 14 }}{{ end }}<span>{{ .Label }}</span></button>
+                    <button class="widget-action"
+                            type="submit">{{ if .Icon }}{{ icon .Icon 14 }}{{ end }}<span>{{ .Label }}</span></button>
                   </form>
                 {{ end }}
               {{ end }}

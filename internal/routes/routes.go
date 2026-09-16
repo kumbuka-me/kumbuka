@@ -155,7 +155,10 @@ func (r routeRegistrar) addAdminRoutes() {
 		browserAuthn(adminAuthz(handler.BulkAdminPages(config.Pages, config.Catalog, config.Media, config.Logger))),
 	)
 	r.mux.Handle("GET /admin/import", browserAuthn(adminAuthz(handler.AdminImport(config.ViewData, config.Views))))
-	r.mux.Handle("POST /admin/import", browserAuthn(adminAuthz(handler.ImportPages(config.Pages, config.Logger))))
+	r.mux.Handle(
+		"POST /admin/import",
+		browserAuthn(adminAuthz(handler.ImportPagesWithPortableArchive(config.Pages, config.Media, config.Groups, config.Logger))),
+	)
 	r.mux.Handle("POST /admin/templates", browserAuthn(adminAuthz(handler.CreateAdminPageTemplate(config.Templates, config.Logger))))
 	r.mux.Handle("POST /admin/templates/{id}", browserAuthn(adminAuthz(handler.UpdateAdminPageTemplate(config.Templates, config.Logger))))
 	r.mux.Handle("POST /admin/templates/{id}/delete", browserAuthn(adminAuthz(handler.DeleteAdminPageTemplate(config.Templates, config.Logger))))
@@ -193,7 +196,7 @@ func (r routeRegistrar) addAdminRoutes() {
 	r.mux.Handle("DELETE /admin/tokens/{id}", browserAuthn(adminAuthz(handler.DeleteAdminToken(config.Tokens, config.Logger))))
 	r.mux.Handle(
 		"POST /admin/export",
-		browserAuthn(adminAuthz(handler.ExportPages(config.Catalog, config.Navigation, config.Media, config.Logger))),
+		browserAuthn(adminAuthz(handler.ExportPortablePages(config.Catalog, config.Navigation, config.Media, config.Logger))),
 	)
 
 	r.mux.Handle("GET /api/admin/users", apiAuthn(adminAuthz(handler.SearchAdminUsers(config.Users, config.Logger))))
@@ -211,7 +214,7 @@ func (r routeRegistrar) addAdminRoutes() {
 	)
 	r.mux.Handle(
 		"POST /api/admin/export",
-		apiAuthn(adminAuthz(handler.ExportPages(config.Catalog, config.Navigation, config.Media, config.Logger))),
+		apiAuthn(adminAuthz(handler.ExportPortablePages(config.Catalog, config.Navigation, config.Media, config.Logger))),
 	)
 	r.mux.Handle(
 		"DELETE /api/admin/bin/{slug...}",
