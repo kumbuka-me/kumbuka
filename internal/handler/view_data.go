@@ -314,7 +314,7 @@ func (l *ViewDataLoader) loadPluginViewData(
 		if err != nil {
 			return pluginViewData{}, err
 		}
-		sidebarWidgets = widgetViews(rendered)
+		sidebarWidgets = widgetViews(rendered, "sidebar", "", r.URL.RequestURI())
 	}
 
 	modules, err := pluginModulesJSON(l.pluginManager, "/plugins")

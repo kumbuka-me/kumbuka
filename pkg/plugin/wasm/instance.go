@@ -375,6 +375,16 @@ func (i *Instance) validateRenderResult(
 	if result.Error != "" {
 		return fmt.Errorf("plugin returned error: %.1024s", result.Error)
 	}
+	if stage == "widget-command" {
+		if len(result.Parts) != 0 || len(result.Actions) != 0 || result.File != nil || result.WidgetCommand == nil ||
+			(result.WidgetCommand.Redirect != "" && !validWidgetActionURL(result.WidgetCommand.Redirect)) {
+			return errors.New("invalid plugin widget command response")
+		}
+		return nil
+	}
+	if result.WidgetCommand != nil {
+		return errors.New("unexpected plugin widget command response")
+	}
 	if stage == "export" {
 		if len(result.Parts) != 0 || len(result.Actions) != 0 || result.File == nil {
 			return errors.New("invalid plugin export response")
@@ -429,13 +439,11 @@ func validWidgetAction(action sdk.WidgetAction, stage string) bool {
 	if action.Icon != "" && !validWidgetIdentifier(action.Icon) {
 		return false
 	}
-	if !validWidgetActionURL(action.URL) {
-		return false
-	}
-
 	switch action.Kind {
 	case "link", "dialog":
-		return true
+		return action.Confirm == "" && validWidgetActionURL(action.URL)
+	case "command":
+		return action.URL == "" && len(action.Confirm) <= 512
 	default:
 		return false
 	}

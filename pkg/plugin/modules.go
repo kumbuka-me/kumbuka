@@ -287,6 +287,22 @@ type Widget interface {
 	Render(Context, WidgetRequest) (WidgetResult, error)
 }
 
+// WidgetCommandRequest describes one host-mediated command selected from a widget.
+type WidgetCommandRequest struct {
+	// Surface identifies the host placement that emitted the command.
+	Surface string
+	// Page contains authorized current-page metadata when available.
+	Page *sdk.Page
+	// Action identifies the command selected by the user.
+	Action string
+}
+
+// WidgetCommander handles state-changing widget commands through the host boundary.
+type WidgetCommander interface {
+	// Command executes one validated widget command and returns safe navigation metadata.
+	Command(Context, WidgetCommandRequest) (sdk.WidgetCommandResult, error)
+}
+
 // WidgetModule describes one widget contribution and its host surface.
 type WidgetModule struct {
 	// ID identifies the module within its plugin.

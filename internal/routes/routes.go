@@ -225,6 +225,10 @@ func (r routeRegistrar) addPageRoutes() {
 	browserAuthn := r.policies.browserAuthn
 	adminAuthz := r.policies.adminAuthz
 	editorAuthz := r.policies.editorAuthz
+	r.mux.Handle(
+		"POST /plugins/actions/{pluginID}/{moduleID}/{actionID}",
+		browserAuthn(handler.PluginWidgetCommand(config.Catalog, config.Navigation, config.Access, config.Renderer)),
+	)
 
 	r.mux.Handle(
 		"GET /export/markdown/{slug...}",

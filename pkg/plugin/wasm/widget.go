@@ -47,3 +47,31 @@ func (m widgetModule) Render(ctx plugin.Context, request plugin.WidgetRequest) (
 
 	return plugin.WidgetResult{HTML: output.String(), Actions: result.Actions}, nil
 }
+
+// Command invokes one host-mediated widget command in the guest.
+func (m widgetModule) Command(ctx plugin.Context, request plugin.WidgetCommandRequest) (sdk.WidgetCommandResult, error) {
+	execution := ctx.Context
+	if execution == nil {
+		execution = context.Background()
+	}
+	execution = context.WithValue(execution, capabilitiesKey{}, ctx.Capabilities)
+
+	result, err := m.instance.invoke(execution, sdk.RenderRequest{
+		APIVersion: sdk.Version,
+		Module:     m.module.ID,
+		Stage:      "widget-command",
+		Features:   ctx.Features,
+		WidgetCommand: &sdk.WidgetCommandContext{
+			Surface: request.Surface,
+			Page:    request.Page,
+			Action:  request.Action,
+		},
+	})
+	if err != nil {
+		return sdk.WidgetCommandResult{}, err
+	}
+	if result.WidgetCommand == nil {
+		return sdk.WidgetCommandResult{}, errors.New("widget command returned no result")
+	}
+	return *result.WidgetCommand, nil
+}

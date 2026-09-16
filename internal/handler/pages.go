@@ -47,7 +47,7 @@ func Home(
 			httpresponse.InternalServerError(views.logger, w, err)
 			return
 		}
-		data.HomeWidgets = widgetViews(widgets)
+		data.HomeWidgets = widgetViews(widgets, "home", "", "/")
 
 		render(views, w, "home", data)
 	}
@@ -184,7 +184,7 @@ func ViewPage(
 			httpresponse.InternalServerError(views.logger, w, err)
 			return
 		}
-		data.PageDetailWidgets = widgetViews(widgets)
+		data.PageDetailWidgets = widgetViews(widgets, "page.details", page.Slug, pageURL(page.Slug))
 
 		stop = measurePageStage(r.Context(), "template_render")
 		render(views, w, "page", data)

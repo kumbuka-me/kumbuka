@@ -11,7 +11,6 @@ import (
 	"github.com/kumbuka-me/kumbuka/pkg/plugin"
 	"github.com/kumbuka-me/kumbuka/pkg/revision"
 	"github.com/kumbuka-me/kumbuka/pkg/themes"
-	"github.com/kumbuka-me/sdk"
 	"github.com/kumbuka-me/sdk/pluginpackage"
 )
 
@@ -25,8 +24,30 @@ type pluginWidgetView struct {
 	Width string
 	// HTML stores the HTML value used by plugin widget view.
 	HTML template.HTML
-	// Actions contains the actions associated with plugin widget view.
-	Actions []sdk.WidgetAction
+	// Actions contains host-rendered controls associated with the widget.
+	Actions []pluginWidgetActionView
+}
+
+// pluginWidgetActionView contains one host-rendered widget action and command context.
+type pluginWidgetActionView struct {
+	// ID identifies the action within its widget.
+	ID string
+	// Kind selects link, dialog, or command presentation.
+	Kind string
+	// Label is the visible action text.
+	Label string
+	// URL is either the plugin-provided local target or the host-owned command endpoint.
+	URL string
+	// Icon is an optional host icon name.
+	Icon string
+	// Confirm is optional confirmation text for a command action.
+	Confirm string
+	// Surface identifies the widget placement that emitted the action.
+	Surface string
+	// PageSlug identifies the authorized current page when available.
+	PageSlug string
+	// Next is the local return path after a successful command.
+	Next string
 }
 
 // ViewData contains the data shared by server-rendered Kumbuka templates.
