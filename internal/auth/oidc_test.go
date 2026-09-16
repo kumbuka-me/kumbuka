@@ -217,7 +217,7 @@ func TestOIDCCallbackRejectsInvalidState(t *testing.T) {
 		request.AddCookie(cookies[0])
 		result := httptest.NewRecorder()
 
-		authenticator.Callback().ServeHTTP(result, request)
+		authenticator.callback(result, request)
 
 		assert.Equal(t, http.StatusBadRequest, result.Code)
 	})
@@ -235,7 +235,7 @@ func TestOIDCCallbackRejectsInvalidState(t *testing.T) {
 		request.AddCookie(cookies[0])
 		result := httptest.NewRecorder()
 
-		authenticator.Callback().ServeHTTP(result, request)
+		authenticator.callback(result, request)
 
 		assert.Equal(t, http.StatusBadRequest, result.Code)
 	})
@@ -253,7 +253,7 @@ func TestOIDCCallbackRejectsInvalidState(t *testing.T) {
 		request.AddCookie(cookies[0])
 		result := httptest.NewRecorder()
 
-		authenticator.Callback().ServeHTTP(result, request)
+		authenticator.callback(result, request)
 
 		assert.Equal(t, http.StatusBadRequest, result.Code)
 	})

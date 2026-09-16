@@ -18,11 +18,16 @@ type TrustedProxy struct {
 
 // TrustedProxyHeaders contains ordered header candidates for each external identity field.
 type TrustedProxyHeaders struct {
-	Username    []string
-	Email       []string
+	// Username lists trusted header names checked for the external username.
+	Username []string
+	// Email lists trusted header names checked for the external email address.
+	Email []string
+	// DisplayName lists trusted header names checked for the external display name.
 	DisplayName []string
-	Groups      []string
-	AdminGroup  string
+	// Groups lists trusted header names checked for comma-separated external groups.
+	Groups []string
+	// AdminGroup names the external group that grants administrator access.
+	AdminGroup string
 }
 
 // NewTrustedProxy creates a trusted-proxy authenticator.
@@ -66,7 +71,7 @@ func (a *TrustedProxy) Authenticate(r *http.Request) (domain.User, error) {
 		}
 	}
 
-	return user, err
+	return user, nil
 }
 
 // splitHeaderValues normalizes a comma-separated trusted group header.

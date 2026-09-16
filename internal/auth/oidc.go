@@ -20,6 +20,16 @@ import (
 	"golang.org/x/oauth2"
 )
 
+const (
+	oidcSessionCookie = "kumbuka_session"
+	oidcStateCookie   = "kumbuka_state"
+	// oidcLegacyNextCookie is cleared after callbacks for installations upgraded from the old two-cookie login flow.
+	oidcLegacyNextCookie = "kumbuka_next"
+
+	oidcLoginStateTTL = 10 * time.Minute
+	oidcSessionTTL    = 12 * time.Hour
+)
+
 // OIDC authenticates browser sessions and handles the OIDC authorization flow.
 type OIDC struct {
 	// repository persists and resolves authenticated OIDC users.
@@ -80,12 +90,6 @@ type loginState struct {
 	Expires int64 `json:"x"`
 }
 
-// nextLocation contains the local path to restore after authentication.
-type nextLocation struct {
-	// Path is the local request path to restore after authentication.
-	Path string `json:"n"`
-}
-
 // NewOIDC creates an OIDC authenticator and authorization-flow handler.
 func NewOIDC(
 	ctx context.Context,
@@ -122,7 +126,7 @@ func NewOIDC(
 func (o *OIDC) Authenticate(r *http.Request) (domain.User, error) {
 	var current session
 
-	if err := o.decodeCookie(r, "kumbuka_session", &current); err != nil {
+	if err := o.decodeCookie(r, oidcSessionCookie, &current); err != nil {
 		return domain.User{}, ErrUnauthenticated
 	}
 	if !o.validSession(current) {
@@ -162,11 +166,6 @@ func (o *OIDC) validSession(current session) bool {
 	return current.Subject != ""
 }
 
-// Login returns the handler that starts the OIDC authorization-code flow.
-func (o *OIDC) Login() http.HandlerFunc {
-	return o.login
-}
-
 // login starts the OIDC authorization-code flow.
 func (o *OIDC) login(w http.ResponseWriter, r *http.Request) {
 	stateBytes := make([]byte, 24)
@@ -178,16 +177,16 @@ func (o *OIDC) login(w http.ResponseWriter, r *http.Request) {
 	state := base64.RawURLEncoding.EncodeToString(stateBytes)
 	verifier := oauth2.GenerateVerifier()
 	next := r.URL.Query().Get("next")
-	if !isLocalPath(next) {
+	if !httpresponse.IsLocalPath(next) {
 		next = "/"
 	}
 
-	o.setCookie(w, "kumbuka_state", loginState{
+	o.setCookie(w, oidcStateCookie, loginState{
 		State:    state,
 		Verifier: verifier,
 		Next:     next,
-		Expires:  time.Now().Add(10 * time.Minute).Unix(),
-	}, 600)
+		Expires:  time.Now().Add(oidcLoginStateTTL).Unix(),
+	}, int(oidcLoginStateTTL.Seconds()))
 
 	http.Redirect(
 		w,
@@ -201,11 +200,6 @@ func (o *OIDC) login(w http.ResponseWriter, r *http.Request) {
 	)
 }
 
-// Callback returns the handler that completes the OIDC flow.
-func (o *OIDC) Callback() http.HandlerFunc {
-	return o.callback
-}
-
 // callback completes the OIDC flow and establishes the browser session.
 func (o *OIDC) callback(w http.ResponseWriter, r *http.Request) {
 	saved, ok := o.callbackLoginState(r)
@@ -215,8 +209,9 @@ func (o *OIDC) callback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Consume transient browser state on both successful and failed callbacks.
-	o.setCookie(w, "kumbuka_state", loginState{}, -1)
-	o.setCookie(w, "kumbuka_next", nextLocation{}, -1)
+	o.setCookie(w, oidcStateCookie, loginState{}, -1)
+	// Clear the legacy redirect cookie left by pre-login-state deployments.
+	o.setCookie(w, oidcLegacyNextCookie, struct{}{}, -1)
 
 	token, err := o.oauth.Exchange(
 		r.Context(),
@@ -254,13 +249,10 @@ func (o *OIDC) callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var groups []string
-	if o.groupSync || o.adminGroup != "" {
-		groups, err = oidcGroups(idToken, o.groupClaim)
-		if err != nil {
-			httpresponse.Problem(w, http.StatusUnauthorized, "Invalid group claim.")
-			return
-		}
+	groups, err := o.callbackGroups(idToken)
+	if err != nil {
+		httpresponse.Problem(w, http.StatusUnauthorized, "Invalid group claim.")
+		return
 	}
 
 	user, err := o.repository.LoginOIDCUser(
@@ -272,34 +264,7 @@ func (o *OIDC) callback(w http.ResponseWriter, r *http.Request) {
 		identity.Name,
 	)
 	if err != nil {
-		switch {
-		case errors.Is(err, domain.ErrIdentityApprovalRequired):
-			httpresponse.Problem(w,
-				http.StatusForbidden,
-				"Registration is closed. Your verified identity is awaiting administrator approval.",
-			)
-		case errors.Is(err, domain.ErrIdentityRejected):
-			httpresponse.Problem(w,
-				http.StatusForbidden,
-				"This identity has been rejected by an administrator.",
-			)
-		case errors.Is(err, domain.ErrRegistrationDisabled):
-			httpresponse.Problem(w,
-				http.StatusForbidden,
-				"User registration is disabled.",
-			)
-		case errors.Is(err, domain.ErrAlreadyExists):
-			httpresponse.Problem(w,
-				http.StatusConflict,
-				"The preferred username is already used by another account.",
-			)
-		default:
-			httpresponse.Problem(w,
-				http.StatusInternalServerError,
-				"The request could not be processed.",
-			)
-		}
-
+		writeOIDCLoginProblem(w, err)
 		return
 	}
 
@@ -308,52 +273,68 @@ func (o *OIDC) callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if o.groupSync {
-		if err := o.repository.SyncOIDCGroups(
-			r.Context(),
-			user.ID,
-			groups,
-			o.groupMappings,
-			o.groupsAuthoritative,
-		); err != nil {
-			httpresponse.Problem(w,
-				http.StatusInternalServerError,
-				"The request could not be processed.",
-			)
-			return
-		}
+	if err := o.syncAuthorization(r.Context(), user.ID, groups); err != nil {
+		httpresponse.Problem(w, http.StatusInternalServerError, "The request could not be processed.")
+		return
 	}
 
-	if o.adminGroup != "" {
-		externalAdmin := containsGroup(groups, o.adminGroup)
-
-		if err := o.repository.SetExternalAdminStatus(
-			r.Context(),
-			user.ID,
-			"oidc",
-			externalAdmin,
-		); err != nil {
-			httpresponse.Problem(w,
-				http.StatusInternalServerError,
-				"The request could not be processed.",
-			)
-			return
-		}
-	}
-
-	o.setCookie(w, "kumbuka_session", session{
+	o.setCookie(w, oidcSessionCookie, session{
 		Issuer:  issuer,
 		Subject: subject,
-		Expires: time.Now().Add(12 * time.Hour).Unix(),
+		Expires: time.Now().Add(oidcSessionTTL).Unix(),
 		Version: user.SessionVersion,
-	}, 43200)
+	}, int(oidcSessionTTL.Seconds()))
 
 	next := "/"
-	if isLocalPath(saved.Next) {
+	if httpresponse.IsLocalPath(saved.Next) {
 		next = saved.Next
 	}
 
 	http.Redirect(w, r, next, http.StatusFound)
+}
+
+// callbackGroups extracts external groups only when authorization settings require them.
+func (o *OIDC) callbackGroups(idToken *oidc.IDToken) ([]string, error) {
+	if !o.groupSync && o.adminGroup == "" {
+		return nil, nil
+	}
+
+	return oidcGroups(idToken, o.groupClaim)
+}
+
+// syncAuthorization synchronizes mapped groups and externally asserted administrator status.
+func (o *OIDC) syncAuthorization(ctx context.Context, userID int64, groups []string) error {
+	if o.groupSync {
+		if err := o.repository.SyncOIDCGroups(ctx, userID, groups, o.groupMappings, o.groupsAuthoritative); err != nil {
+			return err
+		}
+	}
+
+	if o.adminGroup == "" {
+		return nil
+	}
+
+	return o.repository.SetExternalAdminStatus(ctx, userID, "oidc", containsGroup(groups, o.adminGroup))
+}
+
+// writeOIDCLoginProblem maps identity-registration failures to stable browser responses.
+func writeOIDCLoginProblem(w http.ResponseWriter, err error) {
+	switch {
+	case errors.Is(err, domain.ErrIdentityApprovalRequired):
+		httpresponse.Problem(
+			w,
+			http.StatusForbidden,
+			"Registration is closed. Your verified identity is awaiting administrator approval.",
+		)
+	case errors.Is(err, domain.ErrIdentityRejected):
+		httpresponse.Problem(w, http.StatusForbidden, "This identity has been rejected by an administrator.")
+	case errors.Is(err, domain.ErrRegistrationDisabled):
+		httpresponse.Problem(w, http.StatusForbidden, "User registration is disabled.")
+	case errors.Is(err, domain.ErrAlreadyExists):
+		httpresponse.Problem(w, http.StatusConflict, "The preferred username is already used by another account.")
+	default:
+		httpresponse.Problem(w, http.StatusInternalServerError, "The request could not be processed.")
+	}
 }
 
 // callbackIdentity validates the issuer, subject, and nonce bound to an OIDC callback.
@@ -376,7 +357,7 @@ func (o *OIDC) callbackIdentity(idToken *oidc.IDToken, expectedNonce string) (is
 
 // callbackLoginState reads and validates the OIDC login state bound to a callback.
 func (o *OIDC) callbackLoginState(r *http.Request) (state loginState, valid bool) {
-	if err := o.decodeCookie(r, "kumbuka_state", &state); err != nil {
+	if err := o.decodeCookie(r, oidcStateCookie, &state); err != nil {
 		return loginState{}, false
 	}
 
@@ -540,9 +521,4 @@ func (o *OIDC) decodeCookie(r *http.Request, name string, out any) error {
 	}
 
 	return nil
-}
-
-// isLocalPath reports whether a redirect target stays within this application.
-func isLocalPath(value string) bool {
-	return httpresponse.IsLocalPath(value)
 }

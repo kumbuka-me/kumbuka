@@ -15,17 +15,27 @@ import (
 
 // browserAuthenticator resolves the database-managed browser authentication mode per request.
 type browserAuthenticator struct {
-	repository        browserRepository
-	modeOverride      AuthMode
-	trustedProxy      TrustedProxyHeaders
-	oidcConfig        OIDCConfig
-	none              *None
-	local             *Local
+	// repository loads authentication settings and persists authenticated identities.
+	repository browserRepository
+	// modeOverride forces one deployment-managed authentication mode when non-empty.
+	modeOverride AuthMode
+	// trustedProxy contains deployment-managed trusted-proxy header overrides.
+	trustedProxy TrustedProxyHeaders
+	// oidcConfig contains deployment-managed OIDC secrets and callback configuration.
+	oidcConfig OIDCConfig
+	// none authenticates the built-in administrator when authentication is disabled.
+	none *None
+	// local authenticates Kumbuka-managed browser sessions.
+	local *Local
+	// localLoginEnabled exposes local recovery login alongside another effective mode.
 	localLoginEnabled bool
 
-	mu      sync.Mutex
+	// mu protects the cached OIDC integration and its settings key.
+	mu sync.Mutex
+	// oidcKey fingerprints the settings used to build the cached OIDC integration.
 	oidcKey string
-	oidc    *OIDC
+	// oidc is the cached OIDC integration for oidcKey.
+	oidc *OIDC
 }
 
 // ConfigureBrowserAuth constructs database-managed browser authentication.
@@ -71,8 +81,8 @@ func (b *browserAuthenticator) Authenticate(r *http.Request) (domain.User, error
 		return domain.User{}, err
 	}
 
-	if b.modeOverride == "" && AuthMode(settings.Mode) == AuthModeNone {
-		setupRequired, err := b.repository.SetupRequired(r.Context())
+	if AuthMode(settings.Mode) == AuthModeNone {
+		setupRequired, err := b.setupRequired(r.Context())
 		if err != nil {
 			return domain.User{}, err
 		}
@@ -106,16 +116,14 @@ func (b *browserAuthenticator) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if b.modeOverride == "" {
-		setupRequired, err := b.repository.SetupRequired(r.Context())
-		if err != nil {
-			httpresponse.Problem(w, http.StatusInternalServerError, "The request could not be processed.")
-			return
-		}
-		if setupRequired {
-			http.Redirect(w, r, "/setup", http.StatusFound)
-			return
-		}
+	setupRequired, err := b.setupRequired(r.Context())
+	if err != nil {
+		httpresponse.Problem(w, http.StatusInternalServerError, "The request could not be processed.")
+		return
+	}
+	if setupRequired {
+		http.Redirect(w, r, "/setup", http.StatusFound)
+		return
 	}
 	switch AuthMode(settings.Mode) {
 	case AuthModeLocal:
@@ -143,7 +151,7 @@ func (b *browserAuthenticator) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	oidcAuth.Login().ServeHTTP(w, r)
+	oidcAuth.login(w, r)
 }
 
 // callback completes OIDC only while OIDC is the effective authentication mode.
@@ -164,19 +172,17 @@ func (b *browserAuthenticator) callback(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	oidcAuth.Callback().ServeHTTP(w, r)
+	oidcAuth.callback(w, r)
 }
 
 // validate checks persisted authentication settings before administrators activate them.
 func (b *browserAuthenticator) validate(ctx context.Context, settings domain.AuthenticationSettings) error {
-	if b.modeOverride == "" {
-		setupRequired, err := b.repository.SetupRequired(ctx)
-		if err != nil {
-			return err
-		}
-		if setupRequired {
-			return nil
-		}
+	setupRequired, err := b.setupRequired(ctx)
+	if err != nil {
+		return err
+	}
+	if setupRequired {
+		return nil
 	}
 
 	if err := b.validateSettings(settings); err != nil {
@@ -202,6 +208,15 @@ func (b *browserAuthenticator) validate(ctx context.Context, settings domain.Aut
 	}
 
 	return nil
+}
+
+// setupRequired reports whether first-run setup should bypass normal authentication validation.
+func (b *browserAuthenticator) setupRequired(ctx context.Context) (bool, error) {
+	if b.modeOverride != "" {
+		return false, nil
+	}
+
+	return b.repository.SetupRequired(ctx)
 }
 
 // currentSettings reads database-managed settings and overlays deployment-managed authentication fields.

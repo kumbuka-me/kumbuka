@@ -22,8 +22,10 @@ const (
 
 // Local authenticates optional password-backed Kumbuka accounts.
 type Local struct {
+	// repository persists credentials and local browser sessions.
 	repository localRepository
-	publicURL  string
+	// publicURL determines whether browser cookies require HTTPS.
+	publicURL string
 }
 
 // NewLocal creates the local-login authenticator used by setup and recovery login.
@@ -75,17 +77,8 @@ func (l *Local) SignIn(
 		return domain.User{}, "", ErrInvalidCredentials
 	}
 
-	token, err = newLocalSessionToken()
+	token, err = l.createSession(ctx, user.ID)
 	if err != nil {
-		return domain.User{}, "", err
-	}
-
-	if err := l.repository.CreateLocalSession(
-		ctx,
-		user.ID,
-		localSessionHash(token),
-		time.Now().Add(localSessionTTL),
-	); err != nil {
 		return domain.User{}, "", err
 	}
 
@@ -128,21 +121,7 @@ func (l *Local) ChangePassword(
 		return "", err
 	}
 
-	token, err = newLocalSessionToken()
-	if err != nil {
-		return "", err
-	}
-
-	if err := l.repository.CreateLocalSession(
-		ctx,
-		userID,
-		localSessionHash(token),
-		time.Now().Add(localSessionTTL),
-	); err != nil {
-		return "", err
-	}
-
-	return token, nil
+	return l.createSession(ctx, userID)
 }
 
 // Setup creates the first local administrator and starts its initial session.
@@ -166,17 +145,8 @@ func (l *Local) Setup(
 		return domain.User{}, "", err
 	}
 
-	token, err = newLocalSessionToken()
+	token, err = l.createSession(ctx, user.ID)
 	if err != nil {
-		return domain.User{}, "", err
-	}
-
-	if err := l.repository.CreateLocalSession(
-		ctx,
-		user.ID,
-		localSessionHash(token),
-		time.Now().Add(localSessionTTL),
-	); err != nil {
 		return domain.User{}, "", err
 	}
 
@@ -195,15 +165,7 @@ func (l *Local) SetPassword(ctx context.Context, userID int64, password string) 
 
 // WriteSessionCookie stores a local session token in an HTTP-only cookie.
 func (l *Local) WriteSessionCookie(w http.ResponseWriter, token string) {
-	http.SetCookie(w, &http.Cookie{
-		Name:     localSessionCookie,
-		Value:    token,
-		Path:     "/",
-		MaxAge:   int(localSessionTTL.Seconds()),
-		HttpOnly: true,
-		Secure:   strings.HasPrefix(l.publicURL, "https://"),
-		SameSite: http.SameSiteLaxMode,
-	})
+	http.SetCookie(w, l.sessionCookie(token, int(localSessionTTL.Seconds())))
 }
 
 // ClearSession revokes the current local session and removes its cookie.
@@ -215,15 +177,39 @@ func (l *Local) ClearSession(w http.ResponseWriter, r *http.Request) {
 		)
 	}
 
-	http.SetCookie(w, &http.Cookie{
+	http.SetCookie(w, l.sessionCookie("", -1))
+}
+
+// createSession creates and persists one opaque local browser session.
+func (l *Local) createSession(ctx context.Context, userID int64) (string, error) {
+	token, err := newLocalSessionToken()
+	if err != nil {
+		return "", err
+	}
+
+	if err := l.repository.CreateLocalSession(
+		ctx,
+		userID,
+		localSessionHash(token),
+		time.Now().Add(localSessionTTL),
+	); err != nil {
+		return "", err
+	}
+
+	return token, nil
+}
+
+// sessionCookie builds a local-session cookie with the application's shared security attributes.
+func (l *Local) sessionCookie(value string, maxAge int) *http.Cookie {
+	return &http.Cookie{
 		Name:     localSessionCookie,
-		Value:    "",
+		Value:    value,
 		Path:     "/",
-		MaxAge:   -1,
+		MaxAge:   maxAge,
 		HttpOnly: true,
 		Secure:   strings.HasPrefix(l.publicURL, "https://"),
 		SameSite: http.SameSiteLaxMode,
-	})
+	}
 }
 
 // HashLocalPassword hashes a validated local password with bcrypt.
