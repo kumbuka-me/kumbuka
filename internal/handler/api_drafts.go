@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/kumbuka-me/kumbuka/internal/domain"
 	"github.com/kumbuka-me/kumbuka/internal/httpresponse"
 	"github.com/kumbuka-me/kumbuka/internal/service"
+	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
 
 // pageDraftRequest is the private editor state accepted by the draft API.

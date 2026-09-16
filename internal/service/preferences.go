@@ -3,7 +3,7 @@ package service
 import (
 	"context"
 
-	"github.com/kumbuka-me/kumbuka/internal/domain"
+	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
 
 // preferenceRepository contains per-user preference operations.

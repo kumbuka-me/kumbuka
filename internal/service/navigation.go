@@ -6,8 +6,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/kumbuka-me/kumbuka/internal/domain"
-	"github.com/kumbuka-me/kumbuka/internal/icons"
+	"github.com/kumbuka-me/kumbuka/pkg/domain"
+	"github.com/kumbuka-me/kumbuka/pkg/icons"
 )
 
 // navigationRepository contains navigation tree and icon operations.

@@ -82,3 +82,4 @@ test("image pagination preserves its search and newer searches supersede pending
     await browser.close();
   }
 });
+

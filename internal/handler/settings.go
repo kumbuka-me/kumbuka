@@ -8,10 +8,10 @@ import (
 	"strings"
 
 	"github.com/kumbuka-me/kumbuka/internal/auth"
-	"github.com/kumbuka-me/kumbuka/internal/domain"
 	"github.com/kumbuka-me/kumbuka/internal/httpresponse"
-	"github.com/kumbuka-me/kumbuka/internal/plugin"
-	"github.com/kumbuka-me/kumbuka/themes"
+	"github.com/kumbuka-me/kumbuka/pkg/domain"
+	"github.com/kumbuka-me/kumbuka/pkg/plugin"
+	"github.com/kumbuka-me/kumbuka/pkg/themes"
 )
 
 // navigationStateRequest contains the expanded folder paths persisted by the sidebar.

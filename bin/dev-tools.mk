@@ -68,3 +68,4 @@ $(GO_INSTALL_TOOL): | $(DEV_TOOLS_BIN)
 $(GITHUB_RELEASE_INSTALL): | $(DEV_TOOLS_BIN)
 	$(call download-dev-tool,github-release-install,$@)
 endif
+

@@ -7,10 +7,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/kumbuka-me/kumbuka/internal/domain"
 	"github.com/kumbuka-me/kumbuka/internal/httpresponse"
-	md "github.com/kumbuka-me/kumbuka/internal/markdown"
 	"github.com/kumbuka-me/kumbuka/internal/service"
+	"github.com/kumbuka-me/kumbuka/pkg/domain"
+	md "github.com/kumbuka-me/kumbuka/pkg/markdown"
 )
 
 // MovePageForm safely moves one page or subtree and optionally refactors direct wiki links.

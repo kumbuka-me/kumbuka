@@ -32,8 +32,8 @@ SCREENSHOT_DB_PORT="$database_port" docker compose -f "$compose_file" up -d --wa
   find . -type f -name '*.md' -print | LC_ALL=C sort | zip -q "$archive" -@
 )
 
-go build -ldflags="-s -w -X main.Version=screenshots -X main.Commit=docs" -o "$binary" ./cmd
-"$binary" serve \
+go build -ldflags="-s -w -X main.Version=screenshots -X main.Commit=docs" -o "$binary" ./cmd/kumbuka
+"$binary" \
   --auth-mode=none \
   --listen-address="127.0.0.1:$screenshot_port" \
   --public-url="$base_url" \
@@ -56,3 +56,4 @@ SCREENSHOT_BASE_URL="$base_url" \
   SCREENSHOT_OUTPUT="$repository/docs/assets/screenshots" \
   SCREENSHOT_BROWSER_CHANNEL="${SCREENSHOT_BROWSER_CHANNEL:-chrome}" \
   node "$repository/scripts/screenshots/capture.mjs"
+

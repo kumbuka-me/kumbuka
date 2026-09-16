@@ -12,3 +12,4 @@ rm -rf web/dist/ts
 "${TSC:-./node_modules/.bin/tsc}" -p web/src/ts/service-worker/tsconfig.json
 
 "${CSS_BUILD:-scripts/web/build-css.sh}"
+

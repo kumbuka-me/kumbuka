@@ -3,7 +3,7 @@ package handler
 import (
 	"strings"
 
-	"github.com/kumbuka-me/kumbuka/internal/plugin"
+	"github.com/kumbuka-me/kumbuka/pkg/plugin"
 )
 
 type pluginWidgetPreferenceView struct {

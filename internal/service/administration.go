@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/kumbuka-me/kumbuka/internal/domain"
+	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
 
 // administrationRepository contains dashboard, tag, health, and audit operations.

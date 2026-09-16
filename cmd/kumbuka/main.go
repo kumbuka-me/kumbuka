@@ -4,7 +4,7 @@ import (
 	"context"
 	"os"
 
-	"github.com/kumbuka-me/kumbuka/internal/cli"
+	"github.com/kumbuka-me/kumbuka/internal/app"
 	"github.com/kumbuka-me/kumbuka/web"
 )
 
@@ -13,9 +13,9 @@ var (
 	Commit  = "none"
 )
 
-// main runs the Kumbuka command-line application and exits non-zero on failure.
+// main runs the Kumbuka server and exits non-zero on failure.
 func main() {
-	if err := cli.Run(
+	if err := app.Run(
 		context.Background(),
 		os.Args[1:],
 		web.Assets,

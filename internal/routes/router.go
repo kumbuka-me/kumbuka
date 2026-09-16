@@ -7,9 +7,9 @@ import (
 
 	"github.com/kumbuka-me/kumbuka/internal/auth"
 	"github.com/kumbuka-me/kumbuka/internal/handler"
-	"github.com/kumbuka-me/kumbuka/internal/markdown"
 	"github.com/kumbuka-me/kumbuka/internal/middleware"
 	"github.com/kumbuka-me/kumbuka/internal/service"
+	"github.com/kumbuka-me/kumbuka/pkg/markdown"
 )
 
 // New constructs the application router and its authentication and authorization policies.

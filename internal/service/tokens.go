@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kumbuka-me/kumbuka/internal/domain"
+	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
 
 // tokenRepository contains personal access token operations.

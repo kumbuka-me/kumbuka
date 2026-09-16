@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/kumbuka-me/kumbuka/internal/domain"
-	"github.com/kumbuka-me/kumbuka/internal/revision"
 	"github.com/kumbuka-me/kumbuka/internal/service"
+	"github.com/kumbuka-me/kumbuka/pkg/domain"
+	"github.com/kumbuka-me/kumbuka/pkg/revision"
 )
 
 type viewDataService interface {

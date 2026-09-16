@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/kumbuka-me/kumbuka/internal/domain"
+	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
 
 const pageShareTokenBytes = 32

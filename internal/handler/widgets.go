@@ -3,7 +3,7 @@ package handler
 import (
 	"html/template"
 
-	md "github.com/kumbuka-me/kumbuka/internal/markdown"
+	md "github.com/kumbuka-me/kumbuka/pkg/markdown"
 )
 
 func widgetViews(widgets []md.RenderedWidget) []pluginWidgetView {

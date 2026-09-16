@@ -1,8 +1,8 @@
 package handler
 
 import (
-	"github.com/kumbuka-me/kumbuka/internal/domain"
-	md "github.com/kumbuka-me/kumbuka/internal/markdown"
+	"github.com/kumbuka-me/kumbuka/pkg/domain"
+	md "github.com/kumbuka-me/kumbuka/pkg/markdown"
 )
 
 func renderedPageFromArtifact(render domain.PageRender) md.RenderedPage {

@@ -4,7 +4,7 @@ import (
 	"context"
 	"strings"
 
-	"github.com/kumbuka-me/kumbuka/internal/domain"
+	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
 
 // groupRepository contains collaboration group operations.

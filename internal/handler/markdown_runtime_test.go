@@ -3,7 +3,7 @@ package handler
 import (
 	"testing"
 
-	md "github.com/kumbuka-me/kumbuka/internal/markdown"
+	md "github.com/kumbuka-me/kumbuka/pkg/markdown"
 )
 
 // testMarkdownRenderer returns a core renderer without starting the plugin runtime.

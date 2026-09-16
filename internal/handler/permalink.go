@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/kumbuka-me/kumbuka/internal/domain"
 	"github.com/kumbuka-me/kumbuka/internal/httpresponse"
+	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
 
 // PagePermalink redirects an authenticated stable page identifier to its current path.

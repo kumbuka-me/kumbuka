@@ -17,12 +17,12 @@ import (
 	"time"
 
 	"github.com/kumbuka-me/kumbuka/internal/auth"
-	"github.com/kumbuka-me/kumbuka/internal/domain"
 	"github.com/kumbuka-me/kumbuka/internal/handler"
-	"github.com/kumbuka-me/kumbuka/internal/markdown"
 	"github.com/kumbuka-me/kumbuka/internal/middleware"
+	"github.com/kumbuka-me/kumbuka/pkg/domain"
+	"github.com/kumbuka-me/kumbuka/pkg/markdown"
+	"github.com/kumbuka-me/kumbuka/pkg/themes"
 	"github.com/kumbuka-me/kumbuka/plugins"
-	"github.com/kumbuka-me/kumbuka/themes"
 	"github.com/kumbuka-me/kumbuka/web"
 	"github.com/kumbuka-me/sdk/pluginpackage"
 )

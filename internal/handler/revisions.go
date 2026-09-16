@@ -6,7 +6,7 @@ import (
 
 	"github.com/kumbuka-me/kumbuka/internal/auth"
 	"github.com/kumbuka-me/kumbuka/internal/httpresponse"
-	"github.com/kumbuka-me/kumbuka/internal/revision"
+	"github.com/kumbuka-me/kumbuka/pkg/revision"
 )
 
 // RevisionHistory renders the full revision history fragment for a page.

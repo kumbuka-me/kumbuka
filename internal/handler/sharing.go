@@ -8,11 +8,11 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/kumbuka-me/kumbuka/internal/domain"
 	"github.com/kumbuka-me/kumbuka/internal/httpresponse"
-	md "github.com/kumbuka-me/kumbuka/internal/markdown"
-	"github.com/kumbuka-me/kumbuka/internal/pluginbrowser"
-	"github.com/kumbuka-me/kumbuka/internal/plugincap"
+	"github.com/kumbuka-me/kumbuka/pkg/domain"
+	md "github.com/kumbuka-me/kumbuka/pkg/markdown"
+	"github.com/kumbuka-me/kumbuka/pkg/pluginbrowser"
+	"github.com/kumbuka-me/kumbuka/pkg/plugincap"
 )
 
 type createPageShareLinkResponse struct {

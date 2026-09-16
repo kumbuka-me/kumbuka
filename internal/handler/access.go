@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 
-	"github.com/kumbuka-me/kumbuka/internal/domain"
-	"github.com/kumbuka-me/kumbuka/internal/revision"
+	"github.com/kumbuka-me/kumbuka/pkg/domain"
+	"github.com/kumbuka-me/kumbuka/pkg/revision"
 )
 
 // accessiblePageCatalog limits page-report and include reads to one user's access.

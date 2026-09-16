@@ -11,12 +11,12 @@ import (
 	"strings"
 
 	"github.com/kumbuka-me/kumbuka/internal/auth"
-	"github.com/kumbuka-me/kumbuka/internal/domain"
 	"github.com/kumbuka-me/kumbuka/internal/httpresponse"
-	md "github.com/kumbuka-me/kumbuka/internal/markdown"
-	"github.com/kumbuka-me/kumbuka/internal/navigation"
-	"github.com/kumbuka-me/kumbuka/internal/plugincap"
 	"github.com/kumbuka-me/kumbuka/internal/service"
+	"github.com/kumbuka-me/kumbuka/pkg/domain"
+	md "github.com/kumbuka-me/kumbuka/pkg/markdown"
+	"github.com/kumbuka-me/kumbuka/pkg/navigation"
+	"github.com/kumbuka-me/kumbuka/pkg/plugincap"
 )
 
 // Home renders the dashboard for the current user.

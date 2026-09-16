@@ -6,3 +6,4 @@
   "include": ["../../web/src/ts/**/*.ts", "./**/*.ts"],
   "exclude": ["../../web/src/ts/service-worker/**/*.ts"]
 }
+

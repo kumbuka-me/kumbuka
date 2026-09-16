@@ -7,8 +7,8 @@ import (
 	"path"
 	"regexp"
 
-	"github.com/kumbuka-me/kumbuka/internal/plugin"
-	"github.com/kumbuka-me/kumbuka/internal/pluginbrowser"
+	"github.com/kumbuka-me/kumbuka/pkg/plugin"
+	"github.com/kumbuka-me/kumbuka/pkg/pluginbrowser"
 )
 
 // PluginAssets serves one validated browser asset from an enabled plugin.

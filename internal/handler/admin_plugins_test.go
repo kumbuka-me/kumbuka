@@ -12,10 +12,10 @@ import (
 	"testing"
 
 	"github.com/kumbuka-me/kumbuka/internal/auth"
-	"github.com/kumbuka-me/kumbuka/internal/domain"
 	"github.com/kumbuka-me/kumbuka/internal/middleware"
-	"github.com/kumbuka-me/kumbuka/internal/plugin"
-	"github.com/kumbuka-me/kumbuka/internal/plugin/wasm"
+	"github.com/kumbuka-me/kumbuka/pkg/domain"
+	"github.com/kumbuka-me/kumbuka/pkg/plugin"
+	"github.com/kumbuka-me/kumbuka/pkg/plugin/wasm"
 	"github.com/kumbuka-me/kumbuka/plugins"
 	"github.com/kumbuka-me/kumbuka/web"
 	"github.com/kumbuka-me/sdk/pluginpackage"

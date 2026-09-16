@@ -26,3 +26,4 @@ test('shared picker selects paths, restores drafts, and preserves form values', 
     await page.waitForFunction(() => !document.querySelectorAll('.shared-path-picker')[1].hidden);
   } finally { await browser.close(); }
 });
+

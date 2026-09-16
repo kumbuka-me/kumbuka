@@ -7,13 +7,13 @@ import (
 	"strings"
 
 	"github.com/kumbuka-me/kumbuka/internal/auth"
-	"github.com/kumbuka-me/kumbuka/internal/domain"
-	md "github.com/kumbuka-me/kumbuka/internal/markdown"
-	"github.com/kumbuka-me/kumbuka/internal/navigation"
-	"github.com/kumbuka-me/kumbuka/internal/plugin"
-	"github.com/kumbuka-me/kumbuka/internal/pluginbrowser"
-	"github.com/kumbuka-me/kumbuka/internal/plugincap"
-	"github.com/kumbuka-me/kumbuka/themes"
+	"github.com/kumbuka-me/kumbuka/pkg/domain"
+	md "github.com/kumbuka-me/kumbuka/pkg/markdown"
+	"github.com/kumbuka-me/kumbuka/pkg/navigation"
+	"github.com/kumbuka-me/kumbuka/pkg/plugin"
+	"github.com/kumbuka-me/kumbuka/pkg/pluginbrowser"
+	"github.com/kumbuka-me/kumbuka/pkg/plugincap"
+	"github.com/kumbuka-me/kumbuka/pkg/themes"
 )
 
 // publicViewData builds shared data for unauthenticated setup and login pages.

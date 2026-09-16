@@ -7,13 +7,13 @@
   A small, self-hosted, Markdown-first wiki for documentation.
 </p>
 
-Kumbuka gives you a focused place to write, organize, search, and share documentation. It runs as a single Go application backed by PostgreSQL and includes authentication, revision history, search, media, collaboration, and administration.
+Kumbuka is the PostgreSQL-backed server and web application. It includes authentication, revision history, search, media, collaboration, administration, themes, and the plugin runtime.
 
-The same binary can also publish Markdown as a read-only static documentation site without PostgreSQL or a running Kumbuka server.
+Project-oriented tooling lives in the separate [Kumbuka CLI](https://github.com/kumbuka-me/cli). Use `kumbuka-cli` for static-site builds, Markdown mirrors, and `.kumbukaplugins` management.
 
 ## Plugin development
 
-Create, test and build Go/WASI plugins with the [Kumbuka Plugin SDK and CLI](https://github.com/kumbuka-me/sdk). First-party plugins live in [kumbuka-me/plugins](https://github.com/kumbuka-me/plugins); bundled and installed packages use the same public API and sandboxed runtime.
+Create, test, and build Go/WASI plugins with the [Kumbuka Plugin SDK and CLI](https://github.com/kumbuka-me/sdk). First-party plugins live in [kumbuka-me/plugins](https://github.com/kumbuka-me/plugins); bundled and installed packages use the same public API and sandboxed runtime.
 
 ## Screenshots
 
@@ -41,7 +41,14 @@ http://localhost:8080
 
 On a fresh database, open Kumbuka and create the first administrator through the setup page.
 
-For production deployments, authentication, Kubernetes, static sites, and other configuration, see the [documentation](https://kumbuka.me/).
+The server binary has no subcommands. Running `kumbuka` starts the server directly:
+
+```sh
+kumbuka \
+  --database-url 'postgres://USER:PASS@HOST:5432/kumbuka?sslmode=disable' \
+  --listen-address 0.0.0.0:8080 \
+  --public-url http://localhost:8080
+```
 
 ## Common settings
 
@@ -54,56 +61,24 @@ Environment variables use the `KUMBUKA__` prefix.
 | `KUMBUKA__DATABASE_URL`   | —                       | PostgreSQL connection URL.                                                     |
 | `KUMBUKA__LOCAL_LOGIN`    | `false`                 | Enables the local recovery login alongside the configured authentication mode. |
 
-See the [configuration guide](https://kumbuka.me/configuration/) for all settings and authentication options.
+See the [documentation](https://kumbuka.me/) for all settings and authentication options.
 
-## Documentation
+## Reusable packages
 
-The full documentation is published at:
+Runtime packages that are intentionally shared with the standalone CLI live under `pkg/`. Server-only HTTP, authentication, routing, service composition, and deployment details remain under `internal/`.
 
-**[gi8lino.github.io/kumbuka](https://kumbuka.me/)**
+The public packages are implementation building blocks for Kumbuka tooling; the server remains the primary application in this repository.
+
+## CLI
+
+Install or build [kumbuka-me/cli](https://github.com/kumbuka-me/cli) for offline/project commands:
+
+```sh
+kumbuka-cli build --help
+kumbuka-cli mirror --help
+kumbuka-cli plugins --help
+```
 
 ## License
 
 Kumbuka is licensed under the [Apache License, Version 2.0](LICENSE).
-
-## Static-site plugins
-
-Static builds use a project-level `.kumbukaplugins` file to pin the plugin packages that the site may use. The file is independent from Kumbuka's `plugins.lock`: `plugins.lock` pins packages bundled into the Kumbuka distribution, while `.kumbukaplugins` pins dependencies of one static content project.
-
-```toml
-format = 1
-
-[[plugin]]
-id = "me.kumbuka.mermaid"
-repository = "kumbuka-me/plugins"
-tag_prefix = "mermaid/v"
-asset = "mermaid"
-version = "1.0.1"
-
-[[plugin]]
-id = "com.example.chart"
-repository = "example/kumbuka-chart"
-tag_prefix = "v"
-asset = "kumbuka-chart"
-version = "2.3.0"
-```
-
-`repository` is a GitHub `owner/repository`, `tag_prefix` is prepended to the version to form the release tag, and `asset` is the base name of `<asset>-<version>.kumbukaplugin` and its `.sha256` file. Matching bundled packages are reused directly; other packages are verified and cached below the operating system's user cache directory.
-
-Manage the file with:
-
-```bash
-kumbuka plugins list
-kumbuka plugins sync
-kumbuka plugins add \
-  --id com.example.chart \
-  --repository example/kumbuka-chart \
-  --plugin-version 2.3.0
-kumbuka plugins remove --id com.example.chart
-```
-
-`kumbuka build` reads all declared package manifests first, analyzes the Markdown using each module's declarative `usage` rules, adds transitive plugin dependencies, and starts only that selected package set. Unused declared WASM plugins are therefore not compiled or initialized, and unused browser assets are not copied into the generated site. Modules without usage rules are intentionally treated as global and are loaded whenever their plugin is declared.
-
-## License
-
-Licensed under the [Apache License 2.0](./LICENSE).

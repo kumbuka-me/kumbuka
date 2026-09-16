@@ -3,7 +3,7 @@ package handler
 import (
 	"testing"
 
-	"github.com/kumbuka-me/kumbuka/internal/plugin"
+	"github.com/kumbuka-me/kumbuka/pkg/plugin"
 	"github.com/kumbuka-me/sdk/pluginpackage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

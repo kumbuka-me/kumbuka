@@ -12,3 +12,4 @@ resources:
   - kumbuka/secret.yaml
   - kumbuka/deployment.yaml
   - kumbuka/service.yaml
+

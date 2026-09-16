@@ -12,3 +12,4 @@ spec:
       targetPort: http
       protocol: TCP
   type: ClusterIP
+

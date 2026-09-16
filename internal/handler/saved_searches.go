@@ -8,8 +8,8 @@ import (
 	"strings"
 
 	"github.com/kumbuka-me/kumbuka/internal/auth"
-	"github.com/kumbuka-me/kumbuka/internal/domain"
 	"github.com/kumbuka-me/kumbuka/internal/httpresponse"
+	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
 
 // CreateSavedSearch creates a personal smart collection.

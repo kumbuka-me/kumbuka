@@ -38,7 +38,6 @@ void test("themed layouts load the blocking initializer immediately after the ca
   for (const path of [
     "web/src/templates/layout.gohtml",
     "web/src/templates/shared_page.gohtml",
-    "internal/site/templates/layout.gohtml",
   ]) {
     assert.ok(
       /<script id="kumbuka-themes"[^>]*>.*?<\/script>\s*<script src="[^\n]*theme-init\.js[^\n]*"><\/script>/.test(

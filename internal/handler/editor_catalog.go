@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/kumbuka-me/kumbuka/internal/httpresponse"
-	"github.com/kumbuka-me/kumbuka/internal/plugin"
+	"github.com/kumbuka-me/kumbuka/pkg/plugin"
 )
 
 // EditorCatalog returns page and plugin-owned editor metadata used by editor intelligence.

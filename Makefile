@@ -52,10 +52,7 @@ KUMBUKA_ASSIGNED_PORT ?= $(call dev-port,app)
 DB_ASSIGNED_PORT ?= $(call dev-port,postgres)
 PDF_ASSIGNED_PORT ?= $(call dev-port,pdf)
 
-## Site Configuration
-SITE_CONFIG ?= docs/site.toml
-SITE_PORT ?= $(call dev-port,site)
-SITE_URL = http://127.0.0.1:$(SITE_PORT)/
+## Screenshots
 SCREENSHOT_SCRIPT := scripts/screenshots/run.sh
 SCREENSHOT_BROWSER_CHANNEL ?= chrome
 
@@ -96,11 +93,11 @@ plugins-refresh: ## Re-download all pinned first-party plugin packages.
 
 .PHONY: generate
 generate: plugins ## Generate application source files.
-	go generate ./internal/icons
+	go generate ./pkg/icons
 
 .PHONY: check-generated
 check-generated: generate ## Verify committed generated files are current.
-	git diff --exit-code -- internal/icons/catalog_gen.go
+	@test -z "$$(git status --porcelain -- pkg/icons/catalog_gen.go)"
 
 .PHONY: css
 css: ## Bundle split CSS sources into web/dist/css/app.css.
@@ -152,7 +149,7 @@ html-pdf: ports ## Run html2pdf locally.
 .PHONY: serve
 serve: ports ## Run Kumbuka using the saved ports.
 	@echo "Starting Kumbuka application..."
-	@KUMBUKA_POSTGRES_PORT=$(DB_ASSIGNED_PORT) go run $(COMMAND) serve \
+	@KUMBUKA_POSTGRES_PORT=$(DB_ASSIGNED_PORT) go run $(COMMAND) \
 		--debug \
 		--access-log \
 		--listen-address="127.0.0.1:$(KUMBUKA_ASSIGNED_PORT)" \
@@ -175,21 +172,6 @@ run: dev-build html-pdf postgres $(OPEN_BROWSER) ## Build, start services, and r
 .PHONY: build
 build: generate web ## Build the Kumbuka binary.
 	go build -ldflags="$(LDFLAGS)" -o $(BINARY) $(COMMAND)
-
-.PHONY: site
-site: generate web ## Build the published read-only documentation site.
-	go run $(COMMAND) build --config "$(SITE_CONFIG)"
-
-.PHONY: site-serve
-site-serve: generate web $(DEV_PORT) $(OPEN_BROWSER) ## Build, serve, and open documentation locally.
-	go run $(COMMAND) build \
-		--config "$(SITE_CONFIG)" \
-		--site-url "$(SITE_URL)"
-	@echo "Serving Kumbuka documentation at $(SITE_URL)"
-	@$(OPEN_BROWSER) "$(SITE_URL)" & \
-	browser_pid=$$!; \
-	trap 'kill "$$browser_pid" 2>/dev/null || true' EXIT; \
-	python3 -m http.server $(SITE_PORT) --bind 127.0.0.1 --directory docs/site
 
 .PHONY: screenshots
 screenshots: generate web $(NODE_MODULES) ## Regenerate documentation screenshots.
@@ -238,7 +220,7 @@ fmt-web: $(NODE_MODULES) ## Format CSS and TypeScript source files.
 
 .PHONY: fmt-templates
 fmt-templates: ## Format Go HTML templates.
-	djlint web/src/templates internal/site/templates --reformat
+	djlint web/src/templates --reformat
 
 .PHONY: fmt-go
 fmt-go: generate web ## Format Go code.
@@ -250,7 +232,7 @@ fmt-md: $(NODE_MODULES) ## Format Markdown files.
 
 .PHONY: check-templates
 check-templates: ## Check Go HTML template formatting.
-	djlint web/src/templates internal/site/templates --check
+	djlint web/src/templates --check
 
 .PHONY: lint
 lint: typecheck check-web lint-go ## Run all linters and formatting checks.
@@ -278,5 +260,6 @@ golangci-lint: $(GO_INSTALL_TOOL) ## Download golangci-lint locally if necessary
 		--target "$(GOLANGCI_LINT)" \
 		--package github.com/golangci/golangci-lint/v2/cmd/golangci-lint \
 		--tool-version "$(GOLANGCI_LINT_VERSION)"
+
 
 

@@ -6,10 +6,10 @@ import (
 	"log/slog"
 	"testing"
 
-	"github.com/kumbuka-me/kumbuka/internal/domain"
-	md "github.com/kumbuka-me/kumbuka/internal/markdown"
-	"github.com/kumbuka-me/kumbuka/internal/plugin"
-	"github.com/kumbuka-me/kumbuka/internal/pluginusage"
+	"github.com/kumbuka-me/kumbuka/pkg/domain"
+	md "github.com/kumbuka-me/kumbuka/pkg/markdown"
+	"github.com/kumbuka-me/kumbuka/pkg/plugin"
+	"github.com/kumbuka-me/kumbuka/pkg/pluginusage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

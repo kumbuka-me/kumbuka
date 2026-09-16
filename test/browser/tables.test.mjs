@@ -154,3 +154,4 @@ test("disabling a browser module cancels its pending image transfer", async () =
     await browser.close();
   }
 });
+

@@ -3,7 +3,7 @@ package auth
 import (
 	"net/http"
 
-	"github.com/kumbuka-me/kumbuka/internal/domain"
+	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
 
 // None authenticates every request as the local administrator.

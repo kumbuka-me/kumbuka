@@ -8,9 +8,9 @@ import (
 	"testing"
 
 	"github.com/kumbuka-me/kumbuka/internal/auth"
-	"github.com/kumbuka-me/kumbuka/internal/domain"
 	"github.com/kumbuka-me/kumbuka/internal/service"
-	"github.com/kumbuka-me/kumbuka/themes"
+	"github.com/kumbuka-me/kumbuka/pkg/domain"
+	"github.com/kumbuka-me/kumbuka/pkg/themes"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

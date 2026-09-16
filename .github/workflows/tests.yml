@@ -8,9 +8,9 @@ on:
       - main
     paths:
       - "internal/**"
+      - "pkg/**"
       - "plugins/**"
       - "plugins.lock"
-      - ".kumbukaplugins"
       - "cmd/**"
       - "go.mod"
       - "go.sum"
@@ -23,7 +23,6 @@ on:
       - ".goreleaser.yaml"
       - "web/**"
       - "scripts/**"
-      - "themes/**"
       - ".github/workflows/*.yml"
       - ".github/workflows/*.yaml"
   workflow_dispatch:
@@ -76,3 +75,4 @@ jobs:
 
       - name: Run Unit Tests
         run: make test-race
+

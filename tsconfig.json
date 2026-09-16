@@ -16,3 +16,4 @@
   "include": ["web/src/ts/**/*.ts"],
   "exclude": ["web/src/ts/service-worker/**/*.ts"]
 }
+

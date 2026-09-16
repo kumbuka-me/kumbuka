@@ -7,9 +7,9 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/kumbuka-me/kumbuka/internal/domain"
-	"github.com/kumbuka-me/kumbuka/internal/icons"
 	"github.com/kumbuka-me/kumbuka/internal/secrets"
+	"github.com/kumbuka-me/kumbuka/pkg/domain"
+	"github.com/kumbuka-me/kumbuka/pkg/icons"
 	"golang.org/x/net/http/httpguts"
 )
 

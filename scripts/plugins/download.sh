@@ -214,3 +214,4 @@ for package in "$destination"/*.kumbukaplugin; do
 done
 
 echo "Plugins: $count total, $downloaded downloaded, $reused unchanged"
+

@@ -10,11 +10,11 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/kumbuka-me/kumbuka/internal/domain"
-	"github.com/kumbuka-me/kumbuka/internal/icons"
-	md "github.com/kumbuka-me/kumbuka/internal/markdown"
-	"github.com/kumbuka-me/kumbuka/internal/pluginusage"
-	"github.com/kumbuka-me/kumbuka/internal/revision"
+	"github.com/kumbuka-me/kumbuka/pkg/domain"
+	"github.com/kumbuka-me/kumbuka/pkg/icons"
+	md "github.com/kumbuka-me/kumbuka/pkg/markdown"
+	"github.com/kumbuka-me/kumbuka/pkg/pluginusage"
+	"github.com/kumbuka-me/kumbuka/pkg/revision"
 )
 
 // PageSaveInput contains transport-independent page mutation fields.

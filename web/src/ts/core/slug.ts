@@ -1,4 +1,4 @@
-// Canonical page paths, matching internal/markdown.Slug.
+// Canonical page paths, matching pkg/markdown.Slug.
 export function slugifyPagePath(value: string): string {
   let output = "";
   let separator = false;

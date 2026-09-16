@@ -4,9 +4,9 @@ import (
 	"context"
 	"strings"
 
-	"github.com/kumbuka-me/kumbuka/internal/domain"
-	"github.com/kumbuka-me/kumbuka/internal/icons"
-	md "github.com/kumbuka-me/kumbuka/internal/markdown"
+	"github.com/kumbuka-me/kumbuka/pkg/domain"
+	"github.com/kumbuka-me/kumbuka/pkg/icons"
+	md "github.com/kumbuka-me/kumbuka/pkg/markdown"
 )
 
 // PageTemplateInput contains transport-independent page-blueprint settings.

@@ -9,8 +9,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/kumbuka-me/kumbuka/internal/domain"
 	"github.com/kumbuka-me/kumbuka/internal/httpresponse"
+	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
 
 // browserAuthenticator resolves the database-managed browser authentication mode per request.

@@ -79,3 +79,4 @@ test("real Mermaid is isolated and plugin changes require a page reload", async 
     await browser.close();
   }
 });
+

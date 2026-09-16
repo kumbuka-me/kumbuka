@@ -133,3 +133,4 @@ test("split preview ignores cursor clicks and refreshes without flashing", async
     await browser.close();
   }
 });
+

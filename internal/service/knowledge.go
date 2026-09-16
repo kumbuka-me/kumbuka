@@ -4,7 +4,7 @@ import (
 	"context"
 	"strings"
 
-	"github.com/kumbuka-me/kumbuka/internal/domain"
+	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
 
 // knowledgeRepository contains knowledge graph and saved-search operations.

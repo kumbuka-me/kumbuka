@@ -5,9 +5,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/kumbuka-me/kumbuka/internal/plugin"
-	"github.com/kumbuka-me/kumbuka/internal/plugin/wasm"
-	"github.com/kumbuka-me/kumbuka/internal/pluginbrowser"
+	"github.com/kumbuka-me/kumbuka/pkg/plugin"
+	"github.com/kumbuka-me/kumbuka/pkg/plugin/wasm"
+	"github.com/kumbuka-me/kumbuka/pkg/pluginbrowser"
 	"github.com/kumbuka-me/kumbuka/plugins"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

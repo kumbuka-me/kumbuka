@@ -47,9 +47,9 @@ ARG LDFLAGS="-s -w -X main.Version=${VERSION} -X main.Commit=${COMMIT}"
 # Copy the Go source and templates.
 COPY cmd/kumbuka/ cmd/kumbuka/
 COPY internal/ internal/
+COPY pkg/ pkg/
 COPY scripts/generate-icons/ scripts/generate-icons/
 COPY web/ web/
-COPY themes/ themes/
 COPY plugins/packages.go plugins/packages.go
 COPY --from=plugins /src/plugins/*.kumbukaplugin plugins/
 COPY --from=frontend /src/web/dist web/dist
@@ -59,7 +59,7 @@ COPY --from=frontend /src/web/dist web/dist
 # but can be set by buildx for cross-platform builds.
 RUN --mount=type=cache,target=/go/pkg/mod \
   --mount=type=cache,target=/root/.cache/go-build \
-  go generate ./internal/icons \
+  go generate ./pkg/icons \
   && GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH:-$(go env GOARCH)} \
   go build \
   -ldflags="$LDFLAGS" \
@@ -91,4 +91,3 @@ WORKDIR /app
 USER 65532:0
 
 ENTRYPOINT ["/kumbuka"]
-CMD ["serve"]

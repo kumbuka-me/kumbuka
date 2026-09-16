@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/kumbuka-me/kumbuka/internal/domain"
-	"github.com/kumbuka-me/kumbuka/internal/revision"
+	"github.com/kumbuka-me/kumbuka/pkg/domain"
+	"github.com/kumbuka-me/kumbuka/pkg/revision"
 )
 
 // catalogRepository contains page retrieval and discovery operations.

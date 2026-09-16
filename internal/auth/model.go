@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/kumbuka-me/kumbuka/internal/domain"
+	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
 
 // AuthMode identifies a supported browser authentication mode.

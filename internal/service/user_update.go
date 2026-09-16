@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/kumbuka-me/kumbuka/internal/auth"
-	"github.com/kumbuka-me/kumbuka/internal/domain"
+	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
 
 // UserUpdateInput describes the administrator's intended account change.

@@ -15,8 +15,8 @@ import (
 	kit "github.com/containeroo/notifykit/notify"
 	notifywebhook "github.com/containeroo/notifykit/targets/webhook"
 	"github.com/containeroo/notifykit/templates"
-	"github.com/kumbuka-me/kumbuka/internal/domain"
 	"github.com/kumbuka-me/kumbuka/internal/secrets"
+	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"golang.org/x/net/http/httpguts"
 )
 

@@ -18,10 +18,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kumbuka-me/kumbuka/internal/domain"
 	"github.com/kumbuka-me/kumbuka/internal/httpresponse"
-	md "github.com/kumbuka-me/kumbuka/internal/markdown"
 	"github.com/kumbuka-me/kumbuka/internal/pdf"
+	"github.com/kumbuka-me/kumbuka/pkg/domain"
+	md "github.com/kumbuka-me/kumbuka/pkg/markdown"
 	xhtml "golang.org/x/net/html"
 )
 

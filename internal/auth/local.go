@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kumbuka-me/kumbuka/internal/domain"
+	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"golang.org/x/crypto/bcrypt"
 )
 

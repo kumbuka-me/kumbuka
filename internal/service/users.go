@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/kumbuka-me/kumbuka/internal/domain"
+	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
 
 // userRepository contains account and external identity administration operations.

@@ -7,8 +7,8 @@ import (
 	"strings"
 
 	"github.com/kumbuka-me/kumbuka/internal/auth"
-	"github.com/kumbuka-me/kumbuka/internal/domain"
 	"github.com/kumbuka-me/kumbuka/internal/httpresponse"
+	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
 
 // LocalLogin renders and processes the optional Kumbuka-managed sign-in flow.

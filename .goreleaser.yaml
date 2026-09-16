@@ -6,7 +6,7 @@ before:
   hooks:
     - go mod tidy
     - make plugins
-    - go generate ./internal/icons
+    - go generate ./pkg/icons
 
 builds:
   - id: kumbuka
@@ -41,5 +41,6 @@ dockers_v2:
     platforms:
       - linux/amd64
       - linux/arm64
+
 
 

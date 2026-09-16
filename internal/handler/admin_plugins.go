@@ -9,8 +9,8 @@ import (
 	"strings"
 
 	"github.com/kumbuka-me/kumbuka/internal/httpresponse"
-	md "github.com/kumbuka-me/kumbuka/internal/markdown"
-	"github.com/kumbuka-me/kumbuka/internal/plugin"
+	md "github.com/kumbuka-me/kumbuka/pkg/markdown"
+	"github.com/kumbuka-me/kumbuka/pkg/plugin"
 	"github.com/kumbuka-me/sdk/pluginpackage"
 )
 

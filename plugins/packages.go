@@ -6,7 +6,7 @@ import (
 	"embed"
 	"io/fs"
 
-	"github.com/kumbuka-me/kumbuka/internal/plugin"
+	"github.com/kumbuka-me/kumbuka/pkg/plugin"
 )
 
 //go:embed *.kumbukaplugin

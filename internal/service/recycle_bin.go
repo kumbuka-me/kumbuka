@@ -3,7 +3,7 @@ package service
 import (
 	"context"
 
-	"github.com/kumbuka-me/kumbuka/internal/domain"
+	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
 
 // recycleBinRepository contains deleted-page lifecycle operations.

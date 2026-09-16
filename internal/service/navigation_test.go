@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/kumbuka-me/kumbuka/internal/icons"
+	"github.com/kumbuka-me/kumbuka/pkg/icons"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

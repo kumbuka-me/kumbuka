@@ -5,12 +5,12 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/kumbuka-me/kumbuka/internal/domain"
-	"github.com/kumbuka-me/kumbuka/internal/markdown"
-	"github.com/kumbuka-me/kumbuka/internal/navigation"
-	"github.com/kumbuka-me/kumbuka/internal/plugin"
-	"github.com/kumbuka-me/kumbuka/internal/revision"
-	"github.com/kumbuka-me/kumbuka/themes"
+	"github.com/kumbuka-me/kumbuka/pkg/domain"
+	"github.com/kumbuka-me/kumbuka/pkg/markdown"
+	"github.com/kumbuka-me/kumbuka/pkg/navigation"
+	"github.com/kumbuka-me/kumbuka/pkg/plugin"
+	"github.com/kumbuka-me/kumbuka/pkg/revision"
+	"github.com/kumbuka-me/kumbuka/pkg/themes"
 	"github.com/kumbuka-me/sdk"
 	"github.com/kumbuka-me/sdk/pluginpackage"
 )

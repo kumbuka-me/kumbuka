@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/kumbuka-me/kumbuka/internal/auth"
-	"github.com/kumbuka-me/kumbuka/internal/domain"
+	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
 
 // currentUser returns the user populated by route authentication middleware.
