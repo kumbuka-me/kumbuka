@@ -90,7 +90,7 @@ func (s *Navigation) NavigationIcons(ctx context.Context) (map[string]string, er
 func (s *Navigation) SetNavigationIcon(ctx context.Context, path, icon string) error {
 	icon = strings.TrimSpace(icon)
 	if !s.iconCatalog.IsIcon(icon) {
-		return newValidationError("icon", "Choose an icon from the available icon catalog.")
+		return domain.NewValidationError("icon", "Choose an icon from the available icon catalog.")
 	}
 	if err := s.repository.SetNavigationIcon(ctx, path, icon); err != nil {
 		return err

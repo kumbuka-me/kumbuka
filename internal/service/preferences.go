@@ -35,16 +35,16 @@ func (s *Preferences) SavePreferences(
 	preferences domain.UserPreferences,
 ) error {
 	if !domain.ValidNavigationStyle(preferences.NavigationStyle) {
-		return newValidationError("navigation_style", "Choose a valid navigation style.")
+		return domain.NewValidationError("navigation_style", "Choose a valid navigation style.")
 	}
 	if !domain.ValidNavigationDensity(preferences.NavigationDensity) {
-		return newValidationError("navigation_density", "Choose a valid navigation density.")
+		return domain.NewValidationError("navigation_density", "Choose a valid navigation density.")
 	}
 	if preferences.TypographySize != "" && !domain.ValidTypographySize(preferences.TypographySize) {
-		return newValidationError("typography_size", "Choose a valid typography size.")
+		return domain.NewValidationError("typography_size", "Choose a valid typography size.")
 	}
 	if !domain.ValidSidebarWidth(preferences.SidebarWidth) {
-		return newValidationError("sidebar_width", "Sidebar width is out of range.")
+		return domain.NewValidationError("sidebar_width", "Sidebar width is out of range.")
 	}
 	return s.repository.SavePreferences(ctx, userID, preferences)
 }
@@ -66,7 +66,7 @@ func (s *Preferences) SetExpandedNavigation(
 // SetSidebarWidth updates a user's preferred sidebar width.
 func (s *Preferences) SetSidebarWidth(ctx context.Context, userID int64, width int) error {
 	if !domain.ValidSidebarWidth(width) {
-		return newValidationError("sidebar_width", "Sidebar width is out of range.")
+		return domain.NewValidationError("sidebar_width", "Sidebar width is out of range.")
 	}
 	return s.repository.SetSidebarWidth(ctx, userID, width)
 }

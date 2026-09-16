@@ -27,22 +27,22 @@ func (s *Users) UpdateAccount(ctx context.Context, input UserUpdateInput) error 
 		return domain.ErrForbidden
 	}
 	if input.UserID <= 0 {
-		return newValidationError("user_id", "Choose a valid user.")
+		return domain.NewValidationError("user_id", "Choose a valid user.")
 	}
 	if !domain.ValidUserRole(input.Role) {
-		return newValidationError("role", "Choose a valid user role.")
+		return domain.NewValidationError("role", "Choose a valid user role.")
 	}
 	if input.UserID == input.Actor.ID {
 		if input.Role != "admin" {
-			return newValidationError("role", "You cannot remove your own administrator role.")
+			return domain.NewValidationError("role", "You cannot remove your own administrator role.")
 		}
 		if !input.Enabled {
-			return newValidationError("account_enabled", "You cannot disable your own account.")
+			return domain.NewValidationError("account_enabled", "You cannot disable your own account.")
 		}
 	}
 	for _, id := range input.GroupIDs {
 		if id <= 0 {
-			return newValidationError("group_id", "Choose a valid group.")
+			return domain.NewValidationError("group_id", "Choose a valid group.")
 		}
 	}
 	update := domain.UserAccountUpdate{UserID: input.UserID, Role: input.Role, Enabled: input.Enabled, GroupIDs: input.GroupIDs}
@@ -56,14 +56,14 @@ func (s *Users) UpdateAccount(ctx context.Context, input UserUpdateInput) error 
 			mode = settings.Authentication.Mode
 		}
 		if auth.AuthMode(mode) != auth.AuthModeOIDC && auth.AuthMode(mode) != auth.AuthModeTrustedProxy {
-			return newValidationError("local_credential_enabled", "Local recovery credentials can only be enabled or disabled while external authentication is active.")
+			return domain.NewValidationError("local_credential_enabled", "Local recovery credentials can only be enabled or disabled while external authentication is active.")
 		}
 		enabled := input.Password != "" || input.LocalCredentialEnabled
 		update.LocalCredentialEnabled = &enabled
 	}
 	if input.Password != "" {
 		if problem := auth.LocalPasswordProblem(input.Password); problem != "" {
-			return newValidationError("local_password", problem)
+			return domain.NewValidationError("local_password", problem)
 		}
 		hash, err := auth.HashLocalPassword(input.Password)
 		if err != nil {

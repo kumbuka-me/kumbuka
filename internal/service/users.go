@@ -59,7 +59,7 @@ func (s *Users) UpdateUser(
 	localCredentialEnabled *bool,
 ) error {
 	if !domain.ValidUserRole(role) {
-		return newValidationError("role", "Choose a valid user role.")
+		return domain.NewValidationError("role", "Choose a valid user role.")
 	}
 	return s.repository.UpdateUser(ctx, userID, role, enabled, groupIDs, localCredentialEnabled)
 }
@@ -70,7 +70,7 @@ func (s *Users) RevokeUserSessions(ctx context.Context, userID, actorID int64) e
 		return err
 	}
 
-	_ = audit(s.repository, ctx, actorID, "user.sessions_revoked", "user", fmt.Sprint(userID), "Revoked browser sessions")
+	_ = s.repository.LogAudit(ctx, actorID, "user.sessions_revoked", "user", fmt.Sprint(userID), "Revoked browser sessions")
 
 	return nil
 }
@@ -105,7 +105,7 @@ func (s *Users) ApprovePendingOIDCIdentity(
 		return domain.User{}, err
 	}
 
-	_ = audit(s.repository,
+	_ = s.repository.LogAudit(
 		ctx,
 		actorID,
 		"identity.oidc_approved",
@@ -128,7 +128,7 @@ func (s *Users) LinkPendingOIDCIdentity(
 		return domain.User{}, err
 	}
 
-	_ = audit(s.repository,
+	_ = s.repository.LogAudit(
 		ctx,
 		actorID,
 		"identity.oidc_linked",
@@ -159,7 +159,7 @@ func (s *Users) SetPendingOIDCIdentityRejected(
 		detail = "Rejected pending OIDC identity"
 	}
 
-	_ = audit(s.repository, ctx, actorID, action, "oidc_identity", fmt.Sprint(pendingID), detail)
+	_ = s.repository.LogAudit(ctx, actorID, action, "oidc_identity", fmt.Sprint(pendingID), detail)
 
 	return nil
 }
@@ -175,7 +175,7 @@ func (s *Users) RemoveOIDCIdentity(
 		return err
 	}
 
-	_ = audit(s.repository,
+	_ = s.repository.LogAudit(
 		ctx,
 		actorID,
 		"identity.oidc_removed",

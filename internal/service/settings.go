@@ -184,7 +184,7 @@ func (s *Settings) SaveApplicationSettings(
 		return err
 	}
 
-	_ = audit(s.repository,
+	_ = s.repository.LogAudit(
 		ctx,
 		actorID,
 		"settings.application_updated",
@@ -266,7 +266,7 @@ func (s *Settings) SavePDFSettings(
 		return err
 	}
 
-	_ = audit(s.repository,
+	_ = s.repository.LogAudit(
 		ctx,
 		actorID,
 		"settings.pdf_updated",
@@ -460,7 +460,7 @@ func (s *Settings) SaveAuthenticationSettings(
 		return err
 	}
 
-	_ = audit(s.repository,
+	_ = s.repository.LogAudit(
 		ctx,
 		actorID,
 		"settings.authentication_updated",
@@ -474,7 +474,7 @@ func (s *Settings) SaveAuthenticationSettings(
 
 // RecordLocalPasswordUpdated records a local recovery password change.
 func (s *Settings) RecordLocalPasswordUpdated(ctx context.Context, actor domain.User) {
-	_ = audit(s.repository,
+	_ = s.repository.LogAudit(
 		ctx,
 		actor.ID,
 		"settings.local_password_updated",

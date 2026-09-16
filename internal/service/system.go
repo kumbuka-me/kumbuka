@@ -26,7 +26,7 @@ func (s *System) Ping(ctx context.Context) error {
 
 // RecordSetupCompleted records creation of the initial administrator.
 func (s *System) RecordSetupCompleted(ctx context.Context, actor domain.User) {
-	_ = audit(s.repository,
+	_ = s.repository.LogAudit(
 		ctx,
 		actor.ID,
 		"setup.completed",

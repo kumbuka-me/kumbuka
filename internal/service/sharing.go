@@ -61,7 +61,7 @@ func (s *Sharing) CreatePageShareLink(
 		return IssuedPageShareLink{}, err
 	}
 
-	_ = audit(s.repository,
+	_ = s.repository.LogAudit(
 		ctx,
 		actor.ID,
 		"page.share_created",

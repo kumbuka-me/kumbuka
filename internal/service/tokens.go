@@ -42,7 +42,7 @@ func (s *Tokens) CreateToken(
 ) (domain.IssuedToken, error) {
 	name = strings.TrimSpace(name)
 	if name == "" {
-		return domain.IssuedToken{}, newValidationError("name", "A token name is required.")
+		return domain.IssuedToken{}, domain.NewValidationError("name", "A token name is required.")
 	}
 	return s.repository.CreateToken(ctx, name, userID, createdBy, expiresAt)
 }

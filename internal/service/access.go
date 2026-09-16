@@ -86,13 +86,13 @@ func (s *Access) PageAccessRules(ctx context.Context) ([]domain.PageAccessRule, 
 func (s *Access) SavePageAccessRule(ctx context.Context, path string, groupID int64, access string) error {
 	path = normalizeAccessPath(path)
 	if path == "" {
-		return newValidationError("path", "A page path is required.")
+		return domain.NewValidationError("path", "A page path is required.")
 	}
 	if groupID <= 0 {
-		return newValidationError("group_id", "Choose a group.")
+		return domain.NewValidationError("group_id", "Choose a group.")
 	}
 	if access != PageAccessView && access != PageAccessEdit {
-		return newValidationError("access", "Choose view or edit access.")
+		return domain.NewValidationError("access", "Choose view or edit access.")
 	}
 	return s.repository.SavePageAccessRule(ctx, path, groupID, access)
 }
@@ -100,7 +100,7 @@ func (s *Access) SavePageAccessRule(ctx context.Context, path string, groupID in
 // DeletePageAccessRule removes one inherited path rule.
 func (s *Access) DeletePageAccessRule(ctx context.Context, id int64) error {
 	if id <= 0 {
-		return newValidationError("rule", "Choose a valid access rule.")
+		return domain.NewValidationError("rule", "Choose a valid access rule.")
 	}
 	return s.repository.DeletePageAccessRule(ctx, id)
 }

@@ -44,10 +44,10 @@ func (s *Knowledge) SaveSavedSearch(
 	name = strings.TrimSpace(name)
 	query = strings.TrimSpace(query)
 	if name == "" {
-		return newValidationError("name", "A saved search name is required.")
+		return domain.NewValidationError("name", "A saved search name is required.")
 	}
 	if query == "" {
-		return newValidationError("query", "A search query is required.")
+		return domain.NewValidationError("query", "A search query is required.")
 	}
 	return s.repository.SaveSavedSearch(ctx, userID, id, name, query, pinned)
 }

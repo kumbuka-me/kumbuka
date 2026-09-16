@@ -60,7 +60,7 @@ func (s *Drafts) Save(ctx context.Context, input PageDraftSaveInput) (domain.Pag
 		return domain.PageDraft{}, domain.ErrForbidden
 	}
 	if input.PageID < 0 || !validPageDraftKey(input.Key, input.PageID, true) {
-		return domain.PageDraft{}, newValidationError("draft", "Invalid page draft identifier.")
+		return domain.PageDraft{}, domain.NewValidationError("draft", "Invalid page draft identifier.")
 	}
 
 	if input.Values == nil {

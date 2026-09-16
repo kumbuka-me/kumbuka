@@ -38,7 +38,7 @@ func (s *Groups) AssignableGroups(ctx context.Context, user domain.User) ([]doma
 func (s *Groups) CreateGroup(ctx context.Context, name string) (domain.Group, error) {
 	name = strings.TrimSpace(name)
 	if name == "" {
-		return domain.Group{}, newValidationError("name", "A group name is required.")
+		return domain.Group{}, domain.NewValidationError("name", "A group name is required.")
 	}
 	return s.repository.CreateGroup(ctx, name)
 }

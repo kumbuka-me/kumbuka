@@ -342,10 +342,10 @@ func (s *Pages) Move(
 		return &ValidationError{Fields: []FieldError{{Field: "slug", Message: "A destination path is required."}}}
 	}
 	if oldSlug == newSlug {
-		return newValidationError("slug", "Choose a different destination path.")
+		return domain.NewValidationError("slug", "Choose a different destination path.")
 	}
 	if options.MoveChildren && strings.HasPrefix(newSlug, oldSlug+"/") {
-		return newValidationError("slug", "A page tree cannot be moved inside itself.")
+		return domain.NewValidationError("slug", "A page tree cannot be moved inside itself.")
 	}
 	if err := s.repository.MovePage(ctx, oldSlug, newSlug, options, actor); err != nil {
 		return err
@@ -436,7 +436,7 @@ func (s *Pages) RestoreRevision(ctx context.Context, slug string, number int, ac
 func (s *Pages) AddComment(ctx context.Context, slug, anchor, body string, actor domain.User) error {
 	body = strings.TrimSpace(body)
 	if body == "" {
-		return newValidationError("body", "A comment is required.")
+		return domain.NewValidationError("body", "A comment is required.")
 	}
 	settings, err := s.repository.ApplicationSettings(ctx)
 	if err != nil {
@@ -499,7 +499,7 @@ func (s *Pages) Import(ctx context.Context, candidates []ImportedPage, format st
 func (s *Pages) importPage(ctx context.Context, candidate ImportedPage, actor domain.User) error {
 	slug := md.Slug(candidate.Slug)
 	if slug == "" {
-		return newValidationError("slug", fmt.Sprintf("Invalid imported page path %q.", candidate.Slug))
+		return domain.NewValidationError("slug", fmt.Sprintf("Invalid imported page path %q.", candidate.Slug))
 	}
 
 	input := PageSaveInput{
@@ -541,7 +541,7 @@ func (s *Pages) importPage(ctx context.Context, candidate ImportedPage, actor do
 // Bulk applies one administrative mutation and records a single audit event.
 func (s *Pages) Bulk(ctx context.Context, input BulkPageInput) error {
 	if len(input.Slugs) == 0 {
-		return newValidationError("pages", "Select at least one page.")
+		return domain.NewValidationError("pages", "Select at least one page.")
 	}
 
 	var err error
@@ -549,17 +549,17 @@ func (s *Pages) Bulk(ctx context.Context, input BulkPageInput) error {
 	switch input.Action {
 	case "status":
 		if !domain.ValidPageStatus(input.Status) {
-			return newValidationError("status", "Choose a valid page status.")
+			return domain.NewValidationError("status", "Choose a valid page status.")
 		}
 		err = s.repository.BulkSetPageStatus(ctx, input.Slugs, input.Status)
 	case "tag":
 		if strings.TrimSpace(input.Tag) == "" {
-			return newValidationError("tag", "Enter a tag.")
+			return domain.NewValidationError("tag", "Enter a tag.")
 		}
 		err = s.repository.BulkAddPageTag(ctx, input.Slugs, input.Tag)
 	case "group":
 		if input.GroupID <= 0 {
-			return newValidationError("group_id", "Choose a valid group.")
+			return domain.NewValidationError("group_id", "Choose a valid group.")
 		}
 		err = s.repository.BulkAssignPageGroup(ctx, input.Slugs, input.GroupID)
 	case "move":
@@ -567,7 +567,7 @@ func (s *Pages) Bulk(ctx context.Context, input BulkPageInput) error {
 	case "delete":
 		err = s.repository.BulkDeletePages(ctx, input.Slugs, input.Actor.ID)
 	default:
-		return newValidationError("action", "Choose a valid bulk action.")
+		return domain.NewValidationError("action", "Choose a valid bulk action.")
 	}
 
 	if err != nil {
@@ -590,13 +590,13 @@ func (s *Pages) Bulk(ctx context.Context, input BulkPageInput) error {
 func (s *Pages) bulkMove(ctx context.Context, slugs []string, target string, actor domain.User) error {
 	target = md.Slug(target)
 	if target == "" {
-		return newValidationError("target", "A target path is required.")
+		return domain.NewValidationError("target", "A target path is required.")
 	}
 
 	for _, slug := range slugs {
 		source := strings.Trim(strings.TrimSpace(slug), "/")
 		if source == "" || source == target+"/"+path.Base(source) {
-			return newValidationError("target", "Choose a different destination for every selected page.")
+			return domain.NewValidationError("target", "Choose a different destination for every selected page.")
 		}
 	}
 
@@ -687,7 +687,7 @@ func (s *Pages) CanManageReview(request domain.PageReviewRequest, actor domain.U
 func (s *Pages) RequestReview(ctx context.Context, input PageReviewRequestInput) (domain.PageReviewRequest, error) {
 	input.Slug = strings.TrimSpace(input.Slug)
 	if input.Slug == "" {
-		return domain.PageReviewRequest{}, newValidationError("slug", "A page path is required.")
+		return domain.PageReviewRequest{}, domain.NewValidationError("slug", "A page path is required.")
 	}
 	if !canRequestReview(input.Actor) {
 		return domain.PageReviewRequest{}, domain.ErrForbidden
@@ -735,11 +735,11 @@ func (s *Pages) RequestReview(ctx context.Context, input PageReviewRequestInput)
 // UpdateReview changes reviewers, reviewer group, or note without changing the requested revision.
 func (s *Pages) UpdateReview(ctx context.Context, input PageReviewUpdateInput) (domain.PageReviewRequest, error) {
 	if input.ID <= 0 {
-		return domain.PageReviewRequest{}, newValidationError("review", "Choose a valid review request.")
+		return domain.PageReviewRequest{}, domain.NewValidationError("review", "Choose a valid review request.")
 	}
 	input.Slug = strings.TrimSpace(input.Slug)
 	if input.Slug == "" {
-		return domain.PageReviewRequest{}, newValidationError("slug", "A page path is required.")
+		return domain.PageReviewRequest{}, domain.NewValidationError("slug", "A page path is required.")
 	}
 
 	request, err := s.repository.PageReviewRequestByID(ctx, input.ID, input.Slug)
@@ -785,11 +785,11 @@ func (s *Pages) UpdateReview(ctx context.Context, input PageReviewUpdateInput) (
 // CancelReview cancels a pending request without rewriting its history.
 func (s *Pages) CancelReview(ctx context.Context, id int64, slug string, actor domain.User) error {
 	if id <= 0 {
-		return newValidationError("review", "Choose a valid review request.")
+		return domain.NewValidationError("review", "Choose a valid review request.")
 	}
 	slug = strings.TrimSpace(slug)
 	if slug == "" {
-		return newValidationError("slug", "A page path is required.")
+		return domain.NewValidationError("slug", "A page path is required.")
 	}
 
 	request, err := s.repository.PageReviewRequestByID(ctx, id, slug)
@@ -817,10 +817,10 @@ func (s *Pages) CancelReview(ctx context.Context, id int64, slug string, actor d
 // DecideReview approves the requested revision or asks the author for changes.
 func (s *Pages) DecideReview(ctx context.Context, input PageReviewDecisionInput) error {
 	if input.ID <= 0 {
-		return newValidationError("review", "Choose a valid review request.")
+		return domain.NewValidationError("review", "Choose a valid review request.")
 	}
 	if input.Decision != domain.PageReviewStatusApproved && input.Decision != domain.PageReviewStatusChangesRequested {
-		return newValidationError("decision", "Choose approve or request changes.")
+		return domain.NewValidationError("decision", "Choose approve or request changes.")
 	}
 
 	allowed, err := s.CanReview(ctx, input.Slug, input.Actor)
@@ -864,7 +864,7 @@ func (s *Pages) resolveReviewTargets(
 	groupID int64,
 ) ([]int64, int64, error) {
 	if groupID < 0 {
-		return nil, 0, newValidationError("reviewer_group_id", "Choose a valid reviewer group.")
+		return nil, 0, domain.NewValidationError("reviewer_group_id", "Choose a valid reviewer group.")
 	}
 
 	usernames = normalizeReviewerUsernames(usernames)
@@ -873,12 +873,12 @@ func (s *Pages) resolveReviewTargets(
 		return nil, 0, err
 	}
 	if len(reviewers) != len(usernames) || !validReviewers(reviewers) {
-		return nil, 0, newValidationError("reviewers", "Choose enabled editors or administrators as reviewers.")
+		return nil, 0, domain.NewValidationError("reviewers", "Choose enabled editors or administrators as reviewers.")
 	}
 
 	if groupID > 0 {
 		if _, err := s.repository.ReviewGroup(ctx, groupID); errors.Is(err, domain.ErrNotFound) {
-			return nil, 0, newValidationError("reviewer_group_id", "Choose an existing reviewer group.")
+			return nil, 0, domain.NewValidationError("reviewer_group_id", "Choose an existing reviewer group.")
 		} else if err != nil {
 			return nil, 0, err
 		}

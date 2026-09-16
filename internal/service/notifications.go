@@ -44,7 +44,7 @@ func (s *Notifications) Notifications(
 // MarkNotificationRead marks one owned notification as read.
 func (s *Notifications) MarkNotificationRead(ctx context.Context, userID, id int64) error {
 	if id <= 0 {
-		return newValidationError("notification", "Invalid notification.")
+		return domain.NewValidationError("notification", "Invalid notification.")
 	}
 
 	return s.repository.MarkNotificationRead(ctx, userID, id)
@@ -58,7 +58,7 @@ func (s *Notifications) MarkAllNotificationsRead(ctx context.Context, userID int
 // OpenNotification marks an owned notification read and returns its stored destination.
 func (s *Notifications) OpenNotification(ctx context.Context, userID, id int64) (string, error) {
 	if id <= 0 {
-		return "", newValidationError("notification", "Invalid notification.")
+		return "", domain.NewValidationError("notification", "Invalid notification.")
 	}
 
 	return s.repository.OpenNotification(ctx, userID, id)
