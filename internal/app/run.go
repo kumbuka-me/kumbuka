@@ -84,13 +84,11 @@ func Run(
 	if err != nil {
 		setupLogger.Error(
 			"open database",
-			"event",
-			"database_open_failed",
+			"event", "database_open_failed",
 			"error", err,
 		)
 		return err
 	}
-
 	defer database.Close()
 
 	// Construct application services here so internal/app remains the single
@@ -105,7 +103,12 @@ func Run(
 	notificationUseCases := service.NewNotifications(database)
 	mediaUseCases := service.NewMedia(database)
 	navigationUseCases := service.NewNavigation(database)
-	webhookUseCases := service.NewWebhooks(database, secretCipher, logger.With("component", "webhooks"), cfg.PublicURL)
+	webhookUseCases := service.NewWebhooks(
+		database,
+		secretCipher,
+		logger.With("component", "webhooks"),
+		cfg.PublicURL,
+	)
 	pageUseCases := service.NewPages(database, logger, webhookUseCases)
 	preferenceUseCases := service.NewPreferences(database)
 	recycleBinUseCases := service.NewRecycleBin(database)
@@ -114,7 +117,27 @@ func Run(
 	templateUseCases := service.NewTemplates(database)
 	tokenUseCases := service.NewTokens(database)
 	userUseCases := service.NewUsers(database)
-	browserAuth, err := auth.ConfigureBrowserAuth(ctx, browserConfig(cfg), database)
+
+	browserAuth, err := auth.ConfigureBrowserAuth(
+		ctx,
+		auth.BrowserConfig{
+			ModeOverride: cfg.AuthModeOverride,
+			TrustedProxy: auth.TrustedProxyHeaders{
+				Username:    cfg.TrustedUsernameHeaders,
+				Email:       cfg.TrustedEmailHeaders,
+				DisplayName: cfg.TrustedDisplayNameHeaders,
+			},
+			OIDC: auth.OIDCConfig{
+				ClientID:      cfg.OIDCClientID,
+				ClientSecret:  cfg.OIDCClientSecret,
+				Issuer:        cfg.OIDCIssuer,
+				SessionSecret: cfg.OIDCSessionSecret,
+				PublicURL:     cfg.PublicURL,
+			},
+			LocalLoginEnabled: cfg.LocalLogin,
+		},
+		database,
+	)
 	if err != nil {
 		setupLogger.Error(
 			"configure browser auth",
@@ -162,10 +185,12 @@ func Run(
 		)
 		return err
 	}
+
 	renderer.SetArtifactBuild(version, commit)
 	defer func() { _ = renderer.Close(context.Background()) }()
 
 	iconCatalog := renderer.IconCatalog()
+
 	navigationUseCases.WithIconCatalog(iconCatalog)
 	pageUseCases.WithIconCatalog(iconCatalog).WithRenderer(renderer)
 	settingsUseCases.WithIconCatalog(iconCatalog)
@@ -177,7 +202,22 @@ func Run(
 		version,
 		commit,
 		availableThemes,
-		runtimeInfo(cfg, secretCipher.Configured()),
+		handler.RuntimeInfo{
+			ListenAddress:                     cfg.ListenAddress,
+			PublicURL:                         cfg.PublicURL,
+			PDFURL:                            cfg.PDFURL,
+			AuthModeOverride:                  string(cfg.AuthModeOverride),
+			OIDCIssuerOverride:                cfg.OIDCIssuer,
+			OIDCClientIDOverride:              cfg.OIDCClientID,
+			TrustedUsernameHeadersOverride:    cfg.TrustedUsernameHeaders,
+			TrustedEmailHeadersOverride:       cfg.TrustedEmailHeaders,
+			TrustedDisplayNameHeadersOverride: cfg.TrustedDisplayNameHeaders,
+			OIDCClientSecretConfigured:        cfg.OIDCClientSecret != "",
+			OIDCSessionSecretConfigured:       len(cfg.OIDCSessionSecret) >= 32,
+			EncryptionKeyConfigured:           secretCipher.Configured(),
+			LocalLoginEnabled:                 cfg.LocalLogin,
+			ThemeDirectory:                    cfg.ThemeDirectory,
+		},
 		iconCatalog,
 	)
 	if err != nil {
@@ -233,50 +273,21 @@ func Run(
 		Logger:         logger.With("component", "server"),
 		AccessLog:      cfg.AccessLog,
 	})
-	if err := server.Run(ctx, cfg.ListenAddress, router, setupLogger, server.WithMaxHeaderValueCount(100)); err != nil {
-		setupLogger.Error("run server", "event", "server_run_failed", "error", err)
+
+	if err := server.Run(
+		ctx,
+		cfg.ListenAddress,
+		router,
+		setupLogger,
+		server.WithMaxHeaderValueCount(100),
+	); err != nil {
+		setupLogger.Error(
+			"run server",
+			"event", "server_run_failed",
+			"error", err,
+		)
 		return err
 	}
 
 	return nil
-}
-
-// browserConfig translates deployment flags into browser authentication configuration.
-func browserConfig(cfg flags.Config) auth.BrowserConfig {
-	return auth.BrowserConfig{
-		ModeOverride: cfg.AuthModeOverride,
-		TrustedProxy: auth.TrustedProxyHeaders{
-			Username:    cfg.TrustedUsernameHeaders,
-			Email:       cfg.TrustedEmailHeaders,
-			DisplayName: cfg.TrustedDisplayNameHeaders,
-		},
-		OIDC: auth.OIDCConfig{
-			ClientID:      cfg.OIDCClientID,
-			ClientSecret:  cfg.OIDCClientSecret,
-			Issuer:        cfg.OIDCIssuer,
-			SessionSecret: cfg.OIDCSessionSecret,
-			PublicURL:     cfg.PublicURL,
-		},
-		LocalLoginEnabled: cfg.LocalLogin,
-	}
-}
-
-// runtimeInfo exposes deployment-level runtime state to administrative views.
-func runtimeInfo(cfg flags.Config, encryptionKeyConfigured bool) handler.RuntimeInfo {
-	return handler.RuntimeInfo{
-		ListenAddress:                     cfg.ListenAddress,
-		PublicURL:                         cfg.PublicURL,
-		PDFURL:                            cfg.PDFURL,
-		AuthModeOverride:                  string(cfg.AuthModeOverride),
-		OIDCIssuerOverride:                cfg.OIDCIssuer,
-		OIDCClientIDOverride:              cfg.OIDCClientID,
-		TrustedUsernameHeadersOverride:    cfg.TrustedUsernameHeaders,
-		TrustedEmailHeadersOverride:       cfg.TrustedEmailHeaders,
-		TrustedDisplayNameHeadersOverride: cfg.TrustedDisplayNameHeaders,
-		OIDCClientSecretConfigured:        cfg.OIDCClientSecret != "",
-		OIDCSessionSecretConfigured:       len(cfg.OIDCSessionSecret) >= 32,
-		EncryptionKeyConfigured:           encryptionKeyConfigured,
-		LocalLoginEnabled:                 cfg.LocalLogin,
-		ThemeDirectory:                    cfg.ThemeDirectory,
-	}
 }
