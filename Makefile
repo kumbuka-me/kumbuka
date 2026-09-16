@@ -54,6 +54,15 @@ KUMBUKA_ASSIGNED_PORT ?= $(call dev-port,app)
 DB_ASSIGNED_PORT ?= $(call dev-port,postgres)
 PDF_ASSIGNED_PORT ?= $(call dev-port,pdf)
 
+## Screenshots
+SCREENSHOT_SCRIPT := scripts/screenshots/run.sh
+SCREENSHOT_CONTENT ?=
+SCREENSHOT_OUTPUT ?= build/screenshots
+SCREENSHOT_EDITOR_SLUG ?=
+SCREENSHOT_VISITS ?=
+SCREENSHOT_BROWSER_CHANNEL ?=
+SCREENSHOT_SKIP_BROWSER_INSTALL ?= 0
+
 ## Formatting
 PRETTIER_MD_SOURCES := README.md
 
@@ -171,6 +180,18 @@ run: dev-build html-pdf postgres $(OPEN_BROWSER) ## Build, start services, and r
 build: generate web ## Build the Kumbuka binary.
 	go build -ldflags="$(LDFLAGS)" -o $(BINARY) $(COMMAND)
 
+.PHONY: screenshots
+screenshots: ## Generate documentation screenshots from externally supplied Markdown.
+	@test -n "$(SCREENSHOT_CONTENT)" || { echo "SCREENSHOT_CONTENT is required" >&2; exit 2; }
+	@test -n "$(SCREENSHOT_EDITOR_SLUG)" || { echo "SCREENSHOT_EDITOR_SLUG is required" >&2; exit 2; }
+	@SCREENSHOT_BROWSER_CHANNEL="$(SCREENSHOT_BROWSER_CHANNEL)" \
+		SCREENSHOT_SKIP_BROWSER_INSTALL="$(SCREENSHOT_SKIP_BROWSER_INSTALL)" \
+		$(SCREENSHOT_SCRIPT) \
+			--content "$(SCREENSHOT_CONTENT)" \
+			--output "$(SCREENSHOT_OUTPUT)" \
+			--editor-slug "$(SCREENSHOT_EDITOR_SLUG)" \
+			--visits "$(SCREENSHOT_VISITS)"
+
 .PHONY: vet
 vet: generate web ## Run Go static analysis.
 	go vet ./...
@@ -250,6 +271,8 @@ golangci-lint: $(GO_INSTALL_TOOL) ## Download golangci-lint locally if necessary
 		--target "$(GOLANGCI_LINT)" \
 		--package github.com/golangci/golangci-lint/v2/cmd/golangci-lint \
 		--tool-version "$(GOLANGCI_LINT_VERSION)"
+
+
 
 
 

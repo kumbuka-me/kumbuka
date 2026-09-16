@@ -7,6 +7,7 @@ coverage.out
 
 /web/dist/
 /node_modules/
+/build/
 
 /plugins/*.kumbukaplugin
 /plugins/.downloaded
@@ -14,6 +15,8 @@ coverage.out
 # Local development port assignments
 /.dev-ports.json
 /.dev-ports.json.lock
+
+
 
 
 
