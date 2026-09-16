@@ -10,15 +10,24 @@ import (
 // UserUpdateInput describes the administrator's intended account change.
 // Password confirmation belongs to the form; password policy belongs to this operation.
 type UserUpdateInput struct {
-	UserID                 int64
-	Actor                  domain.User
-	Role                   string
-	Enabled                bool
-	GroupIDs               []int64
-	Password               string
-	UpdateLocalCredential  bool
+	// UserID identifies the user associated with user update input.
+	UserID int64
+	// Actor stores the actor value used by user update input.
+	Actor domain.User
+	// Role is the role associated with user update input.
+	Role string
+	// Enabled reports whether enabled applies to user update input.
+	Enabled bool
+	// GroupIDs contains the group i ds associated with user update input.
+	GroupIDs []int64
+	// Password stores the password value used by user update input.
+	Password string
+	// UpdateLocalCredential reports whether update local credential applies to user update input.
+	UpdateLocalCredential bool
+	// LocalCredentialEnabled reports whether local credential enabled applies to user update input.
 	LocalCredentialEnabled bool
-	AuthModeOverride       string
+	// AuthModeOverride stores the auth mode override value used by user update input.
+	AuthModeOverride string
 }
 
 // UpdateAccount validates the complete operation before submitting one atomic mutation.

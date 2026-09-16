@@ -17,11 +17,15 @@ import (
 // AdminPlugins exposes package metadata and lifecycle operations through the
 // existing administration layout. Routes apply browser authentication/admin authorization.
 type AdminPlugins struct {
+	// manager stores the manager value used by admin plugins.
 	manager *plugin.Manager
-	data    viewDataService
-	views   *Views
+	// data stores the data value used by admin plugins.
+	data viewDataService
+	// views stores the views value used by admin plugins.
+	views *Views
 }
 
+// NewAdminPlugins constructs the plugin administration handler.
 func NewAdminPlugins(manager *plugin.Manager, data viewDataService, views *Views) *AdminPlugins {
 	return &AdminPlugins{manager: manager, data: data, views: views}
 }
@@ -31,6 +35,7 @@ func (a *AdminPlugins) List(w http.ResponseWriter, r *http.Request) {
 	a.render(w, r, strings.TrimSpace(r.URL.Query().Get("plugin")), http.StatusOK, "")
 }
 
+// render renders the plugin administration page.
 func (a *AdminPlugins) render(w http.ResponseWriter, r *http.Request, id string, status int, message string) {
 	w.Header().Set("Cache-Control", "private, no-store")
 	if a.manager == nil {
@@ -84,6 +89,7 @@ func (a *AdminPlugins) render(w http.ResponseWriter, r *http.Request, id string,
 	renderStatus(a.views, w, status, "admin_plugins", data)
 }
 
+// Install installs a plugin package from an administration request.
 func (a *AdminPlugins) Install(w http.ResponseWriter, r *http.Request) {
 	if a.manager == nil {
 		http.Error(w, "Plugin manager unavailable.", http.StatusServiceUnavailable)
@@ -107,6 +113,7 @@ func (a *AdminPlugins) Install(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/admin/plugins?plugin="+item.Manifest.ID, http.StatusSeeOther)
 }
 
+// Action applies a plugin lifecycle action from an administration request.
 func (a *AdminPlugins) Action(w http.ResponseWriter, r *http.Request) {
 	if a.manager == nil {
 		http.Error(w, "Plugin manager unavailable.", http.StatusServiceUnavailable)
@@ -243,6 +250,7 @@ func renderPluginREADME(source string) (template.HTML, error) {
 	return template.HTML(rendered), nil
 }
 
+// failure records a plugin administration failure and redirects the request.
 func (a *AdminPlugins) failure(w http.ResponseWriter, r *http.Request, id, action string, err error) {
 	a.views.logger.Error("plugin administration failed", "action", action, "plugin_id", id, "error", err)
 	// Runtime/storage errors can contain implementation details. Keep them in logs.
@@ -263,6 +271,8 @@ func pluginDetailID(r *http.Request, id string) string {
 	}
 	return ""
 }
+
+// audit records a successful plugin administration action.
 func (a *AdminPlugins) audit(r *http.Request, action, id string) {
 	a.views.logger.Info("plugin lifecycle changed", "event", "plugin."+action, "plugin_id", id, "actor_id", currentUser(r).ID)
 }

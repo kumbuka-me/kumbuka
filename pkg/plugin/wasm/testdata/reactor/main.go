@@ -20,26 +20,38 @@ var input, output []byte
 // The SDK owns the production WASM exports, while this fixture owns raw exports
 // so runtime tests can exercise malformed pointers, malformed JSON, and traps.
 type renderRequest struct {
+	// Source records the source associated with render request.
 	Source string `json:"source"`
 }
 
+// renderResult contains the result produced by render result.
 type renderResult struct {
+	// Parts contains the parts associated with render result.
 	Parts []renderPart `json:"parts,omitempty"`
 }
 
+// renderPart groups data used by render part.
 type renderPart struct {
-	Text     string  `json:"text,omitempty"`
+	// Text stores the text value used by render part.
+	Text string `json:"text,omitempty"`
+	// Markdown stores the markdown value used by render part.
 	Markdown *string `json:"markdown,omitempty"`
 }
 
+// capabilityRequest contains the request payload for capability request.
 type capabilityRequest struct {
-	Method string          `json:"method"`
+	// Method is the method associated with capability request.
+	Method string `json:"method"`
+	// Params stores the params value used by capability request.
 	Params json.RawMessage `json:"params,omitempty"`
 }
 
+// capabilityResponse contains the response payload for capability response.
 type capabilityResponse struct {
+	// Value contains the value represented by capability response.
 	Value json.RawMessage `json:"value,omitempty"`
-	Error string          `json:"error,omitempty"`
+	// Error stores the error value used by capability response.
+	Error string `json:"error,omitempty"`
 }
 
 // main runs the package entry point.

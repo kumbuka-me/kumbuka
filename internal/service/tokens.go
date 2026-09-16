@@ -18,7 +18,10 @@ type tokenRepository interface {
 }
 
 // Tokens exposes personal access token use cases.
-type Tokens struct{ repository tokenRepository }
+type Tokens struct {
+	// repository provides the persistence operations required by tokens.
+	repository tokenRepository
+}
 
 // NewTokens constructs the personal access token service.
 func NewTokens(repository tokenRepository) *Tokens { return &Tokens{repository: repository} }

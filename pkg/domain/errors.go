@@ -4,15 +4,19 @@ import "fmt"
 
 // FieldError describes a safe, actionable input failure.
 type FieldError struct {
-	Field   string
+	// Field stores the field value used by field error.
+	Field string
+	// Message contains the message associated with field error.
 	Message string
 }
 
 // ValidationError carries input failures across persistence and application boundaries.
 // Cause is optional diagnostic context and must not be included in HTTP responses.
 type ValidationError struct {
+	// Fields contains the fields associated with validation error.
 	Fields []FieldError
-	Cause  error
+	// Cause stores the cause value used by validation error.
+	Cause error
 }
 
 // Error returns the validation failure summary and diagnostic cause when present.
@@ -43,7 +47,10 @@ func NewValidationError(field, message string) *ValidationError {
 
 // GroupAssignmentError identifies which page group selection is not assignable.
 // It deliberately does not distinguish a hidden group from a nonexistent group.
-type GroupAssignmentError struct{ Field string }
+type GroupAssignmentError struct {
+	// Field stores the field value used by group assignment error.
+	Field string
+}
 
 // Error returns the stable forbidden-assignment message.
 func (e *GroupAssignmentError) Error() string { return "page group assignment is forbidden" }

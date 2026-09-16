@@ -10,7 +10,10 @@ import (
 )
 
 // codeHighlighterModule adapts one sandboxed code-highlighter declaration.
-type codeHighlighterModule struct{ rendererModule }
+type codeHighlighterModule struct {
+	// rendererModule embeds renderer module behavior in code highlighter module.
+	rendererModule
+}
 
 // Highlight invokes the guest for one fenced code block.
 func (m codeHighlighterModule) Highlight(ctx plugin.Context, language, source string) (plugin.CodeHighlightResult, error) {

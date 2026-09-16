@@ -16,6 +16,7 @@ const pageShareTokenBytes = 32
 
 // IssuedPageShareLink contains the raw public token returned only when a permalink is created.
 type IssuedPageShareLink struct {
+	// Token stores the token value used by issued page share link.
 	Token string
 }
 
@@ -29,6 +30,7 @@ type sharingRepository interface {
 
 // Sharing coordinates public page permalink use cases.
 type Sharing struct {
+	// repository provides the persistence operations required by sharing.
 	repository sharingRepository
 }
 

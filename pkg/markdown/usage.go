@@ -14,6 +14,7 @@ import (
 
 type usageSet map[string]bool
 
+// usageKey returns the stable lookup key for one source-aware plugin module.
 func usageKey(pluginID, moduleID string) string { return pluginID + "\x00" + moduleID }
 
 // AnalyzeUsage derives rebuildable plugin usage metadata for persisted pages.
@@ -23,6 +24,7 @@ func (r *Renderer) AnalyzeUsage(source string) pluginusage.Index {
 	return analyzeUsage(source, plan)
 }
 
+// analyzeUsage indexes source usage for the active source-aware plugin modules.
 func analyzeUsage(source string, plan *plugin.RenderPlan) pluginusage.Index {
 	scanner := newUsageScanner(source)
 	index := pluginusage.Index{
@@ -44,6 +46,7 @@ func analyzeUsage(source string, plan *plugin.RenderPlan) pluginusage.Index {
 	return index
 }
 
+// usageSetFromIndex converts a source-usage index into a membership set.
 func usageSetFromIndex(index pluginusage.Index) usageSet {
 	result := make(usageSet, len(index.Modules))
 	for _, module := range index.Modules {
@@ -52,6 +55,7 @@ func usageSetFromIndex(index pluginusage.Index) usageSet {
 	return result
 }
 
+// currentUsageIndex returns a reusable source-usage index when its source hash is current.
 func currentUsageIndex(index *pluginusage.Index, plan *plugin.RenderPlan, source string) bool {
 	if index == nil || index.Version != pluginusage.Version || index.SourceHash != usageSourceHash(source) {
 		return false
@@ -59,17 +63,23 @@ func currentUsageIndex(index *pluginusage.Index, plan *plugin.RenderPlan, source
 	return index.Fingerprint == plan.UsageFingerprint
 }
 
+// usageSourceHash returns the stable hash used to identify indexed Markdown source.
 func usageSourceHash(source string) string {
 	digest := sha256.Sum256([]byte(source))
 	return hex.EncodeToString(digest[:])
 }
 
+// usageScanner tracks scanning state for usage scanner.
 type usageScanner struct {
-	source    string
-	outside   []string
+	// source records the source associated with usage scanner.
+	source string
+	// outside contains the outside associated with usage scanner.
+	outside []string
+	// languages contains the languages associated with usage scanner.
 	languages []string
 }
 
+// newUsageScanner constructs a scanner for source-usage analysis.
 func newUsageScanner(source string) usageScanner {
 	lines := strings.Split(source, "\n")
 	scanner := usageScanner{source: source}
@@ -98,6 +108,7 @@ func newUsageScanner(source string) usageScanner {
 	return scanner
 }
 
+// match reports whether the scanner matches a literal at the current position.
 func (s usageScanner) match(rules []plugin.SourceUsageRule) (bool, []string) {
 	matched := false
 	var values []string
@@ -139,6 +150,7 @@ func (s usageScanner) match(rules []plugin.SourceUsageRule) (bool, []string) {
 	return matched, values
 }
 
+// macroUsage detects macro invocations and records matching usage selectors.
 func macroUsage(line, name string) (string, bool) {
 	line = strings.TrimSpace(line)
 	opening := "{{" + name
@@ -152,6 +164,7 @@ func macroUsage(line, name string) (string, bool) {
 	return strings.TrimSpace(rest), true
 }
 
+// substitutionUsage detects substitutions and records matching usage selectors.
 func substitutionUsage(line, prefix string) []string {
 	opening := "{{" + prefix + ":"
 	var values []string
@@ -173,6 +186,7 @@ func substitutionUsage(line, prefix string) []string {
 	}
 }
 
+// pagePlanForSource returns the page render plan and source-usage index for Markdown source.
 func (p *renderPipeline) pagePlanForSource(source string) pageRenderPlan {
 	if source == p.usageSource {
 		return p.pagePlan
@@ -187,6 +201,7 @@ func (p *renderPipeline) pagePlanForSource(source string) pageRenderPlan {
 	return page
 }
 
+// setUsageSource stores the source hash and immutable usage index on a render artifact.
 func (p *renderPipeline) setUsageSource(source string) {
 	if source == p.usageSource {
 		return
@@ -220,6 +235,7 @@ func RequiredPluginIDs(sources []string, manifests []pluginpackage.Manifest) []s
 	return result
 }
 
+// manifestRequiredBySources reports whether any source requires a plugin declared by the manifest.
 func manifestRequiredBySources(scanners []usageScanner, manifest pluginpackage.Manifest) bool {
 	for _, module := range manifest.Modules {
 		if !staticRenderModule(module.Type) {
@@ -247,6 +263,7 @@ func manifestRequiredBySources(scanners []usageScanner, manifest pluginpackage.M
 	return false
 }
 
+// staticRenderModule returns static render metadata for a declarative plugin module.
 func staticRenderModule(moduleType string) bool {
 	switch moduleType {
 	case "markdown-syntax", "code-highlighter", "content-style", "render-policy", "renderer-extension", "macro", "content-substitution", "icon-resource":

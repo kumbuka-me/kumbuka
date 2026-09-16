@@ -9,7 +9,9 @@ import (
 
 // FieldProblem describes a validation problem for one request field.
 type FieldProblem struct {
-	Field   string
+	// Field stores the field value used by field problem.
+	Field string
+	// Message contains the message associated with field problem.
 	Message string
 }
 

@@ -11,6 +11,7 @@ import (
 
 // widgetModule adapts one sandboxed widget declaration to Kumbuka's widget host.
 type widgetModule struct {
+	// rendererModule embeds renderer module behavior in widget module.
 	rendererModule
 }
 

@@ -134,6 +134,7 @@ func (p *renderPipeline) prepareContent(source string, ctx plugin.Context) (plug
 	return prepared, nil
 }
 
+// firstContentPreprocessorAfter returns the first selected content preprocessor after the supplied order.
 func firstContentPreprocessorAfter(modules []plugin.ContentPreprocessorBinding, order int) int {
 	for index, binding := range modules {
 		if binding.Order > order {
@@ -184,6 +185,7 @@ func (p *renderPipeline) preprocess(source string, ctx plugin.Context, page page
 	return source, page, nil
 }
 
+// firstPreprocessorAfter returns the first selected source preprocessor after the supplied order.
 func firstPreprocessorAfter(modules []plugin.PreprocessorBinding, order int) int {
 	for index, binding := range modules {
 		if binding.Order > order {
@@ -298,6 +300,7 @@ func (p *renderPipeline) preprocessMacros(source string, ctx plugin.Context, pag
 	return strings.Join(lines, "\n"), invocations, nil
 }
 
+// macroInvocationName extracts the invoked macro name at the supplied source position.
 func macroInvocationName(line string) (string, bool) {
 	line = strings.TrimSpace(line)
 	if len(line) < 5 || !strings.HasPrefix(line, "{{") || !strings.HasSuffix(line, "}}") {

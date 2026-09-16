@@ -69,12 +69,14 @@ func (r *Registry) AcquireRenderPlan() (*RenderPlan, func()) {
 	return plan, releaseRenderPlan(plan)
 }
 
+// acquireRenderPlanLifetimes acquires every plugin lifetime referenced by a render plan.
 func acquireRenderPlanLifetimes(plan *RenderPlan) {
 	for _, life := range plan.lifetimes {
 		life.acquire()
 	}
 }
 
+// releaseRenderPlan releases every plugin lifetime held by a render plan lease.
 func releaseRenderPlan(plan *RenderPlan) func() {
 	var once sync.Once
 	return func() {

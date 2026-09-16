@@ -13,8 +13,11 @@ import (
 
 // codeHighlighterExtension installs the active plugin's fenced-code renderer.
 type codeHighlighterExtension struct {
-	owner   string
-	module  plugin.CodeHighlighterModule
+	// owner stores the owner value used by code highlighter extension.
+	owner string
+	// module stores the module value used by code highlighter extension.
+	module plugin.CodeHighlighterModule
+	// context stores the context value used by code highlighter extension.
 	context plugin.Context
 }
 

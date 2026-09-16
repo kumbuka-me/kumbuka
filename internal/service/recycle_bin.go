@@ -14,7 +14,10 @@ type recycleBinRepository interface {
 }
 
 // RecycleBin exposes deleted-page lifecycle use cases.
-type RecycleBin struct{ repository recycleBinRepository }
+type RecycleBin struct {
+	// repository provides the persistence operations required by recycle bin.
+	repository recycleBinRepository
+}
 
 // NewRecycleBin constructs the deleted-page service.
 func NewRecycleBin(repository recycleBinRepository) *RecycleBin {

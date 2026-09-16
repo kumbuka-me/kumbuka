@@ -27,8 +27,13 @@ import (
 	"github.com/kumbuka-me/sdk/pluginpackage"
 )
 
-type dataLoader struct{ catalog []themes.Theme }
+// dataLoader groups data used by data loader.
+type dataLoader struct {
+	// catalog contains the catalog associated with data loader.
+	catalog []themes.Theme
+}
 
+// Load loads the browser-test view data requested by a handler.
 func (d dataLoader) Load(_ *http.Request, _ *handler.Views, title string) (handler.ViewData, error) {
 	data, _ := json.Marshal(d.catalog)
 	return handler.ViewData{
@@ -46,6 +51,7 @@ func (d dataLoader) Load(_ *http.Request, _ *handler.Views, title string) (handl
 	}, nil
 }
 
+// main runs the browser-test fixture server.
 func main() {
 	ctx := context.Background()
 	renderer, err := markdown.New(ctx)
@@ -124,6 +130,7 @@ func main() {
 	}
 }
 
+// fixturePackage builds the plugin package used by the browser-test fixture.
 func fixturePackage(version string) ([]byte, error) {
 	original, err := plugins.Packages.ReadFile("callouts.kumbukaplugin")
 	if err != nil {

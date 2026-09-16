@@ -10,83 +10,122 @@ import (
 // RenderSelector identifies one contribution and whether its execution can be
 // limited to pages whose source usage index contains the module.
 type RenderSelector struct {
-	PluginID    string
-	ModuleID    string
-	UsageKey    string
+	// PluginID identifies the plugin associated with render selector.
+	PluginID string
+	// ModuleID identifies the module associated with render selector.
+	ModuleID string
+	// UsageKey stores the usage key value used by render selector.
+	UsageKey string
+	// SourceAware reports whether source aware applies to render selector.
 	SourceAware bool
 }
 
 // ContentPreprocessorBinding is one pre-sorted content preprocessor in a render plan.
 type ContentPreprocessorBinding struct {
+	// Selector stores the selector value used by content preprocessor binding.
 	Selector RenderSelector
-	Module   ContentPreprocessor
+	// Module stores the module value used by content preprocessor binding.
+	Module ContentPreprocessor
+	// Priority stores the priority setting for content preprocessor binding.
 	Priority int
-	Order    int
+	// Order stores the order setting for content preprocessor binding.
+	Order int
 }
 
 // PreprocessorBinding is one source preprocessor in registry order.
 type PreprocessorBinding struct {
+	// Selector stores the selector value used by preprocessor binding.
 	Selector RenderSelector
-	Module   Preprocessor
-	Order    int
+	// Module stores the module value used by preprocessor binding.
+	Module Preprocessor
+	// Order stores the order setting for preprocessor binding.
+	Order int
 }
 
 // MarkdownExtensionBinding is one host Markdown extension in registry order.
 type MarkdownExtensionBinding struct {
+	// Selector stores the selector value used by markdown extension binding.
 	Selector RenderSelector
-	Module   MarkdownExtension
+	// Module stores the module value used by markdown extension binding.
+	Module MarkdownExtension
 }
 
 // CodeHighlighterBinding is the single active code highlighter, when present.
 type CodeHighlighterBinding struct {
+	// Selector stores the selector value used by code highlighter binding.
 	Selector RenderSelector
-	Module   CodeHighlighterModule
+	// Module stores the module value used by code highlighter binding.
+	Module CodeHighlighterModule
 }
 
 // MacroBinding is one uniquely named macro contribution.
 type MacroBinding struct {
+	// Selector stores the selector value used by macro binding.
 	Selector RenderSelector
-	Module   Macro
+	// Module stores the module value used by macro binding.
+	Module Macro
 }
 
 // PostprocessorBinding is one HTML postprocessor in registry order.
 type PostprocessorBinding struct {
+	// Selector stores the selector value used by postprocessor binding.
 	Selector RenderSelector
-	Module   Postprocessor
+	// Module stores the module value used by postprocessor binding.
+	Module Postprocessor
 }
 
 // WidgetBinding is one widget contribution in deterministic registry order.
 type WidgetBinding struct {
+	// PluginID identifies the plugin associated with widget binding.
 	PluginID string
+	// ModuleID identifies the module associated with widget binding.
 	ModuleID string
-	Surface  string
-	Width    string
-	Order    int
-	Module   Widget
+	// Surface stores the surface value used by widget binding.
+	Surface string
+	// Width stores the width setting for widget binding.
+	Width string
+	// Order stores the order setting for widget binding.
+	Order int
+	// Module stores the module value used by widget binding.
+	Module Widget
 }
 
 // SourceUsageBinding is one immutable source selector set owned by a plugin module.
 type SourceUsageBinding struct {
+	// PluginID identifies the plugin associated with source usage binding.
 	PluginID string
-	Usage    SourceUsage
+	// Usage stores the usage value used by source usage binding.
+	Usage SourceUsage
 }
 
 // RenderPlan is the immutable render-only view of the active registry. It is
 // rebuilt only when plugin lifecycle state changes and shared by all renders of
 // that generation. Callers must not mutate its slices or maps.
 type RenderPlan struct {
-	Generation           uint64
+	// Generation stores the generation value used by render plan.
+	Generation uint64
+	// ContentPreprocessors contains the content preprocessors associated with render plan.
 	ContentPreprocessors []ContentPreprocessorBinding
-	Preprocessors        []PreprocessorBinding
-	MarkdownExtensions   []MarkdownExtensionBinding
-	CodeHighlighter      *CodeHighlighterBinding
-	Macros               map[string]MacroBinding
-	Postprocessors       []PostprocessorBinding
-	Widgets              []WidgetBinding
-	RenderPolicies       []RenderPolicy
-	SourceUsage          []SourceUsageBinding
-	UsageFingerprint     string
+	// Preprocessors contains the preprocessors associated with render plan.
+	Preprocessors []PreprocessorBinding
+	// MarkdownExtensions contains the markdown extensions associated with render plan.
+	MarkdownExtensions []MarkdownExtensionBinding
+	// CodeHighlighter stores the code highlighter value used by render plan.
+	CodeHighlighter *CodeHighlighterBinding
+	// Macros maps keys to macros values used by render plan.
+	Macros map[string]MacroBinding
+	// Postprocessors contains the postprocessors associated with render plan.
+	Postprocessors []PostprocessorBinding
+	// Widgets contains the widgets associated with render plan.
+	Widgets []WidgetBinding
+	// RenderPolicies contains the render policies associated with render plan.
+	RenderPolicies []RenderPolicy
+	// SourceUsage contains the source usage associated with render plan.
+	SourceUsage []SourceUsageBinding
+	// UsageFingerprint stores the usage fingerprint value used by render plan.
+	UsageFingerprint string
 
+	// lifetimes contains the lifetimes associated with render plan.
 	lifetimes []*lifetime
 }
 

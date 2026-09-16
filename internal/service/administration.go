@@ -17,7 +17,10 @@ type administrationRepository interface {
 }
 
 // Administration exposes dashboard, documentation-health, tag, and audit use cases.
-type Administration struct{ repository administrationRepository }
+type Administration struct {
+	// repository provides the persistence operations required by administration.
+	repository administrationRepository
+}
 
 // NewAdministration constructs the administration service.
 func NewAdministration(repository administrationRepository) *Administration {

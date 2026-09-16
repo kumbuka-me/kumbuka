@@ -17,16 +17,23 @@ import (
 
 // pluginWidgetView is one sanitized plugin widget rendered by a host template.
 type pluginWidgetView struct {
+	// PluginID identifies the plugin associated with plugin widget view.
 	PluginID string
+	// ModuleID identifies the module associated with plugin widget view.
 	ModuleID string
-	Width    string
-	HTML     template.HTML
-	Actions  []sdk.WidgetAction
+	// Width stores the width setting for plugin widget view.
+	Width string
+	// HTML stores the HTML value used by plugin widget view.
+	HTML template.HTML
+	// Actions contains the actions associated with plugin widget view.
+	Actions []sdk.WidgetAction
 }
 
 // ViewData contains the data shared by server-rendered Kumbuka templates.
 type ViewData struct {
-	AdminPlugins  []plugin.LoadedPlugin
+	// AdminPlugins contains the admin plugins associated with view data.
+	AdminPlugins []plugin.LoadedPlugin
+	// PluginMessage contains the plugin message for view data.
 	PluginMessage string
 	// OpenPluginID identifies the plugin detail modal that should open after rendering.
 	OpenPluginID string
@@ -196,6 +203,7 @@ type ViewData struct {
 	CanEdit bool
 }
 
+// pluginResourceView contains template data for plugin resource view.
 type pluginResourceView struct {
 	// Module contains the validated declarative resource schema.
 	Module pluginpackage.Module
@@ -203,20 +211,31 @@ type pluginResourceView struct {
 	Records []plugin.ResourceRecord
 }
 
+// pageTemplateView contains template data for page template view.
 type pageTemplateView struct {
+	// PageTemplate embeds page template behavior in page template view.
 	domain.PageTemplate
-	Groups       []domain.Group
+	// Groups contains the groups associated with page template view.
+	Groups []domain.Group
+	// PageStatuses contains the page statuses associated with page template view.
 	PageStatuses []string
 }
 
+// webhookView contains template data for webhook view.
 type webhookView struct {
+	// Webhook embeds webhook behavior in webhook view.
 	domain.Webhook
-	AvailableEvents         []string
+	// AvailableEvents contains the available events associated with webhook view.
+	AvailableEvents []string
+	// EncryptionKeyConfigured reports whether encryption key configured applies to webhook view.
 	EncryptionKeyConfigured bool
 }
 
+// pagePathOption groups data used by page path option.
 type pagePathOption struct {
-	Slug  string
+	// Slug is the normalized page path associated with page path option.
+	Slug string
+	// Label is the display label for page path option.
 	Label string
 }
 

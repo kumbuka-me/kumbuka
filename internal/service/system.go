@@ -14,7 +14,10 @@ type systemRepository interface {
 }
 
 // System exposes application health and initial setup use cases.
-type System struct{ repository systemRepository }
+type System struct {
+	// repository provides the persistence operations required by system.
+	repository systemRepository
+}
 
 // NewSystem constructs the application health and setup service.
 func NewSystem(repository systemRepository) *System { return &System{repository: repository} }

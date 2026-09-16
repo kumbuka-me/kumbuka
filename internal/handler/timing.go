@@ -68,6 +68,7 @@ func (v *Views) logPageTiming(trace *renderprofile.Trace, r *http.Request, slug 
 	v.pageTimingLogger.Info("page handler timing", args...)
 }
 
+// pageDurationMilliseconds converts a page timing duration to milliseconds.
 func pageDurationMilliseconds(duration time.Duration) float64 {
 	return float64(duration) / float64(time.Millisecond)
 }

@@ -34,8 +34,10 @@ type Option struct {
 
 // Resource is one plugin-owned icon catalog declared by an icon-resource module.
 type Resource struct {
+	// Source records the source associated with resource.
 	Source string
-	Data   []byte
+	// Data contains the data associated with resource.
+	Data []byte
 }
 
 // ResourceProvider supplies icon resources from the currently enabled plugins.
@@ -47,13 +49,19 @@ type ResourceProvider interface {
 
 // Catalog combines Kumbuka's built-in Lucide icons with enabled plugin resources.
 type Catalog struct {
+	// provider stores the provider value used by catalog.
 	provider ResourceProvider
 
-	mu      sync.RWMutex
-	loaded  bool
+	// mu protects concurrent access to catalog.
+	mu sync.RWMutex
+	// loaded reports whether loaded applies to catalog.
+	loaded bool
+	// version stores the version value used by catalog.
 	version string
+	// options contains the options associated with catalog.
 	options []Option
-	icons   map[string]pluginpackage.Icon
+	// icons maps keys to icons values used by catalog.
+	icons map[string]pluginpackage.Icon
 }
 
 var builtinCatalog = NewCatalog(nil)
@@ -248,6 +256,7 @@ func validResourceText(value string, limit int) bool {
 	return true
 }
 
+// validIconName reports whether an icon name uses the supported identifier syntax.
 func validIconName(name string) bool {
 	if len(name) == 0 || len(name) > 128 || !isIdentifierStart(name[0]) {
 		return false
@@ -261,6 +270,7 @@ func validIconName(name string) bool {
 	return true
 }
 
+// isIdentifierStart reports whether a rune may start an icon identifier.
 func isIdentifierStart(character byte) bool {
 	return character >= 'a' && character <= 'z' || character >= '0' && character <= '9'
 }

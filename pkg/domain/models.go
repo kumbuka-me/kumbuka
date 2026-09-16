@@ -181,9 +181,13 @@ type AuthenticationSettings struct {
 
 // ExternalLink describes one configurable top-bar link.
 type ExternalLink struct {
-	Label       string `json:"label" toml:"label"`
-	URL         string `json:"url" toml:"url"`
-	Icon        string `json:"icon,omitempty" toml:"icon"`
+	// Label is the display label for external link.
+	Label string `json:"label" toml:"label"`
+	// URL is the target URL for external link.
+	URL string `json:"url" toml:"url"`
+	// Icon names the icon used for external link.
+	Icon string `json:"icon,omitempty" toml:"icon"`
+	// Description describes external link.
 	Description string `json:"description,omitempty" toml:"description"`
 	// HoverEffect controls visual feedback when a pointer hovers over the link.
 	HoverEffect string `json:"hover_effect,omitempty" toml:"hover_effect"`
@@ -280,9 +284,13 @@ func expandExternalLinkHoverTemplate(value string, link ExternalLink) string {
 
 // PDFHeader describes one configurable request header sent to the external PDF service.
 type PDFHeader struct {
-	ID        int64
-	Name      string
-	Value     string
+	// ID identifies PDF header.
+	ID int64
+	// Name is the name of PDF header.
+	Name string
+	// Value contains the value represented by PDF header.
+	Value string
+	// Sensitive reports whether sensitive applies to PDF header.
 	Sensitive bool
 	// Configured reports whether a sensitive header has a stored value without exposing it.
 	Configured bool
@@ -310,50 +318,78 @@ type ApplicationSettings struct {
 
 // Attachment contains metadata for a stored non-image file.
 type Attachment struct {
-	ID          int64     `json:"id"`
-	Filename    string    `json:"filename"`
-	ContentType string    `json:"content_type"`
-	SizeBytes   int64     `json:"size_bytes"`
-	UploadedBy  int64     `json:"uploaded_by"`
-	Uploader    string    `json:"uploader"`
-	CreatedAt   time.Time `json:"created_at"`
-	UsageCount  int64     `json:"usage_count"`
+	// ID identifies attachment.
+	ID int64 `json:"id"`
+	// Filename is the filename associated with attachment.
+	Filename string `json:"filename"`
+	// ContentType is the content type associated with attachment.
+	ContentType string `json:"content_type"`
+	// SizeBytes stores the size bytes value used by attachment.
+	SizeBytes int64 `json:"size_bytes"`
+	// UploadedBy stores the uploaded by value used by attachment.
+	UploadedBy int64 `json:"uploaded_by"`
+	// Uploader stores the uploader value used by attachment.
+	Uploader string `json:"uploader"`
+	// CreatedAt records the created at timestamp for attachment.
+	CreatedAt time.Time `json:"created_at"`
+	// UsageCount is the number of usage associated with attachment.
+	UsageCount int64 `json:"usage_count"`
 }
 
 // AttachmentData contains stored attachment bytes.
 type AttachmentData struct {
+	// Attachment embeds attachment behavior in attachment data.
 	Attachment
+	// Data contains the data associated with attachment data.
 	Data []byte
 }
 
 // AuditEvent describes one administratively visible application action.
 type AuditEvent struct {
-	ID         int64
-	Actor      string
-	Action     string
+	// ID identifies audit event.
+	ID int64
+	// Actor stores the actor value used by audit event.
+	Actor string
+	// Action stores the action value used by audit event.
+	Action string
+	// ObjectType is the object type associated with audit event.
 	ObjectType string
-	ObjectKey  string
-	Detail     string
-	CreatedAt  time.Time
+	// ObjectKey stores the object key value used by audit event.
+	ObjectKey string
+	// Detail stores the detail value used by audit event.
+	Detail string
+	// CreatedAt records the created at timestamp for audit event.
+	CreatedAt time.Time
 }
 
 // BrokenWikiLink describes a wiki link whose target page does not exist.
 type BrokenWikiLink struct {
-	SourceSlug  string
+	// SourceSlug is the source slug associated with broken wiki link.
+	SourceSlug string
+	// SourceTitle is the source title associated with broken wiki link.
 	SourceTitle string
-	TargetSlug  string
+	// TargetSlug is the target slug associated with broken wiki link.
+	TargetSlug string
 }
 
 // DocumentationHealth groups page-quality findings for administrators.
 type DocumentationHealth struct {
-	BrokenLinks   []BrokenWikiLink
-	OrphanPages   []Page
+	// BrokenLinks contains the broken links associated with documentation health.
+	BrokenLinks []BrokenWikiLink
+	// OrphanPages contains the orphan pages associated with documentation health.
+	OrphanPages []Page
+	// UntaggedPages contains the untagged pages associated with documentation health.
 	UntaggedPages []Page
+	// UniconedPages contains the uniconed pages associated with documentation health.
 	UniconedPages []Page
-	StalePages    []Page
-	ReviewDue     []Page
-	DraftPages    []Page
-	Deprecated    []Page
+	// StalePages contains the stale pages associated with documentation health.
+	StalePages []Page
+	// ReviewDue contains the review due associated with documentation health.
+	ReviewDue []Page
+	// DraftPages contains the draft pages associated with documentation health.
+	DraftPages []Page
+	// Deprecated contains the deprecated associated with documentation health.
+	Deprecated []Page
 }
 
 // Image contains metadata for one uploaded wiki image.
@@ -388,78 +424,123 @@ type ImageData struct {
 
 // PageMetadata contains optional workflow metadata attached to a page.
 type PageMetadata struct {
-	Status             string             `json:"status"`
-	OwnerGroupID       int64              `json:"owner_group_id,omitempty"`
-	ReviewIntervalDays int                `json:"review_interval_days,omitempty"`
-	MarkReviewed       bool               `json:"mark_reviewed,omitempty"`
-	DeprecatedTarget   string             `json:"deprecated_target,omitempty"`
-	PluginUsage        *pluginusage.Index `json:"-"`
+	// Status is the current status of page metadata.
+	Status string `json:"status"`
+	// OwnerGroupID identifies the owner group associated with page metadata.
+	OwnerGroupID int64 `json:"owner_group_id,omitempty"`
+	// ReviewIntervalDays stores the review interval days value used by page metadata.
+	ReviewIntervalDays int `json:"review_interval_days,omitempty"`
+	// MarkReviewed reports whether mark reviewed applies to page metadata.
+	MarkReviewed bool `json:"mark_reviewed,omitempty"`
+	// DeprecatedTarget stores the deprecated target value used by page metadata.
+	DeprecatedTarget string `json:"deprecated_target,omitempty"`
+	// PluginUsage stores the plugin usage value used by page metadata.
+	PluginUsage *pluginusage.Index `json:"-"`
 }
 
 // PageProperty is one searchable structured metadata value attached to a page.
 type PageProperty struct {
-	Key   string `json:"key"`
+	// Key is the lookup key for page property.
+	Key string `json:"key"`
+	// Value contains the value represented by page property.
 	Value string `json:"value"`
 }
 
 // SavedSearch is a named user search that can be surfaced in navigation.
 type SavedSearch struct {
-	ID     int64  `json:"id"`
-	Name   string `json:"name"`
-	Query  string `json:"query"`
-	Pinned bool   `json:"pinned"`
+	// ID identifies saved search.
+	ID int64 `json:"id"`
+	// Name is the name of saved search.
+	Name string `json:"name"`
+	// Query stores the query value used by saved search.
+	Query string `json:"query"`
+	// Pinned reports whether pinned applies to saved search.
+	Pinned bool `json:"pinned"`
 }
 
 // PageWatch is one user's subscription to a page path.
 type PageWatch struct {
-	Path      string    `json:"path"`
-	Scope     string    `json:"scope"`
+	// Path is the path associated with page watch.
+	Path string `json:"path"`
+	// Scope stores the scope value used by page watch.
+	Scope string `json:"scope"`
+	// CreatedAt records the created at timestamp for page watch.
 	CreatedAt time.Time `json:"created_at"`
 }
 
 // PageReviewRequest tracks lightweight documentation approval for one revision.
 type PageReviewRequest struct {
-	ID                int64
-	PageSlug          string
-	RevisionNumber    int
-	RequestedBy       int64
-	RequestedByName   string
-	ReviewerGroupID   int64
+	// ID identifies page review request.
+	ID int64
+	// PageSlug is the page slug associated with page review request.
+	PageSlug string
+	// RevisionNumber stores the revision number value used by page review request.
+	RevisionNumber int
+	// RequestedBy stores the requested by value used by page review request.
+	RequestedBy int64
+	// RequestedByName is the requested by name associated with page review request.
+	RequestedByName string
+	// ReviewerGroupID identifies the reviewer group associated with page review request.
+	ReviewerGroupID int64
+	// ReviewerGroupName is the reviewer group name associated with page review request.
 	ReviewerGroupName string
-	Reviewers         []User
-	ReviewedBy        int64
-	ReviewedByName    string
-	Status            string
-	Note              string
-	DecisionNote      string
-	PreviousStatus    string
-	CreatedAt         time.Time
-	UpdatedAt         time.Time
+	// Reviewers contains the reviewers associated with page review request.
+	Reviewers []User
+	// ReviewedBy stores the reviewed by value used by page review request.
+	ReviewedBy int64
+	// ReviewedByName is the reviewed by name associated with page review request.
+	ReviewedByName string
+	// Status is the current status of page review request.
+	Status string
+	// Note stores the note value used by page review request.
+	Note string
+	// DecisionNote stores the decision note value used by page review request.
+	DecisionNote string
+	// PreviousStatus is the previous status associated with page review request.
+	PreviousStatus string
+	// CreatedAt records the created at timestamp for page review request.
+	CreatedAt time.Time
+	// UpdatedAt records the updated at timestamp for page review request.
+	UpdatedAt time.Time
 }
 
 // PageAccess is the effective nearest path-rule decision for one user.
 type PageAccess struct {
+	// Restricted reports whether restricted applies to page access.
 	Restricted bool
-	CanView    bool
-	CanEdit    bool
+	// CanView reports whether can view applies to page access.
+	CanView bool
+	// CanEdit reports whether can edit applies to page access.
+	CanEdit bool
 }
 
 // PageAccessRule grants one group view or edit access at a path.
 type PageAccessRule struct {
-	ID        int64
-	Path      string
-	GroupID   int64
+	// ID identifies page access rule.
+	ID int64
+	// Path is the path associated with page access rule.
+	Path string
+	// GroupID identifies the group associated with page access rule.
+	GroupID int64
+	// GroupName is the group name associated with page access rule.
 	GroupName string
-	Access    string
+	// Access stores the access value used by page access rule.
+	Access string
+	// CreatedAt records the created at timestamp for page access rule.
 	CreatedAt time.Time
+	// UpdatedAt records the updated at timestamp for page access rule.
 	UpdatedAt time.Time
 }
 
 // WebhookHeader is one configurable HTTP header sent with a webhook request.
 type WebhookHeader struct {
-	ID        int64
-	Name      string
-	Value     string `json:"-"`
+	// ID identifies webhook header.
+	ID int64
+	// Name is the name of webhook header.
+	Name string
+	// Value contains the value represented by webhook header.
+	Value string `json:"-"`
+	// Sensitive reports whether sensitive applies to webhook header.
 	Sensitive bool
 	// Configured reports whether a sensitive header has a stored value without exposing it.
 	Configured bool
@@ -467,102 +548,162 @@ type WebhookHeader struct {
 
 // Webhook is one administrator-configured outgoing event destination.
 type Webhook struct {
-	ID              int64
-	Name            string
-	URL             string
-	Events          []string
-	BodyTemplate    string
-	Headers         []WebhookHeader
-	RetryEnabled    bool
-	RetryCount      int
-	RetryBackoff    time.Duration
+	// ID identifies webhook.
+	ID int64
+	// Name is the name of webhook.
+	Name string
+	// URL is the target URL for webhook.
+	URL string
+	// Events contains the events associated with webhook.
+	Events []string
+	// BodyTemplate stores the body template value used by webhook.
+	BodyTemplate string
+	// Headers contains the headers associated with webhook.
+	Headers []WebhookHeader
+	// RetryEnabled reports whether retry enabled applies to webhook.
+	RetryEnabled bool
+	// RetryCount is the number of retry associated with webhook.
+	RetryCount int
+	// RetryBackoff stores the retry backoff value used by webhook.
+	RetryBackoff time.Duration
+	// RetryMaxBackoff stores the retry max backoff value used by webhook.
 	RetryMaxBackoff time.Duration
-	RetryJitter     bool
-	Enabled         bool
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
+	// RetryJitter reports whether retry jitter applies to webhook.
+	RetryJitter bool
+	// Enabled reports whether enabled applies to webhook.
+	Enabled bool
+	// CreatedAt records the created at timestamp for webhook.
+	CreatedAt time.Time
+	// UpdatedAt records the updated at timestamp for webhook.
+	UpdatedAt time.Time
 }
 
 // WebhookDelivery records the latest outcome of delivering an outgoing event.
 type WebhookDelivery struct {
-	ID          int64
-	WebhookID   int64
+	// ID identifies webhook delivery.
+	ID int64
+	// WebhookID identifies the webhook associated with webhook delivery.
+	WebhookID int64
+	// WebhookName is the webhook name associated with webhook delivery.
 	WebhookName string
-	Event       string
-	StatusCode  int
-	Attempts    int
-	Error       string
-	CreatedAt   time.Time
+	// Event stores the event value used by webhook delivery.
+	Event string
+	// StatusCode stores the status code value used by webhook delivery.
+	StatusCode int
+	// Attempts stores the attempts value used by webhook delivery.
+	Attempts int
+	// Error stores the error value used by webhook delivery.
+	Error string
+	// CreatedAt records the created at timestamp for webhook delivery.
+	CreatedAt time.Time
 }
 
 // Notification is a lightweight user inbox item.
 type Notification struct {
-	ID        int64      `json:"id"`
-	Kind      string     `json:"kind"`
-	Title     string     `json:"title"`
-	Body      string     `json:"body"`
-	URL       string     `json:"url"`
-	ReadAt    *time.Time `json:"read_at,omitempty"`
-	CreatedAt time.Time  `json:"created_at"`
+	// ID identifies notification.
+	ID int64 `json:"id"`
+	// Kind stores the kind value used by notification.
+	Kind string `json:"kind"`
+	// Title is the title associated with notification.
+	Title string `json:"title"`
+	// Body stores the body value used by notification.
+	Body string `json:"body"`
+	// URL is the target URL for notification.
+	URL string `json:"url"`
+	// ReadAt records the read at timestamp for notification.
+	ReadAt *time.Time `json:"read_at,omitempty"`
+	// CreatedAt records the created at timestamp for notification.
+	CreatedAt time.Time `json:"created_at"`
 }
 
 // PageComment is a discussion item optionally anchored to selected page text.
 type PageComment struct {
-	ID        int64      `json:"id"`
-	PageID    int64      `json:"page_id"`
-	Author    string     `json:"author"`
-	Anchor    string     `json:"anchor"`
-	Body      string     `json:"body"`
-	Resolved  *time.Time `json:"resolved_at,omitempty"`
-	CreatedAt time.Time  `json:"created_at"`
+	// ID identifies page comment.
+	ID int64 `json:"id"`
+	// PageID identifies the page associated with page comment.
+	PageID int64 `json:"page_id"`
+	// Author stores the author value used by page comment.
+	Author string `json:"author"`
+	// Anchor stores the anchor value used by page comment.
+	Anchor string `json:"anchor"`
+	// Body stores the body value used by page comment.
+	Body string `json:"body"`
+	// Resolved stores the resolved value used by page comment.
+	Resolved *time.Time `json:"resolved_at,omitempty"`
+	// CreatedAt records the created at timestamp for page comment.
+	CreatedAt time.Time `json:"created_at"`
 }
 
 // GraphNode is one page in the wiki relationship graph.
 type GraphNode struct {
-	Slug   string `json:"slug"`
-	Title  string `json:"title"`
+	// Slug is the normalized page path associated with graph node.
+	Slug string `json:"slug"`
+	// Title is the title associated with graph node.
+	Title string `json:"title"`
+	// Status is the current status of graph node.
 	Status string `json:"status"`
 }
 
 // GraphEdge is one wiki-link relationship between pages.
 type GraphEdge struct {
+	// Source records the source associated with graph edge.
 	Source string `json:"source"`
+	// Target stores the target value used by graph edge.
 	Target string `json:"target"`
 }
 
 // KnowledgeGraph contains graph nodes and link edges.
 type KnowledgeGraph struct {
+	// Nodes contains the nodes associated with knowledge graph.
 	Nodes []GraphNode `json:"nodes"`
+	// Edges contains the edges associated with knowledge graph.
 	Edges []GraphEdge `json:"edges"`
 }
 
 // RecentEdit describes a page recently edited by one user.
 type RecentEdit struct {
+	// Page embeds page behavior in recent edit.
 	Page
+	// RevisionMessage contains the revision message for recent edit.
 	RevisionMessage string
 }
 
 // PageDraft is a private, autosaved editor state owned by one user.
 type PageDraft struct {
-	ID              int64               `json:"id"`
-	Key             string              `json:"key"`
-	PageID          int64               `json:"page_id,omitempty"`
-	BaseRevision    int                 `json:"base_revision"`
-	CurrentRevision int                 `json:"current_revision"`
-	Stale           bool                `json:"stale"`
-	Title           string              `json:"title"`
-	Slug            string              `json:"slug"`
-	PageSlug        string              `json:"page_slug,omitempty"`
-	Values          map[string][]string `json:"values,omitempty"`
-	CreatedAt       time.Time           `json:"created_at"`
-	UpdatedAt       time.Time           `json:"updated_at"`
+	// ID identifies page draft.
+	ID int64 `json:"id"`
+	// Key is the lookup key for page draft.
+	Key string `json:"key"`
+	// PageID identifies the page associated with page draft.
+	PageID int64 `json:"page_id,omitempty"`
+	// BaseRevision stores the base revision value used by page draft.
+	BaseRevision int `json:"base_revision"`
+	// CurrentRevision stores the current revision value used by page draft.
+	CurrentRevision int `json:"current_revision"`
+	// Stale reports whether stale applies to page draft.
+	Stale bool `json:"stale"`
+	// Title is the title associated with page draft.
+	Title string `json:"title"`
+	// Slug is the normalized page path associated with page draft.
+	Slug string `json:"slug"`
+	// PageSlug is the page slug associated with page draft.
+	PageSlug string `json:"page_slug,omitempty"`
+	// Values contains the values represented by page draft.
+	Values map[string][]string `json:"values,omitempty"`
+	// CreatedAt records the created at timestamp for page draft.
+	CreatedAt time.Time `json:"created_at"`
+	// UpdatedAt records the updated at timestamp for page draft.
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 // MovePageOptions controls safe page-tree refactoring.
 type MovePageOptions struct {
-	MoveChildren        bool
+	// MoveChildren reports whether move children applies to move page options.
+	MoveChildren bool
+	// UpdateIncomingLinks reports whether update incoming links applies to move page options.
 	UpdateIncomingLinks bool
-	KeepAliases         bool
+	// KeepAliases reports whether keep aliases applies to move page options.
+	KeepAliases bool
 }
 
 // NavigationItem describes one page or synthetic folder in the navigation tree.
@@ -579,64 +720,102 @@ type NavigationItem struct {
 
 // OIDCIdentity binds one Kumbuka account to a stable identity from an OIDC issuer.
 type OIDCIdentity struct {
-	UserID    int64
-	Issuer    string
-	Subject   string
+	// UserID identifies the user associated with OIDC identity.
+	UserID int64
+	// Issuer stores the issuer value used by OIDC identity.
+	Issuer string
+	// Subject stores the subject value used by OIDC identity.
+	Subject string
+	// CreatedAt records the created at timestamp for OIDC identity.
 	CreatedAt time.Time
 }
 
 // OIDCGroupMapping maps one external OIDC group value to a Kumbuka group.
 type OIDCGroupMapping struct {
+	// OIDCGroup stores the OIDC group value used by OIDC group mapping.
 	OIDCGroup string
-	GroupID   int64
+	// GroupID identifies the group associated with OIDC group mapping.
+	GroupID int64
+	// GroupName is the group name associated with OIDC group mapping.
 	GroupName string
 }
 
 // PendingOIDCIdentity is a verified but not yet accepted OIDC identity.
 type PendingOIDCIdentity struct {
-	ID                   int64
-	Issuer               string
-	Subject              string
-	Username             string
-	Email                string
-	DisplayName          string
-	Status               string
-	FirstSeenAt          time.Time
-	LastSeenAt           time.Time
-	SuggestedUserID      int64
-	SuggestedUsername    string
+	// ID identifies pending OIDC identity.
+	ID int64
+	// Issuer stores the issuer value used by pending OIDC identity.
+	Issuer string
+	// Subject stores the subject value used by pending OIDC identity.
+	Subject string
+	// Username is the username associated with pending OIDC identity.
+	Username string
+	// Email stores the email value used by pending OIDC identity.
+	Email string
+	// DisplayName is the display name associated with pending OIDC identity.
+	DisplayName string
+	// Status is the current status of pending OIDC identity.
+	Status string
+	// FirstSeenAt records the first seen at timestamp for pending OIDC identity.
+	FirstSeenAt time.Time
+	// LastSeenAt records the last seen at timestamp for pending OIDC identity.
+	LastSeenAt time.Time
+	// SuggestedUserID identifies the suggested user associated with pending OIDC identity.
+	SuggestedUserID int64
+	// SuggestedUsername is the suggested username associated with pending OIDC identity.
+	SuggestedUsername string
+	// SuggestedDisplayName is the suggested display name associated with pending OIDC identity.
 	SuggestedDisplayName string
 }
 
 // PageLink describes one wiki link recorded for a source page.
 type PageLink struct {
-	TargetSlug  string
+	// TargetSlug is the target slug associated with page link.
+	TargetSlug string
+	// TargetTitle is the target title associated with page link.
 	TargetTitle string
-	Exists      bool
+	// Exists reports whether exists applies to page link.
+	Exists bool
 }
 
 // PageTemplateField is one author-supplied value used by a page blueprint.
 type PageTemplateField struct {
-	Name     string `json:"name"`
-	Label    string `json:"label"`
-	Default  string `json:"default,omitempty"`
-	Required bool   `json:"required,omitempty"`
+	// Name is the name of page template field.
+	Name string `json:"name"`
+	// Label is the display label for page template field.
+	Label string `json:"label"`
+	// Default stores the default value used by page template field.
+	Default string `json:"default,omitempty"`
+	// Required reports whether required applies to page template field.
+	Required bool `json:"required,omitempty"`
 }
 
 // PageTemplate is a reusable page blueprint offered when creating a page.
 type PageTemplate struct {
-	ID                 int64
-	Name               string
-	Description        string
-	Markdown           string
-	PathPrefix         string
-	Icon               string
-	Tags               []string
-	Status             string
-	OwnerGroupID       int64
+	// ID identifies page template.
+	ID int64
+	// Name is the name of page template.
+	Name string
+	// Description describes page template.
+	Description string
+	// Markdown stores the markdown value used by page template.
+	Markdown string
+	// PathPrefix stores the path prefix value used by page template.
+	PathPrefix string
+	// Icon names the icon used for page template.
+	Icon string
+	// Tags contains the tags associated with page template.
+	Tags []string
+	// Status is the current status of page template.
+	Status string
+	// OwnerGroupID identifies the owner group associated with page template.
+	OwnerGroupID int64
+	// ReviewIntervalDays stores the review interval days value used by page template.
 	ReviewIntervalDays int
-	Properties         map[string]string
-	Fields             []PageTemplateField
+	// Properties maps keys to properties values used by page template.
+	Properties map[string]string
+	// Fields contains the fields associated with page template.
+	Fields []PageTemplateField
 }
 
 // UserPreferences contains presentation preferences for one wiki user.
@@ -667,9 +846,12 @@ type UserPreferences struct {
 
 // PageShareLink identifies the page exposed by one public permalink.
 type PageShareLink struct {
+	// PageID identifies the page associated with page share link.
 	PageID int64
-	Slug   string
-	Title  string
+	// Slug is the normalized page path associated with page share link.
+	Slug string
+	// Title is the title associated with page share link.
+	Title string
 }
 
 // User represents an authenticated wiki account.
@@ -767,8 +949,11 @@ type Page struct {
 
 // DeletedPage describes a page currently held in the administrator recycle bin.
 type DeletedPage struct {
+	// Page embeds page behavior in deleted page.
 	Page
+	// DeletedAt records the deleted at timestamp for deleted page.
 	DeletedAt time.Time
+	// DeletedBy stores the deleted by value used by deleted page.
 	DeletedBy string
 }
 

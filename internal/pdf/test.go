@@ -20,9 +20,12 @@ var testImage []byte
 
 // TestResult describes the generated PDF returned by a PDF service test.
 type TestResult struct {
-	File      *os.File
+	// File stores the file value used by test result.
+	File *os.File
+	// PageCount is the number of page associated with test result.
 	PageCount int
-	Size      int64
+	// Size stores the size setting for test result.
+	Size int64
 }
 
 // RenderTest renders Kumbuka's fixed PDF diagnostic document and returns it for inspection.

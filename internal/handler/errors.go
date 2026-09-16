@@ -17,9 +17,12 @@ type userMessageError interface {
 
 // requestError carries transport-validation details that are safe to return to the caller.
 type requestError struct {
-	field   string
+	// field stores the field value used by request error.
+	field string
+	// message contains the message associated with request error.
 	message string
-	cause   error
+	// cause stores the cause value used by request error.
+	cause error
 }
 
 // newRequestError creates a transport-validation error with an optional field name.

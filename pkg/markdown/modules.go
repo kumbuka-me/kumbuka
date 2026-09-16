@@ -27,6 +27,7 @@ func NewWithPluginPackages(ctx context.Context, archives [][]byte, required []st
 	return newWithPluginPackages(ctx, nil, archives, required, runtimeOptions...)
 }
 
+// newWithPluginPackages constructs a renderer, runtime, and plugin manager from package archives.
 func newWithPluginPackages(
 	ctx context.Context,
 	store plugin.Store,

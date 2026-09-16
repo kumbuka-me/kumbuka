@@ -10,9 +10,12 @@ import (
 
 // accessiblePageCatalog limits page-report and include reads to one user's access.
 type accessiblePageCatalog struct {
+	// catalog stores the catalog value used by accessible page catalog.
 	catalog pageReportCatalogService
-	access  pageAccessReader
-	user    domain.User
+	// access stores the access value used by accessible page catalog.
+	access pageAccessReader
+	// user stores the user value used by accessible page catalog.
+	user domain.User
 }
 
 // GetPage returns the requested page only when the current user may view it.
@@ -184,9 +187,12 @@ func visibleKnowledgeGraph(ctx context.Context, access pageAccessReader, user do
 
 // personalWidgetSource binds personal page lists to the authenticated viewer and access policy.
 type personalWidgetSource struct {
+	// catalog stores the catalog value used by personal widget source.
 	catalog sidebarCatalogService
-	access  pageAccessReader
-	user    domain.User
+	// access stores the access value used by personal widget source.
+	access pageAccessReader
+	// user stores the user value used by personal widget source.
+	user domain.User
 }
 
 // Favorites returns visible favorites for the current viewer.
@@ -213,10 +219,14 @@ func (s personalWidgetSource) RecentViewed(ctx context.Context, limit int) ([]do
 
 // homeWidgetSource extends personal page lists with dashboard activity and private drafts.
 type homeWidgetSource struct {
+	// catalog stores the catalog value used by home widget source.
 	catalog homeCatalogService
-	drafts  draftListService
-	access  pageAccessReader
-	user    domain.User
+	// drafts stores the drafts value used by home widget source.
+	drafts draftListService
+	// access stores the access value used by home widget source.
+	access pageAccessReader
+	// user stores the user value used by home widget source.
+	user domain.User
 }
 
 // Favorites returns visible favorites for the current viewer.
@@ -264,6 +274,7 @@ func (s homeWidgetSource) Drafts(ctx context.Context, limit int) ([]domain.PageD
 	return s.drafts.List(ctx, s.user.ID, limit)
 }
 
+// limitPages truncates a page list to the requested maximum size.
 func limitPages(pages []domain.Page, limit int) []domain.Page {
 	if limit <= 0 || len(pages) <= limit {
 		return pages

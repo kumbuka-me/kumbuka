@@ -17,7 +17,10 @@ type knowledgeRepository interface {
 }
 
 // Knowledge exposes knowledge graph and saved-search use cases.
-type Knowledge struct{ repository knowledgeRepository }
+type Knowledge struct {
+	// repository provides the persistence operations required by knowledge.
+	repository knowledgeRepository
+}
 
 // NewKnowledge constructs the knowledge tools service.
 func NewKnowledge(repository knowledgeRepository) *Knowledge {

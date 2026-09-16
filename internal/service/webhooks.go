@@ -61,11 +61,17 @@ var reservedWebhookHeaderNames = map[string]struct{}{
 
 // OutgoingEvent is the stable event emitted by application mutations.
 type OutgoingEvent struct {
-	Event      string    `json:"event"`
-	ActorID    int64     `json:"actor_id,omitempty"`
-	ObjectType string    `json:"object_type"`
-	ObjectKey  string    `json:"object_key"`
-	Detail     string    `json:"detail,omitempty"`
+	// Event stores the event value used by outgoing event.
+	Event string `json:"event"`
+	// ActorID identifies the actor associated with outgoing event.
+	ActorID int64 `json:"actor_id,omitempty"`
+	// ObjectType is the object type associated with outgoing event.
+	ObjectType string `json:"object_type"`
+	// ObjectKey stores the object key value used by outgoing event.
+	ObjectKey string `json:"object_key"`
+	// Detail stores the detail value used by outgoing event.
+	Detail string `json:"detail,omitempty"`
+	// OccurredAt records the occurred at timestamp for outgoing event.
 	OccurredAt time.Time `json:"occurred_at"`
 }
 
@@ -85,34 +91,54 @@ type webhookRepository interface {
 
 // WebhookHeaderInput contains one administrator-supplied webhook request header.
 type WebhookHeaderInput struct {
-	ID        int64
-	Name      string
-	Value     string
+	// ID identifies webhook header input.
+	ID int64
+	// Name is the name of webhook header input.
+	Name string
+	// Value contains the value represented by webhook header input.
+	Value string
+	// Sensitive reports whether sensitive applies to webhook header input.
 	Sensitive bool
 }
 
 // WebhookInput contains one administrator-supplied webhook configuration.
 type WebhookInput struct {
-	Name            string
-	URL             string
-	Events          []string
-	BodyTemplate    string
-	Headers         []WebhookHeaderInput
-	RetryEnabled    bool
-	RetryCount      int
-	RetryBackoff    time.Duration
+	// Name is the name of webhook input.
+	Name string
+	// URL is the target URL for webhook input.
+	URL string
+	// Events contains the events associated with webhook input.
+	Events []string
+	// BodyTemplate stores the body template value used by webhook input.
+	BodyTemplate string
+	// Headers contains the headers associated with webhook input.
+	Headers []WebhookHeaderInput
+	// RetryEnabled reports whether retry enabled applies to webhook input.
+	RetryEnabled bool
+	// RetryCount is the number of retry associated with webhook input.
+	RetryCount int
+	// RetryBackoff stores the retry backoff value used by webhook input.
+	RetryBackoff time.Duration
+	// RetryMaxBackoff stores the retry max backoff value used by webhook input.
 	RetryMaxBackoff time.Duration
-	RetryJitter     bool
-	Enabled         bool
+	// RetryJitter reports whether retry jitter applies to webhook input.
+	RetryJitter bool
+	// Enabled reports whether enabled applies to webhook input.
+	Enabled bool
 }
 
 // Webhooks owns persisted webhook configuration and Notifykit delivery.
 type Webhooks struct {
+	// repository provides the persistence operations required by webhooks.
 	repository webhookRepository
-	secrets    *secrets.Cipher
-	client     *http.Client
-	logger     *slog.Logger
-	publicURL  string
+	// secrets stores the secrets value used by webhooks.
+	secrets *secrets.Cipher
+	// client stores the client value used by webhooks.
+	client *http.Client
+	// logger records diagnostics emitted by webhooks.
+	logger *slog.Logger
+	// publicURL is the externally visible base URL used when building webhook payloads.
+	publicURL string
 }
 
 // NewWebhooks constructs outgoing webhook use cases.
@@ -582,7 +608,9 @@ func normalizeWebhookEvents(values []string) []string {
 
 // webhookNotification adapts a Kumbuka event to Notifykit's Notification contract.
 type webhookNotification struct {
-	event     OutgoingEvent
+	// event stores the event value used by webhook notification.
+	event OutgoingEvent
+	// publicURL is the externally visible base URL available to webhook templates.
 	publicURL string
 }
 
@@ -608,24 +636,38 @@ func (n webhookNotification) Data(receiver string, _ map[string]any, title strin
 	}
 }
 
+// webhookRenderData groups data used by webhook render data.
 type webhookRenderData struct {
-	Input    webhookTemplateInput
-	Payload  webhookTemplatePayload
+	// Input stores the input value used by webhook render data.
+	Input webhookTemplateInput
+	// Payload stores the payload value used by webhook render data.
+	Payload webhookTemplatePayload
+	// Receiver stores the receiver value used by webhook render data.
 	Receiver string
-	Title    string
+	// Title is the title associated with webhook render data.
+	Title string
 }
 
+// webhookTemplateInput groups data used by webhook template input.
 type webhookTemplateInput struct {
+	// Event stores the event value used by webhook template input.
 	Event string `json:"event"`
 }
 
+// webhookTemplatePayload groups data used by webhook template payload.
 type webhookTemplatePayload struct {
-	ActorID    int64     `json:"actor_id"`
-	ObjectType string    `json:"object_type"`
-	ObjectKey  string    `json:"object_key"`
-	Detail     string    `json:"detail"`
+	// ActorID identifies the actor associated with webhook template payload.
+	ActorID int64 `json:"actor_id"`
+	// ObjectType is the object type associated with webhook template payload.
+	ObjectType string `json:"object_type"`
+	// ObjectKey stores the object key value used by webhook template payload.
+	ObjectKey string `json:"object_key"`
+	// Detail stores the detail value used by webhook template payload.
+	Detail string `json:"detail"`
+	// OccurredAt records the occurred at timestamp for webhook template payload.
 	OccurredAt time.Time `json:"occurred_at"`
-	URL        string    `json:"url"`
+	// URL is the target URL for webhook template payload.
+	URL string `json:"url"`
 }
 
 // webhookObjectURL returns a public page URL when the event identifies a page.
@@ -638,8 +680,11 @@ func webhookObjectURL(publicURL string, event OutgoingEvent) string {
 
 // webhookDeliveryTarget captures the final Notifykit target result and attempt count.
 type webhookDeliveryTarget struct {
-	target   kit.Target
-	result   kit.DeliveryResult
+	// target stores the target value used by webhook delivery target.
+	target kit.Target
+	// result stores the result value used by webhook delivery target.
+	result kit.DeliveryResult
+	// attempts stores the attempts value used by webhook delivery target.
 	attempts int
 }
 

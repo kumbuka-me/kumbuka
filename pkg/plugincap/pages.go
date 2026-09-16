@@ -127,6 +127,7 @@ func (p Pages) Revisions(ctx context.Context, query sdk.RevisionQuery) (sdk.Revi
 	return result, nil
 }
 
+// revisionValue converts a page revision into a plugin capability value.
 func revisionValue(record revision.Revision) sdk.Revision {
 	return sdk.Revision{Number: record.Number, Author: record.Author, CreatedAt: record.CreatedAt, Message: record.Message, AddedLines: record.AddedLines, RemovedLines: record.RemovedLines}
 }
@@ -253,6 +254,7 @@ func validPageQuery(request sdk.PageQuery) bool {
 	return len(request.Query) <= 4096 && request.Limit >= 1 && request.Limit <= 100
 }
 
+// validRevisionQuery reports whether a revision capability query is supported.
 func validRevisionQuery(request sdk.RevisionQuery) bool {
 	return len(request.Slug) > 0 && len(request.Slug) <= 4096 && request.Limit >= 1 && request.Limit <= 100
 }

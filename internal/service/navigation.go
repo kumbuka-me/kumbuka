@@ -20,11 +20,16 @@ type navigationRepository interface {
 
 // Navigation exposes navigation tree and icon use cases.
 type Navigation struct {
-	repository  navigationRepository
+	// repository provides the persistence operations required by navigation.
+	repository navigationRepository
+	// iconCatalog stores the icon catalog value used by navigation.
 	iconCatalog *icons.Catalog
 
-	iconsMu     sync.RWMutex
-	icons       map[string]string
+	// iconsMu stores the icons mu value used by navigation.
+	iconsMu sync.RWMutex
+	// icons maps keys to icons values used by navigation.
+	icons map[string]string
+	// iconsLoaded reports whether icons loaded applies to navigation.
 	iconsLoaded bool
 }
 

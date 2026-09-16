@@ -420,8 +420,10 @@ func exportedImagePath(
 
 // mediaReference identifies a stored image reference within Markdown source.
 type mediaReference struct {
+	// start and end store the corresponding values for media reference.
 	start, end int
-	id         int64
+	// id identifies media reference.
+	id int64
 }
 
 // nextMediaReference scans the same bare /media/ID/filename syntax used by exports.
@@ -565,7 +567,10 @@ func inlineRenderedMedia(ctx context.Context, mediaUseCases imageContentService,
 }
 
 // exportMediaError retains the origin of a media failure in a multi-resource export.
-type exportMediaError struct{ cause error }
+type exportMediaError struct {
+	// cause stores the cause value used by export media error.
+	cause error
+}
 
 // Error returns the media export failure message.
 func (e *exportMediaError) Error() string { return fmt.Sprintf("export image: %v", e.cause) }

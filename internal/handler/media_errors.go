@@ -18,13 +18,20 @@ const (
 	attachmentMedia
 )
 
+// mediaErrorText groups data used by media error text.
 type mediaErrorText struct {
-	title       string
-	empty       string
-	tooLarge    string
+	// title is the title associated with media error text.
+	title string
+	// empty stores the empty value used by media error text.
+	empty string
+	// tooLarge stores the too large value used by media error text.
+	tooLarge string
+	// unsupported stores the unsupported value used by media error text.
 	unsupported string
-	forbidden   string
-	noun        string
+	// forbidden stores the forbidden value used by media error text.
+	forbidden string
+	// noun stores the noun value used by media error text.
+	noun string
 }
 
 var mediaErrorTexts = map[mediaKind]mediaErrorText{

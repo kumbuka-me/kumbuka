@@ -20,10 +20,14 @@ const (
 
 // ParameterError reports invalid request-local plugin export input.
 type ParameterError struct {
+	// PluginID identifies the plugin associated with parameter error.
 	PluginID string
+	// ModuleID identifies the module associated with parameter error.
 	ModuleID string
-	Key      string
-	Message  string
+	// Key is the lookup key for parameter error.
+	Key string
+	// Message contains the message associated with parameter error.
+	Message string
 }
 
 // Error returns a safe validation message for one plugin export parameter.
@@ -46,11 +50,13 @@ type ResourceRecord struct {
 type EditorCompletionItem struct {
 	// PluginID and ModuleID identify the owning completion contribution.
 	PluginID string `json:"plugin_id"`
+	// ModuleID identifies the module associated with editor completion item.
 	ModuleID string `json:"module_id"`
 	// Trigger opens completion when typed immediately before the query.
 	Trigger string `json:"trigger"`
 	// Label and Detail are displayed by editor completion UI.
-	Label  string `json:"label"`
+	Label string `json:"label"`
+	// Detail stores the detail value used by editor completion item.
 	Detail string `json:"detail,omitempty"`
 	// Replacement is inserted when the item is selected.
 	Replacement string `json:"replacement"`
@@ -60,17 +66,21 @@ type EditorCompletionItem struct {
 type EditorInsertContribution struct {
 	// PluginID and ModuleID identify the owning contribution.
 	PluginID string `json:"plugin_id"`
+	// ModuleID identifies the module associated with editor insert contribution.
 	ModuleID string `json:"module_id"`
 	// Name and Description are displayed by editor insertion UI.
-	Name        string `json:"name"`
+	Name string `json:"name"`
+	// Description describes editor insert contribution.
 	Description string `json:"description,omitempty"`
 	// Markdown and Suffix describe inserted, wrapped, or line-prefixed source.
 	Markdown string `json:"markdown"`
-	Suffix   string `json:"suffix,omitempty"`
+	// Suffix stores the suffix value used by editor insert contribution.
+	Suffix string `json:"suffix,omitempty"`
 	// Placeholder supplies default selected text for wrap and prefix actions.
 	Placeholder string `json:"placeholder,omitempty"`
 	// Mode and Group select generic editor behavior and toolbar placement.
-	Mode  string `json:"mode"`
+	Mode string `json:"mode"`
+	// Group stores the group value used by editor insert contribution.
 	Group string `json:"group"`
 	// Icon is the optional host icon shown for the action.
 	Icon string `json:"icon,omitempty"`

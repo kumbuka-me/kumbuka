@@ -74,6 +74,7 @@ type Config struct {
 	Overrides map[string]any
 }
 
+// Parse parses command-line arguments into application configuration.
 func Parse(args []string, version string) (Config, error) {
 	cfg := Config{}
 

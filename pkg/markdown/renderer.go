@@ -25,12 +25,17 @@ import (
 // Renderer converts Kumbuka Markdown into sanitized HTML.
 type Renderer struct {
 	// sanitizer removes unsafe HTML from rendered output.
-	sanitizer     *bluemonday.Policy
-	registry      *plugin.Registry
-	manager       *plugin.Manager
-	timingLogger  *slog.Logger
+	sanitizer *bluemonday.Policy
+	// registry stores the registry value used by renderer.
+	registry *plugin.Registry
+	// manager stores the manager value used by renderer.
+	manager *plugin.Manager
+	// timingLogger stores the timing logger value used by renderer.
+	timingLogger *slog.Logger
+	// artifactBuild stores the artifact build value used by renderer.
 	artifactBuild string
-	iconCatalog   *icons.Catalog
+	// iconCatalog stores the icon catalog value used by renderer.
+	iconCatalog *icons.Catalog
 }
 
 // Heading describes one rendered Markdown heading used in a page table of contents.
@@ -58,9 +63,13 @@ type RenderedPage struct {
 // Functions supplies request-local plugin capabilities and export data.
 // Bindings cannot activate an unregistered macro.
 type Functions struct {
-	Capabilities     map[string]plugin.Capability
-	Context          context.Context
-	Macros           map[string]plugin.MacroRenderer
+	// Capabilities maps keys to capabilities values used by functions.
+	Capabilities map[string]plugin.Capability
+	// Context stores the context value used by functions.
+	Context context.Context
+	// Macros maps keys to macros values used by functions.
+	Macros map[string]plugin.MacroRenderer
+	// ExportParameters maps keys to export parameters values used by functions.
 	ExportParameters map[string]map[string]map[string]string
 	// PluginUsage is derived persisted metadata for saved pages. Nil requests transient analysis.
 	PluginUsage *pluginusage.Index

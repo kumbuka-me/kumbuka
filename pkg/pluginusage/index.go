@@ -7,17 +7,24 @@ const Version = 1
 // Index is a rebuildable summary of source-aware plugin modules used by one page.
 // Markdown remains the source of truth; a nil index means the page has not been indexed.
 type Index struct {
-	Version     int      `json:"version"`
-	Fingerprint string   `json:"fingerprint"`
-	SourceHash  string   `json:"source_hash"`
-	Modules     []Module `json:"modules,omitempty"`
+	// Version stores the version value used by index.
+	Version int `json:"version"`
+	// Fingerprint stores the fingerprint value used by index.
+	Fingerprint string `json:"fingerprint"`
+	// SourceHash stores the source hash value used by index.
+	SourceHash string `json:"source_hash"`
+	// Modules contains the modules associated with index.
+	Modules []Module `json:"modules,omitempty"`
 }
 
 // Module records one source-aware module recognized in the page source.
 type Module struct {
-	PluginID string   `json:"plugin_id"`
-	ModuleID string   `json:"module_id"`
-	Values   []string `json:"values,omitempty"`
+	// PluginID identifies the plugin associated with module.
+	PluginID string `json:"plugin_id"`
+	// ModuleID identifies the module associated with module.
+	ModuleID string `json:"module_id"`
+	// Values contains the values represented by module.
+	Values []string `json:"values,omitempty"`
 }
 
 // Has reports whether the index selected one plugin module.

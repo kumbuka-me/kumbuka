@@ -105,6 +105,7 @@ func (r *Renderer) CanPersist(source string, usage *pluginusage.Index) bool {
 	return true
 }
 
+// hasDynamicReadPermission reports whether a plugin manifest grants a dynamic read capability.
 func hasDynamicReadPermission(permissions []string) bool {
 	for _, permission := range permissions {
 		if slices.Contains([]string{"pages:read", "pages:content", "attachments:read", "settings:read", "storage:read"}, permission) {
@@ -114,6 +115,7 @@ func hasDynamicReadPermission(permissions []string) bool {
 	return false
 }
 
+// renderExecutableModule renders one executable plugin module with the supplied context.
 func renderExecutableModule(moduleType string) bool {
 	switch moduleType {
 	case "renderer-extension", "code-highlighter", "content-substitution", "macro":

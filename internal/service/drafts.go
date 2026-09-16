@@ -19,16 +19,23 @@ type pageDraftRepository interface {
 
 // PageDraftSaveInput contains one user's autosaved editor state.
 type PageDraftSaveInput struct {
-	Key    string
+	// Key is the lookup key for page draft save input.
+	Key string
+	// PageID identifies the page associated with page draft save input.
 	PageID int64
-	Title  string
-	Slug   string
+	// Title is the title associated with page draft save input.
+	Title string
+	// Slug is the normalized page path associated with page draft save input.
+	Slug string
+	// Values contains the values represented by page draft save input.
 	Values map[string][]string
-	Actor  domain.User
+	// Actor stores the actor value used by page draft save input.
+	Actor domain.User
 }
 
 // Drafts coordinates private server-side editor drafts.
 type Drafts struct {
+	// repository provides the persistence operations required by drafts.
 	repository pageDraftRepository
 }
 

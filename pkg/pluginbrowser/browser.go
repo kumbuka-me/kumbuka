@@ -21,6 +21,7 @@ var frameTemplate = template.Must(
 
 // Module describes one browser module exposed by an enabled plugin.
 type Module struct {
+	// BrowserContribution embeds browser contribution behavior in module.
 	plugin.BrowserContribution
 	// FrameURL is the isolated frame URL used to load this browser module.
 	FrameURL string `json:"frame_url"`

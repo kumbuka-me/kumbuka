@@ -6,6 +6,7 @@ import (
 	md "github.com/kumbuka-me/kumbuka/pkg/markdown"
 )
 
+// widgetViews converts rendered plugin widgets into template view models.
 func widgetViews(widgets []md.RenderedWidget) []pluginWidgetView {
 	result := make([]pluginWidgetView, 0, len(widgets))
 	for _, widget := range widgets {

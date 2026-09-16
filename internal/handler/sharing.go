@@ -15,7 +15,9 @@ import (
 	"github.com/kumbuka-me/kumbuka/pkg/plugincap"
 )
 
+// createPageShareLinkResponse contains the response payload for create page share link response.
 type createPageShareLinkResponse struct {
+	// URL is the target URL for create page share link response.
 	URL string `json:"url"`
 }
 

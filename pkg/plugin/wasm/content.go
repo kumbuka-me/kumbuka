@@ -18,7 +18,9 @@ import (
 
 // contentPreprocessorModule adapts a WASM content-preprocess renderer declaration.
 type contentPreprocessorModule struct {
+	// rendererModule embeds renderer module behavior in content preprocessor module.
 	rendererModule
+	// priority stores the priority setting for content preprocessor module.
 	priority int
 }
 
@@ -62,10 +64,14 @@ func (m contentPreprocessorModule) PreprocessContent(ctx plugin.Context, source 
 
 // resourceSubstitutionModule expands inline resource-backed macros without rescanning inserted values.
 type resourceSubstitutionModule struct {
-	owner    string
-	module   pluginpackage.Module
+	// owner stores the owner value used by resource substitution module.
+	owner string
+	// module stores the module value used by resource substitution module.
+	module pluginpackage.Module
+	// resource stores the resource value used by resource substitution module.
 	resource pluginpackage.Module
-	storage  plugin.Storage
+	// storage stores the storage value used by resource substitution module.
+	storage plugin.Storage
 }
 
 // Priority orders content substitutions after earlier content preprocessors such as includes.

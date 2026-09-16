@@ -4,8 +4,10 @@ import "github.com/kumbuka-me/kumbuka/pkg/plugin"
 
 // Options controls core Markdown rendering behavior.
 type Options struct {
+	// pipeline stores the pipeline value used by options.
 	pipeline *renderPipeline
-	depth    int
+	// depth stores the depth value used by options.
+	depth int
 	// annotations contains request-local opaque plugin substitutions for an annotated render pass.
 	annotations []plugin.Replacement
 	// WikiLinks enables [[Wiki Link]] resolution.

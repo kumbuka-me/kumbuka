@@ -12,6 +12,7 @@ import (
 
 const maxRecordedWASMCalls = 256
 
+// contextKey is the private type used for request-context values.
 type contextKey struct{}
 
 var nextTraceID atomic.Uint64
@@ -19,62 +20,104 @@ var noopMeasure = func() {}
 
 // Trace collects cumulative stage and WASM timing data for one top-level page render.
 type Trace struct {
-	id      uint64
+	// id identifies trace.
+	id uint64
+	// started stores the started value used by trace.
 	started time.Time
 
-	mu              sync.Mutex
-	stages          map[string]time.Duration
-	wasmCalls       []WASMCall
-	wasmSummary     WASMSummary
+	// mu protects concurrent access to trace.
+	mu sync.Mutex
+	// stages maps keys to stages values used by trace.
+	stages map[string]time.Duration
+	// wasmCalls contains the wasm calls associated with trace.
+	wasmCalls []WASMCall
+	// wasmSummary stores the wasm summary value used by trace.
+	wasmSummary WASMSummary
+	// droppedWASMCall stores the dropped WASM call value used by trace.
 	droppedWASMCall int
 }
 
 // WASMCall contains one guest boundary timing. Durations are measured on the
 // host and intentionally separate queueing, wire work, and guest execution.
 type WASMCall struct {
-	PluginID      string
-	ModuleID      string
-	Stage         string
-	GateWait      time.Duration
-	Instantiate   time.Duration
-	Encode        time.Duration
-	Allocate      time.Duration
-	MemoryWrite   time.Duration
-	Execute       time.Duration
-	MemoryRead    time.Duration
-	Decode        time.Duration
-	Validate      time.Duration
-	Total         time.Duration
-	RequestBytes  int
+	// PluginID identifies the plugin associated with WASM call.
+	PluginID string
+	// ModuleID identifies the module associated with WASM call.
+	ModuleID string
+	// Stage stores the stage value used by WASM call.
+	Stage string
+	// GateWait stores the gate wait value used by WASM call.
+	GateWait time.Duration
+	// Instantiate stores the instantiate value used by WASM call.
+	Instantiate time.Duration
+	// Encode stores the encode value used by WASM call.
+	Encode time.Duration
+	// Allocate stores the allocate value used by WASM call.
+	Allocate time.Duration
+	// MemoryWrite stores the memory write value used by WASM call.
+	MemoryWrite time.Duration
+	// Execute stores the execute value used by WASM call.
+	Execute time.Duration
+	// MemoryRead stores the memory read value used by WASM call.
+	MemoryRead time.Duration
+	// Decode stores the decode value used by WASM call.
+	Decode time.Duration
+	// Validate stores the validate value used by WASM call.
+	Validate time.Duration
+	// Total stores the total value used by WASM call.
+	Total time.Duration
+	// RequestBytes stores the request bytes value used by WASM call.
+	RequestBytes int
+	// ResponseBytes stores the response bytes value used by WASM call.
 	ResponseBytes int
-	Failed        bool
+	// Failed reports whether failed applies to WASM call.
+	Failed bool
 }
 
 // WASMSummary aggregates all guest calls, including calls omitted from the
 // bounded per-call sample.
 type WASMSummary struct {
-	Calls         int
-	RequestBytes  int
+	// Calls stores the calls value used by WASM summary.
+	Calls int
+	// RequestBytes stores the request bytes value used by WASM summary.
+	RequestBytes int
+	// ResponseBytes stores the response bytes value used by WASM summary.
 	ResponseBytes int
-	GateWait      time.Duration
-	Instantiate   time.Duration
-	Encode        time.Duration
-	Allocate      time.Duration
-	MemoryWrite   time.Duration
-	Execute       time.Duration
-	MemoryRead    time.Duration
-	Decode        time.Duration
-	Validate      time.Duration
-	Total         time.Duration
+	// GateWait stores the gate wait value used by WASM summary.
+	GateWait time.Duration
+	// Instantiate stores the instantiate value used by WASM summary.
+	Instantiate time.Duration
+	// Encode stores the encode value used by WASM summary.
+	Encode time.Duration
+	// Allocate stores the allocate value used by WASM summary.
+	Allocate time.Duration
+	// MemoryWrite stores the memory write value used by WASM summary.
+	MemoryWrite time.Duration
+	// Execute stores the execute value used by WASM summary.
+	Execute time.Duration
+	// MemoryRead stores the memory read value used by WASM summary.
+	MemoryRead time.Duration
+	// Decode stores the decode value used by WASM summary.
+	Decode time.Duration
+	// Validate stores the validate value used by WASM summary.
+	Validate time.Duration
+	// Total stores the total value used by WASM summary.
+	Total time.Duration
 }
 
 // Snapshot is an immutable copy suitable for structured logging.
 type Snapshot struct {
-	ID               uint64
-	Duration         time.Duration
-	Stages           map[string]time.Duration
-	WASMCalls        []WASMCall
-	WASMSummary      WASMSummary
+	// ID identifies snapshot.
+	ID uint64
+	// Duration stores the duration value used by snapshot.
+	Duration time.Duration
+	// Stages maps keys to stages values used by snapshot.
+	Stages map[string]time.Duration
+	// WASMCalls contains the WASM calls associated with snapshot.
+	WASMCalls []WASMCall
+	// WASMSummary stores the WASM summary value used by snapshot.
+	WASMSummary WASMSummary
+	// DroppedWASMCalls stores the dropped WASM calls value used by snapshot.
 	DroppedWASMCalls int
 }
 
@@ -116,6 +159,7 @@ func (t *Trace) Measure(stage string) func() {
 	}
 }
 
+// addStage adds one measured stage to the render profile.
 func (t *Trace) addStage(stage string, duration time.Duration) {
 	if t == nil || stage == "" {
 		return

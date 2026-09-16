@@ -19,7 +19,10 @@ type groupRepository interface {
 }
 
 // Groups exposes collaboration group use cases.
-type Groups struct{ repository groupRepository }
+type Groups struct {
+	// repository provides the persistence operations required by groups.
+	repository groupRepository
+}
 
 // NewGroups constructs the collaboration group service.
 func NewGroups(repository groupRepository) *Groups { return &Groups{repository: repository} }

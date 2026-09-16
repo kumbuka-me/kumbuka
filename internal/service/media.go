@@ -45,6 +45,7 @@ var (
 
 // MediaInUseError reports how many page references prevent deletion.
 type MediaInUseError struct {
+	// References stores the references value used by media in use error.
 	References int64
 }
 
@@ -77,6 +78,7 @@ func (e *MediaInUseError) Unwrap() error {
 
 // Media coordinates upload validation and deletion authorization.
 type Media struct {
+	// repository provides the persistence operations required by media.
 	repository mediaRepository
 }
 

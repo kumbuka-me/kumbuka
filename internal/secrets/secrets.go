@@ -21,6 +21,7 @@ var ErrNotConfigured = errors.New("application encryption key is not configured"
 
 // Cipher encrypts and decrypts persisted application secrets.
 type Cipher struct {
+	// aead stores the aead value used by cipher.
 	aead cipher.AEAD
 }
 

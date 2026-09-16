@@ -34,6 +34,7 @@ type codeEntry struct {
 
 // compiledLease keeps cached compiled code alive while an instance uses it.
 type compiledLease struct {
+	// CompiledModule embeds compiled module behavior in compiled lease.
 	wazero.CompiledModule
 	// entry points to the cached compiled module being leased.
 	entry *codeEntry

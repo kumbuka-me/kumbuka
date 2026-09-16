@@ -24,7 +24,10 @@ type accessRepository interface {
 
 // Access owns inherited path authorization. Rules on the nearest matching path
 // form an allow-list; paths without rules remain open to authenticated users.
-type Access struct{ repository accessRepository }
+type Access struct {
+	// repository provides the persistence operations required by access.
+	repository accessRepository
+}
 
 // NewAccess constructs inherited page-path authorization use cases.
 func NewAccess(repository accessRepository) *Access {

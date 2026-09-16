@@ -11,10 +11,14 @@ import (
 
 // mentionUser contains the account information exposed by the mention picker.
 type mentionUser struct {
-	Username    string `json:"username"`
+	// Username is the username associated with mention user.
+	Username string `json:"username"`
+	// DisplayName is the display name associated with mention user.
 	DisplayName string `json:"display_name"`
-	Role        string `json:"role"`
-	Self        bool   `json:"self"`
+	// Role is the role associated with mention user.
+	Role string `json:"role"`
+	// Self reports whether self applies to mention user.
+	Self bool `json:"self"`
 }
 
 // MentionUsers returns accounts matching an editor mention query.

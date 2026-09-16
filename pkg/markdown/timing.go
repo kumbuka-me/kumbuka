@@ -14,6 +14,7 @@ func (r *Renderer) EnableRenderTimings(logger *slog.Logger) {
 	r.timingLogger = logger
 }
 
+// logRenderTimings logs the measured stages and plugin calls for one render trace.
 func (r *Renderer) logRenderTimings(trace *renderprofile.Trace, sourceBytes, outputBytes int, renderErr error) {
 	if r.timingLogger == nil || trace == nil {
 		return
@@ -86,6 +87,7 @@ func (r *Renderer) logRenderTimings(trace *renderprofile.Trace, sourceBytes, out
 	r.timingLogger.Info("render timing", args...)
 }
 
+// durationMilliseconds converts a duration to a floating-point millisecond value.
 func durationMilliseconds(duration time.Duration) float64 {
 	return float64(duration) / float64(time.Millisecond)
 }

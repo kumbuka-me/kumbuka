@@ -21,11 +21,16 @@ import (
 
 const maxImportBytes = 100 << 20
 
+// importCandidate groups data used by import candidate.
 type importCandidate struct {
-	Slug     string
-	Title    string
+	// Slug is the normalized page path associated with import candidate.
+	Slug string
+	// Title is the title associated with import candidate.
+	Title string
+	// Markdown stores the markdown value used by import candidate.
 	Markdown string
-	Source   string
+	// Source records the source associated with import candidate.
+	Source string
 }
 
 type importFormat string
@@ -404,6 +409,7 @@ func markdownTitle(markdown string) (title string, err error) {
 
 // htmlMarkdownWriter converts the supported Confluence HTML subset into Markdown.
 type htmlMarkdownWriter struct {
+	// output stores the output value used by html markdown writer.
 	output strings.Builder
 }
 

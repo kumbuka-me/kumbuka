@@ -36,7 +36,10 @@ type catalogRepository interface {
 }
 
 // Catalog exposes page retrieval and discovery use cases.
-type Catalog struct{ repository catalogRepository }
+type Catalog struct {
+	// repository provides the persistence operations required by catalog.
+	repository catalogRepository
+}
 
 // NewCatalog constructs the page catalog service.
 func NewCatalog(repository catalogRepository) *Catalog { return &Catalog{repository: repository} }

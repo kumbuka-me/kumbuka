@@ -11,17 +11,28 @@ import (
 
 // PageTemplateInput contains transport-independent page-blueprint settings.
 type PageTemplateInput struct {
-	Name               string
-	Description        string
-	Markdown           string
-	PathPrefix         string
-	Icon               string
-	Tags               []string
-	Status             string
-	OwnerGroupID       int64
+	// Name is the name of page template input.
+	Name string
+	// Description describes page template input.
+	Description string
+	// Markdown stores the markdown value used by page template input.
+	Markdown string
+	// PathPrefix stores the path prefix value used by page template input.
+	PathPrefix string
+	// Icon names the icon used for page template input.
+	Icon string
+	// Tags contains the tags associated with page template input.
+	Tags []string
+	// Status is the current status of page template input.
+	Status string
+	// OwnerGroupID identifies the owner group associated with page template input.
+	OwnerGroupID int64
+	// ReviewIntervalDays stores the review interval days value used by page template input.
 	ReviewIntervalDays int
-	Properties         map[string]string
-	Fields             []domain.PageTemplateField
+	// Properties maps keys to properties values used by page template input.
+	Properties map[string]string
+	// Fields contains the fields associated with page template input.
+	Fields []domain.PageTemplateField
 }
 
 // templateRepository contains reusable page template operations.
@@ -35,7 +46,9 @@ type templateRepository interface {
 
 // Templates exposes reusable page-blueprint use cases.
 type Templates struct {
-	repository  templateRepository
+	// repository provides the persistence operations required by templates.
+	repository templateRepository
+	// iconCatalog stores the icon catalog value used by templates.
 	iconCatalog *icons.Catalog
 }
 
@@ -86,6 +99,7 @@ func (s *Templates) DeletePageTemplate(ctx context.Context, id int64) error {
 	return s.repository.DeletePageTemplate(ctx, id)
 }
 
+// validatePageTemplateWithCatalog validates a page template against the active icon catalog.
 func validatePageTemplateWithCatalog(input PageTemplateInput, catalog *icons.Catalog) (domain.PageTemplate, error) {
 	input.Name = strings.TrimSpace(input.Name)
 	input.Description = strings.TrimSpace(input.Description)

@@ -13,9 +13,13 @@ import (
 
 // pageDraftRequest is the private editor state accepted by the draft API.
 type pageDraftRequest struct {
-	PageID int64               `json:"page_id"`
-	Title  string              `json:"title"`
-	Slug   string              `json:"slug"`
+	// PageID identifies the page associated with page draft request.
+	PageID int64 `json:"page_id"`
+	// Title is the title associated with page draft request.
+	Title string `json:"title"`
+	// Slug is the normalized page path associated with page draft request.
+	Slug string `json:"slug"`
+	// Values contains the values represented by page draft request.
 	Values map[string][]string `json:"values"`
 }
 
@@ -95,7 +99,9 @@ func writeDraftProblem(logger *slog.Logger, w http.ResponseWriter, err error) {
 // pageDraftResponse always exposes form values as an object of string arrays.
 // Domain summaries may omit Values; the editor API must not omit empty state.
 type pageDraftResponse struct {
+	// PageDraft embeds page draft behavior in page draft response.
 	domain.PageDraft
+	// Values contains the values represented by page draft response.
 	Values map[string][]string `json:"values"`
 }
 

@@ -6,12 +6,18 @@ import (
 	"github.com/kumbuka-me/kumbuka/pkg/plugin"
 )
 
+// pluginWidgetPreferenceView contains template data for plugin widget preference view.
 type pluginWidgetPreferenceView struct {
-	Key         string
-	Label       string
-	Surface     string
+	// Key is the lookup key for plugin widget preference view.
+	Key string
+	// Label is the display label for plugin widget preference view.
+	Label string
+	// Surface stores the surface value used by plugin widget preference view.
+	Surface string
+	// Description describes plugin widget preference view.
 	Description string
-	Visible     bool
+	// Visible reports whether visible applies to plugin widget preference view.
+	Visible bool
 }
 
 // pluginWidgetPreferences returns enabled widgets as generic user-facing visibility controls.
@@ -82,6 +88,7 @@ func hiddenPluginWidgets(items []plugin.LoadedPlugin, current, presented, visibl
 	return hidden
 }
 
+// stringSet builds a membership set from string values.
 func stringSet(values []string) map[string]bool {
 	result := make(map[string]bool, len(values))
 	for _, value := range values {
@@ -92,6 +99,7 @@ func stringSet(values []string) map[string]bool {
 	return result
 }
 
+// widgetSurfaceLabel returns the human-readable label for a widget surface.
 func widgetSurfaceLabel(surface string) string {
 	switch surface {
 	case "home":

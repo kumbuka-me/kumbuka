@@ -25,14 +25,21 @@ type sitemapCatalogService interface {
 	PageInventory(context.Context) ([]domain.Page, error)
 }
 
+// sitemapDocument groups data used by sitemap document.
 type sitemapDocument struct {
-	XMLName xml.Name       `xml:"urlset"`
-	XMLNS   string         `xml:"xmlns,attr"`
-	URLs    []sitemapEntry `xml:"url"`
+	// XMLName is the XML name associated with sitemap document.
+	XMLName xml.Name `xml:"urlset"`
+	// XMLNS stores the XMLNS value used by sitemap document.
+	XMLNS string `xml:"xmlns,attr"`
+	// URLs contains the UR ls associated with sitemap document.
+	URLs []sitemapEntry `xml:"url"`
 }
 
+// sitemapEntry groups data used by sitemap entry.
 type sitemapEntry struct {
-	Location     string `xml:"loc"`
+	// Location stores the location value used by sitemap entry.
+	Location string `xml:"loc"`
+	// LastModified stores the last modified value used by sitemap entry.
 	LastModified string `xml:"lastmod,omitempty"`
 }
 

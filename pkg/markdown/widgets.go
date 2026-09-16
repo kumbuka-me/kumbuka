@@ -10,11 +10,16 @@ import (
 
 // RenderedWidget contains one sanitized plugin widget ready for a host template.
 type RenderedWidget struct {
+	// PluginID identifies the plugin associated with rendered widget.
 	PluginID string
+	// ModuleID identifies the module associated with rendered widget.
 	ModuleID string
-	Width    string
-	HTML     string
-	Actions  []sdk.WidgetAction
+	// Width stores the width setting for rendered widget.
+	Width string
+	// HTML stores the HTML value used by rendered widget.
+	HTML string
+	// Actions contains the actions associated with rendered widget.
+	Actions []sdk.WidgetAction
 }
 
 // RenderWidgets invokes active widgets for one surface and sanitizes every guest fragment.

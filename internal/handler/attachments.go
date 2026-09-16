@@ -15,7 +15,9 @@ import (
 
 // AttachmentItem is browser-facing attachment metadata with a stable URL.
 type AttachmentItem struct {
+	// Attachment embeds attachment behavior in attachment item.
 	domain.Attachment
+	// URL is the target URL for attachment item.
 	URL string `json:"url"`
 }
 

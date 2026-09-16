@@ -7,14 +7,21 @@ import "github.com/kumbuka-me/kumbuka/pkg/plugin"
 // that source, while the global plan remains available for conservative
 // include-all paths such as opaque replacements.
 type pageRenderPlan struct {
+	// contentPreprocessors contains the content preprocessors associated with page render plan.
 	contentPreprocessors []plugin.ContentPreprocessorBinding
-	preprocessors        []plugin.PreprocessorBinding
-	markdownExtensions   []plugin.MarkdownExtensionBinding
-	codeHighlighter      *plugin.CodeHighlighterBinding
-	macros               map[string]plugin.MacroBinding
-	postprocessors       []plugin.PostprocessorBinding
+	// preprocessors contains the preprocessors associated with page render plan.
+	preprocessors []plugin.PreprocessorBinding
+	// markdownExtensions contains the markdown extensions associated with page render plan.
+	markdownExtensions []plugin.MarkdownExtensionBinding
+	// codeHighlighter stores the code highlighter value used by page render plan.
+	codeHighlighter *plugin.CodeHighlighterBinding
+	// macros maps keys to macros values used by page render plan.
+	macros map[string]plugin.MacroBinding
+	// postprocessors contains the postprocessors associated with page render plan.
+	postprocessors []plugin.PostprocessorBinding
 }
 
+// newPageRenderPlan builds a page-specific render plan from the active plugin plan and usage index.
 func newPageRenderPlan(
 	plan *plugin.RenderPlan,
 	usage usageSet,
@@ -60,10 +67,12 @@ func newPageRenderPlan(
 	return result
 }
 
+// selectorSelected reports whether a render selector is active for the current page.
 func selectorSelected(selector plugin.RenderSelector, usage usageSet) bool {
 	return !selector.SourceAware || usage[selector.UsageKey]
 }
 
+// selectorHasExportParameters reports whether a selector depends on export parameters.
 func selectorHasExportParameters(selector plugin.RenderSelector, parameters map[string]map[string]map[string]string) bool {
 	return selector.ModuleID != "" && len(parameters[selector.PluginID][selector.ModuleID]) != 0
 }

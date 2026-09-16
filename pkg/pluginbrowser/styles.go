@@ -277,6 +277,7 @@ func safeContentSelector(selector string) bool {
 	return true
 }
 
+// safeClassSelector reports whether a CSS class selector is safe for parent-document publication.
 func safeClassSelector(selector string) bool {
 	if len(selector) < 2 || selector[0] != '.' {
 		return false
@@ -317,6 +318,7 @@ func safeContentDeclaration(property, value string) (string, string, bool) {
 	}
 }
 
+// safeContentLength reports whether a CSS declaration value stays within the configured bound.
 func safeContentLength(value string) bool {
 	if value == "0" {
 		return true

@@ -20,7 +20,10 @@ type notificationRepository interface {
 }
 
 // Notifications exposes per-user notification inbox use cases.
-type Notifications struct{ repository notificationRepository }
+type Notifications struct {
+	// repository provides the persistence operations required by notifications.
+	repository notificationRepository
+}
 
 // NewNotifications constructs the notification inbox service.
 func NewNotifications(repository notificationRepository) *Notifications {

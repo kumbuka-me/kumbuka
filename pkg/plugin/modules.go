@@ -41,8 +41,10 @@ type SourceUsageRule struct {
 
 // SourceUsage describes how Kumbuka can identify one module without invoking plugin code.
 type SourceUsage struct {
+	// ModuleID identifies the module associated with source usage.
 	ModuleID string
-	Rules    []SourceUsageRule
+	// Rules contains the rules associated with source usage.
+	Rules []SourceUsageRule
 }
 
 // SourceUsageProvider is implemented by runtime adapters that opt into cheap source selection.

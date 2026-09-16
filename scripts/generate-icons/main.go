@@ -32,7 +32,9 @@ var registration = regexp.MustCompile(`registerIcon\("([^"]+)"`)
 
 // moduleMetadata contains the module fields needed from go mod download.
 type moduleMetadata struct {
-	Dir   string
+	// Dir stores the dir value used by module metadata.
+	Dir string
+	// Error stores the error value used by module metadata.
 	Error string
 }
 

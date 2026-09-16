@@ -30,9 +30,13 @@ var reservedPDFHeaderNames = map[string]struct{}{
 
 // PDFHeaderInput contains one administrator-supplied PDF request header.
 type PDFHeaderInput struct {
-	ID        int64
-	Name      string
-	Value     string
+	// ID identifies PDF header input.
+	ID int64
+	// Name is the name of PDF header input.
+	Name string
+	// Value contains the value represented by PDF header input.
+	Value string
+	// Sensitive reports whether sensitive applies to PDF header input.
 	Sensitive bool
 }
 
@@ -48,8 +52,11 @@ type settingsRepository interface {
 
 // Settings exposes persisted application configuration use cases.
 type Settings struct {
-	repository  settingsRepository
-	secrets     *secrets.Cipher
+	// repository provides the persistence operations required by settings.
+	repository settingsRepository
+	// secrets stores the secrets value used by settings.
+	secrets *secrets.Cipher
+	// iconCatalog stores the icon catalog value used by settings.
 	iconCatalog *icons.Catalog
 }
 
@@ -196,6 +203,7 @@ func (s *Settings) SaveApplicationSettings(
 	return nil
 }
 
+// normalizeExternalLinksWithCatalog normalizes external links and validates their icons against the active catalog.
 func normalizeExternalLinksWithCatalog(links []domain.ExternalLink, catalog *icons.Catalog) ([]domain.ExternalLink, error) {
 	normalized := make([]domain.ExternalLink, 0, len(links))
 

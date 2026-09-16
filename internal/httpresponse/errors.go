@@ -10,11 +10,16 @@ import (
 // RequestWriter retains diagnostic context for the request and its access log.
 // Unwrap lets http.ResponseController reach optional transport capabilities.
 type RequestWriter struct {
+	// ResponseWriter embeds response writer behavior in request writer.
 	http.ResponseWriter
-	method         string
-	path           string
+	// method is the method associated with request writer.
+	method string
+	// path is the path associated with request writer.
+	path string
+	// ErrorReference stores the error reference value used by request writer.
 	ErrorReference string
-	Status         int
+	// Status is the current status of request writer.
+	Status int
 }
 
 // NewRequestWriter wraps a response writer with request and status diagnostics.

@@ -1374,7 +1374,9 @@ func AdminGroupMembers(groupUseCases groupReader, logger *slog.Logger) http.Hand
 	}
 }
 
+// groupMemberRequest contains the request payload for group member request.
 type groupMemberRequest struct {
+	// UserID identifies the user associated with group member request.
 	UserID int64 `json:"user_id"`
 }
 

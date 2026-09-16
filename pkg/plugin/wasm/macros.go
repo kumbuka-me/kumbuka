@@ -11,6 +11,7 @@ import (
 
 // macroModule adapts one WASM macro declaration to Kumbuka's macro contract.
 type macroModule struct {
+	// rendererModule embeds renderer module behavior in macro module.
 	rendererModule
 }
 

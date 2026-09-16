@@ -29,7 +29,10 @@ type userRepository interface {
 }
 
 // Users exposes account and external identity administration use cases.
-type Users struct{ repository userRepository }
+type Users struct {
+	// repository provides the persistence operations required by users.
+	repository userRepository
+}
 
 // NewUsers constructs the account administration service.
 func NewUsers(repository userRepository) *Users { return &Users{repository: repository} }

@@ -19,69 +19,112 @@ import (
 
 // PageSaveInput contains transport-independent page mutation fields.
 type PageSaveInput struct {
-	PreviousSlug       string
-	Slug               string
-	Title              string
-	Icon               string
-	Language           string
-	Markdown           string
-	Message            string
-	Tags               []string
-	GroupIDs           []int64
-	Status             string
-	OwnerGroupID       int64
+	// PreviousSlug is the previous slug associated with page save input.
+	PreviousSlug string
+	// Slug is the normalized page path associated with page save input.
+	Slug string
+	// Title is the title associated with page save input.
+	Title string
+	// Icon names the icon used for page save input.
+	Icon string
+	// Language is the language associated with page save input.
+	Language string
+	// Markdown stores the markdown value used by page save input.
+	Markdown string
+	// Message contains the message associated with page save input.
+	Message string
+	// Tags contains the tags associated with page save input.
+	Tags []string
+	// GroupIDs contains the group i ds associated with page save input.
+	GroupIDs []int64
+	// Status is the current status of page save input.
+	Status string
+	// OwnerGroupID identifies the owner group associated with page save input.
+	OwnerGroupID int64
+	// ReviewIntervalDays stores the review interval days value used by page save input.
 	ReviewIntervalDays int
-	MarkReviewed       bool
-	DeprecatedTarget   string
-	Properties         map[string]string
-	Actor              domain.User
+	// MarkReviewed reports whether mark reviewed applies to page save input.
+	MarkReviewed bool
+	// DeprecatedTarget stores the deprecated target value used by page save input.
+	DeprecatedTarget string
+	// Properties maps keys to properties values used by page save input.
+	Properties map[string]string
+	// Actor stores the actor value used by page save input.
+	Actor domain.User
 }
 
 // ImportedPage contains one transport-independent page discovered by an importer.
 type ImportedPage struct {
-	Slug     string
-	Title    string
+	// Slug is the normalized page path associated with imported page.
+	Slug string
+	// Title is the title associated with imported page.
+	Title string
+	// Markdown stores the markdown value used by imported page.
 	Markdown string
-	Source   string
+	// Source records the source associated with imported page.
+	Source string
 }
 
 // BulkPageInput contains one mutation to apply to a set of pages.
 type BulkPageInput struct {
-	Action  string
-	Slugs   []string
-	Status  string
-	Tag     string
+	// Action stores the action value used by bulk page input.
+	Action string
+	// Slugs contains the slugs associated with bulk page input.
+	Slugs []string
+	// Status is the current status of bulk page input.
+	Status string
+	// Tag stores the tag value used by bulk page input.
+	Tag string
+	// GroupID identifies the group associated with bulk page input.
 	GroupID int64
-	Target  string
-	Actor   domain.User
+	// Target stores the target value used by bulk page input.
+	Target string
+	// Actor stores the actor value used by bulk page input.
+	Actor domain.User
 }
 
 // PageReviewRequestInput contains the editable fields used to open a review.
 type PageReviewRequestInput struct {
-	Slug              string
+	// Slug is the normalized page path associated with page review request input.
+	Slug string
+	// ReviewerUsernames contains the reviewer usernames associated with page review request input.
 	ReviewerUsernames []string
-	ReviewerGroupID   int64
-	Note              string
-	Actor             domain.User
+	// ReviewerGroupID identifies the reviewer group associated with page review request input.
+	ReviewerGroupID int64
+	// Note stores the note value used by page review request input.
+	Note string
+	// Actor stores the actor value used by page review request input.
+	Actor domain.User
 }
 
 // PageReviewUpdateInput contains the editable fields of an existing pending review.
 type PageReviewUpdateInput struct {
-	ID                int64
-	Slug              string
+	// ID identifies page review update input.
+	ID int64
+	// Slug is the normalized page path associated with page review update input.
+	Slug string
+	// ReviewerUsernames contains the reviewer usernames associated with page review update input.
 	ReviewerUsernames []string
-	ReviewerGroupID   int64
-	Note              string
-	Actor             domain.User
+	// ReviewerGroupID identifies the reviewer group associated with page review update input.
+	ReviewerGroupID int64
+	// Note stores the note value used by page review update input.
+	Note string
+	// Actor stores the actor value used by page review update input.
+	Actor domain.User
 }
 
 // PageReviewDecisionInput contains one immutable decision for a pending review.
 type PageReviewDecisionInput struct {
-	ID       int64
-	Slug     string
+	// ID identifies page review decision input.
+	ID int64
+	// Slug is the normalized page path associated with page review decision input.
+	Slug string
+	// Decision stores the decision value used by page review decision input.
 	Decision string
-	Note     string
-	Actor    domain.User
+	// Note stores the note value used by page review decision input.
+	Note string
+	// Actor stores the actor value used by page review decision input.
+	Actor domain.User
 }
 
 // pageRepository is the persistence contract required by page use cases.
@@ -122,12 +165,18 @@ type pageUsageAnalyzer interface {
 
 // Pages coordinates page mutations and their application-level side effects.
 type Pages struct {
-	repository    pageRepository
-	logger        *slog.Logger
-	eventSinks    []EventSink
+	// repository provides the persistence operations required by pages.
+	repository pageRepository
+	// logger records diagnostics emitted by pages.
+	logger *slog.Logger
+	// eventSinks contains the event sinks associated with pages.
+	eventSinks []EventSink
+	// usageAnalyzer stores the usage analyzer value used by pages.
 	usageAnalyzer pageUsageAnalyzer
-	renderer      *md.Renderer
-	iconCatalog   *icons.Catalog
+	// renderer stores the renderer value used by pages.
+	renderer *md.Renderer
+	// iconCatalog stores the icon catalog value used by pages.
+	iconCatalog *icons.Catalog
 }
 
 // NewPages constructs the page application service. Event sinks are optional so

@@ -23,11 +23,15 @@ const (
 	maxExportParameterTotalBytes = 64 << 10
 )
 
+// exportParametersRequest contains the request payload for export parameters request.
 type exportParametersRequest struct {
+	// Parameters maps keys to parameters values used by export parameters request.
 	Parameters map[string]map[string]map[string]string `json:"parameters"`
 }
 
+// exportPreviewResponse contains the response payload for export preview response.
 type exportPreviewResponse struct {
+	// Document stores the document value used by export preview response.
 	Document string `json:"document"`
 }
 

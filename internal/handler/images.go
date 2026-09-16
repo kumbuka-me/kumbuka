@@ -87,6 +87,7 @@ func ListImages(mediaUseCases imageService, logger *slog.Logger) http.HandlerFun
 	}
 }
 
+// imageListRange calculates the visible range for a paginated image list.
 func imageListRange(w http.ResponseWriter, rawLimit, rawOffset string) (limit, offset int, ok bool) {
 	limit = managedImagePageSize
 	if rawLimit != "" {
@@ -190,6 +191,7 @@ func DeleteImage(mediaUseCases imageService, logger *slog.Logger) http.HandlerFu
 	}
 }
 
+// managedImageItems converts stored images into administration view items.
 func managedImageItems(images []domain.Image) (items []MediaItem, hasMore bool) {
 	hasMore = len(images) > managedImagePageSize
 	if hasMore {

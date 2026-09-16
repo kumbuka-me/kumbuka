@@ -154,6 +154,7 @@ func MergeCapabilities(sets ...map[string]plugin.Capability) map[string]plugin.C
 	return result
 }
 
+// pageValues converts pages into plugin capability values.
 func pageValues(pages []domain.Page, err error) ([]sdk.Page, error) {
 	if err != nil {
 		return nil, err
@@ -165,6 +166,7 @@ func pageValues(pages []domain.Page, err error) ([]sdk.Page, error) {
 	return result, nil
 }
 
+// validPageListQuery reports whether a page-list capability query is supported.
 func validPageListQuery(request sdk.PageListQuery) bool {
 	return request.Limit >= 1 && request.Limit <= 100
 }

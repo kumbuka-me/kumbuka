@@ -16,7 +16,10 @@ type preferenceRepository interface {
 }
 
 // Preferences exposes per-user display preference use cases.
-type Preferences struct{ repository preferenceRepository }
+type Preferences struct {
+	// repository provides the persistence operations required by preferences.
+	repository preferenceRepository
+}
 
 // NewPreferences constructs the user preference service.
 func NewPreferences(repository preferenceRepository) *Preferences {
