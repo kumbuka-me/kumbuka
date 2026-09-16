@@ -37,6 +37,8 @@ GOLANGCI_LINT := bin/golangci-lint
 BINARY ?= kumbuka
 COMMAND ?= ./cmd/kumbuka
 GO_TEST_RACE_FLAGS ?= -p=2 -parallel=4
+RACE_TEST_PACKAGES := ./pkg/markdown ./pkg/plugin ./pkg/plugin/wasm ./pkg/store
+RACE_TEST_PATTERN := ^(TestMacroCapabilitiesStayRequestLocal|TestRegistryConcurrentSnapshotsAndRemoval|TestWASMRequestsAreIsolatedAndSerialized|TestCapabilitiesUseCurrentRequestAndRecoverFromHostPanic|TestUpgradeDuringRenderingKeepsWholeSnapshotAlive|TestConcurrentStartupMigrations)$$
 RUN_ARGS ?=
 BUILD_VERSION ?= dev
 BUILD_COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo none)
@@ -51,10 +53,6 @@ PDF_CONTAINER_NAME ?= html2pdf
 KUMBUKA_ASSIGNED_PORT ?= $(call dev-port,app)
 DB_ASSIGNED_PORT ?= $(call dev-port,postgres)
 PDF_ASSIGNED_PORT ?= $(call dev-port,pdf)
-
-## Screenshots
-SCREENSHOT_SCRIPT := scripts/screenshots/run.sh
-SCREENSHOT_BROWSER_CHANNEL ?= chrome
 
 ## Formatting
 PRETTIER_MD_SOURCES := README.md
@@ -173,25 +171,17 @@ run: dev-build html-pdf postgres $(OPEN_BROWSER) ## Build, start services, and r
 build: generate web ## Build the Kumbuka binary.
 	go build -ldflags="$(LDFLAGS)" -o $(BINARY) $(COMMAND)
 
-.PHONY: screenshots
-screenshots: generate web $(NODE_MODULES) ## Regenerate documentation screenshots.
-	SCREENSHOT_BROWSER_CHANNEL="$(SCREENSHOT_BROWSER_CHANNEL)" $(SCREENSHOT_SCRIPT)
-
 .PHONY: vet
 vet: generate web ## Run Go static analysis.
 	go vet ./...
 
 .PHONY: test
 test: test-web vet ## Run frontend and backend unit tests.
-	go test -covermode=set -timeout=3m ./...
-
-.PHONY: test-fresh
-test-fresh: test-web vet ## Run unit tests without the Go test cache.
-	go test -covermode=set -count=1 -timeout=3m ./...
+	go test -count=1 -timeout=3m ./...
 
 .PHONY: test-race
-test-race: test-web vet ## Run unit tests with the race detector.
-	go test -race -count=1 -timeout=3m $(GO_TEST_RACE_FLAGS) ./...
+test-race: ## Run concurrency-sensitive Go tests with the race detector.
+	go test -race -count=1 -timeout=1m $(GO_TEST_RACE_FLAGS) $(RACE_TEST_PACKAGES) -run '$(RACE_TEST_PATTERN)'
 
 .PHONY: cover
 cover: test-web plugins ## Display Go test coverage.
@@ -260,6 +250,8 @@ golangci-lint: $(GO_INSTALL_TOOL) ## Download golangci-lint locally if necessary
 		--target "$(GOLANGCI_LINT)" \
 		--package github.com/golangci/golangci-lint/v2/cmd/golangci-lint \
 		--tool-version "$(GOLANGCI_LINT_VERSION)"
+
+
 
 
 

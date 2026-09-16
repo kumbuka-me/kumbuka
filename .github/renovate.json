@@ -43,20 +43,6 @@
       "datasourceTemplate": "github-releases",
       "versioningTemplate": "semver",
       "extractVersionTemplate": "^{{{plugin}}}/v(?<version>\\d+\\.\\d+\\.\\d+)$"
-    },
-    {
-      "customType": "regex",
-      "managerFilePatterns": [
-        "/(^|/)\\.kumbukaplugins$/"
-      ],
-      "matchStrings": [
-        "repository\\s*=\\s*\"(?<repository>[^\"]+)\"\\s*\\ntag_prefix\\s*=\\s*\"(?<tagPrefix>[^\"]+)\"\\s*\\nasset\\s*=\\s*\"(?<plugin>[^\"]+)\"\\s*\\nversion\\s*=\\s*\"(?<currentValue>\\d+\\.\\d+\\.\\d+)\""
-      ],
-      "depNameTemplate": "kumbuka-plugin-{{{plugin}}}",
-      "packageNameTemplate": "{{{repository}}}",
-      "datasourceTemplate": "github-releases",
-      "versioningTemplate": "semver",
-      "extractVersionTemplate": "^{{{tagPrefix}}}(?<version>\\d+\\.\\d+\\.\\d+)$"
     }
   ],
   "packageRules": [
@@ -89,4 +75,3 @@
     }
   ]
 }
-

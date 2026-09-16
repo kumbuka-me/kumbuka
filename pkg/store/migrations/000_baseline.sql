@@ -36,7 +36,6 @@ CREATE INDEX user_groups_group_idx ON user_groups (group_id, user_id);
 CREATE TABLE application_settings (
   singleton boolean PRIMARY KEY DEFAULT true CHECK (singleton),
   allow_user_registration boolean NOT NULL DEFAULT true,
-  render_wiki_links boolean NOT NULL DEFAULT true,
   content_language text NOT NULL DEFAULT 'en',
   discussions_enabled boolean NOT NULL DEFAULT true,
   auth_mode text NOT NULL DEFAULT 'none' CHECK (auth_mode IN ('none', 'local', 'trusted-proxy', 'oidc')),
@@ -501,4 +500,6 @@ CREATE TABLE plugin_installations (
     OR (source = 'installed' AND package IS NOT NULL AND octet_length(package) BETWEEN 1 AND 16777216)
   )
 );
+
+
 

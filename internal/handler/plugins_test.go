@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/kumbuka-me/kumbuka/pkg/plugin"
 	"github.com/kumbuka-me/kumbuka/pkg/plugin/wasm"
@@ -52,7 +53,7 @@ func TestPluginPresentationStylesCaching(t *testing.T) {
 
 func TestBrowserPluginLifecycleAndAssetBoundary(t *testing.T) {
 	ctx := context.Background()
-	runtime, err := wasm.New(ctx, wasm.Limits{}, wasm.WithPermissions("browser:render"))
+	runtime, err := wasm.New(ctx, wasm.Limits{InitTimeout: 30 * time.Second}, wasm.WithPermissions("browser:render"), wasm.WithInterpreter())
 	require.NoError(t, err)
 	manager := plugin.NewManager(&plugin.Registry{}, runtime)
 	t.Cleanup(func() { require.NoError(t, manager.Close(context.Background())) })

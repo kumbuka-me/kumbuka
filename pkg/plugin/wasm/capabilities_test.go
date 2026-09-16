@@ -142,7 +142,7 @@ func TestCapabilityPermissionsAndStorageIsolation(t *testing.T) {
 // TestCapabilitiesUseCurrentRequestAndRecoverFromHostPanic verifies capabilities use current request and recover from host panic behavior.
 func TestCapabilitiesUseCurrentRequestAndRecoverFromHostPanic(t *testing.T) {
 	ctx := context.Background()
-	runtime, err := wasm.New(ctx, wasm.Limits{}, wasm.WithPermissions("pages:read"))
+	runtime, err := wasm.New(ctx, wasm.Limits{}, wasm.WithPermissions("pages:read"), wasm.WithInterpreter())
 	require.NoError(t, err)
 	defer func() { _ = runtime.Close(ctx) }()
 	instance, err := runtime.Load(ctx, capabilityPackage(t, "io.scope", []string{"pages:read"}))

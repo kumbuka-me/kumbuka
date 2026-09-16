@@ -138,12 +138,17 @@ func TestPluginInitializationTimingUsesDebugLogging(t *testing.T) {
 // runtimeFixture handles the runtime fixture operation.
 func runtimeFixture(t *testing.T, stage string, limits wasm.Limits) (plugin.Instance, []byte) {
 	t.Helper()
+	return runtimeFixtureWithOptions(t, stage, limits)
+}
+
+func runtimeFixtureWithOptions(t *testing.T, stage string, limits wasm.Limits, options ...wasm.Option) (plugin.Instance, []byte) {
+	t.Helper()
 	compiled, err := fixtureWASM()
 	require.NoError(t, err)
 	data := archive(t, compiled, stage)
 	pkg, err := pluginpackage.Read(data)
 	require.NoError(t, err)
-	runtime, err := wasm.New(context.Background(), limits)
+	runtime, err := wasm.New(context.Background(), limits, options...)
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = runtime.Close(context.Background()) })
 	instance, err := runtime.Load(context.Background(), pkg)
@@ -166,8 +171,16 @@ func TestBundledAndInstalledCalloutsUseSameRuntime(t *testing.T) {
 		registry := &plugin.Registry{}
 		manager := plugin.NewManager(registry, runtime)
 		t.Cleanup(func() { _ = manager.Close(context.Background()) })
-		metadata, err := manager.Load(context.Background(), data, source)
-		require.NoError(t, err)
+		var metadata plugin.LoadedPlugin
+		if source == plugin.SourceBundled {
+			require.NoError(t, manager.Bootstrap(context.Background(), [][]byte{data}))
+			plugins := manager.Plugins()
+			require.Len(t, plugins, 1)
+			metadata = plugins[0]
+		} else {
+			metadata, err = manager.Install(context.Background(), data)
+			require.NoError(t, err)
+		}
 		assert.Equal(t, source, metadata.Source)
 		assert.Equal(t, expectedVersion, metadata.Manifest.Version)
 		renderer := markdown.NewWithRegistry(registry)
@@ -179,7 +192,7 @@ func TestBundledAndInstalledCalloutsUseSameRuntime(t *testing.T) {
 		assert.Contains(t, got, "<strong>Nested</strong>")
 		assert.Contains(t, got, `href="/pages/page"`)
 		snapshot := registry.Snapshot()
-		require.NoError(t, manager.Unload(context.Background(), metadata.Manifest.ID))
+		require.NoError(t, manager.Uninstall(context.Background(), metadata.Manifest.ID))
 		require.Empty(t, registry.Snapshot().Entries)
 		_, err = snapshot.Entries[0].Contributions.Preprocessors[0].Preprocess(plugin.Context{}, "text")
 		require.ErrorContains(t, err, "closed")
@@ -311,7 +324,7 @@ func TestRenderTimingsIncludeWASMBoundary(t *testing.T) {
 
 // TestWASMRequestsAreIsolatedAndSerialized verifies wasmrequests are isolated and serialized behavior.
 func TestWASMRequestsAreIsolatedAndSerialized(t *testing.T) {
-	instance, _ := runtimeFixture(t, "preprocess", wasm.Limits{})
+	instance, _ := runtimeFixtureWithOptions(t, "preprocess", wasm.Limits{}, wasm.WithInterpreter())
 	transform := instance.Contributions().Preprocessors[0]
 	var wg sync.WaitGroup
 	for index := range 12 {

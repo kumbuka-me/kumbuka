@@ -45,6 +45,11 @@ type compiledLease struct {
 func (l *compiledLease) Close(ctx context.Context) error {
 	var err error
 	l.once.Do(func() {
+		if l.entry == nil {
+			err = l.CompiledModule.Close(ctx)
+			return
+		}
+
 		codeMu.Lock()
 		defer codeMu.Unlock()
 		l.entry.refs--
@@ -55,10 +60,24 @@ func (l *compiledLease) Close(ctx context.Context) error {
 	return err
 }
 
-// compile reuses immutable decoded/compiled code across runtimes. Cache hits do
-// not wait for an unrelated compilation. Misses are single-flighted because
-// wazero's compilation cache itself does not serialize concurrent compilation.
+// compile prepares guest code. Compiler mode reuses immutable compiled modules
+// across runtimes and single-flights cache misses; interpreter modules stay
+// runtime-local because interpreter runtimes do not share a compilation engine.
 func (r *Runtime) compile(ctx context.Context, binary []byte) (*compiledLease, error) {
+	// Interpreter runtimes don't share an engine through wazero's compilation
+	// cache, so their prepared modules stay owned by the creating runtime.
+	if r.interpreter {
+		module, err := r.engine.CompileModule(ctx, binary)
+		if err != nil {
+			return nil, err
+		}
+		if err := validateABI(module); err != nil {
+			_ = module.Close(ctx)
+			return nil, err
+		}
+		return &compiledLease{CompiledModule: module}, nil
+	}
+
 	digest := sha256.Sum256(binary)
 	if lease := retainedLease(digest, r.limits.MemoryPages); lease != nil {
 		return lease, nil

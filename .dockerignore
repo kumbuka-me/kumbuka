@@ -4,7 +4,8 @@ web/dist
 bin
 coverage.out
 .DS_Store
-site
 plugins/*.kumbukaplugin
 plugins/.downloaded
+
+
 

@@ -8,8 +8,8 @@ import (
 	"github.com/kumbuka-me/sdk/pluginpackage"
 )
 
-// A lifetime belongs to one contribution version. Render-plan and full-snapshot
-// leases retain it, so retirement cannot close a reactor while a render still uses it.
+// A lifetime belongs to one contribution version. Render-plan leases retain it,
+// so retirement cannot close a reactor while a render still uses it.
 type lifetime struct {
 	// mu protects concurrent access to the receiver state.
 	mu sync.Mutex
@@ -48,30 +48,8 @@ func (l *lifetime) retire() <-chan struct{} {
 	return l.done
 }
 
-// Acquire pins a consistent contribution set for one complete render. Release
-// must be called once, including on error. No registry lock covers plugin calls.
-func (r *Registry) Acquire() (Snapshot, func()) {
-	r.mu.RLock()
-	snapshot := Snapshot{Entries: make([]Entry, len(r.entries))}
-	lives := make([]*lifetime, 0, len(r.entries))
-	for index, entry := range r.entries {
-		entry.lifetime.acquire()
-		lives = append(lives, entry.lifetime)
-		snapshot.Entries[index] = cloneEntry(entry)
-	}
-	r.mu.RUnlock()
-	var once sync.Once
-	return snapshot, func() {
-		once.Do(func() {
-			for _, life := range lives {
-				life.release()
-			}
-		})
-	}
-}
-
 // AcquireRenderPlan pins the immutable render-only registry view for one complete
-// render. Unlike Acquire, it does not clone contribution metadata on the hot path.
+// render without cloning contribution metadata on the hot path.
 func (r *Registry) AcquireRenderPlan() (*RenderPlan, func()) {
 	r.mu.RLock()
 	if r.renderPlan == nil {

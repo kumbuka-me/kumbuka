@@ -29,8 +29,12 @@ func TestBundledAndInstalledMacrosUsePublicCapabilities(t *testing.T) {
 			registry := &plugin.Registry{}
 			manager := plugin.NewManager(registry, runtime)
 			t.Cleanup(func() { _ = manager.Close(ctx) })
-			_, err = manager.Load(ctx, data, source)
-			require.NoError(t, err)
+			if source == plugin.SourceBundled {
+				require.NoError(t, manager.Bootstrap(ctx, [][]byte{data}))
+			} else {
+				_, err = manager.Install(ctx, data)
+				require.NoError(t, err)
+			}
 			renderer := markdown.NewWithRegistry(registry)
 			capabilities := map[string]plugin.Capability{
 				"pages.navigation": func(context.Context, json.RawMessage) (any, error) {
@@ -81,8 +85,7 @@ func TestPageReportPropagatesAuthorizationFailure(t *testing.T) {
 	registry := &plugin.Registry{}
 	manager := plugin.NewManager(registry, runtime)
 	t.Cleanup(func() { require.NoError(t, manager.Close(context.Background())) })
-	_, err = manager.Load(ctx, data, plugin.SourceBundled)
-	require.NoError(t, err)
+	require.NoError(t, manager.Bootstrap(ctx, [][]byte{data}))
 	renderer := markdown.NewWithRegistry(registry)
 
 	_, err = renderer.RenderPageResolvedWithFunctions(`{{pages query="private"}}`, markdown.Slug, markdown.DefaultOptions(), markdown.Functions{Capabilities: map[string]plugin.Capability{

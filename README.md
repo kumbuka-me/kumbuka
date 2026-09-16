@@ -15,16 +15,6 @@ Project-oriented tooling lives in the separate [Kumbuka CLI](https://github.com/
 
 Create, test, and build Go/WASI plugins with the [Kumbuka Plugin SDK and CLI](https://github.com/kumbuka-me/sdk). First-party plugins live in [kumbuka-me/plugins](https://github.com/kumbuka-me/plugins); bundled and installed packages use the same public API and sandboxed runtime.
 
-## Screenshots
-
-### Documentation dashboard
-
-![Kumbuka dashboard populated with the project documentation](docs/assets/screenshots/dashboard.png)
-
-### Markdown editor
-
-![Kumbuka Markdown editor showing documentation in split view](docs/assets/screenshots/editor.png)
-
 ## Quick start
 
 Start Kumbuka with Docker Compose:

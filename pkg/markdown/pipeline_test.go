@@ -1,6 +1,8 @@
 package markdown
 
 import (
+	"context"
+	"encoding/json"
 	"errors"
 	"strings"
 	"sync"
@@ -10,7 +12,6 @@ import (
 	"github.com/kumbuka-me/kumbuka/pkg/navigation"
 	"github.com/kumbuka-me/kumbuka/pkg/plugin"
 	"github.com/kumbuka-me/kumbuka/pkg/plugincap"
-	"github.com/kumbuka-me/sdk"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/yuin/goldmark"
@@ -294,21 +295,39 @@ func TestUnavailableMacroRemainsOrdinaryMarkdown(t *testing.T) {
 	assert.Equal(t, expected, got)
 }
 
-// TestMacroCapabilitiesStayRequestLocal verifies macro capabilities stay request local behavior.
+// TestMacroCapabilitiesStayRequestLocal verifies concurrent renders never share request capabilities.
 func TestMacroCapabilitiesStayRequestLocal(t *testing.T) {
-	renderer := testRenderer(t, "subpages")
+	macro := statusMacro("")
+	macro.render = func(ctx plugin.Context, _ plugin.Invocation) (string, error) {
+		capability := ctx.Capabilities["test.viewer"]
+		if capability == nil {
+			return "", nil
+		}
+		value, err := capability(ctx.Context, nil)
+		if err != nil {
+			return "", err
+		}
+		return "<span>" + value.(string) + "</span>", nil
+	}
+	registry := &plugin.Registry{}
+	require.NoError(t, registry.Register(plugin.Descriptor{ID: "request-local", Name: "Request local"}, plugin.Contributions{Macros: []plugin.Macro{macro}}))
+	renderer := NewWithRegistry(registry)
+
 	var wg sync.WaitGroup
 	for _, title := range []string{"First", "Second"} {
 		wg.Go(func() {
-			got, err := renderer.RenderPageResolvedWithFunctions("{{subpages}}", Slug, DefaultOptions(), Functions{
-				Capabilities: plugincap.Capabilities(nil, []sdk.NavigationNode{{Title: title, Page: true, URL: "/pages/child"}}),
+			got, err := renderer.RenderPageResolvedWithFunctions("{{status}}", Slug, DefaultOptions(), Functions{
+				Capabilities: map[string]plugin.Capability{
+					"test.viewer": func(context.Context, json.RawMessage) (any, error) { return title, nil },
+				},
 			})
 			assert.NoError(t, err)
 			assert.Contains(t, got.HTML, ">"+title+"</span>")
 		})
 	}
 	wg.Wait()
-	got, err := renderer.Render("{{subpages}}")
+
+	got, err := renderer.Render("{{status}}")
 	require.NoError(t, err)
 	assert.Empty(t, strings.TrimSpace(got))
 }

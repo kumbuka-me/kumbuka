@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/kumbuka-me/kumbuka/internal/auth"
 	"github.com/kumbuka-me/kumbuka/internal/middleware"
@@ -38,7 +39,7 @@ func pluginUpload(t *testing.T, content []byte) *http.Request {
 }
 func TestAdminPluginLifecycleAndAuthorization(t *testing.T) {
 	ctx := context.Background()
-	runtime, err := wasm.New(ctx, wasm.Limits{})
+	runtime, err := wasm.New(ctx, wasm.Limits{InitTimeout: 30 * time.Second}, wasm.WithInterpreter())
 	require.NoError(t, err)
 	manager := plugin.NewManager(&plugin.Registry{}, runtime)
 	defer func() { require.NoError(t, manager.Close(ctx)) }()

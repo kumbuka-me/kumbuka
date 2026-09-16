@@ -53,7 +53,7 @@ func TestManagerRollsBackFailedRegistration(t *testing.T) {
 	require.NoError(t, registry.Register(plugin.Descriptor{ID: "me.kumbuka.callouts", Name: "Existing"}, plugin.Contributions{}))
 	runtime := &fakeRuntime{instance: &fakeInstance{}}
 	manager := plugin.NewManager(registry, runtime)
-	_, err = manager.Load(context.Background(), data, plugin.SourceInstalled)
+	_, err = manager.Install(context.Background(), data)
 	require.Error(t, err)
 	assert.True(t, runtime.instance.closed)
 	assert.Empty(t, manager.Plugins())
@@ -69,14 +69,14 @@ func TestManagerFailuresNeverPublishContributions(t *testing.T) {
 	registry := &plugin.Registry{}
 	runtime := &fakeRuntime{err: errors.New("invalid reactor")}
 	manager := plugin.NewManager(registry, runtime)
-	_, err = manager.Load(context.Background(), data, plugin.SourceBundled)
+	err = manager.Bootstrap(context.Background(), [][]byte{data})
 	require.ErrorContains(t, err, "invalid reactor")
 	assert.Empty(t, registry.Snapshot().Entries)
-	_, err = manager.Load(context.Background(), []byte("invalid package"), plugin.SourceInstalled)
+	_, err = manager.Install(context.Background(), []byte("invalid package"))
 	require.Error(t, err)
 	assert.Empty(t, registry.Snapshot().Entries)
 	require.NoError(t, manager.Close(context.Background()))
-	_, err = manager.Load(context.Background(), data, plugin.SourceBundled)
+	_, err = manager.Install(context.Background(), data)
 	require.ErrorContains(t, err, "closed")
 }
 
@@ -106,7 +106,6 @@ func TestRequiredPluginsAreOperatorPolicy(t *testing.T) {
 	assert.True(t, manager.IsRequired("me.kumbuka.callouts"))
 	require.Error(t, manager.Disable(ctx, "me.kumbuka.callouts"))
 	require.Error(t, manager.Uninstall(ctx, "me.kumbuka.callouts"))
-	require.Error(t, manager.Unload(ctx, "me.kumbuka.callouts"))
 	assert.True(t, manager.Plugins()[0].Enabled)
 	require.NoError(t, manager.Close(ctx))
 }

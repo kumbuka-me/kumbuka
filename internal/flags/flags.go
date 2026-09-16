@@ -1,4 +1,4 @@
-// Package serve configures and runs the database-backed Kumbuka server.
+// Package flags parses deployment-level configuration for the Kumbuka server.
 package flags
 
 import (

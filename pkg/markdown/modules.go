@@ -21,8 +21,8 @@ func NewWithPluginStore(ctx context.Context, store plugin.Store, archives [][]by
 }
 
 // NewWithPluginPackages constructs an isolated renderer from only the supplied
-// packages. Required IDs are force-enabled for this renderer regardless of a
-// package's distribution default, which is useful for content-selected static builds.
+// packages. Required IDs are force-enabled regardless of distribution defaults so
+// callers can build a renderer from an explicitly selected package set.
 func NewWithPluginPackages(ctx context.Context, archives [][]byte, required []string, runtimeOptions ...wasm.Option) (*Renderer, error) {
 	return newWithPluginPackages(ctx, nil, archives, required, runtimeOptions...)
 }

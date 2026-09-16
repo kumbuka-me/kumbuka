@@ -5,6 +5,7 @@ import (
 	"io"
 	"log/slog"
 	"testing"
+	"time"
 
 	"github.com/kumbuka-me/kumbuka/pkg/markdown"
 	"github.com/kumbuka-me/kumbuka/pkg/plugin"
@@ -23,7 +24,7 @@ func TestPluginInstallationSurvivesDatabaseAndRuntimeRestart(t *testing.T) {
 	require.NoError(t, err)
 	data, err := plugins.Packages.ReadFile("callouts.kumbukaplugin")
 	require.NoError(t, err)
-	runtime, err := wasm.New(ctx, wasm.Limits{})
+	runtime, err := wasm.New(ctx, wasm.Limits{InitTimeout: 30 * time.Second}, wasm.WithInterpreter())
 	require.NoError(t, err)
 	registry := &plugin.Registry{}
 	manager := plugin.NewManager(registry, runtime, plugin.WithStore(database))
@@ -35,7 +36,7 @@ func TestPluginInstallationSurvivesDatabaseAndRuntimeRestart(t *testing.T) {
 	database, err = Open(ctx, dsn, logger)
 	require.NoError(t, err)
 	defer database.Close()
-	runtime, err = wasm.New(ctx, wasm.Limits{})
+	runtime, err = wasm.New(ctx, wasm.Limits{InitTimeout: 30 * time.Second}, wasm.WithInterpreter())
 	require.NoError(t, err)
 	registry = &plugin.Registry{}
 	manager = plugin.NewManager(registry, runtime, plugin.WithStore(database))

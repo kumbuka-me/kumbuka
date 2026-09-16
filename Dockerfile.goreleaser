@@ -7,7 +7,7 @@ FROM --platform=$BUILDPLATFORM alpine:3.24 AS prep
 # OpenShift's arbitrary UID model while still running as a non-root user.
 RUN install -d -o 0 -g 0 -m 2775 /outfs/app /outfs/tmp
 
-# Use distroless as minimal base image to package the manager binary.
+# Use distroless as a minimal base image for the Kumbuka server binary.
 # Refer to https://github.com/GoogleContainerTools/distroless for more details.
 FROM gcr.io/distroless/static:nonroot
 
@@ -26,3 +26,5 @@ WORKDIR /app
 USER 65532:0
 
 ENTRYPOINT ["/kumbuka"]
+
+

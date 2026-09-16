@@ -5,7 +5,7 @@ Kumbuka's rendering modules register contributions through an application-owned
 and WASM runtime; `NewWithPluginStore` also restores persisted lifecycle state.
 Callers handle startup errors and close the renderer at the end of its scope.
 `markdown.NewWithRegistry` supports an explicitly owned registry.
-Server pages, preview, sharing, exports, and static builds use the same pipeline.
+Server pages, preview, sharing, and exports use the same pipeline; external tooling can reuse the public runtime packages.
 
 Kumbuka's optional rendering and content features are bundled `.kumbukaplugin` packages
 under `plugins/`. Executable plugins are independent Go modules; declarative-only
@@ -39,11 +39,10 @@ extracts into the filesystem. Limits are 16 MiB compressed, 32 MiB expanded,
 256 entries, 16 MiB WASM, 8 MiB per asset, and 64 KiB for the manifest. CRC and
 actual decompressed-size checks apply when entries are read.
 
-`plugins` embeds the downloaded package bytes. Bundled loading calls the
-same `Manager.Load` method as a manually supplied package. `SourceBundled` and
-`SourceInstalled` are descriptive metadata only: they do not change validation,
-runtime configuration, permissions, or rendering behavior. There is no separate
-native or privileged path for bundled Callouts.
+`plugins` embeds downloaded release packages. Bundled startup and administrator
+installation use the same package reader, runtime, and registry. `SourceBundled`
+and `SourceInstalled` are descriptive metadata only: they do not change validation,
+runtime configuration, permissions, or rendering behavior.
 
 ### Source-aware render planning
 
@@ -51,7 +50,7 @@ Executable manifest modules may declare cheap `usage` selectors (`contains`,
 `macro`, inline `substitution`, or fenced-code `fence`). Kumbuka derives a versioned
 page usage index when a persisted page is written and uses it to skip source-aware
 modules that cannot participate in that page. The index is rebuildable metadata, never a second source
-of truth. Preview and filesystem/static Markdown derive the same plan in memory,
+of truth. Preview and other non-persisted Markdown derive the same plan in memory,
 and a stale index is ignored when the Markdown or active module selectors change.
 Modules without selectors remain always active. Macro modules are source-aware automatically from
 their declared macro name.
@@ -65,8 +64,8 @@ may contain additional syntax.
 
 `Register(Descriptor, Contributions)` publishes a complete contribution set
 atomically. Duplicate IDs and macro names, invalid metadata, and unavailable
-dependencies fail without publishing partial contributions. Requirements load
-first and unload after dependents.
+dependencies fail without publishing partial contributions. Dependencies activate
+first and retire after dependents.
 
 Each top-level render acquires and releases one immutable `RenderPlan`. The plan is
 rebuilt only when active plugin lifecycle state changes and contains only flattened
@@ -93,15 +92,14 @@ last render releases the plan lease. Registry locks never cover guest execution.
 Shutdown detaches all owned contributions atomically and waits for retired
 instances. A cancelled shutdown can be retried. `Snapshot()` remains an unleased
 inspection API; renderers use `AcquireRenderPlan()` and release on every path,
-while `Acquire()` remains available for callers that explicitly need an executable
-full registry snapshot.
+and all render execution uses `AcquireRenderPlan()`.
 
 The manager's small `Store` interface persists installation records. Server
 composition supplies PostgreSQL through `NewWithPluginStore`. The
 `plugin_installations` table stores installed ZIP bytes separately from embedded
 bundled packages, alongside source and enabled state. This uses Kumbuka's
 persistence abstraction and requires no fixed filesystem path. The default
-in-memory store supports isolated renderers and standalone static builds.
+in-memory store supports isolated renderers and external tooling.
 
 Startup merges bundled packages with persisted overrides, orders enabled plugins
 by dependency, prepares every instance, and publishes the complete registry once.
@@ -114,18 +112,13 @@ restart cannot silently reactivate it. Plugin settings/data are retained for
 reinstallation. Version replacement requires the same ID and preserves enabled
 state; explicit replacements may also restore an earlier version.
 
-`Load`/`Unload` are low-level helpers for explicitly owned managers;
-application installation uses the durable lifecycle methods. The application
-exposes its manager through `Renderer.PluginManager()`. Administration routes and
-UI use that same manager. The standalone site CLI resolves the packages declared
-in `.kumbukaplugins`, analyzes their manifest `usage` selectors against the site
-Markdown, closes plugin dependency requirements, and starts only that selected
-set. Matching bundled versions are reused without downloading. `site.BuildWithRenderer`
-lets an application reuse its live registry instead.
+The application exposes its manager through `Renderer.PluginManager()`.
+Administration routes and UI use that same manager. External tooling that needs an
+isolated package set can construct one through `markdown.NewWithPluginPackages`.
 
 ## Runtime boundary
 
-`internal/plugin/wasm` hosts WASI reactors with wazero. Each instance has its own
+`pkg/plugin/wasm` hosts WASI reactors with wazero. Each instance has its own
 linear memory and serialized invocation gate. No host filesystem, environment,
 arguments, sockets, or streams are configured. Only WASI and the signature-checked
 `kumbuka_v1.call` import are accepted. Imported memories and cross-plugin module imports are rejected. API export
@@ -176,19 +169,13 @@ SVG, URL-valued paints, scripts, and event handlers.
 
 ## Building and validation
 
-`make plugin-packages` writes deterministic ZIP archives. Packages with executable
-modules build a standard-Go WASI reactor; declarative-only packages skip the Go
-compiler and contain no `plugin.wasm`. Executable guests use the version pinned in
-their `go.mod`; trimpath, disabled VCS metadata, an empty build ID, sorted files,
-and fixed ZIP metadata make artifacts reproducible. Packages are committed and
-embedded, so ordinary Kumbuka compilation and Docker builds need no guest compiler
-invocation.
-
-`make generate` regenerates packages and icons. `make check-generated` compares
-the checked-in packages. `make test` and `make test-race` also test executable
-plugin sources. Runtime tests execute both real bundled Callouts and an adversarial
-WASM fixture, including ambient-capability denial, traps, malformed output,
-resource limits, request isolation, and sanitizer enforcement.
+First-party plugin source and deterministic package builds live in
+`github.com/kumbuka-me/plugins` and `github.com/kumbuka-me/sdk`. This repository
+pins released versions in `plugins.lock`; `make plugins` downloads the release
+archives and `make generate` additionally regenerates the icon catalog. Runtime
+tests execute released packages and adversarial WASM fixtures, including
+ambient-capability denial, traps, malformed output, resource limits, request
+isolation, and sanitizer enforcement.
 
 ## Capability and storage boundary
 
@@ -219,17 +206,14 @@ Storage is keyed by plugin ID, namespace, and key. Guest calls can reach only th
 See `github.com/kumbuka-me/sdk/WIRE.md` for methods and wire contracts. Tests cover actual WASM
 macro parity between bundled and installed packages, authorization failures,
 request isolation, host panics, malformed requests, namespace forgery, quota
-checks, and PostgreSQL reopen persistence. Rebuild packages with
-`make plugin-packages` after changing either wire types or plugin source.
+checks, and PostgreSQL reopen persistence. Plugin package rebuilds happen in the plugin/SDK repositories after wire or guest-source changes.
 
 ## Lifecycle validation
 
 Tests exercise install/disable/re-enable/upgrade/uninstall through real WASM in
 one process, a render spanning an upgrade, dependency and cycle failures,
 persistence failure rollback, bootstrap atomicity, installed overrides of bundled
-IDs, and PostgreSQL/runtime reopen recovery. A static build test reuses the live
-renderer across disable/re-enable.
-
+IDs, and PostgreSQL/runtime reopen recovery.
 
 ## Browser modules
 
@@ -261,11 +245,9 @@ navigation is not fully preventable across engines. Browser modules should not
 receive secrets; they receive only their rendered block. WASM remains subject to
 the separate host capability and resource limits.
 
-Static builds copy package assets, frame documents and a fixed catalog only for
-plugins selected into the build renderer, with the configured site origin/base
-path in CSP. Declared packages that no page can use are not compiled or initialized.
-`site.BuildWithRenderer` instead follows the supplied live lifecycle state. Export/PDF
-documents remain script-free and preserve diagram source as their source fallback.
+External static builders can copy package assets and frame documents from the
+selected renderer while preserving the same sandbox policy. Export/PDF documents
+remain script-free and preserve diagram source as their source fallback.
 
 ## Tables and public rendering declarations
 
@@ -283,8 +265,8 @@ sanitizer and supplies no privileged native callback to the Tables guest.
 
 Plain tables remain native semantic HTML. Interactive tables pass a sanitized
 HTML copy to the sandbox. Disable or a failed browser module restores the original
-HTML; print and script-free PDF/export keep semantic tables. Static builds copy
-the same package and core-filtered color stylesheet. Unsupported external or SVG
+HTML; print and script-free PDF/export keep semantic tables. External static builders
+can copy the same package and core-filtered color stylesheet. Unsupported external or SVG
 images keep an interactive table in its native fallback, avoiding network grants
 to browser plugins. Same-origin raster images have strict transfer limits.
 
@@ -326,7 +308,7 @@ trusted as `template.HTML`.
 
 Names share the normal persisted icon namespace, so built-in Lucide identifiers win
 on collisions. The merged catalog is cached by active plugin generation and is used by
-the picker, persisted-icon validation, templates, static builds, and the `icons.render`
+the picker, persisted-icon validation, templates, external builders, and the `icons.render`
 host capability. Disabling or removing the owning plugin removes its icons immediately.
 
 ## Administration
@@ -341,7 +323,7 @@ with actor and plugin IDs; internal failure details remain in server logs.
 The optional manifest `provider` is bounded, self-declared display metadata.
 `WithRequiredPlugins` is trusted operator policy, independent of source and
 permissions. Bootstrap enables required IDs (and rejects missing ones), and all
-public disable/remove/unload paths enforce the policy. Shutdown still closes
+public disable and uninstall paths enforce the policy. Shutdown still closes
 required instances normally. No bundled feature is required by default.
 
 The admin UI renders each package `README.md`, exposes enable/disable lifecycle
@@ -349,18 +331,16 @@ controls, and renders declarative boolean `settings` modules with their names an
 descriptions. Settings are stored in a core-owned namespace and reach renderers
 as generic feature flags.
 
-
 ## Core page primitives
 
 Wiki links remain core, alongside CommonMark. The same parser extracts canonical
 targets when pages are saved (`internal/service/pages.go`) and validates links
-for static builds (the standalone CLI static-site builder). Plugin activation must not change
+for other consumers of the shared Markdown package. Plugin activation must not change
 the persisted page-link graph or the meaning of stored page references. The
 Rendering preference controls their presentation; it does not disable extraction.
 Optional Markdown features are declared by plugins and administered in their
 plugin details. Public grammar and rendering-policy declarations are translated
-by the host; they do not grant native code access. Normal pages, previews, PDF
-exports and static builds all consume the same renderer and immutable registry render plan.
+by the host; they do not grant native code access. Normal pages, previews, PDF exports, and external tooling all consume the same renderer and immutable registry render plan.
 
 ## Go developer boundary
 
@@ -373,6 +353,8 @@ those distribution bytes through the ordinary bootstrap path.
 
 See the SDK repository at `https://github.com/kumbuka-me/sdk` for project
 scaffolding, testing, wire contracts, and deterministic packaging.
+
+
 
 
 

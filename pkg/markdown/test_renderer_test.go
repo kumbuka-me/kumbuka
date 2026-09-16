@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/kumbuka-me/kumbuka/pkg/plugin"
 	"github.com/kumbuka-me/kumbuka/pkg/plugin/wasm"
@@ -71,7 +72,7 @@ func isolatedTestRenderer(t testing.TB, names ...string) *Renderer {
 
 func newPluginTestRenderer(names ...string) (*Renderer, *plugin.Manager, error) {
 	ctx := context.Background()
-	runtime, err := wasm.New(ctx, wasm.Limits{}, wasm.WithPermissions("pages:read", "pages:content", "browser:render"))
+	runtime, err := wasm.New(ctx, wasm.Limits{InitTimeout: 30 * time.Second}, wasm.WithPermissions("pages:read", "pages:content", "browser:render"), wasm.WithInterpreter())
 	if err != nil {
 		return nil, nil, err
 	}

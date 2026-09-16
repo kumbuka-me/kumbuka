@@ -23,7 +23,7 @@ COPY scripts/plugins/download.sh ./scripts/plugins/download.sh
 
 RUN ./scripts/plugins/download.sh
 
-# Build the manager binary.
+# Build the Kumbuka server binary.
 FROM golang:1.27 AS prep
 
 ENV CGO_ENABLED=0
@@ -73,7 +73,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 RUN install -d -o 0 -g 0 -m 2775 /outfs/app /outfs/tmp
 
 
-# Use distroless as minimal base image to package the manager binary.
+# Use distroless as a minimal base image for the Kumbuka server binary.
 # Refer to https://github.com/GoogleContainerTools/distroless for more details.
 FROM gcr.io/distroless/static:nonroot
 
@@ -91,3 +91,5 @@ WORKDIR /app
 USER 65532:0
 
 ENTRYPOINT ["/kumbuka"]
+
+

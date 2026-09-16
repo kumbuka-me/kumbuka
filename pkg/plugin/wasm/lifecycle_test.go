@@ -105,7 +105,12 @@ func changedManifestVersion(t *testing.T, data []byte, version string) []byte {
 // lifecycleManager handles the lifecycle manager operation.
 func lifecycleManager(t *testing.T, store plugin.Store) (*plugin.Manager, *markdown.Renderer, *plugin.Registry) {
 	t.Helper()
-	runtime, err := wasm.New(context.Background(), wasm.Limits{})
+	return lifecycleManagerWithOptions(t, store)
+}
+
+func lifecycleManagerWithOptions(t *testing.T, store plugin.Store, options ...wasm.Option) (*plugin.Manager, *markdown.Renderer, *plugin.Registry) {
+	t.Helper()
+	runtime, err := wasm.New(context.Background(), wasm.Limits{}, options...)
 	require.NoError(t, err)
 	registry := &plugin.Registry{}
 	manager := plugin.NewManager(registry, runtime, plugin.WithStore(store))
@@ -252,7 +257,7 @@ func (p *blockingPreprocessor) Preprocess(_ plugin.Context, source string) (stri
 func TestUpgradeDuringRenderingKeepsWholeSnapshotAlive(t *testing.T) {
 	ctx := context.Background()
 	store := &installationStore{records: make(map[string]plugin.Record)}
-	manager, renderer, registry := lifecycleManager(t, store)
+	manager, renderer, registry := lifecycleManagerWithOptions(t, store, wasm.WithInterpreter())
 	blocker := &blockingPreprocessor{start: make(chan struct{}), proceed: make(chan struct{})}
 	require.NoError(t, registry.Register(plugin.Descriptor{ID: "blocker", Name: "Blocker"}, plugin.Contributions{Preprocessors: []plugin.Preprocessor{blocker}}))
 	data, err := plugins.Packages.ReadFile("callouts.kumbukaplugin")

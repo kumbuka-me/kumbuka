@@ -2,11 +2,8 @@
 package plugins
 
 import (
-	"context"
 	"embed"
 	"io/fs"
-
-	"github.com/kumbuka-me/kumbuka/pkg/plugin"
 )
 
 //go:embed *.kumbukaplugin
@@ -27,13 +24,4 @@ func Archives() ([][]byte, error) {
 		archives = append(archives, data)
 	}
 	return archives, nil
-}
-
-// Load bootstraps all embedded distribution plugins into manager.
-func Load(ctx context.Context, manager *plugin.Manager) error {
-	archives, err := Archives()
-	if err != nil {
-		return err
-	}
-	return manager.Bootstrap(ctx, archives)
 }

@@ -27,8 +27,10 @@ type Limits struct {
 	MemoryPages uint32
 	// CallTimeout bounds one guest invocation.
 	CallTimeout time.Duration
-	// LoadTimeout bounds compilation and module loading.
+	// LoadTimeout bounds compilation before module initialization.
 	LoadTimeout time.Duration
+	// InitTimeout bounds one module initialization.
+	InitTimeout time.Duration
 	// WireBytes bounds request, response, and assembled output payloads.
 	WireBytes int
 	// Parts bounds the number of render fragments returned by one guest call.
@@ -45,6 +47,9 @@ func (l Limits) defaults() Limits {
 	}
 	if l.LoadTimeout <= 0 {
 		l.LoadTimeout = 60 * time.Second
+	}
+	if l.InitTimeout <= 0 {
+		l.InitTimeout = 2 * time.Second
 	}
 	if l.WireBytes <= 0 {
 		l.WireBytes = 4 << 20
@@ -99,6 +104,8 @@ type Runtime struct {
 	storage plugin.Storage
 	// logger receives debug-only plugin initialization timings when configured.
 	logger *slog.Logger
+	// interpreter forces wazero's interpreter instead of AOT compilation.
+	interpreter bool
 }
 
 // Option configures trusted application policy, equally for every source.
@@ -120,6 +127,10 @@ func WithStorage(storage plugin.Storage) Option { return func(r *Runtime) { r.st
 // Timing messages use DEBUG level, so normal application logging remains unchanged.
 func WithLogger(logger *slog.Logger) Option { return func(r *Runtime) { r.logger = logger } }
 
+// WithInterpreter uses wazero's interpreter instead of AOT compilation. It is
+// useful for tests that exercise guest behavior without benchmarking compilation.
+func WithInterpreter() Option { return func(r *Runtime) { r.interpreter = true } }
+
 // New creates a WASM plugin runtime with bounded resources and explicit host policy.
 func New(ctx context.Context, limits Limits, options ...Option) (*Runtime, error) {
 	limits = limits.defaults()
@@ -127,8 +138,19 @@ func New(ctx context.Context, limits Limits, options ...Option) (*Runtime, error
 	if !validLimits(limits) {
 		return nil, errors.New("invalid WASM runtime limits")
 	}
-	config := wazero.NewRuntimeConfig().WithMemoryLimitPages(limits.MemoryPages).
-		WithCloseOnContextDone(true).WithCompilationCache(sharedCompilationCache())
+
+	r := &Runtime{limits: limits, permissions: make(map[string]bool)}
+	for _, option := range options {
+		option(r)
+	}
+
+	config := wazero.NewRuntimeConfig()
+	if r.interpreter {
+		config = wazero.NewRuntimeConfigInterpreter()
+	} else {
+		config = config.WithCompilationCache(sharedCompilationCache())
+	}
+	config = config.WithMemoryLimitPages(limits.MemoryPages).WithCloseOnContextDone(true)
 	engine := wazero.NewRuntimeWithConfig(ctx, config)
 	// No filesystem preopens, environment, process arguments, sockets, or host
 	// streams are configured. WASI descriptors cannot access Kumbuka's resources.
@@ -137,10 +159,7 @@ func New(ctx context.Context, limits Limits, options ...Option) (*Runtime, error
 		return nil, err
 	}
 
-	r := &Runtime{engine: engine, limits: limits, permissions: make(map[string]bool)}
-	for _, option := range options {
-		option(r)
-	}
+	r.engine = engine
 
 	if _, err := engine.NewHostModuleBuilder("kumbuka_v1").NewFunctionBuilder().WithFunc(r.hostCall).Export("call").Instantiate(ctx); err != nil {
 		_ = engine.Close(ctx)
@@ -200,7 +219,7 @@ func (r *Runtime) Load(ctx context.Context, pkg *pluginpackage.Package) (loaded 
 	}
 
 	instance.compiled = compiled
-	initializeCtx, stop := context.WithTimeout(ctx, r.limits.CallTimeout)
+	initializeCtx, stop := context.WithTimeout(ctx, r.limits.InitTimeout)
 	defer stop()
 
 	if err := instance.instantiate(initializeCtx); err != nil {

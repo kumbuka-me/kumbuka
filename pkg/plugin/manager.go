@@ -3,9 +3,7 @@ package plugin
 import (
 	"context"
 	"errors"
-	"fmt"
 	"maps"
-	"slices"
 	"sync"
 
 	"github.com/kumbuka-me/sdk/pluginpackage"
@@ -96,86 +94,6 @@ func NewManager(registry *Registry, runtime Runtime, options ...ManagerOption) *
 	}
 
 	return m
-}
-
-// Load uses the same package reader and runtime for all sources. A failed load
-// leaves the active registry unchanged and closes any newly created instance.
-func (m *Manager) Load(ctx context.Context, archive []byte, source Source) (LoadedPlugin, error) {
-	pkg, err := pluginpackage.Read(archive)
-	if err != nil {
-		return LoadedPlugin{}, err
-	}
-	manifest := pkg.Manifest()
-
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	if m.closed {
-		return LoadedPlugin{}, errors.New("plugin manager is closed")
-	}
-	if source != SourceBundled && source != SourceInstalled {
-		return LoadedPlugin{}, errors.New("invalid plugin source")
-	}
-	if _, exists := m.loaded[manifest.ID]; exists {
-		return LoadedPlugin{}, fmt.Errorf("plugin %s is already loaded", manifest.ID)
-	}
-
-	instance, err := m.runtime.Load(ctx, pkg)
-	if err != nil {
-		return LoadedPlugin{}, fmt.Errorf("load plugin %s: %w", manifest.ID, err)
-	}
-
-	descriptor := Descriptor{ID: manifest.ID, Name: manifest.Name, Description: manifest.Description, DefaultEnabled: manifest.DefaultEnabled, Requires: manifest.Requires}
-	if err := m.registry.Register(descriptor, instance.Contributions()); err != nil {
-		_ = instance.Close(context.Background())
-		return LoadedPlugin{}, err
-	}
-
-	settings, err := m.loadSettings(ctx, manifest)
-	if err != nil {
-		_ = instance.Close(context.Background())
-		return LoadedPlugin{}, err
-	}
-	metadata := LoadedPlugin{Manifest: manifest, README: pkg.README(), Settings: settings, Source: source, Digest: pkg.Digest(), Enabled: true}
-	m.loaded[manifest.ID] = managedPlugin{metadata: metadata, instance: instance, archive: append([]byte(nil), archive...)}
-	m.order = append(m.order, manifest.ID)
-	if source == SourceBundled {
-		m.bundled[manifest.ID] = append([]byte(nil), archive...)
-	}
-
-	return cloneLoaded(metadata), nil
-}
-
-// Unload removes a transient entry. Acquired render snapshots retain the old
-// instance until release; unleased inspection snapshots carry no such guarantee.
-func (m *Manager) Unload(ctx context.Context, id string) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	if m.required[id] {
-		return errors.New("required system plugin cannot be unloaded")
-	}
-	return m.unload(ctx, id)
-}
-
-// unload removes a transient plugin and retires its active instance.
-func (m *Manager) unload(ctx context.Context, id string) error {
-	loaded, ok := m.loaded[id]
-	if !ok {
-		return fmt.Errorf("plugin %s is not loaded", id)
-	}
-
-	if loaded.instance != nil {
-		old, err := m.registry.transition(id, nil, true, nil)
-		if err != nil {
-			return err
-		}
-		m.retire(old, loaded.instance)
-	}
-
-	delete(m.loaded, id)
-	m.order = slices.DeleteFunc(m.order, func(value string) bool { return value == id })
-	return nil
 }
 
 // Plugins returns loaded plugin metadata in stable manager order.

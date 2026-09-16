@@ -22,7 +22,7 @@ import (
 	"github.com/kumbuka-me/kumbuka/plugins"
 )
 
-// Run parses and executes one Barua command.
+// Run starts the Kumbuka server.
 func Run(
 	ctx context.Context,
 	args []string,
@@ -93,7 +93,7 @@ func Run(
 
 	defer database.Close()
 
-	// Construct application services here so internal/serve remains the single
+	// Construct application services here so internal/app remains the single
 	// composition root. The routing layer only receives ready-to-use
 	// dependencies and decides which handlers consume them.
 	administrationUseCases := service.NewAdministration(database)
