@@ -1,19 +1,11 @@
 {
-  "extends": [
-    "config:recommended"
-  ],
-  "labels": [
-    "dependency"
-  ],
-  "postUpdateOptions": [
-    "gomodTidy"
-  ],
+  "extends": ["config:recommended"],
+  "labels": ["dependency"],
+  "postUpdateOptions": ["gomodTidy"],
   "customManagers": [
     {
       "customType": "regex",
-      "managerFilePatterns": [
-        "/(^|/)Makefile$/"
-      ],
+      "managerFilePatterns": ["/(^|/)Makefile$/"],
       "matchStrings": [
         "#\\srenovate:\\sdatasource=(?<datasource>.*?) depName=(?<depName>.*?)( versioning=(?<versioning>.*?))?( extractVersion=(?<extractVersion>.*?))?\\s.*?_VERSION(\\s+?\\?=\\s)(?<currentValue>.*)\\s"
       ],
@@ -21,9 +13,7 @@
     },
     {
       "customType": "regex",
-      "managerFilePatterns": [
-        "/(^|/)Dockerfile(\\.goreleaser)?$/"
-      ],
+      "managerFilePatterns": ["/(^|/)Dockerfile(\\.goreleaser)?$/"],
       "matchStrings": [
         "^#\\s*syntax=(?<depName>docker/dockerfile):(?<currentValue>\\S+)$"
       ],
@@ -32,9 +22,7 @@
     },
     {
       "customType": "regex",
-      "managerFilePatterns": [
-        "/^plugins\\.lock$/"
-      ],
+      "managerFilePatterns": ["/^plugins\\.lock$/"],
       "matchStrings": [
         "(?<plugin>[a-z0-9-]+)=(?<currentValue>\\d+\\.\\d+\\.\\d+)"
       ],
@@ -43,34 +31,34 @@
       "datasourceTemplate": "github-releases",
       "versioningTemplate": "semver",
       "extractVersionTemplate": "^{{{plugin}}}/v(?<version>\\d+\\.\\d+\\.\\d+)$"
+    },
+    {
+      "customType": "regex",
+      "description": "Update Kumbuka plugin lockfile",
+      "managerFilePatterns": ["/package\\.lock$/"],
+      "matchStrings": [
+        "(?<depName>[a-z0-9-]+)=(?<currentValue>\\d+\\.\\d+\\.\\d+(?:[-+][0-9A-Za-z.-]+)?)"
+      ],
+      "packageNameTemplate": "kumbuka-me/plugins",
+      "datasourceTemplate": "github-tags",
+      "versioningTemplate": "semver",
+      "extractVersionTemplate": "^{{{depName}}}/v(?<version>.*)$"
     }
   ],
   "packageRules": [
     {
-      "matchDatasources": [
-        "docker"
-      ],
-      "matchPackageNames": [
-        "docker/dockerfile"
-      ],
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["docker/dockerfile"],
       "automerge": true
     },
     {
-      "matchManagers": [
-        "github-actions"
-      ],
-      "matchPackageNames": [
-        "golangci/golangci-lint"
-      ],
+      "matchManagers": ["github-actions"],
+      "matchPackageNames": ["golangci/golangci-lint"],
       "automerge": true
     },
     {
-      "matchManagers": [
-        "custom.regex"
-      ],
-      "matchPackageNames": [
-        "kumbuka-me/plugins"
-      ],
+      "matchManagers": ["custom.regex"],
+      "matchPackageNames": ["kumbuka-me/plugins"],
       "groupName": "Kumbuka plugins"
     }
   ]
