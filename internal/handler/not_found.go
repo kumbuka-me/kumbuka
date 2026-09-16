@@ -20,7 +20,7 @@ func renderNotFoundPage(
 	viewDataUseCases viewDataService,
 	views *Views,
 ) {
-	data, err := viewData(r, viewDataUseCases, views, "Page not found")
+	data, err := viewDataUseCases.Load(r, views, "Page not found")
 	if err != nil {
 		httpresponse.InternalServerError(views.logger, w, err)
 		return

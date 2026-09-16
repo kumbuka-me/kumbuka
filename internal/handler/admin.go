@@ -1223,7 +1223,7 @@ func administrationData(
 	views *Views,
 	title, section string,
 ) (ViewData, error) {
-	data, err := viewData(r, viewDataUseCases, views, title)
+	data, err := viewDataUseCases.Load(r, views, title)
 	if err != nil {
 		return ViewData{}, err
 	}

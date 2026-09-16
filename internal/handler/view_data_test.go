@@ -235,7 +235,7 @@ func TestViewData(t *testing.T) {
 		return ViewData{Title: title}, nil
 	}}
 
-	data, err := viewData(request, loader, views, "Platforms")
+	data, err := loader.Load(request, views, "Platforms")
 
 	require.NoError(t, err)
 	assert.Equal(t, "Platforms", data.Title)

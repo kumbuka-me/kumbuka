@@ -24,7 +24,7 @@ func Search(
 			return
 		}
 
-		data, err := viewData(r, viewDataUseCases, views, "Search")
+		data, err := viewDataUseCases.Load(r, views, "Search")
 		if err != nil {
 			httpresponse.InternalServerError(views.logger, w, err)
 			return

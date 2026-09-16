@@ -29,7 +29,7 @@ func Home(
 	views *Views,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		data, err := viewData(r, viewDataUseCases, views, "Home")
+		data, err := viewDataUseCases.Load(r, views, "Home")
 		if err != nil {
 			httpresponse.InternalServerError(views.logger, w, err)
 			return
@@ -51,6 +51,24 @@ func Home(
 
 		render(views, w, "home", data)
 	}
+}
+
+// pageViewState contains user-specific page actions loaded before rendering a page.
+type pageViewState struct {
+	// favorite reports whether the current user has pinned the page.
+	favorite bool
+	// watch contains the current user's page-watch scope.
+	watch domain.PageWatch
+	// reviewRequest contains the active review workflow item, if any.
+	reviewRequest domain.PageReviewRequest
+	// canReview reports whether the current user may decide the active review.
+	canReview bool
+	// canEdit reports whether the current user may edit the page.
+	canEdit bool
+	// canManageReview reports whether the current user may update or cancel the active review.
+	canManageReview bool
+	// reviewGroups contains groups available as review targets.
+	reviewGroups []domain.Group
 }
 
 // ViewPage renders one readable page and its active plugin detail widgets.
@@ -78,7 +96,6 @@ func ViewPage(
 			writePageProblem(views.logger, w, err)
 			return
 		}
-
 		if alias != "" {
 			http.Redirect(w, r, "/pages/"+alias, http.StatusPermanentRedirect)
 			return
@@ -91,58 +108,11 @@ func ViewPage(
 		_ = catalogUseCases.RecordView(r.Context(), slug, user.ID)
 		stop()
 
-		stop = measurePageStage(r.Context(), "favorite_lookup")
-		pageFavorite, err := catalogUseCases.IsFavorite(r.Context(), slug, user.ID)
-		stop()
+		state, err := loadPageViewState(r.Context(), slug, user, catalogUseCases, accessUseCases, approvalUseCases)
 		if err != nil {
 			writePageProblem(views.logger, w, err)
 			return
 		}
-
-		stop = measurePageStage(r.Context(), "page_watch")
-		pageWatch, err := catalogUseCases.PageWatch(r.Context(), slug, user.ID)
-		stop()
-		if err != nil {
-			writePageProblem(views.logger, w, err)
-			return
-		}
-
-		stop = measurePageStage(r.Context(), "review_request")
-		reviewRequest, err := approvalUseCases.PageReviewRequest(r.Context(), slug)
-		stop()
-		if err != nil {
-			writePageProblem(views.logger, w, err)
-			return
-		}
-		stop = measurePageStage(r.Context(), "can_review")
-		canReview, err := approvalUseCases.CanReview(r.Context(), slug, user)
-		stop()
-		if err != nil {
-			writePageProblem(views.logger, w, err)
-			return
-		}
-		stop = measurePageStage(r.Context(), "can_edit")
-		canEditPage, err := accessUseCases.CanEdit(r.Context(), user, slug)
-		stop()
-		if err != nil {
-			writePageProblem(views.logger, w, err)
-			return
-		}
-
-		canManageReview := canEditPage && approvalUseCases.CanManageReview(reviewRequest, user)
-
-		var reviewGroups []domain.Group
-		if canEditPage && (reviewRequest.ID == 0 || canManageReview) {
-			stop = measurePageStage(r.Context(), "review_groups")
-			reviewGroups, err = approvalUseCases.ReviewGroups(r.Context())
-			stop()
-			if err != nil {
-				httpresponse.InternalServerError(views.logger, w, err)
-				return
-			}
-		}
-
-		options := md.DefaultOptions()
 
 		stop = measurePageStage(r.Context(), "outgoing_links")
 		outgoingLinks, err := catalogUseCases.PageLinks(r.Context(), slug)
@@ -153,103 +123,58 @@ func ViewPage(
 		}
 
 		stop = measurePageStage(r.Context(), "view_data")
-		data, err := viewData(r, viewDataUseCases, views, page.Title)
+		data, err := viewDataUseCases.Load(r, views, page.Title)
 		stop()
 		if err != nil {
 			httpresponse.InternalServerError(views.logger, w, err)
 			return
 		}
 
-		var comments []domain.PageComment
-
-		if data.ApplicationSettings.DiscussionsEnabled {
-			stop = measurePageStage(r.Context(), "comments")
-			comments, err = catalogUseCases.PageComments(r.Context(), slug)
-			stop()
-			if err != nil {
-				writePageProblem(views.logger, w, err)
-				return
-			}
+		comments, err := loadPageComments(r.Context(), slug, data.ApplicationSettings.DiscussionsEnabled, catalogUseCases)
+		if err != nil {
+			writePageProblem(views.logger, w, err)
+			return
 		}
-
 		data.PageContentLanguage = cmp.Or(page.Language, data.PageContentLanguage)
 
 		stop = measurePageStage(r.Context(), "page_navigation")
-		pageNavigation := plugincap.Navigation(
-			navigation.Children(data.Navigation, slug),
-			pageURL,
-		)
+		pageNavigation := plugincap.Navigation(navigation.Children(data.Navigation, slug), pageURL)
 		capabilities := plugincap.Capabilities(securedCatalog, pageNavigation, renderer.IconCatalog())
 		stop()
 
-		fingerprint := renderer.RenderFingerprint(options)
-		persistable := renderer.CanPersist(page.Markdown, page.PluginUsage)
-		var rendered md.RenderedPage
-
-		if persistable && page.Render.Fingerprint == fingerprint {
-			stop = measurePageStage(r.Context(), "render_artifact_hit")
-			rendered = renderedPageFromArtifact(page.Render)
-			stop()
-		} else {
-			stop = measurePageStage(r.Context(), "markdown")
-			rendered, err = renderer.RenderPageResolvedWithFunctions(
-				page.Markdown,
-				md.Slug,
-				options,
-				md.Functions{
-					Context:      r.Context(),
-					PluginUsage:  page.PluginUsage,
-					Capabilities: capabilities,
-				},
-			)
-			stop()
-			if err != nil {
-				httpresponse.InternalServerError(views.logger, w, err)
-				return
-			}
-			if persistable {
-				if artifact, ok := pageRenderArtifact(rendered, fingerprint); ok {
-					stop = measurePageStage(r.Context(), "render_artifact_store")
-					artifactErr := catalogUseCases.SavePageRender(r.Context(), page.ID, page.UpdatedAt, artifact)
-					stop()
-					if artifactErr != nil {
-						views.logger.Warn("store page render artifact", "event", "page_render_store_failed", "slug", page.Slug, "error", artifactErr)
-					}
-				}
-			}
+		rendered, err := renderPageContent(r.Context(), page, md.DefaultOptions(), capabilities, renderer, catalogUseCases, views.logger)
+		if err != nil {
+			httpresponse.InternalServerError(views.logger, w, err)
+			return
 		}
 
 		stop = measurePageStage(r.Context(), "broken_links")
-		renderedHTML := rendered.HTML
-		for _, link := range outgoingLinks {
-			if link.Exists {
-				continue
-			}
-
-			renderedHTML = strings.ReplaceAll(
-				renderedHTML,
-				`<a href="/pages/`+link.TargetSlug+`"`,
-				`<a class="wiki-link-broken" href="/pages/`+link.TargetSlug+`"`,
-			)
-		}
+		renderedHTML := markBrokenWikiLinks(rendered.HTML, outgoingLinks)
 		stop()
 
 		data.Page, data.HTML = &page, template.HTML(renderedHTML)
-		data.PageReviewRequest = reviewRequest
-		data.CanReviewPage = canReview
-		data.CanManageReview = canManageReview
-		data.ReviewGroups = reviewGroups
-		data.CanEdit = canEditPage
+		data.PageReviewRequest = state.reviewRequest
+		data.CanReviewPage = state.canReview
+		data.CanManageReview = state.canManageReview
+		data.ReviewGroups = state.reviewGroups
+		data.CanEdit = state.canEdit
 		data.PluginInspectors = rendered.Inspectors
 		data.PluginExportFields = rendered.ExportFields
 		data.Comments = comments
-		data.PageFavorite = pageFavorite
-		data.PageWatchScope = pageWatch.Scope
+		data.PageFavorite = state.favorite
+		data.PageWatchScope = state.watch.Scope
 		data.PageContents = rendered.Contents
 
 		stop = measurePageStage(r.Context(), "page_detail_widgets")
 		pageValue := plugincap.PageValue(page)
-		widgets, err := renderer.RenderWidgets(r.Context(), "page.details", &pageValue, data.PluginFeatures, capabilities, data.Preferences.HiddenPluginWidgets)
+		widgets, err := renderer.RenderWidgets(
+			r.Context(),
+			"page.details",
+			&pageValue,
+			data.PluginFeatures,
+			capabilities,
+			data.Preferences.HiddenPluginWidgets,
+		)
 		stop()
 		if err != nil {
 			httpresponse.InternalServerError(views.logger, w, err)
@@ -261,6 +186,87 @@ func ViewPage(
 		render(views, w, "page", data)
 		stop()
 	}
+}
+
+// loadPageViewState loads user-specific favorite, watch, edit, and review state for a page.
+func loadPageViewState(
+	ctx context.Context,
+	slug string,
+	user domain.User,
+	catalog pageViewCatalogService,
+	access pageAccessReader,
+	approvals pageApprovalService,
+) (pageViewState, error) {
+	var state pageViewState
+
+	stop := measurePageStage(ctx, "favorite_lookup")
+	favorite, err := catalog.IsFavorite(ctx, slug, user.ID)
+	stop()
+	if err != nil {
+		return pageViewState{}, err
+	}
+	state.favorite = favorite
+
+	stop = measurePageStage(ctx, "page_watch")
+	watch, err := catalog.PageWatch(ctx, slug, user.ID)
+	stop()
+	if err != nil {
+		return pageViewState{}, err
+	}
+	state.watch = watch
+
+	stop = measurePageStage(ctx, "review_request")
+	reviewRequest, err := approvals.PageReviewRequest(ctx, slug)
+	stop()
+	if err != nil {
+		return pageViewState{}, err
+	}
+	state.reviewRequest = reviewRequest
+
+	stop = measurePageStage(ctx, "can_review")
+	canReview, err := approvals.CanReview(ctx, slug, user)
+	stop()
+	if err != nil {
+		return pageViewState{}, err
+	}
+	state.canReview = canReview
+
+	stop = measurePageStage(ctx, "can_edit")
+	canEdit, err := access.CanEdit(ctx, user, slug)
+	stop()
+	if err != nil {
+		return pageViewState{}, err
+	}
+	state.canEdit = canEdit
+	state.canManageReview = canEdit && approvals.CanManageReview(reviewRequest, user)
+
+	if canEdit && (reviewRequest.ID == 0 || state.canManageReview) {
+		stop = measurePageStage(ctx, "review_groups")
+		state.reviewGroups, err = approvals.ReviewGroups(ctx)
+		stop()
+		if err != nil {
+			return pageViewState{}, err
+		}
+	}
+
+	return state, nil
+}
+
+// loadPageComments loads page discussions only when the application feature is enabled.
+func loadPageComments(
+	ctx context.Context,
+	slug string,
+	enabled bool,
+	catalog pageViewCatalogService,
+) ([]domain.PageComment, error) {
+	if !enabled {
+		return nil, nil
+	}
+
+	stop := measurePageStage(ctx, "comments")
+	comments, err := catalog.PageComments(ctx, slug)
+	stop()
+	return comments, err
 }
 
 // getPageOrAlias resolves a page directly or returns the target of a matching alias.
@@ -297,7 +303,7 @@ func EditPage(
 	return func(w http.ResponseWriter, r *http.Request) {
 		user := currentUser(r)
 
-		data, err := viewData(r, viewDataUseCases, views, "New page")
+		data, err := viewDataUseCases.Load(r, views, "New page")
 		if err != nil {
 			httpresponse.InternalServerError(views.logger, w, err)
 			return
@@ -444,30 +450,19 @@ func SavePageForm(
 
 		originalSlug := strings.TrimSpace(r.FormValue("original_slug"))
 		destinationSlug := md.Slug(r.FormValue("slug"))
-		for _, path := range []string{originalSlug, destinationSlug} {
-			if path == "" {
-				continue
-			}
-			allowed, accessErr := accessUseCases.CanEdit(r.Context(), user, path)
-			if accessErr != nil {
-				httpresponse.InternalServerError(views.logger, w, accessErr)
-				return
-			}
-			if !allowed {
-				httpresponse.Problem(w, http.StatusForbidden, "You do not have permission to edit this page path.")
-				return
-			}
+		allowed, err := canEditPagePaths(r.Context(), accessUseCases, user, originalSlug, destinationSlug)
+		if err != nil {
+			httpresponse.InternalServerError(views.logger, w, err)
+			return
+		}
+		if !allowed {
+			httpresponse.Problem(w, http.StatusForbidden, "You do not have permission to edit this page path.")
+			return
 		}
 
 		metadata, err := pageMetadataFromForm(r)
 		if err != nil {
-			if tryWriteRequestProblem(
-				w,
-				http.StatusBadRequest,
-				"Page validation failed.",
-				"",
-				err,
-			) {
+			if tryWriteRequestProblem(w, http.StatusBadRequest, "Page validation failed.", "", err) {
 				return
 			}
 
@@ -475,42 +470,19 @@ func SavePageForm(
 			return
 		}
 
-		markdown := r.FormValue("markdown")
-		if originalSlug == "" {
-			markdown, err = resolvePageTemplateFields(r.Context(), r, templateUseCases, markdown)
-			if err != nil {
-				writePageProblem(views.logger, w, err)
-				return
-			}
+		input, err := pageSaveInput(r.Context(), r, templateUseCases, user, originalSlug, metadata)
+		if err != nil {
+			writePageProblem(views.logger, w, err)
+			return
 		}
 
-		properties := pagePropertiesFromForm(r)
-
-		page, err := pageUseCases.Save(r.Context(), service.PageSaveInput{
-			PreviousSlug:       originalSlug,
-			Slug:               r.FormValue("slug"),
-			Title:              r.FormValue("title"),
-			Icon:               r.FormValue("icon"),
-			Language:           r.FormValue("language"),
-			Markdown:           markdown,
-			Message:            r.FormValue("message"),
-			Tags:               splitTags(r.FormValue("tags")),
-			GroupIDs:           parseGroupIDs(r.Form["group_id"]),
-			Status:             metadata.Status,
-			OwnerGroupID:       metadata.OwnerGroupID,
-			ReviewIntervalDays: metadata.ReviewIntervalDays,
-			MarkReviewed:       metadata.MarkReviewed,
-			DeprecatedTarget:   metadata.DeprecatedTarget,
-			Properties:         properties,
-			Actor:              user,
-		})
+		page, err := pageUseCases.Save(r.Context(), input)
 		if err != nil {
 			writePageProblem(views.logger, w, err)
 			return
 		}
 
 		draftKey := "new"
-
 		if originalSlug != "" {
 			draftKey = service.PageDraftKey(page.ID)
 		}
@@ -527,6 +499,65 @@ func SavePageForm(
 
 		http.Redirect(w, r, "/pages/"+page.Slug, http.StatusSeeOther)
 	}
+}
+
+// canEditPagePaths reports whether the user may edit every non-empty page path.
+func canEditPagePaths(
+	ctx context.Context,
+	access pageAccessReader,
+	user domain.User,
+	paths ...string,
+) (bool, error) {
+	for _, path := range paths {
+		if strings.TrimSpace(path) == "" {
+			continue
+		}
+
+		allowed, err := access.CanEdit(ctx, user, path)
+		if err != nil || !allowed {
+			return allowed, err
+		}
+	}
+
+	return true, nil
+}
+
+// pageSaveInput builds the service input for a parsed page form.
+func pageSaveInput(
+	ctx context.Context,
+	r *http.Request,
+	templates templateService,
+	user domain.User,
+	originalSlug string,
+	metadata domain.PageMetadata,
+) (service.PageSaveInput, error) {
+	markdown := r.FormValue("markdown")
+	if originalSlug == "" {
+		resolved, err := resolvePageTemplateFields(ctx, r, templates, markdown)
+		if err != nil {
+			return service.PageSaveInput{}, err
+		}
+		markdown = resolved
+	}
+
+	return service.PageSaveInput{
+		PreviousSlug:       originalSlug,
+		Slug:               r.FormValue("slug"),
+		Title:              r.FormValue("title"),
+		Icon:               r.FormValue("icon"),
+		Language:           r.FormValue("language"),
+		Markdown:           markdown,
+		Message:            r.FormValue("message"),
+		Tags:               splitTags(r.FormValue("tags")),
+		GroupIDs:           parseGroupIDs(r.Form["group_id"]),
+		Status:             metadata.Status,
+		OwnerGroupID:       metadata.OwnerGroupID,
+		ReviewIntervalDays: metadata.ReviewIntervalDays,
+		MarkReviewed:       metadata.MarkReviewed,
+		DeprecatedTarget:   metadata.DeprecatedTarget,
+		Properties:         pagePropertiesFromForm(r),
+		Actor:              user,
+	}, nil
 }
 
 // resolvePageTemplateFields validates and materializes creation-time blueprint fields.

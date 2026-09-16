@@ -36,7 +36,7 @@ func Settings(
 	views *Views,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		data, err := viewData(r, viewDataUseCases, views, "Settings")
+		data, err := viewDataUseCases.Load(r, views, "Settings")
 		if err != nil {
 			httpresponse.InternalServerError(views.logger, w, err)
 			return
