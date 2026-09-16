@@ -38,6 +38,7 @@ include $(call dev-tools-module,help)
 
 GOLANGCI_LINT := bin/golangci-lint
 FAVICON_GENERATE := $(DEV_TOOLS_BIN)/favicon-generate
+SVG_TO_PNG := $(DEV_TOOLS_BIN)/svg-to-png
 
 ## Build Configuration
 
@@ -75,6 +76,10 @@ SCREENSHOT_SKIP_BROWSER_INSTALL ?= 0
 FAVICON_SOURCE ?= web/src/favicon.svg
 FAVICON_OUTPUT ?= web/src
 FAVICON_SIZES ?= 16x16 32x32
+
+LOGO_SOURCE ?= web/src/kumbuka.svg
+LOGO_PNG ?= build/kumbuka.png
+LOGO_PNG_WIDTH ?= 1200
 
 ## Formatting
 
@@ -180,7 +185,7 @@ serve: ports ## Run Kumbuka using the saved ports.
 		$(RUN_ARGS)
 
 .PHONY: open
-open: ports $(OPEN_BROWSER) ## Open the browser once Kumbuka responds.
+open: ports $(OPEN_BROWSER) ## Open Kumbuka in the browser.
 	$(call run-tool,$(OPEN_BROWSER),"http://127.0.0.1:$(KUMBUKA_ASSIGNED_PORT)/")
 
 .PHONY: run
@@ -216,7 +221,7 @@ clean: ## Clean up generated application files.
 	rm -f $(BINARY) coverage.out coverage.html
 	rm -f plugins/*.kumbukaplugin
 	rm -f "$(PLUGIN_STAMP)"
-	rm -rf web/dist
+	rm -rf web/dist build
 
 
 ##@ Assets
@@ -236,6 +241,10 @@ screenshots: ## Generate documentation screenshots from externally supplied Mark
 .PHONY: favicon
 favicon: $(FAVICON_GENERATE) $(FAVICON_SOURCE) ## Generate PNG favicons from the canonical SVG.
 	$(call run-tool,$(FAVICON_GENERATE),--apple-touch "$(FAVICON_SOURCE)" "$(FAVICON_OUTPUT)" $(FAVICON_SIZES))
+
+.PHONY: logo-png
+logo-png: $(SVG_TO_PNG) $(LOGO_SOURCE) ## Generate a PNG version of the Kumbuka logo.
+	$(call run-tool,$(SVG_TO_PNG),--width "$(LOGO_PNG_WIDTH)" "$(LOGO_SOURCE)" "$(LOGO_PNG)")
 
 
 ##@ Formatting
@@ -286,8 +295,11 @@ $(NODE_MODULES): package.json package-lock.json
 $(FAVICON_GENERATE): | $(DEV_TOOLS_BIN)
 	$(call download-dev-tool,favicon-generate,$@)
 
+$(SVG_TO_PNG): | $(DEV_TOOLS_BIN)
+	$(call download-dev-tool,svg-to-png,$@)
+
 .PHONY: dev-tools
-dev-tools: $(DEV_PORT) $(OPEN_BROWSER) $(DEV_TAG) $(MAKE_HELP) $(GO_INSTALL_TOOL) $(FAVICON_GENERATE) ## Download the pinned development tools.
+dev-tools: $(DEV_PORT) $(OPEN_BROWSER) $(DEV_TAG) $(MAKE_HELP) $(GO_INSTALL_TOOL) $(FAVICON_GENERATE) $(SVG_TO_PNG) ## Download the pinned development tools.
 
 .PHONY: golangci-lint
 golangci-lint: $(GO_INSTALL_TOOL) ## Download golangci-lint locally if necessary.
