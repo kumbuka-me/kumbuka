@@ -2,6 +2,13 @@ package service
 
 import "context"
 
+// pageSideEffectRepository contains best-effort audit and notification persistence.
+type pageSideEffectRepository interface {
+	LogAudit(context.Context, int64, string, string, string, string) error
+	NotifyMentions(context.Context, int64, string, string, string) error
+	NotifyPageWatchers(context.Context, int64, string, string, string, string) error
+}
+
 // recordAudit is best effort after the primary mutation commits. Failures are
 // observable, but must not turn a successful mutation into a retryable HTTP failure.
 func (s *Pages) recordAudit(ctx context.Context, actorID int64, action, objectType, objectKey, detail string) {

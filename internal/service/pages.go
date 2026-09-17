@@ -2,10 +2,8 @@ package service
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
-	"path"
 	"strings"
 
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
@@ -17,144 +15,55 @@ import (
 
 // PageSaveInput contains transport-independent page mutation fields.
 type PageSaveInput struct {
-	// PreviousSlug is the previous slug associated with page save input.
+	// PreviousSlug identifies the existing page being edited; empty means create.
 	PreviousSlug string
-	// Slug is the normalized page path associated with page save input.
+	// Slug is the requested canonical page path.
 	Slug string
-	// Title is the title associated with page save input.
+	// Title is the human-readable page title.
 	Title string
 	// Icon names the icon used for page save input.
 	Icon string
-	// Language is the language associated with page save input.
+	// Language selects the PostgreSQL text-search configuration for the page.
 	Language string
-	// Markdown stores the markdown value used by page save input.
+	// Markdown is the canonical source content.
 	Markdown string
-	// Message contains the message associated with page save input.
+	// Message describes the revision for history.
 	Message string
-	// Tags contains the tags associated with page save input.
+	// Tags replaces the page tag set.
 	Tags []string
-	// GroupIDs contains the group i ds associated with page save input.
+	// GroupIDs replaces the groups allowed to collaborate on the page.
 	GroupIDs []int64
-	// Status is the current status of page save input.
+	// Status is the page lifecycle status.
 	Status string
-	// OwnerGroupID identifies the owner group associated with page save input.
+	// OwnerGroupID identifies the group accountable for the page; zero means none.
 	OwnerGroupID int64
-	// ReviewIntervalDays stores the review interval days value used by page save input.
+	// ReviewIntervalDays controls when the page becomes due for documentation review.
 	ReviewIntervalDays int
-	// MarkReviewed reports whether mark reviewed applies to page save input.
+	// MarkReviewed records this save as a completed documentation review.
 	MarkReviewed bool
-	// DeprecatedTarget stores the deprecated target value used by page save input.
+	// DeprecatedTarget optionally points readers to the replacement page.
 	DeprecatedTarget string
-	// Properties maps keys to properties values used by page save input.
+	// Properties replaces the page metadata properties.
 	Properties map[string]string
-	// Actor stores the actor value used by page save input.
+	// Actor is the authenticated user performing the mutation.
 	Actor domain.User
 }
 
-// ImportedPage contains one transport-independent page discovered by an importer.
-type ImportedPage struct {
-	// Slug is the normalized page path associated with imported page.
-	Slug string
-	// Title is the title associated with imported page.
-	Title string
-	// Markdown stores the markdown value used by imported page.
-	Markdown string
-	// Source records the source associated with imported page.
-	Source string
-}
-
-// BulkPageInput contains one mutation to apply to a set of pages.
-type BulkPageInput struct {
-	// Action stores the action value used by bulk page input.
-	Action string
-	// Slugs contains the slugs associated with bulk page input.
-	Slugs []string
-	// Status is the current status of bulk page input.
-	Status string
-	// Tag stores the tag value used by bulk page input.
-	Tag string
-	// GroupID identifies the group associated with bulk page input.
-	GroupID int64
-	// Target stores the target value used by bulk page input.
-	Target string
-	// Actor stores the actor value used by bulk page input.
-	Actor domain.User
-}
-
-// PageReviewRequestInput contains the editable fields used to open a review.
-type PageReviewRequestInput struct {
-	// Slug is the normalized page path associated with page review request input.
-	Slug string
-	// ReviewerUsernames contains the reviewer usernames associated with page review request input.
-	ReviewerUsernames []string
-	// ReviewerGroupID identifies the reviewer group associated with page review request input.
-	ReviewerGroupID int64
-	// Note stores the note value used by page review request input.
-	Note string
-	// Actor stores the actor value used by page review request input.
-	Actor domain.User
-}
-
-// PageReviewUpdateInput contains the editable fields of an existing pending review.
-type PageReviewUpdateInput struct {
-	// ID identifies page review update input.
-	ID int64
-	// Slug is the normalized page path associated with page review update input.
-	Slug string
-	// ReviewerUsernames contains the reviewer usernames associated with page review update input.
-	ReviewerUsernames []string
-	// ReviewerGroupID identifies the reviewer group associated with page review update input.
-	ReviewerGroupID int64
-	// Note stores the note value used by page review update input.
-	Note string
-	// Actor stores the actor value used by page review update input.
-	Actor domain.User
-}
-
-// PageReviewDecisionInput contains one immutable decision for a pending review.
-type PageReviewDecisionInput struct {
-	// ID identifies page review decision input.
-	ID int64
-	// Slug is the normalized page path associated with page review decision input.
-	Slug string
-	// Decision stores the decision value used by page review decision input.
-	Decision string
-	// Note stores the note value used by page review decision input.
-	Note string
-	// Actor stores the actor value used by page review decision input.
-	Actor domain.User
-}
-
-// pageRepository is the persistence contract required by page use cases.
-// Keeping it here makes the application service independently testable and
-// prevents unrelated store capabilities from becoming implicit dependencies.
+// pageRepository composes the persistence capabilities used across page workflows.
 type pageRepository interface {
-	AddPageComment(context.Context, string, int64, int64, string, string, string) (domain.PageComment, error)
-	ApplicationSettings(context.Context) (domain.ApplicationSettings, error)
-	BulkAddPageTag(context.Context, []string, string) error
-	BulkAssignPageGroup(context.Context, []string, int64) error
-	BulkDeletePages(context.Context, []string, int64) error
-	BulkMovePages(context.Context, []string, string, domain.User) error
-	BulkSetPageStatus(context.Context, []string, string) error
+	pageContentRepository
+	pageDiscussionRepository
+	pageBulkRepository
+	pageReviewRepository
+	pageSideEffectRepository
+}
+
+// pageContentRepository contains persistence used by core page mutations and revision restoration.
+type pageContentRepository interface {
 	DeletePage(context.Context, string, int64) error
 	GetPage(context.Context, string) (domain.Page, error)
-	LogAudit(context.Context, int64, string, string, string, string) error
 	MarkPageReviewed(context.Context, string) error
 	MovePage(context.Context, string, string, domain.MovePageOptions, domain.User) error
-	NotifyCommentReply(context.Context, int64, int64, string, string) error
-	NotifyMentions(context.Context, int64, string, string, string) error
-	NotifyPageWatchers(context.Context, int64, string, string, string, string) error
-	PageReviewRequest(context.Context, string) (domain.PageReviewRequest, error)
-	PageReviewRequestByID(context.Context, int64, string) (domain.PageReviewRequest, error)
-	ReviewUsers(context.Context, []string) ([]domain.User, error)
-	ReviewGroup(context.Context, int64) (domain.Group, error)
-	ReviewGroups(context.Context) ([]domain.Group, error)
-	RequestPageReview(context.Context, string, int64, []int64, int64, string) (domain.PageReviewRequest, error)
-	UpdatePageReview(context.Context, int64, string, int64, []int64, int64, string) (domain.PageReviewRequest, error)
-	CancelPageReview(context.Context, int64, string, int64) (string, error)
-	CanReviewPage(context.Context, string, int64) (bool, error)
-	DecidePageReview(context.Context, int64, string, int64, bool, string, string) (string, error)
-	ResolvePageComment(context.Context, int64, bool) error
 	Revision(context.Context, string, int) (revision.Revision, error)
 	SavePage(context.Context, string, string, string, string, string, string, string, []string, []string, []int64, domain.PageMetadata, map[string]string, domain.PageRender, domain.User) (domain.Page, error)
 }
@@ -165,17 +74,17 @@ type pageUsageAnalyzer interface {
 
 // Pages coordinates page mutations and their application-level side effects.
 type Pages struct {
-	// repository provides the persistence operations required by pages.
+	// repository provides the composed persistence capabilities used by page workflows.
 	repository pageRepository
 	// logger records diagnostics emitted by pages.
 	logger *slog.Logger
-	// eventSinks contains the event sinks associated with pages.
+	// eventSinks receive committed page events after persistence succeeds.
 	eventSinks []EventSink
-	// usageAnalyzer stores the usage analyzer value used by pages.
+	// usageAnalyzer derives plugin usage metadata from Markdown before persistence.
 	usageAnalyzer pageUsageAnalyzer
-	// renderer stores the renderer value used by pages.
+	// renderer materializes stable HTML during writes when safe.
 	renderer *md.Renderer
-	// iconCatalog stores the icon catalog value used by pages.
+	// iconCatalog validates page icons against the active built-in and plugin catalog.
 	iconCatalog *icons.Catalog
 }
 
@@ -481,193 +390,6 @@ func (s *Pages) RestoreRevision(ctx context.Context, slug string, number int, ac
 	return page, nil
 }
 
-// AddComment adds a discussion comment and emits mention notifications.
-func (s *Pages) AddComment(
-	ctx context.Context,
-	slug string,
-	parentID int64,
-	anchor, quote, body string,
-	actor domain.User,
-) (domain.PageComment, error) {
-	body = strings.TrimSpace(body)
-	if body == "" {
-		return domain.PageComment{}, domain.NewValidationError("body", "A comment is required.")
-	}
-	settings, err := s.repository.ApplicationSettings(ctx)
-	if err != nil {
-		return domain.PageComment{}, err
-	}
-	if !settings.DiscussionsEnabled {
-		return domain.PageComment{}, ErrDiscussionsDisabled
-	}
-
-	slug = strings.TrimSpace(slug)
-	comment, err := s.repository.AddPageComment(ctx, slug, actor.ID, parentID, anchor, quote, body)
-	if err != nil {
-		return domain.PageComment{}, err
-	}
-
-	destination := "/pages/" + slug + "#comment-" + fmt.Sprint(comment.ID)
-	s.notifyMentions(ctx, actor.ID, body, "Mention in "+slug, destination)
-	if parentID > 0 {
-		if err := s.repository.NotifyCommentReply(ctx, actor.ID, parentID, "Reply in "+slug, destination); err != nil {
-			s.logger.ErrorContext(ctx, "comment reply notification failed", "event", "page_side_effect_failed", "error", err)
-		}
-	}
-	s.notifyWatchers(ctx, actor.ID, slug, "New comment: "+slug, "A watched page has a new discussion comment.", destination)
-	s.recordAudit(ctx, actor.ID, "comment.created", "page", slug, "Page discussion comment created")
-
-	return comment, nil
-}
-
-// ResolveComment changes one discussion's resolution state.
-func (s *Pages) ResolveComment(ctx context.Context, id int64, resolved bool) error {
-	if id <= 0 {
-		return &ValidationError{Fields: []FieldError{{Field: "comment", Message: "Invalid comment."}}}
-	}
-
-	settings, err := s.repository.ApplicationSettings(ctx)
-	if err != nil {
-		return err
-	}
-	if !settings.DiscussionsEnabled {
-		return ErrDiscussionsDisabled
-	}
-
-	return s.repository.ResolvePageComment(ctx, id, resolved)
-}
-
-// Import persists imported pages while retaining workflow metadata on replacements.
-func (s *Pages) Import(ctx context.Context, candidates []ImportedPage, format string, actor domain.User) (int, error) {
-	for _, candidate := range candidates {
-		if err := s.importPage(ctx, candidate, actor); err != nil {
-			return 0, err
-		}
-	}
-
-	s.recordAudit(
-		ctx,
-		actor.ID,
-		"pages.imported",
-		"import",
-		format,
-		fmt.Sprintf("Imported %d pages", len(candidates)),
-	)
-
-	return len(candidates), nil
-}
-
-// importPage persists one import candidate while retaining existing metadata.
-func (s *Pages) importPage(ctx context.Context, candidate ImportedPage, actor domain.User) error {
-	slug := md.Slug(candidate.Slug)
-	if slug == "" {
-		return domain.NewValidationError("slug", fmt.Sprintf("Invalid imported page path %q.", candidate.Slug))
-	}
-
-	input := PageSaveInput{
-		Slug:       slug,
-		Title:      candidate.Title,
-		Markdown:   candidate.Markdown,
-		Message:    "Imported from " + candidate.Source,
-		Status:     "verified",
-		Properties: map[string]string{},
-		Actor:      actor,
-	}
-	current, err := s.repository.GetPage(ctx, slug)
-
-	if err == nil {
-		input.Icon = current.Icon
-		input.Language = current.Language
-		input.Tags = current.Tags
-		input.Status = current.Status
-		input.OwnerGroupID = current.OwnerGroupID
-		input.ReviewIntervalDays = current.ReviewIntervalDays
-		input.DeprecatedTarget = current.DeprecatedTarget
-		input.GroupIDs = make([]int64, 0, len(current.Groups))
-
-		for _, group := range current.Groups {
-			input.GroupIDs = append(input.GroupIDs, group.ID)
-		}
-		for _, property := range current.Properties {
-			input.Properties[property.Key] = property.Value
-		}
-	} else if !errors.Is(err, domain.ErrNotFound) {
-		return err
-	}
-
-	_, err = s.save(ctx, input)
-
-	return err
-}
-
-// Bulk applies one administrative mutation and records a single audit event.
-func (s *Pages) Bulk(ctx context.Context, input BulkPageInput) error {
-	if len(input.Slugs) == 0 {
-		return domain.NewValidationError("pages", "Select at least one page.")
-	}
-
-	var err error
-
-	switch input.Action {
-	case "status":
-		if !domain.ValidPageStatus(input.Status) {
-			return domain.NewValidationError("status", "Choose a valid page status.")
-		}
-		err = s.repository.BulkSetPageStatus(ctx, input.Slugs, input.Status)
-	case "tag":
-		if strings.TrimSpace(input.Tag) == "" {
-			return domain.NewValidationError("tag", "Enter a tag.")
-		}
-		err = s.repository.BulkAddPageTag(ctx, input.Slugs, input.Tag)
-	case "group":
-		if input.GroupID <= 0 {
-			return domain.NewValidationError("group_id", "Choose a valid group.")
-		}
-		err = s.repository.BulkAssignPageGroup(ctx, input.Slugs, input.GroupID)
-	case "move":
-		err = s.bulkMove(ctx, input.Slugs, input.Target, input.Actor)
-	case "delete":
-		err = s.repository.BulkDeletePages(ctx, input.Slugs, input.Actor.ID)
-	default:
-		return domain.NewValidationError("action", "Choose a valid bulk action.")
-	}
-
-	if err != nil {
-		return err
-	}
-
-	s.recordAudit(
-		ctx,
-		input.Actor.ID,
-		"page.bulk_"+input.Action,
-		"page",
-		strings.Join(input.Slugs, ","),
-		fmt.Sprintf("%d pages", len(input.Slugs)),
-	)
-
-	return nil
-}
-
-// bulkMove validates the requested target and delegates the complete move set as one transaction.
-func (s *Pages) bulkMove(ctx context.Context, slugs []string, target string, actor domain.User) error {
-	target = md.Slug(target)
-	if target == "" {
-		return domain.NewValidationError("target", "A target path is required.")
-	}
-
-	for _, slug := range slugs {
-		source := strings.Trim(strings.TrimSpace(slug), "/")
-		if source == "" || source == target+"/"+path.Base(source) {
-			return domain.NewValidationError("target", "Choose a different destination for every selected page.")
-		}
-	}
-
-	return s.repository.BulkMovePages(ctx, slugs, target, actor)
-}
-
-// ErrDiscussionsDisabled indicates that page discussions are globally disabled.
-var ErrDiscussionsDisabled = errors.New("page discussions are disabled")
-
 // validContentLanguage reports whether value is supported by PostgreSQL search configuration.
 func validContentLanguage(value string) bool {
 	switch value {
@@ -690,284 +412,4 @@ func actionTitle(action, title string) string {
 	default:
 		return "Page updated: " + title
 	}
-}
-
-// PageReviewRequest returns the active review workflow item for a page.
-func (s *Pages) PageReviewRequest(ctx context.Context, slug string) (domain.PageReviewRequest, error) {
-	return s.repository.PageReviewRequest(ctx, strings.TrimSpace(slug))
-}
-
-// ReviewGroups returns collaboration groups that can be selected as review targets.
-func (s *Pages) ReviewGroups(ctx context.Context) ([]domain.Group, error) {
-	return s.repository.ReviewGroups(ctx)
-}
-
-// CanReview reports whether an editor is assigned to the current pending review.
-func (s *Pages) CanReview(ctx context.Context, slug string, actor domain.User) (bool, error) {
-	if actor.Role == "admin" || actor.ExternalAdmin {
-		return true, nil
-	}
-	if actor.Role != "editor" {
-		return false, nil
-	}
-
-	return s.repository.CanReviewPage(ctx, strings.TrimSpace(slug), actor.ID)
-}
-
-// CanManageReview reports whether the actor may edit or cancel the pending request.
-func (s *Pages) CanManageReview(request domain.PageReviewRequest, actor domain.User) bool {
-	if request.ID == 0 || request.Status != domain.PageReviewStatusPending {
-		return false
-	}
-
-	return actor.Role == "admin" || actor.ExternalAdmin || request.RequestedBy == actor.ID
-}
-
-// RequestReview opens a review for the current page revision and moves the page to draft.
-func (s *Pages) RequestReview(ctx context.Context, input PageReviewRequestInput) (domain.PageReviewRequest, error) {
-	input.Slug = strings.TrimSpace(input.Slug)
-	if input.Slug == "" {
-		return domain.PageReviewRequest{}, domain.NewValidationError("slug", "A page path is required.")
-	}
-	if !canRequestReview(input.Actor) {
-		return domain.PageReviewRequest{}, domain.ErrForbidden
-	}
-
-	active, err := s.repository.PageReviewRequest(ctx, input.Slug)
-	if err != nil {
-		return domain.PageReviewRequest{}, err
-	}
-	if active.Status == domain.PageReviewStatusPending {
-		return domain.PageReviewRequest{}, domain.ErrReviewPending
-	}
-	if active.Status == domain.PageReviewStatusChangesRequested {
-		return domain.PageReviewRequest{}, domain.ErrReviewChangesRequired
-	}
-
-	reviewerIDs, reviewerGroupID, err := s.resolveReviewTargets(
-		ctx,
-		input.Slug,
-		input.ReviewerUsernames,
-		input.ReviewerGroupID,
-	)
-	if err != nil {
-		return domain.PageReviewRequest{}, err
-	}
-
-	request, err := s.repository.RequestPageReview(
-		ctx,
-		input.Slug,
-		input.Actor.ID,
-		reviewerIDs,
-		reviewerGroupID,
-		strings.TrimSpace(input.Note),
-	)
-	if err != nil {
-		return domain.PageReviewRequest{}, err
-	}
-
-	s.recordAudit(ctx, input.Actor.ID, "page.review_requested", "page", input.Slug, "Review requested for revision "+fmt.Sprint(request.RevisionNumber))
-	s.notifyWatchers(ctx, input.Actor.ID, input.Slug, "review-requested", "Review requested", "/pages/"+input.Slug)
-
-	return request, nil
-}
-
-// UpdateReview changes reviewers, reviewer group, or note without changing the requested revision.
-func (s *Pages) UpdateReview(ctx context.Context, input PageReviewUpdateInput) (domain.PageReviewRequest, error) {
-	if input.ID <= 0 {
-		return domain.PageReviewRequest{}, domain.NewValidationError("review", "Choose a valid review request.")
-	}
-	input.Slug = strings.TrimSpace(input.Slug)
-	if input.Slug == "" {
-		return domain.PageReviewRequest{}, domain.NewValidationError("slug", "A page path is required.")
-	}
-
-	request, err := s.repository.PageReviewRequestByID(ctx, input.ID, input.Slug)
-	if err != nil {
-		return domain.PageReviewRequest{}, err
-	}
-	if request.Status != domain.PageReviewStatusPending {
-		return domain.PageReviewRequest{}, domain.ErrReviewClosed
-	}
-	if !s.CanManageReview(request, input.Actor) {
-		return domain.PageReviewRequest{}, domain.ErrForbidden
-	}
-
-	reviewerIDs, reviewerGroupID, err := s.resolveReviewTargets(
-		ctx,
-		input.Slug,
-		input.ReviewerUsernames,
-		input.ReviewerGroupID,
-	)
-	if err != nil {
-		return domain.PageReviewRequest{}, err
-	}
-
-	updated, err := s.repository.UpdatePageReview(
-		ctx,
-		input.ID,
-		input.Slug,
-		input.Actor.ID,
-		reviewerIDs,
-		reviewerGroupID,
-		strings.TrimSpace(input.Note),
-	)
-	if err != nil {
-		return domain.PageReviewRequest{}, err
-	}
-
-	s.recordAudit(ctx, input.Actor.ID, "page.review_updated", "page", input.Slug, "Pending review request updated")
-	s.notifyWatchers(ctx, input.Actor.ID, input.Slug, "review-updated", "Review request updated", "/pages/"+input.Slug)
-
-	return updated, nil
-}
-
-// CancelReview cancels a pending request without rewriting its history.
-func (s *Pages) CancelReview(ctx context.Context, id int64, slug string, actor domain.User) error {
-	if id <= 0 {
-		return domain.NewValidationError("review", "Choose a valid review request.")
-	}
-	slug = strings.TrimSpace(slug)
-	if slug == "" {
-		return domain.NewValidationError("slug", "A page path is required.")
-	}
-
-	request, err := s.repository.PageReviewRequestByID(ctx, id, slug)
-	if err != nil {
-		return err
-	}
-	if request.Status != domain.PageReviewStatusPending {
-		return domain.ErrReviewClosed
-	}
-	if !s.CanManageReview(request, actor) {
-		return domain.ErrForbidden
-	}
-
-	resolvedSlug, err := s.repository.CancelPageReview(ctx, id, slug, actor.ID)
-	if err != nil {
-		return err
-	}
-
-	s.recordAudit(ctx, actor.ID, "page.review_canceled", "page", resolvedSlug, "Pending review request canceled")
-	s.notifyWatchers(ctx, actor.ID, resolvedSlug, "review-canceled", "Review request canceled", "/pages/"+resolvedSlug)
-
-	return nil
-}
-
-// DecideReview approves the requested revision or asks the author for changes.
-func (s *Pages) DecideReview(ctx context.Context, input PageReviewDecisionInput) error {
-	if input.ID <= 0 {
-		return domain.NewValidationError("review", "Choose a valid review request.")
-	}
-	if input.Decision != domain.PageReviewStatusApproved && input.Decision != domain.PageReviewStatusChangesRequested {
-		return domain.NewValidationError("decision", "Choose approve or request changes.")
-	}
-
-	allowed, err := s.CanReview(ctx, input.Slug, input.Actor)
-	if err != nil {
-		return err
-	}
-	if !allowed {
-		return domain.ErrForbidden
-	}
-
-	administrator := input.Actor.Role == "admin" || input.Actor.ExternalAdmin
-	resolvedSlug, err := s.repository.DecidePageReview(
-		ctx,
-		input.ID,
-		strings.TrimSpace(input.Slug),
-		input.Actor.ID,
-		administrator,
-		input.Decision,
-		strings.TrimSpace(input.Note),
-	)
-	if err != nil {
-		return err
-	}
-
-	s.recordAudit(ctx, input.Actor.ID, "page.review_"+input.Decision, "page", resolvedSlug, strings.TrimSpace(input.Note))
-	s.notifyWatchers(ctx, input.Actor.ID, resolvedSlug, "review-"+input.Decision, "Review "+strings.ReplaceAll(input.Decision, "_", " "), "/pages/"+resolvedSlug)
-
-	return nil
-}
-
-// canRequestReview reports whether an actor may open a page review.
-func canRequestReview(actor domain.User) bool {
-	return actor.Role == "admin" || actor.Role == "editor" || actor.ExternalAdmin
-}
-
-// resolveReviewTargets validates selected people and the optional group and applies the owner-group fallback.
-func (s *Pages) resolveReviewTargets(
-	ctx context.Context,
-	slug string,
-	usernames []string,
-	groupID int64,
-) ([]int64, int64, error) {
-	if groupID < 0 {
-		return nil, 0, domain.NewValidationError("reviewer_group_id", "Choose a valid reviewer group.")
-	}
-
-	usernames = normalizeReviewerUsernames(usernames)
-	reviewers, err := s.repository.ReviewUsers(ctx, usernames)
-	if err != nil {
-		return nil, 0, err
-	}
-	if len(reviewers) != len(usernames) || !validReviewers(reviewers) {
-		return nil, 0, domain.NewValidationError("reviewers", "Choose enabled editors or administrators as reviewers.")
-	}
-
-	if groupID > 0 {
-		if _, err := s.repository.ReviewGroup(ctx, groupID); errors.Is(err, domain.ErrNotFound) {
-			return nil, 0, domain.NewValidationError("reviewer_group_id", "Choose an existing reviewer group.")
-		} else if err != nil {
-			return nil, 0, err
-		}
-	}
-
-	if groupID == 0 && len(reviewers) == 0 {
-		page, err := s.repository.GetPage(ctx, slug)
-		if err != nil {
-			return nil, 0, err
-		}
-		groupID = page.OwnerGroupID
-	}
-
-	ids := make([]int64, 0, len(reviewers))
-	for _, reviewer := range reviewers {
-		ids = append(ids, reviewer.ID)
-	}
-
-	return ids, groupID, nil
-}
-
-// validReviewers reports whether every selected account has a role that can decide reviews.
-func validReviewers(reviewers []domain.User) bool {
-	for _, reviewer := range reviewers {
-		if reviewer.Role != "admin" && reviewer.Role != "editor" {
-			return false
-		}
-	}
-
-	return true
-}
-
-// normalizeReviewerUsernames trims mention markers, removes blanks, and keeps each username once.
-func normalizeReviewerUsernames(values []string) []string {
-	result := make([]string, 0, len(values))
-	seen := make(map[string]struct{}, len(values))
-
-	for _, value := range values {
-		value = strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(value), "@"))
-		if value == "" {
-			continue
-		}
-		key := strings.ToLower(value)
-		if _, ok := seen[key]; ok {
-			continue
-		}
-		seen[key] = struct{}{}
-		result = append(result, key)
-	}
-
-	return result
 }
