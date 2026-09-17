@@ -1,14 +1,14 @@
 package markdown
 
 import (
-	"html"
+	"io"
 	"strings"
 
 	"github.com/kumbuka-me/kumbuka/pkg/plugin"
-	"github.com/yuin/goldmark"
-	"github.com/yuin/goldmark/ast"
-	gmrenderer "github.com/yuin/goldmark/renderer"
-	"github.com/yuin/goldmark/util"
+	"github.com/yuin/goldmark/v2/ast"
+	"github.com/yuin/goldmark/v2/renderer"
+	goldhtml "github.com/yuin/goldmark/v2/renderer/html"
+	"github.com/yuin/goldmark/v2/util"
 )
 
 // codeHighlighterExtension installs the active plugin's fenced-code renderer.
@@ -21,37 +21,35 @@ type codeHighlighterExtension struct {
 	context plugin.Context
 }
 
-// Extend installs one fenced-code renderer for the active highlighter provider.
-func (e codeHighlighterExtension) Extend(markdown goldmark.Markdown) {
-	markdown.Renderer().AddOptions(
-		gmrenderer.WithNodeRenderers(
-			util.Prioritized(codeHighlighterRenderer(e), 100),
-		),
-	)
+// RendererOptions installs one code-block renderer for the active highlighter provider.
+func (e codeHighlighterExtension) RendererOptions(_ *goldhtml.Config) []goldhtml.Option {
+	return []goldhtml.Option{
+		goldhtml.WithNodeRenderer(ast.KindCodeBlock, goldhtml.NodeRendererFunc(codeHighlighterRenderer(e).render)),
+	}
 }
 
 // codeHighlighterRenderer delegates fenced code to the active plugin and owns plain fallback rendering.
 type codeHighlighterRenderer codeHighlighterExtension
 
-// RegisterFuncs implements renderer.NodeRenderer.
-func (r codeHighlighterRenderer) RegisterFuncs(reg gmrenderer.NodeRendererFuncRegisterer) {
-	reg.Register(ast.KindFencedCodeBlock, r.render)
-}
-
 // render highlights a fenced code block or emits the normal escaped fallback.
 func (r codeHighlighterRenderer) render(
-	w util.BufWriter,
+	writer io.Writer,
 	source []byte,
 	node ast.Node,
 	entering bool,
+	renderContext renderer.Context,
 ) (ast.WalkStatus, error) {
 	if !entering {
 		return ast.WalkContinue, nil
 	}
 
-	block := node.(*ast.FencedCodeBlock)
-	language := string(block.Language(source))
-	code := fencedCodeSource(block, source)
+	block := node.(*ast.CodeBlock)
+	if block.CodeBlockKind != ast.CodeBlockKindFenced {
+		return renderPlainCodeBlock(writer, source, block, renderContext)
+	}
+
+	language, _ := block.Language(source)
+	code := codeBlockSource(block, source)
 
 	result, err := plugin.Guard(r.owner, func() (plugin.CodeHighlightResult, error) {
 		return r.module.Highlighter.Highlight(r.context, language, code)
@@ -60,9 +58,10 @@ func (r codeHighlighterRenderer) render(
 		return ast.WalkStop, err
 	}
 	if !result.Matched {
-		return renderPlainFencedCode(w, language, code)
+		return renderPlainCodeBlock(writer, source, block, renderContext)
 	}
 
+	w := writer.(util.BufWriter)
 	if _, err := w.WriteString(`<div data-kumbuka-plugin="` + r.owner + `" data-kumbuka-module="` + r.module.ID + `">`); err != nil {
 		return ast.WalkStop, err
 	}
@@ -76,28 +75,46 @@ func (r codeHighlighterRenderer) render(
 	return ast.WalkSkipChildren, nil
 }
 
-// fencedCodeSource returns the literal source covered by a fenced block's line segments.
-func fencedCodeSource(block *ast.FencedCodeBlock, source []byte) string {
+// codeBlockSource returns the literal source covered by a code block's value.
+func codeBlockSource(block *ast.CodeBlock, source []byte) string {
 	var output strings.Builder
-	for index := 0; index < block.Lines().Len(); index++ {
-		segment := block.Lines().At(index)
-		_, _ = output.Write(segment.Value(source))
-	}
+	_, _ = block.Value.WriteTo(&output, source)
 	return output.String()
 }
 
-// renderPlainFencedCode preserves Goldmark-compatible fenced-code output when no provider matches.
-func renderPlainFencedCode(w util.BufWriter, language, source string) (ast.WalkStatus, error) {
+// renderPlainCodeBlock preserves Goldmark-compatible code-block output when no provider matches.
+func renderPlainCodeBlock(
+	writer io.Writer,
+	source []byte,
+	block *ast.CodeBlock,
+	renderContext renderer.Context,
+) (ast.WalkStatus, error) {
+	w := writer.(util.BufWriter)
+	textWriter := goldhtml.ContextTextWriter(renderContext)
+
 	if _, err := w.WriteString("<pre><code"); err != nil {
 		return ast.WalkStop, err
 	}
-	if language != "" {
-		if _, err := w.WriteString(` class="language-` + html.EscapeString(language) + `"`); err != nil {
+	if language, ok := block.Language(source); ok {
+		if _, err := w.WriteString(` class="language-`); err != nil {
+			return ast.WalkStop, err
+		}
+		if _, err := textWriter.WriteString(language); err != nil {
+			return ast.WalkStop, err
+		}
+		if err := w.WriteByte('"'); err != nil {
 			return ast.WalkStop, err
 		}
 	}
-	if _, err := w.WriteString(">" + html.EscapeString(source) + "</code></pre>\n"); err != nil {
+	if err := w.WriteByte('>'); err != nil {
 		return ast.WalkStop, err
 	}
+	if _, err := block.Value.WriteTo(textWriter, source); err != nil {
+		return ast.WalkStop, err
+	}
+	if _, err := w.WriteString("</code></pre>\n"); err != nil {
+		return ast.WalkStop, err
+	}
+
 	return ast.WalkSkipChildren, nil
 }

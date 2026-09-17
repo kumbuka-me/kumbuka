@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"io"
 	"log/slog"
 	"strings"
 	"time"
@@ -14,11 +15,9 @@ import (
 	"github.com/kumbuka-me/kumbuka/pkg/pluginusage"
 	pluginmarkdown "github.com/kumbuka-me/sdk/markdown"
 	"github.com/microcosm-cc/bluemonday"
-	"github.com/yuin/goldmark"
-	"github.com/yuin/goldmark/parser"
-	"github.com/yuin/goldmark/renderer"
-	goldhtml "github.com/yuin/goldmark/renderer/html"
-	"github.com/yuin/goldmark/util"
+	"github.com/yuin/goldmark/v2/parser"
+	goldhtml "github.com/yuin/goldmark/v2/renderer/html"
+	"github.com/yuin/goldmark/v2/util"
 	xhtml "golang.org/x/net/html"
 )
 
@@ -107,24 +106,48 @@ func NewWithManager(registry *plugin.Registry, manager *plugin.Manager) *Rendere
 // IconCatalog returns the icon catalog bound to this renderer plugin lifecycle.
 func (r *Renderer) IconCatalog() *icons.Catalog { return r.iconCatalog }
 
+// markdownEngine couples the independently configured Goldmark v2 parser and HTML renderer.
+type markdownEngine struct {
+	// parser builds the Markdown AST for one conversion.
+	parser parser.Parser
+	// renderer converts the parsed AST into HTML.
+	renderer goldhtml.Renderer
+}
+
+// Convert parses source and renders the resulting AST to output.
+func (e markdownEngine) Convert(source []byte, output io.Writer) error {
+	document := e.parser.Parse(source)
+	return e.renderer.Render(output, source, document)
+}
+
 // engine constructs a Goldmark renderer from administrator-controlled options.
-func engine(contributed []goldmark.Extender, annotationRanges []annotationRange) goldmark.Markdown {
-	return goldmark.New(
-		goldmark.WithExtensions(contributed...),
-		goldmark.WithParserOptions(
+func engine(contributed []plugin.MarkdownComponents, annotationRanges []annotationRange) markdownEngine {
+	parserExtensions := make([]parser.Extension, 0, len(contributed))
+	rendererExtensions := make([]goldhtml.Extension, 0, len(contributed)+1)
+	for _, components := range contributed {
+		if components.Parser != nil {
+			parserExtensions = append(parserExtensions, components.Parser)
+		}
+		if components.HTMLRenderer != nil {
+			rendererExtensions = append(rendererExtensions, components.HTMLRenderer)
+		}
+	}
+	rendererExtensions = append(rendererExtensions, annotationHTMLRendererExtension{ranges: annotationRanges})
+
+	return markdownEngine{
+		parser: parser.New(
 			parser.WithAutoHeadingID(),
+			parser.WithExtensions(parserExtensions...),
 			parser.WithASTTransformers(
-				util.Prioritized(imageWidthTransformer{}, 100),
-				util.Prioritized(annotationTransformer{ranges: annotationRanges}, 210),
+				util.Prioritized[parser.ASTTransformer](imageWidthTransformer{}, 100),
+				util.Prioritized[parser.ASTTransformer](annotationTransformer{ranges: annotationRanges}, 210),
 			),
 		),
-		goldmark.WithRendererOptions(
+		renderer: goldhtml.New(
 			goldhtml.WithUnsafe(),
-			renderer.WithNodeRenderers(
-				util.Prioritized(annotationNodeRenderer{ranges: annotationRanges}, 110),
-			),
+			goldhtml.WithExtensions(rendererExtensions...),
 		),
-	)
+	}
 }
 
 // Links extracts unique canonical wiki-link targets from Markdown source.

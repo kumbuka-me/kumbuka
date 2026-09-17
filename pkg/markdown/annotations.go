@@ -3,15 +3,17 @@ package markdown
 import (
 	"bytes"
 	"html"
+	"io"
+	"slices"
 	"strings"
 
 	"github.com/kumbuka-me/kumbuka/pkg/plugin"
-	"github.com/yuin/goldmark/ast"
-	"github.com/yuin/goldmark/parser"
-	"github.com/yuin/goldmark/renderer"
-	goldhtml "github.com/yuin/goldmark/renderer/html"
-	"github.com/yuin/goldmark/text"
-	"github.com/yuin/goldmark/util"
+	"github.com/yuin/goldmark/v2/ast"
+	"github.com/yuin/goldmark/v2/parser"
+	"github.com/yuin/goldmark/v2/renderer"
+	goldhtml "github.com/yuin/goldmark/v2/renderer/html"
+	"github.com/yuin/goldmark/v2/text"
+	"github.com/yuin/goldmark/v2/util"
 	xhtml "golang.org/x/net/html"
 	"golang.org/x/net/html/atom"
 )
@@ -91,12 +93,19 @@ type annotationNode struct {
 	id string
 }
 
+// newAnnotationNode creates one initialized plugin annotation node.
+func newAnnotationNode(id string) *annotationNode {
+	node := &annotationNode{id: id}
+	node.Init(node)
+	return node
+}
+
 // Kind returns the Goldmark node kind for plugin annotations.
 func (n *annotationNode) Kind() ast.NodeKind { return kindPluginAnnotation }
 
-// Dump writes a diagnostic representation of a plugin annotation node.
-func (n *annotationNode) Dump(source []byte, level int) {
-	ast.DumpHelper(n, source, level, map[string]string{"ID": n.id}, nil)
+// Dump returns a diagnostic representation of a plugin annotation node.
+func (n *annotationNode) Dump(_ []byte) *ast.NodeDump {
+	return ast.NewNodeDump(n, map[string]any{"ID": n.id})
 }
 
 // annotationTransformer wraps only text segments originating from inspectable substitutions.
@@ -106,10 +115,11 @@ type annotationTransformer struct {
 }
 
 // Transform adds annotation nodes while leaving image alt text and code spans to specialized rendering.
-func (a annotationTransformer) Transform(document *ast.Document, _ text.Reader, _ parser.Context) {
+func (a annotationTransformer) Transform(document *ast.Document, reader text.Reader, _ parser.Context) {
 	if len(a.ranges) == 0 {
 		return
 	}
+
 	var nodes []*ast.Text
 	_ = ast.Walk(document, func(node ast.Node, entering bool) (ast.WalkStatus, error) {
 		if !entering {
@@ -124,17 +134,23 @@ func (a annotationTransformer) Transform(document *ast.Document, _ text.Reader, 
 		}
 		return ast.WalkContinue, nil
 	})
+
 	for _, node := range nodes {
-		a.wrapText(node)
+		a.wrapText(node, reader.Decoder())
 	}
 }
 
 // wrapText replaces annotated text ranges with annotation nodes.
-func (a annotationTransformer) wrapText(node *ast.Text) {
-	start, stop := node.Segment.Start, node.Segment.Stop
-	if start == stop || node.Segment.Padding != 0 {
+func (a annotationTransformer) wrapText(node *ast.Text, decoder text.Decoder) {
+	if node.Value.IsOwned() {
 		return
 	}
+	index := node.Value.Index()
+	start, stop := index.Start, index.Stop
+	if start >= stop {
+		return
+	}
+
 	parent := node.Parent()
 	position := start
 	changed := false
@@ -142,20 +158,20 @@ func (a annotationTransformer) wrapText(node *ast.Text) {
 		if from >= to {
 			return
 		}
-		part := ast.NewTextSegment(text.NewSegment(from, to))
-		part.SetRaw(node.IsRaw())
+		part := ast.NewText(text.NewSingleLineValueFromIndex(text.NewIndex(from, to), decoder))
 		if to == stop {
 			part.SetSoftLineBreak(node.SoftLineBreak())
 			part.SetHardLineBreak(node.HardLineBreak())
 		}
 		if id == "" {
-			parent.InsertBefore(parent, node, part)
+			parent.InsertBefore(node, part)
 			return
 		}
-		span := &annotationNode{id: id}
-		span.AppendChild(span, part)
-		parent.InsertBefore(parent, node, span)
+		span := newAnnotationNode(id)
+		span.AppendChild(part)
+		parent.InsertBefore(node, span)
 	}
+
 	for _, region := range a.ranges {
 		from, to := max(position, region.start), min(stop, region.end)
 		if from >= to {
@@ -170,21 +186,26 @@ func (a annotationTransformer) wrapText(node *ast.Text) {
 		return
 	}
 	appendText(position, stop, "")
-	parent.RemoveChild(parent, node)
+	parent.RemoveChild(node)
 }
 
-// annotationNodeRenderer renders generic plugin annotations without interpreting values as HTML.
-type annotationNodeRenderer struct {
-	// ranges contains the ranges associated with annotation node renderer.
+// annotationHTMLRendererExtension renders plugin annotation nodes and annotated code spans.
+type annotationHTMLRendererExtension struct {
+	// ranges contains the source ranges associated with plugin annotations.
 	ranges []annotationRange
 }
 
-// RegisterFuncs installs annotation-aware renderers with Goldmark.
-func (a annotationNodeRenderer) RegisterFuncs(register renderer.NodeRendererFuncRegisterer) {
-	register.Register(kindPluginAnnotation, a.renderAnnotation)
-	if len(a.ranges) != 0 {
-		register.Register(ast.KindCodeSpan, a.renderCodeSpan)
+// RendererOptions registers annotation-aware HTML node renderers with Goldmark.
+func (a annotationHTMLRendererExtension) RendererOptions(_ *goldhtml.Config) []goldhtml.Option {
+	options := []goldhtml.Option{
+		goldhtml.WithNodeRenderer(kindPluginAnnotation, goldhtml.NodeRendererFunc(a.renderAnnotation)),
 	}
+	if len(a.ranges) != 0 {
+		options = append(options,
+			goldhtml.WithNodeRenderer(ast.KindCodeSpan, goldhtml.NodeRendererFunc(a.renderCodeSpan)),
+		)
+	}
+	return options
 }
 
 // writeAnnotationStart writes the opening wrapper for one plugin annotation.
@@ -193,7 +214,14 @@ func writeAnnotationStart(w util.BufWriter, id string) {
 }
 
 // renderAnnotation writes the wrapper around a plugin annotation node.
-func (a annotationNodeRenderer) renderAnnotation(w util.BufWriter, _ []byte, node ast.Node, entering bool) (ast.WalkStatus, error) {
+func (a annotationHTMLRendererExtension) renderAnnotation(
+	writer io.Writer,
+	_ []byte,
+	node ast.Node,
+	entering bool,
+	_ renderer.Context,
+) (ast.WalkStatus, error) {
+	w := writer.(util.BufWriter)
 	if entering {
 		writeAnnotationStart(w, node.(*annotationNode).id)
 	} else {
@@ -203,40 +231,101 @@ func (a annotationNodeRenderer) renderAnnotation(w util.BufWriter, _ []byte, nod
 }
 
 // renderCodeSpan preserves Goldmark literal-code behavior while annotating exact source ranges.
-func (a annotationNodeRenderer) renderCodeSpan(w util.BufWriter, source []byte, node ast.Node, entering bool) (ast.WalkStatus, error) {
+func (a annotationHTMLRendererExtension) renderCodeSpan(
+	writer io.Writer,
+	source []byte,
+	node ast.Node,
+	entering bool,
+	renderContext renderer.Context,
+) (ast.WalkStatus, error) {
 	if !entering {
 		return ast.WalkContinue, nil
 	}
+
+	w := writer.(util.BufWriter)
+	span := node.(*ast.CodeSpan)
 	_, _ = w.WriteString("<code")
-	goldhtml.RenderAttributes(w, node, goldhtml.CodeAttributeFilter)
-	_, _ = w.WriteString(">")
-	for child := node.FirstChild(); child != nil; child = child.NextSibling() {
-		segment := child.(*ast.Text).Segment
-		value := segment.Value(source)
-		newline := bytes.HasSuffix(value, []byte("\n"))
-		stop := segment.Stop
-		if newline {
-			stop--
-		}
-		position := segment.Start
-		for _, region := range a.ranges {
-			from, to := max(position, region.start), min(stop, region.end)
-			if from >= to {
-				continue
-			}
-			goldhtml.DefaultWriter.RawWrite(w, source[position:from])
-			writeAnnotationStart(w, region.id)
-			goldhtml.DefaultWriter.RawWrite(w, source[from:to])
-			_, _ = w.WriteString("</span>")
-			position = to
-		}
-		goldhtml.DefaultWriter.RawWrite(w, source[position:stop])
-		if newline {
-			_, _ = w.WriteString(" ")
-		}
+	if node.Attributes() != nil {
+		goldhtml.RenderAttributes(w, source, node, goldhtml.CodeAttributeFilter, renderContext)
+	}
+	_ = w.WriteByte('>')
+
+	textWriter := goldhtml.ContextTextWriter(renderContext)
+	for _, index := range normalizedCodeSpanIndices(span.Value, source) {
+		a.writeAnnotatedCodeIndex(w, textWriter, source, index)
 	}
 	_, _ = w.WriteString("</code>")
 	return ast.WalkSkipChildren, nil
+}
+
+// normalizedCodeSpanIndices mirrors Goldmark's CommonMark space trimming for code spans.
+func normalizedCodeSpanIndices(value text.Value, source []byte) []text.Index {
+	indices := slices.Clone(value.Indices())
+	if len(indices) == 0 || !codeSpanShouldTrim(indices, source) {
+		return indices
+	}
+
+	indices[0].Start++
+	last := len(indices) - 1
+	if indices[last].Stop > indices[last].Start {
+		indices[last].Stop--
+	}
+	return indices
+}
+
+// codeSpanShouldTrim reports whether CommonMark removes one surrounding space from a code span.
+func codeSpanShouldTrim(indices []text.Index, source []byte) bool {
+	if len(indices) == 0 {
+		return false
+	}
+	first := source[indices[0].Start:indices[0].Stop]
+	lastIndex := indices[len(indices)-1]
+	last := source[lastIndex.Start:lastIndex.Stop]
+	if len(first) == 0 || len(last) == 0 {
+		return false
+	}
+
+	hasNonBlank := false
+	for _, index := range indices {
+		if !util.IsBlank(source[index.Start:index.Stop]) {
+			hasNonBlank = true
+			break
+		}
+	}
+	if !hasNonBlank {
+		return false
+	}
+	return isCodeSpanSpace(first[0]) && isCodeSpanSpace(last[len(last)-1])
+}
+
+// isCodeSpanSpace reports whether a byte participates in CommonMark code-span edge trimming.
+func isCodeSpanSpace(value byte) bool { return value == ' ' || value == '\n' }
+
+// writeAnnotatedCodeIndex renders one raw code-span source index with annotation wrappers.
+func (a annotationHTMLRendererExtension) writeAnnotatedCodeIndex(
+	w util.BufWriter,
+	textWriter util.BufWriter,
+	source []byte,
+	index text.Index,
+) {
+	position := index.Start
+	for _, region := range a.ranges {
+		from, to := max(position, region.start), min(index.Stop, region.end)
+		if from >= to {
+			continue
+		}
+		writeCodeSpanText(textWriter, source[position:from])
+		writeAnnotationStart(w, region.id)
+		writeCodeSpanText(textWriter, source[from:to])
+		_, _ = w.WriteString("</span>")
+		position = to
+	}
+	writeCodeSpanText(textWriter, source[position:index.Stop])
+}
+
+// writeCodeSpanText writes escaped code-span text while normalizing newlines to spaces.
+func writeCodeSpanText(w util.BufWriter, value []byte) {
+	_, _ = w.Write(bytes.ReplaceAll(value, []byte{'\n'}, []byte{' '}))
 }
 
 // equivalentAnnotationHTML makes annotations fail closed when wrappers would alter document semantics.

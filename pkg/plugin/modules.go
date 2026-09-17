@@ -9,7 +9,8 @@ import (
 	"fmt"
 
 	"github.com/kumbuka-me/sdk"
-	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark/v2/parser"
+	goldhtml "github.com/yuin/goldmark/v2/renderer/html"
 )
 
 // Descriptor identifies a plugin independently of how it is distributed.
@@ -224,12 +225,20 @@ type Preprocessor interface {
 	Preprocess(Context, string) (string, error)
 }
 
+// MarkdownComponents contains the parser and HTML renderer portions contributed by one Markdown extension.
+type MarkdownComponents struct {
+	// Parser extends Goldmark parsing for the current render when non-nil.
+	Parser parser.Extension
+	// HTMLRenderer extends Goldmark HTML rendering for the current render when non-nil.
+	HTMLRenderer goldhtml.Extension
+}
+
 // MarkdownExtension creates fresh Goldmark components for each conversion.
 // This is a host-side adapter, not an API for loading native community code.
-// Extenders can contribute parsers, AST transformers, and node renderers.
+// Extensions can contribute parsers, AST transformers, and HTML node renderers.
 type MarkdownExtension interface {
-	// Extension returns a fresh Goldmark extension for the current render.
-	Extension(Context) goldmark.Extender
+	// Components returns fresh Goldmark parser and renderer extensions for the current render.
+	Components(Context) MarkdownComponents
 }
 
 // CodeHighlightResult contains one highlighter response. HTML remains untrusted

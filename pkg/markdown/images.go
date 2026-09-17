@@ -5,9 +5,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/yuin/goldmark/ast"
-	"github.com/yuin/goldmark/parser"
-	"github.com/yuin/goldmark/text"
+	"github.com/yuin/goldmark/v2/ast"
+	"github.com/yuin/goldmark/v2/parser"
+	"github.com/yuin/goldmark/v2/text"
 )
 
 const maxImageWidthPixels = 10000
@@ -35,16 +35,23 @@ func (imageWidthTransformer) Transform(document *ast.Document, reader text.Reade
 		if !ok {
 			return ast.WalkSkipChildren, nil
 		}
-		width, consumed := parseImageWidthDirective(next.Segment.Value(source))
+		if next.Value.IsOwned() {
+			return ast.WalkSkipChildren, nil
+		}
+		index := next.Value.Index()
+		width, consumed := parseImageWidthDirective(next.Value.Bytes(source))
 		if consumed == 0 {
 			return ast.WalkSkipChildren, nil
 		}
 
-		image.SetAttributeString("style", "width:"+width)
-		next.Segment.Start += consumed
+		image.SetAttribute("style", text.NewMultiLineValueFromString("width:"+width, text.IdentityDecoder))
+		next.Value = text.NewSingleLineValueFromIndex(
+			text.NewIndex(index.Start+consumed, index.Stop),
+			reader.Decoder(),
+		)
 		// An empty text node may still carry a Markdown line break.
-		if next.Segment.Start == next.Segment.Stop && !next.SoftLineBreak() && !next.HardLineBreak() {
-			next.Parent().RemoveChild(next.Parent(), next)
+		if next.Value.IsEmpty() && !next.SoftLineBreak() && !next.HardLineBreak() {
+			next.Parent().RemoveChild(next)
 		}
 		return ast.WalkSkipChildren, nil
 	})

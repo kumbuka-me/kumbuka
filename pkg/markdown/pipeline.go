@@ -3,7 +3,6 @@ package markdown
 import (
 	"context"
 	"crypto/rand"
-	"fmt"
 	"maps"
 	"sort"
 	"strconv"
@@ -13,9 +12,8 @@ import (
 	"github.com/kumbuka-me/kumbuka/pkg/icons"
 	"github.com/kumbuka-me/kumbuka/pkg/plugin"
 	"github.com/kumbuka-me/kumbuka/pkg/plugincap"
-	"github.com/yuin/goldmark"
-	"github.com/yuin/goldmark/ast"
-	"github.com/yuin/goldmark/text"
+	"github.com/yuin/goldmark/v2/ast"
+	"github.com/yuin/goldmark/v2/parser"
 )
 
 // renderPipeline pins one immutable global render plan for the whole document,
@@ -195,24 +193,23 @@ func firstPreprocessorAfter(modules []plugin.PreprocessorBinding, order int) int
 	return len(modules)
 }
 
-// extensions creates active Goldmark extensions for the current page plan.
-func (p *renderPipeline) extensions(ctx plugin.Context, page pageRenderPlan, includeAll bool) ([]goldmark.Extender, error) {
-	result := make([]goldmark.Extender, 0, len(page.markdownExtensions)+1)
+// extensions creates active Goldmark parser and HTML renderer components for the current page plan.
+func (p *renderPipeline) extensions(ctx plugin.Context, page pageRenderPlan, includeAll bool) ([]plugin.MarkdownComponents, error) {
+	result := make([]plugin.MarkdownComponents, 0, len(page.markdownExtensions)+1)
 	modules := page.markdownExtensions
 	if includeAll {
 		modules = p.plan.MarkdownExtensions
 	}
 	for _, binding := range modules {
-		extender, err := plugin.Guard(binding.Selector.PluginID, func() (goldmark.Extender, error) {
-			return binding.Module.Extension(ctx), nil
+		components, err := plugin.Guard(binding.Selector.PluginID, func() (plugin.MarkdownComponents, error) {
+			return binding.Module.Components(ctx), nil
 		})
 		if err != nil {
 			return nil, err
 		}
-		if extender == nil {
-			return nil, fmt.Errorf("plugin %s returned a nil Markdown extension", binding.Selector.PluginID)
+		if components.Parser != nil || components.HTMLRenderer != nil {
+			result = append(result, components)
 		}
-		result = append(result, extender)
 	}
 
 	highlighter := page.codeHighlighter
@@ -220,11 +217,11 @@ func (p *renderPipeline) extensions(ctx plugin.Context, page pageRenderPlan, inc
 		highlighter = p.plan.CodeHighlighter
 	}
 	if highlighter != nil {
-		result = append(result, codeHighlighterExtension{
+		result = append(result, plugin.MarkdownComponents{HTMLRenderer: codeHighlighterExtension{
 			owner:   highlighter.Selector.PluginID,
 			module:  highlighter.Module,
 			context: ctx,
-		})
+		}})
 	}
 	return result, nil
 }
@@ -336,7 +333,7 @@ func (p *renderPipeline) expandMacros(source string, invocations []macroInvocati
 // codeLines records code body lines, not fences themselves, whose delimiters
 // cannot match a standalone macro invocation.
 func codeLines(source string) map[int]bool {
-	document := goldmark.New().Parser().Parse(text.NewReader([]byte(source)))
+	document := parser.New().Parse([]byte(source))
 	protected := make(map[int]bool)
 	starts := []int{0}
 
@@ -347,11 +344,11 @@ func codeLines(source string) map[int]bool {
 	}
 
 	_ = ast.Walk(document, func(node ast.Node, entering bool) (ast.WalkStatus, error) {
-		if !entering || (node.Kind() != ast.KindFencedCodeBlock && node.Kind() != ast.KindCodeBlock) {
+		if !entering || node.Kind() != ast.KindCodeBlock {
 			return ast.WalkContinue, nil
 		}
-		for i := 0; i < node.Lines().Len(); i++ {
-			segment := node.Lines().At(i)
+		block := node.(*ast.CodeBlock)
+		for _, segment := range block.Value.Segments() {
 			line := sort.Search(len(starts), func(i int) bool { return starts[i] > segment.Start }) - 1
 			protected[line] = true
 		}

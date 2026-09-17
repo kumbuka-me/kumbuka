@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"strings"
 	"sync"
 	"testing"
@@ -14,13 +15,13 @@ import (
 	"github.com/kumbuka-me/kumbuka/pkg/plugincap"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/yuin/goldmark"
-	"github.com/yuin/goldmark/ast"
-	"github.com/yuin/goldmark/extension"
-	"github.com/yuin/goldmark/parser"
-	gmrenderer "github.com/yuin/goldmark/renderer"
-	"github.com/yuin/goldmark/text"
-	"github.com/yuin/goldmark/util"
+	"github.com/yuin/goldmark/v2/ast"
+	"github.com/yuin/goldmark/v2/extension"
+	"github.com/yuin/goldmark/v2/parser"
+	gmrenderer "github.com/yuin/goldmark/v2/renderer"
+	goldhtml "github.com/yuin/goldmark/v2/renderer/html"
+	"github.com/yuin/goldmark/v2/text"
+	"github.com/yuin/goldmark/v2/util"
 )
 
 type preprocessorFunc func(plugin.Context, string) (string, error)
@@ -33,10 +34,10 @@ type postprocessorFunc func(plugin.Context, string) (string, error)
 // Postprocess transforms rendered HTML before central sanitization.
 func (f postprocessorFunc) Postprocess(c plugin.Context, s string) (string, error) { return f(c, s) }
 
-type extensionFunc func(plugin.Context) goldmark.Extender
+type extensionFunc func(plugin.Context) plugin.MarkdownComponents
 
-// Extension returns a fresh Goldmark extension for the current render.
-func (f extensionFunc) Extension(c plugin.Context) goldmark.Extender { return f(c) }
+// Components returns fresh Goldmark components for the current render.
+func (f extensionFunc) Components(c plugin.Context) plugin.MarkdownComponents { return f(c) }
 
 // testMacro groups the state and data associated with test macro.
 type testMacro struct {
@@ -72,8 +73,12 @@ func TestPluginStagesAndMacroOutputShareFinalSanitizer(t *testing.T) {
 		Preprocessors: []plugin.Preprocessor{preprocessorFunc(func(_ plugin.Context, source string) (string, error) {
 			return strings.ReplaceAll(source, "INPUT", "~~processed~~") + `<script>pre()</script>`, nil
 		})},
-		MarkdownExtensions: []plugin.MarkdownExtension{extensionFunc(func(plugin.Context) goldmark.Extender { return extension.Strikethrough })},
-		Macros:             []plugin.Macro{statusMacro(`<div class="status" onclick="bad()">macro<script>macro()</script><a href="javascript:bad()">link</a></div>`)},
+		MarkdownExtensions: []plugin.MarkdownExtension{extensionFunc(func(plugin.Context) plugin.MarkdownComponents {
+			return plugin.MarkdownComponents{
+				Parser: extension.NewStrikethroughParser(), HTMLRenderer: extension.NewStrikethroughHTMLRenderer(),
+			}
+		})},
+		Macros: []plugin.Macro{statusMacro(`<div class="status" onclick="bad()">macro<script>macro()</script><a href="javascript:bad()">link</a></div>`)},
 		Postprocessors: []plugin.Postprocessor{postprocessorFunc(func(_ plugin.Context, html string) (string, error) {
 			require.Contains(t, html, `class="status"`)
 			require.Contains(t, html, "<del>processed</del>")
@@ -171,7 +176,7 @@ func TestModulePanicsAndErrorsReturnRenderErrors(t *testing.T) {
 	for name, modules := range map[string]plugin.Contributions{
 		"pre":       {Preprocessors: []plugin.Preprocessor{preprocessorFunc(func(plugin.Context, string) (string, error) { panic("pre") })}},
 		"post":      {Postprocessors: []plugin.Postprocessor{postprocessorFunc(func(plugin.Context, string) (string, error) { panic("post") })}},
-		"extension": {MarkdownExtensions: []plugin.MarkdownExtension{extensionFunc(func(plugin.Context) goldmark.Extender { panic("extension") })}},
+		"extension": {MarkdownExtensions: []plugin.MarkdownExtension{extensionFunc(func(plugin.Context) plugin.MarkdownComponents { panic("extension") })}},
 		"parse":     {Macros: []plugin.Macro{panicking}},
 		"render":    {Macros: []plugin.Macro{rendering}},
 		"error":     {Postprocessors: []plugin.Postprocessor{postprocessorFunc(func(plugin.Context, string) (string, error) { return "", failure })}},
@@ -243,39 +248,74 @@ func TestSanitizerRejectsActiveSVGAndUnsafeMacroMarkup(t *testing.T) {
 
 // Native Goldmark adapters can register AST transformers and node renderers;
 // their generated HTML still traverses the same final sanitizer.
-type testASTExtension struct{}
+type testASTParserExtension struct{}
 
-// Extend handles the extend operation.
-func (testASTExtension) Extend(m goldmark.Markdown) {
-	m.Parser().AddOptions(parser.WithASTTransformers(util.Prioritized(testTransformer{}, 500)))
-	m.Renderer().AddOptions(gmrenderer.WithNodeRenderers(util.Prioritized(testNodeRenderer{}, 50)))
+// ParserOptions registers the test AST transformer.
+func (testASTParserExtension) ParserOptions(_ *parser.Config) []parser.Option {
+	return []parser.Option{
+		parser.WithASTTransformers(util.Prioritized[parser.ASTTransformer](testTransformer{}, 500)),
+	}
 }
+
+// testASTHTMLRendererExtension contributes the test node renderer.
+type testASTHTMLRendererExtension struct{}
+
+// RendererOptions registers the test node renderer.
+func (testASTHTMLRendererExtension) RendererOptions(_ *goldhtml.Config) []goldhtml.Option {
+	return []goldhtml.Option{
+		goldhtml.WithNodeRenderer(kindTestAST, goldhtml.NodeRendererFunc(renderTestASTNode)),
+	}
+}
+
+var kindTestAST = ast.NewNodeKind("KumbukaTestAST")
+
+// testASTNode is a synthetic inline node used to verify native renderer contributions.
+type testASTNode struct {
+	// BaseInline supplies the Goldmark inline-node implementation.
+	ast.BaseInline
+}
+
+// newTestASTNode creates one initialized synthetic test node.
+func newTestASTNode() *testASTNode {
+	node := &testASTNode{}
+	node.Init(node)
+	return node
+}
+
+// Kind returns the synthetic test node kind.
+func (n *testASTNode) Kind() ast.NodeKind { return kindTestAST }
+
+// Dump returns a diagnostic representation of the synthetic test node.
+func (n *testASTNode) Dump(_ []byte) *ast.NodeDump { return ast.NewNodeDump(n, nil) }
 
 // testTransformer groups the state and data associated with test transformer.
 type testTransformer struct{}
 
-// Transform handles the transform operation.
+// Transform appends the synthetic node to the first parsed block.
 func (testTransformer) Transform(node *ast.Document, _ text.Reader, _ parser.Context) {
-	node.FirstChild().AppendChild(node.FirstChild(), ast.NewString([]byte("AST")))
+	node.FirstChild().AppendChild(newTestASTNode())
 }
 
-// testNodeRenderer groups the state and data associated with test node renderer.
-type testNodeRenderer struct{}
-
-// RegisterFuncs registers funcs.
-func (testNodeRenderer) RegisterFuncs(r gmrenderer.NodeRendererFuncRegisterer) {
-	r.Register(ast.KindString, func(w util.BufWriter, _ []byte, _ ast.Node, entering bool) (ast.WalkStatus, error) {
-		if entering {
-			_, _ = w.WriteString(`<strong>AST</strong><script>node()</script>`)
-		}
-		return ast.WalkContinue, nil
-	})
+// renderTestASTNode renders the synthetic test node.
+func renderTestASTNode(
+	writer io.Writer,
+	_ []byte,
+	_ ast.Node,
+	entering bool,
+	_ gmrenderer.Context,
+) (ast.WalkStatus, error) {
+	if entering {
+		_, _ = writer.(util.BufWriter).WriteString(`<strong>AST</strong><script>node()</script>`)
+	}
+	return ast.WalkContinue, nil
 }
 
 // TestModuleContributesASTAndNodeRenderer verifies module contributes astand node renderer behavior.
 func TestModuleContributesASTAndNodeRenderer(t *testing.T) {
 	registry := &plugin.Registry{}
-	require.NoError(t, registry.Register(plugin.Descriptor{ID: "ast", Name: "AST"}, plugin.Contributions{MarkdownExtensions: []plugin.MarkdownExtension{extensionFunc(func(plugin.Context) goldmark.Extender { return testASTExtension{} })}}))
+	require.NoError(t, registry.Register(plugin.Descriptor{ID: "ast", Name: "AST"}, plugin.Contributions{MarkdownExtensions: []plugin.MarkdownExtension{extensionFunc(func(plugin.Context) plugin.MarkdownComponents {
+		return plugin.MarkdownComponents{Parser: testASTParserExtension{}, HTMLRenderer: testASTHTMLRendererExtension{}}
+	})}}))
 	got, err := NewWithRegistry(registry).Render("Text")
 	require.NoError(t, err)
 	assert.Contains(t, got, "Text<strong>AST</strong>")
