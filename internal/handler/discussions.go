@@ -24,11 +24,13 @@ func AddPageComment(pageUseCases pageDiscussionWriter, views *Views) http.Handle
 
 		var parentID int64
 		if rawParentID := strings.TrimSpace(r.FormValue("parent_id")); rawParentID != "" {
-			parentID, err = strconv.ParseInt(rawParentID, 10, 64)
-			if err != nil || parentID <= 0 {
+			parsedParentID, err := strconv.ParseInt(rawParentID, 10, 64)
+			if err != nil || parsedParentID <= 0 {
 				httpresponse.Problem(w, http.StatusBadRequest, "Invalid reply target.")
 				return
 			}
+
+			parentID = parsedParentID
 		}
 
 		slug := strings.TrimSpace(r.PathValue("slug"))

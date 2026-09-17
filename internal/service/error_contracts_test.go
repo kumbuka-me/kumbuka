@@ -135,7 +135,7 @@ func TestAdditionalServiceValidationBeforePersistence(t *testing.T) {
 	t.Run("comment body", func(t *testing.T) {
 		t.Parallel()
 
-		err := NewPages(nil, slog.Default()).AddComment(ctx, "page", "", " ", domain.User{})
+		_, err := NewPages(nil, slog.Default()).AddComment(ctx, "page", 0, "", "", " ", domain.User{})
 
 		validation, ok := errors.AsType[*domain.ValidationError](err)
 		require.True(t, ok)
