@@ -3,6 +3,7 @@ package middleware
 import (
 	"log/slog"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/kumbuka-me/kumbuka/internal/httpresponse"
@@ -37,7 +38,7 @@ func SecurityHeaders() Middleware {
 func RejectCrossSiteWrites(logger *slog.Logger) Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if isSafeMethod(r.Method) || r.Header.Get("Sec-Fetch-Site") != "cross-site" {
+			if isSafeMethod(r.Method) || !isCrossOriginWrite(r) {
 				next.ServeHTTP(w, r)
 				return
 			}
@@ -67,6 +68,32 @@ func RejectCrossSiteWrites(logger *slog.Logger) Middleware {
 			httpresponse.Problem(w, http.StatusForbidden, "Forbidden.")
 		})
 	}
+}
+
+// isCrossOriginWrite reports whether browser metadata identifies an unsafe
+// request as originating outside this HTTP origin. Same-site is intentionally
+// rejected because sibling origins can still receive SameSite cookies.
+// Headerless non-browser clients remain allowed; Origin provides a fallback
+// for browsers that do not send Fetch Metadata headers.
+func isCrossOriginWrite(r *http.Request) bool {
+	switch strings.ToLower(strings.TrimSpace(r.Header.Get("Sec-Fetch-Site"))) {
+	case "cross-site", "same-site":
+		return true
+	case "same-origin":
+		return false
+	}
+
+	origin := strings.TrimSpace(r.Header.Get("Origin"))
+	if origin == "" {
+		return false
+	}
+
+	parsed, err := url.Parse(origin)
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+		return true
+	}
+
+	return !strings.EqualFold(parsed.Host, r.Host)
 }
 
 // isSafeMethod reports whether an HTTP method is defined as safe for cross-site requests.

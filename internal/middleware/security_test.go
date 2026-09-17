@@ -64,6 +64,66 @@ func TestRejectCrossSiteWrites(t *testing.T) {
 		assert.Equal(t, http.StatusNoContent, response.Code)
 	})
 
+	t.Run("rejects same-site sibling writes", func(t *testing.T) {
+		t.Parallel()
+
+		handler := RejectCrossSiteWrites(discardLogger())(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+			assert.Fail(t, "handler must not run")
+		}))
+		request := httptest.NewRequest(http.MethodPost, "https://wiki.example.test/pages/example", nil)
+		request.Header.Set("Sec-Fetch-Site", "same-site")
+		request.Header.Set("Origin", "https://other.example.test")
+		response := httptest.NewRecorder()
+
+		handler.ServeHTTP(response, request)
+
+		assert.Equal(t, http.StatusForbidden, response.Code)
+	})
+
+	t.Run("rejects mismatched origin without fetch metadata", func(t *testing.T) {
+		t.Parallel()
+
+		handler := RejectCrossSiteWrites(discardLogger())(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+			assert.Fail(t, "handler must not run")
+		}))
+		request := httptest.NewRequest(http.MethodPost, "https://wiki.example.test/pages/example", nil)
+		request.Header.Set("Origin", "https://attacker.invalid")
+		response := httptest.NewRecorder()
+
+		handler.ServeHTTP(response, request)
+
+		assert.Equal(t, http.StatusForbidden, response.Code)
+	})
+
+	t.Run("allows matching origin without fetch metadata", func(t *testing.T) {
+		t.Parallel()
+
+		handler := RejectCrossSiteWrites(discardLogger())(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusNoContent)
+		}))
+		request := httptest.NewRequest(http.MethodPost, "https://wiki.example.test/pages/example", nil)
+		request.Header.Set("Origin", "https://wiki.example.test")
+		response := httptest.NewRecorder()
+
+		handler.ServeHTTP(response, request)
+
+		assert.Equal(t, http.StatusNoContent, response.Code)
+	})
+
+	t.Run("allows headerless non-browser writes", func(t *testing.T) {
+		t.Parallel()
+
+		handler := RejectCrossSiteWrites(discardLogger())(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusNoContent)
+		}))
+		request := httptest.NewRequest(http.MethodPost, "/api/pages", nil)
+		response := httptest.NewRecorder()
+
+		handler.ServeHTTP(response, request)
+
+		assert.Equal(t, http.StatusNoContent, response.Code)
+	})
+
 	t.Run("rejects browser writes with a JSON problem", func(t *testing.T) {
 		t.Parallel()
 
