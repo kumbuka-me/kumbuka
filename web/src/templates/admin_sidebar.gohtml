@@ -10,6 +10,10 @@
          {{ if eq .AdminSection "configuration" }}class="active"
          aria-current="page"
          {{ end }}>{{ icon "settings-2-lucide" 17 }}<span>Configuration</span></a>
+      <a href="/admin/branding"
+         {{ if eq .AdminSection "branding" }}class="active"
+         aria-current="page"
+         {{ end }}>{{ icon "palette-lucide" 17 }}<span>Branding</span></a>
       <a href="/admin/plugins"
          {{ if eq .AdminSection "plugins" }}class="active"
          aria-current="page"

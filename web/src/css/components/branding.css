@@ -1,0 +1,62 @@
+/* Instance branding across authenticated, public, and administration surfaces. */
+
+.kumbuka-logo {
+  display: block;
+  object-fit: contain;
+}
+
+.topbar .brand .kumbuka-logo {
+  width: auto;
+  max-width: 118px;
+  height: 40px;
+}
+
+.auth-brand .kumbuka-logo,
+.shared-page-brand .kumbuka-logo {
+  width: auto;
+  max-width: 140px;
+  height: 34px;
+}
+
+.branding-panel {
+  max-width: 760px;
+}
+
+.branding-logo-preview {
+  display: flex;
+  min-height: 150px;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 18px;
+  padding: 24px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  background: var(--surface-elevated);
+}
+
+.branding-logo-preview .kumbuka-logo {
+  width: auto;
+  max-width: min(320px, 100%);
+  height: auto;
+  max-height: 96px;
+}
+
+.branding-upload-form {
+  margin-top: 0;
+}
+
+.branding-actions {
+  margin-top: 0;
+}
+
+.branding-reset-form {
+  margin-top: 10px;
+}
+
+@media (max-width: 800px) {
+  .topbar .brand .kumbuka-logo {
+    width: auto;
+    max-width: 88px;
+    height: 36px;
+  }
+}

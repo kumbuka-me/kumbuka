@@ -44,10 +44,13 @@ type PDFHeaderInput struct {
 type settingsRepository interface {
 	auditRepository
 	ApplicationSettings(context.Context) (domain.ApplicationSettings, error)
+	BrandLogo(context.Context) (string, []byte, error)
+	ClearBrandLogo(context.Context) error
 	PDFHeaders(context.Context) ([]domain.PDFHeader, error)
 	SaveApplicationSettings(context.Context, domain.ApplicationSettings) error
-	SavePDFSettings(context.Context, string, []domain.PDFHeader) error
 	SaveAuthenticationSettings(context.Context, domain.AuthenticationSettings) error
+	SaveBrandLogo(context.Context, string, []byte) error
+	SavePDFSettings(context.Context, string, []domain.PDFHeader) error
 }
 
 // Settings exposes persisted application configuration use cases.

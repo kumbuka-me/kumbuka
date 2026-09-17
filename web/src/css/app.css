@@ -25,6 +25,8 @@
 
 @import "./components/icons.css";
 
+@import "./components/branding.css";
+
 @import "./components/icon-picker.css";
 
 @import "./components/live-search.css";

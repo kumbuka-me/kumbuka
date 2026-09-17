@@ -1,0 +1,39 @@
+{{ define "content" }}
+  <section class="admin-page">
+    <div class="settings-heading">
+      <p class="eyebrow">Administration</p>
+      <h1>Branding</h1>
+      <p class="muted">Customize the logo shown in Kumbuka's application chrome and public pages.</p>
+    </div>
+    <section class="panel settings-panel branding-panel">
+      <div class="panel-title">
+        <div>
+          <h2>Application logo</h2>
+          <p class="muted">The built-in default is <code>favicon.svg</code>. A custom logo applies instance-wide.</p>
+        </div>
+      </div>
+      <div class="branding-logo-preview" aria-label="Current application logo">{{ logo }}</div>
+      <form class="stacked-form branding-upload-form"
+            action="/admin/branding/logo"
+            method="post"
+            enctype="multipart/form-data">
+        <label>
+          Custom logo
+          <input type="file"
+                 name="logo"
+                 accept=".png,.jpg,.jpeg,.gif,.webp,.svg,image/png,image/jpeg,image/gif,image/webp,image/svg+xml"
+                 required />
+          <small>PNG, JPEG, GIF, WebP, or passive SVG. Maximum size: 2 MiB. Transparent backgrounds work best.</small>
+        </label>
+        <div class="settings-actions branding-actions">
+          <button class="button primary" type="submit">{{ icon "upload-lucide" 16 }}<span>Upload logo</span></button>
+        </div>
+      </form>
+      <form class="branding-reset-form"
+            action="/admin/branding/logo/reset"
+            method="post">
+        <button class="button" type="submit">{{ icon "rotate-ccw-lucide" 16 }}<span>Use default favicon</span></button>
+      </form>
+    </section>
+  </section>
+{{ end }}

@@ -56,6 +56,7 @@ func (r routeRegistrar) addPublicRoutes() {
 	r.mux.Handle("GET /sitemap.xml", handler.Sitemap(config.Settings, config.Catalog, config.Access, config.Views, config.Logger))
 	r.mux.Handle("GET /assets/", handler.Assets(config.Assets))
 	r.mux.Handle("GET /sw.js", handler.ServiceWorker(config.Assets))
+	r.mux.Handle("GET /brand/logo", handler.BrandLogo(config.Settings, config.Assets, config.Logger))
 	r.mux.Handle("GET /auth/login", browserAuth.Login)
 
 	localLogin := handler.LocalLogin(config.Settings, config.System, browserAuth, config.Views)
@@ -132,6 +133,10 @@ func (r routeRegistrar) addAdminRoutes() {
 		browserAuthn(adminAuthz(handler.AdminConfiguration(config.ViewData, config.Groups, config.Users, config.Settings, config.Views))),
 	)
 	r.mux.Handle(
+		"GET /admin/branding",
+		browserAuthn(adminAuthz(handler.AdminBranding(config.ViewData, config.Views))),
+	)
+	r.mux.Handle(
 		"GET /admin/health",
 		browserAuthn(adminAuthz(handler.AdminDocumentationHealth(config.ViewData, config.Administration, config.Views))),
 	)
@@ -171,6 +176,14 @@ func (r routeRegistrar) addAdminRoutes() {
 	r.mux.Handle("GET /admin/exports", browserAuthn(adminAuthz(handler.AdminExports(config.ViewData, config.Navigation, config.Views))))
 	r.mux.Handle("GET /admin/images", browserAuthn(adminAuthz(handler.AdminImages(config.ViewData, config.Media, config.Views))))
 	r.mux.Handle("POST /admin/settings", browserAuthn(adminAuthz(handler.SaveAdminSettings(config.Settings, config.Logger))))
+	r.mux.Handle(
+		"POST /admin/branding/logo",
+		browserAuthn(adminAuthz(handler.SaveAdminBrandLogo(config.Settings, config.Logger))),
+	)
+	r.mux.Handle(
+		"POST /admin/branding/logo/reset",
+		browserAuthn(adminAuthz(handler.ResetAdminBrandLogo(config.Settings, config.Logger))),
+	)
 	r.mux.Handle("POST /admin/pdf", browserAuthn(adminAuthz(handler.SaveAdminPDFSettings(config.Settings, config.Logger))))
 	r.mux.Handle("POST /admin/pdf/test", browserAuthn(adminAuthz(handler.TestAdminPDFService(config.Settings, config.Logger))))
 	r.mux.Handle("POST /admin/pdf/headers/{id}/reveal", browserAuthn(adminAuthz(handler.RevealAdminPDFHeader(config.Settings, config.Logger))))

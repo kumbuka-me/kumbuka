@@ -16,6 +16,8 @@ import (
 	"github.com/kumbuka-me/kumbuka/pkg/themes"
 )
 
+const brandLogoHTML = template.HTML(`<img class="kumbuka-logo" src="/brand/logo" alt="" />`)
+
 var sharedTemplateFiles = []string{
 	"templates/layout.gohtml",
 	"templates/public_layout.gohtml",
@@ -42,6 +44,7 @@ var pageTemplateNames = []string{
 	"settings",
 	"admin",
 	"admin_configuration",
+	"admin_branding",
 	"admin_plugins",
 	"admin_health",
 	"admin_templates",
@@ -133,11 +136,6 @@ func NewViews(
 		return nil, fmt.Errorf("fingerprint web assets: %w", err)
 	}
 
-	logoSVG, err := fs.ReadFile(appFS, "kumbuka.svg")
-	if err != nil {
-		return nil, fmt.Errorf("read Kumbuka logo: %w", err)
-	}
-
 	funcs := template.FuncMap{
 		"join":               strings.Join,
 		"timeago":            timeAgo,
@@ -156,7 +154,7 @@ func NewViews(
 		},
 		"icon": catalog.SVG,
 		"logo": func() template.HTML {
-			return template.HTML(logoSVG)
+			return brandLogoHTML
 		},
 	}
 	templates := make(map[string]*template.Template, len(pageTemplateNames))

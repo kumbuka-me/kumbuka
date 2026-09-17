@@ -43,14 +43,11 @@ func TestNewViews(t *testing.T) {
 		assert.Len(t, views.assetVersion, 16)
 	})
 
-	t.Run("requires Kumbuka logo", func(t *testing.T) {
+	t.Run("does not require the legacy horizontal logo", func(t *testing.T) {
 		t.Parallel()
 
-		appFS := testViewFS()
-		delete(appFS, "kumbuka.svg")
-
 		views, err := NewViews(
-			appFS,
+			testViewFS(),
 			testViewsLogger(),
 			"dev",
 			"none",
@@ -58,9 +55,8 @@ func TestNewViews(t *testing.T) {
 			RuntimeInfo{},
 		)
 
-		assert.Nil(t, views)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "read Kumbuka logo")
+		require.NoError(t, err)
+		assert.NotNil(t, views)
 	})
 
 	t.Run("requires shared template files", func(t *testing.T) {
@@ -244,9 +240,7 @@ func TestRenderTemplateHTML(t *testing.T) {
 }
 
 func testViewFS() fstest.MapFS {
-	appFS := fstest.MapFS{
-		"kumbuka.svg": &fstest.MapFile{Data: []byte("<svg></svg>")},
-	}
+	appFS := fstest.MapFS{}
 
 	for _, filename := range sharedTemplateFiles {
 		appFS[filename] = &fstest.MapFile{}
