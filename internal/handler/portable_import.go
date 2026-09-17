@@ -82,12 +82,20 @@ func ImportPagesWithPortableArchive(
 			defer r.MultipartForm.RemoveAll() // nolint:errcheck
 		}
 
-		if strings.TrimSpace(r.FormValue("format")) != portable.Format {
-			legacy.ServeHTTP(w, r)
-			return
+		headers := r.MultipartForm.File["files"]
+		portableSelected := strings.TrimSpace(r.FormValue("format")) == portable.Format
+		if !portableSelected {
+			detected, err := detectPortableArchiveUpload(headers)
+			if err != nil {
+				writePortableArchiveImportProblem(logger, w, err)
+				return
+			}
+			if !detected {
+				legacy.ServeHTTP(w, r)
+				return
+			}
 		}
 
-		headers := r.MultipartForm.File["files"]
 		if len(headers) != 1 {
 			httpresponse.Problem(w,
 				http.StatusBadRequest,
@@ -118,6 +126,66 @@ func ImportPagesWithPortableArchive(
 
 		http.Redirect(w, r, "/admin/import?result="+strconv.Itoa(imported), http.StatusSeeOther)
 	}
+}
+
+// detectPortableArchiveUpload reports whether one uploaded ZIP declares the Kumbuka portable format.
+func detectPortableArchiveUpload(headers []*multipart.FileHeader) (bool, error) {
+	if len(headers) != 1 || strings.ToLower(path.Ext(headers[0].Filename)) != ".zip" {
+		return false, nil
+	}
+
+	file, err := headers[0].Open()
+	if err != nil {
+		return false, err
+	}
+	defer file.Close() // nolint:errcheck
+
+	data, err := io.ReadAll(io.LimitReader(file, maxImportBytes+1))
+	if err != nil {
+		return false, err
+	}
+	if len(data) > maxImportBytes {
+		return false, newRequestError(
+			"files",
+			"Kumbuka archive exceeds 100 MiB.",
+			errors.New("portable archive exceeds 100 MiB"),
+		)
+	}
+
+	reader, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
+	if err != nil {
+		return false, nil
+	}
+
+	for _, entry := range reader.File {
+		if entry.FileInfo().IsDir() || path.Clean(strings.ReplaceAll(entry.Name, "\\", "/")) != portable.ManifestPath {
+			continue
+		}
+
+		manifestFile, err := entry.Open()
+		if err != nil {
+			return false, err
+		}
+		manifestData, readErr := io.ReadAll(io.LimitReader(manifestFile, 64<<10))
+		closeErr := manifestFile.Close()
+		if readErr != nil {
+			return false, readErr
+		}
+		if closeErr != nil {
+			return false, closeErr
+		}
+
+		var manifest struct {
+			Format string `json:"format"`
+		}
+		if json.Unmarshal(manifestData, &manifest) != nil {
+			return false, nil
+		}
+
+		return manifest.Format == portable.Format, nil
+	}
+
+	return false, nil
 }
 
 // readPortableArchiveUpload reads and validates one uploaded Kumbuka archive.

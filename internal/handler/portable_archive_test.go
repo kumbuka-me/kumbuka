@@ -6,6 +6,10 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"log/slog"
+	"mime/multipart"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/kumbuka-me/kumbuka/internal/portable"
@@ -99,6 +103,47 @@ func TestWritePortableExportArchiveIncludesMetadataAndResources(t *testing.T) {
 	assert.Equal(t, []string{"Platform"}, metadata.Groups)
 	assert.Equal(t, "Platform", metadata.OwnerGroup)
 	assert.Equal(t, map[string]string{"tier": "critical"}, metadata.Properties)
+}
+
+func TestImportPagesWithPortableArchiveAutoDetectsKumbukaZip(t *testing.T) {
+	t.Parallel()
+
+	manifest := portable.NewManifest()
+	manifest.Pages = []portable.PageEntry{{
+		Slug: "adfadf", Markdown: "pages/adfadf.md", Metadata: "metadata/adfadf.json",
+	}}
+	archive := testPortableArchive(t, manifest, map[string][]byte{
+		"pages/adfadf.md": []byte("Body without a level-one heading.\n"),
+		"metadata/adfadf.json": mustJSON(t, portable.PageMetadata{
+			Slug: "adfadf", Title: "ADFADF", Status: "verified",
+		}),
+	})
+
+	var body bytes.Buffer
+	multipartWriter := multipart.NewWriter(&body)
+	require.NoError(t, multipartWriter.WriteField("format", "markdown"))
+	file, err := multipartWriter.CreateFormFile("files", "kumbuka-export.zip")
+	require.NoError(t, err)
+	_, err = file.Write(archive)
+	require.NoError(t, err)
+	require.NoError(t, multipartWriter.Close())
+
+	request := httptest.NewRequest(http.MethodPost, "/admin/import", &body)
+	request.Header.Set("Content-Type", multipartWriter.FormDataContentType())
+	response := httptest.NewRecorder()
+	pages := &portableRestorePagesStub{}
+
+	ImportPagesWithPortableArchive(
+		pages,
+		&portableRestoreMediaStub{},
+		&portableRestoreGroupsStub{},
+		slog.Default(),
+	).ServeHTTP(response, request)
+
+	assert.Equal(t, http.StatusSeeOther, response.Code)
+	require.Len(t, pages.Pages, 1)
+	assert.Equal(t, "ADFADF", pages.Pages[0].Title)
+	assert.Equal(t, "Body without a level-one heading.\n", pages.Pages[0].Markdown)
 }
 
 func TestParsePortableArchiveRejectsUnsupportedVersion(t *testing.T) {
