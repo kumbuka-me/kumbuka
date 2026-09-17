@@ -100,6 +100,12 @@
   color: var(--accent);
 }
 
+.page-details-footer {
+  width: 100%;
+  max-width: 900px;
+  margin-top: 30px;
+}
+
 .page-details {
   width: 100%;
   border-top: 1px solid var(--border-subtle);

@@ -380,67 +380,6 @@
          data-plugin-annotation-content>{{ .HTML }}</div>
     {{ template "page-contents" . }}
   </div>
-  <details class="page-details">
-    <summary class="page-details-summary" title="Show page details">
-      <span class="page-meta">Updated {{ timeago .Page.UpdatedAt }} by {{ .Page.Author }} · {{ .Page.ViewCount }}
-      views{{ if gt .Page.ReviewIntervalDays 0 }}· review every {{ .Page.ReviewIntervalDays }}d{{ end }}</span>
-      <span class="page-details-icon" aria-hidden="true">{{ icon "info-lucide" 17 }}</span>
-      <span class="sr-only">Show page details</span>
-    </summary>
-    <div class="relations">
-      {{ range .PageDetailWidgets }}
-        <section class="plugin-widget"
-                 data-kumbuka-plugin="{{ .PluginID }}"
-                 data-kumbuka-module="{{ .ModuleID }}">
-          {{ .HTML }}
-          {{ if .Actions }}
-            <div class="plugin-widget-actions">
-              {{ range .Actions }}
-                {{ if eq .Kind "link" }}
-                  <a class="widget-action"
-                     href="{{ .URL }}">{{ if .Icon }}{{ icon .Icon 14 }}{{ end }}<span>{{ .Label }}</span></a>
-                {{ else if eq .Kind "dialog" }}
-                  <button class="widget-action"
-                          type="button"
-                          data-widget-dialog-open
-                          data-widget-dialog-url="{{ .URL }}"
-                          data-widget-dialog-title="{{ .Label }}">{{ if .Icon }}{{ icon .Icon 14 }}{{ end }}<span>{{ .Label }}</span>{{ icon "chevron-right-lucide" 13 }}</button>
-                {{ else if eq .Kind "command" }}
-                  <form method="post"
-                        action="{{ .URL }}"
-                        {{ if .Confirm }}data-confirm="{{ .Confirm }}"
-                        {{ end }}>
-                    <input type="hidden" name="surface" value="{{ .Surface }}" />
-                    {{ if .PageSlug }}<input type="hidden" name="page" value="{{ .PageSlug }}" />{{ end }}
-                    <input type="hidden" name="next" value="{{ .Next }}" />
-                    <button class="widget-action"
-                            type="submit">{{ if .Icon }}{{ icon .Icon 14 }}{{ end }}<span>{{ .Label }}</span></button>
-                  </form>
-                {{ end }}
-              {{ end }}
-            </div>
-          {{ end }}
-        </section>
-      {{ end }}
-      {{ if gt .Page.ReviewIntervalDays 0 }}
-        <section>
-          <h2>Documentation review</h2>
-          <p class="muted">
-            {{ if .Page.LastReviewedAt }}
-              Last reviewed {{ .Page.LastReviewedAt.Format "2006-01-02" }}.
-            {{ else }}
-              This page has never been explicitly reviewed.
-            {{ end }}{{ if .Page.OwnerGroup }}Owner: {{ .Page.OwnerGroup }}.{{ end }}
-          </p>
-          {{ if .CanEdit }}
-            <form action="/pages/review/{{ .Page.Slug }}" method="post">
-              <button class="button" type="submit">{{ icon "badge-check-lucide" 15 }}<span>Mark reviewed</span></button>
-            </form>
-          {{ end }}
-        </section>
-      {{ end }}
-    </div>
-  </details>
   {{ if .ApplicationSettings.DiscussionsEnabled }}
     <section class="page-comments" id="comments">
       <div class="panel-title">
@@ -489,6 +428,70 @@
       </div>
     </section>
   {{ end }}
+  <footer class="page-details-footer">
+    <details class="page-details">
+      <summary class="page-details-summary" title="Show page details">
+        <span class="page-meta">Updated {{ timeago .Page.UpdatedAt }} by {{ .Page.Author }} · {{ .Page.ViewCount }}
+        views{{ if gt .Page.ReviewIntervalDays 0 }}· review every {{ .Page.ReviewIntervalDays }}d{{ end }}</span>
+        <span class="page-details-icon" aria-hidden="true">{{ icon "info-lucide" 17 }}</span>
+        <span class="sr-only">Show page details</span>
+      </summary>
+      <div class="relations">
+        {{ range .PageDetailWidgets }}
+          <section class="plugin-widget"
+                   data-kumbuka-plugin="{{ .PluginID }}"
+                   data-kumbuka-module="{{ .ModuleID }}">
+            {{ .HTML }}
+            {{ if .Actions }}
+              <div class="plugin-widget-actions">
+                {{ range .Actions }}
+                  {{ if eq .Kind "link" }}
+                    <a class="widget-action"
+                       href="{{ .URL }}">{{ if .Icon }}{{ icon .Icon 14 }}{{ end }}<span>{{ .Label }}</span></a>
+                  {{ else if eq .Kind "dialog" }}
+                    <button class="widget-action"
+                            type="button"
+                            data-widget-dialog-open
+                            data-widget-dialog-url="{{ .URL }}"
+                            data-widget-dialog-title="{{ .Label }}">{{ if .Icon }}{{ icon .Icon 14 }}{{ end }}<span>{{ .Label }}</span>{{ icon "chevron-right-lucide" 13 }}</button>
+                  {{ else if eq .Kind "command" }}
+                    <form method="post"
+                          action="{{ .URL }}"
+                          {{ if .Confirm }}data-confirm="{{ .Confirm }}"
+                          {{ end }}>
+                      <input type="hidden" name="surface" value="{{ .Surface }}" />
+                      {{ if .PageSlug }}<input type="hidden" name="page" value="{{ .PageSlug }}" />{{ end }}
+                      <input type="hidden" name="next" value="{{ .Next }}" />
+                      <button class="widget-action"
+                              type="submit">{{ if .Icon }}{{ icon .Icon 14 }}{{ end }}<span>{{ .Label }}</span></button>
+                    </form>
+                  {{ end }}
+                {{ end }}
+              </div>
+            {{ end }}
+          </section>
+        {{ end }}
+        {{ if gt .Page.ReviewIntervalDays 0 }}
+          <section>
+            <h2>Documentation review</h2>
+            <p class="muted">
+              {{ if .Page.LastReviewedAt }}
+                Last reviewed {{ .Page.LastReviewedAt.Format "2006-01-02" }}.
+              {{ else }}
+                This page has never been explicitly reviewed.
+              {{ end }}{{ if .Page.OwnerGroup }}Owner: {{ .Page.OwnerGroup }}.{{ end }}
+            </p>
+            {{ if .CanEdit }}
+              <form action="/pages/review/{{ .Page.Slug }}" method="post">
+                <button class="button"
+                        type="submit">{{ icon "badge-check-lucide" 15 }}<span>Mark reviewed</span></button>
+              </form>
+            {{ end }}
+          </section>
+        {{ end }}
+      </div>
+    </details>
+  </footer>
   </article>
   {{ if .PageContents }}
     <button class="contents-backdrop"
