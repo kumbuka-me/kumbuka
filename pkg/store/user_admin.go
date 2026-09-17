@@ -66,18 +66,6 @@ ORDER BY lower(u.display_name),lower(u.username),u.id`)
 	return users, rows.Err()
 }
 
-// UpdateUser updates an account role, enabled state, local-login state, and group memberships transactionally.
-func (s *Store) UpdateUser(
-	ctx context.Context,
-	userID int64,
-	role string,
-	enabled bool,
-	groupIDs []int64,
-	localCredentialEnabled *bool,
-) error {
-	return s.UpdateUserAccount(ctx, domain.UserAccountUpdate{UserID: userID, Role: role, Enabled: enabled, GroupIDs: groupIDs, LocalCredentialEnabled: localCredentialEnabled})
-}
-
 // UpdateUserAccount commits account, membership, credential, and session changes together.
 func (s *Store) UpdateUserAccount(ctx context.Context, input domain.UserAccountUpdate) error {
 	userID, role, enabled := input.UserID, input.Role, input.Enabled

@@ -80,3 +80,28 @@ func TestAccountUpdatePreservesPersistenceFailure(t *testing.T) {
 	require.ErrorIs(t, NewUsers(repo).UpdateAccount(context.Background(), accountInput()), failure)
 	assert.Equal(t, 1, repo.calls)
 }
+
+func TestUpdateUserUsesAccountMutationBoundary(t *testing.T) {
+	t.Parallel()
+
+	enabled := true
+	repo := &accountRepositoryStub{}
+	err := NewUsers(repo).UpdateUser(
+		context.Background(),
+		7,
+		"editor",
+		true,
+		[]int64{2, 5},
+		&enabled,
+	)
+
+	require.NoError(t, err)
+	assert.Equal(t, 1, repo.calls)
+	assert.Equal(t, domain.UserAccountUpdate{
+		UserID:                 7,
+		Role:                   "editor",
+		Enabled:                true,
+		GroupIDs:               []int64{2, 5},
+		LocalCredentialEnabled: &enabled,
+	}, repo.update)
+}

@@ -16,7 +16,6 @@ type userRepository interface {
 	Users(context.Context) ([]domain.AdminUser, error)
 	User(context.Context, int64) (domain.User, error)
 	UserGroups(context.Context, int64) ([]domain.Group, error)
-	UpdateUser(context.Context, int64, string, bool, []int64, *bool) error
 	RevokeUserSessions(context.Context, int64) error
 	SearchUsers(context.Context, string, int) ([]domain.User, error)
 	OIDCIdentities(context.Context) ([]domain.OIDCIdentity, error)
@@ -75,7 +74,13 @@ func (s *Users) UpdateUser(
 	if !domain.ValidUserRole(role) {
 		return domain.NewValidationError("role", "Choose a valid user role.")
 	}
-	return s.repository.UpdateUser(ctx, userID, role, enabled, groupIDs, localCredentialEnabled)
+	return s.repository.UpdateUserAccount(ctx, domain.UserAccountUpdate{
+		UserID:                 userID,
+		Role:                   role,
+		Enabled:                enabled,
+		GroupIDs:               groupIDs,
+		LocalCredentialEnabled: localCredentialEnabled,
+	})
 }
 
 // RevokeUserSessions signs a user out of local and OIDC browser sessions and audits the action.
