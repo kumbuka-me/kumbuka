@@ -18,6 +18,8 @@ type setupBrowserRepository struct {
 	setupRequired          bool
 	localAdminCredential   bool
 	localCredentialChecked bool
+	oidcMappingsChecked    bool
+	oidcMappingsErr        error
 	sessionUser            domain.User
 	sessionHash            string
 }
@@ -33,6 +35,11 @@ func (r *setupBrowserRepository) SetupRequired(context.Context) (bool, error) {
 func (r *setupBrowserRepository) HasLocalAdministratorCredential(context.Context) (bool, error) {
 	r.localCredentialChecked = true
 	return r.localAdminCredential, nil
+}
+
+func (r *setupBrowserRepository) OIDCGroupMappings(context.Context) ([]domain.OIDCGroupMapping, error) {
+	r.oidcMappingsChecked = true
+	return nil, r.oidcMappingsErr
 }
 
 func (r *setupBrowserRepository) LocalUserBySession(_ context.Context, tokenHash string) (domain.User, error) {
@@ -217,9 +224,13 @@ func TestBrowserCurrentSettingsOverlaysRuntimeManagedFields(t *testing.T) {
 			},
 		}
 
+		repository.settings.Authentication.OIDCGroupSync = true
+		repository.oidcMappingsErr = errors.New("stale OIDC mappings must not be loaded")
+
 		settings, err := browser.currentSettings(context.Background())
 
 		require.NoError(t, err)
+		assert.False(t, repository.oidcMappingsChecked)
 		assert.Equal(t, string(AuthModeTrustedProxy), settings.Mode)
 		assert.Equal(t, []string{"Runtime-User"}, settings.TrustedUsernameHeaders)
 		assert.Equal(t, []string{"Runtime-Email"}, settings.TrustedEmailHeaders)

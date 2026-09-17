@@ -262,7 +262,7 @@ func (b *browserAuthenticator) currentSettings(ctx context.Context) (domain.Auth
 		return domain.AuthenticationSettings{}, fmt.Errorf("unsupported auth mode %q", b.modeOverride)
 	}
 
-	if authentication.OIDCGroupSync {
+	if AuthMode(authentication.Mode) == AuthModeOIDC && authentication.OIDCGroupSync {
 		authentication.OIDCGroupMappings, err = b.repository.OIDCGroupMappings(ctx)
 		if err != nil {
 			return domain.AuthenticationSettings{}, err
