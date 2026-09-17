@@ -53,6 +53,24 @@ func Home(
 	}
 }
 
+// pageViewRecorder persists best-effort page-view activity.
+type pageViewRecorder interface {
+	RecordView(context.Context, string, int64) error
+}
+
+// recordPageView records activity without making page rendering depend on analytics persistence.
+func recordPageView(ctx context.Context, logger *slog.Logger, recorder pageViewRecorder, slug string, userID int64) {
+	if err := recorder.RecordView(ctx, slug, userID); err != nil && logger != nil {
+		logger.ErrorContext(ctx,
+			"record page view",
+			"event", "page_view_record_failed",
+			"slug", slug,
+			"user_id", userID,
+			"error", err,
+		)
+	}
+}
+
 // pageViewState contains user-specific page actions loaded before rendering a page.
 type pageViewState struct {
 	// favorite reports whether the current user has pinned the page.
@@ -105,7 +123,7 @@ func ViewPage(
 		securedCatalog := accessiblePageCatalog{catalog: catalogUseCases, access: accessUseCases, user: user}
 
 		stop = measurePageStage(r.Context(), "record_view")
-		_ = catalogUseCases.RecordView(r.Context(), slug, user.ID)
+		recordPageView(r.Context(), views.logger, catalogUseCases, slug, user.ID)
 		stop()
 
 		state, err := loadPageViewState(r.Context(), slug, user, catalogUseCases, accessUseCases, approvalUseCases)

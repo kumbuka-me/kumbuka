@@ -1,9 +1,11 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"io"
 	"log/slog"
 	"net/http"
@@ -19,9 +21,10 @@ import (
 )
 
 type webhookRepositoryStub struct {
-	items      []domain.Webhook
-	deliveries []domain.WebhookDelivery
-	saved      domain.Webhook
+	items       []domain.Webhook
+	deliveries  []domain.WebhookDelivery
+	saved       domain.Webhook
+	deliveryErr error
 }
 
 func (r *webhookRepositoryStub) Webhooks(context.Context) ([]domain.Webhook, error) {
@@ -57,7 +60,7 @@ func (r *webhookRepositoryStub) AddWebhookDelivery(_ context.Context, id int64, 
 		Attempts:   attempts,
 		Error:      message,
 	})
-	return nil
+	return r.deliveryErr
 }
 
 func (r *webhookRepositoryStub) WebhookDeliveries(context.Context, int) ([]domain.WebhookDelivery, error) {
@@ -74,6 +77,31 @@ func testWebhookSecretCipher(t *testing.T) *secrets.Cipher {
 
 func testWebhookLogger() *slog.Logger {
 	return slog.New(slog.NewTextHandler(io.Discard, nil))
+}
+
+func TestWebhookDeliveryHistoryFailureIsObservableWithoutReplacingPrimaryError(t *testing.T) {
+	t.Parallel()
+
+	var output bytes.Buffer
+	logger := slog.New(slog.NewJSONHandler(&output, nil))
+	repository := &webhookRepositoryStub{
+		deliveryErr: errors.New("delivery history unavailable"),
+		items: []domain.Webhook{{
+			ID:           9,
+			Name:         "protected",
+			URL:          "https://example.invalid/hook",
+			Events:       []string{"page.updated"},
+			BodyTemplate: `{"event": {{ .Input.Event | json }}}`,
+			Headers:      []domain.WebhookHeader{{Name: "Authorization", Value: "encrypted", Sensitive: true}},
+			Enabled:      true,
+		}},
+	}
+
+	err := NewWebhooks(repository, nil, logger, "").Emit(context.Background(), OutgoingEvent{Event: "page.updated"})
+
+	require.ErrorIs(t, err, secrets.ErrNotConfigured)
+	assert.Contains(t, output.String(), `"event":"webhook_delivery_record_failed"`)
+	assert.Contains(t, output.String(), "delivery history unavailable")
 }
 
 func TestWebhooks(t *testing.T) {

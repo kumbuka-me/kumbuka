@@ -110,10 +110,11 @@ func (s *Webhooks) deliver(ctx context.Context, item domain.Webhook, event Outgo
 	if deliveryErr != nil {
 		message = deliveryErr.Error()
 	}
-	recordErr := s.repository.AddWebhookDelivery(ctx, item.ID, event.Event, recorder.result.StatusCode, recorder.attempts, message)
+	recordErr := s.recordWebhookDelivery(ctx, item.ID, event.Event, recorder.result.StatusCode, recorder.attempts, message)
 	if deliveryErr != nil {
 		return deliveryErr
 	}
+
 	return recordErr
 }
 
@@ -142,9 +143,24 @@ func (s *Webhooks) webhookRequestHeaders(item domain.Webhook, event OutgoingEven
 	return headers, nil
 }
 
-// recordWebhookDelivery records a failed delivery when the primary error must be preserved.
-func (s *Webhooks) recordWebhookDelivery(ctx context.Context, webhookID int64, event string, statusCode, attempts int, message string) {
-	_ = s.repository.AddWebhookDelivery(ctx, webhookID, event, statusCode, attempts, message)
+// recordWebhookDelivery persists one delivery outcome and reports history failures.
+// Callers may preserve a more important primary delivery error while the log keeps
+// the secondary persistence failure observable.
+func (s *Webhooks) recordWebhookDelivery(ctx context.Context, webhookID int64, event string, statusCode, attempts int, message string) error {
+	err := s.repository.AddWebhookDelivery(ctx, webhookID, event, statusCode, attempts, message)
+	if err != nil {
+		s.logger.ErrorContext(ctx,
+			"record webhook delivery",
+			"event", "webhook_delivery_record_failed",
+			"webhook_id", webhookID,
+			"webhook_event", event,
+			"status_code", statusCode,
+			"attempts", attempts,
+			"error", err,
+		)
+	}
+
+	return err
 }
 
 // webhookNotification adapts a Kumbuka event to Notifykit's Notification contract.
