@@ -250,10 +250,14 @@ func (b *browserAuthenticator) currentSettings(ctx context.Context) (domain.Auth
 		authentication.TrustedUsernameHeaders = b.trustedProxy.Username
 		authentication.TrustedEmailHeaders = b.trustedProxy.Email
 		authentication.TrustedDisplayNameHeaders = b.trustedProxy.DisplayName
+		authentication.TrustedGroupHeaders = b.trustedProxy.Groups
+		authentication.TrustedAdminGroup = b.trustedProxy.AdminGroup
 	case AuthModeOIDC:
 		authentication.Mode = string(AuthModeOIDC)
 		authentication.OIDCIssuer = b.oidcConfig.Issuer
 		authentication.OIDCClientID = b.oidcConfig.ClientID
+		authentication.OIDCGroupClaim = b.oidcConfig.GroupClaim
+		authentication.OIDCAdminGroup = b.oidcConfig.AdminGroup
 	default:
 		return domain.AuthenticationSettings{}, fmt.Errorf("unsupported auth mode %q", b.modeOverride)
 	}

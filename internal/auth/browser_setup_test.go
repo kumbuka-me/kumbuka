@@ -175,8 +175,10 @@ func TestBrowserCurrentSettingsOverlaysRuntimeManagedFields(t *testing.T) {
 			repository:   repository,
 			modeOverride: AuthModeOIDC,
 			oidcConfig: OIDCConfig{
-				Issuer:   "https://runtime.example.test",
-				ClientID: "runtime-client",
+				Issuer:     "https://runtime.example.test",
+				ClientID:   "runtime-client",
+				GroupClaim: "roles",
+				AdminGroup: "/runtime-admins",
 			},
 		}
 
@@ -186,8 +188,8 @@ func TestBrowserCurrentSettingsOverlaysRuntimeManagedFields(t *testing.T) {
 		assert.Equal(t, string(AuthModeOIDC), settings.Mode)
 		assert.Equal(t, "https://runtime.example.test", settings.OIDCIssuer)
 		assert.Equal(t, "runtime-client", settings.OIDCClientID)
-		assert.Equal(t, "groups", settings.OIDCGroupClaim)
-		assert.Equal(t, "/admins", settings.OIDCAdminGroup)
+		assert.Equal(t, "roles", settings.OIDCGroupClaim)
+		assert.Equal(t, "/runtime-admins", settings.OIDCAdminGroup)
 	})
 
 	t.Run("trusted proxy", func(t *testing.T) {
@@ -210,6 +212,8 @@ func TestBrowserCurrentSettingsOverlaysRuntimeManagedFields(t *testing.T) {
 				Username:    []string{"Runtime-User"},
 				Email:       []string{"Runtime-Email"},
 				DisplayName: []string{"Runtime-Name"},
+				Groups:      []string{"Runtime-Groups"},
+				AdminGroup:  "runtime-admins",
 			},
 		}
 
@@ -220,7 +224,7 @@ func TestBrowserCurrentSettingsOverlaysRuntimeManagedFields(t *testing.T) {
 		assert.Equal(t, []string{"Runtime-User"}, settings.TrustedUsernameHeaders)
 		assert.Equal(t, []string{"Runtime-Email"}, settings.TrustedEmailHeaders)
 		assert.Equal(t, []string{"Runtime-Name"}, settings.TrustedDisplayNameHeaders)
-		assert.Equal(t, []string{"X-Groups"}, settings.TrustedGroupHeaders)
-		assert.Equal(t, "admins", settings.TrustedAdminGroup)
+		assert.Equal(t, []string{"Runtime-Groups"}, settings.TrustedGroupHeaders)
+		assert.Equal(t, "runtime-admins", settings.TrustedAdminGroup)
 	})
 }

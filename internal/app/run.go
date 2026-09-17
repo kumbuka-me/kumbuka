@@ -134,6 +134,8 @@ func Run(
 				Username:    cfg.TrustedUsernameHeaders,
 				Email:       cfg.TrustedEmailHeaders,
 				DisplayName: cfg.TrustedDisplayNameHeaders,
+				Groups:      cfg.TrustedGroupHeaders,
+				AdminGroup:  cfg.TrustedAdminGroup,
 			},
 			OIDC: auth.OIDCConfig{
 				ClientID:      cfg.OIDCClientID,
@@ -141,6 +143,8 @@ func Run(
 				Issuer:        cfg.OIDCIssuer,
 				SessionSecret: cfg.OIDCSessionSecret,
 				PublicURL:     cfg.PublicURL,
+				GroupClaim:    cfg.OIDCGroupClaim,
+				AdminGroup:    cfg.OIDCAdminGroup,
 			},
 			LocalLoginEnabled: cfg.LocalLogin,
 		},
@@ -220,6 +224,7 @@ func Run(
 			ListenAddress:                      cfg.ListenAddress,
 			PublicURL:                          cfg.PublicURL,
 			PDFURL:                             cfg.PDFURL,
+			ReadOnly:                           cfg.ReadOnly,
 			UserRegistrationOverrideConfigured: registrationOverrideConfigured,
 			AllowUserRegistrationOverride:      allowUserRegistrationOverride,
 			AuthModeOverride:                   string(cfg.AuthModeOverride),
@@ -228,6 +233,10 @@ func Run(
 			TrustedUsernameHeadersOverride:     cfg.TrustedUsernameHeaders,
 			TrustedEmailHeadersOverride:        cfg.TrustedEmailHeaders,
 			TrustedDisplayNameHeadersOverride:  cfg.TrustedDisplayNameHeaders,
+			TrustedGroupHeadersOverride:        cfg.TrustedGroupHeaders,
+			TrustedAdminGroupOverride:          cfg.TrustedAdminGroup,
+			OIDCGroupClaimOverride:             cfg.OIDCGroupClaim,
+			OIDCAdminGroupOverride:             cfg.OIDCAdminGroup,
 			OIDCClientSecretConfigured:         cfg.OIDCClientSecret != "",
 			OIDCSessionSecretConfigured:        len(cfg.OIDCSessionSecret) >= 32,
 			EncryptionKeyConfigured:            secretCipher.Configured(),
@@ -288,6 +297,7 @@ func Run(
 		ViewData:       viewDataUseCases,
 		Logger:         logger.With("component", "server"),
 		AccessLog:      cfg.AccessLog,
+		ReadOnly:       cfg.ReadOnly,
 	})
 
 	if err := server.Run(

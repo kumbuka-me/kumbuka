@@ -30,6 +30,11 @@ var trustedDisplayNameHeaders = []string{
 	"X-Authentik-Name",
 }
 
+var trustedGroupHeaders = []string{
+	"X-Forwarded-Groups",
+	"X-Auth-Request-Groups",
+}
+
 // Config contains deployment-level runtime configuration for Kumbuka.
 type Config struct {
 	// ListenAddress is the TCP address used by the HTTP server.
@@ -42,6 +47,8 @@ type Config struct {
 	PDFURL string
 	// AllowUserRegistrationOverride overrides the persisted registration setting when non-nil.
 	AllowUserRegistrationOverride *bool
+	// ReadOnly blocks state-changing application requests while allowing authentication flows.
+	ReadOnly bool
 	// AuthModeOverride forces one browser authentication mode for recovery when non-empty.
 	AuthModeOverride auth.AuthMode
 	// TrustedUsernameHeaders are used only by the trusted-proxy runtime override.
@@ -50,10 +57,18 @@ type Config struct {
 	TrustedEmailHeaders []string
 	// TrustedDisplayNameHeaders are used only by the trusted-proxy runtime override.
 	TrustedDisplayNameHeaders []string
+	// TrustedGroupHeaders are used only by the trusted-proxy runtime override.
+	TrustedGroupHeaders []string
+	// TrustedAdminGroup grants administrator access when asserted by the trusted-proxy runtime override.
+	TrustedAdminGroup string
 	// OIDCIssuer is used only by the OIDC runtime override.
 	OIDCIssuer string
 	// OIDCClientID is used only by the OIDC runtime override.
 	OIDCClientID string
+	// OIDCGroupClaim names the group-membership claim used only by the OIDC runtime override.
+	OIDCGroupClaim string
+	// OIDCAdminGroup grants administrator access when asserted by the OIDC runtime override.
+	OIDCAdminGroup string
 	// OIDCClientSecret is the deployment-managed OIDC client secret.
 	OIDCClientSecret string
 	// OIDCSessionSecret signs OIDC login and session cookies.
@@ -108,7 +123,9 @@ func Parse(args []string, version string) (Config, error) {
 		"allow-user-registration",
 		false,
 		"Deployment override for whether unknown OIDC or trusted-proxy identities may create accounts",
-	)
+	).Strict()
+	tf.BoolVar(&cfg.ReadOnly, "read-only", false, "Block state-changing application requests while keeping reads and authentication available").
+		Value()
 	tf.BoolVar(&cfg.LocalLogin, "local-login", false, "Enable the local recovery login alongside the configured authentication mode").
 		Value()
 	tf.StringVar(&cfg.ThemeDirectory, "theme-directory", "", "Directory containing custom theme TOML files that override or extend embedded themes").
@@ -131,12 +148,20 @@ func Parse(args []string, version string) (Config, error) {
 		Value()
 	tf.StringSliceVar(&cfg.TrustedDisplayNameHeaders, "trusted-display-name-headers", trustedDisplayNameHeaders, "Trusted-proxy display-name headers used only with the authentication override").
 		Value()
+	tf.StringSliceVar(&cfg.TrustedGroupHeaders, "trusted-group-headers", trustedGroupHeaders, "Trusted-proxy group headers used only with the authentication override").
+		Value()
+	tf.StringVar(&cfg.TrustedAdminGroup, "trusted-admin-group", "", "Trusted-proxy group that grants administrator access with the authentication override").
+		Value()
 
 	// OIDC
 	tf.StringVar(&cfg.OIDCIssuer, "oidc-issuer", "", "OIDC issuer used only with the authentication override").
 		Placeholder("URL").
 		Value()
 	tf.StringVar(&cfg.OIDCClientID, "oidc-client-id", "", "OIDC client ID used only with the authentication override").
+		Value()
+	tf.StringVar(&cfg.OIDCGroupClaim, "oidc-group-claim", "groups", "OIDC group-membership claim used only with the authentication override").
+		Value()
+	tf.StringVar(&cfg.OIDCAdminGroup, "oidc-admin-group", "", "OIDC group that grants administrator access with the authentication override").
 		Value()
 	tf.StringVar(&cfg.OIDCClientSecret, "oidc-client-secret", "", "OIDC client secret used when OIDC is enabled in the administration UI").
 		OverriddenValueMaskFn(tinyflags.MaskFirstLast).
@@ -180,7 +205,7 @@ func Parse(args []string, version string) (Config, error) {
 		cfg.AuthModeOverride = *authModeFlag.Value()
 	}
 	if allowUserRegistrationFlag.Changed() {
-		cfg.AllowUserRegistrationOverride = &allowUserRegistration
+		cfg.AllowUserRegistrationOverride = ToPtr(allowUserRegistration)
 	}
 
 	cfg.ListenAddress = (*listen).String()

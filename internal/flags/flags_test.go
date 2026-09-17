@@ -217,3 +217,48 @@ func TestLocalAuthenticationOverrideFromEnvironment(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, auth.AuthModeLocal, cfg.AuthModeOverride)
 }
+
+func TestUserRegistrationFlagRequiresExplicitValue(t *testing.T) {
+	t.Parallel()
+
+	_, err := parseTestConfig([]string{
+		"--database-url", "postgres://example/kumbuka",
+		"--allow-user-registration",
+	})
+
+	require.Error(t, err)
+}
+
+func TestReadOnlyCanBeEnabledFromEnvironment(t *testing.T) {
+	t.Setenv("KUMBUKA__DATABASE_URL", "postgres://example/kumbuka")
+	t.Setenv("KUMBUKA__READ_ONLY", "true")
+
+	cfg, err := parseTestConfig(nil)
+
+	require.NoError(t, err)
+	assert.True(t, cfg.ReadOnly)
+}
+
+func TestTrustedProxyAuthorizationOverridesFromEnvironment(t *testing.T) {
+	t.Setenv("KUMBUKA__DATABASE_URL", "postgres://example/kumbuka")
+	t.Setenv("KUMBUKA__TRUSTED_GROUP_HEADERS", "X-Groups,X-Teams")
+	t.Setenv("KUMBUKA__TRUSTED_ADMIN_GROUP", "platform-admins")
+
+	cfg, err := parseTestConfig(nil)
+
+	require.NoError(t, err)
+	assert.Equal(t, []string{"X-Groups", "X-Teams"}, cfg.TrustedGroupHeaders)
+	assert.Equal(t, "platform-admins", cfg.TrustedAdminGroup)
+}
+
+func TestOIDCAuthorizationOverridesFromEnvironment(t *testing.T) {
+	t.Setenv("KUMBUKA__DATABASE_URL", "postgres://example/kumbuka")
+	t.Setenv("KUMBUKA__OIDC_GROUP_CLAIM", "roles")
+	t.Setenv("KUMBUKA__OIDC_ADMIN_GROUP", "wiki-admins")
+
+	cfg, err := parseTestConfig(nil)
+
+	require.NoError(t, err)
+	assert.Equal(t, "roles", cfg.OIDCGroupClaim)
+	assert.Equal(t, "wiki-admins", cfg.OIDCAdminGroup)
+}

@@ -283,15 +283,18 @@ func TestPreserveRuntimeManagedAuthenticationSettings(t *testing.T) {
 		t.Parallel()
 
 		current := domain.AuthenticationSettings{
-			Mode:         "local",
-			OIDCIssuer:   "https://stored.example.test",
-			OIDCClientID: "stored-client",
+			Mode:           "local",
+			OIDCIssuer:     "https://stored.example.test",
+			OIDCClientID:   "stored-client",
+			OIDCGroupClaim: "stored-groups",
+			OIDCAdminGroup: "stored-admins",
 		}
 		submitted := domain.AuthenticationSettings{
 			Mode:           "none",
 			OIDCIssuer:     "https://changed.example.test",
 			OIDCClientID:   "changed-client",
-			OIDCGroupClaim: "groups",
+			OIDCGroupClaim: "changed-groups",
+			OIDCAdminGroup: "changed-admins",
 		}
 
 		settings := preserveRuntimeManagedAuthenticationSettings(
@@ -303,7 +306,8 @@ func TestPreserveRuntimeManagedAuthenticationSettings(t *testing.T) {
 		assert.Equal(t, "local", settings.Mode)
 		assert.Equal(t, "https://stored.example.test", settings.OIDCIssuer)
 		assert.Equal(t, "stored-client", settings.OIDCClientID)
-		assert.Equal(t, "groups", settings.OIDCGroupClaim)
+		assert.Equal(t, "stored-groups", settings.OIDCGroupClaim)
+		assert.Equal(t, "stored-admins", settings.OIDCAdminGroup)
 	})
 
 	t.Run("trusted proxy", func(t *testing.T) {
@@ -314,13 +318,16 @@ func TestPreserveRuntimeManagedAuthenticationSettings(t *testing.T) {
 			TrustedUsernameHeaders:    []string{"Stored-User"},
 			TrustedEmailHeaders:       []string{"Stored-Email"},
 			TrustedDisplayNameHeaders: []string{"Stored-Name"},
+			TrustedGroupHeaders:       []string{"Stored-Groups"},
+			TrustedAdminGroup:         "stored-admins",
 		}
 		submitted := domain.AuthenticationSettings{
 			Mode:                      "none",
 			TrustedUsernameHeaders:    []string{"Changed-User"},
 			TrustedEmailHeaders:       []string{"Changed-Email"},
 			TrustedDisplayNameHeaders: []string{"Changed-Name"},
-			TrustedGroupHeaders:       []string{"X-Groups"},
+			TrustedGroupHeaders:       []string{"Changed-Groups"},
+			TrustedAdminGroup:         "changed-admins",
 		}
 
 		settings := preserveRuntimeManagedAuthenticationSettings(
@@ -333,7 +340,8 @@ func TestPreserveRuntimeManagedAuthenticationSettings(t *testing.T) {
 		assert.Equal(t, []string{"Stored-User"}, settings.TrustedUsernameHeaders)
 		assert.Equal(t, []string{"Stored-Email"}, settings.TrustedEmailHeaders)
 		assert.Equal(t, []string{"Stored-Name"}, settings.TrustedDisplayNameHeaders)
-		assert.Equal(t, []string{"X-Groups"}, settings.TrustedGroupHeaders)
+		assert.Equal(t, []string{"Stored-Groups"}, settings.TrustedGroupHeaders)
+		assert.Equal(t, "stored-admins", settings.TrustedAdminGroup)
 	})
 }
 
@@ -348,15 +356,18 @@ func TestEffectiveAuthenticationSettings(t *testing.T) {
 	}
 
 	effective := effectiveAuthenticationSettings(settings, RuntimeInfo{
-		AuthModeOverride:     "oidc",
-		OIDCIssuerOverride:   "https://runtime.example.test",
-		OIDCClientIDOverride: "runtime-client",
+		AuthModeOverride:       "oidc",
+		OIDCIssuerOverride:     "https://runtime.example.test",
+		OIDCClientIDOverride:   "runtime-client",
+		OIDCGroupClaimOverride: "roles",
+		OIDCAdminGroupOverride: "runtime-admins",
 	})
 
 	assert.Equal(t, "oidc", effective.Mode)
 	assert.Equal(t, "https://runtime.example.test", effective.OIDCIssuer)
 	assert.Equal(t, "runtime-client", effective.OIDCClientID)
-	assert.Equal(t, "groups", effective.OIDCGroupClaim)
+	assert.Equal(t, "roles", effective.OIDCGroupClaim)
+	assert.Equal(t, "runtime-admins", effective.OIDCAdminGroup)
 }
 
 func TestAdminAuthenticationTemplates(t *testing.T) {
@@ -365,9 +376,11 @@ func TestAdminAuthenticationTemplates(t *testing.T) {
 	require.NoError(t, err)
 
 	data := ViewData{Runtime: RuntimeInfo{
-		AuthModeOverride:     "oidc",
-		OIDCIssuerOverride:   "https://runtime.example.test",
-		OIDCClientIDOverride: "runtime-client",
+		AuthModeOverride:       "oidc",
+		OIDCIssuerOverride:     "https://runtime.example.test",
+		OIDCClientIDOverride:   "runtime-client",
+		OIDCGroupClaimOverride: "roles",
+		OIDCAdminGroupOverride: "runtime-admins",
 	}}
 	data.ApplicationSettings.Authentication.Mode = "none"
 	html, err := renderTemplateHTML(views, "admin_configuration", "content", data)
@@ -382,6 +395,10 @@ func TestAdminAuthenticationTemplates(t *testing.T) {
 	assert.Contains(t, string(html), "runtime-client")
 	assert.Contains(t, string(html), "KUMBUKA__OIDC_ISSUER")
 	assert.Contains(t, string(html), "KUMBUKA__OIDC_CLIENT_ID")
+	assert.Contains(t, string(html), "KUMBUKA__OIDC_GROUP_CLAIM")
+	assert.Contains(t, string(html), "KUMBUKA__OIDC_ADMIN_GROUP")
+	assert.Contains(t, string(html), "roles")
+	assert.Contains(t, string(html), "runtime-admins")
 	assert.Contains(t, string(html), "Save authentication settings")
 	assert.NotContains(t, string(html), "Saved fallback mode")
 	assert.NotContains(t, string(html), "Runtime authentication override active")
@@ -394,4 +411,60 @@ func TestAdminAuthenticationTemplates(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Contains(t, string(html), `<details class="admin-user-local-password" data-admin-user-local-password>`)
+}
+
+func TestEffectiveTrustedProxyAuthenticationSettings(t *testing.T) {
+	t.Parallel()
+
+	effective := effectiveAuthenticationSettings(domain.AuthenticationSettings{Mode: "local"}, RuntimeInfo{
+		AuthModeOverride:                  "trusted-proxy",
+		TrustedUsernameHeadersOverride:    []string{"Runtime-User"},
+		TrustedEmailHeadersOverride:       []string{"Runtime-Email"},
+		TrustedDisplayNameHeadersOverride: []string{"Runtime-Name"},
+		TrustedGroupHeadersOverride:       []string{"Runtime-Groups"},
+		TrustedAdminGroupOverride:         "runtime-admins",
+	})
+
+	assert.Equal(t, "trusted-proxy", effective.Mode)
+	assert.Equal(t, []string{"Runtime-User"}, effective.TrustedUsernameHeaders)
+	assert.Equal(t, []string{"Runtime-Email"}, effective.TrustedEmailHeaders)
+	assert.Equal(t, []string{"Runtime-Name"}, effective.TrustedDisplayNameHeaders)
+	assert.Equal(t, []string{"Runtime-Groups"}, effective.TrustedGroupHeaders)
+	assert.Equal(t, "runtime-admins", effective.TrustedAdminGroup)
+}
+
+func TestAdminTrustedProxyRuntimeTemplate(t *testing.T) {
+	t.Parallel()
+
+	views, err := NewViews(web.Assets, slog.Default(), "test", "test", nil, RuntimeInfo{})
+	require.NoError(t, err)
+
+	data := ViewData{Runtime: RuntimeInfo{
+		AuthModeOverride:                  "trusted-proxy",
+		TrustedUsernameHeadersOverride:    []string{"Runtime-User"},
+		TrustedEmailHeadersOverride:       []string{"Runtime-Email"},
+		TrustedDisplayNameHeadersOverride: []string{"Runtime-Name"},
+		TrustedGroupHeadersOverride:       []string{"Runtime-Groups"},
+		TrustedAdminGroupOverride:         "runtime-admins",
+	}}
+	html, err := renderTemplateHTML(views, "admin_configuration", "content", data)
+
+	require.NoError(t, err)
+	assert.Contains(t, string(html), "KUMBUKA__TRUSTED_GROUP_HEADERS")
+	assert.Contains(t, string(html), "KUMBUKA__TRUSTED_ADMIN_GROUP")
+	assert.Contains(t, string(html), "Runtime-Groups")
+	assert.Contains(t, string(html), "runtime-admins")
+}
+
+func TestAdminRuntimeShowsReadOnlyMode(t *testing.T) {
+	t.Parallel()
+
+	views, err := NewViews(web.Assets, slog.Default(), "test", "test", nil, RuntimeInfo{})
+	require.NoError(t, err)
+
+	html, err := renderTemplateHTML(views, "admin_configuration", "content", ViewData{Runtime: RuntimeInfo{ReadOnly: true}})
+
+	require.NoError(t, err)
+	assert.Contains(t, string(html), "Read-only mode")
+	assert.Contains(t, string(html), "Enabled")
 }

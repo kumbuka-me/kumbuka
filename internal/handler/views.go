@@ -72,6 +72,8 @@ type RuntimeInfo struct {
 	PublicURL string
 	// PDFURL is the optional deployment-level PDF endpoint override.
 	PDFURL string
+	// ReadOnly reports whether deployment configuration blocks state-changing application requests.
+	ReadOnly bool
 	// UserRegistrationOverrideConfigured reports whether registration is managed by deployment configuration.
 	UserRegistrationOverrideConfigured bool
 	// AllowUserRegistrationOverride is the deployment-managed registration value when configured.
@@ -88,6 +90,14 @@ type RuntimeInfo struct {
 	TrustedEmailHeadersOverride []string
 	// TrustedDisplayNameHeadersOverride contains deployment-managed display-name headers for the trusted-proxy runtime override.
 	TrustedDisplayNameHeadersOverride []string
+	// TrustedGroupHeadersOverride contains deployment-managed group headers for the trusted-proxy runtime override.
+	TrustedGroupHeadersOverride []string
+	// TrustedAdminGroupOverride is the deployment-managed administrator group for the trusted-proxy runtime override.
+	TrustedAdminGroupOverride string
+	// OIDCGroupClaimOverride is the deployment-managed group claim used by the OIDC runtime override.
+	OIDCGroupClaimOverride string
+	// OIDCAdminGroupOverride is the deployment-managed administrator group used by the OIDC runtime override.
+	OIDCAdminGroupOverride string
 	// OIDCClientSecretConfigured reports whether the OIDC client secret is available.
 	OIDCClientSecretConfigured bool
 	// OIDCSessionSecretConfigured reports whether a valid OIDC session secret is available.

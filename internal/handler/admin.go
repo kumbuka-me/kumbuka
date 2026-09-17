@@ -692,10 +692,14 @@ func preserveRuntimeManagedAuthenticationSettings(
 	case auth.AuthModeOIDC:
 		settings.OIDCIssuer = current.OIDCIssuer
 		settings.OIDCClientID = current.OIDCClientID
+		settings.OIDCGroupClaim = current.OIDCGroupClaim
+		settings.OIDCAdminGroup = current.OIDCAdminGroup
 	case auth.AuthModeTrustedProxy:
 		settings.TrustedUsernameHeaders = current.TrustedUsernameHeaders
 		settings.TrustedEmailHeaders = current.TrustedEmailHeaders
 		settings.TrustedDisplayNameHeaders = current.TrustedDisplayNameHeaders
+		settings.TrustedGroupHeaders = current.TrustedGroupHeaders
+		settings.TrustedAdminGroup = current.TrustedAdminGroup
 	}
 
 	return settings
@@ -713,10 +717,14 @@ func effectiveAuthenticationSettings(settings domain.AuthenticationSettings, run
 	case auth.AuthModeOIDC:
 		settings.OIDCIssuer = runtime.OIDCIssuerOverride
 		settings.OIDCClientID = runtime.OIDCClientIDOverride
+		settings.OIDCGroupClaim = runtime.OIDCGroupClaimOverride
+		settings.OIDCAdminGroup = runtime.OIDCAdminGroupOverride
 	case auth.AuthModeTrustedProxy:
 		settings.TrustedUsernameHeaders = runtime.TrustedUsernameHeadersOverride
 		settings.TrustedEmailHeaders = runtime.TrustedEmailHeadersOverride
 		settings.TrustedDisplayNameHeaders = runtime.TrustedDisplayNameHeadersOverride
+		settings.TrustedGroupHeaders = runtime.TrustedGroupHeadersOverride
+		settings.TrustedAdminGroup = runtime.TrustedAdminGroupOverride
 	}
 
 	return settings

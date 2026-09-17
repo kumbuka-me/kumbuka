@@ -66,6 +66,8 @@ type Config struct {
 	Logger *slog.Logger
 	// AccessLog enables request access logging when true.
 	AccessLog bool
+	// ReadOnly blocks state-changing application routes while preserving authentication flows.
+	ReadOnly bool
 }
 
 // routePolicies groups authentication and authorization middleware used during route registration.
@@ -104,8 +106,11 @@ func New(config Config) http.Handler {
 		middlewares,
 		middleware.RecoverPanics(config.Logger),
 		middleware.RejectCrossSiteWrites(config.Logger),
-		middleware.SecurityHeaders(),
 	)
+	if config.ReadOnly {
+		middlewares = append(middlewares, middleware.ReadOnly())
+	}
+	middlewares = append(middlewares, middleware.SecurityHeaders())
 
 	root := handler.HTMLProblems(mux, config.Views, "/auth/callback")
 	return middleware.Chain(root, middlewares...)
