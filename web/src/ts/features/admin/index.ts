@@ -2,6 +2,7 @@
 
 import { initAdminConfiguration } from "./configuration.ts";
 import { setupGroupMemberPicker } from "./groups.ts";
+import { initAdminImport } from "./import.ts";
 import { setupNavigationIconPicker } from "./navigation.ts";
 import { initAdminPages } from "./pages.ts";
 import { initAdminPlugins } from "./plugins.ts";
@@ -32,6 +33,7 @@ export function initAdmin(): void {
   if (identityEditor) setupPendingOIDCEditor(identityEditor);
 
   initAdminConfiguration();
+  initAdminImport();
   initAdminPages();
   initAdminPlugins();
   initAdminWebhooks();

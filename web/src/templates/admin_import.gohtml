@@ -19,7 +19,8 @@
       <form action="/admin/import"
             method="post"
             enctype="multipart/form-data"
-            class="stacked-form">
+            class="stacked-form"
+            data-import-form>
         <div class="form-grid import-file-grid">
           <label>
             Source format<select name="format">
@@ -51,8 +52,20 @@
             {{ icon "file-archive-lucide" 18 }}<strong>Confluence</strong><span>Converts exported HTML pages into clean Markdown.</span>
           </div>
         </div>
-        <div class="form-actions">
-          <button class="button primary" type="submit">{{ icon "upload-lucide" 16 }}<span>Import pages</span></button>
+        <div class="form-actions import-actions">
+          <button class="button primary" type="submit" data-import-submit>
+            <span class="button-icon" data-import-submit-icon>{{ icon "upload-lucide" 16 }}</span>
+            <span class="import-submit-spinner"
+                  data-import-submit-spinner
+                  aria-hidden="true"
+                  hidden></span>
+            <span data-import-submit-label>Import pages</span>
+          </button>
+          <span class="import-progress muted"
+                data-import-progress
+                role="status"
+                aria-live="polite"
+                hidden>Importing pages…</span>
         </div>
       </form>
     </section>
