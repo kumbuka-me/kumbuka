@@ -3,6 +3,7 @@
 import { requiredElement } from "../../core/dom.ts";
 
 const maxPluginPackageBytes = 16 * 1024 * 1024;
+const pluginAnchorPrefix = "plugin-";
 
 // pluginPackageProblem returns a user-facing validation message for an invalid package file.
 function pluginPackageProblem(file: File): string {
@@ -174,7 +175,51 @@ export function initAdminPlugins(): void {
     setupPluginUpload(form);
   }
 
+  setupPluginRowAnchors();
   setupPluginDialogs();
+}
+
+// pluginAnchorID returns the stable fragment identifier for one plugin row.
+function pluginAnchorID(pluginID: string): string {
+  return pluginAnchorPrefix + pluginID;
+}
+
+// restorePluginAnchor scrolls a redirected lifecycle action back to its plugin row.
+function restorePluginAnchor(): void {
+  const anchor = window.location.hash.slice(1);
+  if (!anchor.startsWith(pluginAnchorPrefix)) return;
+
+  const row = document.getElementById(anchor);
+  if (!(row instanceof HTMLTableRowElement)) return;
+
+  requestAnimationFrame(() => {
+    row.scrollIntoView({ block: "center" });
+
+    const url = new URL(window.location.href);
+    url.hash = "";
+    history.replaceState(null, "", `${url.pathname}${url.search}`);
+  });
+}
+
+// setupPluginRowAnchors preserves the current plugin row across enable/disable reloads.
+function setupPluginRowAnchors(): void {
+  for (const row of document.querySelectorAll<HTMLTableRowElement>(
+    "tr[data-plugin-detail-open]",
+  )) {
+    const pluginID = row.dataset.pluginDetailOpen;
+    if (!pluginID) continue;
+
+    row.id = pluginAnchorID(pluginID);
+
+    const form = row.querySelector<HTMLFormElement>("form[method='post']");
+    form?.addEventListener("submit", () => {
+      const action = new URL(form.action);
+      action.hash = row.id;
+      form.action = action.toString();
+    });
+  }
+
+  restorePluginAnchor();
 }
 
 // pluginDialogs returns every server-rendered plugin detail dialog on the page.

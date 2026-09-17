@@ -100,6 +100,27 @@ test("plugin administration forms drive the real runtime lifecycle", async () =>
     await tablesDialog.waitFor({ state: "hidden" });
     await page.waitForURL(url + "/admin/plugins");
 
+    await tablesRow.scrollIntoViewIfNeeded();
+    const beforeToggleScroll = await page.evaluate(() => window.scrollY);
+    assert.ok(beforeToggleScroll > 0);
+    await tablesRow.getByRole("button", { name: "Disable", exact: true }).click();
+    await tablesRow.getByRole("button", { name: "Enable", exact: true }).waitFor();
+    await page.waitForFunction(() => window.location.hash === "");
+    const viewport = page.viewportSize();
+    assert.ok(viewport);
+    const disabledRowBox = await tablesRow.boundingBox();
+    assert.ok(disabledRowBox);
+    assert.ok(disabledRowBox.y >= 0 && disabledRowBox.y < viewport.height);
+    assert.ok((await page.evaluate(() => window.scrollY)) > 0);
+
+    await tablesRow.getByRole("button", { name: "Enable", exact: true }).click();
+    await tablesRow.getByRole("button", { name: "Disable", exact: true }).waitFor();
+    await page.waitForFunction(() => window.location.hash === "");
+    const enabledRowBox = await tablesRow.boundingBox();
+    assert.ok(enabledRowBox);
+    assert.ok(enabledRowBox.y >= 0 && enabledRowBox.y < viewport.height);
+    assert.ok((await page.evaluate(() => window.scrollY)) > 0);
+
     const installForm = page.locator("[data-plugin-install]");
     const installButton = installForm.getByRole("button", {
       name: "Install and enable",
@@ -255,4 +276,3 @@ test("plugin administration forms drive the real runtime lifecycle", async () =>
     await rm(directory, { recursive: true, force: true });
   }
 });
-
