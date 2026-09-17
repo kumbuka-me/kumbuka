@@ -200,6 +200,25 @@ func (m *Manager) Disable(ctx context.Context, id string) error {
 	return m.publish(ctx, id, item)
 }
 
+// prepareBundledFallback validates and reconstructs the embedded package that
+// becomes visible after an installed override is removed. It runs before the
+// durable/registry transition so a corrupt package or settings read cannot
+// leave the manager half-uninstalled.
+func (m *Manager) prepareBundledFallback(ctx context.Context, id string) (managedPlugin, bool, error) {
+	archive, bundled := m.bundled[id]
+	if !bundled {
+		return managedPlugin{}, false, nil
+	}
+
+	item, err := m.managedPluginFromArchive(ctx, archive, SourceBundled)
+	if err != nil {
+		return managedPlugin{}, true, err
+	}
+
+	item.metadata.Enabled = false
+	return item, true, nil
+}
+
 // find returns one installed plugin while enforcing manager lifecycle state.
 func (m *Manager) find(id string) (managedPlugin, error) {
 	if m.closed {
@@ -259,8 +278,13 @@ func (m *Manager) Uninstall(ctx context.Context, id string) error {
 		return err
 	}
 
+	fallback, bundled, err := m.prepareBundledFallback(ctx, id)
+	if err != nil {
+		return err
+	}
+
 	commit := func() error {
-		if _, bundled := m.bundled[id]; bundled {
+		if bundled {
 			return m.store.SavePlugin(ctx, Record{ID: id, Source: SourceBundled, Enabled: false})
 		}
 		return m.store.DeletePlugin(ctx, id)
@@ -278,18 +302,9 @@ func (m *Manager) Uninstall(ctx context.Context, id string) error {
 	}
 
 	delete(m.loaded, id)
-	if archive, bundled := m.bundled[id]; bundled {
-		pkg, err := pluginpackage.Read(archive)
-		if err != nil {
-			return err
-		}
-		settings, err := m.loadSettings(ctx, pkg.Manifest())
-		if err != nil {
-			return err
-		}
-		m.loaded[id] = managedPlugin{archive: archive, metadata: LoadedPlugin{Manifest: pkg.Manifest(), README: pkg.README(), Settings: settings, Source: SourceBundled, Digest: pkg.Digest()}}
-	}
-	if _, bundled := m.bundled[id]; !bundled {
+	if bundled {
+		m.loaded[id] = fallback
+	} else {
 		m.order = slices.DeleteFunc(m.order, func(value string) bool { return value == id })
 	}
 	if item.instance != nil {
