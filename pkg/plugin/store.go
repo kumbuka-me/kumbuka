@@ -29,6 +29,8 @@ type Store interface {
 	// DeletePlugin removes one durable plugin record.
 	DeletePlugin(context.Context, string) error
 }
+
+// ManagerOption configures one trusted manager dependency or operator policy.
 type ManagerOption func(*Manager)
 
 // WithStore configures durable plugin installation state for a manager.
