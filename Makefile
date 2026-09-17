@@ -65,14 +65,6 @@ PDF_ASSIGNED_PORT ?= $(call dev-port,pdf)
 
 ## Assets
 
-SCREENSHOT_SCRIPT := scripts/screenshots/run.sh
-SCREENSHOT_CONTENT ?=
-SCREENSHOT_OUTPUT ?= build/screenshots
-SCREENSHOT_EDITOR_SLUG ?=
-SCREENSHOT_VISITS ?=
-SCREENSHOT_BROWSER_CHANNEL ?=
-SCREENSHOT_SKIP_BROWSER_INSTALL ?= 0
-
 FAVICON_SOURCE ?= web/src/favicon.svg
 FAVICON_OUTPUT ?= web/src
 FAVICON_SIZES ?= 16x16 32x32
@@ -225,18 +217,6 @@ clean: ## Clean up generated application files.
 
 
 ##@ Assets
-
-.PHONY: screenshots
-screenshots: ## Generate documentation screenshots from externally supplied Markdown.
-	@test -n "$(SCREENSHOT_CONTENT)" || { echo "SCREENSHOT_CONTENT is required" >&2; exit 2; }
-	@test -n "$(SCREENSHOT_EDITOR_SLUG)" || { echo "SCREENSHOT_EDITOR_SLUG is required" >&2; exit 2; }
-	@SCREENSHOT_BROWSER_CHANNEL="$(SCREENSHOT_BROWSER_CHANNEL)" \
-		SCREENSHOT_SKIP_BROWSER_INSTALL="$(SCREENSHOT_SKIP_BROWSER_INSTALL)" \
-		$(SCREENSHOT_SCRIPT) \
-			--content "$(SCREENSHOT_CONTENT)" \
-			--output "$(SCREENSHOT_OUTPUT)" \
-			--editor-slug "$(SCREENSHOT_EDITOR_SLUG)" \
-			--visits "$(SCREENSHOT_VISITS)"
 
 .PHONY: favicon
 favicon: $(FAVICON_GENERATE) $(FAVICON_SOURCE) ## Generate PNG favicons from the canonical SVG.
