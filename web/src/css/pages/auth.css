@@ -15,6 +15,14 @@
   padding: 40px 0;
 }
 
+.auth-shell:has(.not-found-page) {
+  width: min(620px, calc(100vw - 32px));
+}
+
+.auth-shell > .not-found-page {
+  margin: 0;
+}
+
 .auth-brand {
   display: flex;
   justify-content: center;

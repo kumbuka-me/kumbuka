@@ -107,5 +107,6 @@ func New(config Config) http.Handler {
 		middleware.SecurityHeaders(),
 	)
 
-	return middleware.Chain(mux, middlewares...)
+	root := handler.HTMLProblems(mux, config.Views, "/auth/callback")
+	return middleware.Chain(root, middlewares...)
 }

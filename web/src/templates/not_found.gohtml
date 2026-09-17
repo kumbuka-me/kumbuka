@@ -1,12 +1,22 @@
 {{ define "content" }}
-  <section class="not-found-page" aria-labelledby="not-found-title">
-    <div class="not-found-icon" aria-hidden="true">{{ icon "search-lucide" 30 }}</div>
-    <p class="not-found-code">404</p>
-    <h1 id="not-found-title">Page not found</h1>
-    <p>The page you are looking for does not exist or may have moved.</p>
-    <div class="not-found-actions">
-      <a class="button primary" href="/">{{ icon "house-lucide" 15 }}<span>Return home</span></a>
-      <a class="button" href="/search">{{ icon "search-lucide" 15 }}<span>Search pages</span></a>
-    </div>
+  <section class="not-found-page" aria-labelledby="status-page-title">
+    <div class="not-found-icon" aria-hidden="true">{{ icon .StatusIcon 30 }}</div>
+    <p class="not-found-code">{{ .StatusCode }}</p>
+    <h1 id="status-page-title">{{ .Title }}</h1>
+    <p>{{ .StatusMessage }}</p>
+    {{ if or .PrimaryURL .SecondaryURL }}
+      <div class="not-found-actions">
+        {{ if .PrimaryURL }}
+          <a class="button primary" href="{{ .PrimaryURL }}">
+            {{ if .PrimaryIcon }}{{ icon .PrimaryIcon 15 }}{{ end }}<span>{{ .PrimaryLabel }}</span>
+          </a>
+        {{ end }}
+        {{ if .SecondaryURL }}
+          <a class="button" href="{{ .SecondaryURL }}">
+            {{ if .SecondaryIcon }}{{ icon .SecondaryIcon 15 }}{{ end }}<span>{{ .SecondaryLabel }}</span>
+          </a>
+        {{ end }}
+      </div>
+    {{ end }}
   </section>
 {{ end }}

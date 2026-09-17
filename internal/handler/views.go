@@ -212,8 +212,13 @@ func renderTemplate(views *Views, w http.ResponseWriter, page, name string, data
 	renderTemplateStatus(views, w, http.StatusOK, page, name, data)
 }
 
-// renderTemplateStatus executes a named template into a buffer before writing the HTTP response.
+// renderTemplateStatus executes a named ViewData template with an explicit HTTP status.
 func renderTemplateStatus(views *Views, w http.ResponseWriter, status int, page, name string, data ViewData) {
+	renderTemplateDataStatus(views, w, status, page, name, data)
+}
+
+// renderTemplateDataStatus executes a named template with arbitrary view data and an explicit HTTP status.
+func renderTemplateDataStatus(views *Views, w http.ResponseWriter, status int, page, name string, data any) {
 	pageTemplate, ok := views.templates[page]
 	if !ok {
 		httpresponse.InternalServerError(views.logger.With("operation", "render_template", "page", page, "template", name), w, fmt.Errorf("page template %q not found", page))
