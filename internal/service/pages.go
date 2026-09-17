@@ -131,7 +131,7 @@ type PageReviewDecisionInput struct {
 // Keeping it here makes the application service independently testable and
 // prevents unrelated store capabilities from becoming implicit dependencies.
 type pageRepository interface {
-	AddPageComment(context.Context, string, int64, string, string) (domain.PageComment, error)
+	AddPageComment(context.Context, string, int64, int64, string, string, string) (domain.PageComment, error)
 	ApplicationSettings(context.Context) (domain.ApplicationSettings, error)
 	BulkAddPageTag(context.Context, []string, string) error
 	BulkAssignPageGroup(context.Context, []string, int64) error
@@ -142,6 +142,7 @@ type pageRepository interface {
 	LogAudit(context.Context, int64, string, string, string, string) error
 	MarkPageReviewed(context.Context, string) error
 	MovePage(context.Context, string, string, domain.MovePageOptions, domain.User) error
+	NotifyCommentReply(context.Context, int64, int64, string, string) error
 	NotifyMentions(context.Context, int64, string, string, string) error
 	NotifyPageWatchers(context.Context, int64, string, string, string, string) error
 	PageReviewRequest(context.Context, string) (domain.PageReviewRequest, error)
@@ -482,29 +483,42 @@ func (s *Pages) RestoreRevision(ctx context.Context, slug string, number int, ac
 }
 
 // AddComment adds a discussion comment and emits mention notifications.
-func (s *Pages) AddComment(ctx context.Context, slug, anchor, body string, actor domain.User) error {
+func (s *Pages) AddComment(
+	ctx context.Context,
+	slug string,
+	parentID int64,
+	anchor, quote, body string,
+	actor domain.User,
+) (domain.PageComment, error) {
 	body = strings.TrimSpace(body)
 	if body == "" {
-		return domain.NewValidationError("body", "A comment is required.")
+		return domain.PageComment{}, domain.NewValidationError("body", "A comment is required.")
 	}
 	settings, err := s.repository.ApplicationSettings(ctx)
 	if err != nil {
-		return err
+		return domain.PageComment{}, err
 	}
 	if !settings.DiscussionsEnabled {
-		return ErrDiscussionsDisabled
+		return domain.PageComment{}, ErrDiscussionsDisabled
 	}
 
 	slug = strings.TrimSpace(slug)
-	if _, err := s.repository.AddPageComment(ctx, slug, actor.ID, anchor, body); err != nil {
-		return err
+	comment, err := s.repository.AddPageComment(ctx, slug, actor.ID, parentID, anchor, quote, body)
+	if err != nil {
+		return domain.PageComment{}, err
 	}
 
-	s.notifyMentions(ctx, actor.ID, body, "Mention in "+slug, "/pages/"+slug+"#comments")
-	s.notifyWatchers(ctx, actor.ID, slug, "New comment: "+slug, "A watched page has a new discussion comment.", "/pages/"+slug+"#comments")
+	destination := "/pages/" + slug + "#comment-" + fmt.Sprint(comment.ID)
+	s.notifyMentions(ctx, actor.ID, body, "Mention in "+slug, destination)
+	if parentID > 0 {
+		if err := s.repository.NotifyCommentReply(ctx, actor.ID, parentID, "Reply in "+slug, destination); err != nil {
+			s.logger.ErrorContext(ctx, "comment reply notification failed", "event", "page_side_effect_failed", "error", err)
+		}
+	}
+	s.notifyWatchers(ctx, actor.ID, slug, "New comment: "+slug, "A watched page has a new discussion comment.", destination)
 	s.recordAudit(ctx, actor.ID, "comment.created", "page", slug, "Page discussion comment created")
 
-	return nil
+	return comment, nil
 }
 
 // ResolveComment changes one discussion's resolution state.

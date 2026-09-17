@@ -393,34 +393,61 @@
       </div>
       <div class="page-comment-list">
         {{ range .Comments }}
-          <article class="page-comment{{ if .Resolved }}resolved{{ end }}">
+          <article class="page-comment{{ if .ParentID }} reply{{ end }}{{ if .Resolved }} resolved{{ end }}"
+                   id="comment-{{ .ID }}">
             <header>
               <div><strong>{{ .Author }}</strong><span class="muted">{{ timeago .CreatedAt }}</span></div>
-              {{ if .Resolved }}<span class="page-status-badge status-archived">Resolved</span>{{ end }}
+              <div class="page-comment-header-actions">
+                <a class="page-comment-permalink"
+                   href="#comment-{{ .ID }}"
+                   aria-label="Link to this comment"
+                   title="Link to this comment">{{ icon "link-lucide" 13 }}</a>
+                {{ if .Resolved }}<span class="page-status-badge status-archived">Resolved</span>{{ end }}
+              </div>
             </header>
+            {{ if .ParentID }}
+              <a class="page-comment-reply-context" href="#comment-{{ .ParentID }}">
+                <span>Replying to <strong>{{ .ParentAuthor }}</strong></span>
+                <small>{{ .ParentBody }}</small>
+              </a>
+            {{ end }}
             {{ if .Anchor }}
               <blockquote>
                 {{ .Anchor }}
               </blockquote>
             {{ end }}
-            <p>{{ .Body }}</p>
-            {{ if $.CanEdit }}
-              <form action="/page-comments/resolve/{{ .ID }}" method="post">
-            <input type="hidden" name="next" value="/pages/{{ $.Page.Slug }}" /><input type="hidden"
-       name="resolved"
-       value="{{ if .Resolved }}
-                      false
-                    {{ else }}
-                      true
-                    {{ end }}" /><button class="button compact" type="submit">
-                {{ if .Resolved }}
-                  Reopen
-                {{ else }}
-                  Resolve
-                {{ end }}
-              </button>
-              </form>
+            {{ if .Quote }}
+              <blockquote class="page-comment-quote">
+                {{ .Quote }}
+              </blockquote>
             {{ end }}
+            <p>{{ .Body }}</p>
+            <div class="page-comment-actions">
+              <button class="button compact"
+                      type="button"
+                      data-comment-dialog-open
+                      data-comment-mode="reply"
+                      data-comment-parent-id="{{ .ID }}"
+                      data-comment-author="{{ .Author }}"
+                      data-comment-body="{{ .Body }}">Reply</button>
+              <button class="button compact"
+                      type="button"
+                      data-comment-dialog-open
+                      data-comment-mode="quote"
+                      data-comment-parent-id="{{ .ID }}"
+                      data-comment-author="{{ .Author }}"
+                      data-comment-body="{{ .Body }}">Quote</button>
+              {{ if $.CanEdit }}
+                <form action="/page-comments/resolve/{{ .ID }}" method="post">
+                  <input type="hidden" name="next" value="/pages/{{ $.Page.Slug }}" />
+                  <input type="hidden"
+                         name="resolved"
+                         value="{{ if .Resolved }}false{{ else }}true{{ end }}" />
+                  <button class="button compact"
+                          type="submit">{{ if .Resolved }}Reopen{{ else }}Resolve{{ end }}</button>
+                </form>
+              {{ end }}
+            </div>
           </article>
         {{ else }}
           <p class="muted">No discussion yet.</p>
@@ -670,6 +697,20 @@
       <form action="/page-comments/{{ .Page.Slug }}"
             method="post"
             class="app-dialog-body stacked-form">
+        <input type="hidden" name="parent_id" data-comment-parent-id />
+        <input type="hidden" name="quote" data-comment-quote />
+        <div class="comment-reply-context" data-comment-reply-context hidden>
+          <div>
+            <span>Replying to <strong data-comment-reply-author></strong></span>
+            <small data-comment-reply-excerpt></small>
+          </div>
+          <button class="icon-button"
+                  type="button"
+                  data-comment-reply-clear
+                  aria-label="Cancel reply">{{ icon "x-lucide" 16 }}</button>
+        </div>
+        <blockquote class="comment-quote-preview" data-comment-quote-preview hidden>
+        </blockquote>
         <label>
           Anchor <span class="optional">optional</span><textarea name="anchor"
           rows="2"
@@ -684,7 +725,7 @@
           data-mention-autocomplete></textarea>
         </label>
         <div class="app-dialog-actions">
-          <button class="button" type="button" data-comment-dialog-close>Cancel</button><button class="button primary" type="submit">{{ icon "send-lucide" 15 }}<span>Add comment</span></button>
+          <button class="button" type="button" data-comment-dialog-close>Cancel</button><button class="button primary" type="submit">{{ icon "send-lucide" 15 }}<span data-comment-submit-label>Add comment</span></button>
         </div>
       </form>
     </dialog>

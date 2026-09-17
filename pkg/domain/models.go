@@ -622,10 +622,18 @@ type PageComment struct {
 	ID int64 `json:"id"`
 	// PageID identifies the page associated with page comment.
 	PageID int64 `json:"page_id"`
+	// ParentID identifies the comment this item replies to.
+	ParentID int64 `json:"parent_id,omitempty"`
+	// ParentAuthor is the display name of the replied-to comment author.
+	ParentAuthor string `json:"parent_author,omitempty"`
+	// ParentBody contains the replied-to comment body for compact context.
+	ParentBody string `json:"parent_body,omitempty"`
 	// Author stores the author value used by page comment.
 	Author string `json:"author"`
 	// Anchor stores the anchor value used by page comment.
 	Anchor string `json:"anchor"`
+	// Quote contains an optional excerpt explicitly quoted by the reply author.
+	Quote string `json:"quote,omitempty"`
 	// Body stores the body value used by page comment.
 	Body string `json:"body"`
 	// Resolved stores the resolved value used by page comment.

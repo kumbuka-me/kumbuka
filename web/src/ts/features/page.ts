@@ -362,6 +362,38 @@ function setupCommentDialog(dialog: HTMLDialogElement): void {
     dialog,
     'textarea[name="body"]',
   );
+  const parentID = requiredElement<HTMLInputElement>(
+    dialog,
+    "[data-comment-parent-id]",
+  );
+  const quote = requiredElement<HTMLInputElement>(
+    dialog,
+    "[data-comment-quote]",
+  );
+  const replyContext = requiredElement<HTMLElement>(
+    dialog,
+    "[data-comment-reply-context]",
+  );
+  const replyAuthor = requiredElement<HTMLElement>(
+    dialog,
+    "[data-comment-reply-author]",
+  );
+  const replyExcerpt = requiredElement<HTMLElement>(
+    dialog,
+    "[data-comment-reply-excerpt]",
+  );
+  const quotePreview = requiredElement<HTMLElement>(
+    dialog,
+    "[data-comment-quote-preview]",
+  );
+  const clearReply = requiredElement<HTMLButtonElement>(
+    dialog,
+    "[data-comment-reply-clear]",
+  );
+  const submitLabel = requiredElement<HTMLElement>(
+    dialog,
+    "[data-comment-submit-label]",
+  );
   const openButtons = requiredElements<HTMLButtonElement>(
     document,
     "[data-comment-dialog-open]",
@@ -371,14 +403,58 @@ function setupCommentDialog(dialog: HTMLDialogElement): void {
     "[data-comment-dialog-close]",
   );
 
+  function clearReplyContext(): void {
+    parentID.value = "";
+    quote.value = "";
+    replyAuthor.textContent = "";
+    replyExcerpt.textContent = "";
+    replyContext.hidden = true;
+    quotePreview.textContent = "";
+    quotePreview.hidden = true;
+    submitLabel.textContent = "Add comment";
+  }
+
+  function prepareReply(button: HTMLButtonElement): void {
+    const id = button.dataset.commentParentId?.trim() ?? "";
+    if (!id) {
+      clearReplyContext();
+      return;
+    }
+
+    const author = button.dataset.commentAuthor?.trim() || "comment author";
+    const source = button.dataset.commentBody?.trim() ?? "";
+    const excerpt = source.slice(0, 220);
+
+    parentID.value = id;
+    replyAuthor.textContent = author;
+    replyExcerpt.textContent = excerpt;
+    replyContext.hidden = false;
+    submitLabel.textContent = "Reply";
+    anchor.value = "";
+
+    if (button.dataset.commentMode === "quote") {
+      quote.value = source.slice(0, 500);
+      quotePreview.textContent = quote.value;
+      quotePreview.hidden = false;
+    } else {
+      quote.value = "";
+      quotePreview.textContent = "";
+      quotePreview.hidden = true;
+    }
+  }
+
   for (const button of openButtons) {
     button.addEventListener("click", () => {
-      if (!anchor.value.trim()) anchor.value = selectedPageText();
+      prepareReply(button);
+      if (!parentID.value && !anchor.value.trim())
+        anchor.value = selectedPageText();
 
       dialog.showModal();
       requestAnimationFrame(() => body.focus());
     });
   }
+
+  clearReply.addEventListener("click", () => clearReplyContext());
 
   for (const button of closeButtons)
     button.addEventListener("click", () => dialog.close());

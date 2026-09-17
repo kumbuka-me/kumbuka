@@ -176,6 +176,10 @@
   background: var(--surface-elevated);
 }
 
+.page-comment.reply {
+  margin-left: 28px;
+}
+
 .page-comment.resolved {
   opacity: 0.68;
 }
@@ -193,6 +197,23 @@
   gap: 8px;
 }
 
+.page-comment-header-actions,
+.page-comment-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.page-comment-actions {
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.page-comment-permalink {
+  display: inline-flex;
+  color: var(--text-tertiary);
+}
+
 .page-comment blockquote {
   margin: 9px 0;
   padding: 7px 10px;
@@ -202,9 +223,70 @@
   font-size: 12px;
 }
 
+.page-comment-reply-context {
+  display: grid;
+  gap: 2px;
+  margin-top: 9px;
+  padding: 7px 10px;
+  border-left: 3px solid var(--border);
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.page-comment-reply-context small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.page-comment-quote,
+.comment-quote-preview {
+  border-left-color: var(--accent);
+  font-style: italic;
+}
+
 .page-comment p {
   margin: 9px 0;
   white-space: pre-wrap;
+}
+
+.comment-reply-context {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-elevated);
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.comment-reply-context > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.comment-reply-context small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.comment-quote-preview {
+  margin: 0;
+  padding: 8px 10px;
+  background: var(--surface-elevated);
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+@media (max-width: 700px) {
+  .page-comment.reply {
+    margin-left: 12px;
+  }
 }
 
 /* Page favorite-state icon treatment. */

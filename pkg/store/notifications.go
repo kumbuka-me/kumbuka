@@ -88,6 +88,34 @@ RETURNING url`, id, userID).Scan(&destination)
 	return destination, err
 }
 
+// NotifyCommentReply notifies the author of a comment when another user replies.
+func (s *Store) NotifyCommentReply(
+	ctx context.Context,
+	actorID, parentID int64,
+	title, url string,
+) error {
+	var userID int64
+	err := s.pool.QueryRow(ctx, `
+SELECT user_id
+FROM page_comments
+WHERE id=$1 AND user_id IS NOT NULL AND user_id<>$2`, parentID, actorID).Scan(&userID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+
+	return s.AddNotification(
+		ctx,
+		userID,
+		"reply",
+		title,
+		"Someone replied to your discussion comment.",
+		url,
+	)
+}
+
 // NotifyMentions creates notifications for distinct @username references in text.
 func (s *Store) NotifyMentions(ctx context.Context, actorID int64, text, title, url string) error {
 	for _, username := range mentionedUsernames(text) {
