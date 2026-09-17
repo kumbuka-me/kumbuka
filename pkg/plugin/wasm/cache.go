@@ -51,14 +51,27 @@ func (l *compiledLease) Close(ctx context.Context) error {
 			return
 		}
 
-		codeMu.Lock()
-		defer codeMu.Unlock()
-		l.entry.refs--
-		if l.entry.retired && l.entry.refs == 0 {
-			err = l.entry.module.Close(ctx)
+		module := releaseRetiredCode(l.entry)
+		if module != nil {
+			err = module.Close(ctx)
 		}
 	})
 	return err
+}
+
+// releaseRetiredCode releases one cache lease and returns code that became
+// unreferenced while retired. Resource cleanup deliberately happens after the
+// caller leaves the global cache lock.
+func releaseRetiredCode(entry *codeEntry) wazero.CompiledModule {
+	codeMu.Lock()
+	defer codeMu.Unlock()
+
+	entry.refs--
+	if entry.retired && entry.refs == 0 {
+		return entry.module
+	}
+
+	return nil
 }
 
 // compile prepares guest code. Compiler mode reuses immutable compiled modules
@@ -105,19 +118,34 @@ func (r *Runtime) compile(ctx context.Context, binary []byte) (*compiledLease, e
 		return nil, err
 	}
 
+	entry, evicted := retainCompiledCode(digest, r.limits.MemoryPages, module)
+	if evicted != nil {
+		_ = evicted.Close(context.Background())
+	}
+
+	return &compiledLease{CompiledModule: module, entry: entry}, nil
+}
+
+// retainCompiledCode publishes compiled code and returns an unreferenced
+// eviction for cleanup after the cache lock is released.
+func retainCompiledCode(digest [32]byte, pages uint32, module wazero.CompiledModule) (*codeEntry, wazero.CompiledModule) {
 	codeMu.Lock()
 	defer codeMu.Unlock()
+
+	var evicted wazero.CompiledModule
 	if len(retainedCode) >= retainedCodeLimit {
 		entry := retainedCode[0]
 		entry.retired = true
 		if entry.refs == 0 {
-			_ = entry.module.Close(context.Background())
+			evicted = entry.module
 		}
 		retainedCode = retainedCode[1:]
 	}
-	entry := &codeEntry{digest: digest, pages: r.limits.MemoryPages, module: module, refs: 1}
+
+	entry := &codeEntry{digest: digest, pages: pages, module: module, refs: 1}
 	retainedCode = append(retainedCode, entry)
-	return &compiledLease{CompiledModule: module, entry: entry}, nil
+
+	return entry, evicted
 }
 
 // retainedLease returns a lease for cached code and promotes it to the most
