@@ -385,10 +385,10 @@
       <div class="panel-title">
         <div>
           <h2>Discussion</h2>
-          <p class="muted">Comments can be anchored to selected page text.</p>
+          <p class="muted">Share thoughts, reply to others, or comment on selected page text.</p>
         </div>
         <button class="button compact" type="button" data-comment-dialog-open>
-          {{ icon "message-square-plus-lucide" 15 }}<span>Comment</span>
+          {{ icon "message-square-plus-lucide" 15 }}<span>Add comment</span>
         </button>
       </div>
       <div class="page-comment-list">
@@ -429,22 +429,21 @@
                       data-comment-mode="reply"
                       data-comment-parent-id="{{ .ID }}"
                       data-comment-author="{{ .Author }}"
-                      data-comment-body="{{ .Body }}">Reply</button>
+                      data-comment-body="{{ .Body }}">{{ icon "message-square-reply-lucide" 14 }}<span>Reply</span></button>
               <button class="button compact"
                       type="button"
                       data-comment-dialog-open
                       data-comment-mode="quote"
                       data-comment-parent-id="{{ .ID }}"
                       data-comment-author="{{ .Author }}"
-                      data-comment-body="{{ .Body }}">Quote</button>
+                      data-comment-body="{{ .Body }}">{{ icon "message-square-quote-lucide" 14 }}<span>Quote</span></button>
               {{ if $.CanEdit }}
                 <form action="/page-comments/resolve/{{ .ID }}" method="post">
                   <input type="hidden" name="next" value="/pages/{{ $.Page.Slug }}" />
                   <input type="hidden"
                          name="resolved"
                          value="{{ if .Resolved }}false{{ else }}true{{ end }}" />
-                  <button class="button compact"
-                          type="submit">{{ if .Resolved }}Reopen{{ else }}Resolve{{ end }}</button>
+                  <button class="button compact" type="submit">{{ if .Resolved }}{{ icon "rotate-ccw-lucide" 14 }}<span>Reopen</span>{{ else }}{{ icon "circle-check-lucide" 14 }}<span>Resolve</span>{{ end }}</button>
                 </form>
               {{ end }}
             </div>

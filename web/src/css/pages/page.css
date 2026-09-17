@@ -160,24 +160,46 @@
   width: 100%;
   max-width: 900px;
   margin: 30px 0 0;
-  padding-top: 20px;
-  border-top: 1px solid var(--border);
+  padding-top: 22px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.page-comments > .panel-title {
+  margin-bottom: 14px;
+}
+
+.page-comments > .panel-title p {
+  margin: 5px 0 0;
+}
+
+.page-comments > .panel-title .button {
+  border-color: color-mix(in srgb, var(--accent) 20%, var(--border));
+  background: color-mix(in srgb, var(--accent) 5%, var(--surface));
+  color: var(--text-secondary);
+}
+
+.page-comments > .panel-title .button:hover {
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+  color: var(--text);
 }
 
 .page-comment-list {
   display: grid;
-  gap: 9px;
+  gap: 12px;
 }
 
 .page-comment {
-  padding: 12px 14px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--surface-elevated);
+  padding: 14px 16px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--surface-elevated) 45%, var(--surface));
 }
 
 .page-comment.reply {
-  margin-left: 28px;
+  margin-left: 32px;
+  border-color: color-mix(in srgb, var(--accent) 12%, var(--border-subtle));
+  background: color-mix(in srgb, var(--accent) 3%, var(--surface));
 }
 
 .page-comment.resolved {
@@ -197,6 +219,14 @@
   gap: 8px;
 }
 
+.page-comment header strong {
+  font-weight: 700;
+}
+
+.page-comment header .muted {
+  font-size: 12px;
+}
+
 .page-comment-header-actions,
 .page-comment-actions {
   display: flex;
@@ -206,31 +236,71 @@
 
 .page-comment-actions {
   flex-wrap: wrap;
-  margin-top: 10px;
+  gap: 3px;
+  margin-top: 12px;
+}
+
+.page-comment-actions .button {
+  min-height: 28px;
+  padding: 4px 8px;
+  border-color: transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.page-comment-actions .button:hover {
+  border-color: transparent;
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.page-comment-actions .button svg {
+  width: 14px;
+  height: 14px;
 }
 
 .page-comment-permalink {
-  display: inline-flex;
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
   color: var(--text-tertiary);
 }
 
+.page-comment-permalink:hover {
+  background: var(--surface-hover);
+  color: var(--text-secondary);
+}
+
 .page-comment blockquote {
-  margin: 9px 0;
-  padding: 7px 10px;
-  border-left: 3px solid var(--accent);
-  background: var(--surface);
+  margin: 11px 0;
+  padding: 8px 11px;
+  border-left: 2px solid color-mix(in srgb, var(--accent) 40%, var(--border));
+  border-radius: 0 8px 8px 0;
+  background: color-mix(in srgb, var(--accent) 4%, var(--surface));
   color: var(--text-secondary);
   font-size: 12px;
+  line-height: 1.5;
 }
 
 .page-comment-reply-context {
   display: grid;
   gap: 2px;
-  margin-top: 9px;
-  padding: 7px 10px;
-  border-left: 3px solid var(--border);
+  margin-top: 10px;
+  padding: 6px 9px;
+  border-left: 2px solid var(--border-subtle);
+  border-radius: 0 7px 7px 0;
   color: var(--text-secondary);
   font-size: 12px;
+}
+
+.page-comment-reply-context:hover {
+  border-left-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+  background: color-mix(in srgb, var(--accent) 3%, transparent);
 }
 
 .page-comment-reply-context small {
@@ -246,7 +316,8 @@
 }
 
 .page-comment p {
-  margin: 9px 0;
+  margin: 11px 0 4px;
+  line-height: 1.55;
   white-space: pre-wrap;
 }
 
@@ -255,10 +326,10 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  padding: 9px 10px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface-elevated);
+  padding: 9px 11px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 4%, var(--surface));
   color: var(--text-secondary);
   font-size: 12px;
 }
@@ -277,10 +348,13 @@
 
 .comment-quote-preview {
   margin: 0;
-  padding: 8px 10px;
-  background: var(--surface-elevated);
+  padding: 8px 11px;
+  border-left-width: 2px;
+  border-radius: 0 8px 8px 0;
+  background: color-mix(in srgb, var(--accent) 4%, var(--surface));
   color: var(--text-secondary);
   font-size: 12px;
+  line-height: 1.5;
 }
 
 @media (max-width: 700px) {
