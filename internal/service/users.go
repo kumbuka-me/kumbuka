@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
@@ -32,10 +33,20 @@ type userRepository interface {
 type Users struct {
 	// repository provides the persistence operations required by users.
 	repository userRepository
+	// logger reports failures from best-effort audit side effects.
+	logger *slog.Logger
 }
 
 // NewUsers constructs the account administration service.
-func NewUsers(repository userRepository) *Users { return &Users{repository: repository} }
+func NewUsers(repository userRepository) *Users {
+	return &Users{repository: repository, logger: serviceLogger(nil)}
+}
+
+// WithLogger uses logger for best-effort service side-effect failures.
+func (s *Users) WithLogger(logger *slog.Logger) *Users {
+	s.logger = serviceLogger(logger)
+	return s
+}
 
 // Users returns accounts with administration metadata.
 func (s *Users) Users(ctx context.Context) ([]domain.AdminUser, error) {
@@ -73,7 +84,7 @@ func (s *Users) RevokeUserSessions(ctx context.Context, userID, actorID int64) e
 		return err
 	}
 
-	_ = s.repository.LogAudit(ctx, actorID, "user.sessions_revoked", "user", fmt.Sprint(userID), "Revoked browser sessions")
+	recordAuditEvent(ctx, s.logger, s.repository, actorID, "user.sessions_revoked", "user", fmt.Sprint(userID), "Revoked browser sessions")
 
 	return nil
 }
@@ -108,8 +119,8 @@ func (s *Users) ApprovePendingOIDCIdentity(
 		return domain.User{}, err
 	}
 
-	_ = s.repository.LogAudit(
-		ctx,
+	recordAuditEvent(
+		ctx, s.logger, s.repository,
 		actorID,
 		"identity.oidc_approved",
 		"user",
@@ -131,8 +142,8 @@ func (s *Users) LinkPendingOIDCIdentity(
 		return domain.User{}, err
 	}
 
-	_ = s.repository.LogAudit(
-		ctx,
+	recordAuditEvent(
+		ctx, s.logger, s.repository,
 		actorID,
 		"identity.oidc_linked",
 		"user",
@@ -162,7 +173,7 @@ func (s *Users) SetPendingOIDCIdentityRejected(
 		detail = "Rejected pending OIDC identity"
 	}
 
-	_ = s.repository.LogAudit(ctx, actorID, action, "oidc_identity", fmt.Sprint(pendingID), detail)
+	recordAuditEvent(ctx, s.logger, s.repository, actorID, action, "oidc_identity", fmt.Sprint(pendingID), detail)
 
 	return nil
 }
@@ -178,8 +189,8 @@ func (s *Users) RemoveOIDCIdentity(
 		return err
 	}
 
-	_ = s.repository.LogAudit(
-		ctx,
+	recordAuditEvent(
+		ctx, s.logger, s.repository,
 		actorID,
 		"identity.oidc_removed",
 		"user",

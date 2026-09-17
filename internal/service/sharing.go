@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
@@ -32,11 +33,19 @@ type sharingRepository interface {
 type Sharing struct {
 	// repository provides the persistence operations required by sharing.
 	repository sharingRepository
+	// logger reports failures from best-effort audit side effects.
+	logger *slog.Logger
 }
 
 // NewSharing constructs the public page sharing service.
 func NewSharing(repository sharingRepository) *Sharing {
-	return &Sharing{repository: repository}
+	return &Sharing{repository: repository, logger: serviceLogger(nil)}
+}
+
+// WithLogger uses logger for best-effort service side-effect failures.
+func (s *Sharing) WithLogger(logger *slog.Logger) *Sharing {
+	s.logger = serviceLogger(logger)
+	return s
 }
 
 // CreatePageShareLink creates an opaque public permalink for one page.
@@ -63,8 +72,8 @@ func (s *Sharing) CreatePageShareLink(
 		return IssuedPageShareLink{}, err
 	}
 
-	_ = s.repository.LogAudit(
-		ctx,
+	recordAuditEvent(
+		ctx, s.logger, s.repository,
 		actor.ID,
 		"page.share_created",
 		"page",

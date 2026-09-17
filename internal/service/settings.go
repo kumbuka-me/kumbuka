@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
@@ -61,11 +62,19 @@ type Settings struct {
 	secrets *secrets.Cipher
 	// iconCatalog stores the icon catalog value used by settings.
 	iconCatalog *icons.Catalog
+	// logger reports failures from best-effort audit side effects.
+	logger *slog.Logger
 }
 
 // NewSettings constructs the application settings service.
 func NewSettings(repository settingsRepository, secretCipher *secrets.Cipher) *Settings {
-	return &Settings{repository: repository, secrets: secretCipher, iconCatalog: icons.Builtin()}
+	return &Settings{repository: repository, secrets: secretCipher, iconCatalog: icons.Builtin(), logger: serviceLogger(nil)}
+}
+
+// WithLogger uses logger for best-effort service side-effect failures.
+func (s *Settings) WithLogger(logger *slog.Logger) *Settings {
+	s.logger = serviceLogger(logger)
+	return s
 }
 
 // WithIconCatalog uses the active plugin-aware icon catalog for validation.
@@ -194,8 +203,8 @@ func (s *Settings) SaveApplicationSettings(
 		return err
 	}
 
-	_ = s.repository.LogAudit(
-		ctx,
+	recordAuditEvent(
+		ctx, s.logger, s.repository,
 		actorID,
 		"settings.application_updated",
 		"settings",
@@ -277,8 +286,8 @@ func (s *Settings) SavePDFSettings(
 		return err
 	}
 
-	_ = s.repository.LogAudit(
-		ctx,
+	recordAuditEvent(
+		ctx, s.logger, s.repository,
 		actorID,
 		"settings.pdf_updated",
 		"settings",
@@ -471,8 +480,8 @@ func (s *Settings) SaveAuthenticationSettings(
 		return err
 	}
 
-	_ = s.repository.LogAudit(
-		ctx,
+	recordAuditEvent(
+		ctx, s.logger, s.repository,
 		actorID,
 		"settings.authentication_updated",
 		"settings",
@@ -485,8 +494,8 @@ func (s *Settings) SaveAuthenticationSettings(
 
 // RecordLocalPasswordUpdated records a local recovery password change.
 func (s *Settings) RecordLocalPasswordUpdated(ctx context.Context, actor domain.User) {
-	_ = s.repository.LogAudit(
-		ctx,
+	recordAuditEvent(
+		ctx, s.logger, s.repository,
 		actor.ID,
 		"settings.local_password_updated",
 		"user",

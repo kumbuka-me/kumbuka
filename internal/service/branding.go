@@ -58,8 +58,8 @@ func (s *Settings) SaveBrandLogo(
 		return err
 	}
 
-	_ = s.repository.LogAudit(
-		ctx,
+	recordAuditEvent(
+		ctx, s.logger, s.repository,
 		actorID,
 		"settings.brand_logo_updated",
 		"settings",
@@ -76,8 +76,8 @@ func (s *Settings) ClearBrandLogo(ctx context.Context, actorID int64) error {
 		return err
 	}
 
-	_ = s.repository.LogAudit(
-		ctx,
+	recordAuditEvent(
+		ctx, s.logger, s.repository,
 		actorID,
 		"settings.brand_logo_reset",
 		"settings",

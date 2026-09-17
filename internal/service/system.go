@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"log/slog"
 
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
@@ -17,10 +18,20 @@ type systemRepository interface {
 type System struct {
 	// repository provides the persistence operations required by system.
 	repository systemRepository
+	// logger reports failures from best-effort audit side effects.
+	logger *slog.Logger
 }
 
 // NewSystem constructs the application health and setup service.
-func NewSystem(repository systemRepository) *System { return &System{repository: repository} }
+func NewSystem(repository systemRepository) *System {
+	return &System{repository: repository, logger: serviceLogger(nil)}
+}
+
+// WithLogger uses logger for best-effort service side-effect failures.
+func (s *System) WithLogger(logger *slog.Logger) *System {
+	s.logger = serviceLogger(logger)
+	return s
+}
 
 // Ping verifies that the application repository is reachable.
 func (s *System) Ping(ctx context.Context) error {
@@ -29,8 +40,8 @@ func (s *System) Ping(ctx context.Context) error {
 
 // RecordSetupCompleted records creation of the initial administrator.
 func (s *System) RecordSetupCompleted(ctx context.Context, actor domain.User) {
-	_ = s.repository.LogAudit(
-		ctx,
+	recordAuditEvent(
+		ctx, s.logger, s.repository,
 		actor.ID,
 		"setup.completed",
 		"user",
