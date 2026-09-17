@@ -4,15 +4,11 @@ import (
 	"cmp"
 	"context"
 	"crypto/sha256"
-	"embed"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/fs"
 	"log/slog"
-	"slices"
-	"strconv"
 	"strings"
 	"time"
 
@@ -22,9 +18,6 @@ import (
 	"github.com/kumbuka-me/kumbuka/pkg/pluginusage"
 	"github.com/kumbuka-me/kumbuka/pkg/revision"
 )
-
-//go:embed migrations/*.sql
-var migrationFiles embed.FS
 
 // Store provides PostgreSQL-backed persistence for Kumbuka data.
 type Store struct {
@@ -82,108 +75,6 @@ func (s *Store) Close() { s.pool.Close() }
 
 // Ping verifies that PostgreSQL is reachable.
 func (s *Store) Ping(ctx context.Context) error { return s.pool.Ping(ctx) }
-
-// migrate applies unapplied embedded SQL migrations in version order.
-func (s *Store) migrate(ctx context.Context, logger *slog.Logger) error {
-	// Serialize schema initialization and migration discovery across app instances.
-	tx, err := s.pool.Begin(ctx)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = tx.Rollback(ctx) }()
-	if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(734627198236)`); err != nil {
-		return err
-	}
-	var applied []fs.DirEntry
-
-	// Keep migration history in the same database so startup can safely skip
-	// schema changes that have already been committed.
-	if _, err := tx.Exec(ctx, `
-CREATE TABLE IF NOT EXISTS schema_migrations (version integer PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now())`); err != nil {
-		return err
-	}
-
-	// Sort embedded entries by their numeric filename prefix because lexical
-	// filename order would place migration 10 before migration 2.
-	entries, err := fs.ReadDir(migrationFiles, "migrations")
-	if err != nil {
-		return err
-	}
-
-	slices.SortFunc(entries, compareMigrationEntries)
-
-	for _, e := range entries {
-		if !isSQLFile(e) {
-			continue
-		}
-
-		// Extract the migration version number from the filename.
-		v, err := migrationVersion(e.Name())
-		if err != nil {
-			return fmt.Errorf("invalid migration %s", e.Name())
-		}
-
-		var exists bool
-		if err := tx.QueryRow(ctx, `
-SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version=$1)`, v).Scan(&exists); err != nil {
-			return err
-		}
-		if exists {
-			continue
-		}
-
-		sql, err := migrationFiles.ReadFile("migrations/" + e.Name())
-		if err != nil {
-			return err
-		}
-
-		// Apply the schema change and record its version atomically. A failed
-		// statement therefore remains eligible for retry on the next startup.
-		if _, err = tx.Exec(ctx, string(sql)); err == nil {
-			_, err = tx.Exec(ctx, `
-INSERT INTO schema_migrations(version)
-VALUES($1)`, v)
-		}
-
-		if err != nil {
-			return fmt.Errorf("migration %d: %w", v, err)
-		}
-		applied = append(applied, e)
-	}
-	if err := tx.Commit(ctx); err != nil {
-		return err
-	}
-	for _, e := range applied {
-		v, _ := migrationVersion(e.Name())
-		logger.Info(
-			"applied database migration",
-			"event", "database_migration_applied",
-			"version", v,
-			"migration", e.Name(),
-		)
-	}
-
-	return nil
-}
-
-// migrationVersion parses the numeric prefix of an embedded migration filename.
-func migrationVersion(name string) (version int, err error) {
-	prefix, _, _ := strings.Cut(name, "_")
-	return strconv.Atoi(prefix)
-}
-
-// compareMigrationEntries orders migrations by their numeric filename prefix.
-func compareMigrationEntries(left, right fs.DirEntry) int {
-	leftVersion, _ := migrationVersion(left.Name())
-	rightVersion, _ := migrationVersion(right.Name())
-
-	return cmp.Compare(leftVersion, rightVersion)
-}
-
-// isSQLFile reports whether e is a regular SQL migration file.
-func isSQLFile(e fs.DirEntry) bool {
-	return !e.IsDir() && strings.HasSuffix(e.Name(), ".sql")
-}
 
 // EnsureAdministrator creates or refreshes the administrator used by no-auth mode.
 func (s *Store) EnsureAdministrator(ctx context.Context, username, email, displayName string) (domain.User, error) {
