@@ -46,6 +46,16 @@ type pageUsageAnalyzerStub struct{ index pluginusage.Index }
 
 func (s pageUsageAnalyzerStub) AnalyzeUsage(string) pluginusage.Index { return s.index }
 
+func TestPagesOptionalDependenciesAreSafe(t *testing.T) {
+	t.Parallel()
+
+	pages := NewPages(nil, nil).WithRenderer(nil)
+
+	assert.NotNil(t, pages.logger)
+	assert.Nil(t, pages.renderer)
+	assert.Nil(t, pages.usageAnalyzer)
+}
+
 func TestSavePersistsDerivedPluginUsage(t *testing.T) {
 	t.Parallel()
 

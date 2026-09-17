@@ -91,6 +91,10 @@ type Pages struct {
 // NewPages constructs the page application service. Event sinks are optional so
 // page mutations remain independently testable.
 func NewPages(repository pageRepository, logger *slog.Logger, eventSinks ...EventSink) *Pages {
+	if logger == nil {
+		logger = slog.Default()
+	}
+
 	return &Pages{repository: repository, logger: logger, eventSinks: eventSinks, iconCatalog: icons.Builtin()}
 }
 
@@ -113,7 +117,12 @@ func (s *Pages) WithUsageAnalyzer(analyzer pageUsageAnalyzer) *Pages {
 // of request-local permissions and mutable plugin resource data.
 func (s *Pages) WithRenderer(renderer *md.Renderer) *Pages {
 	s.renderer = renderer
-	s.usageAnalyzer = renderer
+	if renderer == nil {
+		s.usageAnalyzer = nil
+	} else {
+		s.usageAnalyzer = renderer
+	}
+
 	return s
 }
 
