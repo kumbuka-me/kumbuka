@@ -18,3 +18,9 @@ footer {
 main.with-page-contents {
   max-width: 1720px;
 }
+
+@media (min-width: 801px) {
+  html.sidebar-hidden .shell:not(.admin-shell) > main:not(.with-page-contents) {
+    max-width: calc(1480px + var(--sidebar));
+  }
+}

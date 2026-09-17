@@ -2,13 +2,16 @@
 
 .page-reading {
   display: block;
-  max-width: 1180px;
+  max-width: var(--page-max-width, 1180px);
   margin: 0 auto;
 }
 
 .page-reading.with-contents {
   display: grid;
-  grid-template-columns: minmax(0, 900px) minmax(210px, 240px);
+  grid-template-columns: minmax(0, var(--page-reading-width, 900px)) minmax(
+      210px,
+      240px
+    );
   gap: 30px;
   align-items: start;
 }
@@ -18,7 +21,11 @@
 }
 
 .page-reading:not(.with-contents) .prose {
-  max-width: 900px;
+  max-width: var(--page-reading-width, 900px);
+}
+
+.page-reading.contents-hidden .prose {
+  max-width: var(--page-max-width, 1180px);
 }
 
 .page-reading .prose {

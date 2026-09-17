@@ -15,8 +15,18 @@
 }
 
 .page {
-  max-width: 1180px;
+  --page-max-width: 1180px;
+  --page-reading-width: 900px;
+
+  max-width: var(--page-max-width);
   margin: auto;
+}
+
+@media (min-width: 801px) {
+  html.sidebar-hidden .page {
+    --page-max-width: calc(1180px + var(--sidebar));
+    --page-reading-width: calc(900px + var(--sidebar));
+  }
 }
 
 .page-heading {
