@@ -81,15 +81,28 @@ func (b *browserAuthenticator) Authenticate(r *http.Request) (domain.User, error
 		return domain.User{}, err
 	}
 
-	if AuthMode(settings.Mode) == AuthModeNone {
-		setupRequired, err := b.setupRequired(r.Context())
-		if err != nil {
+	setupRequired, err := b.setupRequired(r.Context())
+	if err != nil {
+		return domain.User{}, err
+	}
+	if setupRequired {
+		return domain.User{}, ErrUnauthenticated
+	}
+
+	// A bootstrap session is minted only by the one-time setup flow. It keeps
+	// the initial local administrator signed in long enough to configure or
+	// link the deployment-managed authentication method without exposing local
+	// sign-in as an additional login path.
+	if b.modeOverride != "" {
+		user, err := b.local.authenticateBootstrapSession(r)
+		if err == nil {
+			return user, nil
+		}
+		if !errors.Is(err, ErrUnauthenticated) {
 			return domain.User{}, err
 		}
-		if setupRequired {
-			return domain.User{}, ErrUnauthenticated
-		}
 	}
+
 	if b.localLoginEnabled && AuthMode(settings.Mode) != AuthModeLocal {
 		user, err := b.local.Authenticate(r)
 		if err == nil {
@@ -212,10 +225,6 @@ func (b *browserAuthenticator) validate(ctx context.Context, settings domain.Aut
 
 // setupRequired reports whether first-run setup should bypass normal authentication validation.
 func (b *browserAuthenticator) setupRequired(ctx context.Context) (bool, error) {
-	if b.modeOverride != "" {
-		return false, nil
-	}
-
 	return b.repository.SetupRequired(ctx)
 }
 

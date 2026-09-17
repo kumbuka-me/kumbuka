@@ -18,6 +18,8 @@ type setupBrowserRepository struct {
 	setupRequired          bool
 	localAdminCredential   bool
 	localCredentialChecked bool
+	sessionUser            domain.User
+	sessionHash            string
 }
 
 func (r *setupBrowserRepository) ApplicationSettings(context.Context) (domain.ApplicationSettings, error) {
@@ -33,6 +35,15 @@ func (r *setupBrowserRepository) HasLocalAdministratorCredential(context.Context
 	return r.localAdminCredential, nil
 }
 
+func (r *setupBrowserRepository) LocalUserBySession(_ context.Context, tokenHash string) (domain.User, error) {
+	r.sessionHash = tokenHash
+	if r.sessionUser.ID == 0 {
+		return domain.User{}, domain.ErrNotFound
+	}
+
+	return r.sessionUser, nil
+}
+
 func TestConfigureBrowserAuthAllowsSetupWithStaleLocalMode(t *testing.T) {
 	t.Parallel()
 
@@ -44,6 +55,22 @@ func TestConfigureBrowserAuthAllowsSetupWithStaleLocalMode(t *testing.T) {
 	}
 
 	configured, err := ConfigureBrowserAuth(context.Background(), BrowserConfig{}, repository)
+
+	require.NoError(t, err)
+	assert.NotNil(t, configured.Authenticator)
+	assert.False(t, repository.localCredentialChecked)
+}
+
+func TestConfigureBrowserAuthAllowsSetupWithRuntimeOIDCOverride(t *testing.T) {
+	t.Parallel()
+
+	repository := &setupBrowserRepository{setupRequired: true}
+
+	configured, err := ConfigureBrowserAuth(
+		context.Background(),
+		BrowserConfig{ModeOverride: AuthModeOIDC},
+		repository,
+	)
 
 	require.NoError(t, err)
 	assert.NotNil(t, configured.Authenticator)
@@ -67,6 +94,51 @@ func TestBrowserLoginRedirectsSetupWithStaleLocalMode(t *testing.T) {
 
 	assert.Equal(t, http.StatusFound, response.Code)
 	assert.Equal(t, "/setup", response.Header().Get("Location"))
+}
+
+func TestBrowserLoginRedirectsSetupWithRuntimeOIDCOverride(t *testing.T) {
+	t.Parallel()
+
+	repository := &setupBrowserRepository{setupRequired: true}
+	browser := &browserAuthenticator{
+		repository:   repository,
+		modeOverride: AuthModeOIDC,
+	}
+	response := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/auth/login", nil)
+
+	browser.login(response, request)
+
+	assert.Equal(t, http.StatusFound, response.Code)
+	assert.Equal(t, "/setup", response.Header().Get("Location"))
+}
+
+func TestBrowserAuthenticateUsesBootstrapSessionWithRuntimeOverride(t *testing.T) {
+	t.Parallel()
+
+	const token = "setup-bootstrap-token"
+	repository := &setupBrowserRepository{
+		setupRequired: false,
+		sessionUser: domain.User{
+			ID:      7,
+			Role:    "admin",
+			Enabled: true,
+		},
+	}
+	browser := &browserAuthenticator{
+		repository:   repository,
+		modeOverride: AuthModeOIDC,
+		local:        NewLocal(repository, "http://localhost:8080"),
+	}
+	request := httptest.NewRequest(http.MethodGet, "/admin/configuration", nil)
+	request.AddCookie(&http.Cookie{Name: bootstrapSessionCookie, Value: token})
+
+	user, err := browser.Authenticate(request)
+
+	require.NoError(t, err)
+	assert.Equal(t, int64(7), user.ID)
+	assert.Equal(t, bootstrapSessionHash(token), repository.sessionHash)
+	assert.NotEqual(t, localSessionHash(token), repository.sessionHash)
 }
 
 func TestBrowserValidationStillRequiresLocalAdministratorAfterSetup(t *testing.T) {

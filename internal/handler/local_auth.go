@@ -29,22 +29,20 @@ func LocalLogin(
 			return
 		}
 
-		if views.runtime.AuthModeOverride == "" {
-			settings, err := settingsUseCases.ApplicationSettings(r.Context())
-			if err != nil {
-				httpresponse.InternalServerError(views.logger, w, err)
-				return
-			}
+		settings, err := settingsUseCases.ApplicationSettings(r.Context())
+		if err != nil {
+			httpresponse.InternalServerError(views.logger, w, err)
+			return
+		}
 
-			required, err := systemUseCases.SetupRequired(r.Context())
-			if err != nil {
-				httpresponse.InternalServerError(views.logger, w, err)
-				return
-			}
-			if required && settings.Authentication.Mode == string(auth.AuthModeNone) {
-				http.Redirect(w, r, "/setup", http.StatusFound)
-				return
-			}
+		required, err := systemUseCases.SetupRequired(r.Context())
+		if err != nil {
+			httpresponse.InternalServerError(views.logger, w, err)
+			return
+		}
+		if required && settings.Authentication.Mode == string(auth.AuthModeNone) {
+			http.Redirect(w, r, "/setup", http.StatusFound)
+			return
 		}
 
 		next := safeAuthNext(r.URL.Query().Get("next"))
@@ -85,13 +83,6 @@ func Setup(
 	views *Views,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// An explicit runtime authentication override is itself a bootstrap or
-		// recovery choice, so do not expose the unauthenticated setup surface.
-		if views.runtime.AuthModeOverride != "" {
-			httpresponse.Problem(w, http.StatusNotFound, "Not found.")
-			return
-		}
-
 		settings, err := settingsUseCases.ApplicationSettings(r.Context())
 		if err != nil {
 			httpresponse.InternalServerError(views.logger, w, err)
@@ -139,15 +130,34 @@ func Setup(
 				return
 			}
 
-			user, token, err := browserAuth.Local.Setup(
-				r.Context(),
-				r.FormValue("username"),
-				r.FormValue("email"),
-				r.FormValue("display_name"),
-				r.FormValue("password"),
-			)
+			bootstrapSession := views.runtime.AuthModeOverride != "" &&
+				views.runtime.AuthModeOverride != string(auth.AuthModeLocal)
+
+			var user domain.User
+			var token string
+			if bootstrapSession {
+				user, token, err = browserAuth.Local.SetupBootstrap(
+					r.Context(),
+					r.FormValue("username"),
+					r.FormValue("email"),
+					r.FormValue("display_name"),
+					r.FormValue("password"),
+				)
+			} else {
+				user, token, err = browserAuth.Local.Setup(
+					r.Context(),
+					r.FormValue("username"),
+					r.FormValue("email"),
+					r.FormValue("display_name"),
+					r.FormValue("password"),
+				)
+			}
 			if err == nil {
-				browserAuth.Local.WriteSessionCookie(w, token)
+				if bootstrapSession {
+					browserAuth.Local.WriteBootstrapSessionCookie(w, token)
+				} else {
+					browserAuth.Local.WriteSessionCookie(w, token)
+				}
 				systemUseCases.RecordSetupCompleted(r.Context(), user)
 				http.Redirect(w, r, "/admin/configuration", http.StatusSeeOther)
 				return

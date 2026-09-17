@@ -248,7 +248,7 @@ type pageRevisionWriter interface {
 }
 
 type pageDiscussionWriter interface {
-	AddComment(context.Context, string, string, string, domain.User) error
+	AddComment(context.Context, string, int64, string, string, string, domain.User) (domain.PageComment, error)
 	ResolveComment(context.Context, int64, bool) error
 }
 

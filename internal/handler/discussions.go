@@ -22,13 +22,25 @@ func AddPageComment(pageUseCases pageDiscussionWriter, views *Views) http.Handle
 			return
 		}
 
+		var parentID int64
+		if rawParentID := strings.TrimSpace(r.FormValue("parent_id")); rawParentID != "" {
+			parentID, err = strconv.ParseInt(rawParentID, 10, 64)
+			if err != nil || parentID <= 0 {
+				httpresponse.Problem(w, http.StatusBadRequest, "Invalid reply target.")
+				return
+			}
+		}
+
 		slug := strings.TrimSpace(r.PathValue("slug"))
-		if err := pageUseCases.AddComment(r.Context(), slug, r.FormValue("anchor"), r.FormValue("body"), user); err != nil {
+		comment, err := pageUseCases.AddComment(
+			r.Context(), slug, parentID, r.FormValue("anchor"), r.FormValue("quote"), r.FormValue("body"), user,
+		)
+		if err != nil {
 			writePageProblem(views.logger, w, err)
 			return
 		}
 
-		http.Redirect(w, r, "/pages/"+slug+"#comments", http.StatusSeeOther)
+		http.Redirect(w, r, "/pages/"+slug+"#comment-"+strconv.FormatInt(comment.ID, 10), http.StatusSeeOther)
 	}
 }
 
