@@ -65,6 +65,39 @@ func TestLocalRecoveryLoginCanBeEnabledFromEnvironment(t *testing.T) {
 	assert.True(t, cfg.LocalLogin)
 }
 
+func TestUserRegistrationDefaultsToDatabaseManaged(t *testing.T) {
+	t.Parallel()
+
+	cfg, err := parseTestConfig([]string{"--database-url", "postgres://example/kumbuka"})
+
+	require.NoError(t, err)
+	assert.Nil(t, cfg.AllowUserRegistrationOverride)
+}
+
+func TestUserRegistrationCanBeEnabledFromEnvironment(t *testing.T) {
+	t.Setenv("KUMBUKA__DATABASE_URL", "postgres://example/kumbuka")
+	t.Setenv("KUMBUKA__ALLOW_USER_REGISTRATION", "true")
+
+	cfg, err := parseTestConfig(nil)
+
+	require.NoError(t, err)
+	require.NotNil(t, cfg.AllowUserRegistrationOverride)
+	assert.True(t, *cfg.AllowUserRegistrationOverride)
+}
+
+func TestUserRegistrationCanBeDisabledByFlag(t *testing.T) {
+	t.Parallel()
+
+	cfg, err := parseTestConfig([]string{
+		"--database-url", "postgres://example/kumbuka",
+		"--allow-user-registration=false",
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, cfg.AllowUserRegistrationOverride)
+	assert.False(t, *cfg.AllowUserRegistrationOverride)
+}
+
 func TestRenderTimingsCanBeEnabledFromEnvironment(t *testing.T) {
 	t.Setenv("KUMBUKA__DATABASE_URL", "postgres://example/kumbuka")
 	t.Setenv("KUMBUKA__DEBUG_RENDER_TIMINGS", "true")

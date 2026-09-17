@@ -11,7 +11,13 @@
           <h2>OIDC identity requests</h2>
           <p class="muted">Review verified identities that were not allowed to create a Kumbuka account automatically.</p>
         </div>
-        {{ if .ApplicationSettings.AllowUserRegistration }}
+        {{ if .Runtime.UserRegistrationOverrideConfigured }}
+          {{ if .Runtime.AllowUserRegistrationOverride }}
+            <span class="admin-registration-state open" title="Managed by deployment">New users allowed</span>
+          {{ else }}
+            <span class="admin-registration-state closed" title="Managed by deployment">Registration closed</span>
+          {{ end }}
+        {{ else if .ApplicationSettings.AllowUserRegistration }}
           <span class="admin-registration-state open">New users allowed</span>
         {{ else }}
           <span class="admin-registration-state closed">Registration closed</span>

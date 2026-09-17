@@ -861,7 +861,7 @@ func splitHeaderNames(value string) []string {
 }
 
 // SaveAdminSettings updates mutable application-wide settings.
-func SaveAdminSettings(settingsUseCases settingsService, logger *slog.Logger) http.HandlerFunc {
+func SaveAdminSettings(settingsUseCases settingsService, views *Views, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		admin := currentUser(r)
 		if err := r.ParseForm(); err != nil {
@@ -870,6 +870,15 @@ func SaveAdminSettings(settingsUseCases settingsService, logger *slog.Logger) ht
 		}
 
 		settings := applicationSettingsFromForm(r)
+		if views.runtime.UserRegistrationOverrideConfigured {
+			current, err := settingsUseCases.ApplicationSettings(r.Context())
+			if err != nil {
+				httpresponse.InternalServerError(views.logger, w, err)
+				return
+			}
+
+			settings.AllowUserRegistration = current.AllowUserRegistration
+		}
 		if !isContentLanguage(settings.ContentLanguage) {
 			httpresponse.Problem(w,
 				http.StatusUnprocessableEntity,

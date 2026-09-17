@@ -80,7 +80,15 @@ func Run(
 		return err
 	}
 
-	database, err := store.Open(ctx, cfg.DatabaseURL, setupLogger)
+	storeOptions := make([]store.Option, 0, 1)
+	if cfg.AllowUserRegistrationOverride != nil {
+		storeOptions = append(
+			storeOptions,
+			store.WithUserRegistrationOverride(*cfg.AllowUserRegistrationOverride),
+		)
+	}
+
+	database, err := store.Open(ctx, cfg.DatabaseURL, setupLogger, storeOptions...)
 	if err != nil {
 		setupLogger.Error(
 			"open database",
@@ -196,6 +204,12 @@ func Run(
 	settingsUseCases.WithIconCatalog(iconCatalog)
 	templateUseCases.WithIconCatalog(iconCatalog)
 
+	registrationOverrideConfigured := cfg.AllowUserRegistrationOverride != nil
+	allowUserRegistrationOverride := false
+	if registrationOverrideConfigured {
+		allowUserRegistrationOverride = *cfg.AllowUserRegistrationOverride
+	}
+
 	views, err := handler.NewViews(
 		appFS,
 		logger,
@@ -203,20 +217,22 @@ func Run(
 		commit,
 		availableThemes,
 		handler.RuntimeInfo{
-			ListenAddress:                     cfg.ListenAddress,
-			PublicURL:                         cfg.PublicURL,
-			PDFURL:                            cfg.PDFURL,
-			AuthModeOverride:                  string(cfg.AuthModeOverride),
-			OIDCIssuerOverride:                cfg.OIDCIssuer,
-			OIDCClientIDOverride:              cfg.OIDCClientID,
-			TrustedUsernameHeadersOverride:    cfg.TrustedUsernameHeaders,
-			TrustedEmailHeadersOverride:       cfg.TrustedEmailHeaders,
-			TrustedDisplayNameHeadersOverride: cfg.TrustedDisplayNameHeaders,
-			OIDCClientSecretConfigured:        cfg.OIDCClientSecret != "",
-			OIDCSessionSecretConfigured:       len(cfg.OIDCSessionSecret) >= 32,
-			EncryptionKeyConfigured:           secretCipher.Configured(),
-			LocalLoginEnabled:                 cfg.LocalLogin,
-			ThemeDirectory:                    cfg.ThemeDirectory,
+			ListenAddress:                      cfg.ListenAddress,
+			PublicURL:                          cfg.PublicURL,
+			PDFURL:                             cfg.PDFURL,
+			UserRegistrationOverrideConfigured: registrationOverrideConfigured,
+			AllowUserRegistrationOverride:      allowUserRegistrationOverride,
+			AuthModeOverride:                   string(cfg.AuthModeOverride),
+			OIDCIssuerOverride:                 cfg.OIDCIssuer,
+			OIDCClientIDOverride:               cfg.OIDCClientID,
+			TrustedUsernameHeadersOverride:     cfg.TrustedUsernameHeaders,
+			TrustedEmailHeadersOverride:        cfg.TrustedEmailHeaders,
+			TrustedDisplayNameHeadersOverride:  cfg.TrustedDisplayNameHeaders,
+			OIDCClientSecretConfigured:         cfg.OIDCClientSecret != "",
+			OIDCSessionSecretConfigured:        len(cfg.OIDCSessionSecret) >= 32,
+			EncryptionKeyConfigured:            secretCipher.Configured(),
+			LocalLoginEnabled:                  cfg.LocalLogin,
+			ThemeDirectory:                     cfg.ThemeDirectory,
 		},
 		iconCatalog,
 	)

@@ -72,6 +72,10 @@ type RuntimeInfo struct {
 	PublicURL string
 	// PDFURL is the optional deployment-level PDF endpoint override.
 	PDFURL string
+	// UserRegistrationOverrideConfigured reports whether registration is managed by deployment configuration.
+	UserRegistrationOverrideConfigured bool
+	// AllowUserRegistrationOverride is the deployment-managed registration value when configured.
+	AllowUserRegistrationOverride bool
 	// AuthModeOverride is the optional deployment-level recovery override.
 	AuthModeOverride string
 	// OIDCIssuerOverride is the deployment-managed issuer used by the OIDC runtime override.

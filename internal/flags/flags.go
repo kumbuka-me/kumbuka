@@ -40,6 +40,8 @@ type Config struct {
 	PublicURL string
 	// PDFURL optionally overrides the persisted PDF rendering endpoint for this process.
 	PDFURL string
+	// AllowUserRegistrationOverride overrides the persisted registration setting when non-nil.
+	AllowUserRegistrationOverride *bool
 	// AuthModeOverride forces one browser authentication mode for recovery when non-empty.
 	AuthModeOverride auth.AuthMode
 	// TrustedUsernameHeaders are used only by the trusted-proxy runtime override.
@@ -100,6 +102,13 @@ func Parse(args []string, version string) (Config, error) {
 		Placeholder("URL").
 		Validate(pdf.ValidateURL).
 		Value()
+	allowUserRegistration := false
+	allowUserRegistrationFlag := tf.BoolVar(
+		&allowUserRegistration,
+		"allow-user-registration",
+		false,
+		"Deployment override for whether unknown OIDC or trusted-proxy identities may create accounts",
+	)
 	tf.BoolVar(&cfg.LocalLogin, "local-login", false, "Enable the local recovery login alongside the configured authentication mode").
 		Value()
 	tf.StringVar(&cfg.ThemeDirectory, "theme-directory", "", "Directory containing custom theme TOML files that override or extend embedded themes").
@@ -169,6 +178,9 @@ func Parse(args []string, version string) (Config, error) {
 
 	if authModeFlag.Changed() {
 		cfg.AuthModeOverride = *authModeFlag.Value()
+	}
+	if allowUserRegistrationFlag.Changed() {
+		cfg.AllowUserRegistrationOverride = &allowUserRegistration
 	}
 
 	cfg.ListenAddress = (*listen).String()

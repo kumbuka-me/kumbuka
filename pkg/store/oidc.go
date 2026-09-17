@@ -325,7 +325,7 @@ func (s *Store) LoginOIDCUser(
 		return recordPendingOIDCOutcome(ctx, tx, identity, domain.ErrIdentityRejected)
 	}
 
-	registrationEnabled, err := oidcRegistrationEnabled(ctx, tx)
+	registrationEnabled, err := s.oidcRegistrationEnabled(ctx, tx)
 	if err != nil {
 		return domain.User{}, err
 	}
@@ -437,7 +437,11 @@ func recordPendingOIDCOutcome(
 }
 
 // oidcRegistrationEnabled reports whether automatic OIDC user creation is enabled.
-func oidcRegistrationEnabled(ctx context.Context, tx pgx.Tx) (bool, error) {
+func (s *Store) oidcRegistrationEnabled(ctx context.Context, tx pgx.Tx) (bool, error) {
+	if enabled, overridden := s.userRegistrationOverride(); overridden {
+		return enabled, nil
+	}
+
 	var enabled bool
 	err := tx.QueryRow(ctx, `
 SELECT allow_user_registration

@@ -44,12 +44,13 @@ kumbuka \
 
 Environment variables use the `KUMBUKA__` prefix.
 
-| Setting                   | Default                 | What it changes                                                                |
-| ------------------------- | ----------------------- | ------------------------------------------------------------------------------ |
-| `KUMBUKA__LISTEN_ADDRESS` | `127.0.0.1:8080`        | Address and port Kumbuka listens on.                                           |
-| `KUMBUKA__PUBLIC_URL`     | `http://localhost:8080` | Externally visible URL of the Kumbuka installation.                            |
-| `KUMBUKA__DATABASE_URL`   | —                       | PostgreSQL connection URL.                                                     |
-| `KUMBUKA__LOCAL_LOGIN`    | `false`                 | Enables the local recovery login alongside the configured authentication mode. |
+| Setting                            | Default                 | What it changes                                                                 |
+| ---------------------------------- | ----------------------- | ------------------------------------------------------------------------------- |
+| `KUMBUKA__LISTEN_ADDRESS`          | `127.0.0.1:8080`        | Address and port Kumbuka listens on.                                            |
+| `KUMBUKA__PUBLIC_URL`              | `http://localhost:8080` | Externally visible URL of the Kumbuka installation.                             |
+| `KUMBUKA__DATABASE_URL`            | —                       | PostgreSQL connection URL.                                                      |
+| `KUMBUKA__ALLOW_USER_REGISTRATION` | —                       | Overrides whether unknown OIDC or trusted-proxy identities may create accounts. |
+| `KUMBUKA__LOCAL_LOGIN`             | `false`                 | Enables the local recovery login alongside the configured authentication mode.  |
 
 See the [documentation](https://kumbuka.me/) for all settings and authentication options.
 

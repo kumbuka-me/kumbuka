@@ -18,6 +18,59 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type applicationSettingsStub struct {
+	settingsService
+	current domain.ApplicationSettings
+	saved   domain.ApplicationSettings
+	actorID int64
+}
+
+func (s *applicationSettingsStub) ApplicationSettings(context.Context) (domain.ApplicationSettings, error) {
+	return s.current, nil
+}
+
+func (s *applicationSettingsStub) SaveApplicationSettings(
+	_ context.Context,
+	settings domain.ApplicationSettings,
+	actorID int64,
+) error {
+	s.saved = settings
+	s.actorID = actorID
+
+	return nil
+}
+
+func TestSaveAdminSettingsPreservesDeploymentManagedRegistration(t *testing.T) {
+	t.Parallel()
+
+	settings := &applicationSettingsStub{
+		current: domain.ApplicationSettings{AllowUserRegistration: false},
+	}
+	views := &Views{
+		logger: slog.Default(),
+		runtime: RuntimeInfo{
+			UserRegistrationOverrideConfigured: true,
+			AllowUserRegistrationOverride:      true,
+		},
+	}
+	form := url.Values{
+		"allow_user_registration": {"on"},
+		"content_language":        {"en"},
+	}
+	request := httptest.NewRequest(http.MethodPost, "/admin/settings", strings.NewReader(form.Encode()))
+	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	request = auth.WithUser(request, domain.User{ID: 7, Role: "admin"})
+	response := httptest.NewRecorder()
+
+	SaveAdminSettings(settings, views, slog.Default())(response, request)
+
+	assert.Equal(t, http.StatusSeeOther, response.Code)
+	assert.Equal(t, "/admin/configuration", response.Header().Get("Location"))
+	assert.False(t, settings.saved.AllowUserRegistration)
+	assert.Equal(t, "en", settings.saved.ContentLanguage)
+	assert.Equal(t, int64(7), settings.actorID)
+}
+
 func TestApplicationSettingsFromForm(t *testing.T) {
 	t.Parallel()
 

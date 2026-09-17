@@ -75,12 +75,21 @@
               novalidate>
           <label class="toggle-row">
             <span>
-              <strong>Allow new users</strong>
-              <small>Allow unknown OIDC or trusted-proxy identities to create Kumbuka accounts automatically.</small>
+              <strong>
+                Allow new users
+                {{ if .Runtime.UserRegistrationOverrideConfigured }}
+                  <span class="config-status managed">Managed by deployment</span>
+                {{ end }}
+              </strong>
+              <small>
+                {{ if .Runtime.UserRegistrationOverrideConfigured }}
+                  Configured by <code>--allow-user-registration</code> / <code>KUMBUKA__ALLOW_USER_REGISTRATION</code>.
+                {{ else }}
+                  Allow unknown OIDC or trusted-proxy identities to create Kumbuka accounts automatically.
+                {{ end }}
+              </small>
             </span>
-            <input type="checkbox"
-                   name="allow_user_registration"
-                   {{ if .ApplicationSettings.AllowUserRegistration }}checked{{ end }} />
+            <input type="checkbox" name="allow_user_registration" {{ if .Runtime.UserRegistrationOverrideConfigured }} {{ if .Runtime.AllowUserRegistrationOverride }}checked{{ end }} disabled {{ else if .ApplicationSettings.AllowUserRegistration }} checked {{ end }} />
           </label>
           <label class="toggle-row">
             <span>

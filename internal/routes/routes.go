@@ -175,7 +175,7 @@ func (r routeRegistrar) addAdminRoutes() {
 	r.mux.Handle("GET /admin/tokens", browserAuthn(adminAuthz(handler.AdminTokens(config.ViewData, config.Users, config.Tokens, config.Views))))
 	r.mux.Handle("GET /admin/exports", browserAuthn(adminAuthz(handler.AdminExports(config.ViewData, config.Navigation, config.Views))))
 	r.mux.Handle("GET /admin/images", browserAuthn(adminAuthz(handler.AdminImages(config.ViewData, config.Media, config.Views))))
-	r.mux.Handle("POST /admin/settings", browserAuthn(adminAuthz(handler.SaveAdminSettings(config.Settings, config.Logger))))
+	r.mux.Handle("POST /admin/settings", browserAuthn(adminAuthz(handler.SaveAdminSettings(config.Settings, config.Views, config.Logger))))
 	r.mux.Handle(
 		"POST /admin/branding/logo",
 		browserAuthn(adminAuthz(handler.SaveAdminBrandLogo(config.Settings, config.Logger))),
