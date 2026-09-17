@@ -1,9 +1,11 @@
 package store
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"maps"
+	"path"
 	"slices"
 	"strings"
 	"time"
@@ -384,10 +386,30 @@ type pageSourceEdit struct {
 
 // MovePage moves one page, optionally including descendants, and can refactor direct wiki-link targets.
 func (s *Store) MovePage(ctx context.Context, oldSlug, newSlug string, options domain.MovePageOptions, user domain.User) error {
-	oldSlug, newSlug, err := normalizeMoveSlugs(oldSlug, newSlug, options)
+	tx, err := s.pool.Begin(ctx)
 	if err != nil {
-		return err
+		return mutationError(err)
 	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	if err := movePage(ctx, tx, oldSlug, newSlug, options, user); err != nil {
+		return mutationError(err)
+	}
+
+	return mutationError(tx.Commit(ctx))
+}
+
+// BulkMovePages moves every selected page atomically beneath one target path.
+func (s *Store) BulkMovePages(ctx context.Context, slugs []string, target string, user domain.User) error {
+	target = strings.Trim(strings.TrimSpace(target), "/")
+	if target == "" {
+		return domain.NewValidationError("target", "A target path is required.")
+	}
+
+	ordered := slices.Clone(slugs)
+	slices.SortFunc(ordered, func(left, right string) int {
+		return cmp.Compare(len(right), len(left))
+	})
 
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
@@ -395,30 +417,56 @@ func (s *Store) MovePage(ctx context.Context, oldSlug, newSlug string, options d
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
+	options := domain.MovePageOptions{UpdateIncomingLinks: true, KeepAliases: true}
+	for _, slug := range ordered {
+		source := strings.Trim(strings.TrimSpace(slug), "/")
+		if source == "" {
+			return domain.NewValidationError("pages", "Choose valid pages to move.")
+		}
+
+		destination := target + "/" + path.Base(source)
+		if source == destination {
+			return domain.NewValidationError("target", "Choose a different destination for every selected page.")
+		}
+		if err := movePage(ctx, tx, source, destination, options, user); err != nil {
+			return mutationError(err)
+		}
+	}
+
+	return mutationError(tx.Commit(ctx))
+}
+
+// movePage applies one page move inside the caller-owned transaction.
+func movePage(ctx context.Context, tx pgx.Tx, oldSlug, newSlug string, options domain.MovePageOptions, user domain.User) error {
+	oldSlug, newSlug, err := normalizeMoveSlugs(oldSlug, newSlug, options)
+	if err != nil {
+		return err
+	}
+
 	moved, err := loadMovedPages(ctx, tx, oldSlug, newSlug, options.MoveChildren)
 	if err != nil {
-		return mutationError(err)
+		return err
 	}
 	if len(moved) == 0 {
 		return domain.ErrNotFound
 	}
 
 	if err := validateMoveDestinations(ctx, tx, moved); err != nil {
-		return mutationError(err)
+		return err
 	}
 	if err := applyPageMoves(ctx, tx, moved, options.KeepAliases, user.ID); err != nil {
-		return mutationError(err)
+		return err
 	}
 	if err := retargetMovedPageLinks(ctx, tx, moved); err != nil {
-		return mutationError(err)
+		return err
 	}
 	if options.UpdateIncomingLinks {
 		if err := rewriteIncomingWikiLinks(ctx, tx, moved, user.ID); err != nil {
-			return mutationError(err)
+			return err
 		}
 	}
 
-	return mutationError(tx.Commit(ctx))
+	return nil
 }
 
 // normalizeMoveSlugs normalizes and validates the source and destination paths for a move.

@@ -1,13 +1,11 @@
 package service
 
 import (
-	"cmp"
 	"context"
 	"errors"
 	"fmt"
 	"log/slog"
 	"path"
-	"slices"
 	"strings"
 
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
@@ -136,6 +134,7 @@ type pageRepository interface {
 	BulkAddPageTag(context.Context, []string, string) error
 	BulkAssignPageGroup(context.Context, []string, int64) error
 	BulkDeletePages(context.Context, []string, int64) error
+	BulkMovePages(context.Context, []string, string, domain.User) error
 	BulkSetPageStatus(context.Context, []string, string) error
 	DeletePage(context.Context, string, int64) error
 	GetPage(context.Context, string) (domain.Page, error)
@@ -649,7 +648,7 @@ func (s *Pages) Bulk(ctx context.Context, input BulkPageInput) error {
 	return nil
 }
 
-// bulkMove relocates selected pages beneath a normalized target path.
+// bulkMove validates the requested target and delegates the complete move set as one transaction.
 func (s *Pages) bulkMove(ctx context.Context, slugs []string, target string, actor domain.User) error {
 	target = md.Slug(target)
 	if target == "" {
@@ -663,24 +662,7 @@ func (s *Pages) bulkMove(ctx context.Context, slugs []string, target string, act
 		}
 	}
 
-	orderedSlugs := slices.Clone(slugs)
-
-	slices.SortFunc(orderedSlugs, compareMoveSlugs)
-
-	for _, slug := range orderedSlugs {
-		destination := strings.Trim(target, "/") + "/" + path.Base(slug)
-		if err := s.repository.MovePage(
-			ctx,
-			slug,
-			destination,
-			domain.MovePageOptions{UpdateIncomingLinks: true, KeepAliases: true},
-			actor,
-		); err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return s.repository.BulkMovePages(ctx, slugs, target, actor)
 }
 
 // ErrDiscussionsDisabled indicates that page discussions are globally disabled.
@@ -696,11 +678,6 @@ func validContentLanguage(value string) bool {
 	default:
 		return false
 	}
-}
-
-// compareMoveSlugs puts longer paths first so descendants move before ancestors.
-func compareMoveSlugs(left, right string) int {
-	return cmp.Compare(len(right), len(left))
 }
 
 // actionTitle returns the notification title for a page mutation event.

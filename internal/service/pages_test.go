@@ -290,3 +290,41 @@ func TestBulkValidatesInputsBeforePersistence(t *testing.T) {
 		assert.Equal(t, "action", validation.Fields[0].Field)
 	})
 }
+
+type bulkMoveRepositoryStub struct {
+	pageRepository
+	calls  int
+	slugs  []string
+	target string
+}
+
+func (r *bulkMoveRepositoryStub) BulkMovePages(_ context.Context, slugs []string, target string, _ domain.User) error {
+	r.calls++
+	r.slugs = append([]string(nil), slugs...)
+	r.target = target
+	return nil
+}
+
+func (r *bulkMoveRepositoryStub) LogAudit(context.Context, int64, string, string, string, string) error {
+	return nil
+}
+
+func TestBulkMoveDelegatesAsSinglePersistenceOperation(t *testing.T) {
+	t.Parallel()
+
+	repository := &bulkMoveRepositoryStub{}
+	pages := NewPages(repository, slog.Default())
+	slugs := []string{"guide/first", "guide/second"}
+
+	err := pages.Bulk(context.Background(), BulkPageInput{
+		Action: "move",
+		Slugs:  slugs,
+		Target: "archive",
+		Actor:  domain.User{ID: 7},
+	})
+
+	require.NoError(t, err)
+	assert.Equal(t, 1, repository.calls)
+	assert.Equal(t, slugs, repository.slugs)
+	assert.Equal(t, "archive", repository.target)
+}
