@@ -1,4 +1,6 @@
-import { readFile } from "node:fs/promises";
+import { execFile } from "node:child_process";
+import { fileURLToPath } from "node:url";
+
 export const plugin = {
   plugin_id: "me.kumbuka.mermaid",
   module_id: "diagrams",
@@ -8,13 +10,49 @@ export const plugin = {
 export const base = `/plugins/${plugin.plugin_id}/${plugin.digest}/`;
 export const block =
   '<div data-kumbuka-plugin="me.kumbuka.mermaid" data-kumbuka-module="diagrams"><pre><code class="language-mermaid">graph LR; A --> B</code></pre></div>';
+
+const packageAssets = new Map();
+
 export function pluginCatalog(module = plugin, enabled = true) {
   const modules = enabled
     ? [{ ...module, frame_url: `/plugins/${module.plugin_id}/${module.digest}/frames/${module.module_id}.html` }]
     : [];
   return `<script id="kumbuka-plugin-modules" type="application/json">${JSON.stringify(modules)}</script>`;
 }
-// Browser fixture uses actual package JS/CSS and the core harness. HTTP tests
+
+// readPluginAsset reads one browser asset from the pinned downloaded plugin package.
+function readPluginAsset(pluginName, assetName) {
+  const key = `${pluginName}/${assetName}`;
+  const cached = packageAssets.get(key);
+  if (cached) return cached;
+
+  const packagePath = fileURLToPath(
+    new URL(`../../plugins/${pluginName}.kumbukaplugin`, import.meta.url),
+  );
+  const pending = new Promise((resolve, reject) => {
+    execFile(
+      "unzip",
+      ["-p", packagePath, `assets/${assetName}`],
+      { encoding: null, maxBuffer: 32 * 1024 * 1024 },
+      (error, stdout) => {
+        if (error) {
+          reject(
+            new Error(
+              `read ${pluginName} plugin asset ${assetName}: ${error.message}`,
+              { cause: error },
+            ),
+          );
+          return;
+        }
+        resolve(stdout);
+      },
+    );
+  });
+  packageAssets.set(key, pending);
+  return pending;
+}
+
+// Browser fixture uses actual packaged JS/CSS and the core harness. HTTP tests
 // independently verify the generated frame and response policy.
 export async function pluginRoute(
   route,
@@ -42,6 +80,7 @@ export async function pluginRoute(
       body: `<html><head><link rel="stylesheet" href="${base}assets/plugin.css"><script defer src="/plugins/runtime.js"></script></head><body data-plugin-javascript="${base}assets/plugin.js"><main id="plugin-root"></main></body></html>`,
     });
   } else if (path === "/plugins/runtime.js") {
+    const { readFile } = await import("node:fs/promises");
     await route.fulfill({
       contentType: "text/javascript",
       body: await readFile(
@@ -61,16 +100,10 @@ export async function pluginRoute(
     }
     await route.fulfill({
       contentType: name.endsWith(".css") ? "text/css" : "text/javascript",
-      body: await readFile(
-        new URL(
-          "../../plugins/" + assetDirectory + "/assets/" + name,
-          import.meta.url,
-        ),
-      ),
+      body: await readPluginAsset(assetDirectory, name),
     });
   } else {
     await route.fulfill({ status: 404 });
   }
   return true;
 }
-

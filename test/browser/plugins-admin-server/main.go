@@ -54,7 +54,11 @@ func (d dataLoader) Load(_ *http.Request, _ *handler.Views, title string) (handl
 // main runs the browser-test fixture server.
 func main() {
 	ctx := context.Background()
-	renderer, err := markdown.New(ctx)
+	archives, err := plugins.Archives()
+	if err != nil {
+		panic(err)
+	}
+	renderer, err := markdown.NewWithPluginPackages(ctx, archives, nil)
 	if err != nil {
 		panic(err)
 	}
