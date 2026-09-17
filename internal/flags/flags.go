@@ -117,9 +117,8 @@ func Parse(args []string, version string) (Config, error) {
 		Placeholder("URL").
 		Validate(pdf.ValidateURL).
 		Value()
-	allowUserRegistration := false
 	allowUserRegistrationFlag := tf.BoolVar(
-		&allowUserRegistration,
+		ToPtr(false),
 		"allow-user-registration",
 		false,
 		"Deployment override for whether unknown OIDC or trusted-proxy identities may create accounts",
@@ -205,7 +204,7 @@ func Parse(args []string, version string) (Config, error) {
 		cfg.AuthModeOverride = *authModeFlag.Value()
 	}
 	if allowUserRegistrationFlag.Changed() {
-		cfg.AllowUserRegistrationOverride = ToPtr(allowUserRegistration)
+		cfg.AllowUserRegistrationOverride = allowUserRegistrationFlag.Value()
 	}
 
 	cfg.ListenAddress = (*listen).String()
