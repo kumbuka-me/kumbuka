@@ -66,6 +66,35 @@ func TestHTMLProblemsLeavesOtherRoutesUntouched(t *testing.T) {
 	assert.Contains(t, response.Body.String(), `"error":"Forbidden."`)
 }
 
+// TestHTMLProblemsRendersThemedNotFound verifies hidden browser auth routes use the shared 404 page.
+func TestHTMLProblemsRendersThemedNotFound(t *testing.T) {
+	t.Parallel()
+
+	page := template.Must(template.New("not_found").Parse(
+		`{{ define "public-layout" }}{{ .StatusCode }}|{{ .Title }}|{{ .StatusMessage }}|{{ .StatusIcon }}|{{ .SecondaryURL }}{{ end }}`,
+	))
+	views := &Views{
+		templates: map[string]*template.Template{"not_found": page},
+		logger:    slog.New(slog.NewTextHandler(io.Discard, nil)),
+	}
+
+	next := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		httpresponse.Problem(w, http.StatusNotFound, "Not found.")
+	})
+
+	request := httptest.NewRequest(http.MethodGet, "/auth/local", nil)
+	response := httptest.NewRecorder()
+
+	HTMLProblems(next, views, "/auth/local").ServeHTTP(response, request)
+
+	require.Equal(t, http.StatusNotFound, response.Code)
+	assert.Equal(t, "text/html; charset=utf-8", response.Header().Get("Content-Type"))
+	assert.Contains(t, response.Body.String(), "404|Page not found|")
+	assert.Contains(t, response.Body.String(), "does not exist or may have moved")
+	assert.Contains(t, response.Body.String(), "search-lucide|/search")
+	assert.NotContains(t, response.Body.String(), `"error"`)
+}
+
 // TestHTMLProblemsPreservesSuccessfulCallback verifies that redirects and cookies pass through unchanged.
 func TestHTMLProblemsPreservesSuccessfulCallback(t *testing.T) {
 	t.Parallel()

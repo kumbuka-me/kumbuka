@@ -238,6 +238,21 @@ func browserProblemPresentation(status int, message string) statusPagePresentati
 	return genericStatusPresentation(status, message)
 }
 
+// notFoundPresentation returns the shared themed presentation for browser 404 responses.
+func notFoundPresentation() statusPagePresentation {
+	return statusPagePresentation{
+		Title:          "Page not found",
+		Message:        "The page you are looking for does not exist or may have moved.",
+		Icon:           "search-lucide",
+		PrimaryLabel:   "Return home",
+		PrimaryURL:     "/",
+		PrimaryIcon:    "house-lucide",
+		SecondaryLabel: "Search pages",
+		SecondaryURL:   "/search",
+		SecondaryIcon:  "search-lucide",
+	}
+}
+
 // retrySignInPresentation creates a retryable authentication status presentation.
 func retrySignInPresentation(title, message string) statusPagePresentation {
 	return statusPagePresentation{
@@ -255,6 +270,10 @@ func retrySignInPresentation(title, message string) statusPagePresentation {
 
 // genericStatusPresentation creates a safe fallback presentation for an unmapped browser problem.
 func genericStatusPresentation(status int, message string) statusPagePresentation {
+	if status == http.StatusNotFound {
+		return notFoundPresentation()
+	}
+
 	presentation := statusPagePresentation{
 		Title:        http.StatusText(status),
 		Message:      strings.TrimSpace(message),

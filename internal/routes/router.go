@@ -112,6 +112,13 @@ func New(config Config) http.Handler {
 	}
 	middlewares = append(middlewares, middleware.SecurityHeaders())
 
-	root := handler.HTMLProblems(mux, config.Views, "/auth/callback")
+	root := handler.HTMLProblems(
+		mux,
+		config.Views,
+		"/auth/login",
+		"/auth/local",
+		"/auth/callback",
+		"/setup",
+	)
 	return middleware.Chain(root, middlewares...)
 }

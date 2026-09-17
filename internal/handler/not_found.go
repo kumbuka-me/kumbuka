@@ -26,15 +26,5 @@ func renderNotFoundPage(
 		return
 	}
 
-	renderStatusPage(views, w, http.StatusNotFound, "layout", data, statusPagePresentation{
-		Title:          "Page not found",
-		Message:        "The page you are looking for does not exist or may have moved.",
-		Icon:           "search-lucide",
-		PrimaryLabel:   "Return home",
-		PrimaryURL:     "/",
-		PrimaryIcon:    "house-lucide",
-		SecondaryLabel: "Search pages",
-		SecondaryURL:   "/search",
-		SecondaryIcon:  "search-lucide",
-	})
+	renderStatusPage(views, w, http.StatusNotFound, "layout", data, notFoundPresentation())
 }
