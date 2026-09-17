@@ -74,13 +74,16 @@
                 <td>{{ if .Manifest.Provider }}{{ .Manifest.Provider }}{{ else }}Not specified{{ end }}</td>
                 <td>{{ if eq .Source "bundled" }}Bundled{{ else }}Installed{{ end }}</td>
                 <td>
-                  <div class="plugin-state-control">
+                  <div class="plugin-state-control"
+                       data-plugin-state-control="{{ .Manifest.ID }}"
+                       data-plugin-state-surface="list">
                     <span class="plugin-state {{ if .Enabled }}enabled{{ else }}disabled{{ end }}">{{ if .Enabled }}Enabled{{ else }}Disabled{{ end }}</span>
                     {{ if index $.PluginRequiredIDs .Manifest.ID }}
                       <span class="muted">Required</span>
                     {{ else }}
                     <form method="post"
-                          action="/admin/plugins/{{ .Manifest.ID }}/{{ if .Enabled }}disable{{ else }}enable{{ end }}">
+                          action="/admin/plugins/{{ .Manifest.ID }}/{{ if .Enabled }}disable{{ else }}enable{{ end }}"
+                          data-plugin-toggle="{{ .Manifest.ID }}">
                       <button class="button compact"
                               type="submit">{{ if .Enabled }}Disable{{ else }}Enable{{ end }}</button>
                       </form>
@@ -145,13 +148,16 @@
               <span><strong>Provider</strong> {{ if .Manifest.Provider }}{{ .Manifest.Provider }}{{ else }}Not specified{{ end }}</span>
               <span><strong>Source</strong> {{ if eq .Source "bundled" }}Bundled{{ else }}Installed{{ end }}</span>
             </div>
-            <div class="plugin-state-control">
+            <div class="plugin-state-control"
+                 data-plugin-state-control="{{ .Manifest.ID }}"
+                 data-plugin-state-surface="detail">
               <span class="plugin-state {{ if .Enabled }}enabled{{ else }}disabled{{ end }}">{{ if .Enabled }}Enabled{{ else }}Disabled{{ end }}</span>
               {{ if index $.PluginRequiredIDs .Manifest.ID }}
                 <span class="muted">Required system plugin</span>
               {{ else }}
               <form method="post"
-                    action="/admin/plugins/{{ .Manifest.ID }}/{{ if .Enabled }}disable{{ else }}enable{{ end }}?return=detail">
+                    action="/admin/plugins/{{ .Manifest.ID }}/{{ if .Enabled }}disable{{ else }}enable{{ end }}?return=detail"
+                    data-plugin-toggle="{{ .Manifest.ID }}">
                 <button class="button compact"
                         type="submit">{{ if .Enabled }}Disable{{ else }}Enable{{ end }} plugin</button>
                 </form>

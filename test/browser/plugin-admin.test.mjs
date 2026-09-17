@@ -63,7 +63,11 @@ test("plugin administration forms drive the real runtime lifecycle", async () =>
     });
     const page = await browser.newPage();
     const errors = [];
+    let mainNavigations = 0;
     page.on("pageerror", (error) => errors.push(error.message));
+    page.on("framenavigated", (frame) => {
+      if (frame === page.mainFrame()) mainNavigations++;
+    });
     await page.goto(url + "/admin/plugins");
     assert.equal(
       await page.getByRole("heading", { name: "Plugins", level: 1, exact: true }).count(),
@@ -80,13 +84,15 @@ test("plugin administration forms drive the real runtime lifecycle", async () =>
     await tablesDialog.waitFor({ state: "visible" });
     assert.match(page.url(), /\?plugin=me\.kumbuka\.tables$/);
 
+    const detailNavigations = mainNavigations;
     await tablesDialog
       .getByRole("button", { name: "Disable plugin", exact: true })
       .click();
-    await page.waitForURL(url + "/admin/plugins?plugin=me.kumbuka.tables");
     await tablesDialog
       .getByRole("button", { name: "Enable plugin", exact: true })
       .waitFor();
+    assert.equal(mainNavigations, detailNavigations);
+    assert.equal(page.url(), url + "/admin/plugins?plugin=me.kumbuka.tables");
     assert.ok(
       !(
         await (await page.request.get(url + "/fixture/render")).text()
@@ -96,10 +102,10 @@ test("plugin administration forms drive the real runtime lifecycle", async () =>
     await tablesDialog
       .getByRole("button", { name: "Enable plugin", exact: true })
       .click();
-    await page.waitForURL(url + "/admin/plugins?plugin=me.kumbuka.tables");
     await tablesDialog
       .getByRole("button", { name: "Disable plugin", exact: true })
       .waitFor();
+    assert.equal(mainNavigations, detailNavigations);
     assert.ok(
       (await (await page.request.get(url + "/fixture/render")).text()).includes(
         "<table",
@@ -110,6 +116,33 @@ test("plugin administration forms drive the real runtime lifecycle", async () =>
       .click();
     await tablesDialog.waitFor({ state: "hidden" });
     await page.waitForURL(url + "/admin/plugins");
+
+    await page.setViewportSize({ width: 1280, height: 420 });
+    await tablesRow.scrollIntoViewIfNeeded();
+    await page.evaluate(() => window.scrollBy(0, 40));
+    const listScroll = await page.evaluate(() => window.scrollY);
+    const listNavigations = mainNavigations;
+
+    await tablesRow.getByRole("button", { name: "Disable", exact: true }).click();
+    await tablesRow.getByRole("button", { name: "Enable", exact: true }).waitFor();
+    assert.equal(mainNavigations, listNavigations);
+    assert.equal(await page.evaluate(() => window.scrollY), listScroll);
+    assert.equal(page.url(), url + "/admin/plugins");
+    assert.ok(
+      !(
+        await (await page.request.get(url + "/fixture/render")).text()
+      ).includes("<table"),
+    );
+
+    await tablesRow.getByRole("button", { name: "Enable", exact: true }).click();
+    await tablesRow.getByRole("button", { name: "Disable", exact: true }).waitFor();
+    assert.equal(mainNavigations, listNavigations);
+    assert.equal(await page.evaluate(() => window.scrollY), listScroll);
+    assert.ok(
+      (await (await page.request.get(url + "/fixture/render")).text()).includes(
+        "<table",
+      ),
+    );
 
     const installForm = page.locator("[data-plugin-install]");
     const installButton = installForm.getByRole("button", {

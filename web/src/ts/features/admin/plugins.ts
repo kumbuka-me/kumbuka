@@ -3,7 +3,6 @@
 import { requiredElement } from "../../core/dom.ts";
 
 const maxPluginPackageBytes = 16 * 1024 * 1024;
-const pluginAnchorPrefix = "plugin-";
 
 // pluginPackageProblem returns a user-facing validation message for an invalid package file.
 function pluginPackageProblem(file: File): string {
@@ -175,51 +174,162 @@ export function initAdminPlugins(): void {
     setupPluginUpload(form);
   }
 
-  setupPluginRowAnchors();
+  setupPluginToggles();
   setupPluginDialogs();
 }
 
-// pluginAnchorID returns the stable fragment identifier for one plugin row.
-function pluginAnchorID(pluginID: string): string {
-  return pluginAnchorPrefix + pluginID;
+let pluginToggleSubmitBound = false;
+
+// pluginStateControl returns one list or detail state control for a plugin.
+function pluginStateControl(
+  root: ParentNode,
+  pluginID: string,
+  surface: string,
+): HTMLElement | null {
+  return (
+    [...root.querySelectorAll<HTMLElement>("[data-plugin-state-control]")].find(
+      (control) =>
+        control.dataset.pluginStateControl === pluginID &&
+        control.dataset.pluginStateSurface === surface,
+    ) ?? null
+  );
 }
 
-// restorePluginAnchor scrolls a redirected lifecycle action back to its plugin row.
-function restorePluginAnchor(): void {
-  const anchor = window.location.hash.slice(1);
-  if (!anchor.startsWith(pluginAnchorPrefix)) return;
-
-  const row = document.getElementById(anchor);
-  if (!(row instanceof HTMLTableRowElement)) return;
-
-  requestAnimationFrame(() => {
-    row.scrollIntoView({ block: "center" });
-
-    const url = new URL(window.location.href);
-    url.hash = "";
-    history.replaceState(null, "", `${url.pathname}${url.search}`);
-  });
-}
-
-// setupPluginRowAnchors preserves the current plugin row across enable/disable reloads.
-function setupPluginRowAnchors(): void {
-  for (const row of document.querySelectorAll<HTMLTableRowElement>(
-    "tr[data-plugin-detail-open]",
+// setPluginTogglePending prevents duplicate lifecycle requests for one plugin.
+function setPluginTogglePending(pluginID: string, pending: boolean): void {
+  for (const control of document.querySelectorAll<HTMLElement>(
+    "[data-plugin-state-control]",
   )) {
-    const pluginID = row.dataset.pluginDetailOpen;
-    if (!pluginID) continue;
+    if (control.dataset.pluginStateControl !== pluginID) continue;
 
-    row.id = pluginAnchorID(pluginID);
+    if (pending) control.setAttribute("aria-busy", "true");
+    else control.removeAttribute("aria-busy");
 
-    const form = row.querySelector<HTMLFormElement>("form[method='post']");
-    form?.addEventListener("submit", () => {
-      const action = new URL(form.action);
-      action.hash = row.id;
-      form.action = action.toString();
-    });
+    for (const button of control.querySelectorAll<HTMLButtonElement>(
+      "button[type='submit']",
+    )) {
+      button.disabled = pending;
+    }
+  }
+}
+
+// pluginToggleProblem returns the server-rendered lifecycle error, if present.
+function pluginToggleProblem(result: Document): string {
+  return (
+    result.querySelector<HTMLElement>("[role='alert']")?.textContent?.trim() ||
+    "Could not update the plugin state. Try again."
+  );
+}
+
+// showPluginToggleProblem keeps a failed lifecycle action visible without navigating away.
+function showPluginToggleProblem(form: HTMLFormElement, message: string): void {
+  const container =
+    form.closest<HTMLElement>(".plugin-detail-body") ??
+    form.closest<HTMLElement>(".settings-panel");
+  if (!container) return;
+
+  let problem = container.querySelector<HTMLElement>(
+    "[data-plugin-toggle-problem]",
+  );
+  if (!problem) {
+    problem = document.createElement("p");
+    problem.className = "settings-note";
+    problem.dataset.pluginToggleProblem = "";
+    problem.setAttribute("role", "alert");
+    container.prepend(problem);
+  }
+  problem.textContent = message;
+}
+
+// clearPluginToggleProblem removes a previous lifecycle error from this surface.
+function clearPluginToggleProblem(form: HTMLFormElement): void {
+  const container =
+    form.closest<HTMLElement>(".plugin-detail-body") ??
+    form.closest<HTMLElement>(".settings-panel");
+  container?.querySelector("[data-plugin-toggle-problem]")?.remove();
+}
+
+// syncPluginState replaces list and detail controls from the server-rendered result.
+function syncPluginState(result: Document, pluginID: string): boolean {
+  let replaced = false;
+
+  for (const surface of ["list", "detail"]) {
+    const current = pluginStateControl(document, pluginID, surface);
+    const next = pluginStateControl(result, pluginID, surface);
+    if (!current || !next) continue;
+
+    current.replaceChildren(
+      ...[...next.childNodes].map((node) => node.cloneNode(true)),
+    );
+    replaced = true;
   }
 
-  restorePluginAnchor();
+  return replaced;
+}
+
+// togglePlugin submits a lifecycle action without reloading the administration page.
+async function togglePlugin(form: HTMLFormElement): Promise<void> {
+  const pluginID = form.dataset.pluginToggle;
+  const surface = form.closest<HTMLElement>("[data-plugin-state-control]")
+    ?.dataset.pluginStateSurface;
+  if (!pluginID || !surface) return;
+
+  clearPluginToggleProblem(form);
+  setPluginTogglePending(pluginID, true);
+
+  try {
+    const response = await fetch(form.action, {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { Accept: "text/html" },
+    });
+    const result = new DOMParser().parseFromString(
+      await response.text(),
+      "text/html",
+    );
+
+    if (!response.ok || !response.redirected) {
+      showPluginToggleProblem(form, pluginToggleProblem(result));
+      return;
+    }
+    if (!syncPluginState(result, pluginID)) {
+      showPluginToggleProblem(
+        form,
+        "Plugin state changed, but the page could not refresh its controls.",
+      );
+      return;
+    }
+
+    pluginStateControl(document, pluginID, surface)
+      ?.querySelector<HTMLButtonElement>("button[type='submit']")
+      ?.focus({ preventScroll: true });
+  } catch {
+    showPluginToggleProblem(
+      form,
+      "Could not update the plugin state. Check your connection and try again.",
+    );
+  } finally {
+    setPluginTogglePending(pluginID, false);
+  }
+}
+
+// setupPluginToggles progressively enhances enable/disable forms without page navigation.
+function setupPluginToggles(): void {
+  if (pluginToggleSubmitBound) return;
+  pluginToggleSubmitBound = true;
+
+  document.addEventListener("submit", (event: SubmitEvent) => {
+    const form = event.target;
+    if (
+      !(form instanceof HTMLFormElement) ||
+      !form.matches("[data-plugin-toggle]")
+    ) {
+      return;
+    }
+
+    event.preventDefault();
+    void togglePlugin(form);
+  });
 }
 
 // pluginDialogs returns every server-rendered plugin detail dialog on the page.
