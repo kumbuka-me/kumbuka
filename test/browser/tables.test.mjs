@@ -89,18 +89,40 @@ test("Tables uses packaged sorting/filtering, theme colors, and semantic fallbac
   }
 });
 
-test("disabling a browser module cancels its pending image transfer", async () => {
+test("browser module cleanup aborts a pending image transfer", async () => {
   const browser = await chromium.launch({
     channel: process.env.BROWSER_CHANNEL || "chrome",
     headless: true,
   });
   try {
     const page = await browser.newPage();
-    let enabled = true;
-    let release;
-    const held = new Promise((resolve) => {
-      release = resolve;
+    await page.addInitScript(() => {
+      const nativeFetch = window.fetch.bind(window);
+      window.__kumbukaImageTransfer = {
+        started: false,
+        aborted: false,
+        reason: "",
+      };
+      window.fetch = (input, init = {}) => {
+        const href = input instanceof Request ? input.url : String(input);
+        if (new URL(href, location.href).pathname !== "/image.png")
+          return nativeFetch(input, init);
+
+        const state = window.__kumbukaImageTransfer;
+        state.started = true;
+        return new Promise((_, reject) => {
+          const signal = init.signal;
+          const abort = () => {
+            state.aborted = true;
+            state.reason = signal?.reason?.name || "";
+            reject(new DOMException("Aborted", "AbortError"));
+          };
+          if (signal?.aborted) abort();
+          else signal?.addEventListener("abort", abort, { once: true });
+        });
+      };
     });
+
     const pixel = Buffer.from(
       "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j7e0AAAAASUVORK5CYII=",
       "base64",
@@ -108,14 +130,15 @@ test("disabling a browser module cancels its pending image transfer", async () =
     await page.route("http://transfer.test/**", async (route) => {
       const path = new URL(route.request().url()).pathname;
       if (
-        await pluginRoute(route, { enabled, module, assetDirectory: "tables" })
+        await pluginRoute(route, {
+          enabled: true,
+          module,
+          assetDirectory: "tables",
+        })
       )
         return;
       if (path === "/image.png") {
-        if (route.request().resourceType() === "fetch") await held;
-        await route
-          .fulfill({ contentType: "image/png", body: pixel })
-          .catch(() => {});
+        await route.fulfill({ contentType: "image/png", body: pixel });
         return;
       }
       if (path.startsWith("/assets/")) {
@@ -129,29 +152,34 @@ test("disabling a browser module cancels its pending image transfer", async () =
       }
       await route.fulfill({
         contentType: "text/html",
-        body: `<body>${pluginCatalog(module, enabled)}<div data-kumbuka-plugin="me.kumbuka.tables" data-kumbuka-module="interactive" data-kumbuka-input="html"><div data-kumbuka-fallback><table class="kumbuka-table-sortable"><thead><tr><th>Image</th></tr></thead><tbody><tr><td><img src="/image.png"></td></tr></tbody></table></div></div><script type="module">import {renderPluginModules} from '/assets/js/plugins/loader.js';await renderPluginModules();</script></body>`,
+        body: `<body>${pluginCatalog(module, true)}<div data-kumbuka-plugin="me.kumbuka.tables" data-kumbuka-module="interactive" data-kumbuka-input="html"><div data-kumbuka-fallback><table class="kumbuka-table-sortable"><thead><tr><th>Image</th></tr></thead><tbody><tr><td><img src="/image.png"></td></tr></tbody></table></div></div><script type="module">import {renderPluginModules} from '/assets/js/plugins/loader.js';await renderPluginModules();</script></body>`,
       });
     });
-    const transferring = page.waitForRequest(
-      (request) =>
-        request.url().endsWith("/image.png") &&
-        request.resourceType() === "fetch",
-    );
+
     await page.goto("http://transfer.test/", { waitUntil: "domcontentloaded" });
-    await transferring;
-    const cancelled = page.waitForEvent("requestfailed", {
-      predicate: (request) =>
-        request.url().endsWith("/image.png") &&
-        request.resourceType() === "fetch",
+    await page.waitForFunction(
+      () => window.__kumbukaImageTransfer?.started === true,
+    );
+    await page
+      .locator("[data-kumbuka-plugin]")
+      .evaluate((block) => (block.dataset.kumbukaModule = "disabled"));
+    await page.evaluate(async () => {
+      const { renderPluginModules } = await import(
+        "/assets/js/plugins/loader.js",
+      );
+      await renderPluginModules();
     });
-    enabled = false;
-    await page.reload({ waitUntil: "domcontentloaded" });
-    await cancelled;
+    await page.waitForFunction(
+      () => window.__kumbukaImageTransfer?.aborted === true,
+    );
+
+    assert.equal(
+      await page.evaluate(() => window.__kumbukaImageTransfer?.reason),
+      "AbortError",
+    );
     assert.equal(await page.locator("iframe").count(), 0);
     assert.equal(await page.locator("[data-kumbuka-fallback]").isVisible(), true);
-    release();
   } finally {
     await browser.close();
   }
 });
-

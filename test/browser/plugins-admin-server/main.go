@@ -54,11 +54,11 @@ func (d dataLoader) Load(_ *http.Request, _ *handler.Views, title string) (handl
 // main runs the browser-test fixture server.
 func main() {
 	ctx := context.Background()
-	archives, err := plugins.Archives()
+	tablesArchive, err := plugins.Packages.ReadFile("tables.kumbukaplugin")
 	if err != nil {
 		panic(err)
 	}
-	renderer, err := markdown.NewWithPluginPackages(ctx, archives, nil)
+	renderer, err := markdown.NewWithPluginPackages(ctx, [][]byte{tablesArchive}, nil)
 	if err != nil {
 		panic(err)
 	}

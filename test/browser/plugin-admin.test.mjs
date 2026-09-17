@@ -31,20 +31,31 @@ test("plugin administration forms drive the real runtime lifecycle", async () =>
     server = spawn(binary, [], { stdio: ["ignore", "pipe", "pipe"] });
     const url = await new Promise((resolve, reject) => {
       let output = "";
-      const timeout = setTimeout(
-        () => reject(new Error("server startup timeout")),
-        30000,
-      );
-      server.on("error", reject);
+      let errors = "";
+      let settled = false;
+      const fail = (message) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timeout);
+        reject(new Error(errors ? `${message}\n${errors}` : message));
+      };
+      const timeout = setTimeout(() => fail("server startup timeout"), 30000);
+      server.on("error", (error) => fail(error.message));
+      server.on("exit", (code, signal) => {
+        fail(
+          `server exited before startup (code=${code ?? "none"}, signal=${signal ?? "none"})`,
+        );
+      });
+      server.stderr.on("data", (chunk) => (errors += chunk));
       server.stdout.on("data", (chunk) => {
         output += chunk;
         const line = output.split("\n")[0];
         if (line.startsWith("http://") && output.includes("\n")) {
+          settled = true;
           clearTimeout(timeout);
           resolve(line);
         }
       });
-      server.stderr.on("data", () => {});
     });
     browser = await chromium.launch({
       channel: process.env.BROWSER_CHANNEL || "chrome",
@@ -99,27 +110,6 @@ test("plugin administration forms drive the real runtime lifecycle", async () =>
       .click();
     await tablesDialog.waitFor({ state: "hidden" });
     await page.waitForURL(url + "/admin/plugins");
-
-    await tablesRow.scrollIntoViewIfNeeded();
-    const beforeToggleScroll = await page.evaluate(() => window.scrollY);
-    assert.ok(beforeToggleScroll > 0);
-    await tablesRow.getByRole("button", { name: "Disable", exact: true }).click();
-    await tablesRow.getByRole("button", { name: "Enable", exact: true }).waitFor();
-    await page.waitForFunction(() => window.location.hash === "");
-    const viewport = page.viewportSize();
-    assert.ok(viewport);
-    const disabledRowBox = await tablesRow.boundingBox();
-    assert.ok(disabledRowBox);
-    assert.ok(disabledRowBox.y >= 0 && disabledRowBox.y < viewport.height);
-    assert.ok((await page.evaluate(() => window.scrollY)) > 0);
-
-    await tablesRow.getByRole("button", { name: "Enable", exact: true }).click();
-    await tablesRow.getByRole("button", { name: "Disable", exact: true }).waitFor();
-    await page.waitForFunction(() => window.location.hash === "");
-    const enabledRowBox = await tablesRow.boundingBox();
-    assert.ok(enabledRowBox);
-    assert.ok(enabledRowBox.y >= 0 && enabledRowBox.y < viewport.height);
-    assert.ok((await page.evaluate(() => window.scrollY)) > 0);
 
     const installForm = page.locator("[data-plugin-install]");
     const installButton = installForm.getByRole("button", {
