@@ -47,7 +47,7 @@ func TestAuthModeRejectsUnknownValue(t *testing.T) {
 }
 
 func TestAuthModeDefaultsToDatabaseManaged(t *testing.T) {
-	t.Parallel()
+	t.Setenv("KUMBUKA__AUTH_MODE", "")
 
 	cfg, err := parseTestConfig([]string{"--database-url", "postgres://example/kumbuka"})
 
@@ -66,7 +66,7 @@ func TestLocalRecoveryLoginCanBeEnabledFromEnvironment(t *testing.T) {
 }
 
 func TestUserRegistrationDefaultsToDatabaseManaged(t *testing.T) {
-	t.Parallel()
+	t.Setenv("KUMBUKA__ALLOW_USER_REGISTRATION", "")
 
 	cfg, err := parseTestConfig([]string{"--database-url", "postgres://example/kumbuka"})
 
