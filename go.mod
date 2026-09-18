@@ -12,7 +12,7 @@ require (
 	github.com/go-jose/go-jose/v4 v4.1.5
 	github.com/jackc/pgx/v5 v5.11.0
 	github.com/kaugesaar/lucide-go v0.27.0
-	github.com/kumbuka-me/sdk v0.6.0
+	github.com/kumbuka-me/sdk v0.6.1-0.20260918123411-17650bc0396e
 	github.com/microcosm-cc/bluemonday v1.0.27
 	github.com/pelletier/go-toml/v2 v2.4.3
 	github.com/pmezard/go-difflib v1.0.0
@@ -35,6 +35,3 @@ require (
 	golang.org/x/sys v0.48.0 // indirect
 	golang.org/x/text v0.42.0 // indirect
 )
-
-// Temporary review dependency for https://github.com/kumbuka-me/sdk/pull/5.
-replace github.com/kumbuka-me/sdk => github.com/rxbn/kumbuka-sdk v0.0.0-20260918122815-6267199ae961

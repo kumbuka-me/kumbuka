@@ -22,16 +22,16 @@ func certificateRoots() (*x509.CertPool, error) {
 	add := func(name string) (bool, error) {
 		f, err := os.Open(name)
 		if err != nil {
-			return false, unavailable
+			return false, errUnavailable
 		}
-		defer f.Close()
+		defer func() { _ = f.Close() }()
 		info, err := f.Stat()
 		if err != nil || !info.Mode().IsRegular() || info.Size() > budget {
-			return false, unavailable
+			return false, errUnavailable
 		}
 		data, err := io.ReadAll(io.LimitReader(f, budget+1))
 		if err != nil || int64(len(data)) > budget {
-			return false, unavailable
+			return false, errUnavailable
 		}
 		budget -= int64(len(data))
 		return roots.AppendCertsFromPEM(data), nil
@@ -39,7 +39,7 @@ func certificateRoots() (*x509.CertPool, error) {
 	if file != "" {
 		ok, err := add(file)
 		if err != nil || !ok {
-			return nil, unavailable
+			return nil, errUnavailable
 		}
 	}
 	for _, dir := range filepath.SplitList(dirs) {
@@ -48,7 +48,7 @@ func certificateRoots() (*x509.CertPool, error) {
 		}
 		entries, err := os.ReadDir(dir)
 		if err != nil || len(entries) > 512 {
-			return nil, unavailable
+			return nil, errUnavailable
 		}
 		any := false
 		for _, entry := range entries {
@@ -62,7 +62,7 @@ func certificateRoots() (*x509.CertPool, error) {
 			any = any || ok
 		}
 		if !any {
-			return nil, unavailable
+			return nil, errUnavailable
 		}
 	}
 	return roots, nil

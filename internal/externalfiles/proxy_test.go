@@ -62,7 +62,7 @@ func TestProxyTunnelPinsDestinationAndSeparatesCredentials(t *testing.T) {
 			t.Error(err)
 			return
 		}
-		defer c.Close()
+		defer func() { _ = c.Close() }()
 		_, _ = b.WriteString("HTTP/1.1 200 Connection established\r\n\r\n")
 		_ = b.Flush()
 	}))
@@ -97,7 +97,7 @@ func TestTLSOverrideAndCustomCA(t *testing.T) {
 			t.Fatal("TLS option ignored")
 		}
 	}
-	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { fmt.Fprint(w, "ok") }))
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { _, _ = fmt.Fprint(w, "ok") }))
 	defer server.Close()
 	file := filepath.Join(t.TempDir(), "ca.pem")
 	if err := os.WriteFile(file, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: server.Certificate().Raw}), 0600); err != nil {
@@ -122,7 +122,7 @@ func TestProxyHeaderBound(t *testing.T) {
 		if err != nil {
 			return
 		}
-		defer c.Close()
+		defer func() { _ = c.Close() }()
 		_, _ = b.WriteString("HTTP/1.1 200 OK\r\nX-Huge: " + strings.Repeat("a", 32<<10) + "\r\n\r\n")
 		_ = b.Flush()
 	}))
@@ -141,7 +141,7 @@ func TestHTTPSProxyRequiresTrustedCertificate(t *testing.T) {
 		if err != nil {
 			return
 		}
-		defer c.Close()
+		defer func() { _ = c.Close() }()
 		_, _ = b.WriteString("HTTP/1.1 200 OK\r\n\r\n")
 		_ = b.Flush()
 	}))

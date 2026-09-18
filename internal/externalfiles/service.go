@@ -26,7 +26,7 @@ const namespace = "approved-sources"
 const maxFile = 128 << 10
 
 var identifier = regexp.MustCompile(`^[a-z][a-z0-9-]{0,63}$`)
-var unavailable = errors.New("external file unavailable; check source approval, access, limits and provider status")
+var errUnavailable = errors.New("external file unavailable; check source approval, access, limits and provider status")
 
 // Source is an administrator's explicit approval to disclose a repository's
 // files at Ref to Kumbuka users. Token is encrypted and never sent to guests.
@@ -86,7 +86,7 @@ func (s *Service) List(ctx context.Context) ([]Source, error) {
 	for _, data := range rows {
 		var v Source
 		if json.Unmarshal(data, &v) != nil {
-			return nil, unavailable
+			return nil, errUnavailable
 		}
 		v.HasToken = v.Token != ""
 		v.Token = ""
@@ -133,23 +133,23 @@ func (s *Service) Delete(ctx context.Context, id string) error {
 func (s *Service) Capability(ctx context.Context, raw json.RawMessage) (any, error) {
 	user, ok := auth.ContextUser(ctx)
 	if !ok || user.ID <= 0 {
-		return nil, unavailable
+		return nil, errUnavailable
 	}
 	var request sdk.ExternalFileRequest
 	d := json.NewDecoder(bytes.NewReader(raw))
 	d.DisallowUnknownFields()
 	if d.Decode(&request) != nil {
-		return nil, unavailable
+		return nil, errUnavailable
 	}
 	var extra any
 	if d.Decode(&extra) != io.EOF {
-		return nil, unavailable
+		return nil, errUnavailable
 	}
 	return s.read(ctx, request)
 }
 
 func (s *Service) read(ctx context.Context, q sdk.ExternalFileRequest) (sdk.ExternalFile, error) {
-	fail := func() (sdk.ExternalFile, error) { return sdk.ExternalFile{}, unavailable }
+	fail := func() (sdk.ExternalFile, error) { return sdk.ExternalFile{}, errUnavailable }
 	if !identifier.MatchString(q.Source) || !validPath(q.Path) || q.Start < 0 || q.End < 0 || q.End > 10000 || ((q.Start == 0) != (q.End == 0)) || q.Start > q.End {
 		return fail()
 	}

@@ -65,29 +65,29 @@ func allowedIP(a netip.Addr, private []string) bool {
 func secureClient(v Source, insecure bool) (*http.Client, error) {
 	roots, err := certificateRoots()
 	if err != nil {
-		return nil, unavailable
+		return nil, errUnavailable
 	}
 	target, err := url.Parse(v.Endpoint)
 	if err != nil {
-		return nil, unavailable
+		return nil, errUnavailable
 	}
 	proxyURL, err := proxyFor(target)
 	if err != nil {
-		return nil, unavailable
+		return nil, errUnavailable
 	}
 	transport := &http.Transport{TLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS12, RootCAs: roots, InsecureSkipVerify: insecure}, Proxy: nil, DisableCompression: true, DisableKeepAlives: true, MaxResponseHeaderBytes: 16 << 10, TLSHandshakeTimeout: 3 * time.Second, ResponseHeaderTimeout: 4 * time.Second}
 	transport.DialContext = func(ctx context.Context, network, address string) (net.Conn, error) {
 		host, port, err := net.SplitHostPort(address)
 		if err != nil {
-			return nil, unavailable
+			return nil, errUnavailable
 		}
 		ips, err := net.DefaultResolver.LookupNetIP(ctx, "ip", host)
 		if err != nil || len(ips) == 0 {
-			return nil, unavailable
+			return nil, errUnavailable
 		}
 		for _, ip := range ips {
 			if !allowedIP(ip.Unmap(), v.PrivateIPs) {
-				return nil, unavailable
+				return nil, errUnavailable
 			}
 		}
 		dialer := net.Dialer{Timeout: 3 * time.Second}
@@ -104,7 +104,7 @@ func secureClient(v Source, insecure bool) (*http.Client, error) {
 				return c, nil
 			}
 		}
-		return nil, unavailable
+		return nil, errUnavailable
 	}
 	return &http.Client{Transport: transport, Timeout: 8 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}, nil
 }
@@ -124,7 +124,7 @@ func fileURL(v Source, path string) string {
 func fetchFile(ctx context.Context, v Source, path string, insecure bool) (string, error) {
 	client, err := secureClient(v, insecure)
 	if err != nil {
-		return "", unavailable
+		return "", errUnavailable
 	}
 	defer client.CloseIdleConnections()
 	return fetchWithClient(ctx, client, v, path)
@@ -133,7 +133,7 @@ func fetchFile(ctx context.Context, v Source, path string, insecure bool) (strin
 func fetchWithClient(ctx context.Context, client *http.Client, v Source, path string) (string, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fileURL(v, path), nil)
 	if err != nil {
-		return "", unavailable
+		return "", errUnavailable
 	}
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("User-Agent", "Kumbuka-External-Files")
@@ -147,22 +147,22 @@ func fetchWithClient(ctx context.Context, client *http.Client, v Source, path st
 	}
 	response, err := client.Do(req)
 	if err != nil {
-		return "", unavailable
+		return "", errUnavailable
 	}
-	defer response.Body.Close()
+	defer func() { _ = response.Body.Close() }()
 	if response.StatusCode != http.StatusOK || response.Header.Get("Content-Encoding") != "" {
-		return "", unavailable
+		return "", errUnavailable
 	}
 	limit := int64(maxFile)
 	if v.Provider == "github" {
 		limit = 2 * maxFile
 	}
 	if response.ContentLength > limit {
-		return "", unavailable
+		return "", errUnavailable
 	}
 	body, err := io.ReadAll(io.LimitReader(response.Body, limit+1))
 	if err != nil || int64(len(body)) > limit {
-		return "", unavailable
+		return "", errUnavailable
 	}
 	if v.Provider == "github" {
 		var file struct {
@@ -170,16 +170,16 @@ func fetchWithClient(ctx context.Context, client *http.Client, v Source, path st
 			Size                    int
 		}
 		if json.Unmarshal(body, &file) != nil || file.Type != "file" || file.Encoding != "base64" || file.Size > maxFile {
-			return "", unavailable
+			return "", errUnavailable
 		}
 		body, err = base64.StdEncoding.DecodeString(file.Content)
 		if err != nil {
-			return "", unavailable
+			return "", errUnavailable
 		}
 	}
 	content := string(body)
 	if !validContent(content) {
-		return "", unavailable
+		return "", errUnavailable
 	}
 	return content, nil
 }
@@ -198,14 +198,14 @@ func validContent(content string) bool {
 
 func selectLines(content string, q sdk.ExternalFileRequest) (sdk.ExternalFile, error) {
 	if !validContent(content) {
-		return sdk.ExternalFile{}, unavailable
+		return sdk.ExternalFile{}, errUnavailable
 	}
 	content = strings.ReplaceAll(content, "\r\n", "\n")
 	// A terminal newline terminates the last line; it does not create another one.
 	content = strings.TrimSuffix(content, "\n")
 	lines := strings.Split(content, "\n")
 	if len(lines) > 10000 {
-		return sdk.ExternalFile{}, unavailable
+		return sdk.ExternalFile{}, errUnavailable
 	}
 	start, end := q.Start, q.End
 	if start == 0 && end == 0 {

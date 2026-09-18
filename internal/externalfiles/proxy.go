@@ -21,7 +21,7 @@ import (
 func proxyFor(target *url.URL) (*url.URL, error) {
 	proxyURL, err := httpproxy.FromEnvironment().ProxyFunc()(target)
 	if err != nil {
-		return nil, unavailable
+		return nil, errUnavailable
 	}
 	if proxyURL != nil && (proxyURL.Hostname() == "" || (proxyURL.Scheme != "http" && proxyURL.Scheme != "https") || proxyURL.RawQuery != "" || proxyURL.Fragment != "" || (proxyURL.Path != "" && proxyURL.Path != "/")) {
 		return nil, errors.New("external files require an HTTP or HTTPS proxy")
@@ -43,7 +43,7 @@ func tunnel(ctx context.Context, proxyURL *url.URL, target string, roots *x509.C
 	dialer := net.Dialer{Timeout: 3 * time.Second}
 	conn, err := dialer.DialContext(ctx, "tcp", net.JoinHostPort(proxyURL.Hostname(), port))
 	if err != nil {
-		return nil, unavailable
+		return nil, errUnavailable
 	}
 	success := false
 	defer func() {
@@ -63,7 +63,7 @@ func tunnel(ctx context.Context, proxyURL *url.URL, target string, roots *x509.C
 		// The provider's insecure switch never disables verification of a TLS proxy.
 		connTLS := tls.Client(conn, &tls.Config{ServerName: proxyURL.Hostname(), MinVersion: tls.VersionTLS12, RootCAs: roots})
 		if err := connTLS.HandshakeContext(ctx); err != nil {
-			return nil, unavailable
+			return nil, errUnavailable
 		}
 		conn = connTLS
 	}
@@ -73,7 +73,7 @@ func tunnel(ctx context.Context, proxyURL *url.URL, target string, roots *x509.C
 		request.Header.Set("Proxy-Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte(proxyURL.User.Username()+":"+password)))
 	}
 	if err := request.Write(conn); err != nil {
-		return nil, unavailable
+		return nil, errUnavailable
 	}
 	// Read a bounded CONNECT header without consuming bytes from the tunnel.
 	reader := bufio.NewReaderSize(conn, 16<<10)
@@ -83,13 +83,13 @@ func tunnel(ctx context.Context, proxyURL *url.URL, target string, roots *x509.C
 		line := string(lineBytes)
 		total += len(line)
 		if err != nil || total > 16<<10 {
-			return nil, unavailable
+			return nil, errUnavailable
 		}
 		if total == len(line) {
 			// Parse the status with the standard parser using only a synthetic header terminator.
 			response, e := http.ReadResponse(bufio.NewReader(strings.NewReader(line+"\r\n")), request)
 			if e != nil || response.StatusCode != http.StatusOK {
-				return nil, unavailable
+				return nil, errUnavailable
 			}
 		}
 		if line == "\r\n" {
@@ -97,10 +97,10 @@ func tunnel(ctx context.Context, proxyURL *url.URL, target string, roots *x509.C
 		}
 	}
 	if reader.Buffered() != 0 {
-		return nil, unavailable
+		return nil, errUnavailable
 	}
 	if !stop() {
-		return nil, unavailable
+		return nil, errUnavailable
 	}
 	_ = conn.SetDeadline(time.Time{})
 	success = true
