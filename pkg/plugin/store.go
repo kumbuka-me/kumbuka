@@ -30,6 +30,16 @@ type Store interface {
 	DeletePlugin(context.Context, string) error
 }
 
+// SecretCodec encrypts and decrypts manifest-declared plugin secret fields.
+type SecretCodec interface {
+	// Configured reports whether encryption and decryption are available.
+	Configured() bool
+	// Encrypt protects one plaintext setting for persistence.
+	Encrypt(string) (string, error)
+	// Decrypt reveals one persisted setting to its owning plugin.
+	Decrypt(string) (string, error)
+}
+
 // ManagerOption configures one trusted manager dependency or operator policy.
 type ManagerOption func(*Manager)
 
@@ -38,6 +48,9 @@ func WithStore(store Store) ManagerOption { return func(m *Manager) { m.store = 
 
 // WithStorage configures namespaced persistent plugin settings and data.
 func WithStorage(storage Storage) ManagerOption { return func(m *Manager) { m.values = storage } }
+
+// WithSecretCodec configures encryption for manifest-declared plugin secrets.
+func WithSecretCodec(codec SecretCodec) ManagerOption { return func(m *Manager) { m.secrets = codec } }
 
 // memoryStore provides process-local installation persistence for isolated renderers and tests.
 type memoryStore struct {

@@ -6,6 +6,7 @@ import (
 	"html/template"
 	"net/http"
 	"slices"
+	"sort"
 	"strings"
 
 	"github.com/kumbuka-me/kumbuka/internal/auth"
@@ -162,6 +163,8 @@ type pluginData struct {
 	editorInserts []plugin.EditorInsertContribution
 	// sidebarWidgets contains rendered sidebar widget models.
 	sidebarWidgets []Widget
+	// settingsLinks contains installed plugins with administrator configuration.
+	settingsLinks []PluginSettingsLink
 }
 
 // Load builds the common template data used by every authenticated browser page.
@@ -242,6 +245,7 @@ func (l *Loader) Load(r *http.Request, views *Views, title string) (Data, error)
 		PluginModules:           plugins.modules,
 		PluginStylesVersion:     plugins.stylesVersion,
 		EditorInserts:           plugins.editorInserts,
+		PluginSettingsLinks:     plugins.settingsLinks,
 		CanEdit:                 user.Role == "admin" || user.Role == "editor",
 		PageContentLanguage:     applicationSettings.ContentLanguage,
 	}, nil
@@ -385,7 +389,37 @@ func (l *Loader) loadPluginData(
 		stylesVersion:     pluginbrowser.PresentationStylesVersion(l.pluginManager),
 		editorInserts:     editorInserts,
 		sidebarWidgets:    sidebarWidgets,
+		settingsLinks:     pluginSettingsLinks(loadedPlugins),
 	}, nil
+}
+
+// pluginSettingsLinks returns installed plugins that expose boolean settings or structured resources.
+func pluginSettingsLinks(items []plugin.LoadedPlugin) []PluginSettingsLink {
+	links := make([]PluginSettingsLink, 0)
+	for _, item := range items {
+		if !pluginExposesSettings(item) {
+			continue
+		}
+		links = append(links, PluginSettingsLink{
+			ID:      item.Manifest.ID,
+			Name:    item.Manifest.Name,
+			Section: "plugin:" + item.Manifest.ID,
+		})
+	}
+	sort.Slice(links, func(i, j int) bool {
+		return strings.ToLower(links[i].Name) < strings.ToLower(links[j].Name)
+	})
+	return links
+}
+
+// pluginExposesSettings reports whether a plugin contributes administrator-managed configuration.
+func pluginExposesSettings(item plugin.LoadedPlugin) bool {
+	for _, module := range item.Manifest.Modules {
+		if module.Type == "settings" || module.Type == "admin-resource" {
+			return true
+		}
+	}
+	return false
 }
 
 // effectiveTypographySize resolves the user preference against the application default.

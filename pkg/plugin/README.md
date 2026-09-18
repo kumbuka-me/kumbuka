@@ -199,14 +199,26 @@ not stored in the instance; concurrent viewers cannot share callbacks. Calls
 outside an invocation, unknown operations, malformed buffers, and undeclared
 permissions are denied. A host-adapter panic becomes a guest-visible error.
 
-The application explicitly grants page reads and namespaced settings/data
-permissions to requesting packages. The lower-level runtime grants nothing by
-default. Attachments have an optional authorized range-reader adapter and are
-not bound automatically. No network, user directory, general settings, SQL,
-filesystem, or process capability is available. The same grant rules apply to
-both distribution sources.
+The application explicitly grants page reads, namespaced settings/data, and
+bounded infrastructure capabilities to requesting packages. The lower-level
+runtime grants nothing by default. Attachments have an optional authorized
+range-reader adapter and are not bound automatically. Generic outbound HTTP is
+host-mediated: the plugin supplies the request, while Kumbuka enforces URL/header
+bounds, redirect policy, timeouts, response limits, DNS/IP validation, proxy and
+CA policy, and explicit permissions for private destinations or insecure origin
+TLS. No raw socket, user directory, SQL, filesystem, or process capability is
+available. The same grant rules apply to both distribution sources.
 
-Storage is keyed by plugin ID, namespace, and key. Guest calls can reach only the `settings` and `data` namespaces; declarative administrator settings use a separate core-owned `configuration` namespace. IDs come from the runtime. Limits are 256-byte keys, 64 KiB per value, 1,024 keys and 16 MiB total per plugin. A PostgreSQL transaction and per-plugin advisory lock make quota checks atomic. This storage survives runtime restarts. Plugin installation state is stored separately.
+Storage is keyed by plugin ID, namespace, and key. Guest calls can reach only the
+`settings` and `data` namespaces. Declarative `admin-resource` records also use
+the owning plugin's settings namespace but are available to executable plugin code
+through the typed `plugin.resources.get/list` capability rather than by accepting
+caller-supplied plugin identities. Manifest `secret` fields are encrypted before
+persistence, masked in administration, and decrypted only when returned to the
+owning plugin. IDs come from the runtime. Limits are 256-byte keys, 64 KiB per
+value, 1,024 keys and 16 MiB total per plugin. A PostgreSQL transaction and
+per-plugin advisory lock make quota checks atomic. This storage survives runtime
+restarts. Plugin installation state is stored separately.
 
 See `github.com/kumbuka-me/sdk/WIRE.md` for methods and wire contracts. Tests cover actual WASM
 macro parity between bundled and installed packages, authorization failures,
@@ -318,8 +330,10 @@ host capability. Disabling or removing the owning plugin removes its icons immed
 
 ## Administration
 
-`/admin/plugins` and its plugin detail modals use browser authentication
-and administrator authorization middleware. Bounded multipart uploads call the
+`/admin/plugins` and the dedicated `/admin/plugin-settings/{pluginID}` pages
+use browser authentication and administrator authorization middleware. The Plugins
+page owns package lifecycle; the settings pages are generated from manifest
+`settings` and `admin-resource` declarations. Bounded multipart uploads call the
 same manager methods as runtime callers; handlers neither extract files nor
 instantiate separate runtimes. Invalid packages, permission failures and lifecycle
 errors leave state unchanged. Request handlers log successful lifecycle actions
@@ -331,10 +345,12 @@ permissions. Bootstrap enables required IDs (and rejects missing ones), and all
 public disable and uninstall paths enforce the policy. Shutdown still closes
 required instances normally. No bundled feature is required by default.
 
-The admin UI renders each package `README.md`, exposes enable/disable lifecycle
-controls, and renders declarative boolean `settings` modules with their names and
-descriptions. Settings are stored in a core-owned namespace and reach renderers
-as generic feature flags.
+The admin UI renders each package `README.md` and exposes enable/disable lifecycle
+controls from the Plugins page. Plugins that declare boolean `settings` or
+structured `admin-resource` modules appear in a separate Plugin settings section
+of the administration sidebar. Boolean settings reach renderers as generic feature
+flags; structured resources support bounded text, textarea, URL, secret, boolean,
+and select fields without teaching core plugin-specific configuration names.
 
 ## Core page primitives
 

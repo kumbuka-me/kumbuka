@@ -38,7 +38,7 @@ func (s *Store) ListPluginValues(ctx context.Context, id, namespace, prefix stri
 }
 
 // WritePluginValue serializes plugin-scoped writes and enforces a total quota
-// across guest settings/data and core-owned plugin configuration: 1,024 keys and 16 MiB. Updating a key at the quota
+// across plugin settings and data: 1,024 keys and 16 MiB. Updating a key at the quota
 // remains possible. The transaction prevents concurrent quota oversubscription.
 func (s *Store) WritePluginValue(ctx context.Context, id, namespace, key string, value []byte) error {
 	if value == nil {

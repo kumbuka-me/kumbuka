@@ -41,8 +41,6 @@ var trustedGroupHeaders = []string{
 
 // Config contains deployment-level runtime configuration for Kumbuka.
 type Config struct {
-	// ExternalFilesInsecureSkipVerify is a deployment-only provider TLS override.
-	ExternalFilesInsecureSkipVerify bool
 	// ListenAddress is the TCP address used by the HTTP server.
 	ListenAddress string
 	// DatabaseURL is the PostgreSQL connection URL.
@@ -204,8 +202,6 @@ func Parse(args []string, version string) (Config, error) {
 		OverriddenValueMaskFn(tinyflags.MaskFirstLast).
 		Validate(secrets.ValidateKey).
 		Value()
-
-	tf.BoolVar(&cfg.ExternalFilesInsecureSkipVerify, "external-files-insecure-skip-verify", false, "Disable TLS certificate verification for external-file providers").Env("KUMBUKA_EXTERNAL_FILES_INSECURE_SKIP_VERIFY").Value()
 
 	// Logging
 	logFormat := tinyflags.Enum(tf, "log-format", logging.LogFormatJSON, "Log output format", logging.LogFormatText, logging.LogFormatJSON).

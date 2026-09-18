@@ -80,6 +80,8 @@ type Manager struct {
 	store Store
 	// values provides namespaced persistent settings and data storage.
 	values Storage
+	// secrets encrypts manifest-declared secret resource fields.
+	secrets SecretCodec
 	// bundled stores embedded package bytes by plugin ID for installed overrides.
 	bundled map[string][]byte
 	// retirements tracks instances waiting for active render leases to drain.
@@ -121,6 +123,9 @@ func cloneLoaded(metadata LoadedPlugin) LoadedPlugin {
 	for i := range metadata.Manifest.Modules {
 		metadata.Manifest.Modules[i].Requires = append([]string(nil), metadata.Manifest.Modules[i].Requires...)
 		metadata.Manifest.Modules[i].Fields = append([]pluginpackage.ResourceField(nil), metadata.Manifest.Modules[i].Fields...)
+		for fieldIndex := range metadata.Manifest.Modules[i].Fields {
+			metadata.Manifest.Modules[i].Fields[fieldIndex].Options = append([]string(nil), metadata.Manifest.Modules[i].Fields[fieldIndex].Options...)
+		}
 	}
 	metadata.Manifest.Requires = append([]string(nil), metadata.Manifest.Requires...)
 	metadata.Manifest.Permissions = append([]string(nil), metadata.Manifest.Permissions...)
@@ -158,4 +163,11 @@ func (m *Manager) Close(ctx context.Context) error {
 	}
 
 	return errors.Join(result, m.runtime.Close(ctx))
+}
+
+// SetSecretCodec configures encryption for manifest-declared plugin secret fields.
+func (m *Manager) SetSecretCodec(codec SecretCodec) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.secrets = codec
 }

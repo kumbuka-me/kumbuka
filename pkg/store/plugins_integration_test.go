@@ -52,20 +52,3 @@ func TestPluginStorageQuotaAllowsReplacement(t *testing.T) {
 	require.ErrorContains(t, database.WritePluginValue(ctx, "io.bytes", "settings", "new", []byte("overflow")), "quota")
 	require.NoError(t, database.WritePluginValue(ctx, "io.bytes", "data", "1", []byte("smaller")))
 }
-
-func TestExternalFileSourceNamespace(t *testing.T) {
-	ctx := context.Background()
-	database, err := Open(ctx, integrationDatabase(t), slog.New(slog.NewTextHandler(io.Discard, nil)))
-	require.NoError(t, err)
-	defer database.Close()
-	require.NoError(t, database.WritePluginValue(ctx, "core.external-files", "approved-sources", "docs", []byte("encrypted record")))
-	value, found, err := database.ReadPluginValue(ctx, "core.external-files", "approved-sources", "docs")
-	require.NoError(t, err)
-	require.True(t, found)
-	require.Equal(t, "encrypted record", string(value))
-	require.Error(t, database.WritePluginValue(ctx, "io.guest", "approved-sources", "docs", []byte("forged")))
-	_, found, err = database.ReadPluginValue(ctx, "core.external-files", "data", "docs")
-	require.NoError(t, err)
-	require.False(t, found)
-	require.NoError(t, database.DeletePluginValue(ctx, "core.external-files", "approved-sources", "docs"))
-}

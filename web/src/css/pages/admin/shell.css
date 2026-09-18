@@ -147,3 +147,14 @@
   align-items: center;
   gap: 9px;
 }
+
+.admin-plugin-settings-separator {
+  height: 1px;
+  margin: 10px 9px 7px;
+  background: var(--border-subtle);
+}
+
+.admin-sidebar .admin-plugin-settings-label {
+  margin-top: 0;
+  padding: 0 9px;
+}

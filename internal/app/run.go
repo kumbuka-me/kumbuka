@@ -97,9 +97,15 @@ func Run(
 		database,
 		pluginArchives,
 		wasm.WithStorage(database),
-		wasm.WithExternalFiles(routeConfig.ExternalFiles.Capability),
+		wasm.WithSecretCodec(secretCipher),
+		wasm.WithHTTPAuthorizer(func(ctx context.Context) bool {
+			user, ok := auth.ContextUser(ctx)
+			return ok && user.ID > 0
+		}),
 		wasm.WithPermissions(
-			"external:read",
+			"network:http",
+			"network:private",
+			"network:insecure-tls",
 			"activity:read",
 			"drafts:read",
 			"settings:read",
@@ -112,6 +118,7 @@ func Run(
 	if err != nil {
 		return setupFailure(setupLogger, "create markdown renderer", "markdown_renderer_failed", err)
 	}
+	renderer.PluginManager().SetSecretCodec(secretCipher)
 	renderer.SetArtifactBuild(version, commit)
 	defer closeRenderer(renderer, setupLogger)
 	routeConfig.Renderer = renderer

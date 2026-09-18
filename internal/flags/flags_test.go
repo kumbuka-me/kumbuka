@@ -9,10 +9,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// parseTestConfig parses one isolated flag test configuration.
 func parseTestConfig(args []string) (Config, error) {
 	return Parse(args, "test")
 }
 
+// TestEnvironmentPrefix verifies the corresponding flag configuration behavior.
 func TestEnvironmentPrefix(t *testing.T) {
 	t.Setenv("KUMBUKA__DATABASE_URL", "postgres://example/kumbuka")
 	t.Setenv("KUMBUKA__AUTH_MODE", string(auth.AuthModeTrustedProxy))
@@ -24,6 +26,7 @@ func TestEnvironmentPrefix(t *testing.T) {
 	assert.Equal(t, auth.AuthModeTrustedProxy, cfg.AuthModeOverride)
 }
 
+// TestOIDCSessionSecretAndEncryptionKeyFromEnvironment verifies the corresponding flag configuration behavior.
 func TestOIDCSessionSecretAndEncryptionKeyFromEnvironment(t *testing.T) {
 	t.Setenv("KUMBUKA__DATABASE_URL", "postgres://example/kumbuka")
 	t.Setenv("KUMBUKA__OIDC_SESSION_SECRET", "0123456789abcdef0123456789abcdef")
@@ -36,6 +39,7 @@ func TestOIDCSessionSecretAndEncryptionKeyFromEnvironment(t *testing.T) {
 	assert.Equal(t, "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=", cfg.EncryptionKey)
 }
 
+// TestAuthModeRejectsUnknownValue verifies the corresponding flag configuration behavior.
 func TestAuthModeRejectsUnknownValue(t *testing.T) {
 	t.Parallel()
 
@@ -47,6 +51,7 @@ func TestAuthModeRejectsUnknownValue(t *testing.T) {
 	require.Error(t, err)
 }
 
+// TestAuthModeDefaultsToDatabaseManaged verifies the corresponding flag configuration behavior.
 func TestAuthModeDefaultsToDatabaseManaged(t *testing.T) {
 	t.Setenv("KUMBUKA__AUTH_MODE", "")
 
@@ -56,6 +61,7 @@ func TestAuthModeDefaultsToDatabaseManaged(t *testing.T) {
 	assert.Empty(t, cfg.AuthModeOverride)
 }
 
+// TestLocalRecoveryLoginCanBeEnabledFromEnvironment verifies the corresponding flag configuration behavior.
 func TestLocalRecoveryLoginCanBeEnabledFromEnvironment(t *testing.T) {
 	t.Setenv("KUMBUKA__DATABASE_URL", "postgres://example/kumbuka")
 	t.Setenv("KUMBUKA__LOCAL_LOGIN", "true")
@@ -66,6 +72,7 @@ func TestLocalRecoveryLoginCanBeEnabledFromEnvironment(t *testing.T) {
 	assert.True(t, cfg.LocalLogin)
 }
 
+// TestUserRegistrationDefaultsToDatabaseManaged verifies the corresponding flag configuration behavior.
 func TestUserRegistrationDefaultsToDatabaseManaged(t *testing.T) {
 	t.Setenv("KUMBUKA__ALLOW_USER_REGISTRATION", "")
 
@@ -75,6 +82,7 @@ func TestUserRegistrationDefaultsToDatabaseManaged(t *testing.T) {
 	assert.Nil(t, cfg.AllowUserRegistrationOverride)
 }
 
+// TestUserRegistrationCanBeEnabledFromEnvironment verifies the corresponding flag configuration behavior.
 func TestUserRegistrationCanBeEnabledFromEnvironment(t *testing.T) {
 	t.Setenv("KUMBUKA__DATABASE_URL", "postgres://example/kumbuka")
 	t.Setenv("KUMBUKA__ALLOW_USER_REGISTRATION", "true")
@@ -86,6 +94,7 @@ func TestUserRegistrationCanBeEnabledFromEnvironment(t *testing.T) {
 	assert.True(t, *cfg.AllowUserRegistrationOverride)
 }
 
+// TestUserRegistrationCanBeDisabledByFlag verifies the corresponding flag configuration behavior.
 func TestUserRegistrationCanBeDisabledByFlag(t *testing.T) {
 	t.Parallel()
 
@@ -99,6 +108,7 @@ func TestUserRegistrationCanBeDisabledByFlag(t *testing.T) {
 	assert.False(t, *cfg.AllowUserRegistrationOverride)
 }
 
+// TestPluginUpdateCheckIntervalDefaultsToFifteenMinutes verifies the corresponding flag configuration behavior.
 func TestPluginUpdateCheckIntervalDefaultsToFifteenMinutes(t *testing.T) {
 	t.Setenv("KUMBUKA__PLUGIN_UPDATE_CHECK_INTERVAL", "")
 
@@ -108,6 +118,7 @@ func TestPluginUpdateCheckIntervalDefaultsToFifteenMinutes(t *testing.T) {
 	assert.Equal(t, 15*time.Minute, cfg.PluginUpdateCheckInterval)
 }
 
+// TestPluginUpdateCheckIntervalCanBeConfiguredFromEnvironment verifies the corresponding flag configuration behavior.
 func TestPluginUpdateCheckIntervalCanBeConfiguredFromEnvironment(t *testing.T) {
 	t.Setenv("KUMBUKA__DATABASE_URL", "postgres://example/kumbuka")
 	t.Setenv("KUMBUKA__PLUGIN_UPDATE_CHECK_INTERVAL", "1h30m")
@@ -118,6 +129,7 @@ func TestPluginUpdateCheckIntervalCanBeConfiguredFromEnvironment(t *testing.T) {
 	assert.Equal(t, 90*time.Minute, cfg.PluginUpdateCheckInterval)
 }
 
+// TestPluginUpdateCheckIntervalCanDisableScheduledChecks verifies the corresponding flag configuration behavior.
 func TestPluginUpdateCheckIntervalCanDisableScheduledChecks(t *testing.T) {
 	t.Parallel()
 
@@ -130,6 +142,7 @@ func TestPluginUpdateCheckIntervalCanDisableScheduledChecks(t *testing.T) {
 	assert.Zero(t, cfg.PluginUpdateCheckInterval)
 }
 
+// TestPluginUpdateCheckIntervalRejectsNegativeDuration verifies the corresponding flag configuration behavior.
 func TestPluginUpdateCheckIntervalRejectsNegativeDuration(t *testing.T) {
 	t.Parallel()
 
@@ -141,6 +154,7 @@ func TestPluginUpdateCheckIntervalRejectsNegativeDuration(t *testing.T) {
 	require.Error(t, err)
 }
 
+// TestRenderTimingsCanBeEnabledFromEnvironment verifies the corresponding flag configuration behavior.
 func TestRenderTimingsCanBeEnabledFromEnvironment(t *testing.T) {
 	t.Setenv("KUMBUKA__DATABASE_URL", "postgres://example/kumbuka")
 	t.Setenv("KUMBUKA__DEBUG_RENDER_TIMINGS", "true")
@@ -151,6 +165,7 @@ func TestRenderTimingsCanBeEnabledFromEnvironment(t *testing.T) {
 	assert.True(t, cfg.DebugRenderTimings)
 }
 
+// TestOIDCSecretsRemainDeploymentConfiguration verifies the corresponding flag configuration behavior.
 func TestOIDCSecretsRemainDeploymentConfiguration(t *testing.T) {
 	t.Parallel()
 
@@ -165,6 +180,7 @@ func TestOIDCSecretsRemainDeploymentConfiguration(t *testing.T) {
 	assert.Equal(t, "0123456789abcdef0123456789abcdef", cfg.OIDCSessionSecret)
 }
 
+// TestOverriddenValuesMaskSecrets verifies the corresponding flag configuration behavior.
 func TestOverriddenValuesMaskSecrets(t *testing.T) {
 	t.Parallel()
 
@@ -193,6 +209,7 @@ func TestOverriddenValuesMaskSecrets(t *testing.T) {
 	assert.NotEqual(t, encryptionKey, overrides["encryption-key"])
 }
 
+// TestEncryptionKeyRejectsInvalidValue verifies the corresponding flag configuration behavior.
 func TestEncryptionKeyRejectsInvalidValue(t *testing.T) {
 	t.Parallel()
 
@@ -204,6 +221,7 @@ func TestEncryptionKeyRejectsInvalidValue(t *testing.T) {
 	require.Error(t, err)
 }
 
+// TestPDFURLFromEnvironmentIncludesPath verifies the corresponding flag configuration behavior.
 func TestPDFURLFromEnvironmentIncludesPath(t *testing.T) {
 	t.Setenv("KUMBUKA__DATABASE_URL", "postgres://example/kumbuka")
 	t.Setenv("KUMBUKA__PDF_URL", "http://html2pdf:8080/custom/render?profile=wiki")
@@ -214,6 +232,7 @@ func TestPDFURLFromEnvironmentIncludesPath(t *testing.T) {
 	assert.Equal(t, "http://html2pdf:8080/custom/render?profile=wiki", cfg.PDFURL)
 }
 
+// TestPDFURLValidation verifies the corresponding flag configuration behavior.
 func TestPDFURLValidation(t *testing.T) {
 	t.Run("missing HTTP scheme", func(t *testing.T) {
 		_, err := parseTestConfig([]string{"--database-url", "postgres://example/kumbuka", "--pdf-url", "pdf:8080/render"})
@@ -246,6 +265,7 @@ func TestPDFURLValidation(t *testing.T) {
 	assert.Empty(t, cfg.PDFURL)
 }
 
+// TestLocalAuthenticationOverride verifies the corresponding flag configuration behavior.
 func TestLocalAuthenticationOverride(t *testing.T) {
 	t.Parallel()
 	cfg, err := parseTestConfig([]string{"--database-url", "postgres://example/kumbuka", "--auth-mode", "local"})
@@ -253,6 +273,7 @@ func TestLocalAuthenticationOverride(t *testing.T) {
 	assert.Equal(t, auth.AuthModeLocal, cfg.AuthModeOverride)
 }
 
+// TestLocalAuthenticationOverrideFromEnvironment verifies the corresponding flag configuration behavior.
 func TestLocalAuthenticationOverrideFromEnvironment(t *testing.T) {
 	t.Setenv("KUMBUKA__DATABASE_URL", "postgres://example/kumbuka")
 	t.Setenv("KUMBUKA__AUTH_MODE", "local")
@@ -261,6 +282,7 @@ func TestLocalAuthenticationOverrideFromEnvironment(t *testing.T) {
 	assert.Equal(t, auth.AuthModeLocal, cfg.AuthModeOverride)
 }
 
+// TestUserRegistrationFlagRequiresExplicitValue verifies the corresponding flag configuration behavior.
 func TestUserRegistrationFlagRequiresExplicitValue(t *testing.T) {
 	t.Parallel()
 
@@ -272,6 +294,7 @@ func TestUserRegistrationFlagRequiresExplicitValue(t *testing.T) {
 	require.Error(t, err)
 }
 
+// TestReadOnlyCanBeEnabledFromEnvironment verifies the corresponding flag configuration behavior.
 func TestReadOnlyCanBeEnabledFromEnvironment(t *testing.T) {
 	t.Setenv("KUMBUKA__DATABASE_URL", "postgres://example/kumbuka")
 	t.Setenv("KUMBUKA__READ_ONLY", "true")
@@ -282,6 +305,7 @@ func TestReadOnlyCanBeEnabledFromEnvironment(t *testing.T) {
 	assert.True(t, cfg.ReadOnly)
 }
 
+// TestTrustedProxyAuthorizationOverridesFromEnvironment verifies the corresponding flag configuration behavior.
 func TestTrustedProxyAuthorizationOverridesFromEnvironment(t *testing.T) {
 	t.Setenv("KUMBUKA__DATABASE_URL", "postgres://example/kumbuka")
 	t.Setenv("KUMBUKA__TRUSTED_GROUP_HEADERS", "X-Groups,X-Teams")
@@ -294,6 +318,7 @@ func TestTrustedProxyAuthorizationOverridesFromEnvironment(t *testing.T) {
 	assert.Equal(t, "platform-admins", cfg.TrustedAdminGroup)
 }
 
+// TestOIDCAuthorizationOverridesFromEnvironment verifies the corresponding flag configuration behavior.
 func TestOIDCAuthorizationOverridesFromEnvironment(t *testing.T) {
 	t.Setenv("KUMBUKA__DATABASE_URL", "postgres://example/kumbuka")
 	t.Setenv("KUMBUKA__OIDC_GROUP_CLAIM", "roles")
@@ -304,16 +329,4 @@ func TestOIDCAuthorizationOverridesFromEnvironment(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "roles", cfg.OIDCGroupClaim)
 	assert.Equal(t, "wiki-admins", cfg.OIDCAdminGroup)
-}
-
-func TestExternalFilesTLSOverrideFromEnvironment(t *testing.T) {
-	t.Setenv("KUMBUKA__DATABASE_URL", "postgres://example/kumbuka")
-	t.Setenv("KUMBUKA_EXTERNAL_FILES_INSECURE_SKIP_VERIFY", "true")
-	cfg, err := Parse(nil, "test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !cfg.ExternalFilesInsecureSkipVerify {
-		t.Fatal("external TLS override ignored")
-	}
 }

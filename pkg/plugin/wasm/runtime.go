@@ -94,8 +94,6 @@ var compilationGate = make(chan struct{}, 1)
 
 // Runtime owns the wazero engine and trusted host policy used for plugin instances.
 type Runtime struct {
-	// externalFiles is a trusted, host-authorized file reader, never arbitrary HTTP.
-	externalFiles plugin.Capability
 	// engine owns compiled modules and instantiated WASM guests.
 	engine wazero.Runtime
 	// limits contains effective runtime resource bounds.
@@ -104,6 +102,12 @@ type Runtime struct {
 	permissions map[string]bool
 	// storage provides persistent plugin state storage.
 	storage plugin.Storage
+	// secrets decrypts manifest-declared plugin secret settings for their owning guest.
+	secrets plugin.SecretCodec
+	// httpAuthorizer decides whether the current invocation may perform outbound network I/O.
+	httpAuthorizer func(context.Context) bool
+	// httpActive bounds concurrent outbound plugin requests across the runtime.
+	httpActive chan struct{}
 	// logger receives debug-only plugin initialization timings when configured.
 	logger *slog.Logger
 	// interpreter forces wazero's interpreter instead of AOT compilation.
@@ -125,6 +129,14 @@ func WithPermissions(permissions ...string) Option {
 // WithStorage provides namespaced persistent settings and data storage to plugins.
 func WithStorage(storage plugin.Storage) Option { return func(r *Runtime) { r.storage = storage } }
 
+// WithSecretCodec provides encryption for manifest-declared secret resource fields.
+func WithSecretCodec(codec plugin.SecretCodec) Option { return func(r *Runtime) { r.secrets = codec } }
+
+// WithHTTPAuthorizer enables outbound HTTP only for invocation contexts accepted by authorize.
+func WithHTTPAuthorizer(authorize func(context.Context) bool) Option {
+	return func(r *Runtime) { r.httpAuthorizer = authorize }
+}
+
 // WithLogger enables runtime diagnostics such as per-plugin initialization timings.
 // Timing messages use DEBUG level, so normal application logging remains unchanged.
 func WithLogger(logger *slog.Logger) Option { return func(r *Runtime) { r.logger = logger } }
@@ -141,7 +153,7 @@ func New(ctx context.Context, limits Limits, options ...Option) (*Runtime, error
 		return nil, errors.New("invalid WASM runtime limits")
 	}
 
-	r := &Runtime{limits: limits, permissions: make(map[string]bool)}
+	r := &Runtime{limits: limits, permissions: make(map[string]bool), httpActive: make(chan struct{}, 16)}
 	for _, option := range options {
 		option(r)
 	}
@@ -315,10 +327,4 @@ func validHostImport(namespace, name string, function api.FunctionDefinition) bo
 	params := []api.ValueType{api.ValueTypeI32, api.ValueTypeI32, api.ValueTypeI32, api.ValueTypeI32}
 	results := []api.ValueType{api.ValueTypeI32}
 	return matchesSignature(function, params, results)
-}
-
-// WithExternalFiles provides the approved repository reader. The callback must
-// authorize the host request context and enforce source, secret and network policy.
-func WithExternalFiles(read plugin.Capability) Option {
-	return func(r *Runtime) { r.externalFiles = read }
 }

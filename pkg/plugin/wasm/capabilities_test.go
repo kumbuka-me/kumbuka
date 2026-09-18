@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -34,7 +35,7 @@ func (s *memoryStorage) ReadPluginValue(_ context.Context, id, namespace, key st
 	return bytes.Clone(value), ok, nil
 }
 
-// WritePluginValue writes plugin value.
+// ListPluginValues lists matching plugin values.
 func (s *memoryStorage) ListPluginValues(_ context.Context, id, namespace, prefix string) (map[string][]byte, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -48,6 +49,7 @@ func (s *memoryStorage) ListPluginValues(_ context.Context, id, namespace, prefi
 	return result, nil
 }
 
+// WritePluginValue stores one plugin value.
 func (s *memoryStorage) WritePluginValue(_ context.Context, id, namespace, key string, value []byte) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -55,6 +57,7 @@ func (s *memoryStorage) WritePluginValue(_ context.Context, id, namespace, key s
 	return nil
 }
 
+// DeletePluginValue removes one plugin value.
 func (s *memoryStorage) DeletePluginValue(_ context.Context, id, namespace, key string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -162,29 +165,112 @@ func TestCapabilitiesUseCurrentRequestAndRecoverFromHostPanic(t *testing.T) {
 	assert.Equal(t, `"healthy"`, hostRequest(t, instance, scope, "pages.get", nil))
 }
 
-func TestExternalFilesRequireManifestPermission(t *testing.T) {
+// testSecretCodec provides deterministic encryption for host-capability tests.
+type testSecretCodec struct{}
+
+// Configured reports that test encryption is available.
+func (testSecretCodec) Configured() bool { return true }
+
+// Encrypt prefixes plaintext with the deterministic test marker.
+func (testSecretCodec) Encrypt(value string) (string, error) { return "enc:" + value, nil }
+
+// Decrypt removes the deterministic test marker.
+func (testSecretCodec) Decrypt(value string) (string, error) {
+	plain, ok := strings.CutPrefix(value, "enc:")
+	if !ok {
+		return "", errors.New("invalid ciphertext")
+	}
+	return plain, nil
+}
+
+// resourceCapabilityPackage builds a fixture package with one structured secret resource.
+func resourceCapabilityPackage(t *testing.T, id string, permissions []string) *pluginpackage.Package {
+	t.Helper()
+	binary, err := fixtureWASM()
+	require.NoError(t, err)
+	grants, _ := json.Marshal(permissions)
+	manifest := fmt.Sprintf(`api_version: 1
+id: %s
+name: Fixture
+version: 1.0.0
+modules:
+  - type: renderer-extension
+    id: fixture
+    stage: preprocess
+  - type: admin-resource
+    id: sources
+    name: Sources
+    fields:
+      - id: name
+        name: Name
+        type: text
+        required: true
+        key: true
+      - id: token
+        name: Token
+        type: secret
+permissions: %s
+`, id, grants)
+	var output bytes.Buffer
+	archive := zip.NewWriter(&output)
+	for name, data := range map[string][]byte{"README.md": []byte("# Fixture\n"), "plugin.yaml": []byte(manifest), "plugin.wasm": binary} {
+		file, createErr := archive.Create(name)
+		require.NoError(t, createErr)
+		_, writeErr := file.Write(data)
+		require.NoError(t, writeErr)
+	}
+	require.NoError(t, archive.Close())
+	pkg, err := pluginpackage.Read(output.Bytes())
+	require.NoError(t, err)
+	return pkg
+}
+
+// TestPluginResourcesRequirePermissionAndRevealSecrets verifies structured resources stay scoped and decrypt only for their owner.
+func TestPluginResourcesRequirePermissionAndRevealSecrets(t *testing.T) {
 	ctx := context.Background()
-	calls := 0
-	runtime, err := wasm.New(ctx, wasm.Limits{}, wasm.WithInterpreter(), wasm.WithPermissions("external:read"), wasm.WithExternalFiles(func(context.Context, json.RawMessage) (any, error) {
-		calls++
-		return sdk.ExternalFile{Content: "approved", Start: 1}, nil
-	}))
+	storage := &memoryStorage{values: map[string][]byte{
+		`io.resources/settings/r:sources:docs`: []byte(`{"name":"docs","token":"enc:secret"}`),
+	}}
+	runtime, err := wasm.New(ctx, wasm.Limits{}, wasm.WithInterpreter(), wasm.WithPermissions("settings:read"), wasm.WithStorage(storage), wasm.WithSecretCodec(testSecretCodec{}))
 	require.NoError(t, err)
 	defer func() { _ = runtime.Close(ctx) }()
-	for _, grant := range []bool{false, true} {
-		var permissions []string
-		if grant {
-			permissions = []string{"external:read"}
-		}
-		instance, err := runtime.Load(ctx, capabilityPackage(t, "io.external", permissions))
-		require.NoError(t, err)
-		result := hostRequest(t, instance, plugin.Context{Context: ctx}, "external.files.read", sdk.ExternalFileRequest{Source: "docs", Path: "x"})
-		if grant {
-			assert.Contains(t, result, "approved")
-		} else {
-			assert.Contains(t, result, "capability denied")
-		}
-		require.NoError(t, instance.Close(ctx))
-	}
-	assert.Equal(t, 1, calls)
+
+	denied, err := runtime.Load(ctx, resourceCapabilityPackage(t, "io.denied-resources", nil))
+	require.NoError(t, err)
+	assert.Contains(t, hostRequest(t, denied, plugin.Context{Context: ctx}, "plugin.resources.get", sdk.PluginResourceRequest{Resource: "sources", Key: "docs"}), "capability denied")
+	require.NoError(t, denied.Close(ctx))
+
+	allowed, err := runtime.Load(ctx, resourceCapabilityPackage(t, "io.resources", []string{"settings:read"}))
+	require.NoError(t, err)
+	defer func() { _ = allowed.Close(ctx) }()
+	result := hostRequest(t, allowed, plugin.Context{Context: ctx}, "plugin.resources.get", sdk.PluginResourceRequest{Resource: "sources", Key: "docs"})
+	assert.Contains(t, result, `"token":"secret"`)
+	assert.NotContains(t, result, "enc:secret")
+}
+
+// TestHTTPRequiresNetworkPermissions verifies generic HTTP and its risky options require explicit manifest grants.
+func TestHTTPRequiresNetworkPermissions(t *testing.T) {
+	ctx := context.Background()
+	runtime, err := wasm.New(
+		ctx,
+		wasm.Limits{},
+		wasm.WithInterpreter(),
+		wasm.WithPermissions("network:http", "network:private", "network:insecure-tls"),
+		wasm.WithHTTPAuthorizer(func(context.Context) bool { return true }),
+	)
+	require.NoError(t, err)
+	defer func() { _ = runtime.Close(ctx) }()
+
+	denied, err := runtime.Load(ctx, capabilityPackage(t, "io.http-denied", nil))
+	require.NoError(t, err)
+	assert.Contains(t, hostRequest(t, denied, plugin.Context{Context: ctx}, "http.do", sdk.HTTPRequest{Method: "GET", URL: "https://example.com"}), "capability denied")
+	require.NoError(t, denied.Close(ctx))
+
+	basic, err := runtime.Load(ctx, capabilityPackage(t, "io.http-basic", []string{"network:http"}))
+	require.NoError(t, err)
+	defer func() { _ = basic.Close(ctx) }()
+	privateResult := hostRequest(t, basic, plugin.Context{Context: ctx}, "http.do", sdk.HTTPRequest{Method: "GET", URL: "http://10.0.0.1", AllowedPrivateIPs: []string{"10.0.0.1"}})
+	assert.Contains(t, privateResult, "capability denied")
+	insecureResult := hostRequest(t, basic, plugin.Context{Context: ctx}, "http.do", sdk.HTTPRequest{Method: "GET", URL: "https://example.com", InsecureSkipVerify: true})
+	assert.Contains(t, insecureResult, "capability denied")
 }

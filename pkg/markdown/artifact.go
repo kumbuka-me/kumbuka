@@ -108,7 +108,7 @@ func (r *Renderer) CanPersist(source string, usage *pluginusage.Index) bool {
 // hasDynamicReadPermission reports whether a plugin manifest grants a dynamic read capability.
 func hasDynamicReadPermission(permissions []string) bool {
 	for _, permission := range permissions {
-		if slices.Contains([]string{"external:read", "pages:read", "pages:content", "attachments:read", "settings:read", "storage:read"}, permission) {
+		if slices.Contains([]string{"pages:read", "pages:content", "attachments:read", "settings:read", "storage:read", "network:http"}, permission) {
 			return true
 		}
 	}

@@ -3,6 +3,7 @@ package plugin
 import (
 	"bytes"
 	"context"
+	"errors"
 	"strings"
 	"sync"
 	"testing"
@@ -12,11 +13,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// resourceStorage provides isolated plugin-value persistence for resource tests.
 type resourceStorage struct {
 	mu     sync.Mutex
 	values map[string][]byte
 }
 
+// ReadPluginValue reads one stored test value.
 func (s *resourceStorage) ReadPluginValue(_ context.Context, id, namespace, key string) ([]byte, bool, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -24,6 +27,7 @@ func (s *resourceStorage) ReadPluginValue(_ context.Context, id, namespace, key 
 	return bytes.Clone(value), ok, nil
 }
 
+// ListPluginValues lists matching stored test values.
 func (s *resourceStorage) ListPluginValues(_ context.Context, id, namespace, prefix string) (map[string][]byte, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -37,6 +41,7 @@ func (s *resourceStorage) ListPluginValues(_ context.Context, id, namespace, pre
 	return result, nil
 }
 
+// WritePluginValue stores one test plugin value.
 func (s *resourceStorage) WritePluginValue(_ context.Context, id, namespace, key string, value []byte) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -44,6 +49,7 @@ func (s *resourceStorage) WritePluginValue(_ context.Context, id, namespace, key
 	return nil
 }
 
+// DeletePluginValue removes one test plugin value.
 func (s *resourceStorage) DeletePluginValue(_ context.Context, id, namespace, key string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -51,6 +57,33 @@ func (s *resourceStorage) DeletePluginValue(_ context.Context, id, namespace, ke
 	return nil
 }
 
+// resourceSecretCodec provides deterministic reversible test encryption.
+type resourceSecretCodec struct{ configured bool }
+
+// Configured reports whether test encryption is enabled.
+func (c resourceSecretCodec) Configured() bool { return c.configured }
+
+// Encrypt protects a test value with a deterministic marker.
+func (c resourceSecretCodec) Encrypt(value string) (string, error) {
+	if !c.configured {
+		return "", errors.New("not configured")
+	}
+	return "enc:" + value, nil
+}
+
+// Decrypt reveals a deterministic test value.
+func (c resourceSecretCodec) Decrypt(value string) (string, error) {
+	if !c.configured {
+		return "", errors.New("not configured")
+	}
+	plain, ok := strings.CutPrefix(value, "enc:")
+	if !ok {
+		return "", errors.New("invalid ciphertext")
+	}
+	return plain, nil
+}
+
+// TestPluginResourcesAndEditorContributions verifies generic resources continue to feed declarative editor modules.
 func TestPluginResourcesAndEditorContributions(t *testing.T) {
 	ctx := context.Background()
 	storage := &resourceStorage{values: make(map[string][]byte)}
@@ -98,4 +131,55 @@ func TestPluginResourcesAndEditorContributions(t *testing.T) {
 	records, err = manager.ResourceRecords(ctx, manifest.ID, "values")
 	require.NoError(t, err)
 	assert.Empty(t, records)
+}
+
+// TestPluginResourceFieldTypesAndSecrets verifies typed validation, masked administration reads, and plugin secret decryption.
+func TestPluginResourceFieldTypesAndSecrets(t *testing.T) {
+	ctx := context.Background()
+	storage := &resourceStorage{values: make(map[string][]byte)}
+	codec := resourceSecretCodec{configured: true}
+	manifest := pluginpackage.Manifest{ID: "io.example.remote", Modules: []pluginpackage.Module{{
+		Type: "admin-resource", ID: "sources", Name: "Sources", Fields: []pluginpackage.ResourceField{
+			{ID: "name", Name: "Name", Type: "text", Required: true, Key: true},
+			{ID: "endpoint", Name: "Endpoint", Type: "url", Required: true},
+			{ID: "provider", Name: "Provider", Type: "select", Required: true, Options: []string{"github", "gitlab"}, Default: "github"},
+			{ID: "enabled", Name: "Enabled", Type: "boolean", Default: "true"},
+			{ID: "token", Name: "Token", Type: "secret"},
+		},
+	}}}
+	manager := NewManager(&Registry{}, nil, WithStorage(storage), WithSecretCodec(codec))
+	manager.loaded[manifest.ID] = managedPlugin{metadata: LoadedPlugin{Manifest: manifest, Enabled: true}}
+	manager.order = []string{manifest.ID}
+
+	require.NoError(t, manager.SaveResourceRecord(ctx, manifest.ID, "sources", "", map[string]string{
+		"name": "docs", "endpoint": "https://git.example.test", "provider": "gitlab", "enabled": "true", "token": "secret",
+	}))
+	adminRecords, err := manager.ResourceRecords(ctx, manifest.ID, "sources")
+	require.NoError(t, err)
+	require.Len(t, adminRecords, 1)
+	assert.Empty(t, adminRecords[0].Values["token"])
+	assert.True(t, adminRecords[0].SecretFields["token"])
+
+	raw, found, err := ReadResourceRecord(ctx, storage, manifest.ID, manifest.Modules[0], "docs")
+	require.NoError(t, err)
+	require.True(t, found)
+	assert.Equal(t, "enc:secret", raw.Values["token"])
+	revealed, err := RevealResourceSecrets(raw, manifest.Modules[0], codec)
+	require.NoError(t, err)
+	assert.Equal(t, "secret", revealed.Values["token"])
+
+	require.NoError(t, manager.SaveResourceRecord(ctx, manifest.ID, "sources", "docs", map[string]string{
+		"name": "docs", "endpoint": "https://git.example.test", "provider": "github", "enabled": "false", "token": "",
+	}))
+	raw, found, err = ReadResourceRecord(ctx, storage, manifest.ID, manifest.Modules[0], "docs")
+	require.NoError(t, err)
+	require.True(t, found)
+	assert.Equal(t, "enc:secret", raw.Values["token"], "blank edit must preserve the existing secret")
+	assert.Equal(t, "github", raw.Values["provider"])
+	assert.Equal(t, "false", raw.Values["enabled"])
+
+	err = manager.SaveResourceRecord(ctx, manifest.ID, "sources", "docs", map[string]string{
+		"name": "docs", "endpoint": "file:///tmp/docs", "provider": "github", "enabled": "true", "token": "",
+	})
+	require.ErrorContains(t, err, "absolute HTTP or HTTPS URL")
 }

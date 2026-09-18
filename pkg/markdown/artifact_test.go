@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestCanPersistRejectsDynamicTemplateSyntaxOutsideFences verifies dynamic template syntax prevents persisted artifacts.
 func TestCanPersistRejectsDynamicTemplateSyntaxOutsideFences(t *testing.T) {
 	t.Parallel()
 	renderer := NewWithRegistry(&plugin.Registry{})
@@ -18,6 +19,7 @@ func TestCanPersistRejectsDynamicTemplateSyntaxOutsideFences(t *testing.T) {
 	assert.True(t, renderer.CanPersist("# Static\n\nPlain Markdown.", nil))
 }
 
+// TestRenderFingerprintTracksBuildAndOptions verifies artifact fingerprints change with build identity and rendering options.
 func TestRenderFingerprintTracksBuildAndOptions(t *testing.T) {
 	t.Parallel()
 	renderer := NewWithRegistry(&plugin.Registry{})
@@ -33,4 +35,10 @@ func TestRenderFingerprintTracksBuildAndOptions(t *testing.T) {
 
 	renderer.SetArtifactBuild("v1.2.4", "def456")
 	assert.NotEqual(t, first, renderer.RenderFingerprint(base))
+}
+
+// TestDynamicReadPermissionIncludesNetworkHTTP verifies network-backed renders are never treated as persistable artifacts.
+func TestDynamicReadPermissionIncludesNetworkHTTP(t *testing.T) {
+	t.Parallel()
+	assert.True(t, hasDynamicReadPermission([]string{"network:http"}))
 }

@@ -482,3 +482,27 @@
     width: 100%;
   }
 }
+
+.plugin-settings-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.plugin-settings-link h3,
+.plugin-settings-link p {
+  margin: 0;
+}
+
+.plugin-settings-link p {
+  margin-top: 4px;
+}
+
+.plugin-settings-page .plugin-resource-panel + .plugin-resource-panel {
+  margin-top: 16px;
+}
+
+.plugin-settings-page .plugin-resource-create {
+  margin-top: 12px;
+}

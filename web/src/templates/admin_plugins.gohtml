@@ -37,8 +37,7 @@
     <div class="settings-heading">
       <p class="eyebrow">Administration</p>
       <h1>Plugins</h1>
-      <p><a href="/admin/plugins/external-files">Manage approved external file sources</a></p>
-      <p class="muted">Manage optional Kumbuka features, their settings, and installed packages.</p>
+      <p class="muted">Manage optional Kumbuka features and installed packages.</p>
     </div>
     {{ if and .PluginMessage (not .OpenPluginID) }}
       <p class="settings-note" role="alert">{{ .PluginMessage }}</p>
@@ -47,7 +46,7 @@
       <div class="panel-title plugin-update-heading">
         <div>
           <h2>Plugins</h2>
-          <p class="muted">Enable optional features here, then open a plugin for documentation and settings.</p>
+          <p class="muted">Enable optional features here, then open a plugin for documentation, permissions, and lifecycle controls.</p>
         </div>
         <div class="plugin-update-check">
           <div class="plugin-update-check-status muted">
@@ -208,119 +207,12 @@
           </section>
         {{ end }}
         {{ if index $.PluginHasSettings .Manifest.ID }}
-          <section class="plugin-detail-section plugin-settings-panel">
-            <div class="panel-title">
-              <div>
-                <h3>Settings</h3>
-                <p class="muted">Configure behavior owned by this plugin.</p>
-              </div>
+          <section class="plugin-detail-section plugin-settings-link">
+            <div>
+              <h3>Settings</h3>
+              <p class="muted">This plugin has its own administration settings.</p>
             </div>
-            <form class="plugin-settings-form"
-                  method="post"
-                  action="/admin/plugins/{{ .Manifest.ID }}/settings?return=detail">
-              {{ range .Manifest.Modules }}
-                {{ if eq .Type "settings" }}
-                  <label class="toggle-row">
-                    <span>
-                      <strong>{{ .Name }}</strong>
-                      {{ if .Description }}<small>{{ .Description }}</small>{{ end }}
-                    </span>
-                    <input type="checkbox"
-                           name="setting_{{ .ID }}"
-                           {{ if index $plugin.Settings .ID }}checked{{ end }} />
-                  </label>
-                {{ end }}
-              {{ end }}
-              <div class="settings-actions">
-                <button class="button primary" type="submit">Save plugin settings</button>
-              </div>
-            </form>
-          </section>
-        {{ end }}
-        {{ with index $.PluginResources .Manifest.ID }}
-          <section class="plugin-detail-section plugin-resource-panel">
-            <div class="panel-title">
-              <div>
-                <h3>Data</h3>
-                <p class="muted">Manage records owned and used by this plugin.</p>
-              </div>
-            </div>
-            {{ range . }}
-              {{ $resource := . }}
-              <div class="plugin-resource">
-                <div class="plugin-resource-heading">
-                  <div>
-                    <h4>{{ .Module.Name }}</h4>
-                    {{ if .Module.Description }}
-                      <p class="muted">{{ .Module.Description }}</p>
-                    {{ end }}
-                  </div>
-                  <span class="count-chip">{{ len .Records }}</span>
-                </div>
-                <details class="plugin-resource-create">
-                  <summary>Add {{ .Module.Name }}</summary>
-                  <form class="stacked-form plugin-resource-form"
-                        method="post"
-                        action="/admin/plugins/{{ $plugin.Manifest.ID }}/resource-save?return=detail">
-                    <input type="hidden" name="resource_id" value="{{ .Module.ID }}" />
-                    {{ range .Module.Fields }}
-                      <label>
-                        <span>{{ .Name }}{{ if .Required }} <small>required</small>{{ end }}</span>
-                        {{ if eq .Type "textarea" }}
-                          <textarea name="resource_{{ .ID }}" {{ if .Required }}required{{ end }}></textarea>
-                        {{ else }}
-                          <input type="text"
-                                 name="resource_{{ .ID }}"
-                                 {{ if .Required }}required{{ end }} />
-                        {{ end }}
-                      </label>
-                    {{ end }}
-                    <div class="settings-actions">
-                      <button class="button primary" type="submit">Add</button>
-                    </div>
-                  </form>
-                </details>
-                <div class="plugin-resource-records">
-                  {{ range .Records }}
-                    {{ $record := . }}
-                    <details class="plugin-resource-record">
-                      <summary>{{ .Key }}</summary>
-                      <form class="stacked-form plugin-resource-form"
-                            method="post"
-                            action="/admin/plugins/{{ $plugin.Manifest.ID }}/resource-save?return=detail">
-                        <input type="hidden" name="resource_id" value="{{ $resource.Module.ID }}" />
-                        <input type="hidden" name="original_key" value="{{ .Key }}" />
-                        <input type="hidden" name="record_key" value="{{ .Key }}" />
-                        {{ range $resource.Module.Fields }}
-                          <label>
-                            <span>{{ .Name }}{{ if .Required }} <small>required</small>{{ end }}</span>
-                            {{ if eq .Type "textarea" }}
-                              <textarea name="resource_{{ .ID }}"
-                                        {{ if .Required }}required{{ end }}>{{ index $record.Values .ID }}</textarea>
-                            {{ else }}
-                              <input type="text"
-                                     name="resource_{{ .ID }}"
-                                     value="{{ index $record.Values .ID }}"
-                                     {{ if .Required }}required{{ end }} />
-                            {{ end }}
-                          </label>
-                        {{ end }}
-                        <div class="settings-actions plugin-resource-actions">
-                          <button class="button primary" type="submit">Save</button>
-                          <button class="button danger"
-                                  type="submit"
-                                  formaction="/admin/plugins/{{ $plugin.Manifest.ID }}/resource-delete?return=detail"
-                                  data-confirm="Delete {{ .Key }}?"
-                                  data-confirm-label="Delete">Delete</button>
-                        </div>
-                      </form>
-                    </details>
-                  {{ else }}
-                    <p class="settings-note">No records yet.</p>
-                  {{ end }}
-                </div>
-              </div>
-            {{ end }}
+            <a class="button" href="/admin/plugin-settings/{{ .Manifest.ID }}">Open settings</a>
           </section>
         {{ end }}
         <details class="plugin-detail-section plugin-technical">

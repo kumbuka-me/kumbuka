@@ -122,17 +122,15 @@ func (r routeRegistrar) addAdminRoutes() {
 	apiAuthn := r.policies.apiAuthn
 	adminAuthz := r.policies.adminAuthz
 
-	if config.ExternalFiles != nil {
-		externalAdmin := handler.NewAdminExternalFiles(config.ExternalFiles, config.ViewData, config.Views)
-		r.mux.Handle("GET /admin/plugins/external-files", browserAuthn(adminAuthz(http.HandlerFunc(externalAdmin.List))))
-		r.mux.Handle("POST /admin/plugins/external-files", browserAuthn(adminAuthz(http.HandlerFunc(externalAdmin.Save))))
-		r.mux.Handle("POST /admin/plugins/external-files/{source}/delete", browserAuthn(adminAuthz(http.HandlerFunc(externalAdmin.Delete))))
-	}
-	pluginsAdmin := handler.NewAdminPlugins(config.Renderer.PluginManager(), config.PluginUpdates, config.ViewData, config.Views)
+	pluginManager := config.Renderer.PluginManager()
+	pluginsAdmin := handler.NewAdminPlugins(pluginManager, config.PluginUpdates, config.ViewData, config.Views)
 	r.mux.Handle("GET /admin/plugins", browserAuthn(adminAuthz(http.HandlerFunc(pluginsAdmin.List))))
 	r.mux.Handle("POST /admin/plugins", browserAuthn(adminAuthz(http.HandlerFunc(pluginsAdmin.Install))))
 	r.mux.Handle("POST /admin/plugins/check-updates", browserAuthn(adminAuthz(http.HandlerFunc(pluginsAdmin.CheckUpdates))))
 	r.mux.Handle("POST /admin/plugins/{pluginID}/{action}", browserAuthn(adminAuthz(http.HandlerFunc(pluginsAdmin.Action))))
+	pluginSettings := handler.NewAdminPluginSettings(pluginManager, config.ViewData, config.Views)
+	r.mux.Handle("GET /admin/plugin-settings/{pluginID}", browserAuthn(adminAuthz(http.HandlerFunc(pluginSettings.Show))))
+	r.mux.Handle("POST /admin/plugin-settings/{pluginID}/{action}", browserAuthn(adminAuthz(http.HandlerFunc(pluginSettings.Action))))
 
 	r.mux.Handle("GET /admin", browserAuthn(adminAuthz(handler.Administration(config.ViewData, config.Administration, config.Views))))
 	r.mux.Handle(

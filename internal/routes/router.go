@@ -6,7 +6,6 @@ import (
 	"net/http"
 
 	"github.com/kumbuka-me/kumbuka/internal/auth"
-	"github.com/kumbuka-me/kumbuka/internal/externalfiles"
 	"github.com/kumbuka-me/kumbuka/internal/handler"
 	"github.com/kumbuka-me/kumbuka/internal/middleware"
 	"github.com/kumbuka-me/kumbuka/internal/service"
@@ -16,8 +15,6 @@ import (
 
 // Config contains the fully constructed dependencies required by the HTTP router.
 type Config struct {
-	// ExternalFiles manages approved repositories and encrypted credentials.
-	ExternalFiles *externalfiles.Service
 	// Assets contains the embedded web application assets served by the router.
 	Assets fs.FS
 	// Views renders HTML responses and exposes the shared icon catalog.

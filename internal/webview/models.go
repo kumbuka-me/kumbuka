@@ -1,7 +1,6 @@
 package webview
 
 import (
-	"github.com/kumbuka-me/kumbuka/internal/externalfiles"
 	"html/template"
 	"slices"
 	"strings"
@@ -122,10 +121,6 @@ type PluginUpdateStatus struct {
 type Data struct {
 	// AdminPlugins contains the admin plugins associated with view data.
 	AdminPlugins []plugin.LoadedPlugin
-	// ExternalSources contains credential-free external repository approvals.
-	ExternalSources []externalfiles.Source
-	// ExternalFilesInsecureTLS exposes the deployment TLS warning, never secrets.
-	ExternalFilesInsecureTLS bool
 	// PluginMessage contains the plugin message for view data.
 	PluginMessage string
 	// OpenPluginID identifies the plugin detail modal that should open after rendering.
@@ -140,6 +135,12 @@ type Data struct {
 	PluginCatalogUnavailable bool
 	// PluginHasSettings identifies plugins that expose administrator settings.
 	PluginHasSettings map[string]bool
+	// PluginSettings is the plugin currently shown on its dedicated settings page.
+	PluginSettings *plugin.LoadedPlugin
+	// PluginSettingsLinks contains installed plugins that expose settings or resources.
+	PluginSettingsLinks []PluginSettingsLink
+	// PluginSettingsResources contains structured settings shown on the current plugin settings page.
+	PluginSettingsResources []PluginResource
 	// PluginREADMEs contains sanitized packaged documentation keyed by plugin ID.
 	PluginREADMEs map[string]template.HTML
 	// PluginFeatures contains enabled plugin and plugin-setting flags for browser UI decisions.
@@ -150,8 +151,6 @@ type Data struct {
 	PluginModules template.JS
 	// PluginStylesVersion fingerprints active plugin presentation styles for immutable browser caching.
 	PluginStylesVersion string
-	// PluginResources contains generic plugin-owned administrative record collections keyed by plugin ID.
-	PluginResources map[string][]PluginResource
 	// Title is the page title displayed in the browser chrome.
 	Title string
 	// User is the authenticated user rendering the page.
@@ -304,6 +303,16 @@ type Data struct {
 	ActiveTheme string
 	// CanEdit reports whether the current user may create or edit pages.
 	CanEdit bool
+}
+
+// PluginSettingsLink is one installed plugin exposed in administration settings navigation.
+type PluginSettingsLink struct {
+	// ID is the stable plugin identifier used in the settings URL.
+	ID string
+	// Name is the human-readable plugin name.
+	Name string
+	// Section is the administration section key used to highlight the active entry.
+	Section string
 }
 
 // PluginResource contains one declarative plugin resource schema and its records.

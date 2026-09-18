@@ -107,22 +107,14 @@ func (a *AdminPlugins) render(w http.ResponseWriter, r *http.Request, id string,
 	}
 	data.PluginHasSettings = make(map[string]bool, len(data.AdminPlugins))
 	data.PluginREADMEs = make(map[string]template.HTML, len(data.AdminPlugins))
-	data.PluginResources = make(map[string][]webview.PluginResource, len(data.AdminPlugins))
 	foundOpenPlugin := id == ""
 	for _, item := range data.AdminPlugins {
 		pluginID := item.Manifest.ID
 		data.PluginRequiredIDs[pluginID] = a.manager.IsRequired(pluginID)
 		for _, module := range item.Manifest.Modules {
-			switch module.Type {
-			case "settings":
+			if module.Type == "settings" || module.Type == "admin-resource" {
 				data.PluginHasSettings[pluginID] = true
-			case "admin-resource":
-				records, resourceErr := a.manager.ResourceRecords(r.Context(), pluginID, module.ID)
-				if resourceErr != nil {
-					httpresponse.InternalServerError(a.views.Logger(), w, resourceErr)
-					return
-				}
-				data.PluginResources[pluginID] = append(data.PluginResources[pluginID], webview.PluginResource{Module: module, Records: records})
+				break
 			}
 		}
 		readme, renderErr := renderPluginREADME(item.README)
@@ -182,12 +174,6 @@ func (a *AdminPlugins) Action(w http.ResponseWriter, r *http.Request) {
 		err = a.manager.Enable(r.Context(), id)
 	case "disable":
 		err = a.manager.Disable(r.Context(), id)
-	case "settings":
-		err = a.updateSettings(r, id)
-	case "resource-save":
-		err = a.saveResource(r, id)
-	case "resource-delete":
-		err = a.deleteResource(r, id)
 	case "uninstall":
 		err = a.manager.Uninstall(r.Context(), id)
 	case "update":
@@ -264,71 +250,6 @@ func pluginVersions(items []plugin.LoadedPlugin) map[string]string {
 	return versions
 }
 
-// updateSettings persists every declared boolean setting for one plugin.
-func (a *AdminPlugins) updateSettings(r *http.Request, id string) error {
-	if err := r.ParseForm(); err != nil {
-		return err
-	}
-
-	var selected *plugin.LoadedPlugin
-	for _, item := range a.manager.Plugins() {
-		if item.Manifest.ID == id {
-			copy := item
-			selected = &copy
-			break
-		}
-	}
-	if selected == nil {
-		return errors.New("plugin is not installed")
-	}
-
-	settings := make(map[string]bool)
-	for _, module := range selected.Manifest.Modules {
-		if module.Type == "settings" {
-			settings[module.ID] = r.Form.Has("setting_" + module.ID)
-		}
-	}
-
-	return a.manager.UpdateSettings(r.Context(), id, settings)
-}
-
-// saveResource validates and persists one generic plugin-owned admin resource record.
-func (a *AdminPlugins) saveResource(r *http.Request, id string) error {
-	if err := r.ParseForm(); err != nil {
-		return err
-	}
-	moduleID := strings.TrimSpace(r.FormValue("resource_id"))
-	var module *pluginpackage.Module
-	for _, item := range a.manager.Plugins() {
-		if item.Manifest.ID != id {
-			continue
-		}
-		for index := range item.Manifest.Modules {
-			if item.Manifest.Modules[index].ID == moduleID && item.Manifest.Modules[index].Type == "admin-resource" {
-				copy := item.Manifest.Modules[index]
-				module = &copy
-				break
-			}
-		}
-	}
-	if module == nil {
-		return errors.New("plugin resource is not declared")
-	}
-	values := make(map[string]string, len(module.Fields))
-	for _, field := range module.Fields {
-		values[field.ID] = r.FormValue("resource_" + field.ID)
-	}
-	return a.manager.SaveResourceRecord(r.Context(), id, moduleID, r.FormValue("original_key"), values)
-}
-
-// deleteResource removes one generic plugin-owned admin resource record.
-func (a *AdminPlugins) deleteResource(r *http.Request, id string) error {
-	if err := r.ParseForm(); err != nil {
-		return err
-	}
-	return a.manager.DeleteResourceRecord(r.Context(), id, strings.TrimSpace(r.FormValue("resource_id")), r.FormValue("record_key"))
-}
-
 // renderPluginREADME renders package documentation without activating plugin macros.
 func renderPluginREADME(source string) (template.HTML, error) {
 	source = strings.TrimSpace(source)
@@ -353,12 +274,6 @@ func (a *AdminPlugins) failure(w http.ResponseWriter, r *http.Request, id, actio
 	message := "Could not " + action + " the plugin. Check its dependencies, requested permissions, and system-plugin restrictions. The existing plugin state was preserved."
 	if action == "update" {
 		message = "Could not update the plugin from the Kumbuka catalog. The existing version was preserved; manual package upgrade remains available."
-	}
-	if action == "settings" {
-		message = "Could not save plugin settings. Check the setting dependencies and try again."
-	}
-	if action == "resource-save" || action == "resource-delete" {
-		message = "Could not update plugin data. Check the entered values and try again."
 	}
 	a.render(w, r, pluginDetailID(r, id), http.StatusUnprocessableEntity, message)
 }

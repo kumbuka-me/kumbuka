@@ -7,7 +7,6 @@ import (
 	"errors"
 	"io"
 	"log/slog"
-	"slices"
 	"strings"
 
 	"github.com/kumbuka-me/kumbuka/pkg/plugin"
@@ -111,8 +110,11 @@ func (r *Runtime) dispatch(ctx context.Context, module api.Module, request sdk.C
 		return nil, errors.New("capability denied")
 	}
 
-	if request.Method == "external.files.read" && r.externalFiles != nil {
-		return r.externalFiles(ctx, request.Params)
+	if request.Method == "http.do" {
+		return r.httpCall(ctx, caller, request.Params)
+	}
+	if request.Method == "plugin.resources.get" || request.Method == "plugin.resources.list" {
+		return r.resourceCall(ctx, caller, request)
 	}
 	if strings.HasPrefix(request.Method, "plugin.") {
 		return r.storageCall(ctx, caller.manifest.ID, request)
@@ -149,7 +151,59 @@ func (r *Runtime) capabilityAllowed(caller *Instance, method string) bool {
 		return true
 	}
 
-	return r.permissions[permission] && slices.Contains(caller.manifest.Permissions, permission)
+	return r.permissionGranted(caller, permission)
+}
+
+// resourceCall reads manifest-declared structured settings for the calling plugin.
+func (r *Runtime) resourceCall(ctx context.Context, caller *Instance, request sdk.CapabilityRequest) (any, error) {
+	if r.storage == nil {
+		return nil, errors.New("plugin storage unavailable")
+	}
+
+	if request.Method == "plugin.resources.get" {
+		var query sdk.PluginResourceRequest
+		if err := decode(request.Params, &query); err != nil {
+			return nil, errors.New("invalid plugin resource request")
+		}
+		resource := manifestModule(caller.manifest, query.Resource)
+		if resource.Type != "admin-resource" {
+			return nil, errors.New("plugin resource is not declared")
+		}
+		record, found, err := plugin.ReadResourceRecord(ctx, r.storage, caller.manifest.ID, resource, query.Key)
+		if err != nil {
+			return nil, err
+		}
+		if !found {
+			return nil, errors.New("plugin resource record not found")
+		}
+		record, err = plugin.RevealResourceSecrets(record, resource, r.secrets)
+		if err != nil {
+			return nil, err
+		}
+		return sdk.PluginResourceRecord{Key: record.Key, Values: record.Values}, nil
+	}
+
+	var query sdk.PluginResourceListRequest
+	if err := decode(request.Params, &query); err != nil {
+		return nil, errors.New("invalid plugin resource request")
+	}
+	resource := manifestModule(caller.manifest, query.Resource)
+	if resource.Type != "admin-resource" {
+		return nil, errors.New("plugin resource is not declared")
+	}
+	records, err := plugin.ReadResourceRecords(ctx, r.storage, caller.manifest.ID, resource)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]sdk.PluginResourceRecord, 0, len(records))
+	for _, record := range records {
+		revealed, revealErr := plugin.RevealResourceSecrets(record, resource, r.secrets)
+		if revealErr != nil {
+			return nil, revealErr
+		}
+		result = append(result, sdk.PluginResourceRecord{Key: revealed.Key, Values: revealed.Values})
+	}
+	return result, nil
 }
 
 // validLogMessage reports whether a plugin log message stays within the wire contract.

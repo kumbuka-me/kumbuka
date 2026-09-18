@@ -1,0 +1,165 @@
+{{ define "content" }}
+  {{ $plugin := .PluginSettings }}
+  <section class="admin-page plugin-settings-page">
+    <div class="settings-heading">
+      <p class="eyebrow">Plugin settings</p>
+      <h1>{{ $plugin.Manifest.Name }}</h1>
+      {{ if $plugin.Manifest.Description }}
+        <p class="muted">{{ $plugin.Manifest.Description }}</p>
+      {{ end }}
+    </div>
+    {{ if .PluginMessage }}
+      <p class="settings-note" role="alert">{{ .PluginMessage }}</p>
+    {{ end }}
+    {{ $hasBooleanSettings := false }}
+    {{ range $plugin.Manifest.Modules }}
+      {{ if eq .Type "settings" }}{{ $hasBooleanSettings = true }}{{ end }}
+    {{ end }}
+    {{ if $hasBooleanSettings }}
+      <section class="panel settings-panel plugin-settings-panel">
+        <div class="panel-title">
+          <div>
+            <h2>Settings</h2>
+            <p class="muted">Configure behavior owned by this plugin.</p>
+          </div>
+        </div>
+        <form class="plugin-settings-form"
+              method="post"
+              action="/admin/plugin-settings/{{ $plugin.Manifest.ID }}/settings">
+          {{ range $plugin.Manifest.Modules }}
+            {{ if eq .Type "settings" }}
+              <label class="toggle-row">
+                <span>
+                  <strong>{{ .Name }}</strong>
+                  {{ if .Description }}<small>{{ .Description }}</small>{{ end }}
+                </span>
+                <input type="checkbox"
+                       name="setting_{{ .ID }}"
+                       {{ if index $plugin.Settings .ID }}checked{{ end }} />
+              </label>
+            {{ end }}
+          {{ end }}
+          <div class="settings-actions">
+            <button class="button primary" type="submit">Save settings</button>
+          </div>
+        </form>
+      </section>
+    {{ end }}
+    {{ range .PluginSettingsResources }}
+      {{ $resource := . }}
+      <section class="panel settings-panel plugin-resource-panel">
+        <div class="panel-title plugin-resource-heading">
+          <div>
+            <h2>{{ .Module.Name }}</h2>
+            {{ if .Module.Description }}
+              <p class="muted">{{ .Module.Description }}</p>
+            {{ end }}
+          </div>
+          <span class="count-chip">{{ len .Records }}</span>
+        </div>
+        <details class="plugin-resource-create">
+          <summary>Add {{ .Module.Name }}</summary>
+          <form class="stacked-form plugin-resource-form"
+                method="post"
+                action="/admin/plugin-settings/{{ $plugin.Manifest.ID }}/resource-save">
+            <input type="hidden" name="resource_id" value="{{ .Module.ID }}" />
+            {{ range .Module.Fields }}
+              {{ $field := . }}
+              <label>
+                <span>{{ .Name }}{{ if .Required }} <small>required</small>{{ end }}</span>
+                {{ if eq .Type "textarea" }}
+                  <textarea name="resource_{{ .ID }}" {{ if .Required }}required{{ end }}>{{ .Default }}</textarea>
+                {{ else if eq .Type "boolean" }}
+                  <input type="checkbox"
+                         name="resource_{{ .ID }}"
+                         {{ if eq .Default "true" }}checked{{ end }} />
+                {{ else if eq .Type "select" }}
+                  <select name="resource_{{ .ID }}" {{ if .Required }}required{{ end }}>
+                    {{ if not .Required }}
+                      <option value=""></option>
+                    {{ end }}
+                    {{ range .Options }}
+                      <option value="{{ . }}" {{ if eq . $field.Default }}selected{{ end }}>{{ . }}</option>
+                    {{ end }}
+                  </select>
+                {{ else if eq .Type "secret" }}
+                  <input type="password"
+                         name="resource_{{ .ID }}"
+                         autocomplete="new-password"
+                         {{ if .Required }}required{{ end }} />
+                {{ else }}
+                  <input type="{{ if eq .Type "url" }}url{{ else }}text{{ end }}"
+                         name="resource_{{ .ID }}"
+                         value="{{ .Default }}"
+                         {{ if .Required }}required{{ end }} />
+                {{ end }}
+              </label>
+            {{ end }}
+            <div class="settings-actions">
+              <button class="button primary" type="submit">Add</button>
+            </div>
+          </form>
+        </details>
+        <div class="plugin-resource-records">
+          {{ range .Records }}
+            {{ $record := . }}
+            <details class="plugin-resource-record">
+              <summary>{{ .Key }}</summary>
+              <form class="stacked-form plugin-resource-form"
+                    method="post"
+                    action="/admin/plugin-settings/{{ $plugin.Manifest.ID }}/resource-save">
+                <input type="hidden" name="resource_id" value="{{ $resource.Module.ID }}" />
+                <input type="hidden" name="original_key" value="{{ .Key }}" />
+                <input type="hidden" name="record_key" value="{{ .Key }}" />
+                {{ range $resource.Module.Fields }}
+                  {{ $value := index $record.Values .ID }}
+                  {{ $hasSecret := index $record.SecretFields .ID }}
+                  <label>
+                    <span>{{ .Name }}{{ if .Required }} <small>required</small>{{ end }}</span>
+                    {{ if eq .Type "textarea" }}
+                      <textarea name="resource_{{ .ID }}" {{ if .Required }}required{{ end }}>{{ $value }}</textarea>
+                    {{ else if eq .Type "boolean" }}
+                      <input type="checkbox"
+                             name="resource_{{ .ID }}"
+                             {{ if eq $value "true" }}checked{{ end }} />
+                    {{ else if eq .Type "select" }}
+                      <select name="resource_{{ .ID }}" {{ if .Required }}required{{ end }}>
+                        {{ if not .Required }}
+                          <option value=""></option>
+                        {{ end }}
+                        {{ range .Options }}
+                          <option value="{{ . }}" {{ if eq . $value }}selected{{ end }}>{{ . }}</option>
+                        {{ end }}
+                      </select>
+                    {{ else if eq .Type "secret" }}
+                      <input type="password"
+                             name="resource_{{ .ID }}"
+                             autocomplete="new-password"
+                             {{ if $hasSecret }}placeholder="Stored secret — leave blank to keep"
+                             {{ else if .Required }}required{{ end }} />
+                    {{ else }}
+                      <input type="{{ if eq .Type "url" }}url{{ else }}text{{ end }}"
+                             name="resource_{{ .ID }}"
+                             value="{{ $value }}"
+                             {{ if .Required }}required{{ end }} />
+                    {{ end }}
+                  </label>
+                {{ end }}
+                <div class="settings-actions plugin-resource-actions">
+                  <button class="button primary" type="submit">Save</button>
+                  <button class="button danger"
+                          type="submit"
+                          formaction="/admin/plugin-settings/{{ $plugin.Manifest.ID }}/resource-delete"
+                          data-confirm="Delete {{ .Key }}?"
+                          data-confirm-label="Delete">Delete</button>
+                </div>
+              </form>
+            </details>
+          {{ else }}
+            <p class="settings-note">No records yet.</p>
+          {{ end }}
+        </div>
+      </section>
+    {{ end }}
+  </section>
+{{ end }}

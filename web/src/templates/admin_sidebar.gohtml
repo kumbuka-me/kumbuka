@@ -78,6 +78,16 @@
          {{ if eq .AdminSection "bin" }}class="active"
          aria-current="page"
          {{ end }}>{{ icon "trash-2-lucide" 17 }}<span>Recycle bin</span></a>
+      {{ if .PluginSettingsLinks }}
+        <div class="admin-plugin-settings-separator" aria-hidden="true"></div>
+        <p class="nav-label admin-plugin-settings-label">Plugin settings</p>
+        {{ range .PluginSettingsLinks }}
+          <a href="/admin/plugin-settings/{{ .ID }}"
+             {{ if eq $.AdminSection .Section }}class="active"
+             aria-current="page"
+             {{ end }}>{{ icon "puzzle-lucide" 17 }}<span>{{ .Name }}</span></a>
+        {{ end }}
+      {{ end }}
     </nav>
     <a class="admin-back-link" href="/">{{ icon "arrow-left-lucide" 17 }}<span>Back to Kumbuka</span></a>
     {{ template "account-menu" . }}
