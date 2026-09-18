@@ -3,6 +3,7 @@ package plugin
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"sort"
@@ -144,6 +145,14 @@ func (m *Manager) applyStoredPlugin(
 		return nil
 
 	case SourceInstalled:
+		// Installed bytes are an explicit administrator choice. Collapse the
+		// override only when it is byte-identical to the bundled package.
+		if bundled, ok := catalog[record.ID]; ok && sha256.Sum256(record.Package) == bundled.metadata.Digest {
+			bundled.metadata.Enabled = record.Enabled
+			catalog[record.ID] = bundled
+			return nil
+		}
+
 		item, err := m.managedPluginFromArchive(ctx, record.Package, SourceInstalled)
 		if err != nil {
 			return err

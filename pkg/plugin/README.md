@@ -101,16 +101,21 @@ bundled packages, alongside source and enabled state. This uses Kumbuka's
 persistence abstraction and requires no fixed filesystem path. The default
 in-memory store supports isolated renderers and external tooling.
 
-Startup merges bundled packages with persisted overrides, orders enabled plugins
-by dependency, prepares every instance, and publishes the complete registry once.
-Declarative-only instances are constructed from the manifest without compiling or
-instantiating WASM. A failed startup closes all prepared instances and publishes nothing. Bundled
-state records never contain package bytes. Upgrading a bundled ID creates an
-installed override through the same loader/runtime. Uninstall removes installed
-bytes; if that ID has an embedded copy, the embedded copy remains disabled so a
-restart cannot silently reactivate it. Plugin settings/data are retained for
-reinstallation. Version replacement requires the same ID and preserves enabled
-state; explicit replacements may also restore an earlier version.
+Startup merges bundled packages with persisted state, orders enabled plugins by
+dependency, prepares every instance, and publishes the complete registry once.
+An installed database package remains the explicit startup choice whenever its
+SHA-256 digest differs from the embedded package with the same ID; versions are not
+compared, so deliberate downgrades or pins remain stable across application upgrades.
+If both archives have the same SHA-256 digest, startup uses the embedded copy and
+applies the persisted enabled state without rewriting the database. Declarative-only
+instances are constructed from the manifest without compiling or instantiating WASM.
+A failed startup closes all prepared instances and publishes nothing. Bundled state
+records never contain package bytes. Upgrading a bundled ID creates an installed
+override through the same loader/runtime. Uninstall removes installed bytes; if that
+ID has an embedded copy, the embedded copy remains disabled so a restart cannot
+silently reactivate it. Plugin settings/data are retained for reinstallation. Version
+replacement requires the same ID and preserves enabled state; explicit replacements
+may also restore an earlier version.
 
 The application exposes its manager through `Renderer.PluginManager()`.
 Administration routes and UI use that same manager. External tooling that needs an
@@ -353,8 +358,3 @@ those distribution bytes through the ordinary bootstrap path.
 
 See the SDK repository at `https://github.com/kumbuka-me/sdk` for project
 scaffolding, testing, wire contracts, and deterministic packaging.
-
-
-
-
-

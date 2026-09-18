@@ -78,11 +78,17 @@ func TestUninstallValidatesBundledFallbackBeforeCommit(t *testing.T) {
 // lifecycleTestArchive creates one valid declarative package with the requested version.
 func lifecycleTestArchive(t *testing.T, id, version string) []byte {
 	t.Helper()
+	return lifecycleTestArchiveWithREADME(t, id, version, "# Lifecycle fixture\n")
+}
+
+// lifecycleTestArchiveWithREADME creates a valid package with caller-selected documentation bytes.
+func lifecycleTestArchiveWithREADME(t *testing.T, id, version, readme string) []byte {
+	t.Helper()
 
 	var buffer bytes.Buffer
 	writer := zip.NewWriter(&buffer)
 	entries := map[string]string{
-		"README.md": "# Lifecycle fixture\n",
+		"README.md": readme,
 		"plugin.yaml": fmt.Sprintf(
 			"api_version: 1\nid: %s\nname: Lifecycle fixture\nversion: %s\nmodules:\n  - type: markdown-syntax\n    id: syntax\n    syntax: strikethrough\npermissions: []\n",
 			id,
