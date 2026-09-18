@@ -24,7 +24,11 @@ func webhookContext(item domain.Webhook, events []string, encryptionKeyConfigure
 
 // pageTemplateContext combines one blueprint with groups and lifecycle choices.
 func pageTemplateContext(item domain.PageTemplate, groups []domain.Group, statuses []string) pageTemplateView {
-	return pageTemplateView{PageTemplate: item, Groups: groups, PageStatuses: statuses}
+	return pageTemplateView{
+		PageTemplate: item,
+		Groups:       groups,
+		PageStatuses: statuses,
+	}
 }
 
 // blankPageTemplate returns the defaults used for a new blueprint form.
@@ -38,9 +42,11 @@ func templatePropertiesText(properties map[string]string) string {
 	for key := range properties {
 		keys = append(keys, key)
 	}
+
 	slices.SortFunc(keys, func(left, right string) int {
 		return strings.Compare(strings.ToLower(left), strings.ToLower(right))
 	})
+
 	lines := make([]string, 0, len(keys))
 	for _, key := range keys {
 		lines = append(lines, key+"="+properties[key])

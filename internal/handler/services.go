@@ -149,10 +149,6 @@ type knowledgeGraphService interface {
 	KnowledgeGraph(context.Context, int) (domain.KnowledgeGraph, error)
 }
 
-type savedSearchReader interface {
-	SavedSearches(context.Context, int64) ([]domain.SavedSearch, error)
-}
-
 type savedSearchService interface {
 	SaveSavedSearch(context.Context, int64, int64, string, string, bool) error
 	DeleteSavedSearch(context.Context, int64, int64) error
