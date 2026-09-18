@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/kumbuka-me/kumbuka/pkg/plugin"
 )
 
 // ReadPluginValue reads plugin value.
@@ -64,6 +65,58 @@ func (s *Store) WritePluginValue(ctx context.Context, id, namespace, key string,
 	if err != nil {
 		return err
 	}
+	return tx.Commit(ctx)
+}
+
+// ReplacePluginValue atomically moves one plugin value to a new key while preserving quota guarantees.
+func (s *Store) ReplacePluginValue(ctx context.Context, id, namespace, oldKey, newKey string, value []byte) error {
+	if oldKey == newKey {
+		return s.WritePluginValue(ctx, id, namespace, newKey, value)
+	}
+	if value == nil {
+		value = []byte{}
+	}
+
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	if _, err = tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1, 92731))`, id); err != nil {
+		return err
+	}
+
+	var oldExists, newExists bool
+	if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM plugin_values WHERE plugin_id=$1 AND namespace=$2 AND key=$3)`, id, namespace, oldKey).Scan(&oldExists); err != nil {
+		return err
+	}
+	if !oldExists {
+		return plugin.ErrPluginValueNotFound
+	}
+	if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM plugin_values WHERE plugin_id=$1 AND namespace=$2 AND key=$3)`, id, namespace, newKey).Scan(&newExists); err != nil {
+		return err
+	}
+	if newExists {
+		return plugin.ErrPluginValueAlreadyExists
+	}
+
+	var count, size int64
+	err = tx.QueryRow(ctx, `SELECT count(*), COALESCE(sum(octet_length(value)),0) FROM plugin_values WHERE plugin_id=$1 AND NOT (namespace=$2 AND key=$3)`, id, namespace, oldKey).Scan(&count, &size)
+	if err != nil {
+		return err
+	}
+	if count >= 1024 || size+int64(len(value)) > 16<<20 {
+		return errors.New("plugin storage quota exceeded")
+	}
+
+	if _, err = tx.Exec(ctx, `DELETE FROM plugin_values WHERE plugin_id=$1 AND namespace=$2 AND key=$3`, id, namespace, oldKey); err != nil {
+		return err
+	}
+	if _, err = tx.Exec(ctx, `INSERT INTO plugin_values(plugin_id,namespace,key,value) VALUES($1,$2,$3,$4)`, id, namespace, newKey, value); err != nil {
+		return err
+	}
+
 	return tx.Commit(ctx)
 }
 

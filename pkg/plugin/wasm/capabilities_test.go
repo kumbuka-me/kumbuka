@@ -57,6 +57,24 @@ func (s *memoryStorage) WritePluginValue(_ context.Context, id, namespace, key s
 	return nil
 }
 
+// ReplacePluginValue atomically moves one test plugin value while rejecting collisions.
+func (s *memoryStorage) ReplacePluginValue(_ context.Context, id, namespace, oldKey, newKey string, value []byte) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	oldPath := id + "/" + namespace + "/" + oldKey
+	newPath := id + "/" + namespace + "/" + newKey
+	if _, ok := s.values[oldPath]; !ok {
+		return plugin.ErrPluginValueNotFound
+	}
+	if _, ok := s.values[newPath]; ok {
+		return plugin.ErrPluginValueAlreadyExists
+	}
+	delete(s.values, oldPath)
+	s.values[newPath] = bytes.Clone(value)
+	return nil
+}
+
 // DeletePluginValue removes one plugin value.
 func (s *memoryStorage) DeletePluginValue(_ context.Context, id, namespace, key string) error {
 	s.mu.Lock()

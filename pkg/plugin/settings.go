@@ -10,6 +10,8 @@ import (
 	"github.com/kumbuka-me/sdk/pluginpackage"
 )
 
+const featureSettingKeyPrefix = "feature:"
+
 // loadSettings returns persisted boolean settings for every settings module in manifest.
 // Settings default to enabled when no value has been stored yet.
 func (m *Manager) loadSettings(ctx context.Context, manifest pluginpackage.Manifest) (map[string]bool, error) {
@@ -25,7 +27,7 @@ func (m *Manager) loadSettings(ctx context.Context, manifest pluginpackage.Manif
 			continue
 		}
 
-		value, found, err := m.values.ReadPluginValue(ctx, manifest.ID, "configuration", module.ID)
+		value, found, err := m.values.ReadPluginValue(ctx, manifest.ID, pluginSettingsNamespace, featureSettingStorageKey(module.ID))
 		if err != nil {
 			return nil, fmt.Errorf("read plugin setting %s.%s: %w", manifest.ID, module.ID, err)
 		}
@@ -88,7 +90,7 @@ func (m *Manager) UpdateSettings(ctx context.Context, id string, settings map[st
 			if err != nil {
 				return err
 			}
-			if err := m.values.WritePluginValue(ctx, id, "configuration", key, value); err != nil {
+			if err := m.values.WritePluginValue(ctx, id, pluginSettingsNamespace, featureSettingStorageKey(key), value); err != nil {
 				return fmt.Errorf("save plugin setting %s.%s: %w", id, key, err)
 			}
 		}
@@ -116,4 +118,9 @@ func (m *Manager) FeatureSettings() map[string]bool {
 	}
 
 	return features
+}
+
+// featureSettingStorageKey isolates host-managed feature toggles from plugin-owned settings and resources.
+func featureSettingStorageKey(id string) string {
+	return featureSettingKeyPrefix + id
 }

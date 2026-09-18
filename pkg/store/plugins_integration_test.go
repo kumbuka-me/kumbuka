@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"testing"
 
+	"github.com/kumbuka-me/kumbuka/pkg/plugin"
 	"github.com/stretchr/testify/require"
 )
 
@@ -51,4 +52,35 @@ func TestPluginStorageQuotaAllowsReplacement(t *testing.T) {
 	require.NoError(t, err)
 	require.ErrorContains(t, database.WritePluginValue(ctx, "io.bytes", "settings", "new", []byte("overflow")), "quota")
 	require.NoError(t, database.WritePluginValue(ctx, "io.bytes", "data", "1", []byte("smaller")))
+}
+
+// TestReplacePluginValueMovesAtomically verifies plugin-value renames preserve data and reject collisions.
+func TestReplacePluginValueMovesAtomically(t *testing.T) {
+	ctx := context.Background()
+	database, err := Open(ctx, integrationDatabase(t), slog.New(slog.NewTextHandler(io.Discard, nil)))
+	require.NoError(t, err)
+	defer database.Close()
+
+	require.NoError(t, database.WritePluginValue(ctx, "io.rename", "settings", "old", []byte("old-value")))
+	require.NoError(t, database.ReplacePluginValue(ctx, "io.rename", "settings", "old", "new", []byte("new-value")))
+
+	_, found, err := database.ReadPluginValue(ctx, "io.rename", "settings", "old")
+	require.NoError(t, err)
+	require.False(t, found)
+	value, found, err := database.ReadPluginValue(ctx, "io.rename", "settings", "new")
+	require.NoError(t, err)
+	require.True(t, found)
+	require.Equal(t, []byte("new-value"), value)
+
+	require.NoError(t, database.WritePluginValue(ctx, "io.rename", "settings", "other", []byte("other-value")))
+	require.ErrorIs(t, database.ReplacePluginValue(ctx, "io.rename", "settings", "new", "other", []byte("replacement")), plugin.ErrPluginValueAlreadyExists)
+
+	value, found, err = database.ReadPluginValue(ctx, "io.rename", "settings", "new")
+	require.NoError(t, err)
+	require.True(t, found)
+	require.Equal(t, []byte("new-value"), value)
+	value, found, err = database.ReadPluginValue(ctx, "io.rename", "settings", "other")
+	require.NoError(t, err)
+	require.True(t, found)
+	require.Equal(t, []byte("other-value"), value)
 }
