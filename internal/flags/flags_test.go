@@ -305,3 +305,15 @@ func TestOIDCAuthorizationOverridesFromEnvironment(t *testing.T) {
 	assert.Equal(t, "roles", cfg.OIDCGroupClaim)
 	assert.Equal(t, "wiki-admins", cfg.OIDCAdminGroup)
 }
+
+func TestExternalFilesTLSOverrideFromEnvironment(t *testing.T) {
+	t.Setenv("KUMBUKA__DATABASE_URL", "postgres://example/kumbuka")
+	t.Setenv("KUMBUKA_EXTERNAL_FILES_INSECURE_SKIP_VERIFY", "true")
+	cfg, err := Parse(nil, "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !cfg.ExternalFilesInsecureSkipVerify {
+		t.Fatal("external TLS override ignored")
+	}
+}

@@ -97,7 +97,9 @@ func Run(
 		database,
 		pluginArchives,
 		wasm.WithStorage(database),
+		wasm.WithExternalFiles(routeConfig.ExternalFiles.Capability),
 		wasm.WithPermissions(
+			"external:read",
 			"activity:read",
 			"drafts:read",
 			"settings:read",

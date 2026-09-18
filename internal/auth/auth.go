@@ -37,3 +37,9 @@ func WithUser(r *http.Request, user domain.User) *http.Request {
 	ctx := context.WithValue(r.Context(), contextKey{}, user)
 	return r.WithContext(ctx)
 }
+
+// ContextUser returns the host-authenticated identity for request-scoped capabilities.
+func ContextUser(ctx context.Context) (domain.User, bool) {
+	user, ok := ctx.Value(contextKey{}).(domain.User)
+	return user, ok
+}

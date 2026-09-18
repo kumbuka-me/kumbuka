@@ -1,6 +1,7 @@
 package webview
 
 import (
+	"github.com/kumbuka-me/kumbuka/internal/externalfiles"
 	"html/template"
 	"slices"
 	"strings"
@@ -121,6 +122,10 @@ type PluginUpdateStatus struct {
 type Data struct {
 	// AdminPlugins contains the admin plugins associated with view data.
 	AdminPlugins []plugin.LoadedPlugin
+	// ExternalSources contains credential-free external repository approvals.
+	ExternalSources []externalfiles.Source
+	// ExternalFilesInsecureTLS exposes the deployment TLS warning, never secrets.
+	ExternalFilesInsecureTLS bool
 	// PluginMessage contains the plugin message for view data.
 	PluginMessage string
 	// OpenPluginID identifies the plugin detail modal that should open after rendering.

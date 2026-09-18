@@ -35,3 +35,6 @@ require (
 	golang.org/x/sys v0.48.0 // indirect
 	golang.org/x/text v0.42.0 // indirect
 )
+
+// Temporary review dependency for https://github.com/kumbuka-me/sdk/pull/5.
+replace github.com/kumbuka-me/sdk => github.com/rxbn/kumbuka-sdk v0.0.0-20260918122815-6267199ae961
