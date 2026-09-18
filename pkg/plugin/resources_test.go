@@ -220,7 +220,10 @@ func TestPluginResourceRenamePreservesSourceOnCollision(t *testing.T) {
 	require.NoError(t, manager.SaveResourceRecord(ctx, manifest.ID, "values", "", map[string]string{"name": "target", "content": "two"}))
 
 	err := manager.SaveResourceRecord(ctx, manifest.ID, "values", "source", map[string]string{"name": "target", "content": "changed"})
-	require.ErrorContains(t, err, "already exists")
+	var fieldErr *ResourceFieldError
+	require.ErrorAs(t, err, &fieldErr)
+	assert.Equal(t, "name", fieldErr.Field)
+	assert.Equal(t, "Name is already in use.", fieldErr.Message)
 
 	source, found, err := ReadResourceRecord(ctx, storage, manifest.ID, manifest.Modules[0], "source")
 	require.NoError(t, err)

@@ -28,8 +28,8 @@ func validHTTPRequest(request sdk.HTTPRequest) bool {
 	if len(request.URL) == 0 || len(request.URL) > maxHTTPDestination || len(request.Body) > maxHTTPRequestBody || len(request.Headers) > maxHTTPHeaderCount || len(request.AllowedPrivateIPs) > maxHTTPPrivateIPs {
 		return false
 	}
-	parsed, err := url.ParseRequestURI(request.URL)
-	if err != nil || !parsed.IsAbs() || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Hostname() == "" || parsed.User != nil || parsed.Fragment != "" || strings.ContainsAny(parsed.Host, "%\\") {
+	parsed, ok := parsePluginHTTPDestination(request.URL)
+	if !ok {
 		return false
 	}
 	if request.InsecureSkipVerify && parsed.Scheme != "https" {
@@ -46,6 +46,28 @@ func validHTTPRequest(request sdk.HTTPRequest) bool {
 		}
 	}
 	return true
+}
+
+// parsePluginHTTPDestination validates and parses one absolute HTTP destination without user info or fragments.
+func parsePluginHTTPDestination(raw string) (*url.URL, bool) {
+	// ParseRequestURI treats an unescaped fragment marker as path data for absolute
+	// request URIs, so reject the delimiter before parsing. Escaped %23 remains valid.
+	if strings.ContainsRune(raw, '#') {
+		return nil, false
+	}
+
+	parsed, err := url.ParseRequestURI(raw)
+	if err != nil || !parsed.IsAbs() {
+		return nil, false
+	}
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return nil, false
+	}
+	if parsed.Hostname() == "" || parsed.User != nil || strings.ContainsAny(parsed.Host, "%\\") {
+		return nil, false
+	}
+
+	return parsed, true
 }
 
 // validPluginHTTPHeader accepts application headers while rejecting transport-controlled fields.

@@ -444,7 +444,7 @@ func normalizeResourceRecord(module pluginpackage.Module, values, previous map[s
 		if err != nil {
 			return nil, "", err
 		}
-		if field.Required && normalized == "" && !(field.Type == "secret" && previous[field.ID] != "") {
+		if requiredResourceValueMissing(field, normalized, previous) {
 			return nil, "", resourceFieldError(field, field.Name+" is required.")
 		}
 		if field.Key {
@@ -456,6 +456,15 @@ func normalizeResourceRecord(module pluginpackage.Module, values, previous map[s
 		result[field.ID] = normalized
 	}
 	return result, key, nil
+}
+
+// requiredResourceValueMissing reports whether a required field has neither a submitted value nor a preserved secret.
+func requiredResourceValueMissing(field pluginpackage.ResourceField, value string, previous map[string]string) bool {
+	if !field.Required || value != "" {
+		return false
+	}
+
+	return field.Type != "secret" || previous[field.ID] == ""
 }
 
 // normalizeResourceValue validates one typed resource field value.
