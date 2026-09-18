@@ -16,6 +16,7 @@ import (
 
 	"github.com/kumbuka-me/kumbuka/internal/httpresponse"
 	"github.com/kumbuka-me/kumbuka/internal/service"
+	"github.com/kumbuka-me/kumbuka/internal/webview"
 	xhtml "golang.org/x/net/html"
 )
 
@@ -57,7 +58,7 @@ func parseImportFormat(value string) (importFormat, error) {
 }
 
 // AdminImport renders the import workspace.
-func AdminImport(viewDataUseCases viewDataService, views *Views) http.HandlerFunc {
+func AdminImport(viewDataUseCases viewDataService, views *webview.Views) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		data, err := administrationData(r, viewDataUseCases, views, "Import", "import")
 		if err != nil {
@@ -67,7 +68,7 @@ func AdminImport(viewDataUseCases viewDataService, views *Views) http.HandlerFun
 
 		data.Query = r.URL.Query().Get("result")
 
-		render(views, w, "admin_import", data)
+		views.Render(w, "admin_import", data)
 	}
 }
 

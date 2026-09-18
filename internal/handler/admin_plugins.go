@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/kumbuka-me/kumbuka/internal/httpresponse"
+	"github.com/kumbuka-me/kumbuka/internal/webview"
 	md "github.com/kumbuka-me/kumbuka/pkg/markdown"
 	"github.com/kumbuka-me/kumbuka/pkg/plugin"
 	"github.com/kumbuka-me/sdk/pluginpackage"
@@ -22,11 +23,11 @@ type AdminPlugins struct {
 	// data stores the data value used by admin plugins.
 	data viewDataService
 	// views stores the views value used by admin plugins.
-	views *Views
+	views *webview.Views
 }
 
 // NewAdminPlugins constructs the plugin administration handler.
-func NewAdminPlugins(manager *plugin.Manager, data viewDataService, views *Views) *AdminPlugins {
+func NewAdminPlugins(manager *plugin.Manager, data viewDataService, views *webview.Views) *AdminPlugins {
 	return &AdminPlugins{manager: manager, data: data, views: views}
 }
 
@@ -51,7 +52,7 @@ func (a *AdminPlugins) render(w http.ResponseWriter, r *http.Request, id string,
 	data.PluginRequiredIDs = make(map[string]bool, len(data.AdminPlugins))
 	data.PluginHasSettings = make(map[string]bool, len(data.AdminPlugins))
 	data.PluginREADMEs = make(map[string]template.HTML, len(data.AdminPlugins))
-	data.PluginResources = make(map[string][]pluginResourceView, len(data.AdminPlugins))
+	data.PluginResources = make(map[string][]webview.PluginResource, len(data.AdminPlugins))
 	foundOpenPlugin := id == ""
 	for _, item := range data.AdminPlugins {
 		pluginID := item.Manifest.ID
@@ -66,7 +67,7 @@ func (a *AdminPlugins) render(w http.ResponseWriter, r *http.Request, id string,
 					httpresponse.InternalServerError(a.views.Logger(), w, resourceErr)
 					return
 				}
-				data.PluginResources[pluginID] = append(data.PluginResources[pluginID], pluginResourceView{Module: module, Records: records})
+				data.PluginResources[pluginID] = append(data.PluginResources[pluginID], webview.PluginResource{Module: module, Records: records})
 			}
 		}
 		readme, renderErr := renderPluginREADME(item.README)
@@ -86,7 +87,7 @@ func (a *AdminPlugins) render(w http.ResponseWriter, r *http.Request, id string,
 	sort.Slice(data.AdminPlugins, func(i, j int) bool { return data.AdminPlugins[i].Manifest.Name < data.AdminPlugins[j].Manifest.Name })
 	data.OpenPluginID = id
 	data.PluginMessage = message
-	renderStatus(a.views, w, status, "admin_plugins", data)
+	a.views.RenderStatus(w, status, "admin_plugins", data)
 }
 
 // Install installs a plugin package from an administration request.

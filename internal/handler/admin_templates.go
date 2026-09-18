@@ -8,6 +8,7 @@ import (
 
 	"github.com/kumbuka-me/kumbuka/internal/httpresponse"
 	"github.com/kumbuka-me/kumbuka/internal/service"
+	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
 
@@ -16,7 +17,7 @@ func AdminPageTemplates(
 	viewDataUseCases viewDataService,
 	templateUseCases templateService,
 	groupUseCases groupReader,
-	views *Views,
+	views *webview.Views,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		data, err := administrationData(r, viewDataUseCases, views, "Page templates", "templates")
@@ -41,7 +42,7 @@ func AdminPageTemplates(
 		data.Groups = groups
 		data.PageStatuses = domain.PageStatuses()
 
-		render(views, w, "admin_templates", data)
+		views.Render(w, "admin_templates", data)
 	}
 }
 

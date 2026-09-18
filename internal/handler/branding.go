@@ -10,6 +10,7 @@ import (
 
 	"github.com/kumbuka-me/kumbuka/internal/httpresponse"
 	"github.com/kumbuka-me/kumbuka/internal/service"
+	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
 
@@ -23,7 +24,7 @@ type brandLogoService interface {
 }
 
 // AdminBranding renders instance-wide branding configuration.
-func AdminBranding(viewDataUseCases viewDataService, views *Views) http.HandlerFunc {
+func AdminBranding(viewDataUseCases viewDataService, views *webview.Views) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		data, err := administrationData(r, viewDataUseCases, views, "Branding", "branding")
 		if err != nil {
@@ -31,7 +32,7 @@ func AdminBranding(viewDataUseCases viewDataService, views *Views) http.HandlerF
 			return
 		}
 
-		render(views, w, "admin_branding", data)
+		views.Render(w, "admin_branding", data)
 	}
 }
 

@@ -9,6 +9,7 @@ import (
 
 	"github.com/kumbuka-me/kumbuka/internal/httpresponse"
 	"github.com/kumbuka-me/kumbuka/internal/service"
+	"github.com/kumbuka-me/kumbuka/internal/webview"
 )
 
 // AdminPages renders bulk page management.
@@ -16,7 +17,7 @@ func AdminPages(
 	viewDataUseCases viewDataService,
 	catalogUseCases pageInventoryService,
 	groupUseCases groupReader,
-	views *Views,
+	views *webview.Views,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		data, err := administrationData(r, viewDataUseCases, views, "Pages", "pages")
@@ -39,7 +40,7 @@ func AdminPages(
 
 		data.AdminPages = pages
 		data.Groups = groups
-		render(views, w, "admin_pages", data)
+		views.Render(w, "admin_pages", data)
 	}
 }
 

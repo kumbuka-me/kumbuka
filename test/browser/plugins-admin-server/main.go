@@ -19,6 +19,7 @@ import (
 	"github.com/kumbuka-me/kumbuka/internal/auth"
 	"github.com/kumbuka-me/kumbuka/internal/handler"
 	"github.com/kumbuka-me/kumbuka/internal/middleware"
+	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/kumbuka-me/kumbuka/pkg/markdown"
 	"github.com/kumbuka-me/kumbuka/pkg/themes"
@@ -34,9 +35,9 @@ type dataLoader struct {
 }
 
 // Load loads the browser-test view data requested by a handler.
-func (d dataLoader) Load(_ *http.Request, _ *handler.Views, title string) (handler.ViewData, error) {
+func (d dataLoader) Load(_ *http.Request, _ *webview.Views, title string) (webview.Data, error) {
 	data, _ := json.Marshal(d.catalog)
-	return handler.ViewData{
+	return webview.Data{
 		Preferences: domain.DefaultUserPreferences(),
 		Themes:      d.catalog,
 		Title:       title,
@@ -68,13 +69,13 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	views, err := handler.NewViews(
+	views, err := webview.New(
 		web.Assets,
 		logger,
 		"test",
 		"test",
 		catalog,
-		handler.RuntimeInfo{},
+		webview.RuntimeInfo{},
 	)
 	if err != nil {
 		panic(err)

@@ -12,13 +12,14 @@ import (
 	"github.com/kumbuka-me/kumbuka/internal/auth"
 	"github.com/kumbuka-me/kumbuka/internal/httpresponse"
 	"github.com/kumbuka-me/kumbuka/internal/service"
+	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/kumbuka-me/kumbuka/pkg/icons"
 	"golang.org/x/net/http/httpguts"
 )
 
 // contentLanguageOptions contains the languages supported by page search and presentation.
-var contentLanguageOptions = []contentLanguageOption{
+var contentLanguageOptions = []webview.ContentLanguageOption{
 	{Code: "en", Label: "English"},
 	{Code: "en-US", Label: "English (United States)"},
 	{Code: "en-GB", Label: "English (United Kingdom)"},
@@ -38,7 +39,7 @@ var contentLanguageOptions = []contentLanguageOption{
 func Administration(
 	viewDataUseCases viewDataService,
 	administrationUseCases administrationService,
-	views *Views,
+	views *webview.Views,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		data, err := administrationData(r, viewDataUseCases, views, "Administration", "overview")
@@ -55,7 +56,7 @@ func Administration(
 
 		data.AdminStats = stats
 
-		render(views, w, "admin", data)
+		views.Render(w, "admin", data)
 	}
 }
 
@@ -65,7 +66,7 @@ func AdminConfiguration(
 	groupUseCases groupReader,
 	userUseCases oidcIdentityService,
 	settingsUseCases settingsService,
-	views *Views,
+	views *webview.Views,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		data, err := administrationData(r, viewDataUseCases, views, "Configuration", "configuration")
@@ -94,13 +95,13 @@ func AdminConfiguration(
 		}
 		data.ContentLanguages = contentLanguageOptions
 
-		render(views, w, "admin_configuration", data)
+		views.Render(w, "admin_configuration", data)
 	}
 }
 
 // isContentLanguage reports whether a configured content language is exposed by the admin UI.
 func isContentLanguage(value string) bool {
-	return slices.ContainsFunc(contentLanguageOptions, func(option contentLanguageOption) bool {
+	return slices.ContainsFunc(contentLanguageOptions, func(option webview.ContentLanguageOption) bool {
 		return option.Code == value
 	})
 }
@@ -109,7 +110,7 @@ func isContentLanguage(value string) bool {
 func AdminDocumentationHealth(
 	viewDataUseCases viewDataService,
 	administrationUseCases administrationService,
-	views *Views,
+	views *webview.Views,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		data, err := administrationData(r, viewDataUseCases, views, "Documentation health", "health")
@@ -126,7 +127,7 @@ func AdminDocumentationHealth(
 
 		data.DocumentationHealth = health
 
-		render(views, w, "admin_health", data)
+		views.Render(w, "admin_health", data)
 	}
 }
 
@@ -134,7 +135,7 @@ func AdminDocumentationHealth(
 func AdminAudit(
 	viewDataUseCases viewDataService,
 	administrationUseCases administrationService,
-	views *Views,
+	views *webview.Views,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		data, err := administrationData(r, viewDataUseCases, views, "Audit log", "audit")
@@ -151,7 +152,7 @@ func AdminAudit(
 
 		data.AuditEvents = events
 
-		render(views, w, "admin_audit", data)
+		views.Render(w, "admin_audit", data)
 	}
 }
 
@@ -160,7 +161,7 @@ func AdminUsers(
 	viewDataUseCases viewDataService,
 	userUseCases adminUserOverviewService,
 	groupUseCases groupReader,
-	views *Views,
+	views *webview.Views,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		data, err := administrationData(r, viewDataUseCases, views, "Users", "users")
@@ -208,7 +209,7 @@ func AdminUsers(
 		data.PendingOIDCIdentities = pendingIdentities
 		data.OIDCIdentityCount = identityCount
 
-		render(views, w, "admin_users", data)
+		views.Render(w, "admin_users", data)
 	}
 }
 
@@ -216,7 +217,7 @@ func AdminUsers(
 func AdminGroups(
 	viewDataUseCases viewDataService,
 	groupUseCases groupReader,
-	views *Views,
+	views *webview.Views,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		data, err := administrationData(r, viewDataUseCases, views, "Groups", "groups")
@@ -233,7 +234,7 @@ func AdminGroups(
 
 		data.Groups = groups
 
-		render(views, w, "admin_groups", data)
+		views.Render(w, "admin_groups", data)
 	}
 }
 
@@ -241,7 +242,7 @@ func AdminGroups(
 func AdminNavigation(
 	viewDataUseCases viewDataService,
 	navigationUseCases navigationService,
-	views *Views,
+	views *webview.Views,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		data, err := administrationData(r, viewDataUseCases, views, "Navigation", "navigation")
@@ -258,7 +259,7 @@ func AdminNavigation(
 
 		data.AdminNavigation = items
 
-		render(views, w, "admin_navigation", data)
+		views.Render(w, "admin_navigation", data)
 	}
 }
 
@@ -332,7 +333,7 @@ func SaveAdminNavigationIcon(navigationUseCases navigationService, logger *slog.
 func AdminTags(
 	viewDataUseCases viewDataService,
 	administrationUseCases administrationService,
-	views *Views,
+	views *webview.Views,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		data, err := administrationData(r, viewDataUseCases, views, "Tags", "tags")
@@ -349,7 +350,7 @@ func AdminTags(
 
 		data.AdminTags = tags
 
-		render(views, w, "admin_tags", data)
+		views.Render(w, "admin_tags", data)
 	}
 }
 
@@ -358,7 +359,7 @@ func AdminTokens(
 	viewDataUseCases viewDataService,
 	userUseCases userManagementService,
 	tokenUseCases tokenService,
-	views *Views,
+	views *webview.Views,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		data, err := administrationData(r, viewDataUseCases, views, "Access tokens", "tokens")
@@ -382,7 +383,7 @@ func AdminTokens(
 		data.AdminUsers = users
 		data.AdminTokens = tokens
 
-		render(views, w, "admin_tokens", data)
+		views.Render(w, "admin_tokens", data)
 	}
 }
 
@@ -390,7 +391,7 @@ func AdminTokens(
 func AdminExports(
 	viewDataUseCases viewDataService,
 	navigationUseCases navigationService,
-	views *Views,
+	views *webview.Views,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		data, err := administrationData(r, viewDataUseCases, views, "Exports", "exports")
@@ -407,7 +408,7 @@ func AdminExports(
 
 		data.AdminPages = pages
 
-		render(views, w, "admin_exports", data)
+		views.Render(w, "admin_exports", data)
 	}
 }
 
@@ -415,7 +416,7 @@ func AdminExports(
 func AdminImages(
 	viewDataUseCases viewDataService,
 	mediaUseCases imageListService,
-	views *Views,
+	views *webview.Views,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		data, err := administrationData(r, viewDataUseCases, views, "Images", "images")
@@ -438,7 +439,7 @@ func AdminImages(
 
 		data.Images, data.ImagesHasMore = managedImageItems(images)
 
-		render(views, w, "admin_images", data)
+		views.Render(w, "admin_images", data)
 	}
 }
 
@@ -446,7 +447,7 @@ func AdminImages(
 func SaveAdminAuthentication(
 	settingsUseCases settingsService,
 	browserAuth auth.BrowserAuth,
-	views *Views,
+	views *webview.Views,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		admin := currentUser(r)
@@ -514,7 +515,7 @@ func SaveAdminAuthentication(
 // preserveRuntimeManagedAuthenticationSettings keeps persisted values that cannot be changed while deployment overrides are active.
 func preserveRuntimeManagedAuthenticationSettings(
 	settings, current domain.AuthenticationSettings,
-	runtime RuntimeInfo,
+	runtime webview.RuntimeInfo,
 ) domain.AuthenticationSettings {
 	if runtime.AuthModeOverride == "" {
 		return settings
@@ -540,7 +541,7 @@ func preserveRuntimeManagedAuthenticationSettings(
 }
 
 // effectiveAuthenticationSettings overlays deployment-managed values for validation and runtime behavior.
-func effectiveAuthenticationSettings(settings domain.AuthenticationSettings, runtime RuntimeInfo) domain.AuthenticationSettings {
+func effectiveAuthenticationSettings(settings domain.AuthenticationSettings, runtime webview.RuntimeInfo) domain.AuthenticationSettings {
 	if runtime.AuthModeOverride == "" {
 		return settings
 	}
@@ -598,7 +599,7 @@ func authenticationSettingsFromForm(r *http.Request) domain.AuthenticationSettin
 // authenticationSettingsProblems returns field-level validation errors for browser authentication settings.
 func authenticationSettingsProblems(
 	settings domain.AuthenticationSettings,
-	runtime RuntimeInfo,
+	runtime webview.RuntimeInfo,
 ) []httpresponse.FieldProblem {
 	var problems []httpresponse.FieldProblem
 
@@ -703,7 +704,7 @@ func splitHeaderNames(value string) []string {
 }
 
 // SaveAdminSettings updates mutable application-wide settings.
-func SaveAdminSettings(settingsUseCases settingsService, views *Views, logger *slog.Logger) http.HandlerFunc {
+func SaveAdminSettings(settingsUseCases settingsService, views *webview.Views, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		admin := currentUser(r)
 		if err := r.ParseForm(); err != nil {
@@ -794,7 +795,7 @@ func formValueAt(values []string, index int) string {
 // UpdateAdminUser updates one user's role, group memberships, and optional recovery login state.
 func UpdateAdminUser(
 	userUseCases userAccountWriter,
-	views *Views,
+	views *webview.Views,
 	logger *slog.Logger,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -1071,12 +1072,12 @@ func DeleteAdminTag(administrationUseCases administrationService, logger *slog.L
 func administrationData(
 	r *http.Request,
 	viewDataUseCases viewDataService,
-	views *Views,
+	views *webview.Views,
 	title, section string,
-) (ViewData, error) {
+) (webview.Data, error) {
 	data, err := viewDataUseCases.Load(r, views, title)
 	if err != nil {
-		return ViewData{}, err
+		return webview.Data{}, err
 	}
 
 	data.AdminSection = section
@@ -1106,7 +1107,7 @@ func writeAdminProblem(logger *slog.Logger, w http.ResponseWriter, err error, ob
 func AdminBin(
 	viewDataUseCases viewDataService,
 	recycleBinUseCases recycleBinService,
-	views *Views,
+	views *webview.Views,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		data, err := administrationData(r, viewDataUseCases, views, "Recycle bin", "bin")
@@ -1123,7 +1124,7 @@ func AdminBin(
 
 		data.DeletedPages = pages
 
-		render(views, w, "admin_bin", data)
+		views.Render(w, "admin_bin", data)
 	}
 }
 
@@ -1302,7 +1303,7 @@ func AdminPageAccess(
 	viewDataUseCases viewDataService,
 	accessUseCases pageAccessAdmin,
 	groupUseCases groupReader,
-	views *Views,
+	views *webview.Views,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		data, err := administrationData(r, viewDataUseCases, views, "Page access", "permissions")
@@ -1320,7 +1321,7 @@ func AdminPageAccess(
 			httpresponse.InternalServerError(views.Logger(), w, err)
 			return
 		}
-		render(views, w, "admin_permissions", data)
+		views.Render(w, "admin_permissions", data)
 	}
 }
 

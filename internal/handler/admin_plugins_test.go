@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"context"
 	"html/template"
-	"io"
-	"log/slog"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -14,11 +12,11 @@ import (
 
 	"github.com/kumbuka-me/kumbuka/internal/auth"
 	"github.com/kumbuka-me/kumbuka/internal/middleware"
+	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/kumbuka-me/kumbuka/pkg/plugin"
 	"github.com/kumbuka-me/kumbuka/pkg/plugin/wasm"
 	"github.com/kumbuka-me/kumbuka/plugins"
-	"github.com/kumbuka-me/kumbuka/web"
 	"github.com/kumbuka-me/sdk/pluginpackage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -43,10 +41,9 @@ func TestAdminPluginLifecycleAndAuthorization(t *testing.T) {
 	require.NoError(t, err)
 	manager := plugin.NewManager(&plugin.Registry{}, runtime)
 	defer func() { require.NoError(t, manager.Close(ctx)) }()
-	views, err := NewViews(web.Assets, slog.New(slog.NewTextHandler(io.Discard, nil)), "test", "test", nil, RuntimeInfo{})
-	require.NoError(t, err)
-	data := viewDataServiceStub{load: func(*http.Request, *Views, string) (ViewData, error) {
-		return ViewData{User: domain.User{ID: 1, Role: "admin"}}, nil
+	views := testHandlerViews(t, webview.RuntimeInfo{})
+	data := viewDataServiceStub{load: func(*http.Request, *webview.Views, string) (webview.Data, error) {
+		return webview.Data{User: domain.User{ID: 1, Role: "admin"}}, nil
 	}}
 	admin := NewAdminPlugins(manager, data, views)
 	archive, err := plugins.Packages.ReadFile("callouts.kumbukaplugin")
@@ -104,15 +101,14 @@ func TestPluginUploadBoundaries(t *testing.T) {
 }
 
 func TestAdminPluginMetadataIsEscaped(t *testing.T) {
-	views, err := NewViews(web.Assets, slog.Default(), "test", "test", nil, RuntimeInfo{})
-	require.NoError(t, err)
-	data := ViewData{
+	views := testHandlerViews(t, webview.RuntimeInfo{})
+	data := webview.Data{
 		AdminPlugins:      []plugin.LoadedPlugin{{Manifest: pluginpackage.Manifest{ID: "io.example.safe", Name: "<script>bad()</script>", Provider: "<img src=x onerror=bad()>", Version: "1.0.0"}}},
 		PluginRequiredIDs: make(map[string]bool),
 		PluginHasSettings: make(map[string]bool),
 		PluginREADMEs:     make(map[string]template.HTML),
 	}
-	html, err := renderTemplateHTML(views, "admin_plugins", "content", data)
+	html, err := views.RenderHTML("admin_plugins", "content", data)
 	require.NoError(t, err)
 	assert.NotContains(t, string(html), "<script>bad()")
 	assert.NotContains(t, string(html), "<img src=x")

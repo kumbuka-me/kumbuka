@@ -10,10 +10,11 @@ import (
 
 	"github.com/kumbuka-me/kumbuka/internal/httpresponse"
 	"github.com/kumbuka-me/kumbuka/internal/service"
+	"github.com/kumbuka-me/kumbuka/internal/webview"
 )
 
 // AdminWebhooks renders outgoing webhook configuration and recent deliveries.
-func AdminWebhooks(viewDataUseCases viewDataService, webhookUseCases webhookAdminService, views *Views) http.HandlerFunc {
+func AdminWebhooks(viewDataUseCases viewDataService, webhookUseCases webhookAdminService, views *webview.Views) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		data, err := administrationData(r, viewDataUseCases, views, "Webhooks", "webhooks")
 		if err != nil {
@@ -32,7 +33,7 @@ func AdminWebhooks(viewDataUseCases viewDataService, webhookUseCases webhookAdmi
 		}
 		data.WebhookEvents = service.WebhookEvents()
 		data.WebhookDraft = service.DefaultWebhook()
-		render(views, w, "admin_webhooks", data)
+		views.Render(w, "admin_webhooks", data)
 	}
 }
 
