@@ -132,3 +132,37 @@ textarea {
   cursor: not-allowed;
   opacity: 0.6;
 }
+
+:where(input[type="file"]) {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 5px;
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+:where(input[type="file"])::file-selector-button {
+  margin-right: 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  background: var(--surface-elevated);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 650;
+}
+
+:where(input[type="file"])::file-selector-button:hover {
+  border-color: var(--border-strong);
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+
+
