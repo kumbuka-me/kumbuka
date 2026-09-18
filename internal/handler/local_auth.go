@@ -105,76 +105,85 @@ func Setup(
 		}
 
 		if r.Method == http.MethodPost {
-			if err := r.ParseForm(); err != nil {
-				httpresponse.Problem(w, http.StatusBadRequest, "Invalid setup form.")
-				return
-			}
-
-			problems := setupValidationProblems(r)
-			if len(problems) > 0 {
-				if wantsJSON(r) {
-					httpresponse.Problem(w, http.StatusUnprocessableEntity, "Setup validation failed.", problems...)
-					return
-				}
-
-				data, dataErr := views.PublicData("Set up Kumbuka")
-				if dataErr != nil {
-					httpresponse.InternalServerError(views.Logger(), w, dataErr)
-					return
-				}
-
-				data.AuthError = problems[0].Message
-
-				w.Header().Set("Content-Type", "text/html; charset=utf-8")
-				w.WriteHeader(http.StatusUnprocessableEntity)
-				views.RenderPublic(w, "setup", data)
-				return
-			}
-
-			bootstrapSession := views.Runtime().AuthModeOverride != "" &&
-				views.Runtime().AuthModeOverride != string(auth.AuthModeLocal)
-
-			var user domain.User
-			var token string
-			if bootstrapSession {
-				user, token, err = browserAuth.Local.SetupBootstrap(
-					r.Context(),
-					r.FormValue("username"),
-					r.FormValue("email"),
-					r.FormValue("display_name"),
-					r.FormValue("password"),
-				)
-			} else {
-				user, token, err = browserAuth.Local.Setup(
-					r.Context(),
-					r.FormValue("username"),
-					r.FormValue("email"),
-					r.FormValue("display_name"),
-					r.FormValue("password"),
-				)
-			}
-			if err == nil {
-				if bootstrapSession {
-					browserAuth.Local.WriteBootstrapSessionCookie(w, token)
-				} else {
-					browserAuth.Local.WriteSessionCookie(w, token)
-				}
-				systemUseCases.RecordSetupCompleted(r.Context(), user)
-				http.Redirect(w, r, "/admin/configuration", http.StatusSeeOther)
-				return
-			}
-			writeSetupProblem(views, w, err)
+			submitSetup(w, r, systemUseCases, browserAuth, views)
 			return
 		}
 
-		data, err := views.PublicData("Set up Kumbuka")
-		if err != nil {
-			httpresponse.InternalServerError(views.Logger(), w, err)
-			return
-		}
-
-		views.RenderPublic(w, "setup", data)
+		renderSetupForm(w, views, http.StatusOK, "")
 	}
+}
+
+// submitSetup validates and creates the initial administrator account.
+func submitSetup(
+	w http.ResponseWriter,
+	r *http.Request,
+	systemUseCases systemService,
+	browserAuth auth.BrowserAuth,
+	views *webview.Views,
+) {
+	if err := r.ParseForm(); err != nil {
+		httpresponse.Problem(w, http.StatusBadRequest, "Invalid setup form.")
+		return
+	}
+
+	problems := setupValidationProblems(r)
+	if len(problems) > 0 {
+		if wantsJSON(r) {
+			httpresponse.Problem(w, http.StatusUnprocessableEntity, "Setup validation failed.", problems...)
+			return
+		}
+
+		renderSetupForm(w, views, http.StatusUnprocessableEntity, problems[0].Message)
+		return
+	}
+
+	bootstrapSession := views.Runtime().AuthModeOverride != "" &&
+		views.Runtime().AuthModeOverride != string(auth.AuthModeLocal)
+
+	var user domain.User
+	var token string
+	var err error
+	if bootstrapSession {
+		user, token, err = browserAuth.Local.SetupBootstrap(
+			r.Context(),
+			r.FormValue("username"),
+			r.FormValue("email"),
+			r.FormValue("display_name"),
+			r.FormValue("password"),
+		)
+	} else {
+		user, token, err = browserAuth.Local.Setup(
+			r.Context(),
+			r.FormValue("username"),
+			r.FormValue("email"),
+			r.FormValue("display_name"),
+			r.FormValue("password"),
+		)
+	}
+	if err != nil {
+		writeSetupProblem(views, w, err)
+		return
+	}
+
+	if bootstrapSession {
+		browserAuth.Local.WriteBootstrapSessionCookie(w, token)
+	} else {
+		browserAuth.Local.WriteSessionCookie(w, token)
+	}
+	systemUseCases.RecordSetupCompleted(r.Context(), user)
+	http.Redirect(w, r, "/admin/configuration", http.StatusSeeOther)
+}
+
+// renderSetupForm renders the setup form with the requested browser status.
+func renderSetupForm(w http.ResponseWriter, views *webview.Views, status int, message string) {
+	data, err := views.PublicData("Set up Kumbuka")
+	if err != nil {
+		httpresponse.InternalServerError(views.Logger(), w, err)
+		return
+	}
+
+	data.AuthError = message
+	views.RenderPublicStatus(w, status, "setup", data)
 }
 
 // safeAuthNext accepts only local paths as post-authentication destinations.
@@ -198,9 +207,7 @@ func writeLocalLoginProblem(views *webview.Views, w http.ResponseWriter, err err
 		}
 		data.AuthError = "Invalid username or password."
 		data.AuthNext = next
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		w.WriteHeader(http.StatusUnauthorized)
-		views.RenderPublic(w, "login", data)
+		views.RenderPublicStatus(w, http.StatusUnauthorized, "login", data)
 	default:
 		httpresponse.InternalServerError(views.Logger(), w, err)
 	}

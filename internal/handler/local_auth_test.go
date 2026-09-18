@@ -151,3 +151,28 @@ func TestSetupAllowsRuntimeOIDCOverrideAndCreatesBootstrapSession(t *testing.T) 
 	assert.NotEmpty(t, cookies[0].Value)
 	assert.True(t, cookies[0].HttpOnly)
 }
+
+func TestSetupHTMLValidationUsesUnprocessableStatus(t *testing.T) {
+	t.Parallel()
+
+	settings := &localAuthSettingsStub{settings: domain.ApplicationSettings{
+		Authentication: domain.AuthenticationSettings{Mode: string(auth.AuthModeNone)},
+	}}
+	system := &localAuthSystemStub{setupRequired: true}
+	views := testHandlerViews(t, webview.RuntimeInfo{})
+	handler := Setup(settings, system, auth.BrowserAuth{}, views)
+
+	form := url.Values{
+		"password":         {"correct-horse-battery-staple"},
+		"password_confirm": {"correct-horse-battery-staple"},
+	}
+	request := httptest.NewRequest(http.MethodPost, "/setup", strings.NewReader(form.Encode()))
+	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	assert.Equal(t, http.StatusUnprocessableEntity, response.Code)
+	assert.Equal(t, "text/html; charset=utf-8", response.Header().Get("Content-Type"))
+	assert.Contains(t, response.Body.String(), "Username is required.")
+}

@@ -231,7 +231,12 @@ func (v *Views) RenderStatus(w http.ResponseWriter, status int, page string, dat
 
 // RenderPublic executes the minimal unauthenticated page layout.
 func (v *Views) RenderPublic(w http.ResponseWriter, page string, data Data) {
-	v.RenderDataStatus(w, http.StatusOK, page, "public-layout", data)
+	v.RenderPublicStatus(w, http.StatusOK, page, data)
+}
+
+// RenderPublicStatus executes the minimal unauthenticated page layout with an explicit HTTP status.
+func (v *Views) RenderPublicStatus(w http.ResponseWriter, status int, page string, data Data) {
+	v.RenderDataStatus(w, status, page, "public-layout", data)
 }
 
 // RenderFragment executes one named fragment from a parsed page template set.
