@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/kumbuka-me/kumbuka/internal/httpresponse"
+	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	md "github.com/kumbuka-me/kumbuka/pkg/markdown"
 )
@@ -19,7 +20,7 @@ func EditPage(
 	groupUseCases groupReader,
 	templateUseCases templateService,
 	accessUseCases pageAccessReader,
-	views *Views,
+	views *webview.Views,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user := currentUser(r)
@@ -62,28 +63,28 @@ func EditPage(
 			data.Page = &page
 			data.EditorInitialSlug = page.Slug
 			data.EditorParentPath, data.EditorPathSegment = splitPagePath(page.Slug)
-			data.PagePathOptions = pagePathOptions(data.Navigation, page.Slug)
+			data.PagePathOptions = webview.PagePathOptions(data.Navigation, page.Slug)
 			data.PageContentLanguage = cmp.Or(page.Language, data.PageContentLanguage)
 		}
 
-		render(views, w, "edit", data)
+		views.Render(w, "edit", data)
 	}
 }
 
 // prepareNewPageEditor initializes editor state used only when creating a page.
 func prepareNewPageEditor(
 	r *http.Request,
-	data *ViewData,
+	data *webview.Data,
 	templateUseCases templateService,
 ) error {
-	data.PagePathOptions = pagePathOptions(data.Navigation, "")
+	data.PagePathOptions = webview.PagePathOptions(data.Navigation, "")
 
 	prefillSlug := md.Slug(r.URL.Query().Get("slug"))
 
 	switch prefillSlug {
 	case "":
 		parent := md.Slug(r.URL.Query().Get("parent"))
-		if hasPagePathOption(data.PagePathOptions, parent) {
+		if webview.HasPagePathOption(data.PagePathOptions, parent) {
 			data.EditorParentPath = parent
 		}
 
@@ -130,12 +131,12 @@ func prepareNewPageEditor(
 }
 
 // ensurePagePathOption adds a path option when it does not already exist.
-func ensurePagePathOption(options []pagePathOption, slug string) []pagePathOption {
-	if slug == "" || hasPagePathOption(options, slug) {
+func ensurePagePathOption(options []webview.PagePathOption, slug string) []webview.PagePathOption {
+	if slug == "" || webview.HasPagePathOption(options, slug) {
 		return options
 	}
 
-	return append(options, pagePathOption{
+	return append(options, webview.PagePathOption{
 		Slug:  slug,
 		Label: strings.ReplaceAll(slug, "/", " / "),
 	})

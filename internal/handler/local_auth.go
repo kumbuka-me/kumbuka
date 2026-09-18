@@ -8,6 +8,7 @@ import (
 
 	"github.com/kumbuka-me/kumbuka/internal/auth"
 	"github.com/kumbuka-me/kumbuka/internal/httpresponse"
+	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
 
@@ -16,7 +17,7 @@ func LocalLogin(
 	settingsUseCases settingsService,
 	systemUseCases systemService,
 	browserAuth auth.BrowserAuth,
-	views *Views,
+	views *webview.Views,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		allowed, err := browserAuth.LocalLoginAllowed(r.Context())
@@ -63,7 +64,7 @@ func LocalLogin(
 			return
 		}
 
-		data, err := publicViewData(views, "Local sign in")
+		data, err := views.PublicData("Local sign in")
 		if err != nil {
 			httpresponse.InternalServerError(views.Logger(), w, err)
 			return
@@ -71,7 +72,7 @@ func LocalLogin(
 
 		data.AuthNext = next
 
-		renderPublic(views, w, "login", data)
+		views.RenderPublic(w, "login", data)
 	}
 }
 
@@ -80,7 +81,7 @@ func Setup(
 	settingsUseCases settingsService,
 	systemUseCases systemService,
 	browserAuth auth.BrowserAuth,
-	views *Views,
+	views *webview.Views,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		settings, err := settingsUseCases.ApplicationSettings(r.Context())
@@ -116,7 +117,7 @@ func Setup(
 					return
 				}
 
-				data, dataErr := publicViewData(views, "Set up Kumbuka")
+				data, dataErr := views.PublicData("Set up Kumbuka")
 				if dataErr != nil {
 					httpresponse.InternalServerError(views.Logger(), w, dataErr)
 					return
@@ -126,7 +127,7 @@ func Setup(
 
 				w.Header().Set("Content-Type", "text/html; charset=utf-8")
 				w.WriteHeader(http.StatusUnprocessableEntity)
-				renderPublic(views, w, "setup", data)
+				views.RenderPublic(w, "setup", data)
 				return
 			}
 
@@ -166,13 +167,13 @@ func Setup(
 			return
 		}
 
-		data, err := publicViewData(views, "Set up Kumbuka")
+		data, err := views.PublicData("Set up Kumbuka")
 		if err != nil {
 			httpresponse.InternalServerError(views.Logger(), w, err)
 			return
 		}
 
-		renderPublic(views, w, "setup", data)
+		views.RenderPublic(w, "setup", data)
 	}
 }
 
@@ -187,10 +188,10 @@ func safeAuthNext(value string) string {
 }
 
 // writeLocalLoginProblem preserves the sign-in form for invalid credentials.
-func writeLocalLoginProblem(views *Views, w http.ResponseWriter, err error, next string) {
+func writeLocalLoginProblem(views *webview.Views, w http.ResponseWriter, err error, next string) {
 	switch {
 	case errors.Is(err, auth.ErrInvalidCredentials):
-		data, dataErr := publicViewData(views, "Local sign in")
+		data, dataErr := views.PublicData("Local sign in")
 		if dataErr != nil {
 			httpresponse.InternalServerError(views.Logger(), w, dataErr)
 			return
@@ -199,14 +200,14 @@ func writeLocalLoginProblem(views *Views, w http.ResponseWriter, err error, next
 		data.AuthNext = next
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.WriteHeader(http.StatusUnauthorized)
-		renderPublic(views, w, "login", data)
+		views.RenderPublic(w, "login", data)
 	default:
 		httpresponse.InternalServerError(views.Logger(), w, err)
 	}
 }
 
 // writeSetupProblem keeps an already-completed setup unavailable to anonymous callers.
-func writeSetupProblem(views *Views, w http.ResponseWriter, err error) {
+func writeSetupProblem(views *webview.Views, w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, domain.ErrAlreadyExists), errors.Is(err, domain.ErrForbidden):
 		httpresponse.Problem(w, http.StatusNotFound, "Not found.")

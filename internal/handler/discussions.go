@@ -7,10 +7,11 @@ import (
 
 	"github.com/kumbuka-me/kumbuka/internal/auth"
 	"github.com/kumbuka-me/kumbuka/internal/httpresponse"
+	"github.com/kumbuka-me/kumbuka/internal/webview"
 )
 
 // AddPageComment adds an anchored discussion item to one page.
-func AddPageComment(pageUseCases pageDiscussionWriter, views *Views) http.HandlerFunc {
+func AddPageComment(pageUseCases pageDiscussionWriter, views *webview.Views) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := auth.User(r)
 		if !ok {
@@ -47,7 +48,7 @@ func AddPageComment(pageUseCases pageDiscussionWriter, views *Views) http.Handle
 }
 
 // ResolvePageComment resolves or reopens one discussion item.
-func ResolvePageComment(pageUseCases pageDiscussionWriter, views *Views) http.HandlerFunc {
+func ResolvePageComment(pageUseCases pageDiscussionWriter, views *webview.Views) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 		if err != nil || id <= 0 {

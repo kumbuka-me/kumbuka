@@ -5,6 +5,7 @@ import (
 
 	"github.com/kumbuka-me/kumbuka/internal/auth"
 	"github.com/kumbuka-me/kumbuka/internal/httpresponse"
+	"github.com/kumbuka-me/kumbuka/internal/webview"
 	md "github.com/kumbuka-me/kumbuka/pkg/markdown"
 	"github.com/kumbuka-me/kumbuka/pkg/plugincap"
 )
@@ -16,7 +17,7 @@ func Home(
 	draftUseCases draftListService,
 	accessUseCases pageAccessReader,
 	renderer *md.Renderer,
-	views *Views,
+	views *webview.Views,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		data, err := viewDataUseCases.Load(r, views, "Home")
@@ -37,8 +38,8 @@ func Home(
 			httpresponse.InternalServerError(views.Logger(), w, err)
 			return
 		}
-		data.HomeWidgets = widgetViews(widgets, "home", "", "/")
+		data.HomeWidgets = webview.Widgets(widgets, "home", "", "/")
 
-		render(views, w, "home", data)
+		views.Render(w, "home", data)
 	}
 }

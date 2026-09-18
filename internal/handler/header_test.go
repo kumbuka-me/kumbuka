@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -29,7 +30,7 @@ func TestNotificationHeaderUnreadClass(t *testing.T) {
 	}).Parse(string(source))
 	require.NoError(t, err)
 
-	data := ViewData{
+	data := webview.Data{
 		ApplicationSettings: domain.ApplicationSettings{ExternalLinks: []domain.ExternalLink{{
 			Label:       "Repository",
 			URL:         "https://github.com/kumbuka-me/kumbuka",

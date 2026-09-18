@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"net/http"
 
 	"github.com/kumbuka-me/kumbuka/internal/httpresponse"
@@ -11,7 +12,7 @@ func Search(
 	viewDataUseCases viewDataService,
 	catalogUseCases pageSearchService,
 	accessUseCases pageAccessReader,
-	views *Views,
+	views *webview.Views,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		query := r.URL.Query().Get("q")
@@ -32,6 +33,6 @@ func Search(
 
 		data.Query, data.Pages = query, pages
 
-		render(views, w, "search", data)
+		views.Render(w, "search", data)
 	}
 }

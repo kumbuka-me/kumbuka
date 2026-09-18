@@ -10,6 +10,7 @@ import (
 
 	"github.com/kumbuka-me/kumbuka/internal/httpresponse"
 	"github.com/kumbuka-me/kumbuka/internal/service"
+	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
 
@@ -169,7 +170,7 @@ func DeleteImage(mediaUseCases imageService, logger *slog.Logger) http.HandlerFu
 }
 
 // managedImageItems converts stored images into administration view items.
-func managedImageItems(images []domain.Image) (items []MediaItem, hasMore bool) {
+func managedImageItems(images []domain.Image) (items []webview.MediaItem, hasMore bool) {
 	hasMore = len(images) > managedImagePageSize
 	if hasMore {
 		images = images[:managedImagePageSize]
@@ -179,11 +180,11 @@ func managedImageItems(images []domain.Image) (items []MediaItem, hasMore bool) 
 }
 
 // mediaItems converts store image metadata into browser-facing media items.
-func mediaItems(images []domain.Image) []MediaItem {
-	items := make([]MediaItem, 0, len(images))
+func mediaItems(images []domain.Image) []webview.MediaItem {
+	items := make([]webview.MediaItem, 0, len(images))
 
 	for _, image := range images {
-		items = append(items, MediaItem{
+		items = append(items, webview.MediaItem{
 			ID:          image.ID,
 			Filename:    image.Filename,
 			ContentType: image.ContentType,

@@ -10,6 +10,7 @@ import (
 
 	"github.com/kumbuka-me/kumbuka/internal/auth"
 	"github.com/kumbuka-me/kumbuka/internal/httpresponse"
+	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	md "github.com/kumbuka-me/kumbuka/pkg/markdown"
 	"github.com/kumbuka-me/kumbuka/pkg/navigation"
@@ -59,7 +60,7 @@ func ViewPage(
 	accessUseCases pageAccessReader,
 	approvalUseCases pageApprovalService,
 	renderer *md.Renderer,
-	views *Views,
+	views *webview.Views,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		slug := r.PathValue("slug")
@@ -165,10 +166,10 @@ func ViewPage(
 			httpresponse.InternalServerError(views.Logger(), w, err)
 			return
 		}
-		data.PageDetailWidgets = widgetViews(widgets, "page.details", page.Slug, pageURL(page.Slug))
+		data.PageDetailWidgets = webview.Widgets(widgets, "page.details", page.Slug, pageURL(page.Slug))
 
 		stop = measurePageStage(r.Context(), "template_render")
-		render(views, w, "page", data)
+		views.Render(w, "page", data)
 		stop()
 	}
 }

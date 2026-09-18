@@ -11,6 +11,7 @@ import (
 
 	"github.com/kumbuka-me/kumbuka/internal/auth"
 	"github.com/kumbuka-me/kumbuka/internal/service"
+	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -128,7 +129,7 @@ func TestListImagesSupportsManagedPagination(t *testing.T) {
 		assert.False(t, stub.usedSearch)
 		assert.False(t, stub.usedMine)
 
-		var items []MediaItem
+		var items []webview.MediaItem
 		require.NoError(t, json.Unmarshal(response.Body.Bytes(), &items))
 		require.Len(t, items, 1)
 		assert.Equal(t, int64(1), items[0].ID)

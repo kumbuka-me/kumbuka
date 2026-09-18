@@ -11,6 +11,7 @@ import (
 	"github.com/kumbuka-me/kumbuka/internal/auth"
 	"github.com/kumbuka-me/kumbuka/internal/httpresponse"
 	"github.com/kumbuka-me/kumbuka/internal/service"
+	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	md "github.com/kumbuka-me/kumbuka/pkg/markdown"
 )
@@ -21,7 +22,7 @@ func SavePageForm(
 	draftUseCases draftDiscardService,
 	templateUseCases templateService,
 	accessUseCases pageAccessReader,
-	views *Views,
+	views *webview.Views,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user := currentUser(r)
@@ -180,7 +181,7 @@ func resolvePageTemplateFields(
 // DeletePageForm deletes a page from the browser and returns home.
 func DeletePageForm(
 	pageUseCases pageWriterService,
-	views *Views,
+	views *webview.Views,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user := currentUser(r)
@@ -198,7 +199,7 @@ func DeletePageForm(
 // FavoritePage updates the current user's favorite status for a page.
 func FavoritePage(
 	catalogUseCases favoriteService,
-	views *Views,
+	views *webview.Views,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		value := r.PathValue("slug")
@@ -228,7 +229,7 @@ func FavoritePage(
 // WatchPage updates the current user's page or subtree subscription.
 func WatchPage(
 	catalogUseCases pageWatchService,
-	views *Views,
+	views *webview.Views,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, _ := auth.User(r)

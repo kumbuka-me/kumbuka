@@ -6,11 +6,12 @@ import (
 
 	"github.com/kumbuka-me/kumbuka/internal/auth"
 	"github.com/kumbuka-me/kumbuka/internal/httpresponse"
+	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/revision"
 )
 
 // RevisionHistory renders the full revision history fragment for a page.
-func RevisionHistory(catalogUseCases pageRevisionService, views *Views) http.HandlerFunc {
+func RevisionHistory(catalogUseCases pageRevisionService, views *webview.Views) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		revisions, err := catalogUseCases.Revisions(r.Context(), r.PathValue("slug"))
 		if err != nil {
@@ -20,7 +21,7 @@ func RevisionHistory(catalogUseCases pageRevisionService, views *Views) http.Han
 
 		user, _ := auth.User(r)
 
-		renderFragment(views, w, "page", "revision-list", ViewData{
+		views.RenderFragment(w, "page", "revision-list", webview.Data{
 			Revisions:    revision.AnalyzeAll(revisions),
 			RevisionSlug: r.PathValue("slug"),
 			CanEdit:      user.Role == "admin" || user.Role == "editor",
@@ -29,7 +30,7 @@ func RevisionHistory(catalogUseCases pageRevisionService, views *Views) http.Han
 }
 
 // RestoreRevision creates a new page revision from an older persisted revision.
-func RestoreRevision(pageUseCases pageRevisionWriter, views *Views) http.HandlerFunc {
+func RestoreRevision(pageUseCases pageRevisionWriter, views *webview.Views) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user := currentUser(r)
 		number, err := strconv.Atoi(r.PathValue("number"))

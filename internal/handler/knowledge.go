@@ -6,10 +6,11 @@ import (
 	"strings"
 
 	"github.com/kumbuka-me/kumbuka/internal/httpresponse"
+	"github.com/kumbuka-me/kumbuka/internal/webview"
 )
 
 // KnowledgeGraphPage renders the interactive page relationship explorer.
-func KnowledgeGraphPage(viewDataUseCases viewDataService, views *Views) http.HandlerFunc {
+func KnowledgeGraphPage(viewDataUseCases viewDataService, views *webview.Views) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		data, err := viewDataUseCases.Load(r, views, "Knowledge graph")
 		if err != nil {
@@ -19,7 +20,7 @@ func KnowledgeGraphPage(viewDataUseCases viewDataService, views *Views) http.Han
 
 		data.Query = strings.TrimSpace(r.URL.Query().Get("slug"))
 
-		render(views, w, "graph", data)
+		views.Render(w, "graph", data)
 	}
 }
 

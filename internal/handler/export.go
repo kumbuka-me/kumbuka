@@ -20,6 +20,7 @@ import (
 
 	"github.com/kumbuka-me/kumbuka/internal/httpresponse"
 	"github.com/kumbuka-me/kumbuka/internal/pdf"
+	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	md "github.com/kumbuka-me/kumbuka/pkg/markdown"
 	xhtml "golang.org/x/net/html"
@@ -72,7 +73,7 @@ func ExportPagePDF(
 	mediaUseCases imageContentService,
 	accessUseCases pageAccessReader,
 	renderer *md.Renderer,
-	views *Views,
+	views *webview.Views,
 	logger *slog.Logger,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {

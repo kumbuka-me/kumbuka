@@ -6,12 +6,13 @@ import (
 	"time"
 
 	"github.com/kumbuka-me/kumbuka/internal/service"
+	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/kumbuka-me/kumbuka/pkg/revision"
 )
 
 type viewDataService interface {
-	Load(*http.Request, *Views, string) (ViewData, error)
+	Load(*http.Request, *webview.Views, string) (webview.Data, error)
 }
 
 type administrationService interface {

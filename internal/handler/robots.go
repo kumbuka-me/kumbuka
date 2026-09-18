@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/kumbuka-me/kumbuka/internal/httpresponse"
+	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
 
@@ -44,7 +45,7 @@ type sitemapEntry struct {
 }
 
 // Robots serves crawler guidance configured by an administrator.
-func Robots(settingsUseCases robotsSettingsService, views *Views, logger *slog.Logger) http.HandlerFunc {
+func Robots(settingsUseCases robotsSettingsService, views *webview.Views, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		settings, err := settingsUseCases.ApplicationSettings(r.Context())
 		if err != nil {
@@ -83,7 +84,7 @@ func Sitemap(
 	settingsUseCases robotsSettingsService,
 	catalogUseCases sitemapCatalogService,
 	accessUseCases pageAccessReader,
-	views *Views,
+	views *webview.Views,
 	logger *slog.Logger,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {

@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/kumbuka-me/kumbuka/internal/httpresponse"
+	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	md "github.com/kumbuka-me/kumbuka/pkg/markdown"
 	"github.com/kumbuka-me/kumbuka/pkg/pluginbrowser"
@@ -47,7 +48,7 @@ func SharedPage(
 	settingsUseCases settingsService,
 	mediaUseCases imageContentService,
 	renderer *md.Renderer,
-	views *Views,
+	views *webview.Views,
 	logger *slog.Logger,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -81,7 +82,7 @@ func renderSharedPage(
 	settingsUseCases settingsService,
 	mediaUseCases imageContentService,
 	renderer *md.Renderer,
-	views *Views,
+	views *webview.Views,
 	logger *slog.Logger,
 	slug string,
 ) {
@@ -119,7 +120,7 @@ func renderSharedPage(
 		return
 	}
 
-	data, err := publicViewData(views, page.Title)
+	data, err := views.PublicData(page.Title)
 	if err != nil {
 		writePublicShareError(logger, w, err)
 		return
@@ -137,7 +138,7 @@ func renderSharedPage(
 	data.ApplicationSettings = application
 	data.PageContentLanguage = cmp.Or(page.Language, application.ContentLanguage)
 
-	renderTemplate(views, w, "shared_page", "shared-layout", data)
+	views.RenderTemplate(w, "shared_page", "shared-layout", data)
 }
 
 // publicShareHeaders prevent public bearer URLs from leaking through caches, referrers, or indexing.

@@ -9,6 +9,7 @@ import (
 
 	"github.com/kumbuka-me/kumbuka/internal/auth"
 	"github.com/kumbuka-me/kumbuka/internal/httpresponse"
+	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/kumbuka-me/kumbuka/pkg/plugin"
 	"github.com/kumbuka-me/kumbuka/pkg/themes"
@@ -33,7 +34,7 @@ func Settings(
 	tokenUseCases tokenService,
 	mediaUseCases userImageService,
 	local *auth.Local,
-	views *Views,
+	views *webview.Views,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		data, err := viewDataUseCases.Load(r, views, "Settings")
@@ -75,7 +76,7 @@ func Settings(
 			data.Images, data.ImagesHasMore = managedImageItems(images)
 		}
 
-		render(views, w, "settings", data)
+		views.Render(w, "settings", data)
 	}
 }
 
@@ -129,7 +130,7 @@ func ChangeLocalPassword(local *auth.Local, logger *slog.Logger) http.HandlerFun
 }
 
 // SavePreferences validates and stores all presentation preferences shown on the settings page.
-func SavePreferences(preferenceUseCases preferenceService, pluginManager *plugin.Manager, views *Views) http.HandlerFunc {
+func SavePreferences(preferenceUseCases preferenceService, pluginManager *plugin.Manager, views *webview.Views) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := auth.User(r)
 		if !ok {
@@ -216,7 +217,7 @@ func SavePreferences(preferenceUseCases preferenceService, pluginManager *plugin
 }
 
 // SavePageContentsPreference stores the floating page-contents toggle without changing other preferences.
-func SavePageContentsPreference(preferenceUseCases preferenceService, views *Views) http.HandlerFunc {
+func SavePageContentsPreference(preferenceUseCases preferenceService, views *webview.Views) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := auth.User(r)
 		if !ok {

@@ -4,10 +4,11 @@ import (
 	"net/http"
 
 	"github.com/kumbuka-me/kumbuka/internal/httpresponse"
+	"github.com/kumbuka-me/kumbuka/internal/webview"
 )
 
 // NotFound renders the themed browser 404 page.
-func NotFound(viewDataUseCases viewDataService, views *Views) http.HandlerFunc {
+func NotFound(viewDataUseCases viewDataService, views *webview.Views) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		renderNotFoundPage(w, r, viewDataUseCases, views)
 	}
@@ -18,7 +19,7 @@ func renderNotFoundPage(
 	w http.ResponseWriter,
 	r *http.Request,
 	viewDataUseCases viewDataService,
-	views *Views,
+	views *webview.Views,
 ) {
 	data, err := viewDataUseCases.Load(r, views, "Page not found")
 	if err != nil {

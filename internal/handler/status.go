@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
+
+	"github.com/kumbuka-me/kumbuka/internal/webview"
 )
 
 // statusPagePresentation describes the browser-facing content and actions for one HTTP status page.
@@ -31,8 +33,8 @@ type statusPagePresentation struct {
 
 // statusPageData combines shared page chrome with one themed HTTP status presentation.
 type statusPageData struct {
-	// ViewData provides the shared fields required by application and public layouts.
-	ViewData
+	// Data provides the shared fields required by application and public layouts.
+	webview.Data
 	// StatusCode is the HTTP status code displayed above the title.
 	StatusCode int
 	// StatusMessage explains why the request could not be completed.
@@ -92,7 +94,7 @@ func (r *capturedResponse) Write(data []byte) (int, error) {
 }
 
 // HTMLProblems converts JSON problem responses into themed HTML pages for selected browser routes.
-func HTMLProblems(next http.Handler, views *Views, paths ...string) http.Handler {
+func HTMLProblems(next http.Handler, views *webview.Views, paths ...string) http.Handler {
 	selected := make(map[string]bool, len(paths))
 	for _, path := range paths {
 		selected[path] = true
@@ -125,7 +127,7 @@ func HTMLProblems(next http.Handler, views *Views, paths ...string) http.Handler
 		}
 
 		presentation := browserProblemPresentation(status, problem.Error)
-		data, err := publicViewData(views, presentation.Title)
+		data, err := views.PublicData(presentation.Title)
 		if err != nil {
 			writeCapturedResponse(w, captured, status)
 			return
@@ -139,17 +141,17 @@ func HTMLProblems(next http.Handler, views *Views, paths ...string) http.Handler
 
 // renderStatusPage renders the shared status surface with either the application or public layout.
 func renderStatusPage(
-	views *Views,
+	views *webview.Views,
 	w http.ResponseWriter,
 	status int,
 	layout string,
-	data ViewData,
+	data webview.Data,
 	presentation statusPagePresentation,
 ) {
 	data.Title = presentation.Title
 
-	renderTemplateDataStatus(views, w, status, "not_found", layout, statusPageData{
-		ViewData:       data,
+	views.RenderDataStatus(w, status, "not_found", layout, statusPageData{
+		Data:           data,
 		StatusCode:     status,
 		StatusMessage:  presentation.Message,
 		StatusIcon:     presentation.Icon,
