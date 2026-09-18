@@ -96,6 +96,9 @@ func TestAdminPluginLifecycleAndAuthorization(t *testing.T) {
 	assert.Contains(t, w.Body.String(), "data-plugin-detail-open-on-load")
 	assert.Contains(t, w.Body.String(), "Permissions")
 	assert.Contains(t, w.Body.String(), "Uninstall plugin")
+	assert.Contains(t, w.Body.String(), "Automatic update checks are disabled")
+	assert.NotContains(t, w.Body.String(), "0001-01-01")
+	assert.NotContains(t, w.Body.String(), "Version  is available")
 	broken := pluginUpload(t, []byte("invalid archive"))
 	broken.SetPathValue("pluginID", id)
 	broken.SetPathValue("action", "upgrade")
@@ -124,7 +127,11 @@ func TestAdminPluginCatalogUpdate(t *testing.T) {
 
 	updates := &pluginUpdateServiceStub{
 		updates: map[string]pluginupdate.Release{
-			item.Manifest.ID: {Version: "9.9.9", APIVersion: 1},
+			item.Manifest.ID: {
+				Version:    "9.9.9",
+				APIVersion: 1,
+				ReleasedAt: time.Date(2026, time.September, 18, 7, 30, 0, 0, time.UTC),
+			},
 		},
 		archive: archive,
 	}
@@ -140,6 +147,8 @@ func TestAdminPluginCatalogUpdate(t *testing.T) {
 	require.Equal(t, http.StatusOK, w.Code)
 	assert.Contains(t, w.Body.String(), "9.9.9 available")
 	assert.Contains(t, w.Body.String(), "Update to 9.9.9")
+	assert.Contains(t, w.Body.String(), "Published 2026-09-18")
+	assert.NotContains(t, w.Body.String(), "0001-01-01")
 
 	request := httptest.NewRequest("POST", "/admin/plugins/"+item.Manifest.ID+"/update?return=detail", nil)
 	request.SetPathValue("pluginID", item.Manifest.ID)

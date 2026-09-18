@@ -108,6 +108,8 @@ type RuntimeInfo struct {
 	LocalLoginEnabled bool
 	// ThemeDirectory is the optional external theme directory.
 	ThemeDirectory string
+	// PluginUpdateCheckInterval is the deployment-configured catalog refresh interval or Disabled.
+	PluginUpdateCheckInterval string
 }
 
 // Views contains the shared server-rendered HTML dependencies.

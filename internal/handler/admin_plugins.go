@@ -63,7 +63,8 @@ func (a *AdminPlugins) render(w http.ResponseWriter, r *http.Request, id string,
 	}
 	data.AdminPlugins = a.manager.Plugins()
 	data.PluginRequiredIDs = make(map[string]bool, len(data.AdminPlugins))
-	data.PluginUpdates = make(map[string]webview.PluginUpdate)
+	data.PluginUpdates = make(map[string]*webview.PluginUpdate)
+	data.PluginUpdatesEnabled = a.updates != nil
 	if a.updates != nil {
 		updates, updateErr := a.updates.Updates(r.Context(), pluginVersions(data.AdminPlugins))
 		if updateErr != nil {
@@ -71,7 +72,7 @@ func (a *AdminPlugins) render(w http.ResponseWriter, r *http.Request, id string,
 			a.views.Logger().Warn("check plugin updates", "event", "plugin_catalog_check_failed", "error", updateErr)
 		} else {
 			for pluginID, release := range updates {
-				data.PluginUpdates[pluginID] = webview.PluginUpdate{Version: release.Version, ReleasedAt: release.ReleasedAt}
+				data.PluginUpdates[pluginID] = &webview.PluginUpdate{Version: release.Version, ReleasedAt: release.ReleasedAt}
 			}
 		}
 	}

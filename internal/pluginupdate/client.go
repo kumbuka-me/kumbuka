@@ -28,7 +28,6 @@ const (
 
 	catalogSchemaVersion = 1
 	maxCatalogBytes      = 2 << 20
-	defaultCacheTTL      = 15 * time.Minute
 	defaultFailureTTL    = time.Minute
 	defaultHTTPTimeout   = 15 * time.Second
 )
@@ -102,13 +101,13 @@ type Client struct {
 	failedAt time.Time
 }
 
-// New creates a first-party plugin update client for catalogURL.
-func New(catalogURL string) *Client {
+// New creates a first-party plugin update client for catalogURL and the configured successful refresh interval.
+func New(catalogURL string, cacheTTL time.Duration) *Client {
 	return &Client{
 		catalogURL: strings.TrimSpace(catalogURL),
 		httpClient: &http.Client{Timeout: defaultHTTPTimeout},
 		tempDir:    os.TempDir(),
-		cacheTTL:   defaultCacheTTL,
+		cacheTTL:   cacheTTL,
 		now:        time.Now,
 	}
 }
@@ -116,7 +115,7 @@ func New(catalogURL string) *Client {
 // Updates returns the newest compatible release newer than each installed plugin version.
 func (c *Client) Updates(ctx context.Context, installed map[string]string) (map[string]Release, error) {
 	updates := make(map[string]Release)
-	if c == nil || c.catalogURL == "" || len(installed) == 0 {
+	if c == nil || c.catalogURL == "" || c.cacheTTL <= 0 || len(installed) == 0 {
 		return updates, nil
 	}
 
@@ -310,6 +309,9 @@ func releaseProblem(release Release) string {
 	}
 	if release.APIVersion <= 0 {
 		return "plugin release API version is invalid"
+	}
+	if release.ReleasedAt.IsZero() {
+		return "plugin release publication date is invalid"
 	}
 	if len(release.SHA256) != sha256.Size*2 {
 		return "plugin release checksum is invalid"

@@ -3,6 +3,7 @@ package app
 import (
 	"io/fs"
 	"log/slog"
+	"time"
 
 	"github.com/kumbuka-me/kumbuka/internal/auth"
 	"github.com/kumbuka-me/kumbuka/internal/flags"
@@ -30,10 +31,14 @@ func newRouteConfig(
 		logger.With("component", "webhooks"),
 		cfg.PublicURL,
 	)
+	var pluginUpdates *pluginupdate.Client
+	if cfg.PluginUpdateCheckInterval > 0 {
+		pluginUpdates = pluginupdate.New(pluginupdate.DefaultCatalogURL, cfg.PluginUpdateCheckInterval)
+	}
 
 	return routes.Config{
 		Assets:         appFS,
-		PluginUpdates:  pluginupdate.New(pluginupdate.DefaultCatalogURL),
+		PluginUpdates:  pluginUpdates,
 		Administration: service.NewAdministration(database),
 		Access:         service.NewAccess(database),
 		Catalog:        service.NewCatalog(database),
@@ -112,7 +117,17 @@ func runtimeInfo(cfg flags.Config, secretCipher *secrets.Cipher) webview.Runtime
 		EncryptionKeyConfigured:            secretCipher.Configured(),
 		LocalLoginEnabled:                  cfg.LocalLogin,
 		ThemeDirectory:                     cfg.ThemeDirectory,
+		PluginUpdateCheckInterval:          pluginUpdateCheckIntervalLabel(cfg.PluginUpdateCheckInterval),
 	}
+}
+
+// pluginUpdateCheckIntervalLabel formats the deployment plugin update interval for administrator display.
+func pluginUpdateCheckIntervalLabel(interval time.Duration) string {
+	if interval <= 0 {
+		return "Disabled"
+	}
+
+	return interval.String()
 }
 
 // configurePluginAwareServices installs runtime catalogs and rendering into services that validate plugin-owned data.
