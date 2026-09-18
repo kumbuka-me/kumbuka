@@ -6,10 +6,10 @@ import (
 
 	"github.com/kumbuka-me/kumbuka/internal/auth"
 	"github.com/kumbuka-me/kumbuka/internal/flags"
-	"github.com/kumbuka-me/kumbuka/internal/handler"
 	"github.com/kumbuka-me/kumbuka/internal/routes"
 	"github.com/kumbuka-me/kumbuka/internal/secrets"
 	"github.com/kumbuka-me/kumbuka/internal/service"
+	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/icons"
 	"github.com/kumbuka-me/kumbuka/pkg/markdown"
 	"github.com/kumbuka-me/kumbuka/pkg/store"
@@ -81,14 +81,14 @@ func browserAuthConfig(cfg flags.Config) auth.BrowserConfig {
 }
 
 // runtimeInfo exposes deployment-managed values to administrator views without leaking flags into handlers.
-func runtimeInfo(cfg flags.Config, secretCipher *secrets.Cipher) handler.RuntimeInfo {
+func runtimeInfo(cfg flags.Config, secretCipher *secrets.Cipher) webview.RuntimeInfo {
 	registrationOverrideConfigured := cfg.AllowUserRegistrationOverride != nil
 	allowUserRegistrationOverride := false
 	if registrationOverrideConfigured {
 		allowUserRegistrationOverride = *cfg.AllowUserRegistrationOverride
 	}
 
-	return handler.RuntimeInfo{
+	return webview.RuntimeInfo{
 		ListenAddress:                      cfg.ListenAddress,
 		PublicURL:                          cfg.PublicURL,
 		PDFURL:                             cfg.PDFURL,
@@ -122,8 +122,8 @@ func configurePluginAwareServices(config *routes.Config, renderer *markdown.Rend
 }
 
 // newViewDataLoader wires the shared authenticated view-data aggregation boundary.
-func newViewDataLoader(config routes.Config) *handler.ViewDataLoader {
-	return handler.NewViewDataLoader(
+func newViewDataLoader(config routes.Config) *webview.Loader {
+	return webview.NewLoader(
 		config.Preferences,
 		config.Navigation,
 		config.Catalog,

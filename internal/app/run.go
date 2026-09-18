@@ -10,9 +10,9 @@ import (
 	"github.com/containeroo/tinyflags"
 	"github.com/kumbuka-me/kumbuka/internal/auth"
 	"github.com/kumbuka-me/kumbuka/internal/flags"
-	"github.com/kumbuka-me/kumbuka/internal/handler"
 	"github.com/kumbuka-me/kumbuka/internal/routes"
 	"github.com/kumbuka-me/kumbuka/internal/secrets"
+	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/logging"
 	"github.com/kumbuka-me/kumbuka/pkg/markdown"
 	"github.com/kumbuka-me/kumbuka/pkg/plugin/wasm"
@@ -115,7 +115,7 @@ func Run(
 	iconCatalog := renderer.IconCatalog()
 	configurePluginAwareServices(&routeConfig, renderer, iconCatalog)
 
-	views, err := handler.NewViews(
+	views, err := webview.New(
 		appFS,
 		logger,
 		version,

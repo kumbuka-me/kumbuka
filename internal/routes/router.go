@@ -9,6 +9,7 @@ import (
 	"github.com/kumbuka-me/kumbuka/internal/handler"
 	"github.com/kumbuka-me/kumbuka/internal/middleware"
 	"github.com/kumbuka-me/kumbuka/internal/service"
+	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/markdown"
 )
 
@@ -17,7 +18,7 @@ type Config struct {
 	// Assets contains the embedded web application assets served by the router.
 	Assets fs.FS
 	// Views renders HTML responses and exposes the shared icon catalog.
-	Views *handler.Views
+	Views *webview.Views
 	// Renderer renders Markdown and owns the active plugin manager.
 	Renderer *markdown.Renderer
 	// BrowserAuth contains browser authentication handlers and identity resolution.
@@ -61,7 +62,7 @@ type Config struct {
 	// Webhooks provides webhook configuration and delivery use cases.
 	Webhooks *service.Webhooks
 	// ViewData loads shared page chrome and navigation data.
-	ViewData *handler.ViewDataLoader
+	ViewData *webview.Loader
 	// Logger records request, handler, and middleware diagnostics.
 	Logger *slog.Logger
 	// AccessLog enables request access logging when true.
