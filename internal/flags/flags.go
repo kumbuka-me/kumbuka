@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"github.com/containeroo/tinyflags"
-	"github.com/kumbuka-me/kumbuka/internal/auth"
 	"github.com/kumbuka-me/kumbuka/internal/pdf"
 	"github.com/kumbuka-me/kumbuka/internal/secrets"
+	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/kumbuka-me/kumbuka/pkg/logging"
 )
 
@@ -56,7 +56,7 @@ type Config struct {
 	// ReadOnly blocks state-changing application requests while allowing authentication flows.
 	ReadOnly bool
 	// AuthModeOverride forces one browser authentication mode for recovery when non-empty.
-	AuthModeOverride auth.AuthMode
+	AuthModeOverride domain.AuthMode
 	// TrustedUsernameHeaders are used only by the trusted-proxy runtime override.
 	TrustedUsernameHeaders []string
 	// TrustedEmailHeaders are used only by the trusted-proxy runtime override.
@@ -152,11 +152,11 @@ func Parse(args []string, version string) (Config, error) {
 		Value()
 
 	// Auth
-	authModeFlag := tinyflags.Enum(tf, "auth-mode", auth.AuthModeNone, "Emergency override for the database-managed authentication mode",
-		auth.AuthModeNone,
-		auth.AuthModeLocal,
-		auth.AuthModeTrustedProxy,
-		auth.AuthModeOIDC,
+	authModeFlag := tinyflags.Enum(tf, "auth-mode", domain.AuthModeNone, "Emergency override for the database-managed authentication mode",
+		domain.AuthModeNone,
+		domain.AuthModeLocal,
+		domain.AuthModeTrustedProxy,
+		domain.AuthModeOIDC,
 	).
 		Placeholder("MODE")
 

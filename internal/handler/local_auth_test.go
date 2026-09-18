@@ -21,6 +21,7 @@ type localAuthSettingsStub struct {
 	settings domain.ApplicationSettings
 }
 
+// ApplicationSettings returns configured settings for local-auth handler tests.
 func (s *localAuthSettingsStub) ApplicationSettings(context.Context) (domain.ApplicationSettings, error) {
 	return s.settings, nil
 }
@@ -31,10 +32,12 @@ type localAuthSystemStub struct {
 	completedUser domain.User
 }
 
+// SetupRequired returns the configured setup state for local-auth handler tests.
 func (s *localAuthSystemStub) SetupRequired(context.Context) (bool, error) {
 	return s.setupRequired, nil
 }
 
+// RecordSetupCompleted records the user that completed setup.
 func (s *localAuthSystemStub) RecordSetupCompleted(_ context.Context, user domain.User) {
 	s.completedUser = user
 }
@@ -44,6 +47,7 @@ type localAuthRepositoryStub struct {
 	sessionHash string
 }
 
+// CreateInitialLocalAdministrator creates the configured initial administrator for handler tests.
 func (s *localAuthRepositoryStub) CreateInitialLocalAdministrator(
 	context.Context,
 	string,
@@ -58,6 +62,7 @@ func (s *localAuthRepositoryStub) CreateInitialLocalAdministrator(
 	return s.createdUser, nil
 }
 
+// CreateLocalSession records the local session created by setup.
 func (s *localAuthRepositoryStub) CreateLocalSession(
 	_ context.Context,
 	_ int64,
@@ -68,22 +73,27 @@ func (s *localAuthRepositoryStub) CreateLocalSession(
 	return nil
 }
 
+// DeleteLocalSession implements session deletion for local-auth handler tests.
 func (*localAuthRepositoryStub) DeleteLocalSession(context.Context, string) error {
 	return nil
 }
 
+// LocalCredential implements credential lookup for local-auth handler tests.
 func (*localAuthRepositoryStub) LocalCredential(context.Context, string) (domain.User, string, error) {
 	return domain.User{}, "", domain.ErrNotFound
 }
 
+// LocalUserBySession implements session lookup for local-auth handler tests.
 func (*localAuthRepositoryStub) LocalUserBySession(context.Context, string) (domain.User, error) {
 	return domain.User{}, domain.ErrNotFound
 }
 
+// SetLocalCredential implements credential replacement for local-auth handler tests.
 func (*localAuthRepositoryStub) SetLocalCredential(context.Context, int64, string) error {
 	return nil
 }
 
+// TestSafeAuthNext verifies post-authentication redirects accept only local destinations.
 func TestSafeAuthNext(t *testing.T) {
 	t.Parallel()
 
@@ -92,14 +102,15 @@ func TestSafeAuthNext(t *testing.T) {
 	assert.Empty(t, safeAuthNext("//example.com"))
 }
 
+// TestLocalLoginRedirectsSetupWithRuntimeOIDCOverride verifies local recovery login redirects to setup while bootstrap is incomplete.
 func TestLocalLoginRedirectsSetupWithRuntimeOIDCOverride(t *testing.T) {
 	t.Parallel()
 
 	settings := &localAuthSettingsStub{settings: domain.ApplicationSettings{
-		Authentication: domain.AuthenticationSettings{Mode: string(auth.AuthModeNone)},
+		Authentication: domain.AuthenticationSettings{Mode: string(domain.AuthModeNone)},
 	}}
 	system := &localAuthSystemStub{setupRequired: true}
-	views := testHandlerViews(t, webview.RuntimeInfo{AuthModeOverride: string(auth.AuthModeOIDC)})
+	views := testHandlerViews(t, webview.RuntimeInfo{AuthModeOverride: string(domain.AuthModeOIDC)})
 	handler := LocalLogin(
 		settings,
 		system,
@@ -115,16 +126,17 @@ func TestLocalLoginRedirectsSetupWithRuntimeOIDCOverride(t *testing.T) {
 	assert.Equal(t, "/setup", response.Header().Get("Location"))
 }
 
+// TestSetupAllowsRuntimeOIDCOverrideAndCreatesBootstrapSession verifies setup creates a purpose-bound bootstrap session for external runtime auth.
 func TestSetupAllowsRuntimeOIDCOverrideAndCreatesBootstrapSession(t *testing.T) {
 	t.Parallel()
 
 	settings := &localAuthSettingsStub{settings: domain.ApplicationSettings{
-		Authentication: domain.AuthenticationSettings{Mode: string(auth.AuthModeNone)},
+		Authentication: domain.AuthenticationSettings{Mode: string(domain.AuthModeNone)},
 	}}
 	system := &localAuthSystemStub{setupRequired: true}
 	repository := &localAuthRepositoryStub{}
 	local := auth.NewLocal(repository, "http://localhost:8080")
-	views := testHandlerViews(t, webview.RuntimeInfo{AuthModeOverride: string(auth.AuthModeOIDC)})
+	views := testHandlerViews(t, webview.RuntimeInfo{AuthModeOverride: string(domain.AuthModeOIDC)})
 	handler := Setup(settings, system, auth.BrowserAuth{Local: local}, views)
 
 	form := url.Values{
@@ -152,11 +164,12 @@ func TestSetupAllowsRuntimeOIDCOverrideAndCreatesBootstrapSession(t *testing.T) 
 	assert.True(t, cookies[0].HttpOnly)
 }
 
+// TestSetupHTMLValidationUsesUnprocessableStatus verifies invalid setup forms preserve the HTML form with a 422 response.
 func TestSetupHTMLValidationUsesUnprocessableStatus(t *testing.T) {
 	t.Parallel()
 
 	settings := &localAuthSettingsStub{settings: domain.ApplicationSettings{
-		Authentication: domain.AuthenticationSettings{Mode: string(auth.AuthModeNone)},
+		Authentication: domain.AuthenticationSettings{Mode: string(domain.AuthModeNone)},
 	}}
 	system := &localAuthSystemStub{setupRequired: true}
 	views := testHandlerViews(t, webview.RuntimeInfo{})

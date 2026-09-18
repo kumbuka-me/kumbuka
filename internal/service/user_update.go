@@ -3,7 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
-	"github.com/kumbuka-me/kumbuka/internal/auth"
+	"github.com/kumbuka-me/kumbuka/internal/credential"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
 
@@ -64,17 +64,17 @@ func (s *Users) UpdateAccount(ctx context.Context, input UserUpdateInput) error 
 			}
 			mode = settings.Authentication.Mode
 		}
-		if auth.AuthMode(mode) != auth.AuthModeOIDC && auth.AuthMode(mode) != auth.AuthModeTrustedProxy {
+		if !domain.IsExternalAuthMode(domain.AuthMode(mode)) {
 			return domain.NewValidationError("local_credential_enabled", "Local recovery credentials can only be enabled or disabled while external authentication is active.")
 		}
 		enabled := input.Password != "" || input.LocalCredentialEnabled
 		update.LocalCredentialEnabled = &enabled
 	}
 	if input.Password != "" {
-		if problem := auth.LocalPasswordProblem(input.Password); problem != "" {
+		if problem := credential.LocalPasswordProblem(input.Password); problem != "" {
 			return domain.NewValidationError("local_password", problem)
 		}
-		hash, err := auth.HashLocalPassword(input.Password)
+		hash, err := credential.HashLocalPassword(input.Password)
 		if err != nil {
 			return fmt.Errorf("hash account password: %w", err)
 		}

@@ -41,7 +41,7 @@ func LocalLogin(
 			httpresponse.InternalServerError(views.Logger(), w, err)
 			return
 		}
-		if required && settings.Authentication.Mode == string(auth.AuthModeNone) {
+		if required && settings.Authentication.Mode == string(domain.AuthModeNone) {
 			http.Redirect(w, r, "/setup", http.StatusFound)
 			return
 		}
@@ -89,7 +89,7 @@ func Setup(
 			httpresponse.InternalServerError(views.Logger(), w, err)
 			return
 		}
-		if settings.Authentication.Mode != string(auth.AuthModeNone) {
+		if settings.Authentication.Mode != string(domain.AuthModeNone) {
 			httpresponse.Problem(w, http.StatusNotFound, "Not found.")
 			return
 		}
@@ -138,7 +138,7 @@ func submitSetup(
 	}
 
 	bootstrapSession := views.Runtime().AuthModeOverride != "" &&
-		views.Runtime().AuthModeOverride != string(auth.AuthModeLocal)
+		views.Runtime().AuthModeOverride != string(domain.AuthModeLocal)
 
 	var user domain.User
 	var token string

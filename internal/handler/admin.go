@@ -490,7 +490,7 @@ func SaveAdminAuthentication(
 			field := "auth_mode"
 			message := "The authentication configuration could not be verified."
 
-			if effective.Mode == string(auth.AuthModeOIDC) {
+			if effective.Mode == string(domain.AuthModeOIDC) {
 				field = "oidc_issuer"
 				message = "OIDC provider discovery failed. Check the issuer and server connectivity."
 			}
@@ -523,13 +523,13 @@ func preserveRuntimeManagedAuthenticationSettings(
 
 	settings.Mode = current.Mode
 
-	switch auth.AuthMode(runtime.AuthModeOverride) {
-	case auth.AuthModeOIDC:
+	switch domain.AuthMode(runtime.AuthModeOverride) {
+	case domain.AuthModeOIDC:
 		settings.OIDCIssuer = current.OIDCIssuer
 		settings.OIDCClientID = current.OIDCClientID
 		settings.OIDCGroupClaim = current.OIDCGroupClaim
 		settings.OIDCAdminGroup = current.OIDCAdminGroup
-	case auth.AuthModeTrustedProxy:
+	case domain.AuthModeTrustedProxy:
 		settings.TrustedUsernameHeaders = current.TrustedUsernameHeaders
 		settings.TrustedEmailHeaders = current.TrustedEmailHeaders
 		settings.TrustedDisplayNameHeaders = current.TrustedDisplayNameHeaders
@@ -548,13 +548,13 @@ func effectiveAuthenticationSettings(settings domain.AuthenticationSettings, run
 
 	settings.Mode = runtime.AuthModeOverride
 
-	switch auth.AuthMode(runtime.AuthModeOverride) {
-	case auth.AuthModeOIDC:
+	switch domain.AuthMode(runtime.AuthModeOverride) {
+	case domain.AuthModeOIDC:
 		settings.OIDCIssuer = runtime.OIDCIssuerOverride
 		settings.OIDCClientID = runtime.OIDCClientIDOverride
 		settings.OIDCGroupClaim = runtime.OIDCGroupClaimOverride
 		settings.OIDCAdminGroup = runtime.OIDCAdminGroupOverride
-	case auth.AuthModeTrustedProxy:
+	case domain.AuthModeTrustedProxy:
 		settings.TrustedUsernameHeaders = runtime.TrustedUsernameHeadersOverride
 		settings.TrustedEmailHeaders = runtime.TrustedEmailHeadersOverride
 		settings.TrustedDisplayNameHeaders = runtime.TrustedDisplayNameHeadersOverride
@@ -603,10 +603,10 @@ func authenticationSettingsProblems(
 ) []httpresponse.FieldProblem {
 	var problems []httpresponse.FieldProblem
 
-	switch auth.AuthMode(settings.Mode) {
-	case auth.AuthModeNone:
-	case auth.AuthModeLocal:
-	case auth.AuthModeTrustedProxy:
+	switch domain.AuthMode(settings.Mode) {
+	case domain.AuthModeNone:
+	case domain.AuthModeLocal:
+	case domain.AuthModeTrustedProxy:
 		if len(settings.TrustedUsernameHeaders) == 0 {
 			problems = append(problems, httpresponse.NewFieldProblem(
 				"trusted_username_headers",
@@ -616,7 +616,7 @@ func authenticationSettingsProblems(
 		if settings.TrustedAdminGroup != "" && len(settings.TrustedGroupHeaders) == 0 {
 			problems = append(problems, httpresponse.NewFieldProblem("trusted_group_headers", "Configure at least one group header for external administrator elevation."))
 		}
-	case auth.AuthModeOIDC:
+	case domain.AuthModeOIDC:
 		if settings.OIDCIssuer == "" {
 			problems = append(problems, httpresponse.NewFieldProblem("oidc_issuer", "OIDC issuer is required."))
 		}

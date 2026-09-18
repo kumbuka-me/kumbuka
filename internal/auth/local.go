@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/kumbuka-me/kumbuka/internal/credential"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -127,7 +128,7 @@ func (l *Local) ChangePassword(
 		return "", ErrInvalidCredentials
 	}
 
-	newHash, err := HashLocalPassword(newPassword)
+	newHash, err := credential.HashLocalPassword(newPassword)
 	if err != nil {
 		return "", err
 	}
@@ -161,7 +162,7 @@ func (l *Local) setup(
 	username, email, displayName, password string,
 	hashToken func(string) string,
 ) (user domain.User, token string, err error) {
-	passwordHash, err := HashLocalPassword(password)
+	passwordHash, err := credential.HashLocalPassword(password)
 	if err != nil {
 		return domain.User{}, "", err
 	}
@@ -187,7 +188,7 @@ func (l *Local) setup(
 
 // SetPassword creates or replaces one Kumbuka user's local recovery password.
 func (l *Local) SetPassword(ctx context.Context, userID int64, password string) error {
-	passwordHash, err := HashLocalPassword(password)
+	passwordHash, err := credential.HashLocalPassword(password)
 	if err != nil {
 		return err
 	}
@@ -262,20 +263,6 @@ func (l *Local) sessionCookie(name, value string, maxAge int) *http.Cookie {
 		Secure:   strings.HasPrefix(l.publicURL, "https://"),
 		SameSite: http.SameSiteLaxMode,
 	}
-}
-
-// HashLocalPassword hashes a validated local password with bcrypt.
-func HashLocalPassword(password string) (string, error) {
-	if problem := LocalPasswordProblem(password); problem != "" {
-		return "", domain.NewValidationError("password", problem)
-	}
-
-	hash, err := bcrypt.GenerateFromPassword(
-		[]byte(password),
-		bcrypt.DefaultCost,
-	)
-
-	return string(hash), err
 }
 
 // newLocalSessionToken creates an opaque random browser-session token.

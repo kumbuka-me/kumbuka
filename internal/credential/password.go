@@ -1,6 +1,12 @@
-package auth
+// Package credential contains reusable local-credential policy and hashing primitives.
+package credential
 
-import "unicode/utf8"
+import (
+	"unicode/utf8"
+
+	"github.com/kumbuka-me/kumbuka/pkg/domain"
+	"golang.org/x/crypto/bcrypt"
+)
 
 const (
 	// minimumLocalPasswordCharacters counts Unicode code points, not UTF-8 bytes.
@@ -21,4 +27,14 @@ func LocalPasswordProblem(password string) string {
 		return "Use at most 72 UTF-8 bytes."
 	}
 	return ""
+}
+
+// HashLocalPassword validates and hashes one local password with bcrypt.
+func HashLocalPassword(password string) (string, error) {
+	if problem := LocalPasswordProblem(password); problem != "" {
+		return "", domain.NewValidationError("password", problem)
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	return string(hash), err
 }

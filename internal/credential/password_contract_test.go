@@ -1,4 +1,4 @@
-package auth
+package credential
 
 import (
 	"encoding/json"
@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestLocalPasswordSharedContract verifies the server policy against the shared password fixture.
 func TestLocalPasswordSharedContract(t *testing.T) {
 	t.Parallel()
 
@@ -119,6 +120,7 @@ func TestLocalPasswordSharedContract(t *testing.T) {
 	})
 }
 
+// TestLocalPasswordProblemRejectsInvalidUTF8 verifies malformed UTF-8 is rejected explicitly.
 func TestLocalPasswordProblemRejectsInvalidUTF8(t *testing.T) {
 	t.Parallel()
 

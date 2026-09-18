@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kumbuka-me/kumbuka/internal/auth"
+	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -17,13 +17,13 @@ func parseTestConfig(args []string) (Config, error) {
 // TestEnvironmentPrefix verifies the corresponding flag configuration behavior.
 func TestEnvironmentPrefix(t *testing.T) {
 	t.Setenv("KUMBUKA__DATABASE_URL", "postgres://example/kumbuka")
-	t.Setenv("KUMBUKA__AUTH_MODE", string(auth.AuthModeTrustedProxy))
+	t.Setenv("KUMBUKA__AUTH_MODE", string(domain.AuthModeTrustedProxy))
 
 	cfg, err := parseTestConfig(nil)
 
 	require.NoError(t, err)
 	assert.Equal(t, "postgres://example/kumbuka", cfg.DatabaseURL)
-	assert.Equal(t, auth.AuthModeTrustedProxy, cfg.AuthModeOverride)
+	assert.Equal(t, domain.AuthModeTrustedProxy, cfg.AuthModeOverride)
 }
 
 // TestOIDCSessionSecretAndEncryptionKeyFromEnvironment verifies the corresponding flag configuration behavior.
@@ -270,7 +270,7 @@ func TestLocalAuthenticationOverride(t *testing.T) {
 	t.Parallel()
 	cfg, err := parseTestConfig([]string{"--database-url", "postgres://example/kumbuka", "--auth-mode", "local"})
 	require.NoError(t, err)
-	assert.Equal(t, auth.AuthModeLocal, cfg.AuthModeOverride)
+	assert.Equal(t, domain.AuthModeLocal, cfg.AuthModeOverride)
 }
 
 // TestLocalAuthenticationOverrideFromEnvironment verifies the corresponding flag configuration behavior.
@@ -279,7 +279,7 @@ func TestLocalAuthenticationOverrideFromEnvironment(t *testing.T) {
 	t.Setenv("KUMBUKA__AUTH_MODE", "local")
 	cfg, err := parseTestConfig(nil)
 	require.NoError(t, err)
-	assert.Equal(t, auth.AuthModeLocal, cfg.AuthModeOverride)
+	assert.Equal(t, domain.AuthModeLocal, cfg.AuthModeOverride)
 }
 
 // TestUserRegistrationFlagRequiresExplicitValue verifies the corresponding flag configuration behavior.

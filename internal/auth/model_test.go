@@ -10,13 +10,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestConfigureBrowserAuth verifies browser authentication wiring exposes all expected operations.
 func TestConfigureBrowserAuth(t *testing.T) {
 	t.Parallel()
 
 	repository := &setupBrowserRepository{setupRequired: true}
 	configured, err := ConfigureBrowserAuth(
 		context.Background(),
-		BrowserConfig{ModeOverride: AuthModeNone},
+		BrowserConfig{ModeOverride: domain.AuthModeNone},
 		repository,
 	)
 
@@ -29,6 +30,7 @@ func TestConfigureBrowserAuth(t *testing.T) {
 	assert.NotNil(t, configured.LocalLoginAllowed)
 }
 
+// TestBrowserAuthenticatorForSettings verifies settings select the expected authenticator implementation.
 func TestBrowserAuthenticatorForSettings(t *testing.T) {
 	t.Parallel()
 
@@ -37,7 +39,7 @@ func TestBrowserAuthenticatorForSettings(t *testing.T) {
 	t.Run("no authentication", func(t *testing.T) {
 		authenticator, err := browser.authenticatorForSettings(
 			context.Background(),
-			domain.AuthenticationSettings{Mode: string(AuthModeNone)},
+			domain.AuthenticationSettings{Mode: string(domain.AuthModeNone)},
 		)
 
 		require.NoError(t, err)
@@ -47,7 +49,7 @@ func TestBrowserAuthenticatorForSettings(t *testing.T) {
 	t.Run("local", func(t *testing.T) {
 		authenticator, err := browser.authenticatorForSettings(
 			context.Background(),
-			domain.AuthenticationSettings{Mode: string(AuthModeLocal)},
+			domain.AuthenticationSettings{Mode: string(domain.AuthModeLocal)},
 		)
 
 		require.NoError(t, err)
@@ -58,7 +60,7 @@ func TestBrowserAuthenticatorForSettings(t *testing.T) {
 		authenticator, err := browser.authenticatorForSettings(
 			context.Background(),
 			domain.AuthenticationSettings{
-				Mode:                   string(AuthModeTrustedProxy),
+				Mode:                   string(domain.AuthModeTrustedProxy),
 				TrustedUsernameHeaders: []string{"X-User"},
 			},
 		)
@@ -76,11 +78,12 @@ func TestBrowserAuthenticatorForSettings(t *testing.T) {
 	})
 }
 
+// TestBrowserAuthenticatorValidatesOIDCSecrets verifies OIDC activation requires deployment-managed secrets.
 func TestBrowserAuthenticatorValidatesOIDCSecrets(t *testing.T) {
 	t.Parallel()
 
 	settings := domain.AuthenticationSettings{
-		Mode:         string(AuthModeOIDC),
+		Mode:         string(domain.AuthModeOIDC),
 		OIDCIssuer:   "https://identity.example.com",
 		OIDCClientID: "kumbuka",
 	}
@@ -99,6 +102,7 @@ func TestBrowserAuthenticatorValidatesOIDCSecrets(t *testing.T) {
 	assert.Equal(t, "Configure KUMBUKA__OIDC_SESSION_SECRET with at least 32 characters before enabling OIDC.", validation.UserMessage())
 }
 
+// TestBrowserValidationRequiresAdministratorGroupSources verifies administrator elevation requires a matching group source.
 func TestBrowserValidationRequiresAdministratorGroupSources(t *testing.T) {
 	t.Parallel()
 	browser := &browserAuthenticator{oidcConfig: OIDCConfig{ClientSecret: "secret", SessionSecret: "0123456789abcdef0123456789abcdef"}}

@@ -5,7 +5,7 @@ import (
 	"net/mail"
 	"strings"
 
-	"github.com/kumbuka-me/kumbuka/internal/auth"
+	"github.com/kumbuka-me/kumbuka/internal/credential"
 	"github.com/kumbuka-me/kumbuka/internal/httpresponse"
 )
 
@@ -45,7 +45,7 @@ func localPasswordValidationProblems(
 
 	if password == "" {
 		problems = append(problems, httpresponse.NewFieldProblem(passwordField, "Password is required."))
-	} else if problem := auth.LocalPasswordProblem(password); problem != "" {
+	} else if problem := credential.LocalPasswordProblem(password); problem != "" {
 		problems = append(problems, httpresponse.NewFieldProblem(passwordField, problem))
 	}
 

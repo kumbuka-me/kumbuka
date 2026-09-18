@@ -7,24 +7,10 @@ import (
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
 
-// AuthMode identifies a supported browser authentication mode.
-type AuthMode string
-
-const (
-	// AuthModeNone authenticates every request as the local administrator.
-	AuthModeNone AuthMode = "none"
-	// AuthModeLocal authenticates browser requests with Kumbuka-managed credentials.
-	AuthModeLocal AuthMode = "local"
-	// AuthModeTrustedProxy authenticates users from trusted proxy headers.
-	AuthModeTrustedProxy AuthMode = "trusted-proxy"
-	// AuthModeOIDC authenticates users through an OIDC provider.
-	AuthModeOIDC AuthMode = "oidc"
-)
-
 // BrowserConfig contains deployment-level browser authentication configuration.
 type BrowserConfig struct {
 	// ModeOverride forces one authentication mode for recovery when non-empty.
-	ModeOverride AuthMode
+	ModeOverride domain.AuthMode
 	// TrustedProxy contains header overrides used with trusted-proxy recovery mode.
 	TrustedProxy TrustedProxyHeaders
 	// OIDC contains deployment secrets plus OIDC overrides used with recovery mode.
