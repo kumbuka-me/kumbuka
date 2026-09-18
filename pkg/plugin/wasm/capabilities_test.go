@@ -57,6 +57,17 @@ func (s *memoryStorage) WritePluginValue(_ context.Context, id, namespace, key s
 	return nil
 }
 
+// WritePluginValues atomically stores a set of test plugin values.
+func (s *memoryStorage) WritePluginValues(_ context.Context, id, namespace string, values map[string][]byte) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for key, value := range values {
+		s.values[id+"/"+namespace+"/"+key] = bytes.Clone(value)
+	}
+	return nil
+}
+
 // ReplacePluginValue atomically moves one test plugin value while rejecting collisions.
 func (s *memoryStorage) ReplacePluginValue(_ context.Context, id, namespace, oldKey, newKey string, value []byte) error {
 	s.mu.Lock()
