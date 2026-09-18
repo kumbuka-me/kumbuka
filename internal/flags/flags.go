@@ -4,6 +4,7 @@ package flags
 import (
 	"errors"
 	"net"
+	"time"
 
 	"github.com/containeroo/tinyflags"
 	"github.com/kumbuka-me/kumbuka/internal/auth"
@@ -11,6 +12,9 @@ import (
 	"github.com/kumbuka-me/kumbuka/internal/secrets"
 	"github.com/kumbuka-me/kumbuka/pkg/logging"
 )
+
+// DefaultPluginUpdateCheckInterval is how long a successful plugin catalog response is reused.
+const DefaultPluginUpdateCheckInterval = 15 * time.Minute
 
 var trustedUsernameHeaders = []string{
 	"X-Forwarded-User",
@@ -45,6 +49,8 @@ type Config struct {
 	PublicURL string
 	// PDFURL optionally overrides the persisted PDF rendering endpoint for this process.
 	PDFURL string
+	// PluginUpdateCheckInterval controls how often the first-party plugin catalog may be refreshed; zero disables checks.
+	PluginUpdateCheckInterval time.Duration
 	// AllowUserRegistrationOverride overrides the persisted registration setting when non-nil.
 	AllowUserRegistrationOverride *bool
 	// ReadOnly blocks state-changing application requests while allowing authentication flows.
@@ -116,6 +122,20 @@ func Parse(args []string, version string) (Config, error) {
 	tf.StringVar(&cfg.PDFURL, "pdf-url", "", "Deployment override for the PDF service POST URL, including its path").
 		Placeholder("URL").
 		Validate(pdf.ValidateURL).
+		Value()
+	tf.DurationVar(
+		&cfg.PluginUpdateCheckInterval,
+		"plugin-update-check-interval",
+		DefaultPluginUpdateCheckInterval,
+		"How long successful plugin update catalog results are cached; set to 0 to disable automatic update checks",
+	).
+		Validate(func(interval time.Duration) error {
+			if interval < 0 {
+				return errors.New("plugin update check interval must not be negative")
+			}
+
+			return nil
+		}).
 		Value()
 	allowUserRegistrationFlag := tf.BoolVar(
 		ToPtr(false),

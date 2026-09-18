@@ -2,6 +2,7 @@ package flags
 
 import (
 	"testing"
+	"time"
 
 	"github.com/kumbuka-me/kumbuka/internal/auth"
 	"github.com/stretchr/testify/assert"
@@ -96,6 +97,48 @@ func TestUserRegistrationCanBeDisabledByFlag(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, cfg.AllowUserRegistrationOverride)
 	assert.False(t, *cfg.AllowUserRegistrationOverride)
+}
+
+func TestPluginUpdateCheckIntervalDefaultsToFifteenMinutes(t *testing.T) {
+	t.Setenv("KUMBUKA__PLUGIN_UPDATE_CHECK_INTERVAL", "")
+
+	cfg, err := parseTestConfig([]string{"--database-url", "postgres://example/kumbuka"})
+
+	require.NoError(t, err)
+	assert.Equal(t, 15*time.Minute, cfg.PluginUpdateCheckInterval)
+}
+
+func TestPluginUpdateCheckIntervalCanBeConfiguredFromEnvironment(t *testing.T) {
+	t.Setenv("KUMBUKA__DATABASE_URL", "postgres://example/kumbuka")
+	t.Setenv("KUMBUKA__PLUGIN_UPDATE_CHECK_INTERVAL", "1h30m")
+
+	cfg, err := parseTestConfig(nil)
+
+	require.NoError(t, err)
+	assert.Equal(t, 90*time.Minute, cfg.PluginUpdateCheckInterval)
+}
+
+func TestPluginUpdateCheckIntervalCanDisableChecks(t *testing.T) {
+	t.Parallel()
+
+	cfg, err := parseTestConfig([]string{
+		"--database-url", "postgres://example/kumbuka",
+		"--plugin-update-check-interval", "0",
+	})
+
+	require.NoError(t, err)
+	assert.Zero(t, cfg.PluginUpdateCheckInterval)
+}
+
+func TestPluginUpdateCheckIntervalRejectsNegativeDuration(t *testing.T) {
+	t.Parallel()
+
+	_, err := parseTestConfig([]string{
+		"--database-url", "postgres://example/kumbuka",
+		"--plugin-update-check-interval", "-1m",
+	})
+
+	require.Error(t, err)
 }
 
 func TestRenderTimingsCanBeEnabledFromEnvironment(t *testing.T) {

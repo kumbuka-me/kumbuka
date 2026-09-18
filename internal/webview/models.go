@@ -114,7 +114,9 @@ type Data struct {
 	// PluginRequiredIDs identifies plugins protected by trusted operator policy.
 	PluginRequiredIDs map[string]bool
 	// PluginUpdates contains newer compatible first-party releases keyed by plugin ID.
-	PluginUpdates map[string]PluginUpdate
+	PluginUpdates map[string]*PluginUpdate
+	// PluginUpdatesEnabled reports whether first-party catalog checks are enabled by deployment configuration.
+	PluginUpdatesEnabled bool
 	// PluginCatalogUnavailable reports that the update catalog could not be checked for this render.
 	PluginCatalogUnavailable bool
 	// PluginHasSettings identifies plugins that expose administrator settings.

@@ -40,7 +40,7 @@ func TestUpdatesSelectsNewestCompatibleReleaseAndCachesCatalog(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := New(server.URL)
+	client := New(server.URL, time.Hour)
 	updates, err := client.Updates(context.Background(), map[string]string{"me.kumbuka.callouts": "1.0.0"})
 	require.NoError(t, err)
 	require.Contains(t, updates, "me.kumbuka.callouts")
@@ -62,7 +62,7 @@ func TestUpdatesCachesCatalogFailureBriefly(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := New(server.URL)
+	client := New(server.URL, time.Hour)
 	for range 2 {
 		_, err := client.Updates(context.Background(), map[string]string{"me.kumbuka.callouts": "1.0.0"})
 		require.Error(t, err)
@@ -81,7 +81,7 @@ func TestDownloadUsesTemporaryStorageAndValidatesPackage(t *testing.T) {
 	defer server.Close()
 
 	tempDir := t.TempDir()
-	client := New("http://127.0.0.1/catalog.json")
+	client := New("http://127.0.0.1/catalog.json", time.Hour)
 	client.tempDir = tempDir
 	release := Release{
 		Version:    "1.2.0",
@@ -109,10 +109,11 @@ func TestDownloadRejectsChecksumMismatch(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := New("http://127.0.0.1/catalog.json")
+	client := New("http://127.0.0.1/catalog.json", time.Hour)
 	_, err := client.Download(context.Background(), "me.kumbuka.callouts", Release{
 		Version:    "1.2.0",
 		APIVersion: int(sdk.Version),
+		ReleasedAt: time.Date(2026, time.September, 18, 7, 30, 0, 0, time.UTC),
 		PackageURL: server.URL + "/callouts-1.2.0.kumbukaplugin",
 		SHA256:     string(bytes.Repeat([]byte("0"), 64)),
 	})
@@ -131,10 +132,11 @@ func TestDownloadRejectsPackageIdentityMismatch(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := New("http://127.0.0.1/catalog.json")
+	client := New("http://127.0.0.1/catalog.json", time.Hour)
 	_, err := client.Download(context.Background(), "me.kumbuka.callouts", Release{
 		Version:    "1.2.0",
 		APIVersion: int(sdk.Version),
+		ReleasedAt: time.Date(2026, time.September, 18, 7, 30, 0, 0, time.UTC),
 		PackageURL: server.URL + "/other-1.2.0.kumbukaplugin",
 		SHA256:     hex.EncodeToString(digest[:]),
 	})
@@ -143,11 +145,59 @@ func TestDownloadRejectsPackageIdentityMismatch(t *testing.T) {
 	assert.Contains(t, err.Error(), "ID")
 }
 
+func TestUpdatesRefreshesAfterConfiguredInterval(t *testing.T) {
+	t.Parallel()
+
+	var requests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		requests.Add(1)
+		_ = json.NewEncoder(w).Encode(catalog{SchemaVersion: catalogSchemaVersion})
+	}))
+	defer server.Close()
+
+	current := time.Date(2026, time.September, 18, 8, 0, 0, 0, time.UTC)
+	client := New(server.URL, 15*time.Minute)
+	client.now = func() time.Time { return current }
+
+	_, err := client.Updates(context.Background(), map[string]string{"me.kumbuka.callouts": "1.0.0"})
+	require.NoError(t, err)
+	assert.Equal(t, int32(1), requests.Load())
+
+	current = current.Add(14 * time.Minute)
+	_, err = client.Updates(context.Background(), map[string]string{"me.kumbuka.callouts": "1.0.0"})
+	require.NoError(t, err)
+	assert.Equal(t, int32(1), requests.Load())
+
+	current = current.Add(time.Minute)
+	_, err = client.Updates(context.Background(), map[string]string{"me.kumbuka.callouts": "1.0.0"})
+	require.NoError(t, err)
+	assert.Equal(t, int32(2), requests.Load())
+}
+
+func TestUpdatesSkipsCatalogWhenDisabled(t *testing.T) {
+	t.Parallel()
+
+	var requests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		requests.Add(1)
+		_ = json.NewEncoder(w).Encode(catalog{SchemaVersion: catalogSchemaVersion})
+	}))
+	defer server.Close()
+
+	client := New(server.URL, 0)
+	updates, err := client.Updates(context.Background(), map[string]string{"me.kumbuka.callouts": "1.0.0"})
+
+	require.NoError(t, err)
+	assert.Empty(t, updates)
+	assert.Zero(t, requests.Load())
+}
+
 func catalogRelease(packageURL, version string, apiVersion int) Release {
 	digest := sha256.Sum256([]byte(version))
 	return Release{
 		Version:    version,
 		APIVersion: apiVersion,
+		ReleasedAt: time.Date(2026, time.September, 18, 7, 30, 0, 0, time.UTC),
 		PackageURL: packageURL,
 		SHA256:     hex.EncodeToString(digest[:]),
 	}

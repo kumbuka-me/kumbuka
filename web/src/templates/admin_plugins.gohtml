@@ -368,22 +368,26 @@
         </details>
         <section class="plugin-detail-section plugin-update-section">
           <h3>Updates</h3>
-          {{ with index $.PluginUpdates .Manifest.ID }}
-            <div class="plugin-update-card">
-              <div>
-                <strong>Version {{ .Version }} is available</strong>
-                <p class="muted">Published {{ .ReleasedAt.Format "2006-01-02" }}. Kumbuka verifies the catalog checksum and package identity before switching versions.</p>
-              </div>
-              <form method="post"
-                    action="/admin/plugins/{{ $plugin.Manifest.ID }}/update?return=detail">
-                <button class="button primary" type="submit">Update to {{ .Version }}</button>
-              </form>
-            </div>
+          {{ if not $.PluginUpdatesEnabled }}
+            <p class="settings-note">Automatic update checks are disabled by deployment configuration.</p>
           {{ else }}
-            {{ if $.PluginCatalogUnavailable }}
-              <p class="settings-note">Automatic update information is currently unavailable.</p>
+            {{ with index $.PluginUpdates .Manifest.ID }}
+              <div class="plugin-update-card">
+                <div>
+                  <strong>Version {{ .Version }} is available</strong>
+                  <p class="muted">Published {{ .ReleasedAt.Format "2006-01-02" }}. Kumbuka verifies the catalog checksum and package identity before switching versions.</p>
+                </div>
+                <form method="post"
+                      action="/admin/plugins/{{ $plugin.Manifest.ID }}/update?return=detail">
+                  <button class="button primary" type="submit">Update to {{ .Version }}</button>
+                </form>
+              </div>
             {{ else }}
-              <p class="settings-note">No newer compatible version is listed in the Kumbuka plugin catalog.</p>
+              {{ if $.PluginCatalogUnavailable }}
+                <p class="settings-note">Automatic update information is currently unavailable.</p>
+              {{ else }}
+                <p class="settings-note">No newer compatible version is listed in the Kumbuka plugin catalog.</p>
+              {{ end }}
             {{ end }}
           {{ end }}
           <div class="plugin-manual-upgrade">

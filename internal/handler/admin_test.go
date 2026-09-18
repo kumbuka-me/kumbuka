@@ -460,3 +460,15 @@ func TestAdminRuntimeShowsReadOnlyMode(t *testing.T) {
 	assert.Contains(t, string(html), "Read-only mode")
 	assert.Contains(t, string(html), "Enabled")
 }
+
+func TestAdminRuntimeShowsPluginUpdateCheckInterval(t *testing.T) {
+	t.Parallel()
+
+	views := testHandlerViews(t, webview.RuntimeInfo{})
+
+	html, err := views.RenderHTML("admin_configuration", "content", webview.Data{Runtime: webview.RuntimeInfo{PluginUpdateCheckInterval: "15m0s"}})
+
+	require.NoError(t, err)
+	assert.Contains(t, string(html), "Plugin update checks")
+	assert.Contains(t, string(html), "15m0s")
+}

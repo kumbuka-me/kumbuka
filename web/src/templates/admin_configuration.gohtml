@@ -56,6 +56,12 @@
             </dd>
           </div>
           <div>
+            <dt>Plugin update checks</dt>
+            <dd>
+              {{ if .Runtime.PluginUpdateCheckInterval }}{{ .Runtime.PluginUpdateCheckInterval }}{{ else }}Disabled{{ end }}
+            </dd>
+          </div>
+          <div>
             <dt>Application encryption</dt>
             <dd>
               {{ if .Runtime.EncryptionKeyConfigured }}
