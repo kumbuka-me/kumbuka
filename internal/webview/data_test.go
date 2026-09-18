@@ -14,6 +14,19 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestPublicPluginData(t *testing.T) {
+	t.Parallel()
+
+	views := &Views{}
+
+	data, err := views.PublicPluginData("Shared page", nil)
+
+	require.NoError(t, err)
+	assert.Equal(t, "Shared page", data.Title)
+	assert.Equal(t, "[]", string(data.PluginModules))
+	assert.NotEmpty(t, data.PluginStylesVersion)
+}
+
 func TestPublicViewData(t *testing.T) {
 	t.Parallel()
 

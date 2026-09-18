@@ -12,7 +12,6 @@ import (
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	md "github.com/kumbuka-me/kumbuka/pkg/markdown"
-	"github.com/kumbuka-me/kumbuka/pkg/pluginbrowser"
 	"github.com/kumbuka-me/kumbuka/pkg/plugincap"
 )
 
@@ -120,18 +119,11 @@ func renderSharedPage(
 		return
 	}
 
-	data, err := views.PublicData(page.Title)
+	data, err := views.PublicPluginData(page.Title, renderer.PluginManager())
 	if err != nil {
 		writePublicShareError(logger, w, err)
 		return
 	}
-
-	data.PluginModules, err = pluginModulesJSON(renderer.PluginManager(), "/plugins")
-	if err != nil {
-		writePublicShareError(logger, w, err)
-		return
-	}
-	data.PluginStylesVersion = pluginbrowser.PresentationStylesVersion(renderer.PluginManager())
 
 	data.Page = &page
 	data.HTML = template.HTML(standaloneHTML)

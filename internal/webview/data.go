@@ -79,6 +79,22 @@ func (v *Views) PublicData(title string) (Data, error) {
 	}, nil
 }
 
+// PublicPluginData builds unauthenticated view data with active browser plugin presentation assets.
+func (v *Views) PublicPluginData(title string, manager *plugin.Manager) (Data, error) {
+	data, err := v.PublicData(title)
+	if err != nil {
+		return Data{}, err
+	}
+
+	data.PluginModules, err = pluginModulesJSON(manager, "/plugins")
+	if err != nil {
+		return Data{}, err
+	}
+	data.PluginStylesVersion = pluginbrowser.PresentationStylesVersion(manager)
+
+	return data, nil
+}
+
 // Loader assembles the shared data required by authenticated HTML views.
 type Loader struct {
 	// preferences loads per-user presentation preferences.
