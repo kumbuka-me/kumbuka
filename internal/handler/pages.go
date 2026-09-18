@@ -21,7 +21,7 @@ func Home(
 	return func(w http.ResponseWriter, r *http.Request) {
 		data, err := viewDataUseCases.Load(r, views, "Home")
 		if err != nil {
-			httpresponse.InternalServerError(views.logger, w, err)
+			httpresponse.InternalServerError(views.Logger(), w, err)
 			return
 		}
 
@@ -34,7 +34,7 @@ func Home(
 		)
 		widgets, err := renderer.RenderWidgets(r.Context(), "home", nil, data.PluginFeatures, capabilities, data.Preferences.HiddenPluginWidgets)
 		if err != nil {
-			httpresponse.InternalServerError(views.logger, w, err)
+			httpresponse.InternalServerError(views.Logger(), w, err)
 			return
 		}
 		data.HomeWidgets = widgetViews(widgets, "home", "", "/")

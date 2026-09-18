@@ -13,6 +13,7 @@ import (
 
 	"github.com/kumbuka-me/kumbuka/internal/auth"
 	"github.com/kumbuka-me/kumbuka/internal/service"
+	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -214,7 +215,7 @@ func TestAliasFailureIsNotDiscarded(t *testing.T) {
 		request.SetPathValue("slug", "missing")
 		response := httptest.NewRecorder()
 
-		ViewPage(nil, repository, nil, nil, nil, &Views{logger: logger})(response, request)
+		ViewPage(nil, repository, nil, nil, nil, testHandlerViewsWithLogger(t, logger, webview.RuntimeInfo{}))(response, request)
 
 		assert.Equal(t, http.StatusInternalServerError, response.Code)
 		assert.Contains(t, logs.String(), "alias database offline")

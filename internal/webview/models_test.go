@@ -1,4 +1,4 @@
-package handler
+package webview
 
 import (
 	"testing"
@@ -22,11 +22,11 @@ func TestPagePathOptions(t *testing.T) {
 			},
 		}
 
-		assert.Equal(t, []pagePathOption{
+		assert.Equal(t, []PagePathOption{
 			{Slug: "platforms", Label: "Platforms"},
 			{Slug: "platforms/containers", Label: "Platforms / Containers"},
 			{Slug: "platforms/kubernetes", Label: "Platforms / Kubernetes"},
-		}, pagePathOptions(tree, ""))
+		}, PagePathOptions(tree, ""))
 	})
 
 	t.Run("excludes selected page and its subtree", func(t *testing.T) {
@@ -45,23 +45,23 @@ func TestPagePathOptions(t *testing.T) {
 			},
 		}
 
-		assert.Equal(t, []pagePathOption{
+		assert.Equal(t, []PagePathOption{
 			{Slug: "platforms", Label: "Platforms"},
 			{Slug: "platforms/kubernetes", Label: "Platforms / Kubernetes"},
-		}, pagePathOptions(tree, "platforms/containers"))
+		}, PagePathOptions(tree, "platforms/containers"))
 	})
 
 	t.Run("returns no options for empty navigation", func(t *testing.T) {
 		t.Parallel()
 
-		assert.Empty(t, pagePathOptions(nil, ""))
+		assert.Empty(t, PagePathOptions(nil, ""))
 	})
 }
 
 func TestHasPagePathOption(t *testing.T) {
 	t.Parallel()
 
-	options := []pagePathOption{
+	options := []PagePathOption{
 		{Slug: "platforms", Label: "Platforms"},
 		{Slug: "platforms/kubernetes", Label: "Platforms / Kubernetes"},
 	}
@@ -69,18 +69,18 @@ func TestHasPagePathOption(t *testing.T) {
 	t.Run("allows root path", func(t *testing.T) {
 		t.Parallel()
 
-		assert.True(t, hasPagePathOption(options, ""))
+		assert.True(t, HasPagePathOption(options, ""))
 	})
 
 	t.Run("finds existing path", func(t *testing.T) {
 		t.Parallel()
 
-		assert.True(t, hasPagePathOption(options, "platforms/kubernetes"))
+		assert.True(t, HasPagePathOption(options, "platforms/kubernetes"))
 	})
 
 	t.Run("rejects missing path", func(t *testing.T) {
 		t.Parallel()
 
-		assert.False(t, hasPagePathOption(options, "platforms/nomad"))
+		assert.False(t, HasPagePathOption(options, "platforms/nomad"))
 	})
 }

@@ -1,4 +1,4 @@
-package handler
+package webview
 
 import (
 	"context"
@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/kumbuka-me/kumbuka/internal/auth"
-	"github.com/kumbuka-me/kumbuka/internal/service"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/kumbuka-me/kumbuka/pkg/themes"
 	"github.com/stretchr/testify/assert"
@@ -30,7 +29,7 @@ func TestPublicViewData(t *testing.T) {
 		runtime:      RuntimeInfo{PublicURL: "https://kumbuka.example.test"},
 	}
 
-	data, err := publicViewData(views, "Sign in")
+	data, err := views.PublicData("Sign in")
 
 	require.NoError(t, err)
 	assert.Equal(t, "Sign in", data.Title)
@@ -39,7 +38,7 @@ func TestPublicViewData(t *testing.T) {
 	assert.Equal(t, "v1.2.3", data.Version)
 	assert.Equal(t, "abc123", data.Commit)
 	assert.Equal(t, "0123456789abcdef", data.AssetVersion)
-	assert.Equal(t, views.runtime, data.Runtime)
+	assert.Equal(t, views.Runtime(), data.Runtime)
 	assert.Equal(t, availableThemes, data.Themes)
 	assert.Contains(t, string(data.ThemeData), `"title":"Light"`)
 	assert.Contains(t, string(data.ThemeData), `"title":"Dark"`)
@@ -58,7 +57,7 @@ func TestViewDataLoaderLoad(t *testing.T) {
 		preferences.ShowNavigationPageCounts = true
 		preferences.ExpandedNavigation = []string{"platforms"}
 
-		loader := NewViewDataLoader(
+		loader := NewLoader(
 			viewDataPreferenceStub{preferences: preferences},
 			viewDataNavigationStub{
 				pages: []domain.Page{
@@ -151,7 +150,7 @@ func TestViewDataLoaderLoad(t *testing.T) {
 		preferences.Theme = "missing-theme"
 		preferences.TypographySize = "invalid-size"
 		user := domain.User{ID: 11, Username: "viewer", Role: "viewer", Enabled: true}
-		loader := NewViewDataLoader(
+		loader := NewLoader(
 			viewDataPreferenceStub{preferences: preferences},
 			nil,
 			nil,
@@ -178,7 +177,7 @@ func TestViewDataLoaderLoad(t *testing.T) {
 		t.Parallel()
 
 		wantErr := errors.New("load preferences")
-		loader := NewViewDataLoader(
+		loader := NewLoader(
 			viewDataPreferenceStub{err: wantErr},
 			nil,
 			nil,
@@ -202,7 +201,7 @@ func TestViewDataLoaderLoad(t *testing.T) {
 		t.Parallel()
 
 		wantErr := errors.New("load settings")
-		loader := NewViewDataLoader(
+		loader := NewLoader(
 			viewDataPreferenceStub{preferences: domain.DefaultUserPreferences()},
 			nil,
 			nil,
@@ -221,24 +220,6 @@ func TestViewDataLoaderLoad(t *testing.T) {
 
 		assert.ErrorIs(t, err, wantErr)
 	})
-}
-
-func TestViewData(t *testing.T) {
-	t.Parallel()
-
-	request := httptest.NewRequest(http.MethodGet, "/pages/platforms", nil)
-	views := &Views{}
-	loader := viewDataServiceStub{load: func(gotRequest *http.Request, gotViews *Views, title string) (ViewData, error) {
-		assert.Same(t, request, gotRequest)
-		assert.Same(t, views, gotViews)
-		assert.Equal(t, "Platforms", title)
-		return ViewData{Title: title}, nil
-	}}
-
-	data, err := loader.Load(request, views, "Platforms")
-
-	require.NoError(t, err)
-	assert.Equal(t, "Platforms", data.Title)
 }
 
 func TestActiveNavigationSlug(t *testing.T) {
@@ -344,36 +325,6 @@ func (s viewDataSettingsStub) ApplicationSettings(context.Context) (domain.Appli
 	return s.settings, s.err
 }
 
-func (viewDataSettingsStub) PDFHeaders(context.Context) ([]domain.PDFHeader, error) {
-	return nil, nil
-}
-
-func (viewDataSettingsStub) PDFRequestHeaders(context.Context) ([]domain.PDFHeader, error) {
-	return nil, nil
-}
-
-func (viewDataSettingsStub) ResolvePDFRequestHeaders(context.Context, []service.PDFHeaderInput) ([]domain.PDFHeader, error) {
-	return nil, nil
-}
-
-func (viewDataSettingsStub) RevealPDFHeader(context.Context, int64) (string, error) {
-	return "", nil
-}
-
-func (viewDataSettingsStub) SaveApplicationSettings(context.Context, domain.ApplicationSettings, int64) error {
-	return nil
-}
-
-func (viewDataSettingsStub) SavePDFSettings(context.Context, string, []service.PDFHeaderInput, int64) error {
-	return nil
-}
-
-func (viewDataSettingsStub) SaveAuthenticationSettings(context.Context, domain.AuthenticationSettings, int64) error {
-	return nil
-}
-
-func (viewDataSettingsStub) RecordLocalPasswordUpdated(context.Context, domain.User) {}
-
 type viewDataSavedSearchStub struct {
 	searches []domain.SavedSearch
 	err      error
@@ -414,12 +365,4 @@ func (s viewDataAccessStub) FilterPages(_ context.Context, _ domain.User, pages 
 		return pages, nil
 	}
 	return s.filter(pages), nil
-}
-
-type viewDataServiceStub struct {
-	load func(*http.Request, *Views, string) (ViewData, error)
-}
-
-func (s viewDataServiceStub) Load(r *http.Request, views *Views, title string) (ViewData, error) {
-	return s.load(r, views, title)
 }

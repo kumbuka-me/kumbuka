@@ -1,14 +1,12 @@
 package handler
 
 import (
-	"html/template"
-	"io"
-	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/kumbuka-me/kumbuka/internal/httpresponse"
+	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -17,13 +15,14 @@ import (
 func TestHTMLProblems(t *testing.T) {
 	t.Parallel()
 
-	page := template.Must(template.New("not_found").Parse(
-		`{{ define "public-layout" }}{{ .StatusCode }}|{{ .Title }}|{{ .StatusMessage }}{{ end }}`,
-	))
-	views := &Views{
-		templates: map[string]*template.Template{"not_found": page},
-		logger:    slog.New(slog.NewTextHandler(io.Discard, nil)),
-	}
+	views := testHandlerViewsWithOverrides(
+		t,
+		testViewsLogger(),
+		webview.RuntimeInfo{},
+		map[string]string{
+			"templates/public_layout.gohtml": `{{ define "public-layout" }}{{ .StatusCode }}|{{ .Title }}|{{ .StatusMessage }}{{ end }}`,
+		},
+	)
 
 	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Add("Set-Cookie", "kumbuka_state=; Max-Age=0; Path=/")
@@ -51,7 +50,7 @@ func TestHTMLProblems(t *testing.T) {
 func TestHTMLProblemsLeavesOtherRoutesUntouched(t *testing.T) {
 	t.Parallel()
 
-	views := &Views{logger: slog.New(slog.NewTextHandler(io.Discard, nil))}
+	views := testHandlerViews(t, webview.RuntimeInfo{})
 	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		httpresponse.Problem(w, http.StatusForbidden, "Forbidden.")
 	})
@@ -70,13 +69,14 @@ func TestHTMLProblemsLeavesOtherRoutesUntouched(t *testing.T) {
 func TestHTMLProblemsRendersThemedNotFound(t *testing.T) {
 	t.Parallel()
 
-	page := template.Must(template.New("not_found").Parse(
-		`{{ define "public-layout" }}{{ .StatusCode }}|{{ .Title }}|{{ .StatusMessage }}|{{ .StatusIcon }}|{{ .SecondaryURL }}{{ end }}`,
-	))
-	views := &Views{
-		templates: map[string]*template.Template{"not_found": page},
-		logger:    slog.New(slog.NewTextHandler(io.Discard, nil)),
-	}
+	views := testHandlerViewsWithOverrides(
+		t,
+		testViewsLogger(),
+		webview.RuntimeInfo{},
+		map[string]string{
+			"templates/public_layout.gohtml": `{{ define "public-layout" }}{{ .StatusCode }}|{{ .Title }}|{{ .StatusMessage }}|{{ .StatusIcon }}|{{ .SecondaryURL }}{{ end }}`,
+		},
+	)
 
 	next := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		httpresponse.Problem(w, http.StatusNotFound, "Not found.")
@@ -99,7 +99,7 @@ func TestHTMLProblemsRendersThemedNotFound(t *testing.T) {
 func TestHTMLProblemsPreservesSuccessfulCallback(t *testing.T) {
 	t.Parallel()
 
-	views := &Views{logger: slog.New(slog.NewTextHandler(io.Discard, nil))}
+	views := testHandlerViews(t, webview.RuntimeInfo{})
 	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.SetCookie(w, &http.Cookie{Name: "kumbuka_session", Value: "session", Path: "/"})
 		http.Redirect(w, r, "/", http.StatusFound)

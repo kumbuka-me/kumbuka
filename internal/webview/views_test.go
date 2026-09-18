@@ -1,4 +1,4 @@
-package handler
+package webview
 
 import (
 	"html/template"
@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestNewViews(t *testing.T) {
+func TestNew(t *testing.T) {
 	t.Parallel()
 
 	t.Run("parses page templates and keeps view metadata", func(t *testing.T) {
@@ -25,7 +25,7 @@ func TestNewViews(t *testing.T) {
 			PublicURL:     "https://kumbuka.example.test",
 		}
 
-		views, err := NewViews(
+		views, err := New(
 			testViewFS(),
 			logger,
 			"v1.2.3",
@@ -46,7 +46,7 @@ func TestNewViews(t *testing.T) {
 	t.Run("does not require the legacy horizontal logo", func(t *testing.T) {
 		t.Parallel()
 
-		views, err := NewViews(
+		views, err := New(
 			testViewFS(),
 			testViewsLogger(),
 			"dev",
@@ -65,7 +65,7 @@ func TestNewViews(t *testing.T) {
 		appFS := testViewFS()
 		delete(appFS, "templates/header.gohtml")
 
-		views, err := NewViews(
+		views, err := New(
 			appFS,
 			testViewsLogger(),
 			"dev",
@@ -85,7 +85,7 @@ func TestNewViews(t *testing.T) {
 		appFS := testViewFS()
 		appFS["templates/login.gohtml"] = &fstest.MapFile{Data: []byte("{{")}
 
-		views, err := NewViews(
+		views, err := New(
 			appFS,
 			testViewsLogger(),
 			"dev",
@@ -109,7 +109,7 @@ func TestRender(t *testing.T) {
 		views := testViewsWithTemplate(`{{ define "layout" }}layout: {{ .Title }}{{ end }}`)
 		response := httptest.NewRecorder()
 
-		render(views, response, "page", ViewData{Title: "Example"})
+		views.Render(response, "page", Data{Title: "Example"})
 
 		assert.Equal(t, http.StatusOK, response.Code)
 		assert.Equal(t, "text/html; charset=utf-8", response.Header().Get("Content-Type"))
@@ -122,7 +122,7 @@ func TestRender(t *testing.T) {
 		views := testViewsWithTemplate(`{{ define "layout" }}not found{{ end }}`)
 		response := httptest.NewRecorder()
 
-		renderStatus(views, response, http.StatusNotFound, "page", ViewData{})
+		views.RenderStatus(response, http.StatusNotFound, "page", Data{})
 
 		assert.Equal(t, http.StatusNotFound, response.Code)
 		assert.Equal(t, "text/html; charset=utf-8", response.Header().Get("Content-Type"))
@@ -135,7 +135,7 @@ func TestRender(t *testing.T) {
 		views := testViewsWithTemplate(`{{ define "public-layout" }}public: {{ .Title }}{{ end }}`)
 		response := httptest.NewRecorder()
 
-		renderPublic(views, response, "page", ViewData{Title: "Login"})
+		views.RenderPublic(response, "page", Data{Title: "Login"})
 
 		assert.Equal(t, http.StatusOK, response.Code)
 		assert.Equal(t, "public: Login", response.Body.String())
@@ -147,7 +147,7 @@ func TestRender(t *testing.T) {
 		views := testViewsWithTemplate(`{{ define "fragment" }}fragment: {{ .Title }}{{ end }}`)
 		response := httptest.NewRecorder()
 
-		renderFragment(views, response, "page", "fragment", ViewData{Title: "Navigation"})
+		views.RenderFragment(response, "page", "fragment", Data{Title: "Navigation"})
 
 		assert.Equal(t, http.StatusOK, response.Code)
 		assert.Equal(t, "fragment: Navigation", response.Body.String())
@@ -166,7 +166,7 @@ func TestRenderTemplateStatus(t *testing.T) {
 		}
 		response := httptest.NewRecorder()
 
-		renderTemplateStatus(views, response, http.StatusOK, "missing", "layout", ViewData{})
+		views.RenderDataStatus(response, http.StatusOK, "missing", "layout", Data{})
 
 		assert.Equal(t, http.StatusInternalServerError, response.Code)
 		assert.Contains(t, response.Body.String(), "The request could not be processed")
@@ -178,7 +178,7 @@ func TestRenderTemplateStatus(t *testing.T) {
 		views := testViewsWithTemplate(`{{ define "layout" }}prefix{{ .UnknownField }}{{ end }}`)
 		response := httptest.NewRecorder()
 
-		renderTemplateStatus(views, response, http.StatusOK, "page", "layout", ViewData{})
+		views.RenderDataStatus(response, http.StatusOK, "page", "layout", Data{})
 
 		assert.Equal(t, http.StatusInternalServerError, response.Code)
 		assert.NotContains(t, response.Body.String(), "prefix")
@@ -194,7 +194,7 @@ func TestRenderTemplateHTML(t *testing.T) {
 
 		views := testViewsWithTemplate(`{{ define "fragment" }}<strong>{{ .Title }}</strong>{{ end }}`)
 
-		html, err := renderTemplateHTML(views, "page", "fragment", ViewData{Title: "Example"})
+		html, err := views.RenderHTML("page", "fragment", Data{Title: "Example"})
 
 		require.NoError(t, err)
 		assert.Equal(t, template.HTML("<strong>Example</strong>"), html)
@@ -205,7 +205,7 @@ func TestRenderTemplateHTML(t *testing.T) {
 
 		views := testViewsWithTemplate(`{{ define "fragment" }}{{ .Title }}{{ end }}`)
 
-		html, err := renderTemplateHTML(views, "page", "fragment", ViewData{Title: "<script>alert(1)</script>"})
+		html, err := views.RenderHTML("page", "fragment", Data{Title: "<script>alert(1)</script>"})
 
 		require.NoError(t, err)
 		assert.Equal(t, template.HTML("&lt;script&gt;alert(1)&lt;/script&gt;"), html)
@@ -219,7 +219,7 @@ func TestRenderTemplateHTML(t *testing.T) {
 			logger:    testViewsLogger(),
 		}
 
-		html, err := renderTemplateHTML(views, "missing", "fragment", ViewData{})
+		html, err := views.RenderHTML("missing", "fragment", Data{})
 
 		assert.Empty(t, html)
 		require.Error(t, err)
@@ -231,7 +231,7 @@ func TestRenderTemplateHTML(t *testing.T) {
 
 		views := testViewsWithTemplate(`{{ define "fragment" }}{{ .UnknownField }}{{ end }}`)
 
-		html, err := renderTemplateHTML(views, "page", "fragment", ViewData{})
+		html, err := views.RenderHTML("page", "fragment", Data{})
 
 		assert.Empty(t, html)
 		require.Error(t, err)

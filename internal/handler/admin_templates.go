@@ -21,19 +21,19 @@ func AdminPageTemplates(
 	return func(w http.ResponseWriter, r *http.Request) {
 		data, err := administrationData(r, viewDataUseCases, views, "Page templates", "templates")
 		if err != nil {
-			httpresponse.InternalServerError(views.logger, w, err)
+			httpresponse.InternalServerError(views.Logger(), w, err)
 			return
 		}
 
 		templates, err := templateUseCases.PageTemplates(r.Context())
 		if err != nil {
-			httpresponse.InternalServerError(views.logger, w, err)
+			httpresponse.InternalServerError(views.Logger(), w, err)
 			return
 		}
 
 		groups, err := groupUseCases.Groups(r.Context())
 		if err != nil {
-			httpresponse.InternalServerError(views.logger, w, err)
+			httpresponse.InternalServerError(views.Logger(), w, err)
 			return
 		}
 

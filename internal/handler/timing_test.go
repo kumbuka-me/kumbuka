@@ -6,22 +6,24 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/kumbuka-me/kumbuka/internal/webview"
 )
 
 func TestPageTimingLogsStructuredSummary(t *testing.T) {
 	var logs bytes.Buffer
-	views := &Views{}
+	views := testHandlerViews(t, webview.RuntimeInfo{})
 	views.EnablePageTimings(slog.New(slog.NewTextHandler(&logs, nil)))
 
 	request := httptest.NewRequest("GET", "/pages/example", nil)
-	request, trace := views.startPageTiming(request)
+	request, trace := views.StartPageTiming(request)
 	if trace == nil {
 		t.Fatal("page timing trace was not created")
 	}
 
 	stop := measurePageStage(request.Context(), "view_data")
 	stop()
-	views.logPageTiming(trace, request, "example")
+	views.LogPageTiming(trace, request, "example")
 
 	output := logs.String()
 	for _, want := range []string{
@@ -39,10 +41,10 @@ func TestPageTimingLogsStructuredSummary(t *testing.T) {
 }
 
 func TestPageTimingDisabledDoesNotAttachTrace(t *testing.T) {
-	views := &Views{}
+	views := testHandlerViews(t, webview.RuntimeInfo{})
 	request := httptest.NewRequest("GET", "/pages/example", nil)
 
-	profiled, trace := views.startPageTiming(request)
+	profiled, trace := views.StartPageTiming(request)
 	if trace != nil {
 		t.Fatal("page timing trace was created while diagnostics were disabled")
 	}

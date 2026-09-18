@@ -14,7 +14,7 @@ func RevisionHistory(catalogUseCases pageRevisionService, views *Views) http.Han
 	return func(w http.ResponseWriter, r *http.Request) {
 		revisions, err := catalogUseCases.Revisions(r.Context(), r.PathValue("slug"))
 		if err != nil {
-			writePageProblem(views.logger, w, err)
+			writePageProblem(views.Logger(), w, err)
 			return
 		}
 
@@ -40,7 +40,7 @@ func RestoreRevision(pageUseCases pageRevisionWriter, views *Views) http.Handler
 
 		page, err := pageUseCases.RestoreRevision(r.Context(), r.PathValue("slug"), number, user)
 		if err != nil {
-			writePageProblem(views.logger, w, err)
+			writePageProblem(views.Logger(), w, err)
 			return
 		}
 

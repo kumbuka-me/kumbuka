@@ -63,8 +63,8 @@ func ViewPage(
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		slug := r.PathValue("slug")
-		r, timingTrace := views.startPageTiming(r)
-		defer views.logPageTiming(timingTrace, r, slug)
+		r, timingTrace := views.StartPageTiming(r)
+		defer views.LogPageTiming(timingTrace, r, slug)
 
 		stop := measurePageStage(r.Context(), "page_lookup")
 		page, alias, err := getPageOrAlias(r.Context(), catalogUseCases, slug)
@@ -74,7 +74,7 @@ func ViewPage(
 			return
 		}
 		if err != nil {
-			writePageProblem(views.logger, w, err)
+			writePageProblem(views.Logger(), w, err)
 			return
 		}
 		if alias != "" {
@@ -86,12 +86,12 @@ func ViewPage(
 		securedCatalog := accessiblePageCatalog{catalog: catalogUseCases, access: accessUseCases, user: user}
 
 		stop = measurePageStage(r.Context(), "record_view")
-		recordPageView(r.Context(), views.logger, catalogUseCases, slug, user.ID)
+		recordPageView(r.Context(), views.Logger(), catalogUseCases, slug, user.ID)
 		stop()
 
 		state, err := loadPageViewState(r.Context(), slug, user, catalogUseCases, accessUseCases, approvalUseCases)
 		if err != nil {
-			writePageProblem(views.logger, w, err)
+			writePageProblem(views.Logger(), w, err)
 			return
 		}
 
@@ -99,7 +99,7 @@ func ViewPage(
 		outgoingLinks, err := catalogUseCases.PageLinks(r.Context(), slug)
 		stop()
 		if err != nil {
-			writePageProblem(views.logger, w, err)
+			writePageProblem(views.Logger(), w, err)
 			return
 		}
 
@@ -107,13 +107,13 @@ func ViewPage(
 		data, err := viewDataUseCases.Load(r, views, page.Title)
 		stop()
 		if err != nil {
-			httpresponse.InternalServerError(views.logger, w, err)
+			httpresponse.InternalServerError(views.Logger(), w, err)
 			return
 		}
 
 		comments, err := loadPageComments(r.Context(), slug, data.ApplicationSettings.DiscussionsEnabled, catalogUseCases)
 		if err != nil {
-			writePageProblem(views.logger, w, err)
+			writePageProblem(views.Logger(), w, err)
 			return
 		}
 		data.PageContentLanguage = cmp.Or(page.Language, data.PageContentLanguage)
@@ -123,9 +123,9 @@ func ViewPage(
 		capabilities := plugincap.Capabilities(securedCatalog, pageNavigation, renderer.IconCatalog())
 		stop()
 
-		rendered, err := renderPageContent(r.Context(), page, md.DefaultOptions(), capabilities, renderer, catalogUseCases, views.logger)
+		rendered, err := renderPageContent(r.Context(), page, md.DefaultOptions(), capabilities, renderer, catalogUseCases, views.Logger())
 		if err != nil {
-			httpresponse.InternalServerError(views.logger, w, err)
+			httpresponse.InternalServerError(views.Logger(), w, err)
 			return
 		}
 
@@ -162,7 +162,7 @@ func ViewPage(
 		)
 		stop()
 		if err != nil {
-			httpresponse.InternalServerError(views.logger, w, err)
+			httpresponse.InternalServerError(views.Logger(), w, err)
 			return
 		}
 		data.PageDetailWidgets = widgetViews(widgets, "page.details", page.Slug, pageURL(page.Slug))

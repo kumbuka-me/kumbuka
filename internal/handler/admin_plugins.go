@@ -44,7 +44,7 @@ func (a *AdminPlugins) render(w http.ResponseWriter, r *http.Request, id string,
 	}
 	data, err := administrationData(r, a.data, a.views, "Plugins", "plugins")
 	if err != nil {
-		httpresponse.InternalServerError(a.views.logger, w, err)
+		httpresponse.InternalServerError(a.views.Logger(), w, err)
 		return
 	}
 	data.AdminPlugins = a.manager.Plugins()
@@ -63,7 +63,7 @@ func (a *AdminPlugins) render(w http.ResponseWriter, r *http.Request, id string,
 			case "admin-resource":
 				records, resourceErr := a.manager.ResourceRecords(r.Context(), pluginID, module.ID)
 				if resourceErr != nil {
-					httpresponse.InternalServerError(a.views.logger, w, resourceErr)
+					httpresponse.InternalServerError(a.views.Logger(), w, resourceErr)
 					return
 				}
 				data.PluginResources[pluginID] = append(data.PluginResources[pluginID], pluginResourceView{Module: module, Records: records})
@@ -71,7 +71,7 @@ func (a *AdminPlugins) render(w http.ResponseWriter, r *http.Request, id string,
 		}
 		readme, renderErr := renderPluginREADME(item.README)
 		if renderErr != nil {
-			httpresponse.InternalServerError(a.views.logger, w, renderErr)
+			httpresponse.InternalServerError(a.views.Logger(), w, renderErr)
 			return
 		}
 		data.PluginREADMEs[pluginID] = readme
@@ -252,7 +252,7 @@ func renderPluginREADME(source string) (template.HTML, error) {
 
 // failure records a plugin administration failure and redirects the request.
 func (a *AdminPlugins) failure(w http.ResponseWriter, r *http.Request, id, action string, err error) {
-	a.views.logger.Error("plugin administration failed", "action", action, "plugin_id", id, "error", err)
+	a.views.Logger().Error("plugin administration failed", "action", action, "plugin_id", id, "error", err)
 	// Runtime/storage errors can contain implementation details. Keep them in logs.
 	message := "Could not " + action + " the plugin. Check its dependencies, requested permissions, and system-plugin restrictions. The existing plugin state was preserved."
 	if action == "settings" {
@@ -274,7 +274,7 @@ func pluginDetailID(r *http.Request, id string) string {
 
 // audit records a successful plugin administration action.
 func (a *AdminPlugins) audit(r *http.Request, action, id string) {
-	a.views.logger.Info("plugin lifecycle changed", "event", "plugin."+action, "plugin_id", id, "actor_id", currentUser(r).ID)
+	a.views.Logger().Info("plugin lifecycle changed", "event", "plugin."+action, "plugin_id", id, "actor_id", currentUser(r).ID)
 }
 
 // readPluginUpload streams one bounded package without temporary files or extraction.

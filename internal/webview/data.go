@@ -1,6 +1,7 @@
-package handler
+package webview
 
 import (
+	"context"
 	"encoding/json"
 	"html/template"
 	"net/http"
@@ -17,118 +18,157 @@ import (
 	"github.com/kumbuka-me/kumbuka/pkg/themes"
 )
 
-// publicViewData builds shared data for unauthenticated setup and login pages.
-func publicViewData(views *Views, title string) (ViewData, error) {
+// preferenceReader loads the current user's presentation preferences.
+type preferenceReader interface {
+	Preferences(context.Context, int64) (domain.UserPreferences, error)
+}
+
+// navigationReader loads page paths and persisted navigation icons.
+type navigationReader interface {
+	NavigationPages(context.Context) ([]domain.Page, error)
+	NavigationIcons(context.Context) (map[string]string, error)
+}
+
+// sidebarCatalogReader loads personal page lists used by sidebar widgets.
+type sidebarCatalogReader interface {
+	Favorites(context.Context, int64) ([]domain.Page, error)
+	RecentViewed(context.Context, int64, int) ([]domain.Page, error)
+}
+
+// settingsReader loads application-wide presentation settings.
+type settingsReader interface {
+	ApplicationSettings(context.Context) (domain.ApplicationSettings, error)
+}
+
+// savedSearchReader loads the current user's saved searches.
+type savedSearchReader interface {
+	SavedSearches(context.Context, int64) ([]domain.SavedSearch, error)
+}
+
+// notificationReader loads recent notifications and unread counts.
+type notificationReader interface {
+	Notifications(context.Context, int64, int) ([]domain.Notification, int, error)
+}
+
+// accessReader filters page collections for the current viewer.
+type accessReader interface {
+	FilterPages(context.Context, domain.User, []domain.Page) ([]domain.Page, error)
+}
+
+// PublicData builds shared data for unauthenticated setup and login pages.
+func (v *Views) PublicData(title string) (Data, error) {
 	preferences := domain.DefaultUserPreferences()
 	activeTheme := themes.DefaultTheme
 	preferences.Theme = activeTheme
-	themeData, err := json.Marshal(views.themes)
+	themeData, err := json.Marshal(v.themes)
 	if err != nil {
-		return ViewData{}, err
+		return Data{}, err
 	}
 
-	return ViewData{
+	return Data{
 		Title:         title,
 		Preferences:   preferences,
-		Version:       views.version,
-		AssetVersion:  views.assetVersion,
-		Commit:        views.commit,
-		Runtime:       views.runtime,
+		Version:       v.version,
+		AssetVersion:  v.assetVersion,
+		Commit:        v.commit,
+		Runtime:       v.runtime,
 		ThemeData:     template.JS(themeData),
 		PluginModules: template.JS("[]"),
-		Themes:        views.themes,
+		Themes:        v.themes,
 		ActiveTheme:   activeTheme,
 	}, nil
 }
 
-// ViewDataLoader assembles the shared data required by authenticated HTML views.
-type ViewDataLoader struct {
-	// preferenceUseCases loads per-user presentation preferences.
-	preferenceUseCases preferenceService
-	// navigationUseCases loads page paths and persisted navigation icons.
-	navigationUseCases navigationService
-	// catalogUseCases provides user-specific page collections for sidebar widgets.
-	catalogUseCases sidebarCatalogService
-	// settingsUseCases loads application-wide rendering and content settings.
-	settingsUseCases settingsService
-	// savedSearchUseCases loads the current user's saved searches.
-	savedSearchUseCases savedSearchReader
-	// notificationUseCases loads recent notifications and unread counts.
-	notificationUseCases notificationReader
-	// accessUseCases filters pages according to the current user's permissions.
-	accessUseCases pageAccessReader
-	// pluginManager exposes active plugin metadata and browser contributions.
+// Loader assembles the shared data required by authenticated HTML views.
+type Loader struct {
+	// preferences loads per-user presentation preferences.
+	preferences preferenceReader
+	// navigation loads page paths and persisted navigation icons.
+	navigation navigationReader
+	// catalog loads personal page lists used by sidebar widgets.
+	catalog sidebarCatalogReader
+	// settings loads application-wide presentation settings.
+	settings settingsReader
+	// savedSearches loads the current user's saved searches.
+	savedSearches savedSearchReader
+	// notifications loads recent notifications and unread counts.
+	notifications notificationReader
+	// access filters page collections for the current viewer.
+	access accessReader
+	// pluginManager exposes active browser and editor contributions.
 	pluginManager *plugin.Manager
 	// renderer renders plugin-owned sidebar widgets.
 	renderer *md.Renderer
 }
 
-// NewViewDataLoader constructs the shared authenticated view-data loader.
-func NewViewDataLoader(
-	preferences preferenceService,
-	navigation navigationService,
-	catalog sidebarCatalogService,
-	settings settingsService,
+// NewLoader constructs the shared authenticated view-data loader.
+func NewLoader(
+	preferences preferenceReader,
+	navigation navigationReader,
+	catalog sidebarCatalogReader,
+	settings settingsReader,
+	// savedSearches loads the current user's saved searches.
 	savedSearches savedSearchReader,
+	// notifications loads recent notifications and unread counts.
 	notifications notificationReader,
-	access pageAccessReader,
+	access accessReader,
 	renderer *md.Renderer,
-) *ViewDataLoader {
+) *Loader {
 	var plugins *plugin.Manager
 	if renderer != nil {
 		plugins = renderer.PluginManager()
 	}
 
-	return &ViewDataLoader{
-		preferenceUseCases:   preferences,
-		navigationUseCases:   navigation,
-		catalogUseCases:      catalog,
-		settingsUseCases:     settings,
-		savedSearchUseCases:  savedSearches,
-		notificationUseCases: notifications,
-		accessUseCases:       access,
-		pluginManager:        plugins,
-		renderer:             renderer,
+	return &Loader{
+		preferences:   preferences,
+		navigation:    navigation,
+		catalog:       catalog,
+		settings:      settings,
+		savedSearches: savedSearches,
+		notifications: notifications,
+		access:        access,
+		pluginManager: plugins,
+		renderer:      renderer,
 	}
 }
 
-// pluginViewData groups plugin-owned contributions shared by authenticated templates.
-type pluginViewData struct {
-	// features contains enabled plugin and setting flags for browser decisions.
+// pluginData groups plugin-owned contributions shared by authenticated templates.
+type pluginData struct {
+	// features contains enabled plugin and setting flags.
 	features map[string]bool
-	// widgetPreferences contains user-facing visibility controls for active widgets.
-	widgetPreferences []pluginWidgetPreferenceView
+	// widgetPreferences contains user-facing visibility controls.
+	widgetPreferences []WidgetPreference
 	// modules contains the serialized browser-module catalog.
 	modules template.JS
 	// stylesVersion fingerprints active plugin presentation styles.
 	stylesVersion string
-	// editorInserts contains plugin-owned editor actions.
+	// editorInserts contains active editor actions.
 	editorInserts []plugin.EditorInsertContribution
-	// sidebarWidgets contains rendered plugin widgets for the sidebar surface.
-	sidebarWidgets []pluginWidgetView
+	// sidebarWidgets contains rendered sidebar widget models.
+	sidebarWidgets []Widget
 }
 
-// Load builds the common template data used by every browser page.
-func (l *ViewDataLoader) Load(r *http.Request, views *Views, title string) (ViewData, error) {
+// Load builds the common template data used by every authenticated browser page.
+func (l *Loader) Load(r *http.Request, views *Views, title string) (Data, error) {
 	user, _ := auth.User(r)
 
 	stop := measurePageStage(r.Context(), "view_preferences")
-	preferences, err := l.preferenceUseCases.Preferences(r.Context(), user.ID)
+	preferences, err := l.preferences.Preferences(r.Context(), user.ID)
 	stop()
 	if err != nil {
-		return ViewData{}, err
+		return Data{}, err
 	}
 
 	pageNavigation, err := l.loadNavigation(r, user, preferences)
 	if err != nil {
-		return ViewData{}, err
+		return Data{}, err
 	}
 
 	stop = measurePageStage(r.Context(), "view_application_settings")
-	applicationSettings, err := l.settingsUseCases.ApplicationSettings(r.Context())
+	applicationSettings, err := l.settings.ApplicationSettings(r.Context())
 	stop()
 	if err != nil {
-		return ViewData{}, err
+		return Data{}, err
 	}
 
 	typographySize := effectiveTypographySize(preferences, applicationSettings)
@@ -139,29 +179,29 @@ func (l *ViewDataLoader) Load(r *http.Request, views *Views, title string) (View
 	themeData, err := json.Marshal(views.themes)
 	stop()
 	if err != nil {
-		return ViewData{}, err
+		return Data{}, err
 	}
 
 	stop = measurePageStage(r.Context(), "view_saved_searches")
-	savedSearches, err := l.savedSearchUseCases.SavedSearches(r.Context(), user.ID)
+	savedSearches, err := l.savedSearches.SavedSearches(r.Context(), user.ID)
 	stop()
 	if err != nil {
-		return ViewData{}, err
+		return Data{}, err
 	}
 
 	stop = measurePageStage(r.Context(), "view_notifications")
-	notifications, unreadNotifications, err := l.notificationUseCases.Notifications(r.Context(), user.ID, 8)
+	notifications, unreadNotifications, err := l.notifications.Notifications(r.Context(), user.ID, 8)
 	stop()
 	if err != nil {
-		return ViewData{}, err
+		return Data{}, err
 	}
 
-	plugins, err := l.loadPluginViewData(r, user, preferences)
+	plugins, err := l.loadPluginData(r, user, preferences)
 	if err != nil {
-		return ViewData{}, err
+		return Data{}, err
 	}
 
-	return ViewData{
+	return Data{
 		Title:                   title,
 		User:                    user,
 		Preferences:             preferences,
@@ -192,7 +232,7 @@ func (l *ViewDataLoader) Load(r *http.Request, views *Views, title string) (View
 }
 
 // loadNavigation builds the accessible sidebar navigation for non-administration pages.
-func (l *ViewDataLoader) loadNavigation(
+func (l *Loader) loadNavigation(
 	r *http.Request,
 	user domain.User,
 	preferences domain.UserPreferences,
@@ -202,21 +242,21 @@ func (l *ViewDataLoader) loadNavigation(
 	}
 
 	stop := measurePageStage(r.Context(), "view_navigation_pages")
-	pages, err := l.navigationUseCases.NavigationPages(r.Context())
+	pages, err := l.navigation.NavigationPages(r.Context())
 	stop()
 	if err != nil {
 		return nil, err
 	}
 
 	stop = measurePageStage(r.Context(), "view_navigation_filter")
-	pages, err = l.accessUseCases.FilterPages(r.Context(), user, pages)
+	pages, err = l.access.FilterPages(r.Context(), user, pages)
 	stop()
 	if err != nil {
 		return nil, err
 	}
 
 	stop = measurePageStage(r.Context(), "view_navigation_icons")
-	navigationIcons, err := l.navigationUseCases.NavigationIcons(r.Context())
+	navigationIcons, err := l.navigation.NavigationIcons(r.Context())
 	stop()
 	if err != nil {
 		return nil, err
@@ -248,7 +288,7 @@ func (l *ViewDataLoader) loadNavigation(
 	return result, nil
 }
 
-// addPluginFeatures records namespaced plugin flags plus generic module capabilities used by core UI.
+// addPluginFeatures records namespaced plugin flags and generic Markdown capabilities.
 func addPluginFeatures(features map[string]bool, item plugin.LoadedPlugin) {
 	features[item.Manifest.ID] = item.Enabled
 	if !item.Enabled {
@@ -275,12 +315,12 @@ func addPluginFeatures(features map[string]bool, item plugin.LoadedPlugin) {
 	}
 }
 
-// loadPluginViewData resolves active plugin flags, browser assets, editor actions, and sidebar widgets.
-func (l *ViewDataLoader) loadPluginViewData(
+// loadPluginData resolves active plugin flags, browser assets, editor actions, and sidebar widgets.
+func (l *Loader) loadPluginData(
 	r *http.Request,
 	user domain.User,
 	preferences domain.UserPreferences,
-) (pluginViewData, error) {
+) (pluginData, error) {
 	stop := measurePageStage(r.Context(), "view_plugin_features")
 	features := make(map[string]bool)
 	var editorInserts []plugin.EditorInsertContribution
@@ -294,10 +334,10 @@ func (l *ViewDataLoader) loadPluginViewData(
 	}
 	stop()
 
-	var sidebarWidgets []pluginWidgetView
+	var sidebarWidgets []Widget
 	if !strings.HasPrefix(r.URL.Path, "/admin") && l.renderer != nil {
 		stop = measurePageStage(r.Context(), "view_sidebar_widgets")
-		source := personalWidgetSource{catalog: l.catalogUseCases, access: l.accessUseCases, user: user}
+		source := personalWidgetSource{catalog: l.catalog, access: l.access, user: user}
 		capabilities := plugincap.MergeCapabilities(
 			plugincap.Capabilities(nil, nil, l.renderer.IconCatalog()),
 			plugincap.PageListCapabilities(source),
@@ -312,17 +352,17 @@ func (l *ViewDataLoader) loadPluginViewData(
 		)
 		stop()
 		if err != nil {
-			return pluginViewData{}, err
+			return pluginData{}, err
 		}
-		sidebarWidgets = widgetViews(rendered, "sidebar", "", r.URL.RequestURI())
+		sidebarWidgets = Widgets(rendered, "sidebar", "", r.URL.RequestURI())
 	}
 
 	modules, err := pluginModulesJSON(l.pluginManager, "/plugins")
 	if err != nil {
-		return pluginViewData{}, err
+		return pluginData{}, err
 	}
 
-	return pluginViewData{
+	return pluginData{
 		features:          features,
 		widgetPreferences: pluginWidgetPreferences(loadedPlugins, preferences.HiddenPluginWidgets),
 		modules:           modules,
@@ -332,7 +372,7 @@ func (l *ViewDataLoader) loadPluginViewData(
 	}, nil
 }
 
-// effectiveTypographySize resolves the user's typography preference against the application default.
+// effectiveTypographySize resolves the user preference against the application default.
 func effectiveTypographySize(preferences domain.UserPreferences, settings domain.ApplicationSettings) string {
 	typographySize := preferences.TypographySize
 	if typographySize == "" {

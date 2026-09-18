@@ -89,7 +89,7 @@ func ExportPagePDF(
 			return
 		}
 
-		pdfURL := effectivePDFURL(views.runtime.PDFURL, applicationSettings.PDFURL)
+		pdfURL := effectivePDFURL(views.Runtime().PDFURL, applicationSettings.PDFURL)
 		if pdfURL == "" {
 			httpresponse.Problem(w,
 				http.StatusServiceUnavailable,

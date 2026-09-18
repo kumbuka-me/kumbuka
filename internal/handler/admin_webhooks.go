@@ -17,17 +17,17 @@ func AdminWebhooks(viewDataUseCases viewDataService, webhookUseCases webhookAdmi
 	return func(w http.ResponseWriter, r *http.Request) {
 		data, err := administrationData(r, viewDataUseCases, views, "Webhooks", "webhooks")
 		if err != nil {
-			httpresponse.InternalServerError(views.logger, w, err)
+			httpresponse.InternalServerError(views.Logger(), w, err)
 			return
 		}
 		data.Webhooks, err = webhookUseCases.Webhooks(r.Context())
 		if err != nil {
-			httpresponse.InternalServerError(views.logger, w, err)
+			httpresponse.InternalServerError(views.Logger(), w, err)
 			return
 		}
 		data.WebhookDeliveries, err = webhookUseCases.WebhookDeliveries(r.Context(), 50)
 		if err != nil {
-			httpresponse.InternalServerError(views.logger, w, err)
+			httpresponse.InternalServerError(views.Logger(), w, err)
 			return
 		}
 		data.WebhookEvents = service.WebhookEvents()

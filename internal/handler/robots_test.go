@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -44,7 +45,7 @@ func TestRobots(t *testing.T) {
 		request := httptest.NewRequest(http.MethodGet, "/robots.txt", nil)
 		handler := Robots(
 			robotsSettingsStub{settings: domain.ApplicationSettings{RobotsPolicy: domain.RobotsPolicyAllow}},
-			&Views{runtime: RuntimeInfo{PublicURL: "https://kumbuka.example.test/docs/"}},
+			testHandlerViews(t, webview.RuntimeInfo{PublicURL: "https://kumbuka.example.test/docs/"}),
 			slog.Default(),
 		)
 
@@ -66,7 +67,7 @@ func TestRobots(t *testing.T) {
 		request := httptest.NewRequest(http.MethodGet, "/robots.txt", nil)
 		handler := Robots(
 			robotsSettingsStub{settings: domain.ApplicationSettings{RobotsPolicy: domain.RobotsPolicyDisallow}},
-			&Views{},
+			testHandlerViews(t, webview.RuntimeInfo{}),
 			slog.Default(),
 		)
 
@@ -83,7 +84,7 @@ func TestRobots(t *testing.T) {
 		request := httptest.NewRequest(http.MethodGet, "/robots.txt", nil)
 		handler := Robots(
 			robotsSettingsStub{settings: domain.ApplicationSettings{RobotsPolicy: domain.RobotsPolicyNone}},
-			&Views{},
+			testHandlerViews(t, webview.RuntimeInfo{}),
 			slog.Default(),
 		)
 
@@ -99,7 +100,7 @@ func TestRobots(t *testing.T) {
 		logger := slog.New(slog.NewTextHandler(&logs, nil))
 		response := httptest.NewRecorder()
 		request := httptest.NewRequest(http.MethodGet, "/robots.txt", nil)
-		handler := Robots(robotsSettingsStub{err: errors.New("database unavailable")}, &Views{}, logger)
+		handler := Robots(robotsSettingsStub{err: errors.New("database unavailable")}, testHandlerViews(t, webview.RuntimeInfo{}), logger)
 
 		handler.ServeHTTP(response, request)
 
@@ -126,7 +127,7 @@ func TestSitemap(t *testing.T) {
 				{Slug: "platform/start", Status: "verified", UpdatedAt: updatedAt},
 			}},
 			emptyContractServices{},
-			&Views{runtime: RuntimeInfo{PublicURL: "https://kumbuka.example.test/docs/"}},
+			testHandlerViews(t, webview.RuntimeInfo{PublicURL: "https://kumbuka.example.test/docs/"}),
 			slog.Default(),
 		)
 
@@ -157,7 +158,7 @@ func TestSitemap(t *testing.T) {
 			robotsSettingsStub{settings: domain.ApplicationSettings{RobotsPolicy: domain.RobotsPolicyDisallow}},
 			sitemapCatalogStub{},
 			emptyContractServices{},
-			&Views{},
+			testHandlerViews(t, webview.RuntimeInfo{}),
 			slog.Default(),
 		)
 
@@ -175,7 +176,7 @@ func TestSitemap(t *testing.T) {
 			robotsSettingsStub{settings: domain.ApplicationSettings{RobotsPolicy: domain.RobotsPolicyNone}},
 			sitemapCatalogStub{},
 			emptyContractServices{},
-			&Views{},
+			testHandlerViews(t, webview.RuntimeInfo{}),
 			slog.Default(),
 		)
 
@@ -195,7 +196,7 @@ func TestSitemap(t *testing.T) {
 			robotsSettingsStub{settings: domain.ApplicationSettings{RobotsPolicy: domain.RobotsPolicyAllow}},
 			sitemapCatalogStub{err: errors.New("inventory unavailable")},
 			emptyContractServices{},
-			&Views{runtime: RuntimeInfo{PublicURL: "https://kumbuka.example.test"}},
+			testHandlerViews(t, webview.RuntimeInfo{PublicURL: "https://kumbuka.example.test"}),
 			logger,
 		)
 

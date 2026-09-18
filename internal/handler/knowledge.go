@@ -13,7 +13,7 @@ func KnowledgeGraphPage(viewDataUseCases viewDataService, views *Views) http.Han
 	return func(w http.ResponseWriter, r *http.Request) {
 		data, err := viewDataUseCases.Load(r, views, "Knowledge graph")
 		if err != nil {
-			httpresponse.InternalServerError(views.logger, w, err)
+			httpresponse.InternalServerError(views.Logger(), w, err)
 			return
 		}
 

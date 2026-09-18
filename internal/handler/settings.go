@@ -38,13 +38,13 @@ func Settings(
 	return func(w http.ResponseWriter, r *http.Request) {
 		data, err := viewDataUseCases.Load(r, views, "Settings")
 		if err != nil {
-			httpresponse.InternalServerError(views.logger, w, err)
+			httpresponse.InternalServerError(views.Logger(), w, err)
 			return
 		}
 
 		data.Groups, err = userUseCases.UserGroups(r.Context(), data.User.ID)
 		if err != nil {
-			httpresponse.InternalServerError(views.logger, w, err)
+			httpresponse.InternalServerError(views.Logger(), w, err)
 			return
 		}
 
@@ -54,7 +54,7 @@ func Settings(
 
 		data.UserTokens, err = tokenUseCases.UserTokens(r.Context(), data.User.ID)
 		if err != nil {
-			httpresponse.InternalServerError(views.logger, w, err)
+			httpresponse.InternalServerError(views.Logger(), w, err)
 			return
 		}
 
@@ -68,7 +68,7 @@ func Settings(
 				0,
 			)
 			if err != nil {
-				httpresponse.InternalServerError(views.logger, w, err)
+				httpresponse.InternalServerError(views.Logger(), w, err)
 				return
 			}
 
@@ -143,7 +143,7 @@ func SavePreferences(preferenceUseCases preferenceService, pluginManager *plugin
 			return
 		}
 
-		selectedTheme, ok := themes.Find(views.themes, r.FormValue("theme"))
+		selectedTheme, ok := themes.Find(views.Themes(), r.FormValue("theme"))
 		if !ok {
 			httpresponse.Problem(w, http.StatusBadRequest, "Unknown theme.")
 			return
@@ -179,7 +179,7 @@ func SavePreferences(preferenceUseCases preferenceService, pluginManager *plugin
 
 		current, err := preferenceUseCases.Preferences(r.Context(), user.ID)
 		if err != nil {
-			httpresponse.InternalServerError(views.logger, w, err)
+			httpresponse.InternalServerError(views.Logger(), w, err)
 			return
 		}
 
@@ -207,7 +207,7 @@ func SavePreferences(preferenceUseCases preferenceService, pluginManager *plugin
 			),
 		}
 		if err := preferenceUseCases.SavePreferences(r.Context(), user.ID, preferences); err != nil {
-			writePreferencesProblem(views.logger, w, err)
+			writePreferencesProblem(views.Logger(), w, err)
 			return
 		}
 
@@ -237,7 +237,7 @@ func SavePageContentsPreference(preferenceUseCases preferenceService, views *Vie
 		}
 
 		if err := preferenceUseCases.SetShowPageContents(r.Context(), user.ID, show); err != nil {
-			httpresponse.InternalServerError(views.logger, w, err)
+			httpresponse.InternalServerError(views.Logger(), w, err)
 			return
 		}
 

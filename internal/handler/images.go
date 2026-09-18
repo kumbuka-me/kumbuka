@@ -7,7 +7,6 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/kumbuka-me/kumbuka/internal/httpresponse"
 	"github.com/kumbuka-me/kumbuka/internal/service"
@@ -18,28 +17,6 @@ const (
 	managedImagePageSize = 30
 	maxImageAPILimit     = 100
 )
-
-// MediaItem contains image metadata plus its stable browser URL.
-type MediaItem struct {
-	// ID is the stable database identifier used in image URLs.
-	ID int64 `json:"id"`
-	// Filename is the sanitized image filename.
-	Filename string `json:"filename"`
-	// ContentType is the validated image MIME type.
-	ContentType string `json:"content_type"`
-	// SizeBytes is the stored image size in bytes.
-	SizeBytes int64 `json:"size_bytes"`
-	// UploadedBy is the identifier of the user that uploaded the image.
-	UploadedBy int64 `json:"uploaded_by"`
-	// Uploader is the display name of the user that uploaded the image.
-	Uploader string `json:"uploader"`
-	// CreatedAt is the upload timestamp formatted by templates or clients.
-	CreatedAt time.Time `json:"created_at"`
-	// UsageCount is the number of Markdown references to the image across all pages.
-	UsageCount int64 `json:"usage_count"`
-	// URL is the stable authenticated browser URL for the image.
-	URL string `json:"url"`
-}
 
 // ListImages returns uploaded image metadata for editors and administrators.
 func ListImages(mediaUseCases imageService, logger *slog.Logger) http.HandlerFunc {

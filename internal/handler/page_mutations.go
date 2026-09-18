@@ -36,7 +36,7 @@ func SavePageForm(
 		destinationSlug := md.Slug(r.FormValue("slug"))
 		allowed, err := canEditPagePaths(r.Context(), accessUseCases, user, originalSlug, destinationSlug)
 		if err != nil {
-			httpresponse.InternalServerError(views.logger, w, err)
+			httpresponse.InternalServerError(views.Logger(), w, err)
 			return
 		}
 		if !allowed {
@@ -50,19 +50,19 @@ func SavePageForm(
 				return
 			}
 
-			httpresponse.InternalServerError(views.logger, w, err)
+			httpresponse.InternalServerError(views.Logger(), w, err)
 			return
 		}
 
 		input, err := pageSaveInput(r.Context(), r, templateUseCases, user, originalSlug, metadata)
 		if err != nil {
-			writePageProblem(views.logger, w, err)
+			writePageProblem(views.Logger(), w, err)
 			return
 		}
 
 		page, err := pageUseCases.Save(r.Context(), input)
 		if err != nil {
-			writePageProblem(views.logger, w, err)
+			writePageProblem(views.Logger(), w, err)
 			return
 		}
 
@@ -72,7 +72,7 @@ func SavePageForm(
 		}
 
 		if err := draftUseCases.Delete(r.Context(), user.ID, draftKey); err != nil {
-			views.logger.Warn(
+			views.Logger().Warn(
 				"discard saved page draft",
 				"event", "page_draft_cleanup_failed",
 				"draft_key", draftKey,
@@ -187,7 +187,7 @@ func DeletePageForm(
 		slug := r.PathValue("slug")
 
 		if err := pageUseCases.Delete(r.Context(), slug, user); err != nil {
-			writePageProblem(views.logger, w, err)
+			writePageProblem(views.Logger(), w, err)
 			return
 		}
 
@@ -217,7 +217,7 @@ func FavoritePage(
 			user.ID,
 			r.FormValue("on") != "false",
 		); err != nil {
-			writePageProblem(views.logger, w, err)
+			writePageProblem(views.Logger(), w, err)
 			return
 		}
 
@@ -245,7 +245,7 @@ func WatchPage(
 		}
 
 		if err := catalogUseCases.SetPageWatch(r.Context(), slug, user.ID, scope); err != nil {
-			writePageProblem(views.logger, w, err)
+			writePageProblem(views.Logger(), w, err)
 			return
 		}
 

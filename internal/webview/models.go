@@ -1,9 +1,10 @@
-package handler
+package webview
 
 import (
 	"html/template"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/kumbuka-me/kumbuka/pkg/markdown"
@@ -14,8 +15,8 @@ import (
 	"github.com/kumbuka-me/sdk/pluginpackage"
 )
 
-// pluginWidgetView is one sanitized plugin widget rendered by a host template.
-type pluginWidgetView struct {
+// Widget is one sanitized plugin widget rendered by a host template.
+type Widget struct {
 	// PluginID identifies the plugin associated with plugin widget view.
 	PluginID string
 	// ModuleID identifies the module associated with plugin widget view.
@@ -25,11 +26,11 @@ type pluginWidgetView struct {
 	// HTML stores the HTML value used by plugin widget view.
 	HTML template.HTML
 	// Actions contains host-rendered controls associated with the widget.
-	Actions []pluginWidgetActionView
+	Actions []WidgetAction
 }
 
-// pluginWidgetActionView contains one host-rendered widget action and command context.
-type pluginWidgetActionView struct {
+// WidgetAction contains one host-rendered widget action and command context.
+type WidgetAction struct {
 	// ID identifies the action within its widget.
 	ID string
 	// Kind selects link, dialog, or command presentation.
@@ -50,8 +51,52 @@ type pluginWidgetActionView struct {
 	Next string
 }
 
-// ViewData contains the data shared by server-rendered Kumbuka templates.
-type ViewData struct {
+// WidgetPreference describes one plugin widget visibility control.
+type WidgetPreference struct {
+	// Key uniquely identifies the plugin widget.
+	Key string
+	// Label is the user-facing widget name.
+	Label string
+	// Surface is the user-facing placement label.
+	Surface string
+	// Description explains the widget when available.
+	Description string
+	// Visible reports whether the widget is currently shown.
+	Visible bool
+}
+
+// ContentLanguageOption is one content language exposed by the administration UI.
+type ContentLanguageOption struct {
+	// Code is the persisted BCP 47 language tag.
+	Code string
+	// Label is the administrator-facing language name.
+	Label string
+}
+
+// MediaItem contains image metadata plus its stable browser URL.
+type MediaItem struct {
+	// ID is the stable database identifier used in image URLs.
+	ID int64 `json:"id"`
+	// Filename is the sanitized image filename.
+	Filename string `json:"filename"`
+	// ContentType is the validated image MIME type.
+	ContentType string `json:"content_type"`
+	// SizeBytes is the stored image size in bytes.
+	SizeBytes int64 `json:"size_bytes"`
+	// UploadedBy is the identifier of the user that uploaded the image.
+	UploadedBy int64 `json:"uploaded_by"`
+	// Uploader is the display name of the user that uploaded the image.
+	Uploader string `json:"uploader"`
+	// CreatedAt is the upload timestamp formatted by templates or clients.
+	CreatedAt time.Time `json:"created_at"`
+	// UsageCount is the number of Markdown references to the image across all pages.
+	UsageCount int64 `json:"usage_count"`
+	// URL is the stable authenticated browser URL for the image.
+	URL string `json:"url"`
+}
+
+// Data contains the data shared by server-rendered Kumbuka templates.
+type Data struct {
 	// AdminPlugins contains the admin plugins associated with view data.
 	AdminPlugins []plugin.LoadedPlugin
 	// PluginMessage contains the plugin message for view data.
@@ -67,13 +112,13 @@ type ViewData struct {
 	// PluginFeatures contains enabled plugin and plugin-setting flags for browser UI decisions.
 	PluginFeatures map[string]bool
 	// PluginWidgetPreferences contains enabled plugin widgets and their user visibility.
-	PluginWidgetPreferences []pluginWidgetPreferenceView
+	PluginWidgetPreferences []WidgetPreference
 	// PluginModules is the current browser-module catalog embedded in the page.
 	PluginModules template.JS
 	// PluginStylesVersion fingerprints active plugin presentation styles for immutable browser caching.
 	PluginStylesVersion string
 	// PluginResources contains generic plugin-owned administrative record collections keyed by plugin ID.
-	PluginResources map[string][]pluginResourceView
+	PluginResources map[string][]PluginResource
 	// Title is the page title displayed in the browser chrome.
 	Title string
 	// User is the authenticated user rendering the page.
@@ -109,11 +154,11 @@ type ViewData struct {
 	// UnreadNotifications is the current unread inbox count.
 	UnreadNotifications int
 	// HomeWidgets contains sanitized plugin widgets for the home dashboard.
-	HomeWidgets []pluginWidgetView
+	HomeWidgets []Widget
 	// SidebarWidgets contains sanitized plugin widgets above structural navigation.
-	SidebarWidgets []pluginWidgetView
+	SidebarWidgets []Widget
 	// PageDetailWidgets contains sanitized plugin widgets for the page details surface.
-	PageDetailWidgets []pluginWidgetView
+	PageDetailWidgets []Widget
 	// PluginPageActions contains host-rendered navigation actions contributed for the current page.
 	PluginPageActions []plugin.PageActionContribution
 	// PluginExporters contains active plugin-owned page download formats.
@@ -143,7 +188,7 @@ type ViewData struct {
 	// DocumentationHealth contains actionable documentation quality findings.
 	DocumentationHealth domain.DocumentationHealth
 	// ContentLanguages lists content languages available to administrators.
-	ContentLanguages []contentLanguageOption
+	ContentLanguages []ContentLanguageOption
 	// PageContentLanguage is the effective language for the current page/editor.
 	PageContentLanguage string
 	// AdminUsers contains users and group memberships for administrators.
@@ -183,7 +228,7 @@ type ViewData struct {
 	// EditorPathSegment is the stable final path segment for edits and explicit new-page links.
 	EditorPathSegment string
 	// PagePathOptions contains existing page and folder locations available as parents.
-	PagePathOptions []pagePathOption
+	PagePathOptions []PagePathOption
 	// NewPageParent is the active page path inherited by contextual new-page actions.
 	NewPageParent string
 	// AdminTags contains tags and page usage counts for administrators.
@@ -228,8 +273,8 @@ type ViewData struct {
 	CanEdit bool
 }
 
-// pluginResourceView contains template data for plugin resource view.
-type pluginResourceView struct {
+// PluginResource contains one declarative plugin resource schema and its records.
+type PluginResource struct {
 	// Module contains the validated declarative resource schema.
 	Module pluginpackage.Module
 	// Records contains persisted records in deterministic key order.
@@ -256,17 +301,17 @@ type webhookView struct {
 	EncryptionKeyConfigured bool
 }
 
-// pagePathOption groups data used by page path option.
-type pagePathOption struct {
+// PagePathOption is one selectable parent path in the page editor.
+type PagePathOption struct {
 	// Slug is the normalized page path associated with page path option.
 	Slug string
 	// Label is the display label for page path option.
 	Label string
 }
 
-// pagePathOptions flattens the navigation tree into selectable parent paths.
-func pagePathOptions(tree []navigation.Node, excludedSlug string) []pagePathOption {
-	var options []pagePathOption
+// PagePathOptions flattens the navigation tree into selectable parent paths.
+func PagePathOptions(tree []navigation.Node, excludedSlug string) []PagePathOption {
+	var options []PagePathOption
 	var appendNodes func([]navigation.Node, []string)
 
 	appendNodes = func(nodes []navigation.Node, ancestors []string) {
@@ -277,7 +322,7 @@ func pagePathOptions(tree []navigation.Node, excludedSlug string) []pagePathOpti
 			}
 
 			labels := append(slices.Clone(ancestors), node.Title)
-			options = append(options, pagePathOption{
+			options = append(options, PagePathOption{
 				Slug:  node.Slug,
 				Label: strings.Join(labels, " / "),
 			})
@@ -289,12 +334,12 @@ func pagePathOptions(tree []navigation.Node, excludedSlug string) []pagePathOpti
 	return options
 }
 
-// hasPagePathOption reports whether a parent path can be selected.
-func hasPagePathOption(options []pagePathOption, slug string) bool {
+// HasPagePathOption reports whether a parent path can be selected.
+func HasPagePathOption(options []PagePathOption, slug string) bool {
 	if slug == "" {
 		return true
 	}
-	return slices.ContainsFunc(options, func(option pagePathOption) bool {
+	return slices.ContainsFunc(options, func(option PagePathOption) bool {
 		return option.Slug == slug
 	})
 }

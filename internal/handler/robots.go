@@ -56,7 +56,7 @@ func Robots(settingsUseCases robotsSettingsService, views *Views, logger *slog.L
 
 		switch settings.RobotsPolicy {
 		case domain.RobotsPolicyAllow:
-			sitemapURL, err := publicResourceURL(views.runtime.PublicURL, "sitemap.xml")
+			sitemapURL, err := publicResourceURL(views.Runtime().PublicURL, "sitemap.xml")
 			if err != nil {
 				httpresponse.InternalServerError(logger, w, err)
 				return
@@ -114,7 +114,7 @@ func Sitemap(
 			return
 		}
 
-		document, err := sitemapForPages(views.runtime.PublicURL, pages)
+		document, err := sitemapForPages(views.Runtime().PublicURL, pages)
 		if err != nil {
 			httpresponse.InternalServerError(logger, w, err)
 			return

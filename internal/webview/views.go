@@ -1,4 +1,4 @@
-package handler
+package webview
 
 import (
 	"bytes"
@@ -132,8 +132,8 @@ type Views struct {
 	iconCatalog *icons.Catalog
 }
 
-// NewViews parses each page template with the shared layout and partials once at startup.
-func NewViews(
+// New parses each page template with the shared layout and partials once at startup.
+func New(
 	appFS fs.FS,
 	logger *slog.Logger,
 	version, commit string,
@@ -201,47 +201,60 @@ func NewViews(
 // IconCatalog returns the catalog used by this view set and icon picker.
 func (v *Views) IconCatalog() *icons.Catalog { return v.iconCatalog }
 
-// render executes a page layout into a buffer before writing the HTTP response.
-func render(views *Views, w http.ResponseWriter, page string, data ViewData) {
-	renderTemplate(views, w, page, "layout", data)
+// Logger returns the logger associated with server-rendered responses.
+func (v *Views) Logger() *slog.Logger { return v.logger }
+
+// Version returns the application version exposed to templates.
+func (v *Views) Version() string { return v.version }
+
+// Commit returns the application commit exposed to templates.
+func (v *Views) Commit() string { return v.commit }
+
+// Themes returns the themes available to browser views.
+func (v *Views) Themes() []themes.Theme { return v.themes }
+
+// Runtime returns non-secret runtime configuration exposed to administrators.
+func (v *Views) Runtime() RuntimeInfo { return v.runtime }
+
+// AssetVersion returns the fingerprint used for cache-safe embedded assets.
+func (v *Views) AssetVersion() string { return v.assetVersion }
+
+// Render executes a page layout into a buffer before writing the HTTP response.
+func (v *Views) Render(w http.ResponseWriter, page string, data Data) {
+	v.RenderDataStatus(w, http.StatusOK, page, "layout", data)
 }
 
-// renderStatus executes a page layout with an explicit HTTP status.
-func renderStatus(views *Views, w http.ResponseWriter, status int, page string, data ViewData) {
-	renderTemplateStatus(views, w, status, page, "layout", data)
+// RenderStatus executes a page layout with an explicit HTTP status.
+func (v *Views) RenderStatus(w http.ResponseWriter, status int, page string, data Data) {
+	v.RenderDataStatus(w, status, page, "layout", data)
 }
 
-// renderPublic executes the minimal unauthenticated page layout.
-func renderPublic(views *Views, w http.ResponseWriter, page string, data ViewData) {
-	renderTemplate(views, w, page, "public-layout", data)
+// RenderPublic executes the minimal unauthenticated page layout.
+func (v *Views) RenderPublic(w http.ResponseWriter, page string, data Data) {
+	v.RenderDataStatus(w, http.StatusOK, page, "public-layout", data)
 }
 
-// renderFragment executes one named fragment from a parsed page template set.
-func renderFragment(views *Views, w http.ResponseWriter, page, name string, data ViewData) {
-	renderTemplate(views, w, page, name, data)
+// RenderFragment executes one named fragment from a parsed page template set.
+func (v *Views) RenderFragment(w http.ResponseWriter, page, name string, data Data) {
+	v.RenderDataStatus(w, http.StatusOK, page, name, data)
 }
 
-// renderTemplate executes a named template with a successful HTTP status.
-func renderTemplate(views *Views, w http.ResponseWriter, page, name string, data ViewData) {
-	renderTemplateStatus(views, w, http.StatusOK, page, name, data)
+// RenderTemplate executes a named template with a successful HTTP status.
+func (v *Views) RenderTemplate(w http.ResponseWriter, page, name string, data Data) {
+	v.RenderDataStatus(w, http.StatusOK, page, name, data)
 }
 
-// renderTemplateStatus executes a named ViewData template with an explicit HTTP status.
-func renderTemplateStatus(views *Views, w http.ResponseWriter, status int, page, name string, data ViewData) {
-	renderTemplateDataStatus(views, w, status, page, name, data)
-}
-
-// renderTemplateDataStatus executes a named template with arbitrary view data and an explicit HTTP status.
-func renderTemplateDataStatus(views *Views, w http.ResponseWriter, status int, page, name string, data any) {
-	pageTemplate, ok := views.templates[page]
+// RenderDataStatus executes a named template with arbitrary view data and an explicit HTTP status.
+func (v *Views) RenderDataStatus(w http.ResponseWriter, status int, page, name string, data any) {
+	pageTemplate, ok := v.templates[page]
 	if !ok {
-		httpresponse.InternalServerError(views.logger.With("operation", "render_template", "page", page, "template", name), w, fmt.Errorf("page template %q not found", page))
+		httpresponse.InternalServerError(v.logger.With("operation", "render_template", "page", page, "template", name), w, fmt.Errorf("page template %q not found", page))
 		return
 	}
 
 	var output bytes.Buffer
 	if err := pageTemplate.ExecuteTemplate(&output, name, data); err != nil {
-		httpresponse.InternalServerError(views.logger.With("operation", "render_template", "page", page, "template", name), w, err)
+		httpresponse.InternalServerError(v.logger.With("operation", "render_template", "page", page, "template", name), w, err)
 		return
 	}
 
@@ -249,7 +262,7 @@ func renderTemplateDataStatus(views *Views, w http.ResponseWriter, status int, p
 	w.WriteHeader(status)
 
 	if _, err := w.Write(output.Bytes()); err != nil {
-		views.logger.Error(
+		v.logger.Error(
 			"write template response",
 			"event",
 			"template_write_failed",
@@ -263,9 +276,9 @@ func renderTemplateDataStatus(views *Views, w http.ResponseWriter, status int, p
 	}
 }
 
-// renderTemplateHTML renders a trusted template fragment for insertion into rendered Markdown.
-func renderTemplateHTML(views *Views, page, name string, data ViewData) (template.HTML, error) {
-	pageTemplate, ok := views.templates[page]
+// RenderHTML renders a trusted template fragment for insertion into rendered Markdown.
+func (v *Views) RenderHTML(page, name string, data Data) (template.HTML, error) {
+	pageTemplate, ok := v.templates[page]
 	if !ok {
 		return "", fmt.Errorf("page template %q not found", page)
 	}

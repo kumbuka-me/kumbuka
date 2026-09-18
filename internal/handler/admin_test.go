@@ -9,11 +9,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/kumbuka-me/kumbuka/internal/service"
-
 	"github.com/kumbuka-me/kumbuka/internal/auth"
+	"github.com/kumbuka-me/kumbuka/internal/service"
+	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
-	"github.com/kumbuka-me/kumbuka/web"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -46,13 +45,10 @@ func TestSaveAdminSettingsPreservesDeploymentManagedRegistration(t *testing.T) {
 	settings := &applicationSettingsStub{
 		current: domain.ApplicationSettings{AllowUserRegistration: false},
 	}
-	views := &Views{
-		logger: slog.Default(),
-		runtime: RuntimeInfo{
-			UserRegistrationOverrideConfigured: true,
-			AllowUserRegistrationOverride:      true,
-		},
-	}
+	views := testHandlerViews(t, webview.RuntimeInfo{
+		UserRegistrationOverrideConfigured: true,
+		AllowUserRegistrationOverride:      true,
+	})
 	form := url.Values{
 		"allow_user_registration": {"on"},
 		"content_language":        {"en"},
@@ -171,7 +167,7 @@ func TestAuthenticationSettingsProblemsRejectsInvalidGroupMappings(t *testing.T)
 			{OIDCGroup: "/admins", GroupID: 2},
 		},
 	}
-	problems := authenticationSettingsProblems(settings, RuntimeInfo{
+	problems := authenticationSettingsProblems(settings, webview.RuntimeInfo{
 		OIDCClientSecretConfigured:  true,
 		OIDCSessionSecretConfigured: true,
 	})
@@ -189,7 +185,7 @@ func TestAuthenticationSettingsProblems(t *testing.T) {
 		OIDCIssuer:   "https://identity.example.com",
 		OIDCClientID: "kumbuka",
 	}
-	problems := authenticationSettingsProblems(settings, RuntimeInfo{})
+	problems := authenticationSettingsProblems(settings, webview.RuntimeInfo{})
 
 	require.Len(t, problems, 2)
 	assert.Equal(t, "oidc_client_secret", problems[0].Field)
@@ -268,7 +264,7 @@ func TestUpdateAdminUserSubmitsCompleteAccountChange(t *testing.T) {
 	request.SetPathValue("id", "7")
 	request = auth.WithUser(request, domain.User{ID: 7, Role: "admin"})
 	response := httptest.NewRecorder()
-	UpdateAdminUser(users, &Views{}, slog.Default())(response, request)
+	UpdateAdminUser(users, testHandlerViews(t, webview.RuntimeInfo{}), slog.Default())(response, request)
 	assert.Equal(t, http.StatusSeeOther, response.Code)
 	assert.Equal(t, int64(7), users.input.UserID)
 	assert.Equal(t, form.Get("local_password"), users.input.Password)
@@ -300,7 +296,7 @@ func TestPreserveRuntimeManagedAuthenticationSettings(t *testing.T) {
 		settings := preserveRuntimeManagedAuthenticationSettings(
 			submitted,
 			current,
-			RuntimeInfo{AuthModeOverride: "oidc"},
+			webview.RuntimeInfo{AuthModeOverride: "oidc"},
 		)
 
 		assert.Equal(t, "local", settings.Mode)
@@ -333,7 +329,7 @@ func TestPreserveRuntimeManagedAuthenticationSettings(t *testing.T) {
 		settings := preserveRuntimeManagedAuthenticationSettings(
 			submitted,
 			current,
-			RuntimeInfo{AuthModeOverride: "trusted-proxy"},
+			webview.RuntimeInfo{AuthModeOverride: "trusted-proxy"},
 		)
 
 		assert.Equal(t, "local", settings.Mode)
@@ -355,7 +351,7 @@ func TestEffectiveAuthenticationSettings(t *testing.T) {
 		OIDCGroupClaim: "groups",
 	}
 
-	effective := effectiveAuthenticationSettings(settings, RuntimeInfo{
+	effective := effectiveAuthenticationSettings(settings, webview.RuntimeInfo{
 		AuthModeOverride:       "oidc",
 		OIDCIssuerOverride:     "https://runtime.example.test",
 		OIDCClientIDOverride:   "runtime-client",
@@ -371,11 +367,9 @@ func TestEffectiveAuthenticationSettings(t *testing.T) {
 }
 
 func TestAdminAuthenticationTemplates(t *testing.T) {
-	views, err := NewViews(web.Assets, slog.Default(), "test", "test", nil, RuntimeInfo{})
+	views := testHandlerViews(t, webview.RuntimeInfo{})
 
-	require.NoError(t, err)
-
-	data := ViewData{Runtime: RuntimeInfo{
+	data := webview.Data{Runtime: webview.RuntimeInfo{
 		AuthModeOverride:       "oidc",
 		OIDCIssuerOverride:     "https://runtime.example.test",
 		OIDCClientIDOverride:   "runtime-client",
@@ -383,7 +377,7 @@ func TestAdminAuthenticationTemplates(t *testing.T) {
 		OIDCAdminGroupOverride: "runtime-admins",
 	}}
 	data.ApplicationSettings.Authentication.Mode = "none"
-	html, err := renderTemplateHTML(views, "admin_configuration", "content", data)
+	html, err := views.RenderHTML("admin_configuration", "content", data)
 
 	require.NoError(t, err)
 	assert.Contains(t, string(html), "Authentication mode")
@@ -407,7 +401,7 @@ func TestAdminAuthenticationTemplates(t *testing.T) {
 	assert.Contains(t, string(html), "Test endpoint")
 	assert.NotContains(t, string(html), "auth-recovery-form")
 
-	html, err = renderTemplateHTML(views, "admin_users", "content", data)
+	html, err = views.RenderHTML("admin_users", "content", data)
 
 	require.NoError(t, err)
 	assert.Contains(t, string(html), `<details class="admin-user-local-password" data-admin-user-local-password>`)
@@ -416,7 +410,7 @@ func TestAdminAuthenticationTemplates(t *testing.T) {
 func TestEffectiveTrustedProxyAuthenticationSettings(t *testing.T) {
 	t.Parallel()
 
-	effective := effectiveAuthenticationSettings(domain.AuthenticationSettings{Mode: "local"}, RuntimeInfo{
+	effective := effectiveAuthenticationSettings(domain.AuthenticationSettings{Mode: "local"}, webview.RuntimeInfo{
 		AuthModeOverride:                  "trusted-proxy",
 		TrustedUsernameHeadersOverride:    []string{"Runtime-User"},
 		TrustedEmailHeadersOverride:       []string{"Runtime-Email"},
@@ -436,10 +430,9 @@ func TestEffectiveTrustedProxyAuthenticationSettings(t *testing.T) {
 func TestAdminTrustedProxyRuntimeTemplate(t *testing.T) {
 	t.Parallel()
 
-	views, err := NewViews(web.Assets, slog.Default(), "test", "test", nil, RuntimeInfo{})
-	require.NoError(t, err)
+	views := testHandlerViews(t, webview.RuntimeInfo{})
 
-	data := ViewData{Runtime: RuntimeInfo{
+	data := webview.Data{Runtime: webview.RuntimeInfo{
 		AuthModeOverride:                  "trusted-proxy",
 		TrustedUsernameHeadersOverride:    []string{"Runtime-User"},
 		TrustedEmailHeadersOverride:       []string{"Runtime-Email"},
@@ -447,7 +440,7 @@ func TestAdminTrustedProxyRuntimeTemplate(t *testing.T) {
 		TrustedGroupHeadersOverride:       []string{"Runtime-Groups"},
 		TrustedAdminGroupOverride:         "runtime-admins",
 	}}
-	html, err := renderTemplateHTML(views, "admin_configuration", "content", data)
+	html, err := views.RenderHTML("admin_configuration", "content", data)
 
 	require.NoError(t, err)
 	assert.Contains(t, string(html), "KUMBUKA__TRUSTED_GROUP_HEADERS")
@@ -459,10 +452,9 @@ func TestAdminTrustedProxyRuntimeTemplate(t *testing.T) {
 func TestAdminRuntimeShowsReadOnlyMode(t *testing.T) {
 	t.Parallel()
 
-	views, err := NewViews(web.Assets, slog.Default(), "test", "test", nil, RuntimeInfo{})
-	require.NoError(t, err)
+	views := testHandlerViews(t, webview.RuntimeInfo{})
 
-	html, err := renderTemplateHTML(views, "admin_configuration", "content", ViewData{Runtime: RuntimeInfo{ReadOnly: true}})
+	html, err := views.RenderHTML("admin_configuration", "content", webview.Data{Runtime: webview.RuntimeInfo{ReadOnly: true}})
 
 	require.NoError(t, err)
 	assert.Contains(t, string(html), "Read-only mode")

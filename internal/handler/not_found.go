@@ -22,7 +22,7 @@ func renderNotFoundPage(
 ) {
 	data, err := viewDataUseCases.Load(r, views, "Page not found")
 	if err != nil {
-		httpresponse.InternalServerError(views.logger, w, err)
+		httpresponse.InternalServerError(views.Logger(), w, err)
 		return
 	}
 

@@ -20,13 +20,13 @@ func Search(
 			pages, err = accessUseCases.FilterPages(r.Context(), currentUser(r), pages)
 		}
 		if err != nil {
-			httpresponse.InternalServerError(views.logger, w, err)
+			httpresponse.InternalServerError(views.Logger(), w, err)
 			return
 		}
 
 		data, err := viewDataUseCases.Load(r, views, "Search")
 		if err != nil {
-			httpresponse.InternalServerError(views.logger, w, err)
+			httpresponse.InternalServerError(views.Logger(), w, err)
 			return
 		}
 

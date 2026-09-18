@@ -26,13 +26,13 @@ func EditPage(
 
 		data, err := viewDataUseCases.Load(r, views, "New page")
 		if err != nil {
-			httpresponse.InternalServerError(views.logger, w, err)
+			httpresponse.InternalServerError(views.Logger(), w, err)
 			return
 		}
 
 		groups, err := groupUseCases.AssignableGroups(r.Context(), user)
 		if err != nil {
-			httpresponse.InternalServerError(views.logger, w, err)
+			httpresponse.InternalServerError(views.Logger(), w, err)
 			return
 		}
 
@@ -43,7 +43,7 @@ func EditPage(
 		switch slug := r.PathValue("slug"); slug {
 		case "":
 			if err := prepareNewPageEditor(r, &data, templateUseCases); err != nil {
-				httpresponse.InternalServerError(views.logger, w, err)
+				httpresponse.InternalServerError(views.Logger(), w, err)
 				return
 			}
 
@@ -54,7 +54,7 @@ func EditPage(
 				return
 			}
 			if err != nil {
-				writePageProblem(views.logger, w, err)
+				writePageProblem(views.Logger(), w, err)
 				return
 			}
 

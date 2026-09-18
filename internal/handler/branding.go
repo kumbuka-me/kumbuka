@@ -27,7 +27,7 @@ func AdminBranding(viewDataUseCases viewDataService, views *Views) http.HandlerF
 	return func(w http.ResponseWriter, r *http.Request) {
 		data, err := administrationData(r, viewDataUseCases, views, "Branding", "branding")
 		if err != nil {
-			httpresponse.InternalServerError(views.logger, w, err)
+			httpresponse.InternalServerError(views.Logger(), w, err)
 			return
 		}
 

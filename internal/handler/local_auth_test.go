@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/kumbuka-me/kumbuka/internal/auth"
+	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -98,7 +99,7 @@ func TestLocalLoginRedirectsSetupWithRuntimeOIDCOverride(t *testing.T) {
 		Authentication: domain.AuthenticationSettings{Mode: string(auth.AuthModeNone)},
 	}}
 	system := &localAuthSystemStub{setupRequired: true}
-	views := &Views{runtime: RuntimeInfo{AuthModeOverride: string(auth.AuthModeOIDC)}}
+	views := testHandlerViews(t, webview.RuntimeInfo{AuthModeOverride: string(auth.AuthModeOIDC)})
 	handler := LocalLogin(
 		settings,
 		system,
@@ -123,7 +124,7 @@ func TestSetupAllowsRuntimeOIDCOverrideAndCreatesBootstrapSession(t *testing.T) 
 	system := &localAuthSystemStub{setupRequired: true}
 	repository := &localAuthRepositoryStub{}
 	local := auth.NewLocal(repository, "http://localhost:8080")
-	views := &Views{runtime: RuntimeInfo{AuthModeOverride: string(auth.AuthModeOIDC)}}
+	views := testHandlerViews(t, webview.RuntimeInfo{AuthModeOverride: string(auth.AuthModeOIDC)})
 	handler := Setup(settings, system, auth.BrowserAuth{Local: local}, views)
 
 	form := url.Values{

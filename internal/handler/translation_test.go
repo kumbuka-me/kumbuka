@@ -5,13 +5,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"html/template"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/kumbuka-me/kumbuka/internal/auth"
+	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/stretchr/testify/assert"
 )
@@ -161,13 +161,13 @@ func TestExtractedTranslatorsPreserveResponsesAndLogOnlyInternalFailures(t *test
 		var logs bytes.Buffer
 		logger := slog.New(slog.NewTextHandler(&logs, nil))
 		response := httptest.NewRecorder()
-		writeSetupProblem(&Views{logger: logger}, response, fmt.Errorf("wrapped: %w", domain.ErrAlreadyExists))
+		writeSetupProblem(testHandlerViewsWithLogger(t, logger, webview.RuntimeInfo{}), response, fmt.Errorf("wrapped: %w", domain.ErrAlreadyExists))
 		assert.Equal(t, 404, response.Code)
 		assert.Contains(t, response.Body.String(), "Not found.")
 		assert.Empty(t, logs.String())
 		failure := errors.New("private persistence details")
 		response = httptest.NewRecorder()
-		writeSetupProblem(&Views{logger: logger}, response, failure)
+		writeSetupProblem(testHandlerViewsWithLogger(t, logger, webview.RuntimeInfo{}), response, failure)
 		assert.Equal(t, http.StatusInternalServerError, response.Code)
 		assert.NotContains(t, response.Body.String(), failure.Error())
 		assert.Contains(t, logs.String(), failure.Error())
@@ -178,13 +178,13 @@ func TestExtractedTranslatorsPreserveResponsesAndLogOnlyInternalFailures(t *test
 		var logs bytes.Buffer
 		logger := slog.New(slog.NewTextHandler(&logs, nil))
 		response := httptest.NewRecorder()
-		writeSetupProblem(&Views{logger: logger}, response, fmt.Errorf("wrapped: %w", domain.ErrForbidden))
+		writeSetupProblem(testHandlerViewsWithLogger(t, logger, webview.RuntimeInfo{}), response, fmt.Errorf("wrapped: %w", domain.ErrForbidden))
 		assert.Equal(t, 404, response.Code)
 		assert.Contains(t, response.Body.String(), "Not found.")
 		assert.Empty(t, logs.String())
 		failure := errors.New("private persistence details")
 		response = httptest.NewRecorder()
-		writeSetupProblem(&Views{logger: logger}, response, failure)
+		writeSetupProblem(testHandlerViewsWithLogger(t, logger, webview.RuntimeInfo{}), response, failure)
 		assert.Equal(t, http.StatusInternalServerError, response.Code)
 		assert.NotContains(t, response.Body.String(), failure.Error())
 		assert.Contains(t, logs.String(), failure.Error())
@@ -240,9 +240,14 @@ func TestMediaDownloadsUseLoggedTranslator(t *testing.T) {
 func TestLocalLoginTranslationPreservesHTML(t *testing.T) {
 	t.Parallel()
 	var logs bytes.Buffer
-	views := &Views{logger: slog.New(slog.NewTextHandler(&logs, nil)), templates: map[string]*template.Template{
-		"login": template.Must(template.New("public-layout").Parse(`{{.AuthError}} {{.AuthNext}}`)),
-	}}
+	views := testHandlerViewsWithOverrides(
+		t,
+		slog.New(slog.NewTextHandler(&logs, nil)),
+		webview.RuntimeInfo{},
+		map[string]string{
+			"templates/public_layout.gohtml": `{{ define "public-layout" }}{{ .AuthError }} {{ .AuthNext }}{{ end }}`,
+		},
+	)
 	response := httptest.NewRecorder()
 	writeLocalLoginProblem(views, response, fmt.Errorf("login: %w", auth.ErrInvalidCredentials), "/pages/home")
 	assert.Equal(t, http.StatusUnauthorized, response.Code)

@@ -1,4 +1,4 @@
-package handler
+package webview
 
 import (
 	"crypto/sha256"
@@ -124,4 +124,16 @@ func fingerprintAssets(appFS fs.FS) (string, error) {
 	sum := hash.Sum(nil)
 
 	return hex.EncodeToString(sum[:8]), nil
+}
+
+// hasGroup reports whether a group name appears in a user's group list.
+func hasGroup(groups []string, name string) bool {
+	return slices.Contains(groups, name)
+}
+
+// hasGroupID reports whether a group identifier appears in a page group list.
+func hasGroupID(groups []domain.Group, id int64) bool {
+	return slices.ContainsFunc(groups, func(group domain.Group) bool {
+		return group.ID == id
+	})
 }

@@ -38,7 +38,7 @@ func AddPageComment(pageUseCases pageDiscussionWriter, views *Views) http.Handle
 			r.Context(), slug, parentID, r.FormValue("anchor"), r.FormValue("quote"), r.FormValue("body"), user,
 		)
 		if err != nil {
-			writePageProblem(views.logger, w, err)
+			writePageProblem(views.Logger(), w, err)
 			return
 		}
 
@@ -59,7 +59,7 @@ func ResolvePageComment(pageUseCases pageDiscussionWriter, views *Views) http.Ha
 			return
 		}
 		if err := pageUseCases.ResolveComment(r.Context(), id, r.FormValue("resolved") != "false"); err != nil {
-			writePageProblem(views.logger, w, err)
+			writePageProblem(views.Logger(), w, err)
 			return
 		}
 

@@ -21,7 +21,7 @@ func LocalLogin(
 	return func(w http.ResponseWriter, r *http.Request) {
 		allowed, err := browserAuth.LocalLoginAllowed(r.Context())
 		if err != nil {
-			httpresponse.InternalServerError(views.logger, w, err)
+			httpresponse.InternalServerError(views.Logger(), w, err)
 			return
 		}
 		if !allowed {
@@ -31,13 +31,13 @@ func LocalLogin(
 
 		settings, err := settingsUseCases.ApplicationSettings(r.Context())
 		if err != nil {
-			httpresponse.InternalServerError(views.logger, w, err)
+			httpresponse.InternalServerError(views.Logger(), w, err)
 			return
 		}
 
 		required, err := systemUseCases.SetupRequired(r.Context())
 		if err != nil {
-			httpresponse.InternalServerError(views.logger, w, err)
+			httpresponse.InternalServerError(views.Logger(), w, err)
 			return
 		}
 		if required && settings.Authentication.Mode == string(auth.AuthModeNone) {
@@ -65,7 +65,7 @@ func LocalLogin(
 
 		data, err := publicViewData(views, "Local sign in")
 		if err != nil {
-			httpresponse.InternalServerError(views.logger, w, err)
+			httpresponse.InternalServerError(views.Logger(), w, err)
 			return
 		}
 
@@ -85,7 +85,7 @@ func Setup(
 	return func(w http.ResponseWriter, r *http.Request) {
 		settings, err := settingsUseCases.ApplicationSettings(r.Context())
 		if err != nil {
-			httpresponse.InternalServerError(views.logger, w, err)
+			httpresponse.InternalServerError(views.Logger(), w, err)
 			return
 		}
 		if settings.Authentication.Mode != string(auth.AuthModeNone) {
@@ -95,7 +95,7 @@ func Setup(
 
 		required, err := systemUseCases.SetupRequired(r.Context())
 		if err != nil {
-			httpresponse.InternalServerError(views.logger, w, err)
+			httpresponse.InternalServerError(views.Logger(), w, err)
 			return
 		}
 		if !required {
@@ -118,7 +118,7 @@ func Setup(
 
 				data, dataErr := publicViewData(views, "Set up Kumbuka")
 				if dataErr != nil {
-					httpresponse.InternalServerError(views.logger, w, dataErr)
+					httpresponse.InternalServerError(views.Logger(), w, dataErr)
 					return
 				}
 
@@ -130,8 +130,8 @@ func Setup(
 				return
 			}
 
-			bootstrapSession := views.runtime.AuthModeOverride != "" &&
-				views.runtime.AuthModeOverride != string(auth.AuthModeLocal)
+			bootstrapSession := views.Runtime().AuthModeOverride != "" &&
+				views.Runtime().AuthModeOverride != string(auth.AuthModeLocal)
 
 			var user domain.User
 			var token string
@@ -168,7 +168,7 @@ func Setup(
 
 		data, err := publicViewData(views, "Set up Kumbuka")
 		if err != nil {
-			httpresponse.InternalServerError(views.logger, w, err)
+			httpresponse.InternalServerError(views.Logger(), w, err)
 			return
 		}
 
@@ -192,7 +192,7 @@ func writeLocalLoginProblem(views *Views, w http.ResponseWriter, err error, next
 	case errors.Is(err, auth.ErrInvalidCredentials):
 		data, dataErr := publicViewData(views, "Local sign in")
 		if dataErr != nil {
-			httpresponse.InternalServerError(views.logger, w, dataErr)
+			httpresponse.InternalServerError(views.Logger(), w, dataErr)
 			return
 		}
 		data.AuthError = "Invalid username or password."
@@ -201,7 +201,7 @@ func writeLocalLoginProblem(views *Views, w http.ResponseWriter, err error, next
 		w.WriteHeader(http.StatusUnauthorized)
 		renderPublic(views, w, "login", data)
 	default:
-		httpresponse.InternalServerError(views.logger, w, err)
+		httpresponse.InternalServerError(views.Logger(), w, err)
 	}
 }
 
@@ -211,6 +211,6 @@ func writeSetupProblem(views *Views, w http.ResponseWriter, err error) {
 	case errors.Is(err, domain.ErrAlreadyExists), errors.Is(err, domain.ErrForbidden):
 		httpresponse.Problem(w, http.StatusNotFound, "Not found.")
 	default:
-		httpresponse.InternalServerError(views.logger, w, err)
+		httpresponse.InternalServerError(views.Logger(), w, err)
 	}
 }

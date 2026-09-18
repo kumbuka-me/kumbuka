@@ -1,32 +1,31 @@
 package handler
 
 import (
-	"html/template"
-	"io"
-	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/stretchr/testify/assert"
 )
 
 type notFoundViewDataLoader struct{}
 
-func (notFoundViewDataLoader) Load(_ *http.Request, _ *Views, title string) (ViewData, error) {
-	return ViewData{Title: title}, nil
+func (notFoundViewDataLoader) Load(_ *http.Request, _ *webview.Views, title string) (webview.Data, error) {
+	return webview.Data{Title: title}, nil
 }
 
 func TestNotFound(t *testing.T) {
 	t.Parallel()
 
-	page := template.Must(template.New("not_found").Parse(
-		`{{ define "layout" }}<main><h1>{{ .Title }}</h1></main>{{ end }}`,
-	))
-	views := &Views{
-		templates: map[string]*template.Template{"not_found": page},
-		logger:    slog.New(slog.NewTextHandler(io.Discard, nil)),
-	}
+	views := testHandlerViewsWithOverrides(
+		t,
+		testViewsLogger(),
+		webview.RuntimeInfo{},
+		map[string]string{
+			"templates/layout.gohtml": `{{ define "layout" }}<main><h1>{{ .Title }}</h1></main>{{ end }}`,
+		},
+	)
 	request := httptest.NewRequest(http.MethodGet, "/missing", nil)
 	response := httptest.NewRecorder()
 
