@@ -11,9 +11,9 @@ import (
 	"strings"
 
 	"github.com/kumbuka-me/kumbuka/internal/httpresponse"
-	"github.com/kumbuka-me/kumbuka/internal/pluginupdate"
 	"github.com/kumbuka-me/kumbuka/internal/service"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
+	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	md "github.com/kumbuka-me/kumbuka/pkg/markdown"
 	"github.com/kumbuka-me/kumbuka/pkg/plugin"
 	"github.com/kumbuka-me/sdk/pluginpackage"
@@ -23,10 +23,10 @@ import (
 type pluginUpdateService interface {
 	// Refresh checks the first-party catalog immediately.
 	Refresh(context.Context) error
-	// Updates returns newer compatible releases keyed by installed plugin ID.
-	Updates(context.Context, map[string]string) (map[string]pluginupdate.Release, error)
+	// Available returns newer compatible releases for the currently loaded plugins.
+	Available() (map[string]domain.PluginRelease, error)
 	// Download retrieves and verifies one selected plugin release.
-	Download(context.Context, string, pluginupdate.Release) ([]byte, error)
+	Download(context.Context, string, string) ([]byte, error)
 	// Status returns scheduled and manual catalog refresh state.
 	Status() service.PluginUpdateStatus
 }
@@ -96,7 +96,7 @@ func (a *AdminPlugins) render(w http.ResponseWriter, r *http.Request, id string,
 			LastSuccess: status.LastSuccess,
 			LastError:   status.LastError,
 		}
-		updates, updateErr := a.updates.Updates(r.Context(), pluginVersions(data.AdminPlugins))
+		updates, updateErr := a.updates.Available()
 		if updateErr != nil {
 			data.PluginCatalogUnavailable = true
 		} else {
@@ -218,13 +218,11 @@ func (a *AdminPlugins) updateFromCatalog(ctx context.Context, id string) error {
 		return errors.New("plugin update catalog is unavailable")
 	}
 
-	versions := pluginVersions(a.manager.Plugins())
-	current, ok := versions[id]
-	if !ok {
+	if !pluginInstalled(a.manager.Plugins(), id) {
 		return errors.New("plugin is not installed")
 	}
 
-	updates, err := a.updates.Updates(ctx, map[string]string{id: current})
+	updates, err := a.updates.Available()
 	if err != nil {
 		return fmt.Errorf("check plugin update catalog: %w", err)
 	}
@@ -233,7 +231,7 @@ func (a *AdminPlugins) updateFromCatalog(ctx context.Context, id string) error {
 		return errors.New("no newer compatible plugin release is available")
 	}
 
-	archive, err := a.updates.Download(ctx, id, release)
+	archive, err := a.updates.Download(ctx, id, release.Version)
 	if err != nil {
 		return fmt.Errorf("download plugin update: %w", err)
 	}
@@ -241,13 +239,15 @@ func (a *AdminPlugins) updateFromCatalog(ctx context.Context, id string) error {
 	return err
 }
 
-// pluginVersions indexes installed plugin versions by stable plugin ID.
-func pluginVersions(items []plugin.LoadedPlugin) map[string]string {
-	versions := make(map[string]string, len(items))
+// pluginInstalled reports whether the manager snapshot contains id.
+func pluginInstalled(items []plugin.LoadedPlugin, id string) bool {
 	for _, item := range items {
-		versions[item.Manifest.ID] = item.Manifest.Version
+		if item.Manifest.ID == id {
+			return true
+		}
 	}
-	return versions
+
+	return false
 }
 
 // renderPluginREADME renders package documentation without activating plugin macros.

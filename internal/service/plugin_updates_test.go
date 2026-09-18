@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kumbuka-me/kumbuka/internal/pluginupdate"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/kumbuka-me/kumbuka/pkg/plugin"
 	"github.com/kumbuka-me/sdk/pluginpackage"
@@ -21,21 +20,24 @@ import (
 type pluginUpdateClientStub struct {
 	refreshes  atomic.Int32
 	refreshErr error
-	updates    map[string]pluginupdate.Release
+	updates    map[string]domain.PluginRelease
 	updatesErr error
 	archive    []byte
 }
 
+// Refresh records one catalog refresh and returns the configured error.
 func (s *pluginUpdateClientStub) Refresh(context.Context) error {
 	s.refreshes.Add(1)
 	return s.refreshErr
 }
 
-func (s *pluginUpdateClientStub) Updates(map[string]string) (map[string]pluginupdate.Release, error) {
+// Updates returns the configured compatible releases.
+func (s *pluginUpdateClientStub) Updates(map[string]string) (map[string]domain.PluginRelease, error) {
 	return s.updates, s.updatesErr
 }
 
-func (s *pluginUpdateClientStub) Download(context.Context, string, pluginupdate.Release) ([]byte, error) {
+// Download returns the configured package archive.
+func (s *pluginUpdateClientStub) Download(context.Context, string, string) ([]byte, error) {
 	return s.archive, nil
 }
 
@@ -43,6 +45,7 @@ type pluginUpdateCatalogStub struct {
 	plugins []plugin.LoadedPlugin
 }
 
+// Plugins returns a detached copy of the configured plugin inventory.
 func (s pluginUpdateCatalogStub) Plugins() []plugin.LoadedPlugin {
 	return append([]plugin.LoadedPlugin(nil), s.plugins...)
 }
@@ -53,6 +56,7 @@ type pluginUpdateNotifierStub struct {
 	err     error
 }
 
+// NotifyPluginUpdates records one notification batch.
 func (s *pluginUpdateNotifierStub) NotifyPluginUpdates(_ context.Context, notices []domain.PluginUpdateNotice) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -61,6 +65,7 @@ func (s *pluginUpdateNotifierStub) NotifyPluginUpdates(_ context.Context, notice
 	return s.err
 }
 
+// snapshot returns detached copies of all recorded notification batches.
 func (s *pluginUpdateNotifierStub) snapshot() [][]domain.PluginUpdateNotice {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -71,11 +76,12 @@ func (s *pluginUpdateNotifierStub) snapshot() [][]domain.PluginUpdateNotice {
 	return result
 }
 
+// TestPluginUpdatesRefreshDiscoversAndNotifies verifies plugin update service behavior.
 func TestPluginUpdatesRefreshDiscoversAndNotifies(t *testing.T) {
 	t.Parallel()
 
 	const id = "me.kumbuka.callouts"
-	client := &pluginUpdateClientStub{updates: map[string]pluginupdate.Release{
+	client := &pluginUpdateClientStub{updates: map[string]domain.PluginRelease{
 		id: {Version: "1.1.0"},
 	}}
 	notifier := &pluginUpdateNotifierStub{}
@@ -111,10 +117,11 @@ func TestPluginUpdatesRefreshDiscoversAndNotifies(t *testing.T) {
 	assert.Empty(t, status.LastError)
 }
 
+// TestPluginUpdatesRefreshFailureRetainsLastSuccess verifies plugin update service behavior.
 func TestPluginUpdatesRefreshFailureRetainsLastSuccess(t *testing.T) {
 	t.Parallel()
 
-	client := &pluginUpdateClientStub{updates: map[string]pluginupdate.Release{}}
+	client := &pluginUpdateClientStub{updates: map[string]domain.PluginRelease{}}
 	service := NewPluginUpdates(
 		client,
 		pluginUpdateCatalogStub{},
@@ -136,8 +143,29 @@ func TestPluginUpdatesRefreshFailureRetainsLastSuccess(t *testing.T) {
 	assert.Equal(t, "catalog offline", status.LastError)
 }
 
+// TestPluginUpdatesAvailableUsesLoadedInventory verifies handlers do not provide catalog state.
+func TestPluginUpdatesAvailableUsesLoadedInventory(t *testing.T) {
+	t.Parallel()
+
+	const id = "me.kumbuka.callouts"
+	client := &pluginUpdateClientStub{updates: map[string]domain.PluginRelease{id: {Version: "1.1.0"}}}
+	service := NewPluginUpdates(
+		client,
+		pluginUpdateCatalogStub{plugins: []plugin.LoadedPlugin{{Manifest: pluginpackage.Manifest{ID: id, Version: "1.0.0"}}}},
+		nil,
+		0,
+		nil,
+	)
+
+	updates, err := service.Available()
+
+	require.NoError(t, err)
+	assert.Equal(t, "1.1.0", updates[id].Version)
+}
+
+// TestPluginUpdatesRunChecksImmediatelyAndOnInterval verifies plugin update service behavior.
 func TestPluginUpdatesRunChecksImmediatelyAndOnInterval(t *testing.T) {
-	client := &pluginUpdateClientStub{updates: map[string]pluginupdate.Release{}}
+	client := &pluginUpdateClientStub{updates: map[string]domain.PluginRelease{}}
 	service := NewPluginUpdates(
 		client,
 		pluginUpdateCatalogStub{},
@@ -155,10 +183,11 @@ func TestPluginUpdatesRunChecksImmediatelyAndOnInterval(t *testing.T) {
 	}, time.Second, 5*time.Millisecond)
 }
 
+// TestPluginUpdatesZeroIntervalDisablesSchedulerButKeepsManualRefresh verifies plugin update service behavior.
 func TestPluginUpdatesZeroIntervalDisablesSchedulerButKeepsManualRefresh(t *testing.T) {
 	t.Parallel()
 
-	client := &pluginUpdateClientStub{updates: map[string]pluginupdate.Release{}}
+	client := &pluginUpdateClientStub{updates: map[string]domain.PluginRelease{}}
 	service := NewPluginUpdates(
 		client,
 		pluginUpdateCatalogStub{},

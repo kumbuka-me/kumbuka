@@ -8,19 +8,20 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kumbuka-me/kumbuka/internal/pluginupdate"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/kumbuka-me/kumbuka/pkg/plugin"
 )
+
+var errPluginUpdateCatalogUnavailable = errors.New("plugin update catalog is unavailable")
 
 // pluginUpdateClient contains first-party catalog and package transport operations.
 type pluginUpdateClient interface {
 	// Refresh fetches and replaces the cached first-party catalog.
 	Refresh(context.Context) error
 	// Updates compares installed versions with the last successful catalog.
-	Updates(map[string]string) (map[string]pluginupdate.Release, error)
-	// Download retrieves and verifies one catalog release package.
-	Download(context.Context, string, pluginupdate.Release) ([]byte, error)
+	Updates(map[string]string) (map[string]domain.PluginRelease, error)
+	// Download retrieves and verifies one catalog release package by identity.
+	Download(context.Context, string, string) ([]byte, error)
 }
 
 // pluginUpdateCatalog exposes the currently loaded plugin inventory.
@@ -121,7 +122,7 @@ func (s *PluginUpdates) Run(ctx context.Context) {
 // Refresh checks the first-party catalog immediately and bypasses the scheduled interval.
 func (s *PluginUpdates) Refresh(ctx context.Context) error {
 	if s == nil || s.client == nil {
-		return pluginupdate.ErrCatalogUnavailable
+		return errPluginUpdateCatalogUnavailable
 	}
 
 	s.refreshMu.Lock()
@@ -133,10 +134,7 @@ func (s *PluginUpdates) Refresh(ctx context.Context) error {
 		return err
 	}
 
-	var plugins []plugin.LoadedPlugin
-	if s.catalog != nil {
-		plugins = s.catalog.Plugins()
-	}
+	plugins := s.plugins()
 	updates, err := s.client.Updates(pluginVersions(plugins))
 	if err != nil {
 		s.recordRefresh(attemptedAt, err)
@@ -158,22 +156,22 @@ func (s *PluginUpdates) Refresh(ctx context.Context) error {
 	return nil
 }
 
-// Updates returns newer compatible releases from the last successful catalog refresh.
-func (s *PluginUpdates) Updates(_ context.Context, installed map[string]string) (map[string]pluginupdate.Release, error) {
+// Available returns newer compatible releases for the currently loaded plugins.
+func (s *PluginUpdates) Available() (map[string]domain.PluginRelease, error) {
 	if s == nil || s.client == nil {
-		return nil, pluginupdate.ErrCatalogUnavailable
+		return nil, errPluginUpdateCatalogUnavailable
 	}
 
-	return s.client.Updates(installed)
+	return s.client.Updates(pluginVersions(s.plugins()))
 }
 
-// Download retrieves and verifies one selected plugin release.
-func (s *PluginUpdates) Download(ctx context.Context, id string, release pluginupdate.Release) ([]byte, error) {
+// Download retrieves and verifies one selected plugin release by ID and version.
+func (s *PluginUpdates) Download(ctx context.Context, id, version string) ([]byte, error) {
 	if s == nil || s.client == nil {
 		return nil, errors.New("plugin update service is unavailable")
 	}
 
-	return s.client.Download(ctx, id, release)
+	return s.client.Download(ctx, id, version)
 }
 
 // Status returns a snapshot of scheduler and catalog refresh state.
@@ -185,6 +183,15 @@ func (s *PluginUpdates) Status() PluginUpdateStatus {
 	s.statusMu.RLock()
 	defer s.statusMu.RUnlock()
 	return s.status
+}
+
+// plugins returns a snapshot of the currently loaded plugin inventory.
+func (s *PluginUpdates) plugins() []plugin.LoadedPlugin {
+	if s == nil || s.catalog == nil {
+		return nil
+	}
+
+	return s.catalog.Plugins()
 }
 
 // refreshAndLog performs one scheduled refresh without terminating the scheduler after failures.
@@ -223,7 +230,7 @@ func pluginVersions(items []plugin.LoadedPlugin) map[string]string {
 }
 
 // pluginUpdateNotices converts discovered releases into stable administrator notification data.
-func pluginUpdateNotices(items []plugin.LoadedPlugin, updates map[string]pluginupdate.Release) []domain.PluginUpdateNotice {
+func pluginUpdateNotices(items []plugin.LoadedPlugin, updates map[string]domain.PluginRelease) []domain.PluginUpdateNotice {
 	byID := make(map[string]plugin.LoadedPlugin, len(items))
 	for _, item := range items {
 		byID[item.Manifest.ID] = item

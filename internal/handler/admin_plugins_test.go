@@ -13,7 +13,6 @@ import (
 
 	"github.com/kumbuka-me/kumbuka/internal/auth"
 	"github.com/kumbuka-me/kumbuka/internal/middleware"
-	"github.com/kumbuka-me/kumbuka/internal/pluginupdate"
 	"github.com/kumbuka-me/kumbuka/internal/service"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
@@ -26,7 +25,7 @@ import (
 )
 
 type pluginUpdateServiceStub struct {
-	updates       map[string]pluginupdate.Release
+	updates       map[string]domain.PluginRelease
 	archive       []byte
 	updatesErr    error
 	refreshErr    error
@@ -37,25 +36,30 @@ type pluginUpdateServiceStub struct {
 	status        service.PluginUpdateStatus
 }
 
+// Refresh supports plugin administration regression coverage.
 func (s *pluginUpdateServiceStub) Refresh(context.Context) error {
 	s.refreshes++
 	return s.refreshErr
 }
 
-func (s *pluginUpdateServiceStub) Updates(context.Context, map[string]string) (map[string]pluginupdate.Release, error) {
+// Available returns the configured release set.
+func (s *pluginUpdateServiceStub) Available() (map[string]domain.PluginRelease, error) {
 	return s.updates, s.updatesErr
 }
 
-func (s *pluginUpdateServiceStub) Download(_ context.Context, id string, release pluginupdate.Release) ([]byte, error) {
+// Download records the requested release and returns the configured archive.
+func (s *pluginUpdateServiceStub) Download(_ context.Context, id, version string) ([]byte, error) {
 	s.downloadedID = id
-	s.downloadedVer = release.Version
+	s.downloadedVer = version
 	return s.archive, s.downloadErr
 }
 
+// Status supports plugin administration regression coverage.
 func (s *pluginUpdateServiceStub) Status() service.PluginUpdateStatus {
 	return s.status
 }
 
+// pluginUpload supports plugin administration regression coverage.
 func pluginUpload(t *testing.T, content []byte) *http.Request {
 	t.Helper()
 	var body bytes.Buffer
@@ -69,6 +73,8 @@ func pluginUpload(t *testing.T, content []byte) *http.Request {
 	r.Header.Set("Content-Type", writer.FormDataContentType())
 	return r
 }
+
+// TestAdminPluginLifecycleAndAuthorization supports plugin administration regression coverage.
 func TestAdminPluginLifecycleAndAuthorization(t *testing.T) {
 	ctx := context.Background()
 	runtime, err := wasm.New(ctx, wasm.Limits{InitTimeout: 30 * time.Second}, wasm.WithInterpreter())
@@ -128,6 +134,8 @@ func TestAdminPluginLifecycleAndAuthorization(t *testing.T) {
 	assert.Equal(t, http.StatusSeeOther, w.Code)
 	assert.Empty(t, manager.Plugins())
 }
+
+// TestAdminPluginCatalogUpdate supports plugin administration regression coverage.
 func TestAdminPluginCatalogUpdate(t *testing.T) {
 	ctx := context.Background()
 	runtime, err := wasm.New(ctx, wasm.Limits{InitTimeout: 30 * time.Second}, wasm.WithInterpreter())
@@ -145,10 +153,9 @@ func TestAdminPluginCatalogUpdate(t *testing.T) {
 			LastAttempt: time.Date(2026, time.September, 18, 7, 31, 0, 0, time.UTC),
 			LastSuccess: time.Date(2026, time.September, 18, 7, 31, 0, 0, time.UTC),
 		},
-		updates: map[string]pluginupdate.Release{
+		updates: map[string]domain.PluginRelease{
 			item.Manifest.ID: {
 				Version:    "9.9.9",
-				APIVersion: 1,
 				ReleasedAt: time.Date(2026, time.September, 18, 7, 30, 0, 0, time.UTC),
 			},
 		},
@@ -181,9 +188,10 @@ func TestAdminPluginCatalogUpdate(t *testing.T) {
 	assert.Equal(t, "9.9.9", updates.downloadedVer)
 }
 
+// TestAdminPluginManualCatalogRefresh supports plugin administration regression coverage.
 func TestAdminPluginManualCatalogRefresh(t *testing.T) {
 	updates := &pluginUpdateServiceStub{
-		updates: map[string]pluginupdate.Release{},
+		updates: map[string]domain.PluginRelease{},
 		status:  service.PluginUpdateStatus{Automatic: true},
 	}
 	views := testHandlerViews(t, webview.RuntimeInfo{})
@@ -201,6 +209,7 @@ func TestAdminPluginManualCatalogRefresh(t *testing.T) {
 	assert.Equal(t, 1, updates.refreshes)
 }
 
+// TestAdminPluginManualCatalogRefreshFailure supports plugin administration regression coverage.
 func TestAdminPluginManualCatalogRefreshFailure(t *testing.T) {
 	updates := &pluginUpdateServiceStub{
 		updatesErr: errors.New("no cached catalog"),
@@ -223,6 +232,7 @@ func TestAdminPluginManualCatalogRefreshFailure(t *testing.T) {
 	assert.Contains(t, w.Body.String(), "Could not check the plugin update catalog")
 }
 
+// TestPluginUploadBoundaries supports plugin administration regression coverage.
 func TestPluginUploadBoundaries(t *testing.T) {
 	_, status, err := readPluginUpload(httptest.NewRecorder(), httptest.NewRequest("POST", "/", bytes.NewBufferString("not multipart")))
 	require.Error(t, err)
@@ -232,6 +242,7 @@ func TestPluginUploadBoundaries(t *testing.T) {
 	assert.Equal(t, http.StatusRequestEntityTooLarge, status)
 }
 
+// TestAdminPluginMetadataIsEscaped supports plugin administration regression coverage.
 func TestAdminPluginMetadataIsEscaped(t *testing.T) {
 	views := testHandlerViews(t, webview.RuntimeInfo{})
 	data := webview.Data{

@@ -18,6 +18,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/kumbuka-me/sdk"
 	"github.com/kumbuka-me/sdk/pluginpackage"
 )
@@ -34,8 +35,8 @@ const (
 // ErrCatalogUnavailable reports that no successful catalog refresh has completed yet.
 var ErrCatalogUnavailable = errors.New("plugin update catalog is unavailable")
 
-// Release describes one downloadable plugin release from the update catalog.
-type Release struct {
+// release is one catalog-internal downloadable plugin release.
+type release struct {
 	// Version is the strict MAJOR.MINOR.PATCH plugin version.
 	Version string `json:"version"`
 	// APIVersion is the Kumbuka plugin API version required by the package.
@@ -57,7 +58,7 @@ type catalogPlugin struct {
 	// Provider is the package provider supplied by the plugin manifest.
 	Provider string `json:"provider"`
 	// Versions contains published releases, normally newest first.
-	Versions []Release `json:"versions"`
+	Versions []release `json:"versions"`
 }
 
 // catalog is the versioned wire representation served by kumbuka.me.
@@ -126,8 +127,8 @@ func (c *Client) Refresh(ctx context.Context) error {
 }
 
 // Updates returns the newest compatible release newer than each installed plugin version from the cached catalog.
-func (c *Client) Updates(installed map[string]string) (map[string]Release, error) {
-	updates := make(map[string]Release)
+func (c *Client) Updates(installed map[string]string) (map[string]domain.PluginRelease, error) {
+	updates := make(map[string]domain.PluginRelease)
 	if c == nil {
 		return nil, ErrCatalogUnavailable
 	}
@@ -153,7 +154,7 @@ func (c *Client) Updates(installed map[string]string) (map[string]Release, error
 			continue
 		}
 
-		var selected Release
+		var selected release
 		var selectedVersion semanticVersion
 		found := false
 		for _, release := range item.Versions {
@@ -174,7 +175,7 @@ func (c *Client) Updates(installed map[string]string) (map[string]Release, error
 			}
 		}
 		if found {
-			updates[item.ID] = selected
+			updates[item.ID] = domain.PluginRelease{Version: selected.Version, ReleasedAt: selected.ReleasedAt}
 		}
 	}
 
@@ -182,15 +183,13 @@ func (c *Client) Updates(installed map[string]string) (map[string]Release, error
 }
 
 // Download retrieves one bounded package in memory, verifies it, and returns validated package bytes.
-func (c *Client) Download(ctx context.Context, pluginID string, release Release) ([]byte, error) {
+func (c *Client) Download(ctx context.Context, pluginID, version string) ([]byte, error) {
 	if c == nil {
 		return nil, errors.New("plugin update client is unavailable")
 	}
-	if int64(release.APIVersion) != int64(sdk.Version) {
-		return nil, fmt.Errorf("plugin release API version %d is incompatible", release.APIVersion)
-	}
-	if problem := releaseProblem(release); problem != "" {
-		return nil, errors.New(problem)
+	release, err := c.release(pluginID, version)
+	if err != nil {
+		return nil, err
 	}
 
 	packageURL, err := url.Parse(release.PackageURL)
@@ -285,8 +284,39 @@ func (c *Client) fetchCatalog(ctx context.Context) (catalog, error) {
 	return decoded, nil
 }
 
+// release returns one validated cached release selected by plugin ID and exact version.
+func (c *Client) release(pluginID, version string) (release, error) {
+	c.mu.RLock()
+	available := c.cached
+	ready := c.ready
+	c.mu.RUnlock()
+	if !ready {
+		return release{}, ErrCatalogUnavailable
+	}
+
+	for _, item := range available.Plugins {
+		if item.ID != pluginID {
+			continue
+		}
+		for _, candidate := range item.Versions {
+			if candidate.Version != version {
+				continue
+			}
+			if int64(candidate.APIVersion) != int64(sdk.Version) {
+				return release{}, fmt.Errorf("plugin release API version %d is incompatible", candidate.APIVersion)
+			}
+			if problem := releaseProblem(candidate); problem != "" {
+				return release{}, errors.New(problem)
+			}
+			return candidate, nil
+		}
+	}
+
+	return release{}, errors.New("plugin release is not available in the cached catalog")
+}
+
 // releaseProblem returns a validation problem for update metadata that must not be used.
-func releaseProblem(release Release) string {
+func releaseProblem(release release) string {
 	if _, ok := parseVersion(release.Version); !ok {
 		return "plugin release version is invalid"
 	}
