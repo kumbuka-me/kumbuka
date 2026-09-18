@@ -253,7 +253,7 @@ func readArchivePage(
 // readArchiveResource validates and reads one manifest resource entry.
 func readArchiveResource(
 	entries map[string]*zip.File,
-	resource portable.ResourceEntry,
+	resource ResourceEntry,
 	prefix string,
 	used map[string]bool,
 	remaining *int64,
