@@ -27,7 +27,6 @@ GOLANGCI_LINT_VERSION ?= v2.13.2
 DEV_TOOLS_VERSION ?= v0.9.0
 
 ## Shared development tools
-
 include bin/dev-tools.mk
 include $(call dev-tools-module,tag)
 include $(call dev-tools-module,port)
