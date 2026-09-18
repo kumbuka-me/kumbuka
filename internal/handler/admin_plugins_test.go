@@ -12,6 +12,7 @@ import (
 
 	"github.com/kumbuka-me/kumbuka/internal/auth"
 	"github.com/kumbuka-me/kumbuka/internal/middleware"
+	"github.com/kumbuka-me/kumbuka/internal/pluginupdate"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/kumbuka-me/kumbuka/pkg/plugin"
@@ -21,6 +22,25 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+type pluginUpdateServiceStub struct {
+	updates       map[string]pluginupdate.Release
+	archive       []byte
+	updatesErr    error
+	downloadErr   error
+	downloadedID  string
+	downloadedVer string
+}
+
+func (s *pluginUpdateServiceStub) Updates(context.Context, map[string]string) (map[string]pluginupdate.Release, error) {
+	return s.updates, s.updatesErr
+}
+
+func (s *pluginUpdateServiceStub) Download(_ context.Context, id string, release pluginupdate.Release) ([]byte, error) {
+	s.downloadedID = id
+	s.downloadedVer = release.Version
+	return s.archive, s.downloadErr
+}
 
 func pluginUpload(t *testing.T, content []byte) *http.Request {
 	t.Helper()
@@ -45,7 +65,7 @@ func TestAdminPluginLifecycleAndAuthorization(t *testing.T) {
 	data := viewDataServiceStub{load: func(*http.Request, *webview.Views, string) (webview.Data, error) {
 		return webview.Data{User: domain.User{ID: 1, Role: "admin"}}, nil
 	}}
-	admin := NewAdminPlugins(manager, data, views)
+	admin := NewAdminPlugins(manager, nil, data, views)
 	archive, err := plugins.Packages.ReadFile("callouts.kumbukaplugin")
 	require.NoError(t, err)
 	denied := httptest.NewRecorder()
@@ -91,6 +111,48 @@ func TestAdminPluginLifecycleAndAuthorization(t *testing.T) {
 	assert.Equal(t, http.StatusSeeOther, w.Code)
 	assert.Empty(t, manager.Plugins())
 }
+func TestAdminPluginCatalogUpdate(t *testing.T) {
+	ctx := context.Background()
+	runtime, err := wasm.New(ctx, wasm.Limits{InitTimeout: 30 * time.Second}, wasm.WithInterpreter())
+	require.NoError(t, err)
+	manager := plugin.NewManager(&plugin.Registry{}, runtime)
+	defer func() { require.NoError(t, manager.Close(ctx)) }()
+	archive, err := plugins.Packages.ReadFile("callouts.kumbukaplugin")
+	require.NoError(t, err)
+	item, err := manager.Install(ctx, archive)
+	require.NoError(t, err)
+
+	updates := &pluginUpdateServiceStub{
+		updates: map[string]pluginupdate.Release{
+			item.Manifest.ID: {Version: "9.9.9", APIVersion: 1},
+		},
+		archive: archive,
+	}
+	views := testHandlerViews(t, webview.RuntimeInfo{})
+	data := viewDataServiceStub{load: func(*http.Request, *webview.Views, string) (webview.Data, error) {
+		return webview.Data{User: domain.User{ID: 1, Role: "admin"}}, nil
+	}}
+	admin := NewAdminPlugins(manager, updates, data, views)
+
+	detail := httptest.NewRequest("GET", "/admin/plugins?plugin="+item.Manifest.ID, nil)
+	w := httptest.NewRecorder()
+	admin.List(w, detail)
+	require.Equal(t, http.StatusOK, w.Code)
+	assert.Contains(t, w.Body.String(), "9.9.9 available")
+	assert.Contains(t, w.Body.String(), "Update to 9.9.9")
+
+	request := httptest.NewRequest("POST", "/admin/plugins/"+item.Manifest.ID+"/update?return=detail", nil)
+	request.SetPathValue("pluginID", item.Manifest.ID)
+	request.SetPathValue("action", "update")
+	w = httptest.NewRecorder()
+	admin.Action(w, request)
+
+	require.Equal(t, http.StatusSeeOther, w.Code)
+	assert.Equal(t, "/admin/plugins?plugin="+item.Manifest.ID, w.Header().Get("Location"))
+	assert.Equal(t, item.Manifest.ID, updates.downloadedID)
+	assert.Equal(t, "9.9.9", updates.downloadedVer)
+}
+
 func TestPluginUploadBoundaries(t *testing.T) {
 	_, status, err := readPluginUpload(httptest.NewRecorder(), httptest.NewRequest("POST", "/", bytes.NewBufferString("not multipart")))
 	require.Error(t, err)

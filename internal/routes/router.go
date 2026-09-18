@@ -8,6 +8,7 @@ import (
 	"github.com/kumbuka-me/kumbuka/internal/auth"
 	"github.com/kumbuka-me/kumbuka/internal/handler"
 	"github.com/kumbuka-me/kumbuka/internal/middleware"
+	"github.com/kumbuka-me/kumbuka/internal/pluginupdate"
 	"github.com/kumbuka-me/kumbuka/internal/service"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/markdown"
@@ -21,6 +22,8 @@ type Config struct {
 	Views *webview.Views
 	// Renderer renders Markdown and owns the active plugin manager.
 	Renderer *markdown.Renderer
+	// PluginUpdates discovers and downloads compatible first-party plugin releases.
+	PluginUpdates *pluginupdate.Client
 	// BrowserAuth contains browser authentication handlers and identity resolution.
 	BrowserAuth auth.BrowserAuth
 	// BearerAuth authenticates API requests that use personal access tokens.

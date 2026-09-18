@@ -394,3 +394,63 @@
   justify-content: space-between;
   gap: 0.75rem;
 }
+
+/* First-party plugin update availability and actions. */
+.plugin-update-version {
+  display: block;
+  margin-top: 2px;
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.plugin-update-badge {
+  display: inline-flex;
+  margin-left: 5px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.plugin-update-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-top: 12px;
+  padding: 14px 16px;
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border));
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--accent) 5%, var(--surface));
+}
+
+.plugin-update-card p {
+  margin: 4px 0 0;
+}
+
+.plugin-update-card form {
+  flex: none;
+}
+
+.plugin-manual-upgrade {
+  margin-top: 16px;
+}
+
+.plugin-manual-upgrade h4 {
+  margin: 0 0 8px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+@media (max-width: 640px) {
+  .plugin-update-card {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .plugin-update-card .button {
+    width: 100%;
+  }
+}

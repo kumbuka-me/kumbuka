@@ -82,6 +82,7 @@ func main() {
 	}
 	admin := handler.NewAdminPlugins(
 		renderer.PluginManager(),
+		nil,
 		dataLoader{catalog: catalog},
 		views,
 	)

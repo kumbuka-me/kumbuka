@@ -42,6 +42,9 @@
     {{ if and .PluginMessage (not .OpenPluginID) }}
       <p class="settings-note" role="alert">{{ .PluginMessage }}</p>
     {{ end }}
+    {{ if .PluginCatalogUnavailable }}
+      <p class="settings-note" role="status">The first-party update catalog could not be checked. Installed plugins and manual package upgrades remain available.</p>
+    {{ end }}
     <section class="panel settings-panel">
       <div class="panel-title">
         <div>
@@ -70,7 +73,12 @@
                   <a href="/admin/plugins?plugin={{ .Manifest.ID | urlquery }}"><strong>{{ .Manifest.Name }}</strong></a>
                   <small>{{ .Manifest.Description }}</small>
                 </td>
-                <td>{{ .Manifest.Version }}</td>
+                <td>
+                  <span>{{ .Manifest.Version }}</span>
+                  {{ with index $.PluginUpdates .Manifest.ID }}
+                    <small class="plugin-update-version">{{ .Version }} available</small>
+                  {{ end }}
+                </td>
                 <td>{{ if .Manifest.Provider }}{{ .Manifest.Provider }}{{ else }}Not specified{{ end }}</td>
                 <td>{{ if eq .Source "bundled" }}Bundled{{ else }}Installed{{ end }}</td>
                 <td>
@@ -144,7 +152,10 @@
         <section class="plugin-detail-section plugin-detail-overview">
           <div class="plugin-detail-summary">
             <div class="plugin-detail-facts">
-              <span><strong>Version</strong> {{ .Manifest.Version }}</span>
+              <span>
+                <strong>Version</strong> {{ .Manifest.Version }}
+                {{ with index $.PluginUpdates .Manifest.ID }}<span class="plugin-update-badge">{{ .Version }} available</span>{{ end }}
+              </span>
               <span><strong>Provider</strong> {{ if .Manifest.Provider }}{{ .Manifest.Provider }}{{ else }}Not specified{{ end }}</span>
               <span><strong>Source</strong> {{ if eq .Source "bundled" }}Bundled{{ else }}Installed{{ end }}</span>
             </div>
@@ -355,20 +366,41 @@
             </div>
           </div>
         </details>
-        <section class="plugin-detail-section">
-          <h3>Upgrade</h3>
-          <p class="settings-note">Upload a package with the same plugin ID. Its enabled state is preserved. The current version stays active if validation fails.</p>
-          <form class="plugin-upload-form"
-                method="post"
-                enctype="multipart/form-data"
-                action="/admin/plugins/{{ .Manifest.ID }}/upgrade?return=detail"
-                data-plugin-upload
-                data-plugin-upgrade>
-            {{ template "plugin-upload-field" . }}
-            <div class="plugin-upload-actions">
-              <button class="button primary" type="submit" data-plugin-upload-submit>Upgrade plugin</button>
+        <section class="plugin-detail-section plugin-update-section">
+          <h3>Updates</h3>
+          {{ with index $.PluginUpdates .Manifest.ID }}
+            <div class="plugin-update-card">
+              <div>
+                <strong>Version {{ .Version }} is available</strong>
+                <p class="muted">Published {{ .ReleasedAt.Format "2006-01-02" }}. Kumbuka verifies the catalog checksum and package identity before switching versions.</p>
+              </div>
+              <form method="post"
+                    action="/admin/plugins/{{ $plugin.Manifest.ID }}/update?return=detail">
+                <button class="button primary" type="submit">Update to {{ .Version }}</button>
+              </form>
             </div>
-          </form>
+          {{ else }}
+            {{ if $.PluginCatalogUnavailable }}
+              <p class="settings-note">Automatic update information is currently unavailable.</p>
+            {{ else }}
+              <p class="settings-note">No newer compatible version is listed in the Kumbuka plugin catalog.</p>
+            {{ end }}
+          {{ end }}
+          <div class="plugin-manual-upgrade">
+            <h4>Manual package upgrade</h4>
+            <p class="settings-note">Upload a package with the same plugin ID. Its enabled state is preserved. The current version stays active if validation fails.</p>
+            <form class="plugin-upload-form"
+                  method="post"
+                  enctype="multipart/form-data"
+                  action="/admin/plugins/{{ .Manifest.ID }}/upgrade?return=detail"
+                  data-plugin-upload
+                  data-plugin-upgrade>
+              {{ template "plugin-upload-field" . }}
+              <div class="plugin-upload-actions">
+                <button class="button primary" type="submit" data-plugin-upload-submit>Upgrade plugin</button>
+              </div>
+            </form>
+          </div>
         </section>
         {{ if and (eq .Source "installed") (not (index $.PluginRequiredIDs .Manifest.ID)) }}
           <section class="plugin-detail-section plugin-danger-zone">

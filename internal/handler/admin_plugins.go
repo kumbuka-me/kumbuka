@@ -1,7 +1,9 @@
 package handler
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"html/template"
 	"io"
 	"net/http"
@@ -9,26 +11,37 @@ import (
 	"strings"
 
 	"github.com/kumbuka-me/kumbuka/internal/httpresponse"
+	"github.com/kumbuka-me/kumbuka/internal/pluginupdate"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 	md "github.com/kumbuka-me/kumbuka/pkg/markdown"
 	"github.com/kumbuka-me/kumbuka/pkg/plugin"
 	"github.com/kumbuka-me/sdk/pluginpackage"
 )
 
+// pluginUpdateService is the first-party catalog boundary used by plugin administration.
+type pluginUpdateService interface {
+	// Updates returns newer compatible releases keyed by installed plugin ID.
+	Updates(context.Context, map[string]string) (map[string]pluginupdate.Release, error)
+	// Download retrieves and verifies one selected plugin release.
+	Download(context.Context, string, pluginupdate.Release) ([]byte, error)
+}
+
 // AdminPlugins exposes package metadata and lifecycle operations through the
 // existing administration layout. Routes apply browser authentication/admin authorization.
 type AdminPlugins struct {
-	// manager stores the manager value used by admin plugins.
+	// manager owns active plugin lifecycle state.
 	manager *plugin.Manager
-	// data stores the data value used by admin plugins.
+	// updates discovers and downloads compatible first-party plugin releases.
+	updates pluginUpdateService
+	// data loads shared administration view data.
 	data viewDataService
-	// views stores the views value used by admin plugins.
+	// views renders plugin administration responses.
 	views *webview.Views
 }
 
 // NewAdminPlugins constructs the plugin administration handler.
-func NewAdminPlugins(manager *plugin.Manager, data viewDataService, views *webview.Views) *AdminPlugins {
-	return &AdminPlugins{manager: manager, data: data, views: views}
+func NewAdminPlugins(manager *plugin.Manager, updates pluginUpdateService, data viewDataService, views *webview.Views) *AdminPlugins {
+	return &AdminPlugins{manager: manager, updates: updates, data: data, views: views}
 }
 
 // List renders the plugin inventory and optionally opens one plugin detail modal.
@@ -50,6 +63,18 @@ func (a *AdminPlugins) render(w http.ResponseWriter, r *http.Request, id string,
 	}
 	data.AdminPlugins = a.manager.Plugins()
 	data.PluginRequiredIDs = make(map[string]bool, len(data.AdminPlugins))
+	data.PluginUpdates = make(map[string]webview.PluginUpdate)
+	if a.updates != nil {
+		updates, updateErr := a.updates.Updates(r.Context(), pluginVersions(data.AdminPlugins))
+		if updateErr != nil {
+			data.PluginCatalogUnavailable = true
+			a.views.Logger().Warn("check plugin updates", "event", "plugin_catalog_check_failed", "error", updateErr)
+		} else {
+			for pluginID, release := range updates {
+				data.PluginUpdates[pluginID] = webview.PluginUpdate{Version: release.Version, ReleasedAt: release.ReleasedAt}
+			}
+		}
+	}
 	data.PluginHasSettings = make(map[string]bool, len(data.AdminPlugins))
 	data.PluginREADMEs = make(map[string]template.HTML, len(data.AdminPlugins))
 	data.PluginResources = make(map[string][]webview.PluginResource, len(data.AdminPlugins))
@@ -135,6 +160,8 @@ func (a *AdminPlugins) Action(w http.ResponseWriter, r *http.Request) {
 		err = a.deleteResource(r, id)
 	case "uninstall":
 		err = a.manager.Uninstall(r.Context(), id)
+	case "update":
+		err = a.updateFromCatalog(r.Context(), id)
 	case "upgrade":
 		var archive []byte
 		var status int
@@ -167,6 +194,44 @@ func (a *AdminPlugins) Action(w http.ResponseWriter, r *http.Request) {
 		destination += "?plugin=" + id
 	}
 	http.Redirect(w, r, destination, http.StatusSeeOther)
+}
+
+// updateFromCatalog downloads and applies the newest compatible catalog release for id.
+func (a *AdminPlugins) updateFromCatalog(ctx context.Context, id string) error {
+	if a.updates == nil {
+		return errors.New("plugin update catalog is unavailable")
+	}
+
+	versions := pluginVersions(a.manager.Plugins())
+	current, ok := versions[id]
+	if !ok {
+		return errors.New("plugin is not installed")
+	}
+
+	updates, err := a.updates.Updates(ctx, map[string]string{id: current})
+	if err != nil {
+		return fmt.Errorf("check plugin update catalog: %w", err)
+	}
+	release, ok := updates[id]
+	if !ok {
+		return errors.New("no newer compatible plugin release is available")
+	}
+
+	archive, err := a.updates.Download(ctx, id, release)
+	if err != nil {
+		return fmt.Errorf("download plugin update: %w", err)
+	}
+	_, err = a.manager.Upgrade(ctx, id, archive)
+	return err
+}
+
+// pluginVersions indexes installed plugin versions by stable plugin ID.
+func pluginVersions(items []plugin.LoadedPlugin) map[string]string {
+	versions := make(map[string]string, len(items))
+	for _, item := range items {
+		versions[item.Manifest.ID] = item.Manifest.Version
+	}
+	return versions
 }
 
 // updateSettings persists every declared boolean setting for one plugin.
@@ -256,6 +321,9 @@ func (a *AdminPlugins) failure(w http.ResponseWriter, r *http.Request, id, actio
 	a.views.Logger().Error("plugin administration failed", "action", action, "plugin_id", id, "error", err)
 	// Runtime/storage errors can contain implementation details. Keep them in logs.
 	message := "Could not " + action + " the plugin. Check its dependencies, requested permissions, and system-plugin restrictions. The existing plugin state was preserved."
+	if action == "update" {
+		message = "Could not update the plugin from the Kumbuka catalog. The existing version was preserved; manual package upgrade remains available."
+	}
 	if action == "settings" {
 		message = "Could not save plugin settings. Check the setting dependencies and try again."
 	}

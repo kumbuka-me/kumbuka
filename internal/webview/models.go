@@ -95,6 +95,14 @@ type MediaItem struct {
 	URL string `json:"url"`
 }
 
+// PluginUpdate describes one compatible first-party update shown in plugin administration.
+type PluginUpdate struct {
+	// Version is the newer plugin version available from the catalog.
+	Version string
+	// ReleasedAt records when the catalog release was published.
+	ReleasedAt time.Time
+}
+
 // Data contains the data shared by server-rendered Kumbuka templates.
 type Data struct {
 	// AdminPlugins contains the admin plugins associated with view data.
@@ -105,6 +113,10 @@ type Data struct {
 	OpenPluginID string
 	// PluginRequiredIDs identifies plugins protected by trusted operator policy.
 	PluginRequiredIDs map[string]bool
+	// PluginUpdates contains newer compatible first-party releases keyed by plugin ID.
+	PluginUpdates map[string]PluginUpdate
+	// PluginCatalogUnavailable reports that the update catalog could not be checked for this render.
+	PluginCatalogUnavailable bool
 	// PluginHasSettings identifies plugins that expose administrator settings.
 	PluginHasSettings map[string]bool
 	// PluginREADMEs contains sanitized packaged documentation keyed by plugin ID.

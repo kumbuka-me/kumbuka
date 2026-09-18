@@ -6,6 +6,7 @@ import (
 
 	"github.com/kumbuka-me/kumbuka/internal/auth"
 	"github.com/kumbuka-me/kumbuka/internal/flags"
+	"github.com/kumbuka-me/kumbuka/internal/pluginupdate"
 	"github.com/kumbuka-me/kumbuka/internal/routes"
 	"github.com/kumbuka-me/kumbuka/internal/secrets"
 	"github.com/kumbuka-me/kumbuka/internal/service"
@@ -32,6 +33,7 @@ func newRouteConfig(
 
 	return routes.Config{
 		Assets:         appFS,
+		PluginUpdates:  pluginupdate.New(pluginupdate.DefaultCatalogURL),
 		Administration: service.NewAdministration(database),
 		Access:         service.NewAccess(database),
 		Catalog:        service.NewCatalog(database),
