@@ -25,7 +25,9 @@
         </div>
         <form class="plugin-settings-form"
               method="post"
-              action="/admin/plugin-settings/{{ $plugin.Manifest.ID }}/settings">
+              action="/admin/plugin-settings/{{ $plugin.Manifest.ID }}/settings"
+              data-validate-form
+              data-error-title="Could not save {{ $plugin.Manifest.Name }} settings">
           {{ range $plugin.Manifest.Modules }}
             {{ if eq .Type "settings" }}
               <label class="toggle-row">
@@ -61,11 +63,13 @@
           <summary>Add {{ .Module.Name }}</summary>
           <form class="stacked-form plugin-resource-form"
                 method="post"
-                action="/admin/plugin-settings/{{ $plugin.Manifest.ID }}/resource-save">
+                action="/admin/plugin-settings/{{ $plugin.Manifest.ID }}/resource-save"
+                data-validate-form
+                data-error-title="Could not add {{ .Module.Name }}">
             <input type="hidden" name="resource_id" value="{{ .Module.ID }}" />
             {{ range .Module.Fields }}
               {{ $field := . }}
-              <label>
+              <label{{ if eq .Type "boolean" }} class="toggle-row"{{ end }}>
                 <span>{{ .Name }}{{ if .Required }} <small>required</small>{{ end }}</span>
                 {{ if eq .Type "textarea" }}
                   <textarea name="resource_{{ .ID }}" {{ if .Required }}required{{ end }}>{{ .Default }}</textarea>
@@ -96,7 +100,7 @@
               </label>
             {{ end }}
             <div class="settings-actions">
-              <button class="button primary" type="submit">Add</button>
+              <button class="button primary compact" type="submit">Add</button>
             </div>
           </form>
         </details>
@@ -114,7 +118,7 @@
                 {{ range $resource.Module.Fields }}
                   {{ $value := index $record.Values .ID }}
                   {{ $hasSecret := index $record.SecretFields .ID }}
-                  <label>
+                  <label{{ if eq .Type "boolean" }} class="toggle-row"{{ end }}>
                     <span>{{ .Name }}{{ if .Required }} <small>required</small>{{ end }}</span>
                     {{ if eq .Type "textarea" }}
                       <textarea name="resource_{{ .ID }}" {{ if .Required }}required{{ end }}>{{ $value }}</textarea>
@@ -146,8 +150,8 @@
                   </label>
                 {{ end }}
                 <div class="settings-actions plugin-resource-actions">
-                  <button class="button primary" type="submit">Save</button>
-                  <button class="button danger"
+                  <button class="button primary compact" type="submit">Save</button>
+                  <button class="button danger compact"
                           type="submit"
                           formaction="/admin/plugin-settings/{{ $plugin.Manifest.ID }}/resource-delete"
                           data-confirm="Delete {{ .Key }}?"

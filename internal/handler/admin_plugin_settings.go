@@ -49,13 +49,54 @@ func (a *AdminPluginSettings) Action(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil {
-		a.views.Logger().Error("plugin settings update failed", "event", "plugin.settings_update_failed", "plugin_id", pluginID, "action", action, "error", err, "actor_id", currentUser(r).ID)
-		a.render(w, r, pluginID, http.StatusUnprocessableEntity, "Could not save plugin settings. Check the entered values and setting dependencies.")
+		a.writeActionError(w, r, pluginID, action, err)
 		return
 	}
 
 	a.views.Logger().Info("plugin settings changed", "event", "plugin.settings_changed", "plugin_id", pluginID, "action", action, "actor_id", currentUser(r).ID)
 	http.Redirect(w, r, "/admin/plugin-settings/"+pluginID, http.StatusSeeOther)
+}
+
+// writeActionError translates expected plugin-setting failures and logs unexpected ones.
+func (a *AdminPluginSettings) writeActionError(w http.ResponseWriter, r *http.Request, pluginID, action string, err error) {
+	message := "Could not save plugin settings. Check the entered values and setting dependencies."
+	problems := []httpresponse.FieldProblem(nil)
+	expected := false
+
+	if fieldErr, ok := errors.AsType[*plugin.ResourceFieldError](err); ok {
+		message = "Plugin resource validation failed."
+		problems = append(problems, httpresponse.NewFieldProblem("resource_"+fieldErr.Field, fieldErr.Message))
+		expected = true
+	} else if errors.Is(err, plugin.ErrSecretEncryptionUnavailable) {
+		message = "Configure KUMBUKA__ENCRYPTION_KEY before saving plugin secrets."
+		expected = true
+	}
+
+	if !expected {
+		a.views.Logger().Error(
+			"plugin settings update failed",
+			"event", "plugin.settings_update_failed",
+			"plugin_id", pluginID,
+			"action", action,
+			"error", err,
+			"actor_id", currentUser(r).ID,
+		)
+	} else if errors.Is(err, plugin.ErrSecretEncryptionUnavailable) {
+		a.views.Logger().Warn(
+			"plugin settings require application encryption",
+			"event", "plugin.settings_encryption_required",
+			"plugin_id", pluginID,
+			"action", action,
+			"actor_id", currentUser(r).ID,
+		)
+	}
+
+	if wantsJSON(r) {
+		httpresponse.Problem(w, http.StatusUnprocessableEntity, message, problems...)
+		return
+	}
+
+	a.render(w, r, pluginID, http.StatusUnprocessableEntity, message)
 }
 
 // render loads one plugin's settings and structured resources into the administration layout.

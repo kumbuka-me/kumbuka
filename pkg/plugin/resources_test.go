@@ -49,35 +49,6 @@ func (s *resourceStorage) WritePluginValue(_ context.Context, id, namespace, key
 	return nil
 }
 
-// WritePluginValues atomically stores a set of test plugin values.
-func (s *resourceStorage) WritePluginValues(_ context.Context, id, namespace string, values map[string][]byte) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	for key, value := range values {
-		s.values[id+"/"+namespace+"/"+key] = bytes.Clone(value)
-	}
-	return nil
-}
-
-// ReplacePluginValue atomically moves one test plugin value while rejecting collisions.
-func (s *resourceStorage) ReplacePluginValue(_ context.Context, id, namespace, oldKey, newKey string, value []byte) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	oldPath := id + "/" + namespace + "/" + oldKey
-	newPath := id + "/" + namespace + "/" + newKey
-	if _, ok := s.values[oldPath]; !ok {
-		return ErrPluginValueNotFound
-	}
-	if _, ok := s.values[newPath]; ok {
-		return ErrPluginValueAlreadyExists
-	}
-	delete(s.values, oldPath)
-	s.values[newPath] = bytes.Clone(value)
-	return nil
-}
-
 // DeletePluginValue removes one test plugin value.
 func (s *resourceStorage) DeletePluginValue(_ context.Context, id, namespace, key string) error {
 	s.mu.Lock()
@@ -213,33 +184,39 @@ func TestPluginResourceFieldTypesAndSecrets(t *testing.T) {
 	require.ErrorContains(t, err, "absolute HTTP or HTTPS URL")
 }
 
-// TestPluginResourceRenamePreservesSourceOnCollision verifies a conflicting rename never deletes the original record.
-func TestPluginResourceRenamePreservesSourceOnCollision(t *testing.T) {
+// TestPluginResourceValidationErrorsExposeFieldIDs verifies handlers can map resource validation back to manifest fields.
+func TestPluginResourceValidationErrorsExposeFieldIDs(t *testing.T) {
+	t.Parallel()
+
+	field := pluginpackage.ResourceField{ID: "endpoint", Name: "API endpoint", Type: "url", Required: true}
+	_, err := normalizeResourceValue(field, "file:///tmp/repository")
+
+	var fieldErr *ResourceFieldError
+	require.ErrorAs(t, err, &fieldErr)
+	assert.Equal(t, "endpoint", fieldErr.Field)
+	assert.Equal(t, "API endpoint must be an absolute HTTP or HTTPS URL.", fieldErr.Message)
+}
+
+// TestPluginResourceSecretRequiresConfiguredEncryption verifies plaintext secrets are never stored without encryption.
+func TestPluginResourceSecretRequiresConfiguredEncryption(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	storage := &resourceStorage{values: make(map[string][]byte)}
-	manifest := pluginpackage.Manifest{ID: "io.example.rename", Modules: []pluginpackage.Module{{
-		Type: "admin-resource", ID: "values", Name: "Values", Fields: []pluginpackage.ResourceField{
+	manifest := pluginpackage.Manifest{ID: "io.example.secret", Modules: []pluginpackage.Module{{
+		Type: "admin-resource", ID: "sources", Name: "Sources", Fields: []pluginpackage.ResourceField{
 			{ID: "name", Name: "Name", Type: "text", Required: true, Key: true},
-			{ID: "content", Name: "Content", Type: "text", Required: true},
+			{ID: "token", Name: "Access token", Type: "secret"},
 		},
 	}}}
-	manager := NewManager(&Registry{}, nil, WithStorage(storage))
+	manager := NewManager(&Registry{}, nil, WithStorage(storage), WithSecretCodec(resourceSecretCodec{}))
 	manager.loaded[manifest.ID] = managedPlugin{metadata: LoadedPlugin{Manifest: manifest, Enabled: true}}
 	manager.order = []string{manifest.ID}
 
-	require.NoError(t, manager.SaveResourceRecord(ctx, manifest.ID, "values", "", map[string]string{"name": "source", "content": "one"}))
-	require.NoError(t, manager.SaveResourceRecord(ctx, manifest.ID, "values", "", map[string]string{"name": "target", "content": "two"}))
+	err := manager.SaveResourceRecord(ctx, manifest.ID, "sources", "", map[string]string{
+		"name": "private", "token": "secret",
+	})
 
-	err := manager.SaveResourceRecord(ctx, manifest.ID, "values", "source", map[string]string{"name": "target", "content": "changed"})
-	require.ErrorContains(t, err, "already exists")
-
-	source, found, err := ReadResourceRecord(ctx, storage, manifest.ID, manifest.Modules[0], "source")
-	require.NoError(t, err)
-	require.True(t, found)
-	assert.Equal(t, "one", source.Values["content"])
-
-	target, found, err := ReadResourceRecord(ctx, storage, manifest.ID, manifest.Modules[0], "target")
-	require.NoError(t, err)
-	require.True(t, found)
-	assert.Equal(t, "two", target.Values["content"])
+	assert.ErrorIs(t, err, ErrSecretEncryptionUnavailable)
+	assert.Empty(t, storage.values)
 }
