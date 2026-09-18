@@ -7,6 +7,7 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"slices"
 	"strings"
 
 	"github.com/kumbuka-me/kumbuka/pkg/plugin"
@@ -152,6 +153,11 @@ func (r *Runtime) capabilityAllowed(caller *Instance, method string) bool {
 	}
 
 	return r.permissionGranted(caller, permission)
+}
+
+// permissionGranted reports whether application policy and the plugin manifest grant permission.
+func (r *Runtime) permissionGranted(caller *Instance, permission string) bool {
+	return r.permissions[permission] && slices.Contains(caller.manifest.Permissions, permission)
 }
 
 // resourceCall reads manifest-declared structured settings for the calling plugin.
