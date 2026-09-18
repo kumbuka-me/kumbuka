@@ -13,7 +13,7 @@
     {{ end }}
     {{ $hasBooleanSettings := false }}
     {{ range $plugin.Manifest.Modules }}
-      {{ if eq .Type "settings" }}{{ $hasBooleanSettings = true }}{{ end }}
+      {{ if and (eq .Type "settings") (eq (len .Fields) 0) }}{{ $hasBooleanSettings = true }}{{ end }}
     {{ end }}
     {{ if $hasBooleanSettings }}
       <section class="panel settings-panel plugin-settings-panel">
@@ -29,7 +29,7 @@
               data-validate-form
               data-error-title="Could not save {{ $plugin.Manifest.Name }} settings">
           {{ range $plugin.Manifest.Modules }}
-            {{ if eq .Type "settings" }}
+            {{ if and (eq .Type "settings") (eq (len .Fields) 0) }}
               <label class="toggle-row">
                 <span>
                   <strong>{{ .Name }}</strong>
@@ -43,6 +43,65 @@
           {{ end }}
           <div class="settings-actions">
             <button class="button primary" type="submit">Save settings</button>
+          </div>
+        </form>
+      </section>
+    {{ end }}
+    {{ range .PluginSettingsGroups }}
+      {{ $group := . }}
+      <section class="panel settings-panel plugin-settings-panel">
+        <div class="panel-title">
+          <div>
+            <h2>{{ .Module.Name }}</h2>
+            {{ if .Module.Description }}
+              <p class="muted">{{ .Module.Description }}</p>
+            {{ end }}
+          </div>
+        </div>
+        <form class="stacked-form plugin-settings-form"
+              method="post"
+              action="/admin/plugin-settings/{{ $plugin.Manifest.ID }}/settings-group"
+              data-validate-form
+              data-error-title="Could not save {{ .Module.Name }}">
+          <input type="hidden" name="settings_id" value="{{ .Module.ID }}" />
+          {{ range .Module.Fields }}
+            {{ $value := index $group.Values .ID }}
+            {{ $hasSecret := index $group.SecretFields .ID }}
+            <label{{ if eq .Type "boolean" }} class="toggle-row"{{ end }}>
+              <span>{{ .Name }}{{ if .Required }} <small>required</small>{{ end }}</span>
+              {{ if eq .Type "textarea" }}
+                <textarea name="setting_{{ $group.Module.ID }}_{{ .ID }}"
+                          {{ if .Required }}required{{ end }}>{{ $value }}</textarea>
+              {{ else if eq .Type "boolean" }}
+                <input type="checkbox"
+                       name="setting_{{ $group.Module.ID }}_{{ .ID }}"
+                       {{ if eq $value "true" }}checked{{ end }} />
+              {{ else if eq .Type "select" }}
+                <select name="setting_{{ $group.Module.ID }}_{{ .ID }}"
+                        {{ if .Required }}required{{ end }}>
+                  {{ if not .Required }}
+                    <option value=""></option>
+                  {{ end }}
+                  {{ range .Options }}
+                    <option value="{{ . }}" {{ if eq . $value }}selected{{ end }}>{{ . }}</option>
+                  {{ end }}
+                </select>
+              {{ else if eq .Type "secret" }}
+                <input type="password"
+                       name="setting_{{ $group.Module.ID }}_{{ .ID }}"
+                       autocomplete="new-password"
+                       {{ if $hasSecret }}placeholder="Stored secret — leave blank to keep"
+                       {{ else if .Required }}required{{ end }} />
+              {{ else }}
+                <input type="{{ if eq .Type "url" }}url{{ else }}text{{ end }}"
+                       name="setting_{{ $group.Module.ID }}_{{ .ID }}"
+                       value="{{ $value }}"
+                       {{ if .Required }}required{{ end }} />
+              {{ end }}
+            </label>
+          {{ end }}
+          <div class="settings-actions">
+            <button class="button primary compact" type="submit">Save</button>
           </div>
         </form>
       </section>
@@ -111,7 +170,9 @@
               <summary>{{ .Key }}</summary>
               <form class="stacked-form plugin-resource-form"
                     method="post"
-                    action="/admin/plugin-settings/{{ $plugin.Manifest.ID }}/resource-save">
+                    action="/admin/plugin-settings/{{ $plugin.Manifest.ID }}/resource-save"
+                    data-validate-form
+                    data-error-title="Could not save {{ $resource.Module.Name }}">
                 <input type="hidden" name="resource_id" value="{{ $resource.Module.ID }}" />
                 <input type="hidden" name="original_key" value="{{ .Key }}" />
                 <input type="hidden" name="record_key" value="{{ .Key }}" />

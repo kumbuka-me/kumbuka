@@ -292,3 +292,97 @@ func TestHTTPRequiresNetworkPermissions(t *testing.T) {
 	insecureResult := hostRequest(t, basic, plugin.Context{Context: ctx}, "http.do", sdk.HTTPRequest{Method: "GET", URL: "https://example.com", InsecureSkipVerify: true})
 	assert.Contains(t, insecureResult, "capability denied")
 }
+
+// settingsCapabilityPackage builds a fixture package with one typed singleton settings group.
+func settingsCapabilityPackage(t *testing.T, id string, permissions []string) *pluginpackage.Package {
+	t.Helper()
+	binary, err := fixtureWASM()
+	require.NoError(t, err)
+	grants, _ := json.Marshal(permissions)
+	manifest := fmt.Sprintf(`api_version: 1
+id: %s
+name: Fixture
+version: 1.0.0
+modules:
+  - type: renderer-extension
+    id: fixture
+    stage: preprocess
+  - type: settings
+    id: appearance
+    name: Appearance
+    fields:
+      - id: position
+        name: Position
+        type: select
+        required: true
+        default: right
+        options: [left, right]
+      - id: token
+        name: Token
+        type: secret
+permissions: %s
+`, id, grants)
+	var output bytes.Buffer
+	archive := zip.NewWriter(&output)
+	for name, data := range map[string][]byte{"README.md": []byte("# Fixture\n"), "plugin.yaml": []byte(manifest), "plugin.wasm": binary} {
+		file, createErr := archive.Create(name)
+		require.NoError(t, createErr)
+		_, writeErr := file.Write(data)
+		require.NoError(t, writeErr)
+	}
+	require.NoError(t, archive.Close())
+	pkg, err := pluginpackage.Read(output.Bytes())
+	require.NoError(t, err)
+	return pkg
+}
+
+// TestTypedSettingsReadDefaultsAndStoredSecrets verifies declared settings are host-managed and returned through the normal Settings API.
+func TestTypedSettingsReadDefaultsAndStoredSecrets(t *testing.T) {
+	ctx := context.Background()
+	storage := &memoryStorage{values: map[string][]byte{
+		`io.settings/settings/setting:appearance`: []byte(`{"position":"left","token":"enc:secret"}`),
+	}}
+	runtime, err := wasm.New(
+		ctx,
+		wasm.Limits{},
+		wasm.WithInterpreter(),
+		wasm.WithPermissions("settings:read", "settings:write"),
+		wasm.WithStorage(storage),
+		wasm.WithSecretCodec(testSecretCodec{}),
+	)
+	require.NoError(t, err)
+	defer func() { _ = runtime.Close(ctx) }()
+
+	instance, err := runtime.Load(ctx, settingsCapabilityPackage(t, "io.settings", []string{"settings:read", "settings:write"}))
+	require.NoError(t, err)
+	defer func() { _ = instance.Close(ctx) }()
+	scope := plugin.Context{Context: ctx}
+
+	position := hostRequest(t, instance, scope, "plugin.settings.read", sdk.StorageValue{Key: "appearance.position"})
+	assert.Contains(t, position, `"Value":"bGVmdA=="`)
+	secret := hostRequest(t, instance, scope, "plugin.settings.read", sdk.StorageValue{Key: "appearance.token"})
+	assert.Contains(t, secret, `"Value":"c2VjcmV0"`)
+	assert.NotContains(t, secret, "enc:secret")
+
+	write := hostRequest(t, instance, scope, "plugin.settings.write", sdk.StorageValue{Key: "appearance.position", Value: []byte("right")})
+	assert.Contains(t, write, "administrator managed")
+	raw := hostRequest(t, instance, scope, "plugin.settings.read", sdk.StorageValue{Key: "setting:appearance"})
+	assert.Contains(t, raw, "administrator managed")
+}
+
+// TestTypedSettingsReadManifestDefault verifies declared settings return their manifest default before first save.
+func TestTypedSettingsReadManifestDefault(t *testing.T) {
+	ctx := context.Background()
+	storage := &memoryStorage{values: make(map[string][]byte)}
+	runtime, err := wasm.New(ctx, wasm.Limits{}, wasm.WithInterpreter(), wasm.WithPermissions("settings:read"), wasm.WithStorage(storage))
+	require.NoError(t, err)
+	defer func() { _ = runtime.Close(ctx) }()
+
+	instance, err := runtime.Load(ctx, settingsCapabilityPackage(t, "io.defaults", []string{"settings:read"}))
+	require.NoError(t, err)
+	defer func() { _ = instance.Close(ctx) }()
+
+	result := hostRequest(t, instance, plugin.Context{Context: ctx}, "plugin.settings.read", sdk.StorageValue{Key: "appearance.position"})
+	assert.Contains(t, result, `"Value":"cmlnaHQ="`)
+	assert.Contains(t, result, `"Found":true`)
+}

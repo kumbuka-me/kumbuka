@@ -20,7 +20,7 @@ import (
 func TestAdminPluginSettingsActionErrorReturnsFieldProblem(t *testing.T) {
 	t.Parallel()
 
-	response, logs := pluginSettingsErrorResponse(t, &plugin.ResourceFieldError{
+	response, logs := pluginSettingsErrorResponse(t, &plugin.ConfigurationFieldError{
 		Field:   "endpoint",
 		Message: "API endpoint is required.",
 	})
@@ -31,6 +31,32 @@ func TestAdminPluginSettingsActionErrorReturnsFieldProblem(t *testing.T) {
 		"problems":{"resource_endpoint":"API endpoint is required."}
 	}`, response.Body.String())
 	assert.Empty(t, logs)
+}
+
+// TestAdminPluginSettingsGroupErrorReturnsFieldProblem verifies typed settings map server validation to the submitted control.
+func TestAdminPluginSettingsGroupErrorReturnsFieldProblem(t *testing.T) {
+	t.Parallel()
+
+	var logs bytes.Buffer
+	views := testHandlerViewsWithLogger(t, slog.New(slog.NewTextHandler(&logs, nil)), webview.RuntimeInfo{})
+	handler := &AdminPluginSettings{views: views}
+	request := httptest.NewRequest(http.MethodPost, "/admin/plugin-settings/me.kumbuka.external-files/settings-group", bytes.NewBufferString("settings_id=appearance"))
+	request.Header.Set("Accept", "application/json")
+	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	request = auth.WithUser(request, domain.User{ID: 1, Role: "admin", Enabled: true})
+	response := httptest.NewRecorder()
+
+	handler.writeActionError(response, request, "me.kumbuka.external-files", "settings-group", &plugin.ConfigurationFieldError{
+		Field:   "reference_position",
+		Message: "Reference position has an unsupported value.",
+	})
+
+	assert.Equal(t, http.StatusUnprocessableEntity, response.Code)
+	assert.JSONEq(t, `{
+		"error":"Plugin settings validation failed.",
+		"problems":{"setting_appearance_reference_position":"Reference position has an unsupported value."}
+	}`, response.Body.String())
+	assert.Empty(t, logs.String())
 }
 
 // TestAdminPluginSettingsActionErrorExplainsMissingEncryption verifies secret persistence failures are safe and actionable in the browser.

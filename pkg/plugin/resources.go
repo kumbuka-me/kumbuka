@@ -5,18 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/url"
 	"sort"
 	"strings"
-	"unicode"
 	"unicode/utf8"
 
 	"github.com/kumbuka-me/sdk/pluginpackage"
-)
-
-var (
-	// ErrSecretEncryptionUnavailable reports that secret-backed plugin settings cannot be persisted safely.
-	ErrSecretEncryptionUnavailable = errors.New("plugin secret encryption is unavailable")
 )
 
 const (
@@ -24,19 +17,6 @@ const (
 	maxResourceKeyBytes    = 128
 	maxResourceRecordBytes = 60 << 10
 )
-
-// ResourceFieldError reports a validation problem for one declarative resource field.
-type ResourceFieldError struct {
-	// Field identifies the manifest field that failed validation.
-	Field string
-	// Message contains the safe administrator-facing validation message.
-	Message string
-}
-
-// Error returns the safe resource field validation message.
-func (e *ResourceFieldError) Error() string {
-	return e.Message
-}
 
 // ParameterError reports invalid request-local plugin export input.
 type ParameterError struct {
@@ -180,6 +160,15 @@ func decodeResourceRecord(pluginID string, module pluginpackage.Module, data []b
 	return ResourceRecord{Key: key, Values: values}, nil
 }
 
+// cloneResourceValues returns an independent copy of one resource value map.
+func cloneResourceValues(values map[string]string) map[string]string {
+	cloned := make(map[string]string, len(values))
+	for key, value := range values {
+		cloned[key] = value
+	}
+	return cloned
+}
+
 // MaskResourceSecrets removes encrypted secret payloads while preserving configured-state metadata.
 func MaskResourceSecrets(record ResourceRecord, module pluginpackage.Module) ResourceRecord {
 	values := cloneResourceValues(record.Values)
@@ -243,7 +232,7 @@ func (m *Manager) SaveResourceRecord(ctx context.Context, pluginID, moduleID, or
 	if err != nil {
 		return err
 	}
-	if err := m.encryptResourceSecrets(module, validated, previous.Values); err != nil {
+	if err := m.encryptConfigurationSecrets(module, validated, previous.Values); err != nil {
 		return err
 	}
 	encoded, err := json.Marshal(validated)
@@ -261,7 +250,7 @@ func (m *Manager) SaveResourceRecord(ctx context.Context, pluginID, moduleID, or
 		switch {
 		case errors.Is(err, ErrPluginValueAlreadyExists):
 			keyField := resourceKeyField(module)
-			return resourceFieldError(keyField, keyField.Name+" is already in use.")
+			return configurationFieldError(keyField, keyField.Name+" is already in use.")
 		case errors.Is(err, ErrPluginValueNotFound):
 			return errors.New("plugin resource record no longer exists")
 		default:
@@ -270,35 +259,6 @@ func (m *Manager) SaveResourceRecord(ctx context.Context, pluginID, moduleID, or
 	}
 
 	return m.values.WritePluginValue(ctx, pluginID, resourceNamespace, newStorageKey, encoded)
-}
-
-// encryptResourceSecrets replaces submitted plaintext secrets with encrypted persisted values.
-func (m *Manager) encryptResourceSecrets(module pluginpackage.Module, values, previous map[string]string) error {
-	for _, field := range module.Fields {
-		if field.Type != "secret" {
-			continue
-		}
-		plain := values[field.ID]
-		if plain == "" && previous[field.ID] != "" {
-			values[field.ID] = previous[field.ID]
-			continue
-		}
-		if plain == "" {
-			if field.Required {
-				return resourceFieldError(field, field.Name+" is required.")
-			}
-			continue
-		}
-		if m.secrets == nil || !m.secrets.Configured() {
-			return ErrSecretEncryptionUnavailable
-		}
-		encrypted, err := m.secrets.Encrypt(plain)
-		if err != nil {
-			return errors.New("could not encrypt plugin secret")
-		}
-		values[field.ID] = encrypted
-	}
-	return nil
 }
 
 // DeleteResourceRecord deletes one plugin-owned resource record.
@@ -412,18 +372,18 @@ func (m *Manager) resourceModule(pluginID, moduleID string) (pluginpackage.Modul
 }
 
 // resourceKeyField returns the unique key field in a validated resource module.
-func resourceKeyField(module pluginpackage.Module) pluginpackage.ResourceField {
+func resourceKeyField(module pluginpackage.Module) pluginpackage.ConfigurationField {
 	for _, field := range module.Fields {
 		if field.Key {
 			return field
 		}
 	}
-	return pluginpackage.ResourceField{}
+	return pluginpackage.ConfigurationField{}
 }
 
 // normalizeResourceRecord validates and normalizes one record against its manifest schema.
 func normalizeResourceRecord(module pluginpackage.Module, values, previous map[string]string, creating bool) (map[string]string, string, error) {
-	declared := make(map[string]pluginpackage.ResourceField, len(module.Fields))
+	declared := make(map[string]pluginpackage.ConfigurationField, len(module.Fields))
 	for _, field := range module.Fields {
 		declared[field.ID] = field
 	}
@@ -440,104 +400,22 @@ func normalizeResourceRecord(module pluginpackage.Module, values, previous map[s
 		if creating && value == "" && field.Default != "" {
 			value = field.Default
 		}
-		normalized, err := normalizeResourceValue(field, value)
+		normalized, err := normalizeConfigurationValue(field, value)
 		if err != nil {
 			return nil, "", err
 		}
-		if requiredResourceValueMissing(field, normalized, previous) {
-			return nil, "", resourceFieldError(field, field.Name+" is required.")
+		if requiredConfigurationValueMissing(field, normalized, previous) {
+			return nil, "", configurationFieldError(field, field.Name+" is required.")
 		}
 		if field.Key {
 			if !validResourceKey(normalized) {
-				return nil, "", resourceFieldError(field, field.Name+" contains unsupported characters.")
+				return nil, "", configurationFieldError(field, field.Name+" contains unsupported characters.")
 			}
 			key = normalized
 		}
 		result[field.ID] = normalized
 	}
 	return result, key, nil
-}
-
-// requiredResourceValueMissing reports whether a required field has neither a submitted value nor a preserved secret.
-func requiredResourceValueMissing(field pluginpackage.ResourceField, value string, previous map[string]string) bool {
-	if !field.Required || value != "" {
-		return false
-	}
-
-	return field.Type != "secret" || previous[field.ID] == ""
-}
-
-// normalizeResourceValue validates one typed resource field value.
-func normalizeResourceValue(field pluginpackage.ResourceField, value string) (string, error) {
-	if field.Type == "text" || field.Type == "url" || field.Type == "select" || field.Type == "boolean" || field.Key {
-		value = strings.TrimSpace(value)
-	}
-	if !utf8.ValidString(value) || strings.ContainsRune(value, '\x00') {
-		return "", resourceFieldError(field, field.Name+" must contain valid UTF-8 text.")
-	}
-	if field.Type == "secret" && strings.IndexFunc(value, unicode.IsControl) >= 0 {
-		return "", resourceFieldError(field, field.Name+" must not contain control characters.")
-	}
-
-	limit := field.MaxBytes
-	if limit == 0 {
-		switch {
-		case field.Key:
-			limit = maxResourceKeyBytes
-		case field.Type == "textarea":
-			limit = 48 << 10
-		default:
-			limit = 4096
-		}
-	}
-	if len(value) > limit {
-		return "", resourceFieldError(field, field.Name+" is too long.")
-	}
-
-	switch field.Type {
-	case "text", "textarea", "secret":
-		return value, nil
-	case "boolean":
-		if value != "true" && value != "false" {
-			return "", resourceFieldError(field, field.Name+" must be true or false.")
-		}
-		return value, nil
-	case "select":
-		if value == "" && !field.Required {
-			return "", nil
-		}
-		for _, option := range field.Options {
-			if value == option {
-				return value, nil
-			}
-		}
-		return "", resourceFieldError(field, field.Name+" has an unsupported value.")
-	case "url":
-		if value == "" {
-			return value, nil
-		}
-		parsed, err := url.ParseRequestURI(value)
-		if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" || parsed.User != nil {
-			return "", resourceFieldError(field, field.Name+" must be an absolute HTTP or HTTPS URL.")
-		}
-		return value, nil
-	default:
-		return "", resourceFieldError(field, field.Name+" uses an unsupported field type.")
-	}
-}
-
-// resourceFieldError creates one safe field-scoped resource validation error.
-func resourceFieldError(field pluginpackage.ResourceField, message string) error {
-	return &ResourceFieldError{Field: field.ID, Message: message}
-}
-
-// cloneResourceValues copies a resource values map before masking or decryption.
-func cloneResourceValues(values map[string]string) map[string]string {
-	result := make(map[string]string, len(values))
-	for key, value := range values {
-		result[key] = value
-	}
-	return result
 }
 
 // validResourceKey reports whether key can be used in a macro and plugin storage key.

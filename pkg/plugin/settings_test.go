@@ -105,3 +105,68 @@ func TestPluginSettingsDefaultAndPersistedState(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, map[string]bool{"colors": false, "filters": false}, reloaded)
 }
+
+// TestTypedPluginSettingsDefaultsPersistenceAndSecrets verifies singleton settings groups use defaults, validation, and encrypted storage.
+func TestTypedPluginSettingsDefaultsPersistenceAndSecrets(t *testing.T) {
+	ctx := context.Background()
+	storage := &settingsStorage{values: make(map[string][]byte)}
+	codec := resourceSecretCodec{configured: true}
+	manifest := pluginpackage.Manifest{
+		ID: "io.example.appearance",
+		Modules: []pluginpackage.Module{{
+			Type: "settings", ID: "appearance", Name: "Appearance", Fields: []pluginpackage.ConfigurationField{
+				{ID: "position", Name: "Position", Type: "select", Required: true, Default: "right", Options: []string{"left", "right"}},
+				{ID: "highlight", Name: "Highlight", Type: "boolean", Default: "true"},
+				{ID: "token", Name: "Token", Type: "secret"},
+			},
+		}},
+	}
+	manager := NewManager(&Registry{}, nil, WithStorage(storage), WithSecretCodec(codec))
+	manager.loaded[manifest.ID] = managedPlugin{metadata: LoadedPlugin{Manifest: manifest, Enabled: true}}
+	manager.order = []string{manifest.ID}
+
+	groups, err := manager.SettingGroups(ctx, manifest.ID)
+	require.NoError(t, err)
+	require.Len(t, groups, 1)
+	assert.Equal(t, "right", groups[0].Values["position"])
+	assert.Equal(t, "true", groups[0].Values["highlight"])
+	assert.False(t, groups[0].SecretFields["token"])
+
+	require.NoError(t, manager.SaveSettingGroup(ctx, manifest.ID, "appearance", map[string]string{
+		"position": "left", "highlight": "false", "token": "secret",
+	}))
+	stored := storage.values[manifest.ID+"/settings/setting:appearance"]
+	assert.Contains(t, string(stored), `"position":"left"`)
+	assert.Contains(t, string(stored), `"token":"enc:secret"`)
+	assert.NotContains(t, string(stored), `"token":"secret"`)
+
+	groups, err = manager.SettingGroups(ctx, manifest.ID)
+	require.NoError(t, err)
+	assert.Equal(t, "left", groups[0].Values["position"])
+	assert.Empty(t, groups[0].Values["token"])
+	assert.True(t, groups[0].SecretFields["token"])
+
+	require.NoError(t, manager.SaveSettingGroup(ctx, manifest.ID, "appearance", map[string]string{
+		"position": "right", "highlight": "true", "token": "",
+	}))
+	value, declared, err := ReadDeclaredSetting(ctx, storage, manifest.ID, manifest, "appearance.token", codec)
+	require.NoError(t, err)
+	assert.True(t, declared)
+	assert.Equal(t, "secret", string(value))
+
+	value, declared, err = ReadDeclaredSetting(ctx, storage, manifest.ID, manifest, "appearance.position", codec)
+	require.NoError(t, err)
+	assert.True(t, declared)
+	assert.Equal(t, "right", string(value))
+
+	_, declared, err = ReadDeclaredSetting(ctx, storage, manifest.ID, manifest, "other.value", codec)
+	require.NoError(t, err)
+	assert.False(t, declared)
+
+	err = manager.SaveSettingGroup(ctx, manifest.ID, "appearance", map[string]string{
+		"position": "center", "highlight": "true", "token": "",
+	})
+	var fieldErr *ConfigurationFieldError
+	require.ErrorAs(t, err, &fieldErr)
+	assert.Equal(t, "position", fieldErr.Field)
+}

@@ -72,7 +72,7 @@ func (i *Instance) Contributions() plugin.Contributions {
 			result.MarkdownExtensions = append(result.MarkdownExtensions, syntaxModule{owner: i.manifest.ID, id: module.ID, syntax: module.Syntax, usage: sourceUsageRules(module.Usage)})
 			continue
 		}
-		if module.Type == "settings" {
+		if module.Type == "settings" && len(module.Fields) == 0 {
 			result.SettingsModules = append(result.SettingsModules, plugin.SettingsModule{ID: module.ID, Name: module.Name, Requires: module.Requires})
 			continue
 		}

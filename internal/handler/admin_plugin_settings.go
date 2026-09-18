@@ -40,6 +40,8 @@ func (a *AdminPluginSettings) Action(w http.ResponseWriter, r *http.Request) {
 	switch action {
 	case "settings":
 		err = a.updateSettings(r, pluginID)
+	case "settings-group":
+		err = a.saveSettingsGroup(r, pluginID)
 	case "resource-save":
 		err = a.saveResource(r, pluginID)
 	case "resource-delete":
@@ -63,9 +65,14 @@ func (a *AdminPluginSettings) writeActionError(w http.ResponseWriter, r *http.Re
 	problems := []httpresponse.FieldProblem(nil)
 	expected := false
 
-	if fieldErr, ok := errors.AsType[*plugin.ResourceFieldError](err); ok {
+	if fieldErr, ok := errors.AsType[*plugin.ConfigurationFieldError](err); ok {
 		message = "Plugin resource validation failed."
-		problems = append(problems, httpresponse.NewFieldProblem("resource_"+fieldErr.Field, fieldErr.Message))
+		fieldName := "resource_" + fieldErr.Field
+		if action == "settings-group" {
+			message = "Plugin settings validation failed."
+			fieldName = "setting_" + strings.TrimSpace(r.FormValue("settings_id")) + "_" + fieldErr.Field
+		}
+		problems = append(problems, httpresponse.NewFieldProblem(fieldName, fieldErr.Message))
 		expected = true
 	} else if errors.Is(err, plugin.ErrSecretEncryptionUnavailable) {
 		message = "Configure KUMBUKA__ENCRYPTION_KEY before saving plugin secrets."
@@ -118,6 +125,12 @@ func (a *AdminPluginSettings) render(w http.ResponseWriter, r *http.Request, plu
 		return
 	}
 
+	settingGroups, err := a.manager.SettingGroups(r.Context(), selected.Manifest.ID)
+	if err != nil {
+		httpresponse.InternalServerError(a.views.Logger(), w, err)
+		return
+	}
+
 	resources := make([]webview.PluginResource, 0)
 	for _, module := range selected.Manifest.Modules {
 		if module.Type != "admin-resource" {
@@ -132,6 +145,7 @@ func (a *AdminPluginSettings) render(w http.ResponseWriter, r *http.Request, plu
 	}
 
 	data.PluginSettings = &selected
+	data.PluginSettingsGroups = settingGroups
 	data.PluginSettingsResources = resources
 	data.PluginMessage = message
 	a.views.RenderStatus(w, status, "admin_plugin_settings", data)
@@ -149,11 +163,41 @@ func (a *AdminPluginSettings) updateSettings(r *http.Request, pluginID string) e
 
 	settings := make(map[string]bool)
 	for _, module := range selected.Manifest.Modules {
-		if module.Type == "settings" {
+		if module.Type == "settings" && len(module.Fields) == 0 {
 			settings[module.ID] = r.Form.Has("setting_" + module.ID)
 		}
 	}
 	return a.manager.UpdateSettings(r.Context(), pluginID, settings)
+}
+
+// saveSettingsGroup validates and persists one typed singleton plugin settings group.
+func (a *AdminPluginSettings) saveSettingsGroup(r *http.Request, pluginID string) error {
+	if err := r.ParseForm(); err != nil {
+		return err
+	}
+	selected, ok := loadedPlugin(a.manager, pluginID)
+	if !ok {
+		return errors.New("plugin is not installed")
+	}
+	module, ok := pluginSettingsGroupModule(selected, strings.TrimSpace(r.FormValue("settings_id")))
+	if !ok {
+		return errors.New("plugin settings group is not declared")
+	}
+
+	values := make(map[string]string, len(module.Fields))
+	for _, field := range module.Fields {
+		name := "setting_" + module.ID + "_" + field.ID
+		if field.Type == "boolean" {
+			values[field.ID] = "false"
+			if r.Form.Has(name) {
+				values[field.ID] = "true"
+			}
+			continue
+		}
+		values[field.ID] = r.FormValue(name)
+	}
+
+	return a.manager.SaveSettingGroup(r.Context(), pluginID, module.ID, values)
 }
 
 // saveResource validates and persists one structured plugin setting record.
@@ -212,6 +256,16 @@ func pluginHasAdminSettings(item plugin.LoadedPlugin) bool {
 		}
 	}
 	return false
+}
+
+// pluginSettingsGroupModule returns one declared typed settings group from a loaded plugin.
+func pluginSettingsGroupModule(item plugin.LoadedPlugin, moduleID string) (pluginpackage.Module, bool) {
+	for _, module := range item.Manifest.Modules {
+		if module.Type == "settings" && len(module.Fields) != 0 && module.ID == moduleID {
+			return module, true
+		}
+	}
+	return pluginpackage.Module{}, false
 }
 
 // pluginResourceModule returns one declared structured resource from a loaded plugin.

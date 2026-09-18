@@ -164,8 +164,8 @@ Browser contributions run in isolated frames; editor and settings contributions
 remain metadata.
 
 Plugin lifecycle and declarative settings own plugin feature state. Core Markdown
-semantics use fixed host defaults; optional feature settings are exposed and persisted
-through the generic plugin administration UI.
+semantics use fixed host defaults; optional feature toggles and typed singleton settings
+are exposed and persisted through the generic plugin administration UI.
 
 Every output path, including WASM fragments and macros, goes through the core
 sanitizer. Plugins cannot mark HTML trusted or change the policy. A restricted,
@@ -210,12 +210,13 @@ TLS. No raw socket, user directory, SQL, filesystem, or process capability is
 available. The same grant rules apply to both distribution sources.
 
 Storage is keyed by plugin ID, namespace, and key. Guest calls can reach only the
-`settings` and `data` namespaces. Declarative `admin-resource` records also use
-the owning plugin's settings namespace but are available to executable plugin code
-through the typed `plugin.resources.get/list` capability rather than by accepting
-caller-supplied plugin identities. Manifest `secret` fields are encrypted before
-persistence, masked in administration, and decrypted only when returned to the
-owning plugin. IDs come from the runtime. Limits are 256-byte keys, 64 KiB per
+`settings` and `data` namespaces. Typed singleton `settings` groups and declarative
+`admin-resource` records use reserved host-managed keys inside the owning plugin's
+settings namespace. Singleton fields are read through `plugin.settings.read` as
+`<module>.<field>` keys, while repeatable resources use the typed
+`plugin.resources.get/list` capability. Host-managed keys cannot be overwritten through
+the raw settings API. Manifest `secret` fields are encrypted before persistence, masked
+in administration, and decrypted only when returned to the owning plugin. IDs come from the runtime. Limits are 256-byte keys, 64 KiB per
 value, 1,024 keys and 16 MiB total per plugin. A PostgreSQL transaction and
 per-plugin advisory lock make quota checks atomic. This storage survives runtime
 restarts. Plugin installation state is stored separately.
@@ -346,11 +347,12 @@ public disable and uninstall paths enforce the policy. Shutdown still closes
 required instances normally. No bundled feature is required by default.
 
 The admin UI renders each package `README.md` and exposes enable/disable lifecycle
-controls from the Plugins page. Plugins that declare boolean `settings` or
-structured `admin-resource` modules appear in a separate Plugin settings section
-of the administration sidebar. Boolean settings reach renderers as generic feature
-flags; structured resources support bounded text, textarea, URL, secret, boolean,
-and select fields without teaching core plugin-specific configuration names.
+controls from the Plugins page. Plugins that declare boolean feature-toggle `settings`,
+typed singleton `settings`, or structured `admin-resource` modules appear in a separate
+Plugin settings section of the administration sidebar. Boolean feature toggles reach
+renderers as generic feature flags. Typed settings and resources support bounded text,
+textarea, URL, secret, boolean, and select fields without teaching core plugin-specific
+configuration names.
 
 ## Core page primitives
 
@@ -374,3 +376,4 @@ those distribution bytes through the ordinary bootstrap path.
 
 See the SDK repository at `https://github.com/kumbuka-me/sdk` for project
 scaffolding, testing, wire contracts, and deterministic packaging.
+

@@ -301,21 +301,57 @@ func safeClassSelector(selector string) bool {
 	return !segmentStart
 }
 
-// safeContentDeclaration validates the small presentation subset available to
-// parent-document content styles.
+// safeContentDeclaration validates presentation and local layout properties available to rendered-content plugins.
 func safeContentDeclaration(property, value string) (string, string, bool) {
 	switch property {
 	case "font-family", "font-feature-settings", "font-variant-ligatures":
 		return property, value, safeTypographyValue(value)
-	case "color":
+	case "color", "background-color", "border-color", "border-top-color", "border-right-color", "border-bottom-color", "border-left-color":
 		return property, value, safeColor(value)
 	case "list-style":
 		return property, value, value == "none"
-	case "margin-right":
+	case "margin-top", "margin-right", "margin-bottom", "margin-left",
+		"padding-top", "padding-right", "padding-bottom", "padding-left",
+		"border-width", "border-top-width", "border-right-width", "border-bottom-width", "border-left-width", "border-radius",
+		"gap", "font-size", "min-width", "max-width", "width":
 		return property, value, safeContentLength(value)
+	case "border-style", "border-top-style", "border-right-style", "border-bottom-style", "border-left-style":
+		return property, value, value == "solid" || value == "none"
+	case "display":
+		return property, value, oneOf(value, "block", "inline-block", "flex", "inline-flex")
+	case "align-items":
+		return property, value, oneOf(value, "stretch", "center", "flex-start", "flex-end")
+	case "justify-content":
+		return property, value, oneOf(value, "flex-start", "flex-end", "center", "space-between")
+	case "flex":
+		return property, value, oneOf(value, "0 0 auto", "1 1 auto")
+	case "flex-wrap":
+		return property, value, oneOf(value, "nowrap", "wrap")
+	case "overflow", "overflow-x":
+		return property, value, oneOf(value, "visible", "hidden", "auto")
+	case "overflow-wrap":
+		return property, value, oneOf(value, "normal", "break-word", "anywhere")
+	case "white-space":
+		return property, value, oneOf(value, "normal", "nowrap", "pre", "pre-wrap")
+	case "text-align":
+		return property, value, oneOf(value, "left", "right", "center")
+	case "font-weight":
+		return property, value, oneOf(value, "400", "500", "600", "700")
+	case "user-select":
+		return property, value, oneOf(value, "none", "text")
 	default:
 		return "", "", false
 	}
+}
+
+// oneOf reports whether value is one exact member of the allowlist.
+func oneOf(value string, allowed ...string) bool {
+	for _, candidate := range allowed {
+		if value == candidate {
+			return true
+		}
+	}
+	return false
 }
 
 // safeContentLength reports whether a CSS declaration value stays within the configured bound.

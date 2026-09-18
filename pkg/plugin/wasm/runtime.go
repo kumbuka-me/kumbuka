@@ -102,7 +102,7 @@ type Runtime struct {
 	permissions map[string]bool
 	// storage provides persistent plugin state storage.
 	storage plugin.Storage
-	// secrets decrypts manifest-declared plugin secret settings for their owning guest.
+	// secrets decrypts manifest-declared plugin secret configuration for its owning guest.
 	secrets plugin.SecretCodec
 	// httpAuthorizer decides whether the current invocation may perform outbound network I/O.
 	httpAuthorizer func(context.Context) bool
@@ -129,7 +129,7 @@ func WithPermissions(permissions ...string) Option {
 // WithStorage provides namespaced persistent settings and data storage to plugins.
 func WithStorage(storage plugin.Storage) Option { return func(r *Runtime) { r.storage = storage } }
 
-// WithSecretCodec provides encryption for manifest-declared secret resource fields.
+// WithSecretCodec provides encryption for manifest-declared secret configuration fields.
 func WithSecretCodec(codec plugin.SecretCodec) Option { return func(r *Runtime) { r.secrets = codec } }
 
 // WithHTTPAuthorizer enables outbound HTTP only for invocation contexts accepted by authorize.

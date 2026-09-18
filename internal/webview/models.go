@@ -139,6 +139,8 @@ type Data struct {
 	PluginSettings *plugin.LoadedPlugin
 	// PluginSettingsLinks contains installed plugins that expose settings or resources.
 	PluginSettingsLinks []PluginSettingsLink
+	// PluginSettingsGroups contains typed singleton settings shown on the current plugin settings page.
+	PluginSettingsGroups []plugin.SettingGroup
 	// PluginSettingsResources contains structured settings shown on the current plugin settings page.
 	PluginSettingsResources []PluginResource
 	// PluginREADMEs contains sanitized packaged documentation keyed by plugin ID.

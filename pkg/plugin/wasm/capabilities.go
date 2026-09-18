@@ -118,7 +118,7 @@ func (r *Runtime) dispatch(ctx context.Context, module api.Module, request sdk.C
 		return r.resourceCall(ctx, caller, request)
 	}
 	if strings.HasPrefix(request.Method, "plugin.") {
-		return r.storageCall(ctx, caller.manifest.ID, request)
+		return r.storageCall(ctx, caller, request)
 	}
 	if request.Method == "log" {
 		var message sdk.LogMessage
@@ -155,7 +155,7 @@ func (r *Runtime) capabilityAllowed(caller *Instance, method string) bool {
 	return r.permissionGranted(caller, permission)
 }
 
-// permissionGranted reports whether application policy and the plugin manifest grant permission.
+// permissionGranted reports whether both host policy and the plugin manifest grant a permission.
 func (r *Runtime) permissionGranted(caller *Instance, permission string) bool {
 	return r.permissions[permission] && slices.Contains(caller.manifest.Permissions, permission)
 }
@@ -218,7 +218,7 @@ func validLogMessage(message sdk.LogMessage) bool {
 }
 
 // storageCall executes namespaced plugin settings or data storage operations.
-func (r *Runtime) storageCall(ctx context.Context, id string, request sdk.CapabilityRequest) (any, error) {
+func (r *Runtime) storageCall(ctx context.Context, caller *Instance, request sdk.CapabilityRequest) (any, error) {
 	if r.storage == nil {
 		return nil, errors.New("plugin storage unavailable")
 	}
@@ -227,11 +227,23 @@ func (r *Runtime) storageCall(ctx context.Context, id string, request sdk.Capabi
 	if err := decode(request.Params, &value); err != nil || !validStorageValue(value) {
 		return nil, errors.New("invalid storage value")
 	}
-	namespace := "data"
-	if strings.HasPrefix(request.Method, "plugin.settings.") {
-		namespace = "settings"
+
+	id := caller.manifest.ID
+	settingsCall := strings.HasPrefix(request.Method, "plugin.settings.")
+	if settingsCall && strings.HasSuffix(request.Method, ".read") {
+		data, declared, err := plugin.ReadDeclaredSetting(ctx, r.storage, id, caller.manifest, value.Key, r.secrets)
+		if declared {
+			return sdk.StoredValue{Value: data, Found: err == nil}, err
+		}
+	}
+	if settingsCall && (plugin.DeclaredSetting(caller.manifest, value.Key) || plugin.ReservedSettingStorageKey(value.Key)) {
+		return nil, errors.New("manifest-declared settings are administrator managed")
 	}
 
+	namespace := "data"
+	if settingsCall {
+		namespace = "settings"
+	}
 	if strings.HasSuffix(request.Method, ".read") {
 		data, found, err := r.storage.ReadPluginValue(ctx, id, namespace, value.Key)
 		if len(data) > 64<<10 {

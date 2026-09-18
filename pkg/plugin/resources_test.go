@@ -108,7 +108,7 @@ func TestPluginResourcesAndEditorContributions(t *testing.T) {
 	manifest := pluginpackage.Manifest{
 		ID: "io.example.resources",
 		Modules: []pluginpackage.Module{
-			{Type: "admin-resource", ID: "values", Name: "Values", Fields: []pluginpackage.ResourceField{
+			{Type: "admin-resource", ID: "values", Name: "Values", Fields: []pluginpackage.ConfigurationField{
 				{ID: "name", Name: "Name", Type: "text", Required: true, Key: true},
 				{ID: "content", Name: "Value", Type: "textarea", Required: true},
 			}},
@@ -151,13 +151,13 @@ func TestPluginResourcesAndEditorContributions(t *testing.T) {
 	assert.Empty(t, records)
 }
 
-// TestPluginResourceFieldTypesAndSecrets verifies typed validation, masked administration reads, and plugin secret decryption.
-func TestPluginResourceFieldTypesAndSecrets(t *testing.T) {
+// TestPluginConfigurationFieldTypesAndSecrets verifies typed validation, masked administration reads, and plugin secret decryption.
+func TestPluginConfigurationFieldTypesAndSecrets(t *testing.T) {
 	ctx := context.Background()
 	storage := &resourceStorage{values: make(map[string][]byte)}
 	codec := resourceSecretCodec{configured: true}
 	manifest := pluginpackage.Manifest{ID: "io.example.remote", Modules: []pluginpackage.Module{{
-		Type: "admin-resource", ID: "sources", Name: "Sources", Fields: []pluginpackage.ResourceField{
+		Type: "admin-resource", ID: "sources", Name: "Sources", Fields: []pluginpackage.ConfigurationField{
 			{ID: "name", Name: "Name", Type: "text", Required: true, Key: true},
 			{ID: "endpoint", Name: "Endpoint", Type: "url", Required: true},
 			{ID: "provider", Name: "Provider", Type: "select", Required: true, Options: []string{"github", "gitlab"}, Default: "github"},
@@ -207,7 +207,7 @@ func TestPluginResourceRenamePreservesSourceOnCollision(t *testing.T) {
 	ctx := context.Background()
 	storage := &resourceStorage{values: make(map[string][]byte)}
 	manifest := pluginpackage.Manifest{ID: "io.example.rename", Modules: []pluginpackage.Module{{
-		Type: "admin-resource", ID: "values", Name: "Values", Fields: []pluginpackage.ResourceField{
+		Type: "admin-resource", ID: "values", Name: "Values", Fields: []pluginpackage.ConfigurationField{
 			{ID: "name", Name: "Name", Type: "text", Required: true, Key: true},
 			{ID: "content", Name: "Content", Type: "text", Required: true},
 		},
@@ -220,7 +220,7 @@ func TestPluginResourceRenamePreservesSourceOnCollision(t *testing.T) {
 	require.NoError(t, manager.SaveResourceRecord(ctx, manifest.ID, "values", "", map[string]string{"name": "target", "content": "two"}))
 
 	err := manager.SaveResourceRecord(ctx, manifest.ID, "values", "source", map[string]string{"name": "target", "content": "changed"})
-	var fieldErr *ResourceFieldError
+	var fieldErr *ConfigurationFieldError
 	require.ErrorAs(t, err, &fieldErr)
 	assert.Equal(t, "name", fieldErr.Field)
 	assert.Equal(t, "Name is already in use.", fieldErr.Message)
@@ -240,13 +240,33 @@ func TestPluginResourceRenamePreservesSourceOnCollision(t *testing.T) {
 func TestPluginResourceValidationErrorsExposeFieldIDs(t *testing.T) {
 	t.Parallel()
 
-	field := pluginpackage.ResourceField{ID: "endpoint", Name: "API endpoint", Type: "url", Required: true}
-	_, err := normalizeResourceValue(field, "file:///tmp/repository")
+	field := pluginpackage.ConfigurationField{ID: "endpoint", Name: "API endpoint", Type: "url", Required: true}
+	_, err := normalizeConfigurationValue(field, "file:///tmp/repository")
 
-	var fieldErr *ResourceFieldError
+	var fieldErr *ConfigurationFieldError
 	require.ErrorAs(t, err, &fieldErr)
 	assert.Equal(t, "endpoint", fieldErr.Field)
 	assert.Equal(t, "API endpoint must be an absolute HTTP or HTTPS URL.", fieldErr.Message)
+}
+
+// TestMaskResourceSecretsDoesNotMutateSource verifies presentation masking works on a defensive copy.
+func TestMaskResourceSecretsDoesNotMutateSource(t *testing.T) {
+	t.Parallel()
+
+	module := pluginpackage.Module{Fields: []pluginpackage.ConfigurationField{
+		{ID: "name", Name: "Name", Type: "text"},
+		{ID: "token", Name: "Access token", Type: "secret"},
+	}}
+	record := ResourceRecord{Key: "source", Values: map[string]string{
+		"name":  "source",
+		"token": "encrypted-token",
+	}}
+
+	masked := MaskResourceSecrets(record, module)
+
+	assert.Equal(t, "encrypted-token", record.Values["token"])
+	assert.Empty(t, masked.Values["token"])
+	assert.True(t, masked.SecretFields["token"])
 }
 
 // TestPluginResourceSecretRequiresConfiguredEncryption verifies plaintext secrets are never stored without encryption.
@@ -256,7 +276,7 @@ func TestPluginResourceSecretRequiresConfiguredEncryption(t *testing.T) {
 	ctx := context.Background()
 	storage := &resourceStorage{values: make(map[string][]byte)}
 	manifest := pluginpackage.Manifest{ID: "io.example.secret", Modules: []pluginpackage.Module{{
-		Type: "admin-resource", ID: "sources", Name: "Sources", Fields: []pluginpackage.ResourceField{
+		Type: "admin-resource", ID: "sources", Name: "Sources", Fields: []pluginpackage.ConfigurationField{
 			{ID: "name", Name: "Name", Type: "text", Required: true, Key: true},
 			{ID: "token", Name: "Access token", Type: "secret"},
 		},

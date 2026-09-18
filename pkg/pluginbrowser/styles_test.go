@@ -5,6 +5,7 @@ import (
 	"testing"
 )
 
+// TestPresentationStylesVersionIsStableWithoutContributions verifies empty presentation catalogs have a stable fingerprint.
 func TestPresentationStylesVersionIsStableWithoutContributions(t *testing.T) {
 	t.Parallel()
 
@@ -14,6 +15,7 @@ func TestPresentationStylesVersionIsStableWithoutContributions(t *testing.T) {
 	assert.Equal(t, version, PresentationStylesVersion(nil))
 }
 
+// TestPresentationStylesAreScopedColorsOnly verifies browser stylesheet publication remains limited to scoped colors.
 func TestPresentationStylesAreScopedColorsOnly(t *testing.T) {
 	result := scopedColors("io.example.test", `
  @import url(https://evil.test/);
@@ -31,6 +33,7 @@ func TestPresentationStylesAreScopedColorsOnly(t *testing.T) {
 	}
 }
 
+// TestContentStylesAllowSafeRenderedPresentation verifies content plugins can use the bounded local-layout presentation subset.
 func TestContentStylesAllowSafeRenderedPresentation(t *testing.T) {
 	result := scopedContentStyles(`
 .prose, .prose code, .admin-page {
@@ -42,6 +45,8 @@ func TestContentStylesAllowSafeRenderedPresentation(t *testing.T) {
 .prose .task-list-item { list-style: none; position: fixed; }
 .prose .task-list-checkbox { margin-right: 0.45em; }
 .prose .task-list-checkbox.checked { color: var(--accent); }
+.prose .plugin-card { display: flex; gap: 0.5rem; padding-left: 0.75rem; border-width: 1px; border-style: solid; border-color: var(--border); border-radius: 0.5rem; background-color: var(--surface); overflow: hidden; }
+.prose .plugin-card .body { flex: 1 1 auto; min-width: 0; white-space: pre; overflow-wrap: anywhere; font-weight: 600; }
 .prose .bad:hover { color: red; }
 `)
 
@@ -51,14 +56,17 @@ func TestContentStylesAllowSafeRenderedPresentation(t *testing.T) {
 	assert.Contains(t, result, `.prose .task-list-item{list-style:none;}`)
 	assert.Contains(t, result, `.prose .task-list-checkbox{margin-right:0.45em;}`)
 	assert.Contains(t, result, `.prose .task-list-checkbox.checked{color:var(--accent);}`)
+	assert.Contains(t, result, `.prose .plugin-card{display:flex;gap:0.5rem;padding-left:0.75rem;border-width:1px;border-style:solid;border-color:var(--border);border-radius:0.5rem;background-color:var(--surface);overflow:hidden;}`)
+	assert.Contains(t, result, `.prose .plugin-card .body{flex:1 1 auto;min-width:0;white-space:pre;overflow-wrap:anywhere;font-weight:600;}`)
 	assert.Contains(t, result, `font-family:`)
 	assert.Contains(t, result, `font-variant-ligatures:contextual;`)
 	assert.Contains(t, result, `font-feature-settings:`)
-	for _, forbidden := range []string{".admin-page", ":hover", "background", "position", "url("} {
+	for _, forbidden := range []string{".admin-page", ":hover", "background:url", "position", "url("} {
 		assert.NotContains(t, result, forbidden)
 	}
 }
 
+// TestCodeStylesAreScopedAndPresentationOnly verifies code-highlighter styles remain scoped and presentation-only.
 func TestCodeStylesAreScopedAndPresentationOnly(t *testing.T) {
 	result := scopedCodeStyles("io.example.highlight", `
 .prose .chroma { background: var(--surface-hover); color: var(--text); position: fixed; }
