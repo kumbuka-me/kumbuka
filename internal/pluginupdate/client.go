@@ -2,6 +2,7 @@
 package pluginupdate
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -12,7 +13,6 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -28,9 +28,11 @@ const (
 
 	catalogSchemaVersion = 1
 	maxCatalogBytes      = 2 << 20
-	defaultFailureTTL    = time.Minute
 	defaultHTTPTimeout   = 15 * time.Second
 )
+
+// ErrCatalogUnavailable reports that no successful catalog refresh has completed yet.
+var ErrCatalogUnavailable = errors.New("plugin update catalog is unavailable")
 
 // Release describes one downloadable plugin release from the update catalog.
 type Release struct {
@@ -76,33 +78,22 @@ type semanticVersion struct {
 	patch uint64
 }
 
-// Client caches the public catalog and downloads verified plugin packages through temporary storage.
+// Client fetches, caches, and downloads first-party plugin update metadata and packages.
 type Client struct {
 	// catalogURL is the canonical catalog endpoint queried by this client.
 	catalogURL string
 	// httpClient performs bounded catalog and package HTTP requests.
 	httpClient *http.Client
-	// tempDir receives transient plugin downloads before verification.
-	tempDir string
-	// cacheTTL controls how long one successful catalog response can be reused.
-	cacheTTL time.Duration
-	// now supplies wall-clock time for cache decisions.
-	now func() time.Time
-
-	// mu protects the cached catalog and its timestamp.
-	mu sync.Mutex
+	// mu protects the cached catalog and ready state.
+	mu sync.RWMutex
 	// cached contains the last successfully decoded catalog.
 	cached catalog
-	// cachedAt records when cached was fetched.
-	cachedAt time.Time
-	// lastFailure is the most recent catalog refresh error, cached briefly to avoid repeated slow failures.
-	lastFailure error
-	// failedAt records when lastFailure occurred.
-	failedAt time.Time
+	// ready reports whether at least one successful refresh completed.
+	ready bool
 }
 
-// New creates a first-party plugin update client for catalogURL and the configured successful refresh interval.
-func New(catalogURL string, cacheTTL time.Duration) *Client {
+// New creates a first-party plugin update client for catalogURL using standard proxy environment settings.
+func New(catalogURL string) *Client {
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	transport.Proxy = http.ProxyFromEnvironment
 
@@ -112,22 +103,44 @@ func New(catalogURL string, cacheTTL time.Duration) *Client {
 			Transport: transport,
 			Timeout:   defaultHTTPTimeout,
 		},
-		tempDir:  os.TempDir(),
-		cacheTTL: cacheTTL,
-		now:      time.Now,
 	}
 }
 
-// Updates returns the newest compatible release newer than each installed plugin version.
-func (c *Client) Updates(ctx context.Context, installed map[string]string) (map[string]Release, error) {
-	updates := make(map[string]Release)
-	if c == nil || c.catalogURL == "" || c.cacheTTL <= 0 || len(installed) == 0 {
-		return updates, nil
+// Refresh fetches the catalog immediately and atomically replaces the cached successful copy.
+func (c *Client) Refresh(ctx context.Context) error {
+	if c == nil || c.catalogURL == "" {
+		return ErrCatalogUnavailable
 	}
 
-	available, err := c.loadCatalog(ctx)
+	loaded, err := c.fetchCatalog(ctx)
 	if err != nil {
-		return nil, err
+		return err
+	}
+
+	c.mu.Lock()
+	c.cached = loaded
+	c.ready = true
+	c.mu.Unlock()
+
+	return nil
+}
+
+// Updates returns the newest compatible release newer than each installed plugin version from the cached catalog.
+func (c *Client) Updates(installed map[string]string) (map[string]Release, error) {
+	updates := make(map[string]Release)
+	if c == nil {
+		return nil, ErrCatalogUnavailable
+	}
+
+	c.mu.RLock()
+	available := c.cached
+	ready := c.ready
+	c.mu.RUnlock()
+	if !ready {
+		return nil, ErrCatalogUnavailable
+	}
+	if len(installed) == 0 {
+		return updates, nil
 	}
 
 	for _, item := range available.Plugins {
@@ -168,7 +181,7 @@ func (c *Client) Updates(ctx context.Context, installed map[string]string) (map[
 	return updates, nil
 }
 
-// Download retrieves release into temporary storage, verifies it, and returns validated package bytes.
+// Download retrieves one bounded package in memory, verifies it, and returns validated package bytes.
 func (c *Client) Download(ctx context.Context, pluginID string, release Release) ([]byte, error) {
 	if c == nil {
 		return nil, errors.New("plugin update client is unavailable")
@@ -193,7 +206,7 @@ func (c *Client) Download(ctx context.Context, pluginID string, release Release)
 	if err != nil {
 		return nil, fmt.Errorf("download plugin package: %w", err)
 	}
-	defer response.Body.Close()
+	defer response.Body.Close() // nolint:errcheck
 	if response.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("download plugin package: unexpected HTTP status %d", response.StatusCode)
 	}
@@ -201,21 +214,14 @@ func (c *Client) Download(ctx context.Context, pluginID string, release Release)
 		return nil, errors.New("downloaded plugin package exceeds the 16 MiB limit")
 	}
 
-	file, err := os.CreateTemp(c.tempDir, "kumbuka-plugin-*.kumbukaplugin")
-	if err != nil {
-		return nil, fmt.Errorf("create temporary plugin package: %w", err)
-	}
-	path := file.Name()
-	defer os.Remove(path)
-
+	var archive bytes.Buffer
 	hash := sha256.New()
-	written, copyErr := io.Copy(io.MultiWriter(file, hash), io.LimitReader(response.Body, pluginpackage.MaxArchiveBytes+1))
-	closeErr := file.Close()
-	if copyErr != nil {
-		return nil, fmt.Errorf("download plugin package: %w", copyErr)
-	}
-	if closeErr != nil {
-		return nil, fmt.Errorf("close temporary plugin package: %w", closeErr)
+	written, err := io.Copy(
+		io.MultiWriter(&archive, hash),
+		io.LimitReader(response.Body, pluginpackage.MaxArchiveBytes+1),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("download plugin package: %w", err)
 	}
 	if written > pluginpackage.MaxArchiveBytes {
 		return nil, errors.New("downloaded plugin package exceeds the 16 MiB limit")
@@ -226,11 +232,8 @@ func (c *Client) Download(ctx context.Context, pluginID string, release Release)
 		return nil, errors.New("downloaded plugin package checksum does not match the catalog")
 	}
 
-	archive, err := os.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("read temporary plugin package: %w", err)
-	}
-	pkg, err := pluginpackage.Read(archive)
+	data := archive.Bytes()
+	pkg, err := pluginpackage.Read(data)
 	if err != nil {
 		return nil, fmt.Errorf("validate downloaded plugin package: %w", err)
 	}
@@ -241,33 +244,7 @@ func (c *Client) Download(ctx context.Context, pluginID string, release Release)
 		return nil, errors.New("downloaded plugin package version does not match the catalog")
 	}
 
-	return archive, nil
-}
-
-// loadCatalog returns a cached catalog or refreshes it from the configured endpoint.
-func (c *Client) loadCatalog(ctx context.Context) (catalog, error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	now := c.now()
-	if !c.cachedAt.IsZero() && now.Sub(c.cachedAt) < c.cacheTTL {
-		return c.cached, nil
-	}
-	if c.lastFailure != nil && !c.failedAt.IsZero() && now.Sub(c.failedAt) < defaultFailureTTL {
-		return catalog{}, c.lastFailure
-	}
-
-	loaded, err := c.fetchCatalog(ctx)
-	if err != nil {
-		c.lastFailure = err
-		c.failedAt = now
-		return catalog{}, err
-	}
-	c.cached = loaded
-	c.cachedAt = now
-	c.lastFailure = nil
-	c.failedAt = time.Time{}
-	return loaded, nil
+	return bytes.Clone(data), nil
 }
 
 // fetchCatalog downloads and decodes one bounded catalog response.
@@ -284,7 +261,7 @@ func (c *Client) fetchCatalog(ctx context.Context) (catalog, error) {
 	if err != nil {
 		return catalog{}, fmt.Errorf("download plugin catalog: %w", err)
 	}
-	defer response.Body.Close()
+	defer response.Body.Close() // nolint:errcheck
 	if response.StatusCode != http.StatusOK {
 		return catalog{}, fmt.Errorf("download plugin catalog: unexpected HTTP status %d", response.StatusCode)
 	}

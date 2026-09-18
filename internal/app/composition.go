@@ -7,7 +7,6 @@ import (
 
 	"github.com/kumbuka-me/kumbuka/internal/auth"
 	"github.com/kumbuka-me/kumbuka/internal/flags"
-	"github.com/kumbuka-me/kumbuka/internal/pluginupdate"
 	"github.com/kumbuka-me/kumbuka/internal/routes"
 	"github.com/kumbuka-me/kumbuka/internal/secrets"
 	"github.com/kumbuka-me/kumbuka/internal/service"
@@ -31,14 +30,9 @@ func newRouteConfig(
 		logger.With("component", "webhooks"),
 		cfg.PublicURL,
 	)
-	var pluginUpdates *pluginupdate.Client
-	if cfg.PluginUpdateCheckInterval > 0 {
-		pluginUpdates = pluginupdate.New(pluginupdate.DefaultCatalogURL, cfg.PluginUpdateCheckInterval)
-	}
 
 	return routes.Config{
 		Assets:         appFS,
-		PluginUpdates:  pluginUpdates,
 		Administration: service.NewAdministration(database),
 		Access:         service.NewAccess(database),
 		Catalog:        service.NewCatalog(database),

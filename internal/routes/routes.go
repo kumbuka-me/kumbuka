@@ -125,6 +125,7 @@ func (r routeRegistrar) addAdminRoutes() {
 	pluginsAdmin := handler.NewAdminPlugins(config.Renderer.PluginManager(), config.PluginUpdates, config.ViewData, config.Views)
 	r.mux.Handle("GET /admin/plugins", browserAuthn(adminAuthz(http.HandlerFunc(pluginsAdmin.List))))
 	r.mux.Handle("POST /admin/plugins", browserAuthn(adminAuthz(http.HandlerFunc(pluginsAdmin.Install))))
+	r.mux.Handle("POST /admin/plugins/check-updates", browserAuthn(adminAuthz(http.HandlerFunc(pluginsAdmin.CheckUpdates))))
 	r.mux.Handle("POST /admin/plugins/{pluginID}/{action}", browserAuthn(adminAuthz(http.HandlerFunc(pluginsAdmin.Action))))
 
 	r.mux.Handle("GET /admin", browserAuthn(adminAuthz(handler.Administration(config.ViewData, config.Administration, config.Views))))

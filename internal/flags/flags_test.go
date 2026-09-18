@@ -118,7 +118,7 @@ func TestPluginUpdateCheckIntervalCanBeConfiguredFromEnvironment(t *testing.T) {
 	assert.Equal(t, 90*time.Minute, cfg.PluginUpdateCheckInterval)
 }
 
-func TestPluginUpdateCheckIntervalCanDisableChecks(t *testing.T) {
+func TestPluginUpdateCheckIntervalCanDisableScheduledChecks(t *testing.T) {
 	t.Parallel()
 
 	cfg, err := parseTestConfig([]string{

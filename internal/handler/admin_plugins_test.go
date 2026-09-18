@@ -3,6 +3,7 @@ package handler
 import (
 	"bytes"
 	"context"
+	"errors"
 	"html/template"
 	"mime/multipart"
 	"net/http"
@@ -13,6 +14,7 @@ import (
 	"github.com/kumbuka-me/kumbuka/internal/auth"
 	"github.com/kumbuka-me/kumbuka/internal/middleware"
 	"github.com/kumbuka-me/kumbuka/internal/pluginupdate"
+	"github.com/kumbuka-me/kumbuka/internal/service"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/kumbuka-me/kumbuka/pkg/plugin"
@@ -27,9 +29,17 @@ type pluginUpdateServiceStub struct {
 	updates       map[string]pluginupdate.Release
 	archive       []byte
 	updatesErr    error
+	refreshErr    error
 	downloadErr   error
+	refreshes     int
 	downloadedID  string
 	downloadedVer string
+	status        service.PluginUpdateStatus
+}
+
+func (s *pluginUpdateServiceStub) Refresh(context.Context) error {
+	s.refreshes++
+	return s.refreshErr
 }
 
 func (s *pluginUpdateServiceStub) Updates(context.Context, map[string]string) (map[string]pluginupdate.Release, error) {
@@ -40,6 +50,10 @@ func (s *pluginUpdateServiceStub) Download(_ context.Context, id string, release
 	s.downloadedID = id
 	s.downloadedVer = release.Version
 	return s.archive, s.downloadErr
+}
+
+func (s *pluginUpdateServiceStub) Status() service.PluginUpdateStatus {
+	return s.status
 }
 
 func pluginUpload(t *testing.T, content []byte) *http.Request {
@@ -96,7 +110,7 @@ func TestAdminPluginLifecycleAndAuthorization(t *testing.T) {
 	assert.Contains(t, w.Body.String(), "data-plugin-detail-open-on-load")
 	assert.Contains(t, w.Body.String(), "Permissions")
 	assert.Contains(t, w.Body.String(), "Uninstall plugin")
-	assert.Contains(t, w.Body.String(), "Automatic update checks are disabled")
+	assert.Contains(t, w.Body.String(), "Update checks are unavailable")
 	assert.NotContains(t, w.Body.String(), "0001-01-01")
 	assert.NotContains(t, w.Body.String(), "Version  is available")
 	broken := pluginUpload(t, []byte("invalid archive"))
@@ -126,6 +140,11 @@ func TestAdminPluginCatalogUpdate(t *testing.T) {
 	require.NoError(t, err)
 
 	updates := &pluginUpdateServiceStub{
+		status: service.PluginUpdateStatus{
+			Automatic:   true,
+			LastAttempt: time.Date(2026, time.September, 18, 7, 31, 0, 0, time.UTC),
+			LastSuccess: time.Date(2026, time.September, 18, 7, 31, 0, 0, time.UTC),
+		},
 		updates: map[string]pluginupdate.Release{
 			item.Manifest.ID: {
 				Version:    "9.9.9",
@@ -160,6 +179,48 @@ func TestAdminPluginCatalogUpdate(t *testing.T) {
 	assert.Equal(t, "/admin/plugins?plugin="+item.Manifest.ID, w.Header().Get("Location"))
 	assert.Equal(t, item.Manifest.ID, updates.downloadedID)
 	assert.Equal(t, "9.9.9", updates.downloadedVer)
+}
+
+func TestAdminPluginManualCatalogRefresh(t *testing.T) {
+	updates := &pluginUpdateServiceStub{
+		updates: map[string]pluginupdate.Release{},
+		status:  service.PluginUpdateStatus{Automatic: true},
+	}
+	views := testHandlerViews(t, webview.RuntimeInfo{})
+	data := viewDataServiceStub{load: func(*http.Request, *webview.Views, string) (webview.Data, error) {
+		return webview.Data{User: domain.User{ID: 1, Role: "admin"}}, nil
+	}}
+	admin := NewAdminPlugins(nil, updates, data, views)
+
+	request := auth.WithUser(httptest.NewRequest("POST", "/admin/plugins/check-updates", nil), domain.User{ID: 1, Role: "admin"})
+	w := httptest.NewRecorder()
+	admin.CheckUpdates(w, request)
+
+	require.Equal(t, http.StatusSeeOther, w.Code)
+	assert.Equal(t, "/admin/plugins", w.Header().Get("Location"))
+	assert.Equal(t, 1, updates.refreshes)
+}
+
+func TestAdminPluginManualCatalogRefreshFailure(t *testing.T) {
+	updates := &pluginUpdateServiceStub{
+		updatesErr: errors.New("no cached catalog"),
+		refreshErr: errors.New("catalog offline"),
+		status: service.PluginUpdateStatus{
+			Automatic: true,
+		},
+	}
+	views := testHandlerViews(t, webview.RuntimeInfo{})
+	data := viewDataServiceStub{load: func(*http.Request, *webview.Views, string) (webview.Data, error) {
+		return webview.Data{User: domain.User{ID: 1, Role: "admin"}}, nil
+	}}
+	admin := NewAdminPlugins(&plugin.Manager{}, updates, data, views)
+
+	request := auth.WithUser(httptest.NewRequest("POST", "/admin/plugins/check-updates", nil), domain.User{ID: 1, Role: "admin"})
+	w := httptest.NewRecorder()
+	admin.CheckUpdates(w, request)
+
+	assert.Equal(t, http.StatusBadGateway, w.Code)
+	assert.Contains(t, w.Body.String(), "Could not check the plugin update catalog")
 }
 
 func TestPluginUploadBoundaries(t *testing.T) {

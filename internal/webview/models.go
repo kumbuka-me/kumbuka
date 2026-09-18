@@ -103,6 +103,20 @@ type PluginUpdate struct {
 	ReleasedAt time.Time
 }
 
+// PluginUpdateStatus describes catalog refresh state shown in plugin administration.
+type PluginUpdateStatus struct {
+	// Available reports whether the plugin update service is configured.
+	Available bool
+	// Automatic reports whether scheduled catalog checks are enabled.
+	Automatic bool
+	// LastAttempt records the latest scheduled or manual catalog refresh attempt.
+	LastAttempt time.Time
+	// LastSuccess records the latest successful catalog refresh.
+	LastSuccess time.Time
+	// LastError contains the latest catalog refresh failure, if any.
+	LastError string
+}
+
 // Data contains the data shared by server-rendered Kumbuka templates.
 type Data struct {
 	// AdminPlugins contains the admin plugins associated with view data.
@@ -115,8 +129,8 @@ type Data struct {
 	PluginRequiredIDs map[string]bool
 	// PluginUpdates contains newer compatible first-party releases keyed by plugin ID.
 	PluginUpdates map[string]*PluginUpdate
-	// PluginUpdatesEnabled reports whether first-party catalog checks are enabled by deployment configuration.
-	PluginUpdatesEnabled bool
+	// PluginUpdateStatus contains scheduled and manual catalog refresh state.
+	PluginUpdateStatus PluginUpdateStatus
 	// PluginCatalogUnavailable reports that the update catalog could not be checked for this render.
 	PluginCatalogUnavailable bool
 	// PluginHasSettings identifies plugins that expose administrator settings.

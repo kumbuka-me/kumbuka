@@ -12,6 +12,7 @@ import (
 
 	"github.com/kumbuka-me/kumbuka/internal/httpresponse"
 	"github.com/kumbuka-me/kumbuka/internal/pluginupdate"
+	"github.com/kumbuka-me/kumbuka/internal/service"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 	md "github.com/kumbuka-me/kumbuka/pkg/markdown"
 	"github.com/kumbuka-me/kumbuka/pkg/plugin"
@@ -20,10 +21,14 @@ import (
 
 // pluginUpdateService is the first-party catalog boundary used by plugin administration.
 type pluginUpdateService interface {
+	// Refresh checks the first-party catalog immediately.
+	Refresh(context.Context) error
 	// Updates returns newer compatible releases keyed by installed plugin ID.
 	Updates(context.Context, map[string]string) (map[string]pluginupdate.Release, error)
 	// Download retrieves and verifies one selected plugin release.
 	Download(context.Context, string, pluginupdate.Release) ([]byte, error)
+	// Status returns scheduled and manual catalog refresh state.
+	Status() service.PluginUpdateStatus
 }
 
 // AdminPlugins exposes package metadata and lifecycle operations through the
@@ -49,6 +54,22 @@ func (a *AdminPlugins) List(w http.ResponseWriter, r *http.Request) {
 	a.render(w, r, strings.TrimSpace(r.URL.Query().Get("plugin")), http.StatusOK, "")
 }
 
+// CheckUpdates refreshes the first-party plugin catalog immediately.
+func (a *AdminPlugins) CheckUpdates(w http.ResponseWriter, r *http.Request) {
+	if a.updates == nil {
+		a.render(w, r, "", http.StatusServiceUnavailable, "Plugin update checks are unavailable.")
+		return
+	}
+	if err := a.updates.Refresh(r.Context()); err != nil {
+		a.views.Logger().Warn("check plugin updates", "event", "plugin_catalog_manual_check_failed", "error", err, "actor_id", currentUser(r).ID)
+		a.render(w, r, "", http.StatusBadGateway, "Could not check the plugin update catalog. The previous successful catalog remains available if one exists.")
+		return
+	}
+
+	a.views.Logger().Info("plugin update catalog checked", "event", "plugin.catalog_check", "actor_id", currentUser(r).ID)
+	http.Redirect(w, r, "/admin/plugins", http.StatusSeeOther)
+}
+
 // render renders the plugin administration page.
 func (a *AdminPlugins) render(w http.ResponseWriter, r *http.Request, id string, status int, message string) {
 	w.Header().Set("Cache-Control", "private, no-store")
@@ -64,12 +85,20 @@ func (a *AdminPlugins) render(w http.ResponseWriter, r *http.Request, id string,
 	data.AdminPlugins = a.manager.Plugins()
 	data.PluginRequiredIDs = make(map[string]bool, len(data.AdminPlugins))
 	data.PluginUpdates = make(map[string]*webview.PluginUpdate)
-	data.PluginUpdatesEnabled = a.updates != nil
-	if a.updates != nil {
+	if a.updates == nil {
+		data.PluginCatalogUnavailable = true
+	} else {
+		status := a.updates.Status()
+		data.PluginUpdateStatus = webview.PluginUpdateStatus{
+			Available:   true,
+			Automatic:   status.Automatic,
+			LastAttempt: status.LastAttempt,
+			LastSuccess: status.LastSuccess,
+			LastError:   status.LastError,
+		}
 		updates, updateErr := a.updates.Updates(r.Context(), pluginVersions(data.AdminPlugins))
 		if updateErr != nil {
 			data.PluginCatalogUnavailable = true
-			a.views.Logger().Warn("check plugin updates", "event", "plugin_catalog_check_failed", "error", updateErr)
 		} else {
 			for pluginID, release := range updates {
 				data.PluginUpdates[pluginID] = &webview.PluginUpdate{Version: release.Version, ReleasedAt: release.ReleasedAt}

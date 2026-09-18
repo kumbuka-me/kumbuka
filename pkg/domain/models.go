@@ -598,6 +598,18 @@ type WebhookDelivery struct {
 	CreatedAt time.Time
 }
 
+// PluginUpdateNotice describes one newly discovered compatible plugin release.
+type PluginUpdateNotice struct {
+	// ID is the stable plugin identifier.
+	ID string
+	// Name is the human-readable plugin name.
+	Name string
+	// CurrentVersion is the version currently active in Kumbuka.
+	CurrentVersion string
+	// AvailableVersion is the newer compatible catalog version.
+	AvailableVersion string
+}
+
 // Notification is a lightweight user inbox item.
 type Notification struct {
 	// ID identifies notification.

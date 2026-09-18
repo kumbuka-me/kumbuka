@@ -55,6 +55,8 @@
               data-notification-id="{{ .ID }}">
         <span class="notification-icon">{{ if eq .Kind "mention" }}
           {{ icon "at-sign-lucide" 15 }}
+  {{ else if eq .Kind "plugin-update" }}
+    {{ icon "package-search-lucide" 15 }}
   {{ else }}
     {{ icon "bell-lucide" 15 }}
   {{ end }}</span><span><strong>{{ .Title }}</strong>{{ if .Body }}<small>{{ .Body }}</small>{{ end }}<time>{{ timeago .CreatedAt }}</time></span>

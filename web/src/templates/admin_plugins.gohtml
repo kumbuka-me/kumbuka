@@ -42,16 +42,41 @@
     {{ if and .PluginMessage (not .OpenPluginID) }}
       <p class="settings-note" role="alert">{{ .PluginMessage }}</p>
     {{ end }}
-    {{ if .PluginCatalogUnavailable }}
-      <p class="settings-note" role="status">The first-party update catalog could not be checked. Installed plugins and manual package upgrades remain available.</p>
-    {{ end }}
     <section class="panel settings-panel">
-      <div class="panel-title">
+      <div class="panel-title plugin-update-heading">
         <div>
           <h2>Plugins</h2>
           <p class="muted">Enable optional features here, then open a plugin for documentation and settings.</p>
         </div>
+        <div class="plugin-update-check">
+          <div class="plugin-update-check-status muted">
+            {{ if not .PluginUpdateStatus.Available }}
+              <span>Update checks are unavailable.</span>
+            {{ else if .PluginUpdateStatus.LastAttempt }}
+              {{ if .PluginUpdateStatus.LastError }}
+                <span>Last check failed {{ timeago .PluginUpdateStatus.LastAttempt }}.</span>
+                {{ if .PluginUpdateStatus.LastSuccess }}<span>Using catalog checked {{ timeago .PluginUpdateStatus.LastSuccess }}.</span>{{ end }}
+              {{ else if .PluginUpdateStatus.LastSuccess }}
+                <span>Last checked {{ timeago .PluginUpdateStatus.LastSuccess }}.</span>
+              {{ else }}
+                <span>Catalog check completed.</span>
+              {{ end }}
+            {{ else if .PluginUpdateStatus.Automatic }}
+              <span>Waiting for the first automatic check.</span>
+            {{ else }}
+              <span>Automatic checks are disabled.</span>
+            {{ end }}
+          </div>
+          {{ if .PluginUpdateStatus.Available }}
+            <form method="post" action="/admin/plugins/check-updates">
+              <button class="button compact" type="submit">Check for updates</button>
+            </form>
+          {{ end }}
+        </div>
       </div>
+      {{ if .PluginCatalogUnavailable }}
+        <p class="settings-note" role="status">No successful first-party catalog check is available yet. Installed plugins and manual package upgrades remain available.</p>
+      {{ end }}
       <div class="admin-table-wrap">
         <table class="admin-table plugin-table">
           <thead>
@@ -368,26 +393,22 @@
         </details>
         <section class="plugin-detail-section plugin-update-section">
           <h3>Updates</h3>
-          {{ if not $.PluginUpdatesEnabled }}
-            <p class="settings-note">Automatic update checks are disabled by deployment configuration.</p>
-          {{ else }}
-            {{ with index $.PluginUpdates .Manifest.ID }}
-              <div class="plugin-update-card">
-                <div>
-                  <strong>Version {{ .Version }} is available</strong>
-                  <p class="muted">Published {{ .ReleasedAt.Format "2006-01-02" }}. Kumbuka verifies the catalog checksum and package identity before switching versions.</p>
-                </div>
-                <form method="post"
-                      action="/admin/plugins/{{ $plugin.Manifest.ID }}/update?return=detail">
-                  <button class="button primary" type="submit">Update to {{ .Version }}</button>
-                </form>
+          {{ with index $.PluginUpdates .Manifest.ID }}
+            <div class="plugin-update-card">
+              <div>
+                <strong>Version {{ .Version }} is available</strong>
+                <p class="muted">Published {{ .ReleasedAt.Format "2006-01-02" }}. Kumbuka verifies the catalog checksum and package identity before switching versions.</p>
               </div>
+              <form method="post"
+                    action="/admin/plugins/{{ $plugin.Manifest.ID }}/update?return=detail">
+                <button class="button primary" type="submit">Update to {{ .Version }}</button>
+              </form>
+            </div>
+          {{ else }}
+            {{ if $.PluginCatalogUnavailable }}
+              <p class="settings-note">No successful catalog check is available yet. Use Check for updates on the plugin list to refresh it now.</p>
             {{ else }}
-              {{ if $.PluginCatalogUnavailable }}
-                <p class="settings-note">Automatic update information is currently unavailable.</p>
-              {{ else }}
-                <p class="settings-note">No newer compatible version is listed in the Kumbuka plugin catalog.</p>
-              {{ end }}
+              <p class="settings-note">No newer compatible version is listed in the Kumbuka plugin catalog.</p>
             {{ end }}
           {{ end }}
           <div class="plugin-manual-upgrade">

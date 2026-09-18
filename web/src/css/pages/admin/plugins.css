@@ -396,6 +396,27 @@
 }
 
 /* First-party plugin update availability and actions. */
+.plugin-update-heading {
+  align-items: center;
+}
+
+.plugin-update-check {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.plugin-update-check-status {
+  display: grid;
+  gap: 2px;
+  text-align: right;
+  font-size: 12px;
+}
+
+.plugin-update-check form {
+  flex: none;
+}
+
 .plugin-update-version {
   display: block;
   margin-top: 2px;
@@ -445,11 +466,18 @@
 }
 
 @media (max-width: 640px) {
+  .plugin-update-heading,
+  .plugin-update-check,
   .plugin-update-card {
     align-items: stretch;
     flex-direction: column;
   }
 
+  .plugin-update-check-status {
+    text-align: left;
+  }
+
+  .plugin-update-check .button,
   .plugin-update-card .button {
     width: 100%;
   }

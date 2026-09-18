@@ -10,8 +10,10 @@ import (
 	"github.com/containeroo/tinyflags"
 	"github.com/kumbuka-me/kumbuka/internal/auth"
 	"github.com/kumbuka-me/kumbuka/internal/flags"
+	"github.com/kumbuka-me/kumbuka/internal/pluginupdate"
 	"github.com/kumbuka-me/kumbuka/internal/routes"
 	"github.com/kumbuka-me/kumbuka/internal/secrets"
+	"github.com/kumbuka-me/kumbuka/internal/service"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/logging"
 	"github.com/kumbuka-me/kumbuka/pkg/markdown"
@@ -114,6 +116,13 @@ func Run(
 
 	iconCatalog := renderer.IconCatalog()
 	configurePluginAwareServices(&routeConfig, renderer, iconCatalog)
+	routeConfig.PluginUpdates = service.NewPluginUpdates(
+		pluginupdate.New(pluginupdate.DefaultCatalogURL),
+		renderer.PluginManager(),
+		database,
+		cfg.PluginUpdateCheckInterval,
+		logger.With("component", "plugin-updates"),
+	)
 
 	views, err := webview.New(
 		appFS,
@@ -136,6 +145,9 @@ func Run(
 
 	routeConfig.ViewData = newViewDataLoader(routeConfig)
 	router := routes.New(routeConfig)
+	if routeConfig.PluginUpdates != nil && cfg.PluginUpdateCheckInterval > 0 {
+		go routeConfig.PluginUpdates.Run(ctx)
+	}
 
 	if err := server.Run(
 		ctx,

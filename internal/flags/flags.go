@@ -13,7 +13,7 @@ import (
 	"github.com/kumbuka-me/kumbuka/pkg/logging"
 )
 
-// DefaultPluginUpdateCheckInterval is how long a successful plugin catalog response is reused.
+// DefaultPluginUpdateCheckInterval is the default background plugin catalog refresh interval.
 const DefaultPluginUpdateCheckInterval = 15 * time.Minute
 
 var trustedUsernameHeaders = []string{
@@ -49,7 +49,7 @@ type Config struct {
 	PublicURL string
 	// PDFURL optionally overrides the persisted PDF rendering endpoint for this process.
 	PDFURL string
-	// PluginUpdateCheckInterval controls how often the first-party plugin catalog may be refreshed; zero disables checks.
+	// PluginUpdateCheckInterval controls scheduled first-party catalog checks; zero keeps only manual checks.
 	PluginUpdateCheckInterval time.Duration
 	// AllowUserRegistrationOverride overrides the persisted registration setting when non-nil.
 	AllowUserRegistrationOverride *bool
@@ -127,7 +127,7 @@ func Parse(args []string, version string) (Config, error) {
 		&cfg.PluginUpdateCheckInterval,
 		"plugin-update-check-interval",
 		DefaultPluginUpdateCheckInterval,
-		"How long successful plugin update catalog results are cached; set to 0 to disable automatic update checks",
+		"How often Kumbuka checks the first-party plugin update catalog; set to 0 to disable scheduled checks",
 	).
 		Validate(func(interval time.Duration) error {
 			if interval < 0 {
