@@ -42,6 +42,13 @@ func (i *Instance) Contributions() plugin.Contributions {
 		if module.Type == "icon-resource" {
 			continue
 		}
+		if module.Type == "admin-action" {
+			result.AdminActions = append(result.AdminActions, plugin.AdminActionModule{
+				ID: module.ID, Name: module.Name, Description: module.Description, Icon: module.Icon,
+				Action: adminActionModule{rendererModule{instance: i, module: module}},
+			})
+			continue
+		}
 		if module.Type == "admin-resource" {
 			result.AdminResources = append(result.AdminResources, plugin.AdminResource{ID: module.ID, Name: module.Name, Description: module.Description})
 			continue
@@ -360,7 +367,7 @@ func decodeRenderResult(
 	return result, nil
 }
 
-// validateRenderResult enforces fragment and widget-action bounds for one render stage.
+// validateRenderResult enforces the response contract for one plugin invocation stage.
 func (i *Instance) validateRenderResult(
 	result sdk.RenderResult,
 	stage string,
@@ -374,6 +381,12 @@ func (i *Instance) validateRenderResult(
 
 	if result.Error != "" {
 		return fmt.Errorf("plugin returned error: %.1024s", result.Error)
+	}
+	if stage == "admin-action" {
+		if result.Matched || len(result.Invocation) != 0 || len(result.Parts) != 0 || len(result.Actions) != 0 || result.File != nil || result.WidgetCommand != nil {
+			return errors.New("invalid plugin admin action response")
+		}
+		return nil
 	}
 	if stage == "widget-command" {
 		if len(result.Parts) != 0 || len(result.Actions) != 0 || result.File != nil || result.WidgetCommand == nil ||

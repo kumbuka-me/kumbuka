@@ -12,6 +12,7 @@ import (
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/kumbuka-me/kumbuka/pkg/plugin"
+	"github.com/kumbuka-me/sdk/pluginpackage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -91,4 +92,14 @@ func pluginSettingsErrorResponse(t *testing.T, err error) (*httptest.ResponseRec
 	var payload map[string]any
 	require.NoError(t, json.Unmarshal(response.Body.Bytes(), &payload))
 	return response, logs.String()
+}
+
+// TestPluginHasAdminSettingsIncludesActions verifies action-only plugins receive an administration page.
+func TestPluginHasAdminSettingsIncludesActions(t *testing.T) {
+	t.Parallel()
+
+	item := plugin.LoadedPlugin{Manifest: pluginpackage.Manifest{Modules: []pluginpackage.Module{{Type: "admin-action", ID: "refresh"}}}}
+	assert.True(t, pluginHasAdminSettings(item))
+	assert.True(t, pluginAdminActionModule(item, "refresh"))
+	assert.False(t, pluginAdminActionModule(item, "missing"))
 }

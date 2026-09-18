@@ -148,6 +148,26 @@ type ContentPreprocessor interface {
 	PreprocessContent(Context, string) (PreparedContent, error)
 }
 
+// AdminAction executes one explicit administrator-triggered plugin operation.
+type AdminAction interface {
+	// Run executes the action inside the authenticated administrator request context.
+	Run(context.Context) error
+}
+
+// AdminActionModule describes one host-rendered administrator action owned by a plugin.
+type AdminActionModule struct {
+	// ID identifies the action within its plugin.
+	ID string
+	// Name is the human-readable button label.
+	Name string
+	// Description explains the action to administrators.
+	Description string
+	// Icon is the optional host icon shown for the action.
+	Icon string
+	// Action executes the sandboxed operation.
+	Action AdminAction
+}
+
 // AdminResource describes one declarative plugin-owned record collection.
 type AdminResource struct {
 	// ID identifies the resource within its plugin.
@@ -414,6 +434,8 @@ type Contributions struct {
 	BrowserModules []BrowserModule
 	// EditorExtensions declares editor integrations owned by the plugin.
 	EditorExtensions []EditorExtension
+	// AdminActions declares administrator-triggered operations rendered by Kumbuka.
+	AdminActions []AdminActionModule
 	// AdminResources declares plugin-owned record collections rendered by Kumbuka.
 	AdminResources []AdminResource
 	// EditorCompletions declares resource-backed editor completion providers.

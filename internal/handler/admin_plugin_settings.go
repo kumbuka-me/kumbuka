@@ -31,7 +31,7 @@ func (a *AdminPluginSettings) Show(w http.ResponseWriter, r *http.Request) {
 	a.render(w, r, r.PathValue("pluginID"), http.StatusOK, "")
 }
 
-// Action applies one plugin-owned settings or resource mutation.
+// Action applies one plugin-owned settings, resource, or administrator action.
 func (a *AdminPluginSettings) Action(w http.ResponseWriter, r *http.Request) {
 	pluginID := strings.TrimSpace(r.PathValue("pluginID"))
 	action := strings.TrimSpace(r.PathValue("action"))
@@ -46,6 +46,8 @@ func (a *AdminPluginSettings) Action(w http.ResponseWriter, r *http.Request) {
 		err = a.saveResource(r, pluginID)
 	case "resource-delete":
 		err = a.deleteResource(r, pluginID)
+	case "admin-action":
+		err = a.runAdminAction(r, pluginID)
 	default:
 		http.NotFound(w, r)
 		return
@@ -55,13 +57,32 @@ func (a *AdminPluginSettings) Action(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	a.views.Logger().Info("plugin settings changed", "event", "plugin.settings_changed", "plugin_id", pluginID, "action", action, "actor_id", currentUser(r).ID)
+	if action == "admin-action" {
+		a.views.Logger().Info(
+			"plugin admin action completed",
+			"event", "plugin.admin_action_completed",
+			"plugin_id", pluginID,
+			"module_id", strings.TrimSpace(r.FormValue("action_id")),
+			"actor_id", currentUser(r).ID,
+		)
+	} else {
+		a.views.Logger().Info(
+			"plugin settings changed",
+			"event", "plugin.settings_changed",
+			"plugin_id", pluginID,
+			"action", action,
+			"actor_id", currentUser(r).ID,
+		)
+	}
 	http.Redirect(w, r, "/admin/plugin-settings/"+pluginID, http.StatusSeeOther)
 }
 
 // writeActionError translates expected plugin-setting failures and logs unexpected ones.
 func (a *AdminPluginSettings) writeActionError(w http.ResponseWriter, r *http.Request, pluginID, action string, err error) {
 	message := "Could not save plugin settings. Check the entered values and setting dependencies."
+	if action == "admin-action" {
+		message = "Could not run the plugin action."
+	}
 	problems := []httpresponse.FieldProblem(nil)
 	expected := false
 
@@ -80,14 +101,25 @@ func (a *AdminPluginSettings) writeActionError(w http.ResponseWriter, r *http.Re
 	}
 
 	if !expected {
-		a.views.Logger().Error(
-			"plugin settings update failed",
-			"event", "plugin.settings_update_failed",
-			"plugin_id", pluginID,
-			"action", action,
-			"error", err,
-			"actor_id", currentUser(r).ID,
-		)
+		if action == "admin-action" {
+			a.views.Logger().Error(
+				"plugin admin action failed",
+				"event", "plugin.admin_action_failed",
+				"plugin_id", pluginID,
+				"module_id", strings.TrimSpace(r.FormValue("action_id")),
+				"error", err,
+				"actor_id", currentUser(r).ID,
+			)
+		} else {
+			a.views.Logger().Error(
+				"plugin settings update failed",
+				"event", "plugin.settings_update_failed",
+				"plugin_id", pluginID,
+				"action", action,
+				"error", err,
+				"actor_id", currentUser(r).ID,
+			)
+		}
 	} else if errors.Is(err, plugin.ErrSecretEncryptionUnavailable) {
 		a.views.Logger().Warn(
 			"plugin settings require application encryption",
@@ -238,6 +270,22 @@ func (a *AdminPluginSettings) deleteResource(r *http.Request, pluginID string) e
 	return a.manager.DeleteResourceRecord(r.Context(), pluginID, strings.TrimSpace(r.FormValue("resource_id")), r.FormValue("record_key"))
 }
 
+// runAdminAction invokes one explicitly declared executable administration action.
+func (a *AdminPluginSettings) runAdminAction(r *http.Request, pluginID string) error {
+	if err := r.ParseForm(); err != nil {
+		return err
+	}
+	selected, ok := loadedPlugin(a.manager, pluginID)
+	if !ok {
+		return errors.New("plugin is not installed")
+	}
+	actionID := strings.TrimSpace(r.FormValue("action_id"))
+	if !pluginAdminActionModule(selected, actionID) {
+		return errors.New("plugin admin action is not declared")
+	}
+	return a.manager.RunAdminAction(r.Context(), pluginID, actionID)
+}
+
 // loadedPlugin returns one installed plugin by stable ID.
 func loadedPlugin(manager *plugin.Manager, pluginID string) (plugin.LoadedPlugin, bool) {
 	for _, item := range manager.Plugins() {
@@ -248,10 +296,10 @@ func loadedPlugin(manager *plugin.Manager, pluginID string) (plugin.LoadedPlugin
 	return plugin.LoadedPlugin{}, false
 }
 
-// pluginHasAdminSettings reports whether a plugin exposes simple settings or structured resources.
+// pluginHasAdminSettings reports whether a plugin exposes settings, structured resources, or administrator actions.
 func pluginHasAdminSettings(item plugin.LoadedPlugin) bool {
 	for _, module := range item.Manifest.Modules {
-		if module.Type == "settings" || module.Type == "admin-resource" {
+		if module.Type == "settings" || module.Type == "admin-resource" || module.Type == "admin-action" {
 			return true
 		}
 	}
@@ -276,4 +324,14 @@ func pluginResourceModule(item plugin.LoadedPlugin, moduleID string) (pluginpack
 		}
 	}
 	return pluginpackage.Module{}, false
+}
+
+// pluginAdminActionModule reports whether one executable administrator action is declared by a plugin.
+func pluginAdminActionModule(item plugin.LoadedPlugin, moduleID string) bool {
+	for _, module := range item.Manifest.Modules {
+		if module.Type == "admin-action" && module.ID == moduleID {
+			return true
+		}
+	}
+	return false
 }

@@ -106,6 +106,34 @@
         </form>
       </section>
     {{ end }}
+    {{ range $plugin.Manifest.Modules }}
+      {{ if eq .Type "admin-action" }}
+        <section class="panel settings-panel plugin-settings-panel">
+          <div class="panel-title">
+            <div>
+              <h2>{{ .Name }}</h2>
+              {{ if .Description }}
+                <p class="muted">{{ .Description }}</p>
+              {{ end }}
+            </div>
+          </div>
+          <form method="post"
+                action="/admin/plugin-settings/{{ $plugin.Manifest.ID }}/admin-action"
+                data-validate-form
+                data-error-title="Could not run {{ .Name }}">
+            <input type="hidden" name="action_id" value="{{ .ID }}" />
+            <div class="settings-actions">
+              <button class="button compact"
+                      type="submit"
+                      {{ if not $plugin.Enabled }}disabled{{ end }}>
+                {{ if .Icon }}{{ icon .Icon 16 }}{{ end }}<span>{{ .Name }}</span>
+              </button>
+              {{ if not $plugin.Enabled }}<span class="muted">Enable the plugin to run this action.</span>{{ end }}
+            </div>
+          </form>
+        </section>
+      {{ end }}
+    {{ end }}
     {{ range .PluginSettingsResources }}
       {{ $resource := . }}
       <section class="panel settings-panel plugin-resource-panel">

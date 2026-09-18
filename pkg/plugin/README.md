@@ -334,7 +334,7 @@ host capability. Disabling or removing the owning plugin removes its icons immed
 `/admin/plugins` and the dedicated `/admin/plugin-settings/{pluginID}` pages
 use browser authentication and administrator authorization middleware. The Plugins
 page owns package lifecycle; the settings pages are generated from manifest
-`settings` and `admin-resource` declarations. Bounded multipart uploads call the
+`settings`, `admin-resource`, and `admin-action` declarations. Bounded multipart uploads call the
 same manager methods as runtime callers; handlers neither extract files nor
 instantiate separate runtimes. Invalid packages, permission failures and lifecycle
 errors leave state unchanged. Request handlers log successful lifecycle actions
@@ -348,11 +348,12 @@ required instances normally. No bundled feature is required by default.
 
 The admin UI renders each package `README.md` and exposes enable/disable lifecycle
 controls from the Plugins page. Plugins that declare boolean feature-toggle `settings`,
-typed singleton `settings`, or structured `admin-resource` modules appear in a separate
-Plugin settings section of the administration sidebar. Boolean feature toggles reach
-renderers as generic feature flags. Typed settings and resources support bounded text,
-textarea, URL, secret, boolean, and select fields without teaching core plugin-specific
-configuration names.
+typed singleton `settings`, structured `admin-resource`, or executable `admin-action` modules
+appear in a separate Plugin settings section of the administration sidebar. Boolean feature
+toggles reach renderers as generic feature flags. Typed settings and resources support bounded
+text, textarea, URL, secret, boolean, and select fields without teaching core plugin-specific
+configuration names. Administrator actions are explicit manifest-declared buttons whose WASM
+handlers run only for active plugins inside the authenticated administrator request context.
 
 ## Core page primitives
 
@@ -376,4 +377,3 @@ those distribution bytes through the ordinary bootstrap path.
 
 See the SDK repository at `https://github.com/kumbuka-me/sdk` for project
 scaffolding, testing, wire contracts, and deterministic packaging.
-
