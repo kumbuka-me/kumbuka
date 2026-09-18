@@ -1,10 +1,7 @@
 package handler
 
 import (
-	"archive/zip"
-	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -22,7 +19,6 @@ import (
 	"github.com/kumbuka-me/kumbuka/internal/portable"
 	"github.com/kumbuka-me/kumbuka/internal/service"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
-	md "github.com/kumbuka-me/kumbuka/pkg/markdown"
 )
 
 // portableArchiveImportMediaService exposes only the binary writes required by portable import.
@@ -41,26 +37,6 @@ type portableArchivePageImportService interface {
 type portableArchiveGroupService interface {
 	Groups(context.Context) ([]domain.Group, error)
 	CreateGroup(context.Context, string) (domain.Group, error)
-}
-
-// portableArchiveContents is a fully validated archive held in memory before mutations begin.
-type portableArchiveContents struct {
-	// Manifest is the decoded root archive inventory.
-	Manifest portable.Manifest
-	// Pages contains validated page source and metadata in manifest order.
-	Pages []portableArchivePage
-	// Resources maps manifest resource paths to validated binary payloads.
-	Resources map[string][]byte
-}
-
-// portableArchivePage groups one manifest page entry with its decoded portable contents.
-type portableArchivePage struct {
-	// Entry identifies the page's source and metadata paths.
-	Entry portable.PageEntry
-	// Metadata contains the portable page settings.
-	Metadata portable.PageMetadata
-	// Markdown is the page source with archive-relative resource references.
-	Markdown string
 }
 
 // ImportPagesWithPortableArchive extends the normal admin importer with Kumbuka portable archives.
@@ -152,46 +128,13 @@ func detectPortableArchiveUpload(headers []*multipart.FileHeader) (bool, error) 
 		)
 	}
 
-	reader, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
-	if err != nil {
-		return false, nil
-	}
-
-	for _, entry := range reader.File {
-		if entry.FileInfo().IsDir() || path.Clean(strings.ReplaceAll(entry.Name, "\\", "/")) != portable.ManifestPath {
-			continue
-		}
-
-		manifestFile, err := entry.Open()
-		if err != nil {
-			return false, err
-		}
-		manifestData, readErr := io.ReadAll(io.LimitReader(manifestFile, 64<<10))
-		closeErr := manifestFile.Close()
-		if readErr != nil {
-			return false, readErr
-		}
-		if closeErr != nil {
-			return false, closeErr
-		}
-
-		var manifest struct {
-			Format string `json:"format"`
-		}
-		if json.Unmarshal(manifestData, &manifest) != nil {
-			return false, nil
-		}
-
-		return manifest.Format == portable.Format, nil
-	}
-
-	return false, nil
+	return portable.Detect(data), nil
 }
 
 // readPortableArchiveUpload reads and validates one uploaded Kumbuka archive.
-func readPortableArchiveUpload(header *multipart.FileHeader) (portableArchiveContents, error) {
+func readPortableArchiveUpload(header *multipart.FileHeader) (portable.Archive, error) {
 	if strings.ToLower(path.Ext(header.Filename)) != ".zip" {
-		return portableArchiveContents{}, newRequestError(
+		return portable.Archive{}, newRequestError(
 			"files",
 			"Kumbuka imports require a .zip export archive.",
 			errors.New("portable archive is not a ZIP"),
@@ -200,318 +143,29 @@ func readPortableArchiveUpload(header *multipart.FileHeader) (portableArchiveCon
 
 	file, err := header.Open()
 	if err != nil {
-		return portableArchiveContents{}, err
+		return portable.Archive{}, err
 	}
 	defer file.Close() // nolint:errcheck
 
 	data, err := io.ReadAll(io.LimitReader(file, maxImportBytes+1))
 	if err != nil {
-		return portableArchiveContents{}, err
+		return portable.Archive{}, err
 	}
 	if len(data) > maxImportBytes {
-		return portableArchiveContents{}, newRequestError(
+		return portable.Archive{}, newRequestError(
 			"files",
 			"Kumbuka archive exceeds 100 MiB.",
 			errors.New("portable archive exceeds 100 MiB"),
 		)
 	}
 
-	return parsePortableArchive(data)
-}
-
-// parsePortableArchive validates a Kumbuka archive completely before any data is written.
-func parsePortableArchive(data []byte) (portableArchiveContents, error) {
-	reader, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
-	if err != nil {
-		return portableArchiveContents{}, portableArchiveRequestError("The Kumbuka ZIP archive is invalid.", err)
-	}
-
-	entries := make(map[string]*zip.File, len(reader.File))
-	for _, entry := range reader.File {
-		if entry.FileInfo().IsDir() {
-			continue
-		}
-		name, err := validPortableArchivePath(entry.Name)
-		if err != nil {
-			return portableArchiveContents{}, err
-		}
-		if _, exists := entries[name]; exists {
-			return portableArchiveContents{}, portableArchiveRequestError(
-				"The Kumbuka archive contains duplicate paths.",
-				fmt.Errorf("duplicate archive path %q", name),
-			)
-		}
-		entries[name] = entry
-	}
-
-	manifestEntry, ok := entries[portable.ManifestPath]
-	if !ok {
-		return portableArchiveContents{}, portableArchiveRequestError(
-			"The Kumbuka archive is missing manifest.json.",
-			errors.New("portable archive manifest is missing"),
-		)
-	}
-
-	remaining := int64(maxImportBytes)
-	manifestData, err := readPortableZipFile(manifestEntry, &remaining)
-	if err != nil {
-		return portableArchiveContents{}, err
-	}
-
-	var manifest portable.Manifest
-	if err := json.Unmarshal(manifestData, &manifest); err != nil {
-		return portableArchiveContents{}, portableArchiveRequestError(
-			"The Kumbuka archive manifest contains invalid JSON.",
-			fmt.Errorf("decode portable manifest: %w", err),
-		)
-	}
-	if manifest.Format != portable.Format {
-		return portableArchiveContents{}, portableArchiveRequestError(
-			"The ZIP is not a Kumbuka portable archive.",
-			fmt.Errorf("unexpected portable archive format %q", manifest.Format),
-		)
-	}
-	if manifest.Version != portable.Version {
-		return portableArchiveContents{}, portableArchiveRequestError(
-			fmt.Sprintf("Kumbuka archive version %d is not supported by this build.", manifest.Version),
-			fmt.Errorf("unsupported portable archive version %d", manifest.Version),
-		)
-	}
-	if len(manifest.Pages) == 0 {
-		return portableArchiveContents{}, portableArchiveRequestError(
-			"The Kumbuka archive contains no pages.",
-			errors.New("portable archive contains no pages"),
-		)
-	}
-
-	contents := portableArchiveContents{
-		Manifest:  manifest,
-		Pages:     make([]portableArchivePage, 0, len(manifest.Pages)),
-		Resources: map[string][]byte{},
-	}
-	used := map[string]bool{portable.ManifestPath: true}
-
-	for _, pageEntry := range manifest.Pages {
-		pageData, err := readPortableArchivePage(entries, pageEntry, used, &remaining)
-		if err != nil {
-			return portableArchiveContents{}, err
-		}
-		contents.Pages = append(contents.Pages, pageData)
-	}
-
-	for _, resource := range manifest.Media {
-		if err := readPortableArchiveResource(entries, resource, "media/", used, &remaining, contents.Resources); err != nil {
-			return portableArchiveContents{}, err
-		}
-	}
-	for _, resource := range manifest.Attachments {
-		if err := readPortableArchiveResource(entries, resource, "attachments/", used, &remaining, contents.Resources); err != nil {
-			return portableArchiveContents{}, err
-		}
-	}
-
-	if len(used) != len(entries) {
-		return portableArchiveContents{}, portableArchiveRequestError(
-			"The Kumbuka archive contains files that are not listed in its manifest.",
-			errors.New("portable archive contains unlisted files"),
-		)
-	}
-
-	return contents, nil
-}
-
-// readPortableArchivePage validates and reads one page and its metadata sidecar.
-func readPortableArchivePage(
-	entries map[string]*zip.File,
-	pageEntry portable.PageEntry,
-	used map[string]bool,
-	remaining *int64,
-) (portableArchivePage, error) {
-	slug := strings.TrimSpace(pageEntry.Slug)
-	if !validPortableSlug(slug) {
-		return portableArchivePage{}, portableArchiveRequestError(
-			"The Kumbuka archive contains an invalid page path.",
-			fmt.Errorf("invalid portable page slug %q", pageEntry.Slug),
-		)
-	}
-
-	expectedMarkdown := path.Join("pages", slug+".md")
-	expectedMetadata := path.Join("metadata", slug+".json")
-	if pageEntry.Markdown != expectedMarkdown || pageEntry.Metadata != expectedMetadata {
-		return portableArchivePage{}, portableArchiveRequestError(
-			"The Kumbuka archive page inventory is inconsistent.",
-			fmt.Errorf("page %q paths do not match canonical paths", slug),
-		)
-	}
-
-	markdown, err := readPortableManifestFile(entries, pageEntry.Markdown, used, remaining)
-	if err != nil {
-		return portableArchivePage{}, err
-	}
-	metadataData, err := readPortableManifestFile(entries, pageEntry.Metadata, used, remaining)
-	if err != nil {
-		return portableArchivePage{}, err
-	}
-
-	var metadata portable.PageMetadata
-	if err := json.Unmarshal(metadataData, &metadata); err != nil {
-		return portableArchivePage{}, portableArchiveRequestError(
-			"The Kumbuka archive contains invalid page metadata.",
-			fmt.Errorf("decode metadata for %q: %w", slug, err),
-		)
-	}
-	if metadata.Slug != slug || strings.TrimSpace(metadata.Title) == "" {
-		return portableArchivePage{}, portableArchiveRequestError(
-			"The Kumbuka archive contains inconsistent page metadata.",
-			fmt.Errorf("metadata for %q has slug %q or empty title", slug, metadata.Slug),
-		)
-	}
-	if !domain.ValidPageStatus(metadata.Status) || !domain.ValidReviewIntervalDays(metadata.ReviewIntervalDays) {
-		return portableArchivePage{}, portableArchiveRequestError(
-			"The Kumbuka archive contains invalid page workflow metadata.",
-			fmt.Errorf("invalid workflow metadata for %q", slug),
-		)
-	}
-	if err := validatePortableGroupNames(metadata); err != nil {
-		return portableArchivePage{}, err
-	}
-
-	return portableArchivePage{
-		Entry:    pageEntry,
-		Metadata: metadata,
-		Markdown: string(markdown),
-	}, nil
-}
-
-// readPortableArchiveResource validates and reads one manifest resource entry.
-func readPortableArchiveResource(
-	entries map[string]*zip.File,
-	resource portable.ResourceEntry,
-	prefix string,
-	used map[string]bool,
-	remaining *int64,
-	resources map[string][]byte,
-) error {
-	if !strings.HasPrefix(resource.Path, prefix) || path.Base(resource.Path) != resource.Filename || strings.TrimSpace(resource.Filename) == "" {
-		return portableArchiveRequestError(
-			"The Kumbuka archive contains an invalid resource inventory.",
-			fmt.Errorf("invalid portable resource %q", resource.Path),
-		)
-	}
-	if used[resource.Path] {
-		return portableArchiveRequestError(
-			"The Kumbuka archive contains duplicate resource entries.",
-			fmt.Errorf("duplicate portable resource %q", resource.Path),
-		)
-	}
-
-	data, err := readPortableManifestFile(entries, resource.Path, used, remaining)
-	if err != nil {
-		return err
-	}
-	resources[resource.Path] = data
-	return nil
-}
-
-// readPortableManifestFile reads one manifest-listed path and marks it consumed.
-func readPortableManifestFile(
-	entries map[string]*zip.File,
-	name string,
-	used map[string]bool,
-	remaining *int64,
-) ([]byte, error) {
-	if used[name] {
-		return nil, portableArchiveRequestError(
-			"The Kumbuka archive contains duplicate manifest references.",
-			fmt.Errorf("duplicate manifest path %q", name),
-		)
-	}
-	entry, ok := entries[name]
-	if !ok {
-		return nil, portableArchiveRequestError(
-			"The Kumbuka archive is missing a file listed in its manifest.",
-			fmt.Errorf("missing manifest path %q", name),
-		)
-	}
-
-	data, err := readPortableZipFile(entry, remaining)
-	if err != nil {
-		return nil, err
-	}
-	used[name] = true
-	return data, nil
-}
-
-// readPortableZipFile reads one ZIP entry without exceeding the shared uncompressed budget.
-func readPortableZipFile(entry *zip.File, remaining *int64) ([]byte, error) {
-	if entry.UncompressedSize64 > uint64(*remaining) {
-		return nil, portableArchiveRequestError(
-			"Kumbuka archive contents exceed 100 MiB.",
-			errors.New("portable archive contents exceed 100 MiB"),
-		)
-	}
-
-	file, err := entry.Open()
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close() // nolint:errcheck
-
-	data, err := io.ReadAll(io.LimitReader(file, *remaining+1))
-	if err != nil {
-		return nil, err
-	}
-	if int64(len(data)) > *remaining {
-		return nil, portableArchiveRequestError(
-			"Kumbuka archive contents exceed 100 MiB.",
-			errors.New("portable archive contents exceed 100 MiB"),
-		)
-	}
-	*remaining -= int64(len(data))
-	return data, nil
-}
-
-// validPortableArchivePath normalizes one ZIP path and rejects traversal or platform-specific separators.
-func validPortableArchivePath(name string) (string, error) {
-	if name == "" || strings.Contains(name, "\\") || path.IsAbs(name) {
-		return "", portableArchiveRequestError(
-			"The Kumbuka archive contains an invalid file path.",
-			fmt.Errorf("invalid archive path %q", name),
-		)
-	}
-	clean := path.Clean(name)
-	if clean != name || clean == "." || clean == ".." || strings.HasPrefix(clean, "../") {
-		return "", portableArchiveRequestError(
-			"The Kumbuka archive contains an unsafe file path.",
-			fmt.Errorf("unsafe archive path %q", name),
-		)
-	}
-	return clean, nil
-}
-
-// validPortableSlug reports whether slug is already a canonical relative page path.
-func validPortableSlug(slug string) bool {
-	return slug != "" && slug != "." && md.Slug(slug) == slug && !strings.HasPrefix(slug, "/") &&
-		!strings.HasSuffix(slug, "/") && !strings.Contains(slug, "//") && path.Clean(slug) == slug
-}
-
-// validatePortableGroupNames rejects blank collaboration group references before any groups are created.
-func validatePortableGroupNames(metadata portable.PageMetadata) error {
-	for _, name := range append(slices.Clone(metadata.Groups), metadata.OwnerGroup) {
-		if name != "" && strings.TrimSpace(name) == "" {
-			return portableArchiveRequestError(
-				"The Kumbuka archive contains an invalid collaboration group name.",
-				errors.New("portable archive contains blank group name"),
-			)
-		}
-	}
-	return nil
+	return portable.Parse(data, maxImportBytes)
 }
 
 // restorePortableArchive recreates resources, groups, and pages from a validated archive.
 func restorePortableArchive(
 	ctx context.Context,
-	archive portableArchiveContents,
+	archive portable.Archive,
 	pageUseCases portableArchivePageImportService,
 	mediaUseCases portableArchiveImportMediaService,
 	groupUseCases portableArchiveGroupService,
@@ -579,7 +233,7 @@ func restorePortableArchive(
 func ensurePortableGroups(
 	ctx context.Context,
 	groupUseCases portableArchiveGroupService,
-	pages []portableArchivePage,
+	pages []portable.Page,
 ) (map[string]int64, error) {
 	groups, err := groupUseCases.Groups(ctx)
 	if err != nil {
@@ -661,13 +315,18 @@ func clonePortableProperties(properties map[string]string) map[string]string {
 	return clone
 }
 
-// portableArchiveRequestError creates a safe user-facing archive validation error.
-func portableArchiveRequestError(message string, cause error) error {
-	return newRequestError("files", message, cause)
-}
-
 // writePortableArchiveImportProblem writes safe validation problems and logs unexpected restore failures.
 func writePortableArchiveImportProblem(logger *slog.Logger, w http.ResponseWriter, err error) {
+	var archiveValidation *portable.ValidationError
+	if errors.As(err, &archiveValidation) {
+		httpresponse.Problem(w,
+			http.StatusBadRequest,
+			"Import validation failed.",
+			httpresponse.NewFieldProblem("files", archiveValidation.Message),
+		)
+		return
+	}
+
 	if message, ok := userErrorMessage(err); ok {
 		httpresponse.Problem(w,
 			http.StatusBadRequest,

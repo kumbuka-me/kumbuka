@@ -53,6 +53,7 @@ func (portableExportMediaStub) AttachmentContent(_ context.Context, id int64) (d
 	}, nil
 }
 
+// TestWritePortableExportArchiveIncludesMetadataAndResources supports portable archive regression coverage.
 func TestWritePortableExportArchiveIncludesMetadataAndResources(t *testing.T) {
 	t.Parallel()
 
@@ -105,6 +106,7 @@ func TestWritePortableExportArchiveIncludesMetadataAndResources(t *testing.T) {
 	assert.Equal(t, map[string]string{"tier": "critical"}, metadata.Properties)
 }
 
+// TestImportPagesWithPortableArchiveAutoDetectsKumbukaZip supports portable archive regression coverage.
 func TestImportPagesWithPortableArchiveAutoDetectsKumbukaZip(t *testing.T) {
 	t.Parallel()
 
@@ -144,29 +146,6 @@ func TestImportPagesWithPortableArchiveAutoDetectsKumbukaZip(t *testing.T) {
 	require.Len(t, pages.Pages, 1)
 	assert.Equal(t, "ADFADF", pages.Pages[0].Title)
 	assert.Equal(t, "Body without a level-one heading.\n", pages.Pages[0].Markdown)
-}
-
-func TestParsePortableArchiveRejectsUnsupportedVersion(t *testing.T) {
-	t.Parallel()
-
-	manifest := portable.NewManifest()
-	manifest.Version++
-	manifest.Pages = []portable.PageEntry{{
-		Slug: "guide", Markdown: "pages/guide.md", Metadata: "metadata/guide.json",
-	}}
-	archive := testPortableArchive(t, manifest, map[string][]byte{
-		"pages/guide.md": []byte("# Guide\n"),
-		"metadata/guide.json": mustJSON(t, portable.PageMetadata{
-			Slug: "guide", Title: "Guide", Status: "verified",
-		}),
-	})
-
-	_, err := parsePortableArchive(archive)
-
-	require.Error(t, err)
-	message, ok := userErrorMessage(err)
-	require.True(t, ok)
-	assert.Contains(t, message, "not supported")
 }
 
 // portableRestorePagesStub records pages passed to the portable service import.
@@ -239,13 +218,14 @@ func (s *portableRestoreGroupsStub) CreateGroup(_ context.Context, name string) 
 	return domain.Group{ID: int64(10 + len(s.Created)), Name: name}, nil
 }
 
+// TestRestorePortableArchiveRewritesResourcesAndMapsGroups supports portable archive regression coverage.
 func TestRestorePortableArchiveRewritesResourcesAndMapsGroups(t *testing.T) {
 	t.Parallel()
 
 	pages := &portableRestorePagesStub{}
 	media := &portableRestoreMediaStub{}
 	groups := &portableRestoreGroupsStub{GroupsValue: []domain.Group{{ID: 4, Name: "Platform"}}}
-	archive := portableArchiveContents{
+	archive := portable.Archive{
 		Manifest: portable.Manifest{
 			Format:  portable.Format,
 			Version: portable.Version,
@@ -260,7 +240,7 @@ func TestRestorePortableArchiveRewritesResourcesAndMapsGroups(t *testing.T) {
 			"media/12/diagram.png":      []byte("image"),
 			"attachments/7/runbook.pdf": []byte("attachment"),
 		},
-		Pages: []portableArchivePage{{
+		Pages: []portable.Page{{
 			Entry: portable.PageEntry{Slug: "platform/runbook", Markdown: "pages/platform/runbook.md"},
 			Metadata: portable.PageMetadata{
 				Slug: "platform/runbook", Title: "Runbook", Status: "verified",
