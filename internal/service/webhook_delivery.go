@@ -65,18 +65,18 @@ func (s *Webhooks) Emit(ctx context.Context, event OutgoingEvent) error {
 func (s *Webhooks) deliver(ctx context.Context, item domain.Webhook, event OutgoingEvent) error {
 	headers, err := s.webhookRequestHeaders(item, event)
 	if err != nil {
-		s.recordWebhookDelivery(ctx, item.ID, event.Event, 0, 0, err.Error())
+		s.recordWebhookDelivery(ctx, item.ID, event.Event, 0, 0, err.Error()) // nolint:errcheck
 		return err
 	}
 
 	bodyTemplate, err := parseWebhookBodyTemplate(item.BodyTemplate)
 	if err != nil {
-		s.recordWebhookDelivery(ctx, item.ID, event.Event, 0, 0, err.Error())
+		s.recordWebhookDelivery(ctx, item.ID, event.Event, 0, 0, err.Error()) // nolint:errcheck
 		return err
 	}
 	titleTemplate, err := templates.ParseStringTemplate("kumbuka-webhook-title", `{{ .Input.Event }}`, templates.WithDefaultFuncs())
 	if err != nil {
-		s.recordWebhookDelivery(ctx, item.ID, event.Event, 0, 0, err.Error())
+		s.recordWebhookDelivery(ctx, item.ID, event.Event, 0, 0, err.Error()) // nolint:errcheck
 		return err
 	}
 
