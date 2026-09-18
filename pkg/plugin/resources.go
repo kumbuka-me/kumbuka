@@ -20,7 +20,7 @@ var (
 )
 
 const (
-	resourceNamespace      = "settings"
+	resourceNamespace      = pluginSettingsNamespace
 	maxResourceKeyBytes    = 128
 	maxResourceRecordBytes = 60 << 10
 )
@@ -255,20 +255,20 @@ func (m *Manager) SaveResourceRecord(ctx context.Context, pluginID, moduleID, or
 	}
 
 	newStorageKey := resourceStorageKey(module.ID, key)
-	if originalKey != "" {
-		oldStorageKey := resourceStorageKey(module.ID, originalKey)
-		if oldStorageKey != newStorageKey {
-			if _, found, readErr := m.values.ReadPluginValue(ctx, pluginID, resourceNamespace, newStorageKey); readErr != nil {
-				return readErr
-			} else if found {
-				keyField := resourceKeyField(module)
-				return resourceFieldError(keyField, keyField.Name+" is already in use.")
-			}
-			if err := m.values.DeletePluginValue(ctx, pluginID, resourceNamespace, oldStorageKey); err != nil {
-				return err
-			}
+	oldStorageKey := resourceStorageKey(module.ID, originalKey)
+	if originalKey != "" && oldStorageKey != newStorageKey {
+		err := m.values.ReplacePluginValue(ctx, pluginID, resourceNamespace, oldStorageKey, newStorageKey, encoded)
+		switch {
+		case errors.Is(err, ErrPluginValueAlreadyExists):
+			keyField := resourceKeyField(module)
+			return resourceFieldError(keyField, keyField.Name+" is already in use.")
+		case errors.Is(err, ErrPluginValueNotFound):
+			return errors.New("plugin resource record no longer exists")
+		default:
+			return err
 		}
 	}
+
 	return m.values.WritePluginValue(ctx, pluginID, resourceNamespace, newStorageKey, encoded)
 }
 

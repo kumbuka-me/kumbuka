@@ -49,6 +49,24 @@ func (s *resourceStorage) WritePluginValue(_ context.Context, id, namespace, key
 	return nil
 }
 
+// ReplacePluginValue atomically moves one test plugin value while rejecting collisions.
+func (s *resourceStorage) ReplacePluginValue(_ context.Context, id, namespace, oldKey, newKey string, value []byte) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	oldPath := id + "/" + namespace + "/" + oldKey
+	newPath := id + "/" + namespace + "/" + newKey
+	if _, ok := s.values[oldPath]; !ok {
+		return ErrPluginValueNotFound
+	}
+	if _, ok := s.values[newPath]; ok {
+		return ErrPluginValueAlreadyExists
+	}
+	delete(s.values, oldPath)
+	s.values[newPath] = bytes.Clone(value)
+	return nil
+}
+
 // DeletePluginValue removes one test plugin value.
 func (s *resourceStorage) DeletePluginValue(_ context.Context, id, namespace, key string) error {
 	s.mu.Lock()
@@ -182,6 +200,37 @@ func TestPluginResourceFieldTypesAndSecrets(t *testing.T) {
 		"name": "docs", "endpoint": "file:///tmp/docs", "provider": "github", "enabled": "true", "token": "",
 	})
 	require.ErrorContains(t, err, "absolute HTTP or HTTPS URL")
+}
+
+// TestPluginResourceRenamePreservesSourceOnCollision verifies a conflicting rename never deletes the original record.
+func TestPluginResourceRenamePreservesSourceOnCollision(t *testing.T) {
+	ctx := context.Background()
+	storage := &resourceStorage{values: make(map[string][]byte)}
+	manifest := pluginpackage.Manifest{ID: "io.example.rename", Modules: []pluginpackage.Module{{
+		Type: "admin-resource", ID: "values", Name: "Values", Fields: []pluginpackage.ResourceField{
+			{ID: "name", Name: "Name", Type: "text", Required: true, Key: true},
+			{ID: "content", Name: "Content", Type: "text", Required: true},
+		},
+	}}}
+	manager := NewManager(&Registry{}, nil, WithStorage(storage))
+	manager.loaded[manifest.ID] = managedPlugin{metadata: LoadedPlugin{Manifest: manifest, Enabled: true}}
+	manager.order = []string{manifest.ID}
+
+	require.NoError(t, manager.SaveResourceRecord(ctx, manifest.ID, "values", "", map[string]string{"name": "source", "content": "one"}))
+	require.NoError(t, manager.SaveResourceRecord(ctx, manifest.ID, "values", "", map[string]string{"name": "target", "content": "two"}))
+
+	err := manager.SaveResourceRecord(ctx, manifest.ID, "values", "source", map[string]string{"name": "target", "content": "changed"})
+	require.ErrorContains(t, err, "already exists")
+
+	source, found, err := ReadResourceRecord(ctx, storage, manifest.ID, manifest.Modules[0], "source")
+	require.NoError(t, err)
+	require.True(t, found)
+	assert.Equal(t, "one", source.Values["content"])
+
+	target, found, err := ReadResourceRecord(ctx, storage, manifest.ID, manifest.Modules[0], "target")
+	require.NoError(t, err)
+	require.True(t, found)
+	assert.Equal(t, "two", target.Values["content"])
 }
 
 // TestPluginResourceValidationErrorsExposeFieldIDs verifies handlers can map resource validation back to manifest fields.

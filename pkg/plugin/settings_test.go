@@ -3,7 +3,6 @@ package plugin
 import (
 	"bytes"
 	"context"
-	"errors"
 	"strings"
 	"sync"
 	"testing"
@@ -14,9 +13,8 @@ import (
 )
 
 type settingsStorage struct {
-	mu       sync.Mutex
-	values   map[string][]byte
-	batchErr error
+	mu     sync.Mutex
+	values map[string][]byte
 }
 
 // ReadPluginValue reads one stored test value.
@@ -46,20 +44,6 @@ func (s *settingsStorage) WritePluginValue(_ context.Context, id, namespace, key
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.values[id+"/"+namespace+"/"+key] = bytes.Clone(value)
-	return nil
-}
-
-// WritePluginValues atomically stores a set of test plugin values.
-func (s *settingsStorage) WritePluginValues(_ context.Context, id, namespace string, values map[string][]byte) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if s.batchErr != nil {
-		return s.batchErr
-	}
-	for key, value := range values {
-		s.values[id+"/"+namespace+"/"+key] = bytes.Clone(value)
-	}
 	return nil
 }
 
@@ -120,41 +104,4 @@ func TestPluginSettingsDefaultAndPersistedState(t *testing.T) {
 	reloaded, err := manager.loadSettings(ctx, manifest)
 	require.NoError(t, err)
 	assert.Equal(t, map[string]bool{"colors": false, "filters": false}, reloaded)
-}
-
-// TestPluginSettingsBatchFailurePreservesPersistedAndLoadedState verifies complete settings forms fail atomically.
-func TestPluginSettingsBatchFailurePreservesPersistedAndLoadedState(t *testing.T) {
-	t.Parallel()
-
-	ctx := context.Background()
-	storage := &settingsStorage{values: make(map[string][]byte)}
-	manifest := pluginpackage.Manifest{
-		ID: "io.example.atomic-settings",
-		Modules: []pluginpackage.Module{
-			{Type: "settings", ID: "colors", Name: "Colors"},
-			{Type: "settings", ID: "filters", Name: "Filters"},
-		},
-	}
-	manager := NewManager(&Registry{}, nil, WithStorage(storage))
-	manager.loaded[manifest.ID] = managedPlugin{metadata: LoadedPlugin{
-		Manifest: manifest,
-		Enabled:  true,
-		Settings: map[string]bool{"colors": false, "filters": false},
-	}}
-	manager.order = []string{manifest.ID}
-	require.NoError(t, storage.WritePluginValues(ctx, manifest.ID, pluginSettingsNamespace, map[string][]byte{
-		featureSettingStorageKey("colors"):  []byte("false"),
-		featureSettingStorageKey("filters"): []byte("false"),
-	}))
-
-	storage.batchErr = errors.New("write failed")
-	err := manager.UpdateSettings(ctx, manifest.ID, map[string]bool{"colors": true, "filters": true})
-	require.ErrorContains(t, err, "write failed")
-
-	assert.Equal(t, []byte("false"), storage.values[manifest.ID+"/settings/feature:colors"])
-	assert.Equal(t, []byte("false"), storage.values[manifest.ID+"/settings/feature:filters"])
-	assert.Equal(t, map[string]bool{
-		"io.example.atomic-settings.colors":  false,
-		"io.example.atomic-settings.filters": false,
-	}, manager.FeatureSettings())
 }

@@ -4,7 +4,6 @@ import (
 	"context"
 	"io"
 	"log/slog"
-	"strings"
 	"testing"
 
 	"github.com/kumbuka-me/kumbuka/pkg/plugin"
@@ -84,22 +83,4 @@ func TestReplacePluginValueMovesAtomically(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, found)
 	require.Equal(t, []byte("other-value"), value)
-}
-
-// TestPluginValuesBatchWriteRollsBackOnFailure verifies a failed value in a batch leaves earlier writes uncommitted.
-func TestPluginValuesBatchWriteRollsBackOnFailure(t *testing.T) {
-	ctx := context.Background()
-	database, err := Open(ctx, integrationDatabase(t), slog.New(slog.NewTextHandler(io.Discard, nil)))
-	require.NoError(t, err)
-	defer database.Close()
-
-	err = database.WritePluginValues(ctx, "io.batch", "settings", map[string][]byte{
-		"a":                      []byte("would-be-written-first"),
-		strings.Repeat("x", 257): []byte("invalid-key"),
-	})
-	require.Error(t, err)
-
-	_, found, err := database.ReadPluginValue(ctx, "io.batch", "settings", "a")
-	require.NoError(t, err)
-	require.False(t, found)
 }

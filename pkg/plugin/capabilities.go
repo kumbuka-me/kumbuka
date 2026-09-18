@@ -26,10 +26,8 @@ type Storage interface {
 	ReadPluginValue(context.Context, string, string, string) ([]byte, bool, error)
 	// ListPluginValues lists values whose keys share prefix in deterministic key order.
 	ListPluginValues(context.Context, string, string, string) (map[string][]byte, error)
-	// WritePluginValue writes one plugin value.
+	// WritePluginValue writes plugin value.
 	WritePluginValue(context.Context, string, string, string, []byte) error
-	// WritePluginValues atomically writes a complete set of values in one namespace.
-	WritePluginValues(context.Context, string, string, map[string][]byte) error
 	// DeletePluginValue deletes one plugin value. Missing keys are ignored.
 	DeletePluginValue(context.Context, string, string, string) error
 	// ReplacePluginValue atomically replaces oldKey with newKey and rejects collisions.

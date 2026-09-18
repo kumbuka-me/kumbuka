@@ -3,7 +3,6 @@ package store
 import (
 	"context"
 	"errors"
-	"sort"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/kumbuka-me/kumbuka/pkg/plugin"
@@ -39,61 +38,33 @@ func (s *Store) ListPluginValues(ctx context.Context, id, namespace, prefix stri
 	return values, rows.Err()
 }
 
-// WritePluginValue writes one plugin-scoped value through the atomic batch path.
+// WritePluginValue serializes plugin-scoped writes and enforces a total quota
+// across plugin settings and data: 1,024 keys and 16 MiB. Updating a key at the quota
+// remains possible. The transaction prevents concurrent quota oversubscription.
 func (s *Store) WritePluginValue(ctx context.Context, id, namespace, key string, value []byte) error {
-	return s.WritePluginValues(ctx, id, namespace, map[string][]byte{key: value})
-}
-
-// WritePluginValues atomically writes plugin-scoped values while enforcing the shared quota.
-func (s *Store) WritePluginValues(ctx context.Context, id, namespace string, values map[string][]byte) error {
-	if len(values) == 0 {
-		return nil
+	if value == nil {
+		value = []byte{}
 	}
-
-	keys := make([]string, 0, len(values))
-	totalBytes := int64(0)
-	for key, value := range values {
-		keys = append(keys, key)
-		totalBytes += int64(len(value))
-	}
-	sort.Strings(keys)
-
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return err
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
-
 	if _, err = tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1, 92731))`, id); err != nil {
 		return err
 	}
-
 	var count, size int64
-	err = tx.QueryRow(ctx, `
-		SELECT count(*), COALESCE(sum(octet_length(value)),0)
-		FROM plugin_values
-		WHERE plugin_id=$1 AND NOT (namespace=$2 AND key = ANY($3::text[]))
-	`, id, namespace, keys).Scan(&count, &size)
+	err = tx.QueryRow(ctx, `SELECT count(*), COALESCE(sum(octet_length(value)),0) FROM plugin_values WHERE plugin_id=$1 AND NOT (namespace=$2 AND key=$3)`, id, namespace, key).Scan(&count, &size)
 	if err != nil {
 		return err
 	}
-	if count+int64(len(values)) > 1024 || size+totalBytes > 16<<20 {
+	if count >= 1024 || size+int64(len(value)) > 16<<20 {
 		return errors.New("plugin storage quota exceeded")
 	}
-
-	for _, key := range keys {
-		value := values[key]
-		if value == nil {
-			value = []byte{}
-		}
-		if _, err = tx.Exec(ctx, `
-			INSERT INTO plugin_values(plugin_id,namespace,key,value) VALUES($1,$2,$3,$4)
-			ON CONFLICT(plugin_id,namespace,key) DO UPDATE SET value=EXCLUDED.value
-		`, id, namespace, key, value); err != nil {
-			return err
-		}
+	_, err = tx.Exec(ctx, `INSERT INTO plugin_values(plugin_id,namespace,key,value) VALUES($1,$2,$3,$4) ON CONFLICT(plugin_id,namespace,key) DO UPDATE SET value=EXCLUDED.value`, id, namespace, key, value)
+	if err != nil {
+		return err
 	}
-
 	return tx.Commit(ctx)
 }
 

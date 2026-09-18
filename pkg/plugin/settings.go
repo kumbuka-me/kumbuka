@@ -85,16 +85,14 @@ func (m *Manager) UpdateSettings(ctx context.Context, id string, settings map[st
 	}
 
 	if m.values != nil {
-		persisted := make(map[string][]byte, len(settings))
 		for key, enabled := range settings {
 			value, err := json.Marshal(enabled)
 			if err != nil {
 				return err
 			}
-			persisted[featureSettingStorageKey(key)] = value
-		}
-		if err := m.values.WritePluginValues(ctx, id, pluginSettingsNamespace, persisted); err != nil {
-			return fmt.Errorf("save plugin settings %s: %w", id, err)
+			if err := m.values.WritePluginValue(ctx, id, pluginSettingsNamespace, featureSettingStorageKey(key), value); err != nil {
+				return fmt.Errorf("save plugin setting %s.%s: %w", id, key, err)
+			}
 		}
 	}
 
