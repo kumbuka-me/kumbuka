@@ -111,6 +111,9 @@ func (r *Runtime) dispatch(ctx context.Context, module api.Module, request sdk.C
 		return nil, errors.New("capability denied")
 	}
 
+	if request.Method == "external.files.read" && r.externalFiles != nil {
+		return r.externalFiles(ctx, request.Params)
+	}
 	if strings.HasPrefix(request.Method, "plugin.") {
 		return r.storageCall(ctx, caller.manifest.ID, request)
 	}

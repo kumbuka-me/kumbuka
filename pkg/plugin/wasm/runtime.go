@@ -94,6 +94,8 @@ var compilationGate = make(chan struct{}, 1)
 
 // Runtime owns the wazero engine and trusted host policy used for plugin instances.
 type Runtime struct {
+	// externalFiles is a trusted, host-authorized file reader, never arbitrary HTTP.
+	externalFiles plugin.Capability
 	// engine owns compiled modules and instantiated WASM guests.
 	engine wazero.Runtime
 	// limits contains effective runtime resource bounds.
@@ -313,4 +315,10 @@ func validHostImport(namespace, name string, function api.FunctionDefinition) bo
 	params := []api.ValueType{api.ValueTypeI32, api.ValueTypeI32, api.ValueTypeI32, api.ValueTypeI32}
 	results := []api.ValueType{api.ValueTypeI32}
 	return matchesSignature(function, params, results)
+}
+
+// WithExternalFiles provides the approved repository reader. The callback must
+// authorize the host request context and enforce source, secret and network policy.
+func WithExternalFiles(read plugin.Capability) Option {
+	return func(r *Runtime) { r.externalFiles = read }
 }

@@ -1,0 +1,49 @@
+{{ define "content" }}
+  <section class="admin-page">
+    <div class="settings-heading">
+      <p class="eyebrow">Administration · Plugins</p>
+      <h1>External files</h1>
+      <p class="muted">Approve repositories for the External Files plugin. <a href="/admin/plugins">Back to plugins</a></p>
+    </div>
+    <section class="panel settings-panel">
+      <h2>Approved sources</h2>
+      {{ if .ExternalFilesInsecureTLS }}<p class="settings-note" role="alert">Provider TLS certificate verification is disabled by the deployment administrator. Provider identity is not verified; use a trusted network and configure a trusted CA when possible.</p>{{ end }}
+      <p>Approval allows any file at the selected revision to be displayed to Kumbuka users through page content or previews. Repository permissions are not checked for each reader. Public share links cannot fetch this content.</p>
+      <p>Use a dedicated read-only token restricted to the approved repository. A commit SHA keeps line annotations stable. Revocation stops future fetches; it cannot recall copies or exports already made.</p>
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead><tr><th>Source</th><th>Provider endpoint</th><th>Repository / revision</th><th>Credential</th><th>Private addresses</th><th>Action</th></tr></thead>
+          <tbody>
+            {{ range .ExternalSources }}
+              <tr>
+                <td>{{ .ID }}</td><td>{{ .Provider }} · {{ .Endpoint }}</td>
+                <td>{{ .Repository }}<br />{{ .Ref }}</td>
+                <td>{{ if .HasToken }}Configured{{ else }}Public access{{ end }}</td>
+                <td>{{ range .PrivateIPs }}{{ . }}<br />{{ else }}None{{ end }}</td>
+                <td><form method="post" action="/admin/plugins/external-files/{{ .ID }}/delete"><button class="button compact" type="submit">Revoke</button></form></td>
+              </tr>
+            {{ else }}<tr><td colspan="6">No repositories are approved.</td></tr>{{ end }}
+          </tbody>
+        </table>
+      </div>
+    </section>
+    <section class="panel settings-panel">
+      <h2>Approve or replace a source</h2>
+      <p>Saving an existing name replaces its approval and credential. Enter the token again when replacing a private source; an empty token selects public access.</p>
+      <form method="post" action="/admin/plugins/external-files" class="stacked-form" autocomplete="off">
+        <label>Source name <input name="id" required pattern="[a-z][a-z0-9-]{0,63}" maxlength="64" placeholder="engineering" /></label>
+        <label>Provider <select name="provider"><option value="github">GitHub</option><option value="gitlab">GitLab</option></select></label>
+        <label>HTTPS API endpoint <input name="endpoint" type="url" required maxlength="512" placeholder="https://api.github.com" /></label>
+        <p class="muted">GitHub.com: https://api.github.com · GitHub Enterprise: https://git.example.com/api/v3 · GitLab: https://gitlab.com/api/v4 (or your GitLab host and installation prefix).</p>
+        <label>Repository <input name="repository" required maxlength="256" placeholder="organization/repository" /></label>
+        <label>Revision <input name="ref" required maxlength="256" placeholder="Commit SHA, branch or tag" /></label>
+        <label>Read-only access token <input name="token" type="password" maxlength="4096" autocomplete="new-password" /></label>
+        <p class="muted">Tokens are encrypted with the application's encryption key, never displayed again, and never passed to plugins or page readers.</p>
+        <label>Approved private IP addresses (optional) <textarea name="private_ips" rows="2" placeholder="10.20.30.40"></textarea></label>
+        <p class="muted">For internal servers only: list exact private IPv4 or IPv6 ULA addresses, separated by spaces. TLS certificates are verified unless the deployment override is enabled. Loopback, link-local and cloud metadata addresses remain blocked.</p>
+        <label class="toggle-row"><span>I approve disclosure of this repository at this revision to Kumbuka users, and approve this endpoint and any listed private addresses.</span><input type="checkbox" name="approve" required /></label>
+        <button class="button" type="submit">Approve source</button>
+      </form>
+    </section>
+  </section>
+{{ end }}

@@ -161,3 +161,30 @@ func TestCapabilitiesUseCurrentRequestAndRecoverFromHostPanic(t *testing.T) {
 	scope.Capabilities["pages.get"] = func(context.Context, json.RawMessage) (any, error) { return "healthy", nil }
 	assert.Equal(t, `"healthy"`, hostRequest(t, instance, scope, "pages.get", nil))
 }
+
+func TestExternalFilesRequireManifestPermission(t *testing.T) {
+	ctx := context.Background()
+	calls := 0
+	runtime, err := wasm.New(ctx, wasm.Limits{}, wasm.WithInterpreter(), wasm.WithPermissions("external:read"), wasm.WithExternalFiles(func(context.Context, json.RawMessage) (any, error) {
+		calls++
+		return sdk.ExternalFile{Content: "approved", Start: 1}, nil
+	}))
+	require.NoError(t, err)
+	defer func() { _ = runtime.Close(ctx) }()
+	for _, grant := range []bool{false, true} {
+		var permissions []string
+		if grant {
+			permissions = []string{"external:read"}
+		}
+		instance, err := runtime.Load(ctx, capabilityPackage(t, "io.external", permissions))
+		require.NoError(t, err)
+		result := hostRequest(t, instance, plugin.Context{Context: ctx}, "external.files.read", sdk.ExternalFileRequest{Source: "docs", Path: "x"})
+		if grant {
+			assert.Contains(t, result, "approved")
+		} else {
+			assert.Contains(t, result, "capability denied")
+		}
+		require.NoError(t, instance.Close(ctx))
+	}
+	assert.Equal(t, 1, calls)
+}

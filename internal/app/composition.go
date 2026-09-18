@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/kumbuka-me/kumbuka/internal/auth"
+	"github.com/kumbuka-me/kumbuka/internal/externalfiles"
 	"github.com/kumbuka-me/kumbuka/internal/flags"
 	"github.com/kumbuka-me/kumbuka/internal/routes"
 	"github.com/kumbuka-me/kumbuka/internal/secrets"
@@ -32,6 +33,7 @@ func newRouteConfig(
 	)
 
 	return routes.Config{
+		ExternalFiles:  externalfiles.New(database, secretCipher, externalfiles.WithInsecureTLS(cfg.ExternalFilesInsecureSkipVerify)),
 		Assets:         appFS,
 		Administration: service.NewAdministration(database),
 		Access:         service.NewAccess(database),
