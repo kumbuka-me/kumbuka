@@ -6,24 +6,24 @@
 }
 
 .settings-heading {
-  margin-bottom: 28px;
+  margin-bottom: 22px;
 }
 
 .settings-heading h1 {
-  font-size: clamp(30px, 5vw, 44px);
+  font-size: clamp(30px, 5vw, 40px);
   line-height: 1.1;
   letter-spacing: -0.04em;
-  margin: 0 0 10px;
+  margin: 0 0 8px;
 }
 
 .settings-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 20px;
+  gap: 16px;
 }
 
 .settings-panel {
-  padding: 22px;
+  padding: 18px 20px;
 }
 
 .user-details {
@@ -89,5 +89,5 @@
 }
 
 .settings-form > .button {
-  margin-top: 18px;
+  margin-top: 16px;
 }

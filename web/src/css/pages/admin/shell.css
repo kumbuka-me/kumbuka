@@ -3,11 +3,11 @@
 .admin-shell .admin-sidebar nav {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 2px;
 }
 
 .admin-sidebar nav a {
-  padding: 8px 10px;
+  padding: 7px 9px;
   border-radius: 6px;
   color: var(--text-secondary);
   font-weight: 600;
@@ -25,7 +25,7 @@
 
 .admin-back-link {
   margin-top: auto;
-  padding: 10px;
+  padding: 8px 9px;
   color: var(--text-tertiary);
   font-size: 12px;
 }
@@ -36,20 +36,20 @@
 
 .admin-main {
   max-width: 1440px;
-  padding-top: 42px;
+  padding-top: 32px;
 }
 
 .admin-page {
   width: 100%;
-  max-width: 1180px;
+  max-width: 1160px;
   margin: 0 auto;
 }
 
 .admin-stats > a {
   display: flex;
   flex-direction: column;
-  padding: 14px 16px;
-  border: 1px solid var(--border);
+  padding: 12px 14px;
+  border: 1px solid var(--border-subtle);
   border-radius: 8px;
   background: var(--surface);
 }
@@ -73,14 +73,14 @@
 .admin-overview-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
+  gap: 10px;
 }
 
 .admin-overview-card {
   display: flex;
   flex-direction: column;
   gap: 5px;
-  min-height: 100px;
+  min-height: 88px;
   justify-content: center;
 }
 
@@ -104,6 +104,23 @@
 
 .admin-page .admin-list {
   max-height: none;
+}
+
+.admin-page > .settings-heading {
+  max-width: 840px;
+}
+
+.admin-list-surface {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.admin-list-surface .panel-title {
+  margin-bottom: 0;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 @media (max-width: 800px) {
