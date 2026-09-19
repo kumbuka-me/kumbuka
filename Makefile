@@ -48,7 +48,7 @@ SVG_TO_PNG := $(DEV_TOOLS_BIN)/svg-to-png
 BINARY ?= kumbuka
 COMMAND ?= ./cmd/kumbuka
 GO_TEST_RACE_FLAGS ?= -p=2 -parallel=4
-RACE_TEST_PACKAGES := ./pkg/markdown ./pkg/plugin ./pkg/plugin/wasm ./pkg/store
+RACE_TEST_PACKAGES := ./pkg/markdown ./pkg/plugin ./pkg/plugin/wasm ./internal/store
 RACE_TEST_PATTERN := ^(TestMacroCapabilitiesStayRequestLocal|TestRegistryConcurrentSnapshotsAndRemoval|TestWASMRequestsAreIsolatedAndSerialized|TestCapabilitiesUseCurrentRequestAndRecoverFromHostPanic|TestUpgradeDuringRenderingKeepsWholeSnapshotAlive|TestConcurrentStartupMigrations)$$
 RUN_ARGS ?=
 BUILD_VERSION ?= dev

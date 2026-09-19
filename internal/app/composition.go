@@ -10,10 +10,10 @@ import (
 	"github.com/kumbuka-me/kumbuka/internal/routes"
 	"github.com/kumbuka-me/kumbuka/internal/secrets"
 	"github.com/kumbuka-me/kumbuka/internal/service"
+	"github.com/kumbuka-me/kumbuka/internal/store"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/icons"
 	"github.com/kumbuka-me/kumbuka/pkg/markdown"
-	"github.com/kumbuka-me/kumbuka/pkg/store"
 )
 
 // newRouteConfig constructs application use cases while leaving runtime-bound HTTP dependencies unset.

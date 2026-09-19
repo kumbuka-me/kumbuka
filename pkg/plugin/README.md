@@ -185,7 +185,7 @@ isolation, and sanitizer enforcement.
 ## Capability and storage boundary
 
 The public `github.com/kumbuka-me/sdk` module defines the JSON values and Go guest transport. It never imports
-`pkg/domain`, `pkg/store`, or `internal/handler`. `pkg/plugincap` is the
+`pkg/domain`, `internal/store`, or `internal/handler`. `pkg/plugincap` is the
 trusted composition adapter: it converts already-authorized catalogs and
 navigation into public values. Normal pages, previews and exports keep the
 viewer's access filter. Anonymous share scopes expose only the shared

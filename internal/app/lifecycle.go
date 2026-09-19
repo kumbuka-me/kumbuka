@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/kumbuka-me/kumbuka/internal/flags"
+	"github.com/kumbuka-me/kumbuka/internal/store"
 	"github.com/kumbuka-me/kumbuka/pkg/markdown"
-	"github.com/kumbuka-me/kumbuka/pkg/store"
 )
 
 const rendererShutdownTimeout = 10 * time.Second

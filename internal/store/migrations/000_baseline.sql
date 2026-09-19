@@ -500,6 +500,3 @@ CREATE TABLE plugin_installations (
     OR (source = 'installed' AND package IS NOT NULL AND octet_length(package) BETWEEN 1 AND 16777216)
   )
 );
-
-
-
