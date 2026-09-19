@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -78,8 +79,8 @@ func TestDetectRecognizesPortableManifest(t *testing.T) {
 	manifest := NewManifest()
 	data := buildTestArchive(t, manifest, nil)
 
-	assert.True(t, Detect(data))
-	assert.False(t, Detect([]byte("not a zip")))
+	assert.True(t, Detect(data, testArchiveLimit))
+	assert.False(t, Detect([]byte("not a zip"), testArchiveLimit))
 }
 
 // buildTestArchive constructs one ZIP containing manifest plus supplied files.
@@ -118,4 +119,19 @@ func cloneTestFiles(source map[string][]byte) map[string][]byte {
 		result[name] = bytes.Clone(data)
 	}
 	return result
+}
+
+func TestDetectLargeManifestWithinImportBudget(t *testing.T) {
+	t.Parallel()
+	manifest := NewManifest()
+	for i := range 1000 {
+		slug := fmt.Sprintf("guide-%d", i)
+		manifest.Pages = append(manifest.Pages, PageEntry{Slug: slug, Markdown: "pages/" + slug + ".md", Metadata: "metadata/" + slug + ".json"})
+	}
+	manifestSize := int64(len(mustTestJSON(t, manifest)))
+	require.Greater(t, manifestSize, int64(64<<10))
+	data := buildTestArchive(t, manifest, nil)
+	assert.True(t, Detect(data, manifestSize))
+	assert.False(t, Detect(data, manifestSize-1))
+	assert.False(t, Detect(data, 0))
 }

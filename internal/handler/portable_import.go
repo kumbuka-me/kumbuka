@@ -129,7 +129,7 @@ func detectPortableArchiveUpload(headers []*multipart.FileHeader) (bool, error) 
 		)
 	}
 
-	return portable.Detect(data), nil
+	return portable.Detect(data, importer.MaxBytes), nil
 }
 
 // readPortableArchiveUpload reads and validates one uploaded Kumbuka archive.

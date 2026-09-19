@@ -29,8 +29,11 @@ func (e *ValidationError) Error() string { return e.Message }
 // Unwrap exposes the diagnostic cause for errors.Is and errors.As.
 func (e *ValidationError) Unwrap() error { return e.Cause }
 
-// Detect reports whether data is a ZIP whose root manifest declares the Kumbuka portable format.
-func Detect(data []byte) bool {
+// Detect identifies a portable manifest within the caller's uncompressed-size limit.
+func Detect(data []byte, maxUncompressedBytes int64) bool {
+	if maxUncompressedBytes <= 0 {
+		return false
+	}
 	reader, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
 	if err != nil {
 		return false
@@ -41,17 +44,14 @@ func Detect(data []byte) bool {
 			continue
 		}
 
-		file, err := entry.Open()
+		remaining := maxUncompressedBytes
+		data, err := readZipFile(entry, &remaining)
 		if err != nil {
-			return false
-		}
-		data, readErr := io.ReadAll(io.LimitReader(file, 64<<10))
-		closeErr := file.Close()
-		if readErr != nil || closeErr != nil {
 			return false
 		}
 
 		var manifest struct {
+			// Format identifies the producer without decoding the page inventory.
 			Format string `json:"format"`
 		}
 		if json.Unmarshal(data, &manifest) != nil {
