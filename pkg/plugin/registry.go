@@ -44,85 +44,23 @@ var validID = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]*$`)
 // Register publishes all contributions or none. Required plugins must already
 // be active, so load order is explicit and dependency cycles cannot be introduced.
 func (r *Registry) Register(descriptor Descriptor, modules Contributions) (err error) {
-	defer func() {
-		if recover() != nil {
-			err = fmt.Errorf("plugin %s panicked during registration", descriptor.ID)
-		}
-	}()
+	defer recoverRegistrationPanic(&err, descriptor.ID)
+
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	if !validID.MatchString(descriptor.ID) || descriptor.Name == "" {
-		return fmt.Errorf("invalid plugin descriptor %q", descriptor.ID)
-	}
-	active := make(map[string]bool)
-	names := make(map[string]bool)
-	activeHighlighter := ""
-	for _, entry := range r.entries {
-		active[entry.Descriptor.ID] = true
-		if len(entry.Contributions.CodeHighlighters) != 0 {
-			activeHighlighter = entry.Descriptor.ID
-		}
-		for _, macro := range entry.Contributions.Macros {
-			names[macro.Name()] = true
-		}
-	}
-
-	if active[descriptor.ID] {
-		return fmt.Errorf("plugin %s is already registered", descriptor.ID)
-	}
-	for _, dependency := range descriptor.Requires {
-		if !active[dependency] {
-			return fmt.Errorf("plugin %s requires active plugin %s", descriptor.ID, dependency)
-		}
-	}
-	for _, macro := range modules.Macros {
-		if macro == nil || !validID.MatchString(macro.Name()) {
-			return fmt.Errorf("invalid macro in plugin %s", descriptor.ID)
-		}
-		if names[macro.Name()] {
-			return fmt.Errorf("macro %s is already registered", macro.Name())
-		}
-		names[macro.Name()] = true
-	}
-	for _, module := range modules.ContentPreprocessors {
-		if module == nil {
-			return fmt.Errorf("nil content preprocessor in %s", descriptor.ID)
-		}
-	}
-	for _, module := range modules.Preprocessors {
-		if module == nil {
-			return fmt.Errorf("nil preprocessor in %s", descriptor.ID)
-		}
-	}
-	for _, module := range modules.MarkdownExtensions {
-		if module == nil {
-			return fmt.Errorf("nil Markdown extension in %s", descriptor.ID)
-		}
-	}
-	for _, module := range modules.Postprocessors {
-		if module == nil {
-			return fmt.Errorf("nil postprocessor in %s", descriptor.ID)
-		}
-	}
-	if len(modules.CodeHighlighters) > 1 {
-		return fmt.Errorf("plugin %s contributes more than one code highlighter", descriptor.ID)
-	}
-	if len(modules.CodeHighlighters) == 1 {
-		if modules.CodeHighlighters[0].Highlighter == nil {
-			return fmt.Errorf("nil code highlighter in %s", descriptor.ID)
-		}
-		if activeHighlighter != "" {
-			return fmt.Errorf("code highlighter is already provided by plugin %s", activeHighlighter)
-		}
-	}
-
-	if err := validateIDs(modules); err != nil {
+	if err := validateRegistration(descriptor, modules, r.entries); err != nil {
 		return err
 	}
 
-	entries := append(slices.Clone(r.entries), cloneEntry(Entry{Descriptor: descriptor, Contributions: modules, lifetime: newLifetime()}))
+	entry := Entry{
+		Descriptor:    descriptor,
+		Contributions: modules,
+		lifetime:      newLifetime(),
+	}
+	entries := append(slices.Clone(r.entries), cloneEntry(entry))
 	r.publishEntriesLocked(entries)
+
 	return nil
 }
 
@@ -187,89 +125,6 @@ func cloneEntry(entry Entry) Entry {
 	}
 
 	return entry
-}
-
-// validateIDs validates unique IDs for metadata-only contribution modules.
-func validateIDs(c Contributions) error {
-	seen := make(map[string]bool)
-
-	check := func(kind, id string) error {
-		key := kind + ":" + id
-		if !validID.MatchString(id) || seen[key] {
-			return fmt.Errorf("invalid or duplicate %s ID %q", kind, id)
-		}
-		seen[key] = true
-		return nil
-	}
-
-	for _, m := range c.CodeHighlighters {
-		if err := check("code-highlighter", m.ID); err != nil {
-			return err
-		}
-	}
-	for _, m := range c.Widgets {
-		if err := check("widget", m.ID); err != nil {
-			return err
-		}
-	}
-	for _, m := range c.Exporters {
-		if m.Exporter == nil {
-			return fmt.Errorf("nil exporter %q", m.ID)
-		}
-		if err := check("exporter", m.ID); err != nil {
-			return err
-		}
-	}
-	for _, m := range c.BrowserModules {
-		if err := check("browser", m.ID); err != nil {
-			return err
-		}
-	}
-	for _, m := range c.EditorExtensions {
-		if err := check("editor", m.ID); err != nil {
-			return err
-		}
-	}
-	for _, m := range c.AdminActions {
-		if m.Action == nil {
-			return fmt.Errorf("nil admin action %q", m.ID)
-		}
-		if err := check("admin-action", m.ID); err != nil {
-			return err
-		}
-	}
-	for _, m := range c.AdminResources {
-		if err := check("admin-resource", m.ID); err != nil {
-			return err
-		}
-	}
-	for _, m := range c.EditorCompletions {
-		if err := check("editor-completion", m.ID); err != nil {
-			return err
-		}
-	}
-	for _, m := range c.EditorInserts {
-		if err := check("editor-insert", m.ID); err != nil {
-			return err
-		}
-	}
-	for _, m := range c.SettingsModules {
-		if err := check("settings", m.ID); err != nil {
-			return err
-		}
-	}
-	for _, m := range c.ContentStyles {
-		if err := check("content-style", m.ID); err != nil {
-			return err
-		}
-	}
-	for _, m := range c.RenderPolicies {
-		if err := check("render-policy", m.ID); err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
 
 // CodeHighlighter returns the single active highlighter contribution, when present.
