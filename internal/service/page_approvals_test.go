@@ -20,7 +20,7 @@ func TestPageApprovalValidation(t *testing.T) {
 			Slug:  " ",
 			Actor: domain.User{Role: "editor"},
 		})
-		validation, ok := err.(*ValidationError)
+		validation, ok := err.(*domain.ValidationError)
 
 		require.True(t, ok)
 		assert.Equal(t, "slug", validation.Fields[0].Field)
@@ -46,7 +46,7 @@ func TestPageApprovalValidation(t *testing.T) {
 			Decision: "maybe",
 			Actor:    domain.User{Role: "admin"},
 		})
-		validation, ok := err.(*ValidationError)
+		validation, ok := err.(*domain.ValidationError)
 
 		require.True(t, ok)
 		assert.Equal(t, "decision", validation.Fields[0].Field)
@@ -163,7 +163,7 @@ func TestResolveReviewTargets(t *testing.T) {
 
 		repository := reviewTargetRepositoryStub{}
 		_, _, err := NewPages(repository, slog.Default()).resolveReviewTargets(context.Background(), "guide", []string{"@missing"}, 0)
-		validation, ok := err.(*ValidationError)
+		validation, ok := err.(*domain.ValidationError)
 
 		require.True(t, ok)
 		assert.Equal(t, "reviewers", validation.Fields[0].Field)

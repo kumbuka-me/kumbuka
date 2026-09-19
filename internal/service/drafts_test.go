@@ -67,7 +67,7 @@ func TestDraftsSaveValidatesStableKey(t *testing.T) {
 		Actor:  domain.User{ID: 7},
 	})
 
-	validation, ok := err.(*ValidationError)
+	validation, ok := err.(*domain.ValidationError)
 
 	require.True(t, ok)
 	assert.Equal(t, "draft", validation.Fields[0].Field)

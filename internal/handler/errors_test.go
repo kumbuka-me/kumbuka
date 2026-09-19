@@ -191,7 +191,7 @@ func TestErrorTranslatorsUseProblemResponses(t *testing.T) {
 		writePageProblem(
 			slog.New(slog.NewTextHandler(io.Discard, nil)),
 			response,
-			&service.ValidationError{Fields: []service.FieldError{{
+			&domain.ValidationError{Fields: []domain.FieldError{{
 				Field:   "slug",
 				Message: "A page path is required.",
 			}}},
@@ -242,7 +242,7 @@ func TestAdminValidationUsesFieldProblems(t *testing.T) {
 	t.Parallel()
 	response := httptest.NewRecorder()
 	writeAdminProblem(slog.New(slog.NewTextHandler(io.Discard, nil)), response,
-		&service.ValidationError{Fields: []service.FieldError{{Field: "name", Message: "A group name is required."}}}, "Group")
+		&domain.ValidationError{Fields: []domain.FieldError{{Field: "name", Message: "A group name is required."}}}, "Group")
 	assert.Equal(t, http.StatusUnprocessableEntity, response.Code)
 	assert.JSONEq(t, `{"error":"Group validation failed.","problems":{"name":"A group name is required."}}`, response.Body.String())
 }

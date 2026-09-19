@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kumbuka-me/kumbuka/internal/service"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -40,7 +39,7 @@ func TestExpectedPageUpdatedAt(t *testing.T) {
 		t.Parallel()
 
 		_, err := expectedPageUpdatedAt("", true)
-		var validation *service.ValidationError
+		var validation *domain.ValidationError
 
 		require.ErrorAs(t, err, &validation)
 		require.Len(t, validation.Fields, 1)

@@ -12,7 +12,6 @@ import (
 	"testing"
 
 	"github.com/kumbuka-me/kumbuka/internal/auth"
-	"github.com/kumbuka-me/kumbuka/internal/service"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/stretchr/testify/assert"
@@ -34,7 +33,7 @@ func TestMovePageFormValidationProblem(t *testing.T) {
 	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	request.SetPathValue("slug", "source")
 	response := httptest.NewRecorder()
-	err := fmt.Errorf("move: %w", &service.ValidationError{Fields: []service.FieldError{{
+	err := fmt.Errorf("move: %w", &domain.ValidationError{Fields: []domain.FieldError{{
 		Field: "slug", Message: "A destination path is required.",
 	}}})
 

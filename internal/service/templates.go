@@ -140,33 +140,33 @@ func defaultPageTemplateStatus(status string) string {
 }
 
 // validatePageTemplateSettings validates blueprint settings outside prompted fields.
-func validatePageTemplateSettings(input PageTemplateInput, catalogs ...*icons.Catalog) *ValidationError {
+func validatePageTemplateSettings(input PageTemplateInput, catalogs ...*icons.Catalog) *domain.ValidationError {
 	catalog := icons.Builtin()
 	if len(catalogs) > 0 && catalogs[0] != nil {
 		catalog = catalogs[0]
 	}
-	validation := &ValidationError{}
+	validation := &domain.ValidationError{}
 
 	if input.Name == "" {
-		validation.Fields = append(validation.Fields, FieldError{Field: "name", Message: "A template name is required."})
+		validation.Fields = append(validation.Fields, domain.FieldError{Field: "name", Message: "A template name is required."})
 	}
 	if !catalog.IsIcon(input.Icon) {
-		validation.Fields = append(validation.Fields, FieldError{Field: "icon", Message: "Choose an icon from the available icon catalog."})
+		validation.Fields = append(validation.Fields, domain.FieldError{Field: "icon", Message: "Choose an icon from the available icon catalog."})
 	}
 	if !domain.ValidPageStatus(input.Status) {
-		validation.Fields = append(validation.Fields, FieldError{Field: "status", Message: "Choose a valid default page status."})
+		validation.Fields = append(validation.Fields, domain.FieldError{Field: "status", Message: "Choose a valid default page status."})
 	}
 	if input.OwnerGroupID < 0 || !domain.ValidReviewIntervalDays(input.ReviewIntervalDays) {
-		validation.Fields = append(validation.Fields, FieldError{Field: "review_interval_days", Message: "Choose valid review defaults."})
+		validation.Fields = append(validation.Fields, domain.FieldError{Field: "review_interval_days", Message: "Choose valid review defaults."})
 	}
 
 	return validation
 }
 
 // normalizeTemplateFields normalizes prompted fields and returns field-specific problems.
-func normalizeTemplateFields(values []domain.PageTemplateField) ([]domain.PageTemplateField, []FieldError) {
+func normalizeTemplateFields(values []domain.PageTemplateField) ([]domain.PageTemplateField, []domain.FieldError) {
 	fields := make([]domain.PageTemplateField, 0, len(values))
-	problems := make([]FieldError, 0)
+	problems := make([]domain.FieldError, 0)
 	seen := map[string]bool{}
 
 	for _, field := range values {
@@ -178,13 +178,13 @@ func normalizeTemplateFields(values []domain.PageTemplateField) ([]domain.PageTe
 			continue
 		}
 		if !validTemplateFieldName(field.Name) {
-			problems = append(problems, FieldError{Field: "fields", Message: "Field names may contain letters, numbers, underscores, and hyphens."})
+			problems = append(problems, domain.FieldError{Field: "fields", Message: "Field names may contain letters, numbers, underscores, and hyphens."})
 			continue
 		}
 
 		key := strings.ToLower(field.Name)
 		if seen[key] {
-			problems = append(problems, FieldError{Field: "fields", Message: "Template field names must be unique."})
+			problems = append(problems, domain.FieldError{Field: "fields", Message: "Template field names must be unique."})
 			continue
 		}
 		seen[key] = true

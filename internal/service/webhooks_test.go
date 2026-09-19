@@ -384,7 +384,7 @@ func TestWebhooks(t *testing.T) {
 			Enabled:         true,
 		})
 
-		validation, ok := err.(*ValidationError)
+		validation, ok := err.(*domain.ValidationError)
 		require.True(t, ok)
 		require.NotEmpty(t, validation.Fields)
 		assert.Equal(t, "body_template", validation.Fields[len(validation.Fields)-1].Field)

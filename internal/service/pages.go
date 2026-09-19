@@ -232,35 +232,35 @@ func (s *Pages) save(ctx context.Context, input PageSaveInput) (domain.Page, err
 	input.Icon = strings.TrimSpace(input.Icon)
 	input.Language = strings.TrimSpace(input.Language)
 	input.DeprecatedTarget = md.Slug(input.DeprecatedTarget)
-	validation := &ValidationError{}
+	validation := &domain.ValidationError{}
 
 	if input.Slug == "" {
-		validation.Fields = append(validation.Fields, FieldError{Field: "slug", Message: "A page path is required."})
+		validation.Fields = append(validation.Fields, domain.FieldError{Field: "slug", Message: "A page path is required."})
 	} else if strings.HasPrefix(input.Slug, "/") ||
 		strings.HasSuffix(input.Slug, "/") ||
 		strings.Contains(input.Slug, "//") {
-		validation.Fields = append(validation.Fields, FieldError{
+		validation.Fields = append(validation.Fields, domain.FieldError{
 			Field:   "slug",
 			Message: "Use a page path without leading, trailing, or repeated slashes.",
 		})
 	}
 	if input.Title == "" {
-		validation.Fields = append(validation.Fields, FieldError{Field: "title", Message: "Title is required."})
+		validation.Fields = append(validation.Fields, domain.FieldError{Field: "title", Message: "Title is required."})
 	}
 	if !s.iconCatalog.IsIcon(input.Icon) {
-		validation.Fields = append(validation.Fields, FieldError{
+		validation.Fields = append(validation.Fields, domain.FieldError{
 			Field:   "icon",
 			Message: "Choose an icon from the available icon catalog.",
 		})
 	}
 	if input.Language != "" && !validContentLanguage(input.Language) {
-		validation.Fields = append(validation.Fields, FieldError{
+		validation.Fields = append(validation.Fields, domain.FieldError{
 			Field:   "language",
 			Message: "Choose a supported content language.",
 		})
 	}
 	if !validPageWorkflowSettings(input) {
-		validation.Fields = append(validation.Fields, FieldError{
+		validation.Fields = append(validation.Fields, domain.FieldError{
 			Field:   "status",
 			Message: "Choose valid page workflow settings.",
 		})
@@ -394,7 +394,7 @@ func (s *Pages) Move(
 	oldSlug = strings.Trim(strings.TrimSpace(oldSlug), "/")
 	newSlug = md.Slug(newSlug)
 	if oldSlug == "" || newSlug == "" {
-		return &ValidationError{Fields: []FieldError{{Field: "slug", Message: "A destination path is required."}}}
+		return &domain.ValidationError{Fields: []domain.FieldError{{Field: "slug", Message: "A destination path is required."}}}
 	}
 	if oldSlug == newSlug {
 		return domain.NewValidationError("slug", "Choose a different destination path.")
@@ -428,7 +428,7 @@ func (s *Pages) Review(ctx context.Context, slug string, actor domain.User) erro
 // RestoreRevision creates a new page revision from a persisted historical revision.
 func (s *Pages) RestoreRevision(ctx context.Context, slug string, number int, actor domain.User) (domain.Page, error) {
 	if number <= 0 {
-		return domain.Page{}, &ValidationError{Fields: []FieldError{{Field: "revision", Message: "Invalid revision."}}}
+		return domain.Page{}, &domain.ValidationError{Fields: []domain.FieldError{{Field: "revision", Message: "Invalid revision."}}}
 	}
 
 	page, err := s.repository.GetPage(ctx, slug)

@@ -21,7 +21,7 @@ func TestKnownInputFailuresAreValidationErrors(t *testing.T) {
 
 		err := NewNotifications(nil).MarkNotificationRead(ctx, 1, 0)
 
-		validation, ok := errors.AsType[*ValidationError](err)
+		validation, ok := errors.AsType[*domain.ValidationError](err)
 		require.True(t, ok)
 		require.Len(t, validation.Fields, 1)
 		assert.Equal(t, "notification", validation.Fields[0].Field)
@@ -32,7 +32,7 @@ func TestKnownInputFailuresAreValidationErrors(t *testing.T) {
 
 		_, err := NewNotifications(nil).OpenNotification(ctx, 1, 0)
 
-		validation, ok := errors.AsType[*ValidationError](err)
+		validation, ok := errors.AsType[*domain.ValidationError](err)
 		require.True(t, ok)
 		require.Len(t, validation.Fields, 1)
 		assert.Equal(t, "notification", validation.Fields[0].Field)
@@ -43,7 +43,7 @@ func TestKnownInputFailuresAreValidationErrors(t *testing.T) {
 
 		err := NewKnowledge(nil).SaveSavedSearch(ctx, 1, 0, " ", "query", false)
 
-		validation, ok := errors.AsType[*ValidationError](err)
+		validation, ok := errors.AsType[*domain.ValidationError](err)
 		require.True(t, ok)
 		require.Len(t, validation.Fields, 1)
 		assert.Equal(t, "name", validation.Fields[0].Field)
@@ -54,7 +54,7 @@ func TestKnownInputFailuresAreValidationErrors(t *testing.T) {
 
 		err := NewKnowledge(nil).SaveSavedSearch(ctx, 1, 0, "name", " ", false)
 
-		validation, ok := errors.AsType[*ValidationError](err)
+		validation, ok := errors.AsType[*domain.ValidationError](err)
 		require.True(t, ok)
 		require.Len(t, validation.Fields, 1)
 		assert.Equal(t, "query", validation.Fields[0].Field)
@@ -65,7 +65,7 @@ func TestKnownInputFailuresAreValidationErrors(t *testing.T) {
 
 		_, err := NewGroups(nil).CreateGroup(ctx, " ")
 
-		validation, ok := errors.AsType[*ValidationError](err)
+		validation, ok := errors.AsType[*domain.ValidationError](err)
 		require.True(t, ok)
 		require.Len(t, validation.Fields, 1)
 		assert.Equal(t, "name", validation.Fields[0].Field)
@@ -76,7 +76,7 @@ func TestKnownInputFailuresAreValidationErrors(t *testing.T) {
 
 		_, err := NewTemplates(nil).CreatePageTemplate(ctx, PageTemplateInput{Name: " "})
 
-		validation, ok := errors.AsType[*ValidationError](err)
+		validation, ok := errors.AsType[*domain.ValidationError](err)
 		require.True(t, ok)
 		require.Len(t, validation.Fields, 1)
 		assert.Equal(t, "name", validation.Fields[0].Field)
@@ -87,7 +87,7 @@ func TestKnownInputFailuresAreValidationErrors(t *testing.T) {
 
 		err := NewTemplates(nil).UpdatePageTemplate(ctx, 1, PageTemplateInput{Name: " "})
 
-		validation, ok := errors.AsType[*ValidationError](err)
+		validation, ok := errors.AsType[*domain.ValidationError](err)
 		require.True(t, ok)
 		require.Len(t, validation.Fields, 1)
 		assert.Equal(t, "name", validation.Fields[0].Field)
@@ -98,7 +98,7 @@ func TestKnownInputFailuresAreValidationErrors(t *testing.T) {
 
 		err := NewPages(nil, slog.Default()).Move(ctx, "/guide/", "guide", domain.MovePageOptions{}, domain.User{})
 
-		validation, ok := errors.AsType[*ValidationError](err)
+		validation, ok := errors.AsType[*domain.ValidationError](err)
 		require.True(t, ok)
 		require.Len(t, validation.Fields, 1)
 		assert.Equal(t, "slug", validation.Fields[0].Field)
@@ -109,7 +109,7 @@ func TestKnownInputFailuresAreValidationErrors(t *testing.T) {
 
 		err := NewPages(nil, slog.Default()).Move(ctx, "guide", "guide/child", domain.MovePageOptions{MoveChildren: true}, domain.User{})
 
-		validation, ok := errors.AsType[*ValidationError](err)
+		validation, ok := errors.AsType[*domain.ValidationError](err)
 		require.True(t, ok)
 		require.Len(t, validation.Fields, 1)
 		assert.Equal(t, "slug", validation.Fields[0].Field)
@@ -120,7 +120,7 @@ func TestKnownInputFailuresAreValidationErrors(t *testing.T) {
 
 		err := NewPages(nil, slog.Default()).Bulk(ctx, BulkPageInput{Action: "move", Slugs: []string{"guide/child"}, Target: "guide"})
 
-		validation, ok := errors.AsType[*ValidationError](err)
+		validation, ok := errors.AsType[*domain.ValidationError](err)
 		require.True(t, ok)
 		require.Len(t, validation.Fields, 1)
 		assert.Equal(t, "target", validation.Fields[0].Field)

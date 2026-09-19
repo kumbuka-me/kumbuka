@@ -18,23 +18,23 @@ import (
 
 // validateWebhookInput returns all user-correctable webhook configuration failures.
 func validateWebhookInput(input WebhookInput, events []string) error {
-	validation := &ValidationError{}
+	validation := &domain.ValidationError{}
 
 	if input.Name == "" {
-		validation.Fields = append(validation.Fields, FieldError{Field: "name", Message: "A webhook name is required."})
+		validation.Fields = append(validation.Fields, domain.FieldError{Field: "name", Message: "A webhook name is required."})
 	}
 
 	parsed, err := url.ParseRequestURI(input.URL)
 	if err != nil || parsed.Host == "" || (parsed.Scheme != "http" && parsed.Scheme != "https") {
-		validation.Fields = append(validation.Fields, FieldError{Field: "url", Message: "Enter an absolute HTTP or HTTPS URL."})
+		validation.Fields = append(validation.Fields, domain.FieldError{Field: "url", Message: "Enter an absolute HTTP or HTTPS URL."})
 	}
 
 	if len(events) == 0 {
-		validation.Fields = append(validation.Fields, FieldError{Field: "events", Message: "Choose at least one event."})
+		validation.Fields = append(validation.Fields, domain.FieldError{Field: "events", Message: "Choose at least one event."})
 	}
 
 	if err := validateWebhookBodyTemplate(input.BodyTemplate); err != nil {
-		validation.Fields = append(validation.Fields, FieldError{
+		validation.Fields = append(validation.Fields, domain.FieldError{
 			Field:   "body_template",
 			Message: "Payload template is invalid: " + err.Error(),
 		})
@@ -42,13 +42,13 @@ func validateWebhookInput(input WebhookInput, events []string) error {
 
 	if input.RetryEnabled {
 		if input.RetryCount < 1 || input.RetryCount > maxWebhookRetryCount {
-			validation.Fields = append(validation.Fields, FieldError{Field: "retry_count", Message: "Retries must be between 1 and 10."})
+			validation.Fields = append(validation.Fields, domain.FieldError{Field: "retry_count", Message: "Retries must be between 1 and 10."})
 		}
 		if input.RetryBackoff <= 0 || input.RetryBackoff > maxWebhookRetryBackoff {
-			validation.Fields = append(validation.Fields, FieldError{Field: "retry_backoff", Message: "Initial backoff must be greater than zero and at most 1h."})
+			validation.Fields = append(validation.Fields, domain.FieldError{Field: "retry_backoff", Message: "Initial backoff must be greater than zero and at most 1h."})
 		}
 		if input.RetryMaxBackoff < input.RetryBackoff || input.RetryMaxBackoff > maxWebhookRetryBackoff {
-			validation.Fields = append(validation.Fields, FieldError{Field: "retry_max_backoff", Message: "Maximum backoff must be at least the initial backoff and at most 1h."})
+			validation.Fields = append(validation.Fields, domain.FieldError{Field: "retry_max_backoff", Message: "Maximum backoff must be at least the initial backoff and at most 1h."})
 		}
 	}
 

@@ -254,31 +254,31 @@ func (s *Pages) applyReviewSuggestions(ctx context.Context, reviewID int64, slug
 
 // validateReviewCommentInput checks bounded line feedback before loading review state.
 func validateReviewCommentInput(input PageReviewCommentInput) error {
-	validation := &ValidationError{}
+	validation := &domain.ValidationError{}
 
 	if input.ReviewID <= 0 {
-		validation.Fields = append(validation.Fields, FieldError{Field: "review", Message: "Choose a valid review request."})
+		validation.Fields = append(validation.Fields, domain.FieldError{Field: "review", Message: "Choose a valid review request."})
 	}
 	if input.Slug == "" {
-		validation.Fields = append(validation.Fields, FieldError{Field: "slug", Message: "A page path is required."})
+		validation.Fields = append(validation.Fields, domain.FieldError{Field: "slug", Message: "A page path is required."})
 	}
 	if input.Side != domain.PageReviewCommentSideOld && input.Side != domain.PageReviewCommentSideNew {
-		validation.Fields = append(validation.Fields, FieldError{Field: "side", Message: "Choose a valid side of the review diff."})
+		validation.Fields = append(validation.Fields, domain.FieldError{Field: "side", Message: "Choose a valid side of the review diff."})
 	}
 	if input.StartLine <= 0 || input.EndLine < input.StartLine || input.EndLine-input.StartLine+1 > maxReviewAnchorLines {
-		validation.Fields = append(validation.Fields, FieldError{Field: "line", Message: "Choose a valid review line range."})
+		validation.Fields = append(validation.Fields, domain.FieldError{Field: "line", Message: "Choose a valid review line range."})
 	}
 	if len(input.Body) > maxReviewCommentBytes {
-		validation.Fields = append(validation.Fields, FieldError{Field: "body", Message: "Keep review comments below 8 KiB."})
+		validation.Fields = append(validation.Fields, domain.FieldError{Field: "body", Message: "Keep review comments below 8 KiB."})
 	}
 	if !input.Suggestion && input.Body == "" {
-		validation.Fields = append(validation.Fields, FieldError{Field: "body", Message: "A review comment is required."})
+		validation.Fields = append(validation.Fields, domain.FieldError{Field: "body", Message: "A review comment is required."})
 	}
 	if input.Suggestion && input.Side != domain.PageReviewCommentSideNew {
-		validation.Fields = append(validation.Fields, FieldError{Field: "suggestion", Message: "Suggestions can only replace lines in the reviewed revision."})
+		validation.Fields = append(validation.Fields, domain.FieldError{Field: "suggestion", Message: "Suggestions can only replace lines in the reviewed revision."})
 	}
 	if input.Suggestion && len(input.Replacement) > maxReviewSuggestionBytes {
-		validation.Fields = append(validation.Fields, FieldError{Field: "replacement", Message: "Keep suggested Markdown below 64 KiB."})
+		validation.Fields = append(validation.Fields, domain.FieldError{Field: "replacement", Message: "Keep suggested Markdown below 64 KiB."})
 	}
 
 	if len(validation.Fields) > 0 {

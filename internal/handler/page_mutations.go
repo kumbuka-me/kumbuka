@@ -157,7 +157,7 @@ func expectedPageUpdatedAt(value string, required bool) (time.Time, error) {
 	value = strings.TrimSpace(value)
 	if value == "" {
 		if required {
-			return time.Time{}, &service.ValidationError{Fields: []service.FieldError{{
+			return time.Time{}, &domain.ValidationError{Fields: []domain.FieldError{{
 				Field:   "expected_updated_at",
 				Message: "Reload the page before saving it.",
 			}}}
@@ -168,7 +168,7 @@ func expectedPageUpdatedAt(value string, required bool) (time.Time, error) {
 
 	nanoseconds, err := strconv.ParseInt(value, 10, 64)
 	if err != nil || nanoseconds <= 0 {
-		return time.Time{}, &service.ValidationError{Fields: []service.FieldError{{
+		return time.Time{}, &domain.ValidationError{Fields: []domain.FieldError{{
 			Field:   "expected_updated_at",
 			Message: "Reload the page before saving it.",
 		}}}
@@ -190,17 +190,17 @@ func resolvePageTemplateFields(
 	}
 	id, err := strconv.ParseInt(value, 10, 64)
 	if err != nil || id <= 0 {
-		return "", &service.ValidationError{Fields: []service.FieldError{{Field: "template", Message: "Choose a valid page template."}}}
+		return "", &domain.ValidationError{Fields: []domain.FieldError{{Field: "template", Message: "Choose a valid page template."}}}
 	}
 	template, err := templates.PageTemplate(ctx, id)
 	if err != nil {
 		return "", err
 	}
-	validation := &service.ValidationError{}
+	validation := &domain.ValidationError{}
 	for _, field := range template.Fields {
 		fieldValue := r.FormValue("blueprint_" + field.Name)
 		if field.Required && strings.TrimSpace(fieldValue) == "" {
-			validation.Fields = append(validation.Fields, service.FieldError{Field: "blueprint_" + field.Name, Message: field.Label + " is required."})
+			validation.Fields = append(validation.Fields, domain.FieldError{Field: "blueprint_" + field.Name, Message: field.Label + " is required."})
 		}
 		markdown = strings.ReplaceAll(markdown, "{{field:"+field.Name+"}}", fieldValue)
 	}

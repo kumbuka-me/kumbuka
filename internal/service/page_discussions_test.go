@@ -195,7 +195,7 @@ func TestAddSuggestionRejectsAmbiguousSelection(t *testing.T) {
 		domain.User{ID: 9, Role: "viewer"},
 	)
 
-	validation, ok := errors.AsType[*ValidationError](err)
+	validation, ok := errors.AsType[*domain.ValidationError](err)
 	require.True(t, ok)
 	require.Len(t, validation.Fields, 1)
 	assert.Equal(t, "anchor", validation.Fields[0].Field)

@@ -203,10 +203,10 @@ func (s *Pages) ApplyCommentSuggestion(
 func (s *Pages) ResolveComment(ctx context.Context, slug string, id int64, resolved bool) error {
 	slug = strings.TrimSpace(slug)
 	if slug == "" {
-		return &ValidationError{Fields: []FieldError{{Field: "slug", Message: "A page path is required."}}}
+		return &domain.ValidationError{Fields: []domain.FieldError{{Field: "slug", Message: "A page path is required."}}}
 	}
 	if id <= 0 {
-		return &ValidationError{Fields: []FieldError{{Field: "comment", Message: "Invalid comment."}}}
+		return &domain.ValidationError{Fields: []domain.FieldError{{Field: "comment", Message: "Invalid comment."}}}
 	}
 	if err := s.requireDiscussions(ctx); err != nil {
 		return err
@@ -230,20 +230,20 @@ func (s *Pages) requireDiscussions(ctx context.Context) error {
 
 // validateInlineSuggestionInput validates bounded browser input before source mapping.
 func validateInlineSuggestionInput(slug, anchor, body, replacement string) error {
-	validation := &ValidationError{}
+	validation := &domain.ValidationError{}
 	if slug == "" {
-		validation.Fields = append(validation.Fields, FieldError{Field: "slug", Message: "A page path is required."})
+		validation.Fields = append(validation.Fields, domain.FieldError{Field: "slug", Message: "A page path is required."})
 	}
 	if anchor == "" {
-		validation.Fields = append(validation.Fields, FieldError{Field: "anchor", Message: "Select text on the page before creating a suggestion."})
+		validation.Fields = append(validation.Fields, domain.FieldError{Field: "anchor", Message: "Select text on the page before creating a suggestion."})
 	} else if len(anchor) > maxInlineSuggestionAnchorBytes {
-		validation.Fields = append(validation.Fields, FieldError{Field: "anchor", Message: "Select a shorter passage before creating a suggestion."})
+		validation.Fields = append(validation.Fields, domain.FieldError{Field: "anchor", Message: "Select a shorter passage before creating a suggestion."})
 	}
 	if len(body) > maxInlineSuggestionBodyBytes {
-		validation.Fields = append(validation.Fields, FieldError{Field: "body", Message: "Keep suggestion comments below 8 KiB."})
+		validation.Fields = append(validation.Fields, domain.FieldError{Field: "body", Message: "Keep suggestion comments below 8 KiB."})
 	}
 	if len(replacement) > maxInlineSuggestionBytes {
-		validation.Fields = append(validation.Fields, FieldError{Field: "replacement", Message: "Keep suggested Markdown below 64 KiB."})
+		validation.Fields = append(validation.Fields, domain.FieldError{Field: "replacement", Message: "Keep suggested Markdown below 64 KiB."})
 	}
 
 	if len(validation.Fields) > 0 {

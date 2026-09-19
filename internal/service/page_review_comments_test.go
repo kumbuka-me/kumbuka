@@ -302,9 +302,9 @@ func TestValidateReviewCommentInputRejectsSuggestionOnOldSide(t *testing.T) {
 		Replacement: "new",
 	})
 
-	validation, ok := err.(*ValidationError)
+	validation, ok := err.(*domain.ValidationError)
 	require.True(t, ok)
-	assert.Contains(t, validation.Fields, FieldError{Field: "suggestion", Message: "Suggestions can only replace lines in the reviewed revision."})
+	assert.Contains(t, validation.Fields, domain.FieldError{Field: "suggestion", Message: "Suggestions can only replace lines in the reviewed revision."})
 }
 
 // TestReviewRangeVisibleRejectsSourceOutsideDisplayedHunks verifies forged line anchors cannot target hidden source.
