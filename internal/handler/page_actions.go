@@ -107,7 +107,7 @@ func UpdatePageReview(pageUseCases pageApprovalService, logger *slog.Logger) htt
 			return
 		}
 
-		slug := strings.TrimSpace(r.FormValue("slug"))
+		slug := strings.TrimSpace(r.PathValue("slug"))
 		_, err := pageUseCases.UpdateReview(r.Context(), service.PageReviewUpdateInput{
 			ID:                id,
 			Slug:              slug,
@@ -138,7 +138,7 @@ func CancelPageReview(pageUseCases pageApprovalService, logger *slog.Logger) htt
 			return
 		}
 
-		slug := strings.TrimSpace(r.FormValue("slug"))
+		slug := strings.TrimSpace(r.PathValue("slug"))
 		if err := pageUseCases.CancelReview(r.Context(), id, slug, currentUser(r)); err != nil {
 			writeReviewProblem(w, logger, err)
 			return
@@ -161,7 +161,7 @@ func DecidePageReview(pageUseCases pageApprovalService, logger *slog.Logger) htt
 			return
 		}
 
-		slug := strings.TrimSpace(r.FormValue("slug"))
+		slug := strings.TrimSpace(r.PathValue("slug"))
 		err := pageUseCases.DecideReview(r.Context(), service.PageReviewDecisionInput{
 			ID:       id,
 			Slug:     slug,

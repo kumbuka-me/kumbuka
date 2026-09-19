@@ -293,12 +293,11 @@
                 {{ if .CanManageReview }}
                   <details class="page-review-edit">
                     <summary class="button compact">{{ icon "pencil-lucide" 13 }}<span>Edit request</span></summary>
-                    <form action="/pages/approval/update/{{ .PageReviewRequest.ID }}"
+                    <form action="/pages/approval/update/{{ .PageReviewRequest.ID }}/{{ .Page.Slug }}"
                           method="post"
                           class="page-review-edit-form"
                           data-validate-form
                           data-error-title="Could not update review">
-                      <input type="hidden" name="slug" value="{{ .Page.Slug }}" />
                       <div class="page-review-form-grid">
                         <label class="page-review-reviewers">
                           <span>Reviewers <span class="optional">Optional</span></span>
@@ -331,22 +330,20 @@
                       </div>
                     </form>
                   </details>
-                  <form action="/pages/approval/cancel/{{ .PageReviewRequest.ID }}"
+                  <form action="/pages/approval/cancel/{{ .PageReviewRequest.ID }}/{{ .Page.Slug }}"
                         method="post"
                         data-validate-form
                         data-error-title="Could not cancel review">
-                    <input type="hidden" name="slug" value="{{ .Page.Slug }}" />
                     <button class="button compact"
                             type="submit">{{ icon "x-lucide" 13 }}<span>Cancel review</span></button>
                   </form>
                 {{ end }}
                 {{ if .CanReviewPage }}
-                  <form action="/pages/approval/decide/{{ .PageReviewRequest.ID }}"
+                  <form action="/pages/approval/decide/{{ .PageReviewRequest.ID }}/{{ .Page.Slug }}"
                         method="post"
                         class="page-review-decision"
                         data-validate-form
                         data-error-title="Could not submit review">
-                    <input type="hidden" name="slug" value="{{ .Page.Slug }}" />
                     <label>
                       <span>Decision note <span class="optional">Optional</span></span>
                       <input name="note" placeholder="What did you check?" />
@@ -446,7 +443,8 @@
                       data-comment-author="{{ .Author }}"
                       data-comment-body="{{ .Body }}">{{ icon "message-square-quote-lucide" 14 }}<span>Quote</span></button>
               {{ if $.CanEdit }}
-                <form action="/page-comments/resolve/{{ .ID }}" method="post">
+                <form action="/page-comments/resolve/{{ .ID }}/{{ $.Page.Slug }}"
+                      method="post">
                   <input type="hidden" name="next" value="/pages/{{ $.Page.Slug }}" />
                   <input type="hidden"
                          name="resolved"
@@ -548,7 +546,8 @@
                           data-comment-author="{{ .Author }}"
                           data-comment-body="{{ .Body }}">{{ icon "message-square-quote-lucide" 14 }}<span>Quote</span></button>
                   {{ if $.CanEdit }}
-                    <form action="/page-comments/resolve/{{ .ID }}" method="post">
+                    <form action="/page-comments/resolve/{{ .ID }}/{{ $.Page.Slug }}"
+                          method="post">
                       <input type="hidden"
                              name="next"
                              value="/pages/{{ $.Page.Slug }}#comment-{{ .ID }}" />

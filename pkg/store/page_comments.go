@@ -333,17 +333,21 @@ func suggestionMatchesSource(markdown string, suggestion domain.PageCommentSugge
 	return markdown[suggestion.StartByte:suggestion.EndByte] == suggestion.Original
 }
 
-// ResolvePageComment resolves or reopens one page comment.
-func (s *Store) ResolvePageComment(ctx context.Context, id int64, resolved bool) error {
+// ResolvePageComment resolves or reopens one page comment bound to the expected page slug.
+func (s *Store) ResolvePageComment(ctx context.Context, slug string, id int64, resolved bool) error {
 	var value any
 	if resolved {
 		value = time.Now()
 	}
 
 	tag, err := s.pool.Exec(ctx, `
-UPDATE page_comments
-SET resolved_at=$2,updated_at=now()
-WHERE id=$1`, id, value)
+UPDATE page_comments AS c
+SET resolved_at=$3,updated_at=now()
+FROM pages AS p
+WHERE c.id=$1
+  AND p.id=c.page_id
+  AND p.slug=$2
+  AND p.deleted_at IS NULL`, id, strings.TrimSpace(slug), value)
 	if err == nil && tag.RowsAffected() == 0 {
 		return domain.ErrCommentNotFound
 	}

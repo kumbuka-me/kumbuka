@@ -101,7 +101,8 @@ func ResolvePageComment(pageUseCases pageDiscussionWriter, views *webview.Views)
 			httpresponse.Problem(w, http.StatusBadRequest, "Invalid comment form.")
 			return
 		}
-		if err := pageUseCases.ResolveComment(r.Context(), id, r.FormValue("resolved") != "false"); err != nil {
+		slug := strings.TrimSpace(r.PathValue("slug"))
+		if err := pageUseCases.ResolveComment(r.Context(), slug, id, r.FormValue("resolved") != "false"); err != nil {
 			writePageProblem(views.Logger(), w, err)
 			return
 		}

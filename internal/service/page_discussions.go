@@ -25,7 +25,7 @@ type pageDiscussionRepository interface {
 	ApplyPageCommentSuggestion(context.Context, string, int64, int64, string, string, []string, *pluginusage.Index, domain.PageRender) (domain.Page, error)
 	ApplicationSettings(context.Context) (domain.ApplicationSettings, error)
 	NotifyCommentReply(context.Context, int64, int64, string, string) error
-	ResolvePageComment(context.Context, int64, bool) error
+	ResolvePageComment(context.Context, string, int64, bool) error
 }
 
 // ErrDiscussionsDisabled indicates that page discussions are globally disabled.
@@ -199,8 +199,12 @@ func (s *Pages) ApplyCommentSuggestion(
 	return updated, nil
 }
 
-// ResolveComment changes one discussion's resolution state.
-func (s *Pages) ResolveComment(ctx context.Context, id int64, resolved bool) error {
+// ResolveComment changes one page-bound discussion's resolution state.
+func (s *Pages) ResolveComment(ctx context.Context, slug string, id int64, resolved bool) error {
+	slug = strings.TrimSpace(slug)
+	if slug == "" {
+		return &ValidationError{Fields: []FieldError{{Field: "slug", Message: "A page path is required."}}}
+	}
 	if id <= 0 {
 		return &ValidationError{Fields: []FieldError{{Field: "comment", Message: "Invalid comment."}}}
 	}
@@ -208,7 +212,7 @@ func (s *Pages) ResolveComment(ctx context.Context, id int64, resolved bool) err
 		return err
 	}
 
-	return s.repository.ResolvePageComment(ctx, id, resolved)
+	return s.repository.ResolvePageComment(ctx, slug, id, resolved)
 }
 
 // requireDiscussions rejects discussion mutations while the global feature is disabled.

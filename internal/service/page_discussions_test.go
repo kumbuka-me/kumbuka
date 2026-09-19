@@ -36,6 +36,12 @@ type inlineSuggestionRepositoryStub struct {
 	expectedMarkdown string
 	// appliedMarkdown captures the new canonical Markdown written when applying a suggestion.
 	appliedMarkdown string
+	// resolvedSlug captures the page path used to resolve a discussion.
+	resolvedSlug string
+	// resolvedID captures the discussion identifier used by resolution.
+	resolvedID int64
+	// resolvedValue captures the requested resolution state.
+	resolvedValue bool
 }
 
 // ApplicationSettings returns the configured discussion settings.
@@ -109,6 +115,15 @@ func (r *inlineSuggestionRepositoryStub) ApplyPageCommentSuggestion(
 	updated.Markdown = markdown
 
 	return updated, nil
+}
+
+// ResolvePageComment captures one page-bound discussion resolution request.
+func (r *inlineSuggestionRepositoryStub) ResolvePageComment(_ context.Context, slug string, id int64, resolved bool) error {
+	r.resolvedSlug = slug
+	r.resolvedID = id
+	r.resolvedValue = resolved
+
+	return nil
 }
 
 // LogAudit accepts best-effort audit writes from the page service.
@@ -273,4 +288,20 @@ func TestApplyCommentSuggestionRejectsStaleRevision(t *testing.T) {
 
 	assert.ErrorIs(t, err, domain.ErrStaleSuggestion)
 	assert.Empty(t, repository.appliedMarkdown)
+}
+
+// TestResolveCommentBindsMutationToPage verifies discussion resolution carries the authorized page path to persistence.
+func TestResolveCommentBindsMutationToPage(t *testing.T) {
+	t.Parallel()
+
+	repository := &inlineSuggestionRepositoryStub{
+		settings: domain.ApplicationSettings{DiscussionsEnabled: true},
+	}
+
+	err := NewPages(repository, slog.Default()).ResolveComment(context.Background(), " docs/start ", 42, true)
+
+	require.NoError(t, err)
+	assert.Equal(t, "docs/start", repository.resolvedSlug)
+	assert.Equal(t, int64(42), repository.resolvedID)
+	assert.True(t, repository.resolvedValue)
 }

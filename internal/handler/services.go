@@ -252,7 +252,7 @@ type pageDiscussionWriter interface {
 	AddComment(context.Context, string, int64, string, string, string, domain.User) (domain.PageComment, error)
 	AddSuggestion(context.Context, string, string, string, string, domain.User) (domain.PageComment, error)
 	ApplyCommentSuggestion(context.Context, string, int64, domain.User) (domain.Page, error)
-	ResolveComment(context.Context, int64, bool) error
+	ResolveComment(context.Context, string, int64, bool) error
 }
 
 type pageImportService interface {
