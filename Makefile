@@ -17,6 +17,9 @@ NODE_MODULES := node_modules/.package-lock.json
 PLUGIN_LOCK := plugins.lock
 PLUGIN_DOWNLOAD := scripts/plugins/download.sh
 PLUGIN_STAMP := plugins/.downloaded
+PLUGIN_REPOSITORY ?= kumbuka-me/plugins
+PLUGIN_UPDATE_COMMIT ?= chore: update plugins
+GH ?= gh
 
 ## Tool Versions
 
@@ -27,6 +30,7 @@ GOLANGCI_LINT_VERSION ?= v2.13.2
 DEV_TOOLS_VERSION ?= v0.9.0
 
 ## Shared development tools
+
 include bin/dev-tools.mk
 include $(call dev-tools-module,tag)
 include $(call dev-tools-module,port)
@@ -107,6 +111,68 @@ $(PLUGIN_STAMP): $(PLUGIN_LOCK) $(PLUGIN_DOWNLOAD)
 plugins-refresh: ## Re-download all pinned first-party plugin packages.
 	rm -f "$(PLUGIN_STAMP)"
 	$(MAKE) plugins
+
+.PHONY: plugins-update
+plugins-update: ## Update pinned plugins to their latest stable releases and commit them.
+	@set -eu; \
+	if ! command -v "$(GH)" >/dev/null 2>&1; then \
+		echo "Missing $(GH). Install GitHub CLI first." >&2; \
+		exit 1; \
+	fi; \
+	if ! git diff --cached --quiet; then \
+		echo "Refusing to update plugins while other changes are staged." >&2; \
+		exit 1; \
+	fi; \
+	if ! git diff --quiet -- "$(PLUGIN_LOCK)"; then \
+		echo "Refusing to overwrite uncommitted changes in $(PLUGIN_LOCK)." >&2; \
+		exit 1; \
+	fi; \
+	releases=$$(mktemp); \
+	next=$$(mktemp); \
+	trap 'rm -f "$$releases" "$$next"' EXIT INT TERM; \
+	$(GH) api \
+		--paginate \
+		"repos/$(PLUGIN_REPOSITORY)/releases?per_page=100" \
+		--jq '.[] | select(.draft == false and .prerelease == false) | .tag_name' \
+		> "$$releases"; \
+	: > "$$next"; \
+	updated=0; \
+	while IFS= read -r line || [ -n "$$line" ]; do \
+		case "$$line" in \
+			""|\#*) \
+				printf '%s\n' "$$line" >> "$$next"; \
+				continue; \
+				;; \
+		esac; \
+		plugin=$${line%%=*}; \
+		current=$${line#*=}; \
+		if [ "$$plugin" = "$$line" ] || [ -z "$$plugin" ] || [ -z "$$current" ]; then \
+			echo "Invalid $(PLUGIN_LOCK) entry: $$line" >&2; \
+			exit 1; \
+		fi; \
+		tag=$$(awk -v prefix="$$plugin/v" \
+			'index($$0, prefix) == 1 { print; exit }' \
+			"$$releases"); \
+		if [ -z "$$tag" ]; then \
+			echo "No stable release found for $$plugin in $(PLUGIN_REPOSITORY)." >&2; \
+			exit 1; \
+		fi; \
+		latest=$${tag#$$plugin/v}; \
+		printf '%s=%s\n' "$$plugin" "$$latest" >> "$$next"; \
+		if [ "$$current" != "$$latest" ]; then \
+			printf '%-22s %s -> %s\n' "$$plugin" "$$current" "$$latest"; \
+			updated=1; \
+		fi; \
+	done < "$(PLUGIN_LOCK)"; \
+	if [ "$$updated" -eq 0 ]; then \
+		echo "All pinned plugins already use the latest stable releases."; \
+		exit 0; \
+	fi; \
+	mv "$$next" "$(PLUGIN_LOCK)"; \
+	$(MAKE) plugins-refresh; \
+	git add "$(PLUGIN_LOCK)"; \
+	git add -u -- plugins; \
+	git commit -m "$(PLUGIN_UPDATE_COMMIT)"
 
 .PHONY: generate
 generate: plugins ## Generate application source files.
