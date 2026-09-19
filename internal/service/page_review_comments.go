@@ -63,7 +63,7 @@ type PageReviewCommentInput struct {
 type pageReviewDiscussionRepository interface {
 	PageReviewComments(context.Context, int64) ([]domain.PageReviewComment, error)
 	AddPageReviewComment(context.Context, int64, string, int64, string, int, int, string, bool, string, string) (domain.PageReviewComment, error)
-	ApplyPageReviewSuggestions(context.Context, int64, string, int, int64, []int64, string, string, []string, *pluginusage.Index, domain.PageRender) (domain.Page, error)
+	ApplyPageReviewSuggestions(context.Context, int64, string, int, int64, []int64, bool, string, string, []string, *pluginusage.Index, domain.PageRender) (domain.Page, error)
 }
 
 // ReviewDetail returns the requested revision, its feedback, and review permissions for the actor.
@@ -193,6 +193,7 @@ func (s *Pages) ApplyAllReviewSuggestions(ctx context.Context, reviewID int64, s
 
 // applyReviewSuggestions validates, merges, and persists selected suggestions as one new revision.
 func (s *Pages) applyReviewSuggestions(ctx context.Context, reviewID int64, slug string, selected []int64, actor domain.User) (domain.Page, error) {
+	applyAll := len(selected) == 0
 	detail, err := s.ReviewDetail(ctx, reviewID, strings.TrimSpace(slug), actor)
 	if err != nil {
 		return domain.Page{}, err
@@ -234,6 +235,7 @@ func (s *Pages) applyReviewSuggestions(ctx context.Context, reviewID int64, slug
 		detail.Request.RevisionNumber,
 		actor.ID,
 		suggestionIDs,
+		applyAll,
 		updatedMarkdown,
 		message,
 		md.Links(updatedMarkdown),

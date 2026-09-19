@@ -32,6 +32,8 @@ type reviewDiscussionRepositoryStub struct {
 	appliedMarkdown string
 	// appliedIDs captures the suggestion identifiers persisted atomically.
 	appliedIDs []int64
+	// appliedAll reports whether persistence was asked to verify the complete pending suggestion set.
+	appliedAll bool
 }
 
 // PageReviewRequestByID returns the configured review request when it matches the expected page.
@@ -107,6 +109,7 @@ func (r *reviewDiscussionRepositoryStub) ApplyPageReviewSuggestions(
 	_ int,
 	_ int64,
 	suggestionIDs []int64,
+	applyAll bool,
 	markdown string,
 	_ string,
 	_ []string,
@@ -115,6 +118,7 @@ func (r *reviewDiscussionRepositoryStub) ApplyPageReviewSuggestions(
 ) (domain.Page, error) {
 	r.appliedMarkdown = markdown
 	r.appliedIDs = append([]int64(nil), suggestionIDs...)
+	r.appliedAll = applyAll
 
 	return r.page, nil
 }
@@ -248,6 +252,40 @@ func TestApplyAllReviewSuggestionsPersistsOneRevisionInput(t *testing.T) {
 	assert.Equal(t, "guide", page.Slug)
 	assert.Equal(t, "ONE\ntwo\nTHREE", repository.appliedMarkdown)
 	assert.Equal(t, []int64{10, 11}, repository.appliedIDs)
+	assert.True(t, repository.appliedAll)
+}
+
+// TestApplyReviewSuggestionKeepsSingleSelectionSemantics verifies applying one suggestion does not require every pending suggestion.
+func TestApplyReviewSuggestionKeepsSingleSelectionSemantics(t *testing.T) {
+	t.Parallel()
+
+	repository := &reviewDiscussionRepositoryStub{
+		request: domain.PageReviewRequest{
+			ID:             7,
+			PageSlug:       "guide",
+			RevisionNumber: 3,
+			RequestedBy:    9,
+			Status:         domain.PageReviewStatusPending,
+		},
+		page: domain.Page{Slug: "guide", Title: "Guide"},
+		revision: revision.Revision{
+			Number:           3,
+			PreviousMarkdown: "one\ntwo\nthree",
+			Markdown:         "one\ntwo\nthree",
+		},
+		comments: []domain.PageReviewComment{
+			{ID: 10, IsSuggestion: true, Side: domain.PageReviewCommentSideNew, StartLine: 1, EndLine: 1, Original: "one", Replacement: "ONE"},
+			{ID: 11, IsSuggestion: true, Side: domain.PageReviewCommentSideNew, StartLine: 3, EndLine: 3, Original: "three", Replacement: "THREE"},
+		},
+	}
+	pages := NewPages(repository, slog.Default())
+
+	_, err := pages.ApplyReviewSuggestion(context.Background(), 7, "guide", 10, domain.User{ID: 9, Role: "editor"})
+
+	require.NoError(t, err)
+	assert.Equal(t, []int64{10}, repository.appliedIDs)
+	assert.False(t, repository.appliedAll)
+	assert.Equal(t, "ONE\ntwo\nthree", repository.appliedMarkdown)
 }
 
 // TestValidateReviewCommentInputRejectsSuggestionOnOldSide verifies applicable suggestions target only reviewed-revision lines.
