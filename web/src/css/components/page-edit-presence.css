@@ -1,0 +1,32 @@
+.page-edit-presence {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 12px 0 18px;
+  border: 1px solid color-mix(in srgb, var(--warning) 34%, var(--border));
+  border-radius: 8px;
+  padding: 9px 12px;
+  background: color-mix(in srgb, var(--warning) 8%, var(--surface));
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.page-edit-presence[hidden] {
+  display: none;
+}
+
+.page-edit-presence.editor-presence {
+  margin: 0;
+  border-width: 0 0 1px;
+  border-radius: 0;
+  padding: 8px 18px;
+}
+
+.page-edit-presence-dot {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 8px;
+  border-radius: 999px;
+  background: var(--warning);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--warning) 16%, transparent);
+}

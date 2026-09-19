@@ -55,6 +55,7 @@ type PageSaveInput struct {
 // pageRepository composes the persistence capabilities used across page workflows.
 type pageRepository interface {
 	pageContentRepository
+	pagePresenceRepository
 	pageDiscussionRepository
 	pageBulkRepository
 	pageReviewRepository
@@ -72,6 +73,13 @@ type pageContentRepository interface {
 	LatestRevision(context.Context, string) (revision.Revision, int, error)
 	SavePage(context.Context, string, string, string, string, string, string, string, []string, []string, []int64, domain.PageMetadata, map[string]string, domain.PageRender, domain.User) (domain.Page, error)
 	SavePageIfUnchanged(context.Context, time.Time, string, string, string, string, string, string, string, []string, []string, []int64, domain.PageMetadata, map[string]string, domain.PageRender, domain.User) (domain.Page, error)
+}
+
+// pagePresenceRepository persists short-lived collaborative editor presence.
+type pagePresenceRepository interface {
+	TouchPageEditor(context.Context, string, int64) error
+	LeavePageEditor(context.Context, string, int64) error
+	PageEditors(context.Context, string, int64, time.Duration) ([]domain.PageEditorPresence, error)
 }
 
 type pageUsageAnalyzer interface {
@@ -159,6 +167,46 @@ func (s *Pages) Save(ctx context.Context, input PageSaveInput) (domain.Page, err
 	s.notifyWatchers(ctx, input.Actor.ID, page.Slug, actionTitle(action, page.Title), "A watched page changed.", "/pages/"+page.Slug)
 
 	return page, nil
+}
+
+const pageEditorPresenceTTL = 90 * time.Second
+
+// PageEditors returns other users with a recent editor heartbeat for one page.
+func (s *Pages) PageEditors(ctx context.Context, slug string, excludeUserID int64) ([]domain.PageEditorPresence, error) {
+	slug = strings.Trim(strings.TrimSpace(slug), "/")
+	if slug == "" {
+		return nil, domain.ErrNotFound
+	}
+
+	return s.repository.PageEditors(ctx, slug, excludeUserID, pageEditorPresenceTTL)
+}
+
+// TouchPageEditor refreshes one authenticated user's editor presence.
+func (s *Pages) TouchPageEditor(ctx context.Context, slug string, actor domain.User) error {
+	if actor.ID <= 0 {
+		return domain.ErrForbidden
+	}
+
+	slug = strings.Trim(strings.TrimSpace(slug), "/")
+	if slug == "" {
+		return domain.ErrNotFound
+	}
+
+	return s.repository.TouchPageEditor(ctx, slug, actor.ID)
+}
+
+// LeavePageEditor clears one authenticated user's editor presence.
+func (s *Pages) LeavePageEditor(ctx context.Context, slug string, actor domain.User) error {
+	if actor.ID <= 0 {
+		return domain.ErrForbidden
+	}
+
+	slug = strings.Trim(strings.TrimSpace(slug), "/")
+	if slug == "" {
+		return nil
+	}
+
+	return s.repository.LeavePageEditor(ctx, slug, actor.ID)
 }
 
 // validPageWorkflowSettings reports whether page lifecycle and review metadata are internally valid.

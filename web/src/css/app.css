@@ -57,6 +57,8 @@
 
 @import "./components/page-watches.css";
 
+@import "./components/page-edit-presence.css";
+
 @import "./components/path-picker.css";
 
 @import "./components/code-ligatures.css";

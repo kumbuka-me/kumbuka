@@ -98,6 +98,12 @@ type pageWatchService interface {
 	SetPageWatch(context.Context, string, int64, string) error
 }
 
+type pagePresenceService interface {
+	PageEditors(context.Context, string, int64) ([]domain.PageEditorPresence, error)
+	TouchPageEditor(context.Context, string, domain.User) error
+	LeavePageEditor(context.Context, string, domain.User) error
+}
+
 type pageRevisionService interface {
 	Revisions(context.Context, string) ([]revision.Revision, error)
 }
