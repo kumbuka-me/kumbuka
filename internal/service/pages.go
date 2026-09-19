@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+	"time"
 
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/kumbuka-me/kumbuka/pkg/icons"
@@ -17,6 +18,8 @@ import (
 type PageSaveInput struct {
 	// PreviousSlug identifies the existing page being edited; empty means create.
 	PreviousSlug string
+	// ExpectedUpdatedAt is the page timestamp observed when an editor opened an existing page.
+	ExpectedUpdatedAt time.Time
 	// Slug is the requested canonical page path.
 	Slug string
 	// Title is the human-readable page title.
@@ -68,6 +71,7 @@ type pageContentRepository interface {
 	Revision(context.Context, string, int) (revision.Revision, error)
 	LatestRevision(context.Context, string) (revision.Revision, int, error)
 	SavePage(context.Context, string, string, string, string, string, string, string, []string, []string, []int64, domain.PageMetadata, map[string]string, domain.PageRender, domain.User) (domain.Page, error)
+	SavePageIfUnchanged(context.Context, time.Time, string, string, string, string, string, string, string, []string, []string, []int64, domain.PageMetadata, map[string]string, domain.PageRender, domain.User) (domain.Page, error)
 }
 
 type pageUsageAnalyzer interface {
@@ -223,6 +227,37 @@ func (s *Pages) save(ctx context.Context, input PageSaveInput) (domain.Page, err
 		return domain.Page{}, err
 	}
 
+	metadata := domain.PageMetadata{
+		Status:             input.Status,
+		OwnerGroupID:       input.OwnerGroupID,
+		ReviewIntervalDays: input.ReviewIntervalDays,
+		MarkReviewed:       input.MarkReviewed,
+		DeprecatedTarget:   input.DeprecatedTarget,
+		PluginUsage:        pluginUsage,
+	}
+	links := md.Links(input.Markdown)
+
+	if input.PreviousSlug != "" && !input.ExpectedUpdatedAt.IsZero() {
+		return s.repository.SavePageIfUnchanged(
+			ctx,
+			input.ExpectedUpdatedAt,
+			input.PreviousSlug,
+			input.Slug,
+			input.Title,
+			input.Icon,
+			input.Language,
+			input.Markdown,
+			input.Message,
+			input.Tags,
+			links,
+			input.GroupIDs,
+			metadata,
+			input.Properties,
+			render,
+			input.Actor,
+		)
+	}
+
 	return s.repository.SavePage(
 		ctx,
 		input.PreviousSlug,
@@ -233,16 +268,9 @@ func (s *Pages) save(ctx context.Context, input PageSaveInput) (domain.Page, err
 		input.Markdown,
 		input.Message,
 		input.Tags,
-		md.Links(input.Markdown),
+		links,
 		input.GroupIDs,
-		domain.PageMetadata{
-			Status:             input.Status,
-			OwnerGroupID:       input.OwnerGroupID,
-			ReviewIntervalDays: input.ReviewIntervalDays,
-			MarkReviewed:       input.MarkReviewed,
-			DeprecatedTarget:   input.DeprecatedTarget,
-			PluginUsage:        pluginUsage,
-		},
+		metadata,
 		input.Properties,
 		render,
 		input.Actor,

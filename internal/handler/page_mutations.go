@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/kumbuka-me/kumbuka/internal/auth"
 	"github.com/kumbuka-me/kumbuka/internal/httpresponse"
@@ -125,8 +126,14 @@ func pageSaveInput(
 		markdown = resolved
 	}
 
+	expectedUpdatedAt, err := expectedPageUpdatedAt(r.FormValue("expected_updated_at"), originalSlug != "")
+	if err != nil {
+		return service.PageSaveInput{}, err
+	}
+
 	return service.PageSaveInput{
 		PreviousSlug:       originalSlug,
+		ExpectedUpdatedAt:  expectedUpdatedAt,
 		Slug:               r.FormValue("slug"),
 		Title:              r.FormValue("title"),
 		Icon:               r.FormValue("icon"),
@@ -143,6 +150,31 @@ func pageSaveInput(
 		Properties:         pagePropertiesFromForm(r),
 		Actor:              user,
 	}, nil
+}
+
+// expectedPageUpdatedAt parses the immutable editor version token for an existing page.
+func expectedPageUpdatedAt(value string, required bool) (time.Time, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		if required {
+			return time.Time{}, &service.ValidationError{Fields: []service.FieldError{{
+				Field:   "expected_updated_at",
+				Message: "Reload the page before saving it.",
+			}}}
+		}
+
+		return time.Time{}, nil
+	}
+
+	nanoseconds, err := strconv.ParseInt(value, 10, 64)
+	if err != nil || nanoseconds <= 0 {
+		return time.Time{}, &service.ValidationError{Fields: []service.FieldError{{
+			Field:   "expected_updated_at",
+			Message: "Reload the page before saving it.",
+		}}}
+	}
+
+	return time.Unix(0, nanoseconds), nil
 }
 
 // resolvePageTemplateFields validates and materializes creation-time blueprint fields.
@@ -380,6 +412,15 @@ func writePageProblem(
 				"Choose groups you are allowed to assign.",
 			),
 		)
+		return
+	}
+
+	if conflict, ok := errors.AsType[*domain.PageEditConflictError](err); ok {
+		message := "This page changed while you were editing it. Your changes are still in the editor. Open the latest page in another tab to compare, then reload before saving."
+		if conflict.CurrentRevision > 0 {
+			message = "This page changed while you were editing it. Revision " + strconv.Itoa(conflict.CurrentRevision) + " is now current. Your changes are still in the editor. Open the latest page in another tab to compare, then reload before saving."
+		}
+		httpresponse.Problem(w, http.StatusConflict, message)
 		return
 	}
 

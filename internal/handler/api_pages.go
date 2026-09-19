@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/kumbuka-me/kumbuka/internal/httpresponse"
 	"github.com/kumbuka-me/kumbuka/internal/service"
@@ -29,6 +30,8 @@ type previewRequest struct {
 type pageRequest struct {
 	// Slug supplies the desired page path for create requests.
 	Slug string `json:"slug"`
+	// ExpectedUpdatedAt is the updated_at value returned when an existing page was read.
+	ExpectedUpdatedAt time.Time `json:"expected_updated_at"`
 	// Title is the required page title.
 	Title string `json:"title"`
 	// Icon is the optional icon displayed with the page title.
@@ -211,6 +214,16 @@ func SavePage(pageUseCases pageWriterService, accessUseCases pageAccessReader, l
 			return
 		}
 
+		if r.Method == http.MethodPut && request.ExpectedUpdatedAt.IsZero() {
+			httpresponse.Problem(
+				w,
+				http.StatusBadRequest,
+				"Page validation failed.",
+				httpresponse.NewFieldProblem("expected_updated_at", "Supply the updated_at value returned by GET /api/pages/{slug} before updating a page."),
+			)
+			return
+		}
+
 		slug := cmp.Or(r.PathValue("slug"), request.Slug)
 		allowed, accessErr := accessUseCases.CanEdit(r.Context(), user, slug)
 		if accessErr != nil {
@@ -224,6 +237,7 @@ func SavePage(pageUseCases pageWriterService, accessUseCases pageAccessReader, l
 
 		page, err := pageUseCases.Save(r.Context(), service.PageSaveInput{
 			PreviousSlug:       r.PathValue("slug"),
+			ExpectedUpdatedAt:  request.ExpectedUpdatedAt,
 			Slug:               slug,
 			Title:              request.Title,
 			Icon:               request.Icon,
