@@ -264,8 +264,12 @@ func validateABI(compiled wazero.CompiledModule) error {
 	}
 
 	signatures := []struct {
-		name            string
-		params, results []api.ValueType
+		// name is the required ABI export.
+		name string
+		// params lists the export's parameter types in call order.
+		params []api.ValueType
+		// results lists the export's return types in result order.
+		results []api.ValueType
 	}{
 		{"_initialize", nil, nil},
 		{"kumbuka_api_version", nil, []api.ValueType{api.ValueTypeI32}},

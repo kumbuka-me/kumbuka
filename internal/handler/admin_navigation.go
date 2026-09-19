@@ -41,15 +41,23 @@ func SearchIcons(catalog *icons.Catalog) http.HandlerFunc {
 	if catalog == nil {
 		catalog = icons.Builtin()
 	}
+	// result is one icon picker option, including its rendered preview.
 	type result struct {
-		Name   string `json:"name"`
-		Label  string `json:"label"`
+		// Name is the catalog identifier persisted when this icon is selected.
+		Name string `json:"name"`
+		// Label is the human-readable icon name.
+		Label string `json:"label"`
+		// Source identifies the built-in or plugin icon collection.
 		Source string `json:"source"`
-		SVG    string `json:"svg"`
+		// SVG contains the catalog-rendered preview markup.
+		SVG string `json:"svg"`
 	}
+	// response contains one page of icon search results.
 	type response struct {
-		Items   []result `json:"items"`
-		HasMore bool     `json:"has_more"`
+		// Items contains the matching icons in display order.
+		Items []result `json:"items"`
+		// HasMore tells the picker whether another page is available.
+		HasMore bool `json:"has_more"`
 	}
 
 	return func(w http.ResponseWriter, r *http.Request) {

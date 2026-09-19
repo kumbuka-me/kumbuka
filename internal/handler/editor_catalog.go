@@ -15,8 +15,11 @@ func EditorCatalog(
 	plugins *plugin.Manager,
 	logger *slog.Logger,
 ) http.HandlerFunc {
+	// pageItem supplies a link target and label for editor completion.
 	type pageItem struct {
-		Slug  string `json:"slug"`
+		// Slug is the canonical page path inserted into a link.
+		Slug string `json:"slug"`
+		// Title labels the completion in the editor.
 		Title string `json:"title"`
 	}
 

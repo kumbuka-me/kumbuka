@@ -42,9 +42,12 @@ ORDER BY source.slug,links.target_slug`)
 	rows.Close()
 
 	queries := []struct {
+		// target receives the pages matching this health category.
 		target *[]domain.Page
-		query  string
-		args   []any
+		// query selects page paths and titles for this category.
+		query string
+		// args supplies the query parameters in placeholder order.
+		args []any
 	}{
 		{&health.OrphanPages, `
 SELECT p.slug,p.title

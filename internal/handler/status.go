@@ -119,6 +119,7 @@ func HTMLProblems(next http.Handler, views *webview.Views, paths ...string) http
 		}
 
 		var problem struct {
+			// Error is the safe problem message displayed on the browser error page.
 			Error string `json:"error"`
 		}
 		if err := json.Unmarshal(captured.body.Bytes(), &problem); err != nil || strings.TrimSpace(problem.Error) == "" {

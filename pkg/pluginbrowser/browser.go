@@ -98,7 +98,13 @@ func Frame(prefix, runtimeURL string, origins []string, m plugin.BrowserContribu
 
 	policy := Policy(origins, base, runtimeURL)
 	var output bytes.Buffer
-	err := frameTemplate.Execute(&output, struct{ Name, Policy, Runtime, JavaScript, CSS string }{m.Name, policy, runtimeURL, assetURL(base + m.JavaScript), css})
+	err := frameTemplate.Execute(&output, frameData{
+		Name:       m.Name,
+		Policy:     policy,
+		Runtime:    runtimeURL,
+		JavaScript: assetURL(base + m.JavaScript),
+		CSS:        css,
+	})
 	if err != nil {
 		return nil, "", fmt.Errorf("plugin frame: %w", err)
 	}
@@ -108,3 +114,17 @@ func Frame(prefix, runtimeURL string, origins []string, m plugin.BrowserContribu
 
 // assetURL preserves package names containing URL-reserved characters.
 func assetURL(name string) string { return (&url.URL{Path: name}).EscapedPath() }
+
+// frameData supplies the display metadata and permitted assets to the isolated frame template.
+type frameData struct {
+	// Name is the browser module's display name.
+	Name string
+	// Policy is the content security policy embedded in the frame.
+	Policy string
+	// Runtime is the URL of the core-owned browser bridge.
+	Runtime string
+	// JavaScript is the escaped URL of the plugin's entry script.
+	JavaScript string
+	// CSS is the escaped stylesheet URL, or empty when the module has no stylesheet.
+	CSS string
+}

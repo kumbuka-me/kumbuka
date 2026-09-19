@@ -267,9 +267,12 @@ func (p *renderPipeline) preprocessMacros(source string, ctx plugin.Context, pag
 			continue
 		}
 
+		// parsed keeps a macro match and its arguments together across the panic guard.
 		type parsed struct {
+			// arguments contains the plugin-specific invocation parameters.
 			arguments plugin.Invocation
-			matched   bool
+			// matched reports whether the plugin accepted this source line.
+			matched bool
 		}
 		invocation, err := plugin.Guard(binding.Selector.PluginID, func() (parsed, error) {
 			if conditional, ok := binding.Module.(plugin.ConditionalMacro); ok && !conditional.Available(ctx) {
