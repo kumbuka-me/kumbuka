@@ -262,7 +262,8 @@ func locateInlineSuggestionSource(markdown, anchor string) (start, end int, err 
 			"The selected text cannot be mapped exactly to the Markdown source. Select plain text without rendered formatting.",
 		)
 	}
-	if strings.Index(markdown[start+len(anchor):], anchor) >= 0 {
+
+	if strings.LastIndex(markdown, anchor) != start {
 		return 0, 0, domain.NewValidationError(
 			"anchor",
 			"The selected text appears more than once in the Markdown source. Select a more specific passage.",
