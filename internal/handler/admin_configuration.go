@@ -11,7 +11,6 @@ import (
 	"github.com/kumbuka-me/kumbuka/internal/httpresponse"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
-	"golang.org/x/net/http/httpguts"
 )
 
 // contentLanguageOptions contains the languages supported by page search and presentation.
@@ -102,12 +101,6 @@ func SaveAdminAuthentication(
 		}
 
 		effective := effectiveAuthenticationSettings(settings, views.Runtime())
-
-		problems := authenticationSettingsProblems(effective, views.Runtime())
-		if len(problems) > 0 {
-			httpresponse.Problem(w, http.StatusUnprocessableEntity, "Authentication validation failed.", problems...)
-			return
-		}
 
 		if err := browserAuth.Validate(r.Context(), effective); err != nil {
 			if tryWriteValidationProblem(w, err, "Authentication validation failed.") {
@@ -228,94 +221,6 @@ func authenticationSettingsFromForm(r *http.Request) domain.AuthenticationSettin
 		TrustedGroupHeaders:       splitHeaderNames(r.FormValue("trusted_group_headers")),
 		TrustedAdminGroup:         strings.TrimSpace(r.FormValue("trusted_admin_group")),
 	}
-}
-
-// authenticationSettingsProblems returns field-level validation errors for browser authentication settings.
-func authenticationSettingsProblems(
-	settings domain.AuthenticationSettings,
-	runtime webview.RuntimeInfo,
-) []httpresponse.FieldProblem {
-	var problems []httpresponse.FieldProblem
-
-	switch domain.AuthMode(settings.Mode) {
-	case domain.AuthModeNone:
-	case domain.AuthModeLocal:
-	case domain.AuthModeTrustedProxy:
-		if len(settings.TrustedUsernameHeaders) == 0 {
-			problems = append(problems, httpresponse.NewFieldProblem(
-				"trusted_username_headers",
-				"Configure at least one username header.",
-			))
-		}
-		if settings.TrustedAdminGroup != "" && len(settings.TrustedGroupHeaders) == 0 {
-			problems = append(problems, httpresponse.NewFieldProblem("trusted_group_headers", "Configure at least one group header for external administrator elevation."))
-		}
-	case domain.AuthModeOIDC:
-		if settings.OIDCIssuer == "" {
-			problems = append(problems, httpresponse.NewFieldProblem("oidc_issuer", "OIDC issuer is required."))
-		}
-		if settings.OIDCClientID == "" {
-			problems = append(problems, httpresponse.NewFieldProblem("oidc_client_id", "OIDC client ID is required."))
-		}
-		if !runtime.OIDCClientSecretConfigured {
-			problems = append(problems, httpresponse.NewFieldProblem(
-				"oidc_client_secret",
-				"Configure KUMBUKA__OIDC_CLIENT_SECRET before enabling OIDC.",
-			))
-		}
-		if !runtime.OIDCSessionSecretConfigured {
-			problems = append(problems, httpresponse.NewFieldProblem(
-				"oidc_session_secret",
-				"Configure KUMBUKA__OIDC_SESSION_SECRET with at least 32 characters before enabling OIDC.",
-			))
-		}
-		usesOIDCGroups := settings.OIDCGroupSync || settings.OIDCAdminGroup != ""
-		if usesOIDCGroups && settings.OIDCGroupClaim == "" {
-			problems = append(problems, httpresponse.NewFieldProblem(
-				"oidc_group_claim",
-				"Configure the OIDC claim containing group memberships.",
-			))
-		}
-
-		seenMappings := map[string]bool{}
-
-		for _, mapping := range settings.OIDCGroupMappings {
-			if mapping.OIDCGroup == "" || mapping.GroupID <= 0 {
-				problems = append(problems, httpresponse.NewFieldProblem(
-					"oidc_group_mapping",
-					"Choose a Kumbuka group for every OIDC group mapping.",
-				))
-				break
-			}
-			if seenMappings[mapping.OIDCGroup] {
-				problems = append(problems, httpresponse.NewFieldProblem(
-					"oidc_group_mapping",
-					"Each OIDC group may only be mapped once.",
-				))
-				break
-			}
-
-			seenMappings[mapping.OIDCGroup] = true
-		}
-	default:
-		problems = append(problems, httpresponse.NewFieldProblem("auth_mode", "Choose a supported authentication mode."))
-	}
-
-	for field, headers := range map[string][]string{
-		"trusted_username_headers":     settings.TrustedUsernameHeaders,
-		"trusted_email_headers":        settings.TrustedEmailHeaders,
-		"trusted_display_name_headers": settings.TrustedDisplayNameHeaders,
-		"trusted_group_headers":        settings.TrustedGroupHeaders,
-	} {
-		for _, header := range headers {
-			if !httpguts.ValidHeaderFieldName(header) {
-				problems = append(problems, httpresponse.NewFieldProblem(field, "Use valid HTTP header names separated by commas."))
-				break
-			}
-		}
-	}
-
-	return problems
 }
 
 // splitHeaderNames normalizes a comma-separated ordered header list.

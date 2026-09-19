@@ -11,6 +11,7 @@ import (
 
 	"github.com/kumbuka-me/kumbuka/internal/httpresponse"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
+	"golang.org/x/net/http/httpguts"
 )
 
 // browserAuthenticator resolves the database-managed browser authentication mode per request.
@@ -303,54 +304,122 @@ func (b *browserAuthenticator) authenticatorForSettings(
 
 // validateSettings checks configuration that does not require contacting an OIDC provider.
 func (b *browserAuthenticator) validateSettings(settings domain.AuthenticationSettings) error {
+	validation := &domain.ValidationError{}
+
 	switch domain.AuthMode(settings.Mode) {
 	case domain.AuthModeNone, domain.AuthModeLocal:
 		return nil
 	case domain.AuthModeTrustedProxy:
-		if len(settings.TrustedUsernameHeaders) == 0 {
-			return domain.NewValidationError(
-				"trusted_username_headers",
-				"Configure at least one username header.",
-			)
-		}
-		if strings.TrimSpace(settings.TrustedAdminGroup) != "" && len(settings.TrustedGroupHeaders) == 0 {
-			return domain.NewValidationError(
-				"trusted_group_headers",
-				"Configure at least one group header for external administrator elevation.",
-			)
-		}
-
-		return nil
+		validateTrustedProxySettings(settings, validation)
 	case domain.AuthModeOIDC:
-		if strings.TrimSpace(settings.OIDCIssuer) == "" {
-			return domain.NewValidationError("oidc_issuer", "OIDC issuer is required.")
-		}
-		if strings.TrimSpace(settings.OIDCClientID) == "" {
-			return domain.NewValidationError("oidc_client_id", "OIDC client ID is required.")
-		}
-		if (settings.OIDCGroupSync || strings.TrimSpace(settings.OIDCAdminGroup) != "") && strings.TrimSpace(settings.OIDCGroupClaim) == "" {
-			return domain.NewValidationError(
-				"oidc_group_claim",
-				"Configure the OIDC claim containing group memberships.",
-			)
-		}
-		if b.oidcConfig.ClientSecret == "" {
-			return domain.NewValidationError(
-				"oidc_client_secret",
-				"Configure KUMBUKA__OIDC_CLIENT_SECRET before enabling OIDC.",
-			)
-		}
-		if len(b.oidcConfig.SessionSecret) < 32 {
-			return domain.NewValidationError(
-				"oidc_session_secret",
-				"Configure KUMBUKA__OIDC_SESSION_SECRET with at least 32 characters before enabling OIDC.",
-			)
-		}
-
-		return nil
+		b.validateOIDCSettings(settings, validation)
 	default:
 		return fmt.Errorf("unsupported auth mode %q", settings.Mode)
 	}
+
+	if len(validation.Fields) == 0 {
+		return nil
+	}
+
+	return validation
+}
+
+// validateTrustedProxySettings appends all static trusted-proxy configuration failures.
+func validateTrustedProxySettings(settings domain.AuthenticationSettings, validation *domain.ValidationError) {
+	if len(settings.TrustedUsernameHeaders) == 0 {
+		appendAuthenticationProblem(validation, "trusted_username_headers", "Configure at least one username header.")
+	}
+	if strings.TrimSpace(settings.TrustedAdminGroup) != "" && len(settings.TrustedGroupHeaders) == 0 {
+		appendAuthenticationProblem(
+			validation,
+			"trusted_group_headers",
+			"Configure at least one group header for external administrator elevation.",
+		)
+	}
+
+	validateAuthenticationHeaders(validation, "trusted_username_headers", settings.TrustedUsernameHeaders)
+	validateAuthenticationHeaders(validation, "trusted_email_headers", settings.TrustedEmailHeaders)
+	validateAuthenticationHeaders(validation, "trusted_display_name_headers", settings.TrustedDisplayNameHeaders)
+	validateAuthenticationHeaders(validation, "trusted_group_headers", settings.TrustedGroupHeaders)
+}
+
+// validateAuthenticationHeaders appends one problem when an active trusted header list contains an invalid name.
+func validateAuthenticationHeaders(validation *domain.ValidationError, field string, headers []string) {
+	for _, header := range headers {
+		if httpguts.ValidHeaderFieldName(header) {
+			continue
+		}
+
+		appendAuthenticationProblem(validation, field, "Use valid HTTP header names separated by commas.")
+		return
+	}
+}
+
+// validateOIDCSettings appends all static OIDC configuration failures.
+func (b *browserAuthenticator) validateOIDCSettings(settings domain.AuthenticationSettings, validation *domain.ValidationError) {
+	if strings.TrimSpace(settings.OIDCIssuer) == "" {
+		appendAuthenticationProblem(validation, "oidc_issuer", "OIDC issuer is required.")
+	}
+	if strings.TrimSpace(settings.OIDCClientID) == "" {
+		appendAuthenticationProblem(validation, "oidc_client_id", "OIDC client ID is required.")
+	}
+
+	usesGroups := settings.OIDCGroupSync || strings.TrimSpace(settings.OIDCAdminGroup) != ""
+	if usesGroups && strings.TrimSpace(settings.OIDCGroupClaim) == "" {
+		appendAuthenticationProblem(
+			validation,
+			"oidc_group_claim",
+			"Configure the OIDC claim containing group memberships.",
+		)
+	}
+	validateOIDCGroupMappings(settings.OIDCGroupMappings, validation)
+
+	if b.oidcConfig.ClientSecret == "" {
+		appendAuthenticationProblem(
+			validation,
+			"oidc_client_secret",
+			"Configure KUMBUKA__OIDC_CLIENT_SECRET before enabling OIDC.",
+		)
+	}
+	if len(b.oidcConfig.SessionSecret) < 32 {
+		appendAuthenticationProblem(
+			validation,
+			"oidc_session_secret",
+			"Configure KUMBUKA__OIDC_SESSION_SECRET with at least 32 characters before enabling OIDC.",
+		)
+	}
+}
+
+// validateOIDCGroupMappings appends at most one mapping problem for invalid or duplicate external groups.
+func validateOIDCGroupMappings(mappings []domain.OIDCGroupMapping, validation *domain.ValidationError) {
+	seen := make(map[string]struct{}, len(mappings))
+
+	for _, mapping := range mappings {
+		group := strings.TrimSpace(mapping.OIDCGroup)
+		if group == "" || mapping.GroupID <= 0 {
+			appendAuthenticationProblem(
+				validation,
+				"oidc_group_mapping",
+				"Choose a Kumbuka group for every OIDC group mapping.",
+			)
+			return
+		}
+		if _, duplicate := seen[group]; duplicate {
+			appendAuthenticationProblem(
+				validation,
+				"oidc_group_mapping",
+				"Each OIDC group may only be mapped once.",
+			)
+			return
+		}
+
+		seen[group] = struct{}{}
+	}
+}
+
+// appendAuthenticationProblem adds one safe field-level authentication validation problem.
+func appendAuthenticationProblem(validation *domain.ValidationError, field, message string) {
+	validation.Fields = append(validation.Fields, domain.FieldError{Field: field, Message: message})
 }
 
 // localLoginAllowed reports whether the local sign-in endpoint is active for the effective mode.

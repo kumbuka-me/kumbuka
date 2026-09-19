@@ -153,45 +153,6 @@ func TestAuthenticationSettingsFromForm(t *testing.T) {
 	assert.Equal(t, "kumbuka-admins", settings.TrustedAdminGroup)
 }
 
-func TestAuthenticationSettingsProblemsRejectsInvalidGroupMappings(t *testing.T) {
-	t.Parallel()
-
-	settings := domain.AuthenticationSettings{
-		Mode:                    "oidc",
-		OIDCIssuer:              "https://identity.example.com",
-		OIDCClientID:            "kumbuka",
-		OIDCGroupSync:           true,
-		OIDCGroupsAuthoritative: true,
-		OIDCGroupMappings: []domain.OIDCGroupMapping{
-			{OIDCGroup: "/admins", GroupID: 1},
-			{OIDCGroup: "/admins", GroupID: 2},
-		},
-	}
-	problems := authenticationSettingsProblems(settings, webview.RuntimeInfo{
-		OIDCClientSecretConfigured:  true,
-		OIDCSessionSecretConfigured: true,
-	})
-
-	require.Len(t, problems, 2)
-	assert.Equal(t, "oidc_group_claim", problems[0].Field)
-	assert.Equal(t, "oidc_group_mapping", problems[1].Field)
-}
-
-func TestAuthenticationSettingsProblems(t *testing.T) {
-	t.Parallel()
-
-	settings := domain.AuthenticationSettings{
-		Mode:         "oidc",
-		OIDCIssuer:   "https://identity.example.com",
-		OIDCClientID: "kumbuka",
-	}
-	problems := authenticationSettingsProblems(settings, webview.RuntimeInfo{})
-
-	require.Len(t, problems, 2)
-	assert.Equal(t, "oidc_client_secret", problems[0].Field)
-	assert.Equal(t, "oidc_session_secret", problems[1].Field)
-}
-
 func TestPendingOIDCIdentityID(t *testing.T) {
 	t.Parallel()
 

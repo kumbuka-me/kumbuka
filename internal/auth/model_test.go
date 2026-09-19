@@ -109,3 +109,53 @@ func TestBrowserValidationRequiresAdministratorGroupSources(t *testing.T) {
 	assert.Error(t, browser.validateSettings(domain.AuthenticationSettings{Mode: "oidc", OIDCIssuer: "https://example.test", OIDCClientID: "kumbuka", OIDCAdminGroup: "/admins"}))
 	assert.Error(t, browser.validateSettings(domain.AuthenticationSettings{Mode: "trusted-proxy", TrustedUsernameHeaders: []string{"X-User"}, TrustedAdminGroup: "/admins"}))
 }
+func TestBrowserValidationCollectsOIDCProblems(t *testing.T) {
+	t.Parallel()
+
+	browser := &browserAuthenticator{oidcConfig: OIDCConfig{
+		ClientSecret:  "secret",
+		SessionSecret: "0123456789abcdef0123456789abcdef",
+	}}
+	settings := domain.AuthenticationSettings{
+		Mode:          string(domain.AuthModeOIDC),
+		OIDCIssuer:    "https://identity.example.com",
+		OIDCClientID:  "kumbuka",
+		OIDCGroupSync: true,
+		OIDCGroupMappings: []domain.OIDCGroupMapping{
+			{OIDCGroup: "/admins", GroupID: 1},
+			{OIDCGroup: "/admins", GroupID: 2},
+		},
+	}
+
+	validation, ok := errors.AsType[*domain.ValidationError](browser.validateSettings(settings))
+	require.True(t, ok)
+	require.Len(t, validation.Fields, 2)
+	assert.Equal(t, "oidc_group_claim", validation.Fields[0].Field)
+	assert.Equal(t, "oidc_group_mapping", validation.Fields[1].Field)
+}
+
+func TestBrowserValidationChecksHeadersOnlyForTrustedProxyMode(t *testing.T) {
+	t.Parallel()
+
+	browser := &browserAuthenticator{oidcConfig: OIDCConfig{
+		ClientSecret:  "secret",
+		SessionSecret: "0123456789abcdef0123456789abcdef",
+	}}
+
+	oidcSettings := domain.AuthenticationSettings{
+		Mode:                   string(domain.AuthModeOIDC),
+		OIDCIssuer:             "https://identity.example.com",
+		OIDCClientID:           "kumbuka",
+		TrustedUsernameHeaders: []string{"Invalid Header"},
+	}
+	require.NoError(t, browser.validateSettings(oidcSettings))
+
+	trustedSettings := domain.AuthenticationSettings{
+		Mode:                   string(domain.AuthModeTrustedProxy),
+		TrustedUsernameHeaders: []string{"Invalid Header"},
+	}
+	validation, ok := errors.AsType[*domain.ValidationError](browser.validateSettings(trustedSettings))
+	require.True(t, ok)
+	require.Len(t, validation.Fields, 1)
+	assert.Equal(t, "trusted_username_headers", validation.Fields[0].Field)
+}
