@@ -16,6 +16,7 @@ import (
 	"strings"
 
 	"github.com/kumbuka-me/kumbuka/internal/httpresponse"
+	"github.com/kumbuka-me/kumbuka/internal/importer"
 	"github.com/kumbuka-me/kumbuka/internal/portable"
 	"github.com/kumbuka-me/kumbuka/internal/service"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
@@ -49,8 +50,8 @@ func ImportPagesWithPortableArchive(
 	legacy := ImportPages(pageUseCases, logger)
 
 	return func(w http.ResponseWriter, r *http.Request) {
-		r.Body = http.MaxBytesReader(w, r.Body, maxImportBytes)
-		if err := r.ParseMultipartForm(maxImportBytes); err != nil {
+		r.Body = http.MaxBytesReader(w, r.Body, maxImportRequestBytes)
+		if err := r.ParseMultipartForm(importMultipartMemory); err != nil {
 			httpresponse.Problem(w, http.StatusBadRequest, "Import is too large or invalid.")
 			return
 		}
@@ -116,11 +117,11 @@ func detectPortableArchiveUpload(headers []*multipart.FileHeader) (bool, error) 
 	}
 	defer file.Close() // nolint:errcheck
 
-	data, err := io.ReadAll(io.LimitReader(file, maxImportBytes+1))
+	data, err := io.ReadAll(io.LimitReader(file, importer.MaxBytes+1))
 	if err != nil {
 		return false, err
 	}
-	if len(data) > maxImportBytes {
+	if int64(len(data)) > importer.MaxBytes {
 		return false, newRequestError(
 			"files",
 			"Kumbuka archive exceeds 100 MiB.",
@@ -147,11 +148,11 @@ func readPortableArchiveUpload(header *multipart.FileHeader) (portable.Archive, 
 	}
 	defer file.Close() // nolint:errcheck
 
-	data, err := io.ReadAll(io.LimitReader(file, maxImportBytes+1))
+	data, err := io.ReadAll(io.LimitReader(file, importer.MaxBytes+1))
 	if err != nil {
 		return portable.Archive{}, err
 	}
-	if len(data) > maxImportBytes {
+	if int64(len(data)) > importer.MaxBytes {
 		return portable.Archive{}, newRequestError(
 			"files",
 			"Kumbuka archive exceeds 100 MiB.",
@@ -159,7 +160,7 @@ func readPortableArchiveUpload(header *multipart.FileHeader) (portable.Archive, 
 		)
 	}
 
-	return portable.Parse(data, maxImportBytes)
+	return portable.Parse(data, importer.MaxBytes)
 }
 
 // restorePortableArchive recreates resources, groups, and pages from a validated archive.

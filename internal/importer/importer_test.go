@@ -1,46 +1,45 @@
-package handler
+package importer
 
 import (
 	"archive/zip"
 	"bytes"
-	"io"
-	"strings"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestParseImportFormatRequiresExplicitFormat(t *testing.T) {
+func TestParseFormatRequiresExplicitFormat(t *testing.T) {
 	t.Parallel()
 
 	t.Run("empty format", func(t *testing.T) {
 		t.Parallel()
 
-		_, err := parseImportFormat("")
+		_, err := ParseFormat("")
 		assert.Error(t, err)
 	})
 
 	t.Run("automatic format", func(t *testing.T) {
 		t.Parallel()
 
-		_, err := parseImportFormat("auto")
+		_, err := ParseFormat("auto")
 		assert.Error(t, err)
 	})
 
 	t.Run("ambiguous JSON format", func(t *testing.T) {
 		t.Parallel()
 
-		_, err := parseImportFormat("json")
+		_, err := ParseFormat("json")
 		assert.Error(t, err)
 	})
 
 	t.Run("explicit Wiki.js format", func(t *testing.T) {
 		t.Parallel()
 
-		format, err := parseImportFormat("wikijs")
+		format, err := ParseFormat("wikijs")
 		require.NoError(t, err)
-		assert.Equal(t, wikiJSImport, format)
+		assert.Equal(t, FormatWikiJS, format)
 	})
 }
 
@@ -105,15 +104,23 @@ func TestMarkdownTitleRequiresExplicitHeading(t *testing.T) {
 	})
 }
 
-func TestReadImportArchiveEntryEnforcesRemainingBudget(t *testing.T) {
+func TestParseFileUsesSharedBudget(t *testing.T) {
 	t.Parallel()
 
-	_, err := readImportArchiveEntry(io.NopCloser(strings.NewReader("abc")), 2)
+	budget := NewBudget(10)
+	items, err := ParseFile("first.md", bytes.NewBufferString("# Title"), FormatMarkdown, budget)
+	require.NoError(t, err)
+	require.Len(t, items, 1)
+	assert.Equal(t, int64(3), budget.Remaining())
 
-	require.EqualError(t, err, "archive contents exceed 100 MiB")
+	_, err = ParseFile("second.md", bytes.NewBufferString("# Other"), FormatMarkdown, budget)
+	assert.Error(t, err)
+	assert.Equal(t, "Import contents exceed 100 MiB.", importerUserMessage(t, err))
 }
 
 func TestImportZIPBudgetSharedAcrossFiles(t *testing.T) {
+	t.Parallel()
+
 	var archive bytes.Buffer
 	writer := zip.NewWriter(&archive)
 	entry, err := writer.Create("page.md")
@@ -121,15 +128,38 @@ func TestImportZIPBudgetSharedAcrossFiles(t *testing.T) {
 	_, err = entry.Write([]byte("# Title"))
 	require.NoError(t, err)
 	require.NoError(t, writer.Close())
-	remaining := int64(10)
-	items, err := importZIP(archive.Bytes(), markdownImport, &remaining)
+
+	budget := NewBudget(10)
+	items, err := importZIP(archive.Bytes(), FormatMarkdown, budget)
 	require.NoError(t, err)
 	require.Len(t, items, 1)
-	require.Equal(t, int64(3), remaining)
-	_, err = importZIP(archive.Bytes(), markdownImport, &remaining)
-	require.ErrorContains(t, err, "archive contents exceed 100 MiB")
+	assert.Equal(t, int64(3), budget.Remaining())
 
-	message, ok := userErrorMessage(err)
-	require.True(t, ok)
-	assert.Equal(t, "Archive contents exceed 100 MiB.", message)
+	_, err = importZIP(archive.Bytes(), FormatMarkdown, budget)
+	require.Error(t, err)
+	assert.Equal(t, "Archive contents exceed 100 MiB.", importerUserMessage(t, err))
+}
+
+func TestHTMLToMarkdownSeparatesBlockAndInlineFormatting(t *testing.T) {
+	t.Parallel()
+
+	markdown, err := htmlToMarkdown([]byte(`<h1>Guide</h1><p>Hello <strong>world</strong>.</p><pre><code>echo ok</code></pre>`))
+
+	require.NoError(t, err)
+	assert.Contains(t, markdown, "# Guide")
+	assert.Contains(t, markdown, "Hello **world**.")
+	assert.Contains(t, markdown, "```\necho ok\n```")
+}
+
+func importerUserMessage(t *testing.T, err error) string {
+	t.Helper()
+
+	type userMessageError interface {
+		error
+		UserMessage() string
+	}
+
+	var userErr userMessageError
+	require.True(t, errors.As(err, &userErr))
+	return userErr.UserMessage()
 }
