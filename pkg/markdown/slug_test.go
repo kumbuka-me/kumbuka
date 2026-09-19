@@ -9,6 +9,27 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestSlugWithoutRegularExpressions(t *testing.T) {
+	t.Parallel()
+
+	t.Run("normalizes words", func(t *testing.T) {
+		t.Parallel()
+		assert.Equal(t, "hello-world", Slug("Hello World"))
+	})
+	t.Run("preserves path separators", func(t *testing.T) {
+		t.Parallel()
+		assert.Equal(t, "infra/dns", Slug("infra/DNS"))
+	})
+	t.Run("collapses whitespace", func(t *testing.T) {
+		t.Parallel()
+		assert.Equal(t, "foo-bar", Slug("foo   bar"))
+	})
+	t.Run("removes punctuation", func(t *testing.T) {
+		t.Parallel()
+		assert.Equal(t, "hello-kubernetes", Slug("Hello, Kubernetes!"))
+	})
+}
+
 func TestSlugContract(t *testing.T) {
 	t.Parallel()
 	data, err := os.ReadFile("../../test/contracts/slugs.json")
