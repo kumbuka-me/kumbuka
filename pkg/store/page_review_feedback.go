@@ -2,7 +2,6 @@ package store
 
 import (
 	"context"
-	"errors"
 	"slices"
 	"sort"
 	"strings"

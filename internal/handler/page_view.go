@@ -7,7 +7,6 @@ import (
 	"html/template"
 	"log/slog"
 	"net/http"
-	"strings"
 
 	"github.com/kumbuka-me/kumbuka/internal/auth"
 	"github.com/kumbuka-me/kumbuka/internal/httpresponse"
