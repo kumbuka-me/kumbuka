@@ -58,15 +58,7 @@ Environment variables use the `KUMBUKA__` prefix.
 | `KUMBUKA__OIDC_GROUP_CLAIM`             | `groups`                                   | OIDC group-membership claim used with the OIDC authentication override.                                                     |
 | `KUMBUKA__OIDC_ADMIN_GROUP`             | —                                          | OIDC group that grants administrator access with the authentication override.                                               |
 
-The CLI registration override is strict: use `--allow-user-registration=true` or `--allow-user-registration=false`.
-
 See the [documentation](https://kumbuka.me/) for all settings and authentication options.
-
-## Reusable packages
-
-Runtime packages that are intentionally shared with the standalone CLI live under `pkg/`. Server-only HTTP, authentication, routing, service composition, and deployment details remain under `internal/`.
-
-The public packages are implementation building blocks for Kumbuka tooling; the server remains the primary application in this repository.
 
 ## CLI
 
