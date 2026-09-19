@@ -145,7 +145,7 @@ func (o *OIDC) Authenticate(r *http.Request) (domain.User, error) {
 	}
 
 	if o.adminGroup != "" && user.ExternalAdmin {
-		user.Role = "admin"
+		user.Role = domain.UserRoleAdmin
 	}
 
 	return user, nil

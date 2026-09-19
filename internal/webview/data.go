@@ -246,7 +246,7 @@ func (l *Loader) Load(r *http.Request, views *Views, title string) (Data, error)
 		PluginStylesVersion:     plugins.stylesVersion,
 		EditorInserts:           plugins.editorInserts,
 		PluginSettingsLinks:     plugins.settingsLinks,
-		CanEdit:                 user.Role == "admin" || user.Role == "editor",
+		CanEdit:                 user.CanEditContent(),
 		PageContentLanguage:     applicationSettings.ContentLanguage,
 	}, nil
 }

@@ -36,7 +36,7 @@ func NewAccess(repository accessRepository) *Access {
 
 // CanView reports whether a user may read the requested page path.
 func (s *Access) CanView(ctx context.Context, user domain.User, path string) (bool, error) {
-	if isAdministrator(user) {
+	if user.IsAdministrator() {
 		return true, nil
 	}
 	access, err := s.repository.PageAccess(ctx, normalizeAccessPath(path), user.ID)
@@ -48,10 +48,10 @@ func (s *Access) CanView(ctx context.Context, user domain.User, path string) (bo
 
 // CanEdit reports whether a user may modify the requested page path.
 func (s *Access) CanEdit(ctx context.Context, user domain.User, path string) (bool, error) {
-	if isAdministrator(user) {
+	if user.IsAdministrator() {
 		return true, nil
 	}
-	if user.Role != "editor" {
+	if !user.CanEditContent() {
 		return false, nil
 	}
 	access, err := s.repository.PageAccess(ctx, normalizeAccessPath(path), user.ID)
@@ -111,9 +111,4 @@ func (s *Access) DeletePageAccessRule(ctx context.Context, id int64) error {
 // normalizeAccessPath canonicalizes a page path for authorization lookups.
 func normalizeAccessPath(path string) string {
 	return strings.Trim(md.Slug(path), "/")
-}
-
-// isAdministrator reports whether the user has effective administrator access.
-func isAdministrator(user domain.User) bool {
-	return user.Role == "admin" || user.ExternalAdmin
 }

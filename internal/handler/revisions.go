@@ -24,7 +24,7 @@ func RevisionHistory(catalogUseCases pageRevisionService, views *webview.Views) 
 		views.RenderFragment(w, "page", "revision-list", webview.Data{
 			Revisions:    revision.AnalyzeAll(revisions),
 			RevisionSlug: r.PathValue("slug"),
-			CanEdit:      user.Role == "admin" || user.Role == "editor",
+			CanEdit:      user.CanEditContent(),
 		})
 	}
 }

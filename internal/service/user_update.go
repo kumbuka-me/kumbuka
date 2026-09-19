@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+
 	"github.com/kumbuka-me/kumbuka/internal/credential"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
@@ -10,29 +11,29 @@ import (
 // UserUpdateInput describes the administrator's intended account change.
 // Password confirmation belongs to the form; password policy belongs to this operation.
 type UserUpdateInput struct {
-	// UserID identifies the user associated with user update input.
+	// UserID identifies the account being changed.
 	UserID int64
-	// Actor stores the actor value used by user update input.
+	// Actor is the administrator requesting the account change.
 	Actor domain.User
-	// Role is the role associated with user update input.
+	// Role is the requested account role.
 	Role string
-	// Enabled reports whether enabled applies to user update input.
+	// Enabled is the requested account-enabled state.
 	Enabled bool
-	// GroupIDs contains the group i ds associated with user update input.
+	// GroupIDs replaces the account group memberships.
 	GroupIDs []int64
-	// Password stores the password value used by user update input.
+	// Password optionally replaces the local recovery password.
 	Password string
-	// UpdateLocalCredential reports whether update local credential applies to user update input.
+	// UpdateLocalCredential reports whether the recovery-credential enabled state should change.
 	UpdateLocalCredential bool
-	// LocalCredentialEnabled reports whether local credential enabled applies to user update input.
+	// LocalCredentialEnabled is the requested recovery-credential state when no new password is supplied.
 	LocalCredentialEnabled bool
-	// AuthModeOverride stores the auth mode override value used by user update input.
+	// AuthModeOverride is the deployment-managed authentication mode, when configured.
 	AuthModeOverride string
 }
 
 // UpdateAccount validates the complete operation before submitting one atomic mutation.
 func (s *Users) UpdateAccount(ctx context.Context, input UserUpdateInput) error {
-	if input.Actor.Role != "admin" {
+	if !input.Actor.IsAdministrator() {
 		return domain.ErrForbidden
 	}
 	if input.UserID <= 0 {
@@ -42,7 +43,7 @@ func (s *Users) UpdateAccount(ctx context.Context, input UserUpdateInput) error 
 		return domain.NewValidationError("role", "Choose a valid user role.")
 	}
 	if input.UserID == input.Actor.ID {
-		if input.Role != "admin" {
+		if input.Role != domain.UserRoleAdmin {
 			return domain.NewValidationError("role", "You cannot remove your own administrator role.")
 		}
 		if !input.Enabled {

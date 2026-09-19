@@ -268,7 +268,7 @@ func (s homeWidgetSource) RecentEdited(ctx context.Context, limit int) ([]domain
 
 // Drafts returns private draft metadata only for users allowed to edit pages.
 func (s homeWidgetSource) Drafts(ctx context.Context, limit int) ([]domain.PageDraft, error) {
-	if s.user.Role != "admin" && s.user.Role != "editor" {
+	if !s.user.CanEditContent() {
 		return nil, nil
 	}
 	return s.drafts.List(ctx, s.user.ID, limit)

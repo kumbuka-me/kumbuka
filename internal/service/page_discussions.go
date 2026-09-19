@@ -287,7 +287,7 @@ func applyInlineSuggestion(markdown string, suggestion domain.PageCommentSuggest
 
 // canApplyInlineSuggestion reports whether the actor may mutate page content after route-level access checks.
 func canApplyInlineSuggestion(actor domain.User) bool {
-	return actor.Role == "admin" || actor.Role == "editor" || actor.ExternalAdmin
+	return actor.CanEditContent()
 }
 
 // pageCommentURL returns the stable local fragment for one page discussion item.

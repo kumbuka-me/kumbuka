@@ -946,6 +946,15 @@ type PageShareLink struct {
 	Title string
 }
 
+const (
+	// UserRoleAdmin grants full account-level administration.
+	UserRoleAdmin = "admin"
+	// UserRoleEditor grants account-level content editing without administration.
+	UserRoleEditor = "editor"
+	// UserRoleViewer grants authenticated read access without content editing.
+	UserRoleViewer = "viewer"
+)
+
 // User represents an authenticated wiki account.
 type User struct {
 	// ID is the stable identifier.
@@ -1079,10 +1088,20 @@ type IssuedToken struct {
 	Secret string `json:"secret"`
 }
 
+// IsAdministrator reports whether the user has effective administrator access.
+func (u User) IsAdministrator() bool {
+	return u.Role == UserRoleAdmin || u.ExternalAdmin
+}
+
+// CanEditContent reports whether the account role permits editing before page-specific access rules.
+func (u User) CanEditContent() bool {
+	return u.IsAdministrator() || u.Role == UserRoleEditor
+}
+
 // ValidUserRole reports whether value is a supported account role.
 func ValidUserRole(value string) bool {
 	switch value {
-	case "admin", "editor", "viewer":
+	case UserRoleAdmin, UserRoleEditor, UserRoleViewer:
 		return true
 	default:
 		return false

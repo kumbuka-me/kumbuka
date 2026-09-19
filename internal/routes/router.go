@@ -10,6 +10,7 @@ import (
 	"github.com/kumbuka-me/kumbuka/internal/middleware"
 	"github.com/kumbuka-me/kumbuka/internal/service"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
+	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/kumbuka-me/kumbuka/pkg/markdown"
 )
 
@@ -95,8 +96,8 @@ func New(config Config) http.Handler {
 		browserAuthn: middleware.Authenticate(config.Logger, config.BrowserAuth.Authenticator),
 		mediaAuthn:   middleware.Authenticate(config.Logger, config.BearerAuth, config.BrowserAuth.Authenticator),
 		apiAuthn:     middleware.AuthenticateAPI(config.Logger, config.BearerAuth, config.BrowserAuth.Authenticator),
-		adminAuthz:   middleware.RequireRole("admin"),
-		editorAuthz:  middleware.RequireRole("admin", "editor"),
+		adminAuthz:   middleware.RequireRole(domain.UserRoleAdmin),
+		editorAuthz:  middleware.RequireRole(domain.UserRoleAdmin, domain.UserRoleEditor),
 	}
 
 	addRoutes(mux, config, policies)

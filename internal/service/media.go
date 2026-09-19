@@ -110,10 +110,11 @@ func (s *Media) DeleteImage(ctx context.Context, id int64, actor domain.User) er
 	if err != nil {
 		return err
 	}
-	if actor.Role != "admin" && image.UploadedBy != actor.ID {
+	administrator := actor.IsAdministrator()
+	if !administrator && image.UploadedBy != actor.ID {
 		return ErrMediaForbidden
 	}
-	if actor.Role != "admin" && image.UsageCount > 0 {
+	if !administrator && image.UsageCount > 0 {
 		return &MediaInUseError{References: image.UsageCount}
 	}
 
@@ -144,10 +145,11 @@ func (s *Media) DeleteAttachment(ctx context.Context, id int64, actor domain.Use
 	if err != nil {
 		return err
 	}
-	if actor.Role != "admin" && item.UploadedBy != actor.ID {
+	administrator := actor.IsAdministrator()
+	if !administrator && item.UploadedBy != actor.ID {
 		return ErrMediaForbidden
 	}
-	if actor.Role != "admin" && item.UsageCount > 0 {
+	if !administrator && item.UsageCount > 0 {
 		return &MediaInUseError{References: item.UsageCount}
 	}
 

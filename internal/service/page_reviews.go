@@ -79,10 +79,10 @@ func (s *Pages) ReviewGroups(ctx context.Context) ([]domain.Group, error) {
 
 // CanReview reports whether an editor is assigned to the current pending review.
 func (s *Pages) CanReview(ctx context.Context, slug string, actor domain.User) (bool, error) {
-	if actor.Role == "admin" || actor.ExternalAdmin {
+	if actor.IsAdministrator() {
 		return true, nil
 	}
-	if actor.Role != "editor" {
+	if actor.Role != domain.UserRoleEditor {
 		return false, nil
 	}
 
@@ -95,7 +95,7 @@ func (s *Pages) CanManageReview(request domain.PageReviewRequest, actor domain.U
 		return false
 	}
 
-	return actor.Role == "admin" || actor.ExternalAdmin || request.RequestedBy == actor.ID
+	return actor.IsAdministrator() || request.RequestedBy == actor.ID
 }
 
 // RequestReview opens a review for the current page revision and moves the page to draft.
@@ -246,7 +246,7 @@ func (s *Pages) DecideReview(ctx context.Context, input PageReviewDecisionInput)
 		return domain.ErrForbidden
 	}
 
-	administrator := input.Actor.Role == "admin" || input.Actor.ExternalAdmin
+	administrator := input.Actor.IsAdministrator()
 	resolvedSlug, err := s.repository.DecidePageReview(
 		ctx,
 		input.ID,
@@ -268,7 +268,7 @@ func (s *Pages) DecideReview(ctx context.Context, input PageReviewDecisionInput)
 
 // canRequestReview reports whether an actor may open a page review.
 func canRequestReview(actor domain.User) bool {
-	return actor.Role == "admin" || actor.Role == "editor" || actor.ExternalAdmin
+	return actor.CanEditContent()
 }
 
 // resolveReviewTargets validates selected people and the optional group and applies the owner-group fallback.
@@ -318,7 +318,7 @@ func (s *Pages) resolveReviewTargets(
 // validReviewers reports whether every selected account has a role that can decide reviews.
 func validReviewers(reviewers []domain.User) bool {
 	for _, reviewer := range reviewers {
-		if reviewer.Role != "admin" && reviewer.Role != "editor" {
+		if !reviewer.CanEditContent() {
 			return false
 		}
 	}

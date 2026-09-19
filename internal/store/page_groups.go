@@ -46,7 +46,7 @@ func validateAssignableGroup(ctx context.Context, tx pgx.Tx, groupID int64, user
 
 	var allowed bool
 
-	if user.Role == "admin" {
+	if user.IsAdministrator() {
 		if err := tx.QueryRow(ctx, `
 SELECT EXISTS(SELECT 1 FROM wiki_groups WHERE id=$1)`, groupID).Scan(&allowed); err != nil {
 			return err
@@ -81,7 +81,7 @@ func replacePageGroups(ctx context.Context, tx pgx.Tx, pageID int64, groupIDs []
 
 		var allowed bool
 
-		if user.Role == "admin" {
+		if user.IsAdministrator() {
 			if err := tx.QueryRow(ctx, `
 SELECT EXISTS(SELECT 1 FROM wiki_groups WHERE id=$1)`, groupID).Scan(&allowed); err != nil {
 				return err
@@ -98,7 +98,7 @@ SELECT EXISTS(SELECT 1 FROM user_groups WHERE user_id=$1 AND group_id=$2)`, user
 		}
 	}
 
-	if user.Role == "admin" {
+	if user.IsAdministrator() {
 		if _, err := tx.Exec(ctx, `
 DELETE FROM page_groups
 WHERE page_id=$1`, pageID); err != nil {

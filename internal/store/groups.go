@@ -81,7 +81,7 @@ WHERE id=$1`, id)
 
 // AssignableGroups returns all groups for admins and memberships for other users.
 func (s *Store) AssignableGroups(ctx context.Context, user domain.User) ([]domain.Group, error) {
-	if user.Role == "admin" {
+	if user.IsAdministrator() {
 		return s.Groups(ctx)
 	}
 	return s.UserGroups(ctx, user.ID)
