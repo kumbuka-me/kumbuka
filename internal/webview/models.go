@@ -129,6 +129,18 @@ type ReviewDiffLine struct {
 	Comments []domain.PageReviewComment
 }
 
+// PageCommentThread groups one anchored root comment with every reply in its inline discussion.
+type PageCommentThread struct {
+	// RootID identifies the anchored root comment and its stable page fragment.
+	RootID int64
+	// Anchor is the selected rendered text associated with the inline discussion.
+	Anchor string
+	// Resolved reports whether the root inline discussion has been resolved.
+	Resolved bool
+	// Comments contains the root comment followed by replies in display order.
+	Comments []domain.PageComment
+}
+
 // Data contains the data shared by server-rendered Kumbuka templates.
 type Data struct {
 	// AdminPlugins contains the admin plugins associated with view data.
@@ -219,8 +231,10 @@ type Data struct {
 	PluginPageActions []plugin.PageActionContribution
 	// PluginExporters contains active plugin-owned page download formats.
 	PluginExporters []plugin.ExporterContribution
-	// Comments contains anchored discussion items for the current page.
+	// Comments contains page-level discussion items that are not anchored inline.
 	Comments []domain.PageComment
+	// InlineCommentThreads contains anchored discussion threads rendered beside page text.
+	InlineCommentThreads []PageCommentThread
 	// Revisions contains revision history rendered in the on-demand history dialog.
 	Revisions []revision.Revision
 	// RevisionSlug is the page path used by revision history actions.

@@ -64,11 +64,20 @@ func ResolvePageComment(pageUseCases pageDiscussionWriter, views *webview.Views)
 			return
 		}
 
-		next := strings.TrimSpace(r.FormValue("next"))
-		if next == "" || !strings.HasPrefix(next, "/pages/") {
-			next = "/"
-		}
-
-		http.Redirect(w, r, next+"#comments", http.StatusSeeOther)
+		next := pageCommentReturnTarget(r.FormValue("next"))
+		http.Redirect(w, r, next, http.StatusSeeOther)
 	}
+}
+
+// pageCommentReturnTarget preserves an inline-comment fragment while defaulting page discussions to their section.
+func pageCommentReturnTarget(value string) string {
+	target := strings.TrimSpace(value)
+	if !httpresponse.IsLocalPath(target) || !strings.HasPrefix(target, "/pages/") {
+		return "/"
+	}
+	if strings.Contains(target, "#") {
+		return target
+	}
+
+	return target + "#comments"
 }

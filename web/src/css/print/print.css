@@ -21,6 +21,11 @@
   .page-contents,
   .relations,
   .widget-dialog,
+  .floating-comment-button,
+  .inline-comment-marker,
+  .inline-comment-anchor-highlight,
+  .inline-comment-panel,
+  .inline-comment-panel-backdrop,
   .page-details-icon {
     display: none !important;
   }

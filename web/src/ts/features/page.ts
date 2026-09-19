@@ -272,6 +272,8 @@ export function initPage(): void {
     );
     if (floatingCommentButton)
       setupFloatingCommentButton(floatingCommentButton);
+
+    setupInlineCommentThreads();
   }
 }
 
@@ -468,6 +470,375 @@ function setupFloatingCommentButton(button: HTMLButtonElement): void {
   button.addEventListener("click", hideButton);
 }
 
+type TextPoint = {
+  node: Text;
+  offset: number;
+};
+
+type NormalizedTextIndex = {
+  text: string;
+  starts: TextPoint[];
+  ends: TextPoint[];
+};
+
+type InlineCommentGroup = {
+  anchor: string;
+  threads: HTMLElement[];
+  marker: HTMLButtonElement;
+};
+
+const inlineCommentBlockSelector =
+  "p,li,blockquote,h1,h2,h3,h4,h5,h6,pre,td,th,figcaption,dd,dt";
+
+function normalizedCommentAnchor(value: string): string {
+  return value.replace(/\s+/g, " ").trim();
+}
+
+function textBlock(node: Text, root: HTMLElement): Element | null {
+  const parent = node.parentElement;
+  if (!parent) return null;
+
+  return parent.closest(inlineCommentBlockSelector) ?? root;
+}
+
+function selectableTextNode(node: Node, root: HTMLElement): node is Text {
+  if (!(node instanceof Text) || !node.data) return false;
+
+  const parent = node.parentElement;
+  if (!parent || !root.contains(parent)) return false;
+
+  return !parent.closest(
+    "button,input,textarea,select,script,style,[contenteditable='true']",
+  );
+}
+
+function buildNormalizedTextIndex(root: HTMLElement): NormalizedTextIndex {
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  const starts: TextPoint[] = [];
+  const ends: TextPoint[] = [];
+  let text = "";
+  let previousBlock: Element | null = null;
+
+  function appendSpace(point: TextPoint): void {
+    if (!text || text.endsWith(" ")) return;
+
+    text += " ";
+    starts.push(point);
+    ends.push(point);
+  }
+
+  for (let current = walker.nextNode(); current; current = walker.nextNode()) {
+    if (!selectableTextNode(current, root)) continue;
+
+    const node = current;
+    const block = textBlock(node, root);
+    if (previousBlock && block !== previousBlock)
+      appendSpace({ node, offset: 0 });
+
+    for (let offset = 0; offset < node.data.length; offset += 1) {
+      const character = node.data[offset] ?? "";
+      if (/\s/.test(character)) {
+        appendSpace({ node, offset });
+        continue;
+      }
+
+      text += character;
+      starts.push({ node, offset });
+      ends.push({ node, offset: offset + 1 });
+    }
+
+    previousBlock = block;
+  }
+
+  return { text: text.trimEnd(), starts, ends };
+}
+
+function rangeForCommentAnchor(
+  index: NormalizedTextIndex,
+  anchor: string,
+): Range | null {
+  const expected = normalizedCommentAnchor(anchor);
+  if (!expected) return null;
+
+  const startIndex = index.text.indexOf(expected);
+  if (startIndex < 0) return null;
+
+  const endIndex = startIndex + expected.length - 1;
+  const start = index.starts[startIndex];
+  const end = index.ends[endIndex];
+  if (!start || !end) return null;
+
+  const range = document.createRange();
+  range.setStart(start.node, start.offset);
+  range.setEnd(end.node, end.offset);
+  return range;
+}
+
+function createInlineCommentMarker(threads: HTMLElement[]): HTMLButtonElement {
+  const marker = document.createElement("button");
+  const count = threads.reduce(
+    (total, thread) =>
+      total + thread.querySelectorAll("[data-inline-comment-item]").length,
+    0,
+  );
+  const allResolved = threads.every(
+    (thread) => thread.dataset.inlineCommentResolved === "true",
+  );
+  const icon = document.querySelector<SVGElement>(
+    "[data-floating-comment-button] svg",
+  );
+
+  marker.type = "button";
+  marker.className = "inline-comment-marker";
+  marker.setAttribute("aria-label", `Open inline discussion (${count})`);
+  marker.setAttribute("aria-expanded", "false");
+  marker.setAttribute("aria-controls", "inline-comment-panel");
+  marker.title = `${count} inline ${count === 1 ? "comment" : "comments"}`;
+  marker.hidden = true;
+  marker.classList.toggle("resolved", allResolved);
+
+  if (icon) marker.append(icon.cloneNode(true));
+
+  const label = document.createElement("span");
+  label.textContent = String(count);
+  marker.append(label);
+
+  document.body.append(marker);
+  return marker;
+}
+
+function setupInlineCommentThreads(): void {
+  const prose = document.querySelector<HTMLElement>(".page-reading .prose");
+  const store = document.querySelector<HTMLElement>(
+    "[data-inline-comment-thread-store]",
+  );
+  const panel = document.querySelector<HTMLElement>(
+    "[data-inline-comment-panel]",
+  );
+  const panelBody = document.querySelector<HTMLElement>(
+    "[data-inline-comment-panel-body]",
+  );
+  const backdrop = document.querySelector<HTMLButtonElement>(
+    "[data-inline-comment-panel-backdrop]",
+  );
+  if (!prose || !store || !panel || !panelBody || !backdrop) return;
+
+  const pageProse = prose;
+  const threadStore = store;
+  const threadPanel = panel;
+  const threadPanelBody = panelBody;
+  const panelBackdrop = backdrop;
+
+  const threadElements = Array.from(
+    threadStore.querySelectorAll<HTMLElement>("[data-inline-comment-thread]"),
+  );
+  if (!threadElements.length) return;
+
+  const threadsByAnchor = new Map<string, HTMLElement[]>();
+  for (const thread of threadElements) {
+    const anchor = normalizedCommentAnchor(
+      requiredAttribute(thread, "data-inline-comment-anchor"),
+    );
+    if (!anchor) continue;
+
+    const threads = threadsByAnchor.get(anchor) ?? [];
+    threads.push(thread);
+    threadsByAnchor.set(anchor, threads);
+  }
+
+  const groups: InlineCommentGroup[] = Array.from(
+    threadsByAnchor.entries(),
+  ).map(([anchor, threads]) => ({
+    anchor,
+    threads,
+    marker: createInlineCommentMarker(threads),
+  }));
+  if (!groups.length) return;
+
+  const highlights: HTMLElement[] = [];
+  let activeGroup: InlineCommentGroup | null = null;
+  let refreshScheduled = false;
+
+  function clearHighlights(): void {
+    for (const highlight of highlights) highlight.remove();
+    highlights.length = 0;
+  }
+
+  function hideActiveThreads(): void {
+    if (!activeGroup) return;
+
+    for (const thread of activeGroup.threads) {
+      thread.hidden = true;
+      threadStore.append(thread);
+    }
+
+    activeGroup.marker.setAttribute("aria-expanded", "false");
+    activeGroup = null;
+  }
+
+  function closePanel(): void {
+    const marker = activeGroup?.marker ?? null;
+
+    hideActiveThreads();
+    threadPanel.hidden = true;
+    panelBackdrop.hidden = true;
+    document.body.classList.remove("inline-comment-panel-open");
+    marker?.focus();
+  }
+
+  function openPanel(group: InlineCommentGroup): void {
+    if (activeGroup !== group) {
+      hideActiveThreads();
+      activeGroup = group;
+
+      for (const thread of group.threads) {
+        thread.hidden = false;
+        threadPanelBody.append(thread);
+      }
+    }
+
+    group.marker.setAttribute("aria-expanded", "true");
+    threadPanel.hidden = false;
+    panelBackdrop.hidden = false;
+    document.body.classList.add("inline-comment-panel-open");
+
+    const hash = window.location.hash;
+    if (hash.startsWith("#comment-")) {
+      const target = threadPanel.querySelector<HTMLElement>(hash);
+      requestAnimationFrame(() => target?.scrollIntoView({ block: "nearest" }));
+    } else {
+      threadPanel.scrollTop = 0;
+    }
+  }
+
+  function addHighlight(rect: DOMRect): void {
+    const highlight = document.createElement("span");
+    highlight.className = "inline-comment-anchor-highlight";
+    highlight.style.left = `${Math.round(window.scrollX + rect.left)}px`;
+    highlight.style.top = `${Math.round(window.scrollY + rect.top)}px`;
+    highlight.style.width = `${Math.max(1, Math.round(rect.width))}px`;
+    highlight.style.height = `${Math.max(1, Math.round(rect.height))}px`;
+    document.body.append(highlight);
+    highlights.push(highlight);
+  }
+
+  function positionMarker(
+    group: InlineCommentGroup,
+    rect: DOMRect | null,
+    detachedIndex: number,
+  ): void {
+    const proseRect = pageProse.getBoundingClientRect();
+    const marker = group.marker;
+    marker.hidden = false;
+    marker.classList.toggle("detached", rect === null);
+    marker.style.left = "0px";
+    marker.style.top = "0px";
+
+    const markerRect = marker.getBoundingClientRect();
+    const viewportPadding = 8;
+    const gutter = 8;
+    const maxLeft =
+      window.scrollX + window.innerWidth - markerRect.width - viewportPadding;
+    let left = window.scrollX + proseRect.right + gutter;
+    let top: number;
+
+    if (rect) {
+      top = window.scrollY + rect.top + (rect.height - markerRect.height) / 2;
+    } else {
+      left = Math.min(left, maxLeft);
+      top = window.scrollY + proseRect.bottom + 12 + detachedIndex * 34;
+    }
+
+    if (left > maxLeft) {
+      const referenceRight = rect?.right ?? proseRect.right;
+      left = Math.min(window.scrollX + referenceRight + gutter, maxLeft);
+    }
+
+    marker.style.left = `${Math.round(Math.max(viewportPadding, left))}px`;
+    marker.style.top = `${Math.round(Math.max(viewportPadding, top))}px`;
+  }
+
+  function refreshPositions(): void {
+    refreshScheduled = false;
+    clearHighlights();
+
+    const textIndex = buildNormalizedTextIndex(pageProse);
+    let detachedIndex = 0;
+    for (const group of groups) {
+      const range = rangeForCommentAnchor(textIndex, group.anchor);
+      const rectangles = range
+        ? Array.from(range.getClientRects()).filter(
+            (rect) => rect.width > 0 && rect.height > 0,
+          )
+        : [];
+
+      for (const rect of rectangles) addHighlight(rect);
+
+      const lastRect = rectangles.at(-1) ?? null;
+      positionMarker(group, lastRect, detachedIndex);
+      if (!lastRect) detachedIndex += 1;
+    }
+  }
+
+  function scheduleRefresh(): void {
+    if (refreshScheduled) return;
+
+    refreshScheduled = true;
+    requestAnimationFrame(refreshPositions);
+  }
+
+  for (const group of groups)
+    group.marker.addEventListener("click", () => openPanel(group));
+
+  for (const close of document.querySelectorAll<HTMLButtonElement>(
+    "[data-inline-comment-panel-close]",
+  ))
+    close.addEventListener("click", closePanel);
+
+  threadPanel.addEventListener("click", (event: MouseEvent) => {
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+
+    const link = target.closest<HTMLAnchorElement>('a[href^="#comment-"]');
+    if (!link) return;
+
+    const comment = threadPanel.querySelector<HTMLElement>(link.hash);
+    if (!comment) return;
+
+    event.preventDefault();
+    history.replaceState(null, "", link.hash);
+    comment.scrollIntoView({ block: "nearest" });
+  });
+
+  document.addEventListener("keydown", (event: KeyboardEvent) => {
+    if (event.key === "Escape" && !threadPanel.hidden) closePanel();
+  });
+  window.addEventListener("resize", scheduleRefresh);
+
+  if ("ResizeObserver" in window)
+    new ResizeObserver(scheduleRefresh).observe(pageProse);
+
+  void document.fonts?.ready.then(scheduleRefresh);
+  refreshPositions();
+
+  const requestedComment = window.location.hash.match(/^#comment-(\d+)$/)?.[1];
+  if (requestedComment) {
+    const group = groups.find((candidate) =>
+      candidate.threads.some((thread) =>
+        Boolean(
+          thread.querySelector(
+            `[data-inline-comment-id="${CSS.escape(requestedComment)}"]`,
+          ),
+        ),
+      ),
+    );
+    if (group) {
+      group.marker.scrollIntoView({ block: "center" });
+      openPanel(group);
+    }
+  }
+}
+
 function setupCommentDialog(dialog: HTMLDialogElement): void {
   const anchor = requiredElement<HTMLTextAreaElement>(
     dialog,
@@ -579,5 +950,3 @@ function setupCommentDialog(dialog: HTMLDialogElement): void {
     if (event.target === dialog) dialog.close();
   });
 }
-
-

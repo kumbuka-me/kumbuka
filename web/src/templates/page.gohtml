@@ -285,7 +285,8 @@
               {{ end }}
               <div class="page-review-controls">
                 {{ if or .CanReviewPage .CanManageReview }}
-                  <a class="button primary compact" href="/reviews/{{ .PageReviewRequest.ID }}/{{ .Page.Slug }}">
+                  <a class="button primary compact"
+                     href="/reviews/{{ .PageReviewRequest.ID }}/{{ .Page.Slug }}">
                     {{ icon "square-code-lucide" 13 }}<span>Review changes</span>
                   </a>
                 {{ end }}
@@ -397,7 +398,7 @@
       <div class="panel-title">
         <div>
           <h2>Discussion</h2>
-          <p class="muted">Share thoughts, reply to others, or comment on selected page text.</p>
+          <p class="muted">Page-level comments that are not attached to specific text.</p>
         </div>
         <button class="button compact" type="button" data-comment-dialog-open>
           {{ icon "message-square-plus-lucide" 15 }}<span>Add comment</span>
@@ -422,11 +423,6 @@
                 <span>Replying to <strong>{{ .ParentAuthor }}</strong></span>
                 <small>{{ .ParentBody }}</small>
               </a>
-            {{ end }}
-            {{ if .Anchor }}
-              <blockquote>
-                {{ .Anchor }}
-              </blockquote>
             {{ end }}
             {{ if .Quote }}
               <blockquote class="page-comment-quote">
@@ -461,10 +457,108 @@
             </div>
           </article>
         {{ else }}
-          <p class="muted">No discussion yet.</p>
+          <p class="muted">No page-level discussion yet.</p>
         {{ end }}
       </div>
     </section>
+    <div data-inline-comment-thread-store hidden>
+      {{ range .InlineCommentThreads }}
+        <section class="inline-comment-thread"
+                 data-inline-comment-thread
+                 data-inline-comment-root-id="{{ .RootID }}"
+                 data-inline-comment-anchor="{{ .Anchor }}"
+                 data-inline-comment-resolved="{{ .Resolved }}"
+                 hidden>
+          <div class="inline-comment-thread-anchor">
+            <span>Comment on</span>
+            <blockquote>
+              {{ .Anchor }}
+            </blockquote>
+          </div>
+          <div class="page-comment-list inline-comment-thread-comments">
+            {{ range .Comments }}
+              <article class="page-comment{{ if .ParentID }} reply{{ end }}{{ if .Resolved }} resolved{{ end }}"
+                       id="comment-{{ .ID }}"
+                       data-inline-comment-item
+                       data-inline-comment-id="{{ .ID }}">
+                <header>
+                  <div><strong>{{ .Author }}</strong><span class="muted">{{ timeago .CreatedAt }}</span></div>
+                  <div class="page-comment-header-actions">
+                    <a class="page-comment-permalink"
+                       href="#comment-{{ .ID }}"
+                       aria-label="Link to this comment"
+                       title="Link to this comment">{{ icon "link-lucide" 13 }}</a>
+                    {{ if .Resolved }}<span class="page-status-badge status-archived">Resolved</span>{{ end }}
+                  </div>
+                </header>
+                {{ if .ParentID }}
+                  <a class="page-comment-reply-context" href="#comment-{{ .ParentID }}">
+                    <span>Replying to <strong>{{ .ParentAuthor }}</strong></span>
+                    <small>{{ .ParentBody }}</small>
+                  </a>
+                {{ end }}
+                {{ if .Quote }}
+                  <blockquote class="page-comment-quote">
+                    {{ .Quote }}
+                  </blockquote>
+                {{ end }}
+                <p>{{ .Body }}</p>
+                <div class="page-comment-actions">
+                  <button class="button compact"
+                          type="button"
+                          data-comment-dialog-open
+                          data-comment-mode="reply"
+                          data-comment-parent-id="{{ .ID }}"
+                          data-comment-author="{{ .Author }}"
+                          data-comment-body="{{ .Body }}">{{ icon "message-square-reply-lucide" 14 }}<span>Reply</span></button>
+                  <button class="button compact"
+                          type="button"
+                          data-comment-dialog-open
+                          data-comment-mode="quote"
+                          data-comment-parent-id="{{ .ID }}"
+                          data-comment-author="{{ .Author }}"
+                          data-comment-body="{{ .Body }}">{{ icon "message-square-quote-lucide" 14 }}<span>Quote</span></button>
+                  {{ if $.CanEdit }}
+                    <form action="/page-comments/resolve/{{ .ID }}" method="post">
+                      <input type="hidden"
+                             name="next"
+                             value="/pages/{{ $.Page.Slug }}#comment-{{ .ID }}" />
+                      <input type="hidden"
+                             name="resolved"
+                             value="{{ if .Resolved }}false{{ else }}true{{ end }}" />
+                      <button class="button compact" type="submit">{{ if .Resolved }}{{ icon "rotate-ccw-lucide" 14 }}<span>Reopen</span>{{ else }}{{ icon "circle-check-lucide" 14 }}<span>Resolve</span>{{ end }}</button>
+                    </form>
+                  {{ end }}
+                </div>
+              </article>
+            {{ end }}
+          </div>
+        </section>
+      {{ end }}
+    </div>
+    <button class="inline-comment-panel-backdrop"
+            type="button"
+            data-inline-comment-panel-close
+            data-inline-comment-panel-backdrop
+            aria-label="Close inline discussion"
+            hidden></button>
+    <aside class="inline-comment-panel"
+           id="inline-comment-panel"
+           data-inline-comment-panel
+           aria-label="Inline discussion"
+           hidden>
+      <div class="inline-comment-panel-header">
+        <div>
+          <p class="eyebrow">Inline discussion</p>
+          <h2>Comment thread</h2>
+        </div>
+        <button class="icon-button"
+                type="button"
+                data-inline-comment-panel-close
+                aria-label="Close inline discussion">{{ icon "x-lucide" 18 }}</button>
+      </div>
+      <div class="inline-comment-panel-body" data-inline-comment-panel-body></div>
+    </aside>
   {{ end }}
   <footer class="page-details-footer">
     <details class="page-details">
@@ -757,5 +851,3 @@
     <div class="widget-dialog-body" data-widget-dialog-body></div>
   </dialog>
 {{ end }}
-
-
