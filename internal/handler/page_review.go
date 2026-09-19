@@ -9,7 +9,6 @@ import (
 	"github.com/kumbuka-me/kumbuka/internal/httpresponse"
 	"github.com/kumbuka-me/kumbuka/internal/service"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
-	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/kumbuka-me/kumbuka/pkg/revision"
 )
 
@@ -41,11 +40,11 @@ func PageReview(
 		analyzed := revision.Analyze(detail.Revision)
 		data.Page = &detail.Page
 		data.PageReviewRequest = detail.Request
-		data.ReviewDiff = reviewDiffLines(analyzed.Diff, detail.Comments)
+		data.ReviewDiff = webview.ReviewDiffLines(analyzed.Diff, detail.Comments)
 		data.CanCommentReview = detail.CanComment
 		data.CanSuggestReview = detail.CanSuggest
 		data.CanApplyReviewSuggestions = detail.CanApply
-		data.OpenReviewSuggestions = openReviewSuggestionCount(detail.Comments)
+		data.OpenReviewSuggestions = webview.OpenReviewSuggestionCount(detail.Comments)
 
 		views.Render(w, "review", data)
 	}
@@ -168,53 +167,4 @@ func positiveReviewID(w http.ResponseWriter, value, message string) (int64, bool
 
 	httpresponse.Problem(w, http.StatusBadRequest, message)
 	return 0, false
-}
-
-// reviewDiffLines joins analyzed diff lines with feedback whose range starts at each anchor.
-func reviewDiffLines(diff []revision.DiffLine, comments []domain.PageReviewComment) []webview.ReviewDiffLine {
-	lines := make([]webview.ReviewDiffLine, 0, len(diff))
-	for _, item := range diff {
-		side, line := reviewDiffAnchor(item)
-		view := webview.ReviewDiffLine{
-			Diff:       item,
-			AnchorSide: side,
-			AnchorLine: line,
-		}
-
-		if line > 0 {
-			for _, comment := range comments {
-				if comment.Side == side && comment.StartLine == line {
-					view.Comments = append(view.Comments, comment)
-				}
-			}
-		}
-
-		lines = append(lines, view)
-	}
-
-	return lines
-}
-
-// reviewDiffAnchor returns the source side and line used to attach feedback to a diff row.
-func reviewDiffAnchor(line revision.DiffLine) (string, int) {
-	if line.Kind == "removed" && line.OldLine > 0 {
-		return domain.PageReviewCommentSideOld, line.OldLine
-	}
-	if line.NewLine > 0 {
-		return domain.PageReviewCommentSideNew, line.NewLine
-	}
-
-	return "", 0
-}
-
-// openReviewSuggestionCount returns the number of unapplied suggestions in one review.
-func openReviewSuggestionCount(comments []domain.PageReviewComment) int {
-	count := 0
-	for _, comment := range comments {
-		if comment.IsSuggestion && comment.AppliedAt == nil {
-			count++
-		}
-	}
-
-	return count
 }

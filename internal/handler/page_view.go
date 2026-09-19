@@ -143,7 +143,7 @@ func ViewPage(
 		data.CanEdit = state.canEdit
 		data.PluginInspectors = rendered.Inspectors
 		data.PluginExportFields = rendered.ExportFields
-		data.Comments, data.InlineCommentThreads = partitionPageComments(comments)
+		data.Comments, data.InlineCommentThreads = webview.PartitionPageComments(comments)
 		data.PageFavorite = state.favorite
 		data.PageWatchScope = state.watch.Scope
 		data.PageContents = rendered.Contents
@@ -254,65 +254,6 @@ func loadPageComments(
 	comments, err := catalog.PageComments(ctx, slug)
 	stop()
 	return comments, err
-}
-
-// partitionPageComments separates page-level discussion from anchored inline threads.
-func partitionPageComments(comments []domain.PageComment) ([]domain.PageComment, []webview.PageCommentThread) {
-	byID := make(map[int64]domain.PageComment, len(comments))
-	for _, comment := range comments {
-		byID[comment.ID] = comment
-	}
-
-	pageComments := make([]domain.PageComment, 0, len(comments))
-	inlineThreads := make([]webview.PageCommentThread, 0)
-	threadIndex := make(map[int64]int)
-
-	for _, comment := range comments {
-		root := pageCommentRoot(comment, byID)
-		if strings.TrimSpace(root.Anchor) == "" {
-			pageComments = append(pageComments, comment)
-			continue
-		}
-
-		index, ok := threadIndex[root.ID]
-		if !ok {
-			index = len(inlineThreads)
-			threadIndex[root.ID] = index
-			inlineThreads = append(inlineThreads, webview.PageCommentThread{
-				RootID:   root.ID,
-				Anchor:   root.Anchor,
-				Resolved: root.Resolved != nil,
-				Comments: []domain.PageComment{root},
-			})
-		}
-
-		if comment.ID == root.ID {
-			continue
-		}
-
-		inlineThreads[index].Comments = append(inlineThreads[index].Comments, comment)
-	}
-
-	return pageComments, inlineThreads
-}
-
-// pageCommentRoot resolves the root comment for one reply chain without trusting malformed cycles.
-func pageCommentRoot(comment domain.PageComment, byID map[int64]domain.PageComment) domain.PageComment {
-	seen := make(map[int64]bool)
-	current := comment
-
-	for current.ParentID > 0 && !seen[current.ID] {
-		seen[current.ID] = true
-
-		parent, ok := byID[current.ParentID]
-		if !ok {
-			break
-		}
-
-		current = parent
-	}
-
-	return current
 }
 
 // getPageOrAlias resolves a page directly or returns the target of a matching alias.
