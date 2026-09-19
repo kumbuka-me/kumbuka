@@ -8,7 +8,7 @@ services:
       KUMBUKA__DATABASE_URL: postgres://kumbuka:kumbuka@postgres:5432/kumbuka?sslmode=disable
       KUMBUKA__LISTEN_ADDRESS: 0.0.0.0:8080
       KUMBUKA__PUBLIC_URL: http://localhost:8080
-      KUMBUKA__PDF_URL: http://localhost:8081/render
+      KUMBUKA__PDF_URL: http://html2pdf:8080/render
     ports:
       - "127.0.0.1:8080:8080"
     depends_on:
@@ -50,4 +50,6 @@ services:
 
 volumes:
   kumbuka-postgres:
+
+
 
