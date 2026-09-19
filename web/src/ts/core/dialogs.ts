@@ -238,36 +238,62 @@ export function showNotice(
   });
 }
 
-// Initializes confirm forms.
+// Returns the form or submit control that owns confirmation metadata for one submission.
+function confirmationSource(
+  form: HTMLFormElement,
+  submitter: HTMLElement | null,
+): HTMLElement | null {
+  if (submitter?.hasAttribute("data-confirm")) return submitter;
+  if (form.hasAttribute("data-confirm")) return form;
+
+  return null;
+}
+
+// Reports whether a form can request confirmation for at least one submission path.
+function hasConfirmation(form: HTMLFormElement): boolean {
+  return (
+    form.hasAttribute("data-confirm") ||
+    form.querySelector(
+      'button[data-confirm], input[type="submit"][data-confirm], input[type="image"][data-confirm]',
+    ) !== null
+  );
+}
+
+// Initializes confirmation handling for forms and submitter-specific destructive actions.
 export function initConfirmForms(): void {
   if (typeof document === "undefined") return;
-  for (const form of document.querySelectorAll<HTMLFormElement>(
-    "form[data-confirm]",
-  )) {
+
+  for (const form of document.querySelectorAll<HTMLFormElement>("form")) {
+    if (!hasConfirmation(form)) continue;
+
     form.addEventListener("submit", async (event: SubmitEvent) => {
       if (form.dataset.confirmBypass === "true") {
         delete form.dataset.confirmBypass;
         return;
       }
 
+      const submitter =
+        event.submitter instanceof HTMLElement ? event.submitter : null;
+      const source = confirmationSource(form, submitter);
+      if (!source) return;
+
       event.preventDefault();
 
       const accepted = await requestConfirmation(
-        form.dataset.confirm || "Continue?",
+        source.dataset.confirm || "Continue?",
         {
-          title: form.dataset.confirmTitle || "Confirm action",
-          confirmLabel: form.dataset.confirmLabel || "Continue",
-          cancelLabel: form.dataset.confirmCancelLabel || "Cancel",
-          eyebrow: form.dataset.confirmEyebrow || "Confirmation",
-          danger: form.dataset.confirmDanger !== "false",
+          title: source.dataset.confirmTitle || "Confirm action",
+          confirmLabel: source.dataset.confirmLabel || "Continue",
+          cancelLabel: source.dataset.confirmCancelLabel || "Cancel",
+          eyebrow: source.dataset.confirmEyebrow || "Confirmation",
+          danger: source.dataset.confirmDanger !== "false",
         },
       );
       if (!accepted) return;
 
       form.dataset.confirmBypass = "true";
 
-      if (event.submitter instanceof HTMLElement)
-        form.requestSubmit(event.submitter);
+      if (submitter) form.requestSubmit(submitter);
       else form.requestSubmit();
     });
   }
