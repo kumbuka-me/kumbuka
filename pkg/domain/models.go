@@ -34,6 +34,8 @@ var (
 	ErrReviewChangesRequired = errors.New("review changes must be addressed")
 	// ErrReviewSuggestionConflict indicates that selected suggestions overlap and cannot be applied together.
 	ErrReviewSuggestionConflict = errors.New("review suggestions overlap")
+	// ErrStaleSuggestion indicates that an inline suggestion no longer targets the page revision it was created from.
+	ErrStaleSuggestion = errors.New("page changed after suggestion was created")
 )
 
 const (
@@ -676,6 +678,26 @@ type Notification struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+// PageCommentSuggestion describes an applicable Markdown replacement attached to an inline discussion.
+type PageCommentSuggestion struct {
+	// RevisionNumber identifies the exact page revision from which the suggestion was created.
+	RevisionNumber int `json:"revision_number"`
+	// StartByte is the zero-based inclusive byte offset of Original in the revision Markdown.
+	StartByte int `json:"start_byte"`
+	// EndByte is the zero-based exclusive byte offset of Original in the revision Markdown.
+	EndByte int `json:"end_byte"`
+	// Original stores the exact Markdown source range used for conflict detection.
+	Original string `json:"original"`
+	// Replacement stores the Markdown proposed for the selected source range.
+	Replacement string `json:"replacement"`
+	// AppliedBy identifies the user who applied the suggestion, or zero while unapplied.
+	AppliedBy int64 `json:"applied_by,omitempty"`
+	// AppliedByName is the display name of the user who applied the suggestion.
+	AppliedByName string `json:"applied_by_name,omitempty"`
+	// AppliedAt records when the suggestion was applied; nil means it remains unapplied.
+	AppliedAt *time.Time `json:"applied_at,omitempty"`
+}
+
 // PageComment is a discussion item optionally anchored to selected page text.
 type PageComment struct {
 	// ID identifies page comment.
@@ -690,12 +712,14 @@ type PageComment struct {
 	ParentBody string `json:"parent_body,omitempty"`
 	// Author stores the author value used by page comment.
 	Author string `json:"author"`
-	// Anchor stores the anchor value used by page comment.
+	// Anchor stores the selected rendered text associated with the discussion.
 	Anchor string `json:"anchor"`
 	// Quote contains an optional excerpt explicitly quoted by the reply author.
 	Quote string `json:"quote,omitempty"`
 	// Body stores the body value used by page comment.
 	Body string `json:"body"`
+	// Suggestion contains an applicable Markdown replacement for anchored root comments.
+	Suggestion *PageCommentSuggestion `json:"suggestion,omitempty"`
 	// Resolved stores the resolved value used by page comment.
 	Resolved *time.Time `json:"resolved_at,omitempty"`
 	// CreatedAt records the created at timestamp for page comment.

@@ -367,6 +367,133 @@
   line-height: 1.5;
 }
 
+.comment-reply-context[hidden],
+.comment-quote-preview[hidden],
+.comment-selected-context[hidden],
+.comment-compose-mode[hidden],
+[data-comment-suggestion-field][hidden] {
+  display: none;
+}
+
+.comment-selected-context {
+  display: grid;
+  gap: 6px;
+}
+
+.comment-selected-context > span {
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.comment-selected-context blockquote {
+  max-height: 150px;
+  overflow: auto;
+  margin: 0;
+  padding: 9px 11px;
+  border-left: 2px solid color-mix(in srgb, var(--accent) 45%, var(--border));
+  border-radius: 0 9px 9px 0;
+  background: color-mix(in srgb, var(--accent) 5%, var(--surface));
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.comment-compose-mode {
+  display: flex;
+  gap: 6px;
+  padding: 4px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface-elevated) 62%, var(--surface));
+}
+
+.comment-compose-mode .button {
+  flex: 1;
+  justify-content: center;
+  border-color: transparent;
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.comment-compose-mode .button.active {
+  border-color: color-mix(in srgb, var(--accent) 28%, var(--border));
+  background: var(--surface);
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--text) 9%, transparent);
+  color: var(--accent);
+}
+
+.page-comment-suggestion {
+  display: grid;
+  gap: 9px;
+  margin-top: 11px;
+  padding: 10px;
+  border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--border-subtle));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 3%, var(--surface));
+}
+
+.page-comment-suggestion.applied {
+  border-color: var(--border-subtle);
+  background: color-mix(in srgb, var(--success) 3%, var(--surface));
+}
+
+.page-comment-suggestion-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.page-comment-suggestion-diff {
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.page-comment-suggestion-diff > div {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  gap: 4px;
+  padding: 6px 8px;
+  font-size: 12px;
+}
+
+.page-comment-suggestion-diff > div + div {
+  border-top: 1px solid var(--border-subtle);
+}
+
+.page-comment-suggestion-diff .removed {
+  background: color-mix(in srgb, var(--danger) 6%, var(--surface));
+}
+
+.page-comment-suggestion-diff .added {
+  background: color-mix(in srgb, var(--success) 7%, var(--surface));
+}
+
+.page-comment-suggestion-diff span {
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  user-select: none;
+}
+
+.page-comment-suggestion-diff pre {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--text-secondary);
+  font: inherit;
+  white-space: pre-wrap;
+}
+
+.page-comment-suggestion > form {
+  justify-self: end;
+}
+
 @media (max-width: 700px) {
   .page-comment.reply {
     margin-left: 12px;

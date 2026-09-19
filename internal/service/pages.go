@@ -66,6 +66,7 @@ type pageContentRepository interface {
 	MarkPageReviewed(context.Context, string) error
 	MovePage(context.Context, string, string, domain.MovePageOptions, domain.User) error
 	Revision(context.Context, string, int) (revision.Revision, error)
+	LatestRevision(context.Context, string) (revision.Revision, int, error)
 	SavePage(context.Context, string, string, string, string, string, string, string, []string, []string, []int64, domain.PageMetadata, map[string]string, domain.PageRender, domain.User) (domain.Page, error)
 }
 

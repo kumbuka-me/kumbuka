@@ -438,6 +438,12 @@ func writePageProblem(
 			"Page discussions are disabled.",
 		)
 
+	case errors.Is(err, domain.ErrStaleSuggestion):
+		httpresponse.Problem(w,
+			http.StatusConflict,
+			"This suggestion can no longer be applied because the page changed after it was created.",
+		)
+
 	default:
 		httpresponse.InternalServerError(logger, w, err)
 	}

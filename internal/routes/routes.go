@@ -10,6 +10,7 @@ import (
 )
 
 const (
+	pageCommentSuggestionApplyPattern    = "POST /page-comments/suggestions/apply/{id}/{slug...}"
 	pageReviewSuggestionApplyPattern     = "POST /reviews/{id}/suggestions/apply/{commentID}/{slug...}"
 	pageReviewSuggestionsApplyAllPattern = "POST /reviews/{id}/suggestions/apply-all/{slug...}"
 )
@@ -301,6 +302,7 @@ func (r routeRegistrar) addPageRoutes() {
 	r.mux.Handle(pageReviewSuggestionApplyPattern, browserAuthn(editorAuthz(r.pageEditAuthz(handler.ApplyPageReviewSuggestion(config.Pages, config.Views)))))
 	r.mux.Handle(pageReviewSuggestionsApplyAllPattern, browserAuthn(editorAuthz(r.pageEditAuthz(handler.ApplyAllPageReviewSuggestions(config.Pages, config.Views)))))
 	r.mux.Handle("POST /page-comments/{slug...}", browserAuthn(r.pageViewAuthz(handler.AddPageComment(config.Pages, config.Views))))
+	r.mux.Handle(pageCommentSuggestionApplyPattern, browserAuthn(editorAuthz(r.pageEditAuthz(handler.ApplyPageCommentSuggestion(config.Pages, config.Views)))))
 	r.mux.Handle("POST /page-comments/resolve/{id}", browserAuthn(editorAuthz(handler.ResolvePageComment(config.Pages, config.Views))))
 
 	editPage := handler.EditPage(config.ViewData, config.Catalog, config.Groups, config.Templates, config.Access, config.Views)

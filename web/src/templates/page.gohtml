@@ -502,7 +502,36 @@
                     {{ .Quote }}
                   </blockquote>
                 {{ end }}
-                <p>{{ .Body }}</p>
+                {{ if .Body }}
+                  <p>{{ .Body }}</p>
+                {{ end }}
+                {{ if .Suggestion }}
+                  <section class="page-comment-suggestion{{ if .Suggestion.AppliedAt }} applied{{ end }}">
+                    <div class="page-comment-suggestion-heading">
+                      <strong>Suggested change</strong>
+                      {{ if .Suggestion.AppliedAt }}
+                        <span class="page-status-badge status-verified">Applied{{ if .Suggestion.AppliedByName }} by {{ .Suggestion.AppliedByName }}{{ end }}</span>
+                      {{ end }}
+                    </div>
+                    <div class="page-comment-suggestion-diff">
+                      <div class="removed">
+                        <span aria-hidden="true">−</span><pre>{{ .Suggestion.Original }}</pre>
+                      </div>
+                      <div class="added">
+                        <span aria-hidden="true">+</span><pre>{{ if .Suggestion.Replacement }}{{ .Suggestion.Replacement }}{{ else }}<em>delete selection</em>{{ end }}</pre>
+                      </div>
+                    </div>
+                    {{ if and $.CanEdit (not .Suggestion.AppliedAt) }}
+                      <form action="/page-comments/suggestions/apply/{{ .ID }}/{{ $.Page.Slug }}"
+                            method="post"
+                            data-validate-form
+                            data-error-title="Could not apply suggestion">
+                        <button class="button primary compact"
+                                type="submit">{{ icon "check-lucide" 14 }}<span>Apply suggestion</span></button>
+                      </form>
+                    {{ end }}
+                  </section>
+                {{ end }}
                 <div class="page-comment-actions">
                   <button class="button compact"
                           type="button"
@@ -792,7 +821,7 @@
       <div class="app-dialog-header">
         <div>
           <p class="eyebrow">Discussion</p>
-          <h2 id="comment-dialog-title">Add comment</h2>
+          <h2 id="comment-dialog-title" data-comment-dialog-title>Add comment</h2>
         </div>
         <button class="icon-button app-dialog-close"
                 type="button"
@@ -801,9 +830,12 @@
       </div>
       <form action="/page-comments/{{ .Page.Slug }}"
             method="post"
-            class="app-dialog-body stacked-form">
+            class="app-dialog-body stacked-form"
+            data-validate-form
+            data-error-title="Could not add discussion">
         <input type="hidden" name="parent_id" data-comment-parent-id />
         <input type="hidden" name="quote" data-comment-quote />
+        <input type="hidden" name="kind" value="comment" data-comment-kind />
         <div class="comment-reply-context" data-comment-reply-context hidden>
           <div>
             <span>Replying to <strong data-comment-reply-author></strong></span>
@@ -816,18 +848,38 @@
         </div>
         <blockquote class="comment-quote-preview" data-comment-quote-preview hidden>
         </blockquote>
-        <label>
-          Anchor <span class="optional">optional</span><textarea name="anchor"
-          rows="2"
-          data-comment-anchor
-          placeholder="Select text on the page before opening this dialog, or describe the section here."></textarea>
+        <section class="comment-selected-context" data-comment-selected-context hidden>
+          <input type="hidden" name="anchor" data-comment-anchor />
+          <span>Selected text</span>
+          <blockquote data-comment-selected-text>
+          </blockquote>
+        </section>
+        <div class="comment-compose-mode" data-comment-mode-switch hidden>
+          <button class="button compact active"
+                  type="button"
+                  data-comment-compose-mode="comment"
+                  aria-pressed="true">{{ icon "message-square-lucide" 14 }}<span>Comment</span></button>
+          <button class="button compact"
+                  type="button"
+                  data-comment-compose-mode="suggestion"
+                  aria-pressed="false">{{ icon "square-pen-lucide" 14 }}<span>Suggest change</span></button>
+        </div>
+        <label data-comment-suggestion-field hidden>
+          <span>Replace with <span class="optional">Markdown · leave empty to delete</span></span>
+          <textarea name="replacement"
+                    rows="4"
+                    data-comment-replacement
+                    data-error-label="Suggested change"
+                    placeholder="Enter replacement Markdown…"></textarea>
         </label>
         <label>
-          Comment<textarea name="body"
-          rows="5"
-          required
-          placeholder="Add context or mention @username…"
-          data-mention-autocomplete></textarea>
+          <span data-comment-body-label>Comment</span>
+          <textarea name="body"
+                    rows="5"
+                    required
+                    data-error-required="A comment is required."
+                    placeholder="Add context or mention @username…"
+                    data-mention-autocomplete></textarea>
         </label>
         <div class="app-dialog-actions">
           <button class="button" type="button" data-comment-dialog-close>Cancel</button><button class="button primary" type="submit">{{ icon "send-lucide" 15 }}<span data-comment-submit-label>Add comment</span></button>

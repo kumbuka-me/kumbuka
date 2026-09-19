@@ -840,13 +840,18 @@ function setupInlineCommentThreads(): void {
 }
 
 function setupCommentDialog(dialog: HTMLDialogElement): void {
-  const anchor = requiredElement<HTMLTextAreaElement>(
+  const anchor = requiredElement<HTMLInputElement>(
     dialog,
     "[data-comment-anchor]",
   );
+  const kind = requiredElement<HTMLInputElement>(dialog, "[data-comment-kind]");
   const body = requiredElement<HTMLTextAreaElement>(
     dialog,
     'textarea[name="body"]',
+  );
+  const replacement = requiredElement<HTMLTextAreaElement>(
+    dialog,
+    "[data-comment-replacement]",
   );
   const parentID = requiredElement<HTMLInputElement>(
     dialog,
@@ -855,6 +860,10 @@ function setupCommentDialog(dialog: HTMLDialogElement): void {
   const quote = requiredElement<HTMLInputElement>(
     dialog,
     "[data-comment-quote]",
+  );
+  const dialogTitle = requiredElement<HTMLElement>(
+    dialog,
+    "[data-comment-dialog-title]",
   );
   const replyContext = requiredElement<HTMLElement>(
     dialog,
@@ -871,6 +880,30 @@ function setupCommentDialog(dialog: HTMLDialogElement): void {
   const quotePreview = requiredElement<HTMLElement>(
     dialog,
     "[data-comment-quote-preview]",
+  );
+  const selectedContext = requiredElement<HTMLElement>(
+    dialog,
+    "[data-comment-selected-context]",
+  );
+  const selectedText = requiredElement<HTMLElement>(
+    dialog,
+    "[data-comment-selected-text]",
+  );
+  const modeSwitch = requiredElement<HTMLElement>(
+    dialog,
+    "[data-comment-mode-switch]",
+  );
+  const modeButtons = requiredElements<HTMLButtonElement>(
+    dialog,
+    "[data-comment-compose-mode]",
+  );
+  const suggestionField = requiredElement<HTMLElement>(
+    dialog,
+    "[data-comment-suggestion-field]",
+  );
+  const bodyLabel = requiredElement<HTMLElement>(
+    dialog,
+    "[data-comment-body-label]",
   );
   const clearReply = requiredElement<HTMLButtonElement>(
     dialog,
@@ -889,6 +922,50 @@ function setupCommentDialog(dialog: HTMLDialogElement): void {
     "[data-comment-dialog-close]",
   );
 
+  function setSelectedAnchor(value: string): void {
+    const selected = value.trim();
+
+    anchor.value = selected;
+    selectedText.textContent = selected;
+    selectedContext.hidden = !selected;
+    modeSwitch.hidden = !selected || Boolean(parentID.value);
+
+    if (replacement.dataset.commentSourceAnchor !== selected) {
+      replacement.value = selected;
+      replacement.dataset.commentSourceAnchor = selected;
+    }
+  }
+
+  function setComposeMode(mode: "comment" | "suggestion"): void {
+    const suggestion = mode === "suggestion" && Boolean(anchor.value);
+
+    kind.value = suggestion ? "suggestion" : "comment";
+    suggestionField.hidden = !suggestion;
+    body.required = !suggestion;
+    bodyLabel.textContent = suggestion ? "Comment (optional)" : "Comment";
+    body.placeholder = suggestion
+      ? "Explain why this change would help, or mention @username…"
+      : "Add context or mention @username…";
+    dialogTitle.textContent = suggestion
+      ? "Suggest change"
+      : parentID.value
+        ? "Reply"
+        : anchor.value
+          ? "Add inline comment"
+          : "Add comment";
+    submitLabel.textContent = suggestion
+      ? "Create suggestion"
+      : parentID.value
+        ? "Reply"
+        : "Add comment";
+
+    for (const button of modeButtons) {
+      const active = button.dataset.commentComposeMode === kind.value;
+      button.classList.toggle("active", active);
+      button.setAttribute("aria-pressed", String(active));
+    }
+  }
+
   function clearReplyContext(): void {
     parentID.value = "";
     quote.value = "";
@@ -897,7 +974,8 @@ function setupCommentDialog(dialog: HTMLDialogElement): void {
     replyContext.hidden = true;
     quotePreview.textContent = "";
     quotePreview.hidden = true;
-    submitLabel.textContent = "Add comment";
+    modeSwitch.hidden = !anchor.value;
+    setComposeMode("comment");
   }
 
   function prepareReply(button: HTMLButtonElement): void {
@@ -915,8 +993,8 @@ function setupCommentDialog(dialog: HTMLDialogElement): void {
     replyAuthor.textContent = author;
     replyExcerpt.textContent = excerpt;
     replyContext.hidden = false;
-    submitLabel.textContent = "Reply";
-    anchor.value = "";
+    setSelectedAnchor("");
+    modeSwitch.hidden = true;
 
     if (button.dataset.commentMode === "quote") {
       quote.value = source.slice(0, 500);
@@ -927,14 +1005,26 @@ function setupCommentDialog(dialog: HTMLDialogElement): void {
       quotePreview.textContent = "";
       quotePreview.hidden = true;
     }
+
+    setComposeMode("comment");
+  }
+
+  for (const button of modeButtons) {
+    button.addEventListener("click", () => {
+      const mode = button.dataset.commentComposeMode;
+      if (mode === "comment" || mode === "suggestion") setComposeMode(mode);
+    });
   }
 
   for (const button of openButtons) {
     button.addEventListener("click", () => {
       prepareReply(button);
-      if (!parentID.value)
-        anchor.value =
+      if (!parentID.value) {
+        const selected =
           button.dataset.commentAnchor?.trim() || selectedPageText();
+        setSelectedAnchor(selected);
+        setComposeMode("comment");
+      }
 
       dialog.showModal();
       requestAnimationFrame(() => body.focus());
