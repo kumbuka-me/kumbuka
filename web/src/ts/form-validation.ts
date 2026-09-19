@@ -13,6 +13,7 @@ import {
 import { localPasswordProblem } from "./core/password.ts";
 
 type FormControl = HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
+type FormSubmitter = HTMLButtonElement | HTMLInputElement;
 
 const formSelector = "form[data-validate-form]";
 const errorClass = "field-validation-error";
@@ -242,19 +243,68 @@ function showServerProblems(
   return { firstInvalid, details };
 }
 
-function formBody(form: HTMLFormElement): URLSearchParams {
+// isFormSubmitter reports whether an event submitter is a supported submit control.
+function isFormSubmitter(
+  submitter: EventTarget | null,
+): submitter is FormSubmitter {
+  return (
+    submitter instanceof HTMLButtonElement ||
+    (submitter instanceof HTMLInputElement && submitter.type === "submit")
+  );
+}
+
+// formBody serializes successful string controls and the button that submitted the form.
+function formBody(
+  form: HTMLFormElement,
+  submitter: FormSubmitter | null,
+): URLSearchParams {
   const body = new URLSearchParams();
 
   for (const [name, value] of new FormData(form)) {
     if (typeof value === "string") body.append(name, value);
   }
 
+  if (submitter && !submitter.disabled && submitter.name) {
+    body.append(submitter.name, submitter.value);
+  }
+
   return body;
 }
 
-async function submitForm(form: HTMLFormElement): Promise<void> {
+// submissionAction resolves a submitter-specific action before falling back to the form action.
+function submissionAction(
+  form: HTMLFormElement,
+  submitter: FormSubmitter | null,
+): string {
+  return (
+    submitter?.getAttribute("formaction")?.trim() ||
+    form.action ||
+    window.location.href
+  );
+}
+
+// submissionMethod resolves a submitter-specific method before falling back to the form method.
+function submissionMethod(
+  form: HTMLFormElement,
+  submitter: FormSubmitter | null,
+): string {
+  return (
+    submitter?.getAttribute("formmethod")?.trim() ||
+    form.method ||
+    "POST"
+  ).toUpperCase();
+}
+
+// submitForm sends one validated form while preserving native submitter semantics.
+async function submitForm(
+  form: HTMLFormElement,
+  submitter: FormSubmitter | null,
+): Promise<void> {
   clearFormMessage(form);
 
+  const action = submissionAction(form, submitter);
+  const method = submissionMethod(form, submitter);
+  const body = formBody(form, submitter);
   const submitters = [
     ...form.querySelectorAll<HTMLButtonElement | HTMLInputElement>(
       'button[type="submit"], input[type="submit"]',
@@ -264,9 +314,9 @@ async function submitForm(form: HTMLFormElement): Promise<void> {
   submitters.forEach((button) => (button.disabled = true));
 
   try {
-    const response = await fetch(form.action || window.location.href, {
-      method: form.method || "POST",
-      body: formBody(form),
+    const response = await fetch(action, {
+      method,
+      body,
       credentials: "same-origin",
       headers: { Accept: "application/json" },
     });
@@ -348,7 +398,12 @@ function initForm(form: HTMLFormElement, index: number): void {
     clearFormMessage(form);
     if (!validateForm(form)) return;
 
-    void submitForm(form);
+    const submitter =
+      event instanceof SubmitEvent && isFormSubmitter(event.submitter)
+        ? event.submitter
+        : null;
+
+    void submitForm(form, submitter);
   });
 }
 
