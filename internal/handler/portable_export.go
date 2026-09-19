@@ -368,41 +368,56 @@ func nextPortableResourceReference(source string) (portableResourceReference, bo
 	var best portableResourceReference
 
 	for _, candidate := range []struct {
-		kind   portableResourceKind
+		// kind selects the media service used to load this resource.
+		kind portableResourceKind
+		// prefix identifies stored URLs belonging to that resource kind.
 		prefix string
 	}{
 		{kind: portableMediaResource, prefix: "/media/"},
 		{kind: portableAttachmentResource, prefix: "/attachments/"},
 	} {
-		start := strings.Index(source, candidate.prefix)
-		if start < 0 || start >= bestStart {
-			continue
+		reference, ok := findPortableResourceReference(source, candidate.prefix)
+		if ok && reference.Start < bestStart {
+			reference.Kind = candidate.kind
+			bestStart = reference.Start
+			best = reference
 		}
-
-		end := start + len(candidate.prefix)
-		digits := end
-		for digits < len(source) && source[digits] >= '0' && source[digits] <= '9' {
-			digits++
-		}
-		if digits == end || digits >= len(source) || source[digits] != '/' {
-			continue
-		}
-
-		end = digits + 1
-		for end < len(source) && !strings.ContainsRune(" \t\n\r\f)\"'", rune(source[end])) {
-			end++
-		}
-
-		id, err := strconv.ParseInt(source[start+len(candidate.prefix):digits], 10, 64)
-		if err != nil || id <= 0 || end == digits+1 {
-			continue
-		}
-
-		bestStart = start
-		best = portableResourceReference{Start: start, End: end, Kind: candidate.kind, ID: id}
 	}
 
 	return best, bestStart <= len(source)
+}
+
+// findPortableResourceReference skips malformed URLs to find the first valid stored resource of one kind.
+func findPortableResourceReference(source, prefix string) (portableResourceReference, bool) {
+	for offset := 0; offset < len(source); {
+		relative := strings.Index(source[offset:], prefix)
+		if relative < 0 {
+			break
+		}
+		start := offset + relative
+		digitsStart := start + len(prefix)
+		offset = digitsStart
+
+		digitsEnd := digitsStart
+		for digitsEnd < len(source) && source[digitsEnd] >= '0' && source[digitsEnd] <= '9' {
+			digitsEnd++
+		}
+		if digitsEnd == digitsStart || digitsEnd >= len(source) || source[digitsEnd] != '/' {
+			continue
+		}
+
+		end := digitsEnd + 1
+		for end < len(source) && !strings.ContainsRune(" \t\n\r\f)\"'", rune(source[end])) {
+			end++
+		}
+		id, err := strconv.ParseInt(source[digitsStart:digitsEnd], 10, 64)
+		if err != nil || id <= 0 || end == digitsEnd+1 {
+			continue
+		}
+
+		return portableResourceReference{Start: start, End: end, ID: id}, true
+	}
+	return portableResourceReference{}, false
 }
 
 // exportAttachmentError retains the origin of an attachment failure in a portable export.
