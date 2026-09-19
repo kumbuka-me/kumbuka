@@ -3,7 +3,7 @@ package store
 import (
 	"strings"
 
-	"github.com/kumbuka-me/kumbuka/internal/ascii"
+	"github.com/kumbuka-me/kumbuka/pkg/ascii"
 )
 
 // mentionedUsernames extracts distinct, lower-case mentions in source order.

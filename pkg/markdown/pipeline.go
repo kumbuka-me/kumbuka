@@ -8,10 +8,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/kumbuka-me/kumbuka/internal/renderprofile"
 	"github.com/kumbuka-me/kumbuka/pkg/icons"
 	"github.com/kumbuka-me/kumbuka/pkg/plugin"
 	"github.com/kumbuka-me/kumbuka/pkg/plugincap"
+	"github.com/kumbuka-me/kumbuka/pkg/renderprofile"
 	"github.com/yuin/goldmark/v2/ast"
 	"github.com/yuin/goldmark/v2/parser"
 )

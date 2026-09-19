@@ -4,7 +4,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/kumbuka-me/kumbuka/internal/ascii"
+	"github.com/kumbuka-me/kumbuka/pkg/ascii"
 )
 
 // Slug converts human-readable page text into a canonical page slug.

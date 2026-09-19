@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/kumbuka-me/kumbuka/internal/ascii"
+	"github.com/kumbuka-me/kumbuka/pkg/ascii"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
 

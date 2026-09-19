@@ -7,7 +7,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/kumbuka-me/kumbuka/internal/renderprofile"
+	"github.com/kumbuka-me/kumbuka/pkg/renderprofile"
 )
 
 // EnablePageTimings enables opt-in timing diagnostics for page rendering.

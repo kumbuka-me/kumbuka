@@ -5,7 +5,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/kumbuka-me/kumbuka/internal/renderprofile"
+	"github.com/kumbuka-me/kumbuka/pkg/renderprofile"
 )
 
 // EnableRenderTimings enables opt-in structured render profiling. Call it

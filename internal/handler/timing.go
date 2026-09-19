@@ -3,7 +3,7 @@ package handler
 import (
 	"context"
 
-	"github.com/kumbuka-me/kumbuka/internal/renderprofile"
+	"github.com/kumbuka-me/kumbuka/pkg/renderprofile"
 )
 
 // measurePageStage measures one page-handler stage when diagnostics are

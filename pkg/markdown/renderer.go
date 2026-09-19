@@ -9,10 +9,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kumbuka-me/kumbuka/internal/renderprofile"
 	"github.com/kumbuka-me/kumbuka/pkg/icons"
 	"github.com/kumbuka-me/kumbuka/pkg/plugin"
 	"github.com/kumbuka-me/kumbuka/pkg/pluginusage"
+	"github.com/kumbuka-me/kumbuka/pkg/renderprofile"
 	pluginmarkdown "github.com/kumbuka-me/sdk/markdown"
 	"github.com/microcosm-cc/bluemonday"
 	"github.com/yuin/goldmark/v2/parser"

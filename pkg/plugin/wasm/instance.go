@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kumbuka-me/kumbuka/internal/renderprofile"
 	"github.com/kumbuka-me/kumbuka/pkg/plugin"
+	"github.com/kumbuka-me/kumbuka/pkg/renderprofile"
 	"github.com/kumbuka-me/sdk"
 	"github.com/kumbuka-me/sdk/pluginpackage"
 	"github.com/tetratelabs/wazero/api"
