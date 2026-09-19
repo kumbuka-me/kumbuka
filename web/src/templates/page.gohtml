@@ -285,8 +285,7 @@
               {{ end }}
               <div class="page-review-controls">
                 {{ if or .CanReviewPage .CanManageReview }}
-                  <a class="button primary compact"
-                     href="/reviews/{{ .PageReviewRequest.ID }}/{{ .Page.Slug }}">
+                  <a class="button primary compact" href="/reviews/{{ .PageReviewRequest.ID }}/{{ .Page.Slug }}">
                     {{ icon "square-code-lucide" 13 }}<span>Review changes</span>
                   </a>
                 {{ end }}
@@ -387,6 +386,13 @@
     {{ template "page-contents" . }}
   </div>
   {{ if .ApplicationSettings.DiscussionsEnabled }}
+    <button class="button compact floating-comment-button"
+            type="button"
+            data-comment-dialog-open
+            data-floating-comment-button
+            aria-label="Comment on selected text"
+            title="Comment on selected text"
+            hidden>{{ icon "message-square-plus-lucide" 15 }}<span>Comment</span></button>
     <section class="page-comments" id="comments">
       <div class="panel-title">
         <div>
@@ -751,3 +757,5 @@
     <div class="widget-dialog-body" data-widget-dialog-body></div>
   </dialog>
 {{ end }}
+
+

@@ -264,7 +264,15 @@ export function initPage(): void {
   const commentDialog = document.querySelector<HTMLDialogElement>(
     "[data-comment-dialog]",
   );
-  if (commentDialog) setupCommentDialog(commentDialog);
+  if (commentDialog) {
+    setupCommentDialog(commentDialog);
+
+    const floatingCommentButton = document.querySelector<HTMLButtonElement>(
+      "[data-floating-comment-button]",
+    );
+    if (floatingCommentButton)
+      setupFloatingCommentButton(floatingCommentButton);
+  }
 }
 
 function setupWidgetDialog(dialog: HTMLDialogElement): void {
@@ -342,15 +350,122 @@ function setupMoveDialog(dialog: HTMLDialogElement): void {
   });
 }
 
-function selectedPageText(): string {
+type PageTextSelection = {
+  text: string;
+  rect: DOMRect;
+};
+
+function currentPageTextSelection(): PageTextSelection | null {
   const selection = window.getSelection();
-  if (!selection || selection.isCollapsed || !selection.rangeCount) return "";
+  if (!selection || selection.isCollapsed || !selection.rangeCount) return null;
 
   const range = selection.getRangeAt(0);
   const prose = document.querySelector<HTMLElement>(".page-reading .prose");
-  if (!prose || !prose.contains(range.commonAncestorContainer)) return "";
+  if (
+    !prose ||
+    !prose.contains(range.startContainer) ||
+    !prose.contains(range.endContainer)
+  )
+    return null;
 
-  return selection.toString().trim().slice(0, 500);
+  const text = selection.toString().trim().slice(0, 500);
+  if (!text) return null;
+
+  const rectangles = Array.from(range.getClientRects()).filter(
+    (rect) => rect.width > 0 && rect.height > 0,
+  );
+  const rect = rectangles.at(-1) ?? range.getBoundingClientRect();
+  if (rect.width <= 0 && rect.height <= 0) return null;
+
+  return { text, rect };
+}
+
+function selectedPageText(): string {
+  return currentPageTextSelection()?.text ?? "";
+}
+
+function setupFloatingCommentButton(button: HTMLButtonElement): void {
+  const dialog = document.querySelector<HTMLDialogElement>(
+    "[data-comment-dialog]",
+  );
+  const viewportPadding = 8;
+  const selectionGap = 8;
+  let pointerSelecting = false;
+  let updateScheduled = false;
+
+  function hideButton(): void {
+    button.hidden = true;
+    button.removeAttribute("data-comment-anchor");
+  }
+
+  function positionButton(): void {
+    updateScheduled = false;
+
+    const selection = currentPageTextSelection();
+    if (pointerSelecting || dialog?.open || !selection) {
+      hideButton();
+      return;
+    }
+
+    button.dataset.commentAnchor = selection.text;
+    button.hidden = false;
+    button.style.left = "0px";
+    button.style.top = "0px";
+
+    const buttonRect = button.getBoundingClientRect();
+    let left = selection.rect.right + selectionGap;
+    let top = selection.rect.bottom + selectionGap;
+
+    if (left + buttonRect.width > window.innerWidth - viewportPadding)
+      left = selection.rect.left - buttonRect.width - selectionGap;
+    if (top + buttonRect.height > window.innerHeight - viewportPadding)
+      top = selection.rect.top - buttonRect.height - selectionGap;
+
+    left = Math.max(
+      viewportPadding,
+      Math.min(left, window.innerWidth - buttonRect.width - viewportPadding),
+    );
+    top = Math.max(
+      viewportPadding,
+      Math.min(top, window.innerHeight - buttonRect.height - viewportPadding),
+    );
+
+    button.style.left = `${Math.round(left)}px`;
+    button.style.top = `${Math.round(top)}px`;
+  }
+
+  function schedulePositionUpdate(): void {
+    if (updateScheduled) return;
+
+    updateScheduled = true;
+    requestAnimationFrame(positionButton);
+  }
+
+  document.addEventListener("selectionchange", schedulePositionUpdate);
+  document.addEventListener("pointerdown", (event: PointerEvent) => {
+    const target = event.target;
+    if (
+      target instanceof Element &&
+      target.closest("[data-floating-comment-button]")
+    )
+      return;
+
+    pointerSelecting = true;
+    hideButton();
+  });
+  document.addEventListener("pointerup", () => {
+    if (!pointerSelecting) return;
+
+    pointerSelecting = false;
+    schedulePositionUpdate();
+  });
+  window.addEventListener("scroll", hideButton, { passive: true });
+  window.addEventListener("resize", hideButton);
+
+  button.addEventListener("pointerdown", (event: PointerEvent) => {
+    event.preventDefault();
+  });
+  button.addEventListener("click", hideButton);
 }
 
 function setupCommentDialog(dialog: HTMLDialogElement): void {
@@ -446,8 +561,9 @@ function setupCommentDialog(dialog: HTMLDialogElement): void {
   for (const button of openButtons) {
     button.addEventListener("click", () => {
       prepareReply(button);
-      if (!parentID.value && !anchor.value.trim())
-        anchor.value = selectedPageText();
+      if (!parentID.value)
+        anchor.value =
+          button.dataset.commentAnchor?.trim() || selectedPageText();
 
       dialog.showModal();
       requestAnimationFrame(() => body.focus());
@@ -463,3 +579,5 @@ function setupCommentDialog(dialog: HTMLDialogElement): void {
     if (event.target === dialog) dialog.close();
   });
 }
+
+

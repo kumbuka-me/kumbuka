@@ -373,6 +373,28 @@
   }
 }
 
+/* Inline page-comment selection action. */
+
+.floating-comment-button {
+  position: fixed;
+  z-index: 70;
+  min-height: 32px;
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+  background: var(--surface-elevated);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--text) 16%, transparent);
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.floating-comment-button:hover {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface-elevated));
+}
+
+.floating-comment-button[hidden] {
+  display: none;
+}
+
 /* Page favorite-state icon treatment. */
 
 .page-favorite-button.active {
@@ -399,3 +421,5 @@
   place-items: center;
   color: var(--accent);
 }
+
+

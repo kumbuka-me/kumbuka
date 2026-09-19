@@ -134,7 +134,7 @@
                         {{ icon "badge-check-lucide" 14 }}Applied{{ if .AppliedByName }} by {{ .AppliedByName }}{{ end }}
                       </span>
                     {{ else if $.CanApplyReviewSuggestions }}
-                      <form action="/reviews/{{ $.PageReviewRequest.ID }}/suggestions/{{ .ID }}/apply/{{ $.Page.Slug }}"
+                      <form action="/reviews/{{ $.PageReviewRequest.ID }}/suggestions/apply/{{ .ID }}/{{ $.Page.Slug }}"
                             method="post"
                             data-confirm="Apply this suggestion? Kumbuka will create a new page revision and supersede this review."
                             data-confirm-title="Apply review suggestion"

@@ -9,6 +9,11 @@ import (
 	"github.com/kumbuka-me/kumbuka/internal/middleware"
 )
 
+const (
+	pageReviewSuggestionApplyPattern     = "POST /reviews/{id}/suggestions/apply/{commentID}/{slug...}"
+	pageReviewSuggestionsApplyAllPattern = "POST /reviews/{id}/suggestions/apply-all/{slug...}"
+)
+
 // routeRegistrar groups route dependencies and derived page-access middleware.
 type routeRegistrar struct {
 	// mux receives all application route registrations.
@@ -293,8 +298,8 @@ func (r routeRegistrar) addPageRoutes() {
 	r.mux.Handle("POST /pages/approval/decide/{id}", browserAuthn(editorAuthz(handler.DecidePageReview(config.Pages, config.Logger))))
 	r.mux.Handle("GET /reviews/{id}/{slug...}", browserAuthn(editorAuthz(r.pageViewAuthz(handler.PageReview(config.ViewData, config.Pages, config.Views)))))
 	r.mux.Handle("POST /reviews/{id}/comments/{slug...}", browserAuthn(editorAuthz(r.pageViewAuthz(handler.AddPageReviewComment(config.Pages, config.Views)))))
-	r.mux.Handle("POST /reviews/{id}/suggestions/{commentID}/apply/{slug...}", browserAuthn(editorAuthz(r.pageEditAuthz(handler.ApplyPageReviewSuggestion(config.Pages, config.Views)))))
-	r.mux.Handle("POST /reviews/{id}/suggestions/apply-all/{slug...}", browserAuthn(editorAuthz(r.pageEditAuthz(handler.ApplyAllPageReviewSuggestions(config.Pages, config.Views)))))
+	r.mux.Handle(pageReviewSuggestionApplyPattern, browserAuthn(editorAuthz(r.pageEditAuthz(handler.ApplyPageReviewSuggestion(config.Pages, config.Views)))))
+	r.mux.Handle(pageReviewSuggestionsApplyAllPattern, browserAuthn(editorAuthz(r.pageEditAuthz(handler.ApplyAllPageReviewSuggestions(config.Pages, config.Views)))))
 	r.mux.Handle("POST /page-comments/{slug...}", browserAuthn(r.pageViewAuthz(handler.AddPageComment(config.Pages, config.Views))))
 	r.mux.Handle("POST /page-comments/resolve/{id}", browserAuthn(editorAuthz(handler.ResolvePageComment(config.Pages, config.Views))))
 
