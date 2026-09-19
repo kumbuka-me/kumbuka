@@ -300,25 +300,38 @@ func preparePageSave(
 
 	metadata.DeprecatedTarget = strings.TrimSpace(metadata.DeprecatedTarget)
 
+	pluginUsage, renderedContents, render, err := preparePageDerivedData(metadata.PluginUsage, render)
+	if err != nil {
+		return domain.PageMetadata{}, nil, nil, domain.PageRender{}, err
+	}
+
+	return metadata, pluginUsage, renderedContents, render, nil
+}
+
+// preparePageDerivedData encodes plugin usage and reusable render metadata for a page write.
+func preparePageDerivedData(
+	usage *pluginusage.Index,
+	render domain.PageRender,
+) (any, json.RawMessage, domain.PageRender, error) {
 	var pluginUsage any
-	if metadata.PluginUsage != nil {
-		encoded, err := json.Marshal(metadata.PluginUsage)
+	if usage != nil {
+		encoded, err := json.Marshal(usage)
 		if err != nil {
-			return domain.PageMetadata{}, nil, nil, domain.PageRender{}, fmt.Errorf("encode page plugin usage: %w", err)
+			return nil, nil, domain.PageRender{}, fmt.Errorf("encode page plugin usage: %w", err)
 		}
 		pluginUsage = json.RawMessage(encoded)
 	}
 
 	renderedContents, err := json.Marshal(render.Contents)
 	if err != nil {
-		return domain.PageMetadata{}, nil, nil, domain.PageRender{}, fmt.Errorf("encode rendered page contents: %w", err)
+		return nil, nil, domain.PageRender{}, fmt.Errorf("encode rendered page contents: %w", err)
 	}
 	if render.Fingerprint == "" {
 		render.HTML = ""
 		renderedContents = []byte("[]")
 	}
 
-	return metadata, pluginUsage, json.RawMessage(renderedContents), render, nil
+	return pluginUsage, json.RawMessage(renderedContents), render, nil
 }
 
 // savePageRecord creates or updates the pages row and records aliases for renames.

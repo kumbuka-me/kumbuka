@@ -284,6 +284,12 @@
                 <p class="page-review-note">{{ .PageReviewRequest.Note }}</p>
               {{ end }}
               <div class="page-review-controls">
+                {{ if or .CanReviewPage .CanManageReview }}
+                  <a class="button primary compact"
+                     href="/reviews/{{ .PageReviewRequest.ID }}/{{ .Page.Slug }}">
+                    {{ icon "square-code-lucide" 13 }}<span>Review changes</span>
+                  </a>
+                {{ end }}
                 {{ if .CanManageReview }}
                   <details class="page-review-edit">
                     <summary class="button compact">{{ icon "pencil-lucide" 13 }}<span>Edit request</span></summary>

@@ -55,6 +55,7 @@ type pageRepository interface {
 	pageDiscussionRepository
 	pageBulkRepository
 	pageReviewRepository
+	pageReviewDiscussionRepository
 	pageSideEffectRepository
 }
 
@@ -216,13 +217,7 @@ func (s *Pages) save(ctx context.Context, input PageSaveInput) (domain.Page, err
 		return domain.Page{}, validation
 	}
 
-	var pluginUsage *pluginusage.Index
-	if s.usageAnalyzer != nil {
-		usage := s.usageAnalyzer.AnalyzeUsage(input.Markdown)
-		pluginUsage = &usage
-	}
-
-	render, err := s.materializeRender(ctx, input.Markdown, pluginUsage)
+	pluginUsage, render, err := s.derivePageContent(ctx, input.Markdown)
 	if err != nil {
 		return domain.Page{}, err
 	}
@@ -251,6 +246,22 @@ func (s *Pages) save(ctx context.Context, input PageSaveInput) (domain.Page, err
 		render,
 		input.Actor,
 	)
+}
+
+// derivePageContent computes plugin usage and the reusable render artifact for canonical Markdown.
+func (s *Pages) derivePageContent(ctx context.Context, markdown string) (*pluginusage.Index, domain.PageRender, error) {
+	var pluginUsage *pluginusage.Index
+	if s.usageAnalyzer != nil {
+		usage := s.usageAnalyzer.AnalyzeUsage(markdown)
+		pluginUsage = &usage
+	}
+
+	render, err := s.materializeRender(ctx, markdown, pluginUsage)
+	if err != nil {
+		return nil, domain.PageRender{}, err
+	}
+
+	return pluginUsage, render, nil
 }
 
 // materializeRender renders stable page content once so normal GET requests can

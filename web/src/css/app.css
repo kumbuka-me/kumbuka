@@ -65,6 +65,8 @@
 
 @import "./components/revisions.css";
 
+@import "./components/review.css";
+
 /* Markdown rendering. */
 
 @import "./markdown/prose.css";

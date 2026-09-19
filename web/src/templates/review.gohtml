@@ -1,0 +1,158 @@
+{{ define "content" }}
+  <section class="review-page">
+    <header class="review-heading">
+      <div>
+        <p class="breadcrumbs"><a href="/pages/{{ .Page.Slug }}">Pages / {{ .Page.Slug }}</a> / Review</p>
+        <div class="review-title-row">
+          <h1>Review revision {{ .PageReviewRequest.RevisionNumber }}</h1>
+          <span class="review-status status-{{ .PageReviewRequest.Status }}">{{ .PageReviewRequest.Status }}</span>
+        </div>
+        <p class="muted">{{ .Page.Title }}</p>
+      </div>
+      <div class="review-heading-actions">
+        <a class="button compact" href="/pages/{{ .Page.Slug }}">
+          {{ icon "arrow-left-lucide" 14 }}<span>Back to page</span>
+        </a>
+        {{ if and .CanApplyReviewSuggestions (gt .OpenReviewSuggestions 0) }}
+          <form action="/reviews/{{ .PageReviewRequest.ID }}/suggestions/apply-all/{{ .Page.Slug }}"
+                method="post"
+                data-confirm="Apply all pending non-overlapping suggestions? Kumbuka will create one new page revision and supersede this review."
+                data-confirm-title="Apply review suggestions"
+                data-confirm-label="Apply suggestions">
+            <button class="button primary compact" type="submit">
+              {{ icon "wand-sparkles-lucide" 14 }}<span>Apply all {{ .OpenReviewSuggestions }}</span>
+            </button>
+          </form>
+        {{ end }}
+      </div>
+    </header>
+    <section class="review-summary-panel">
+      <div class="review-summary-main">
+        <span class="review-summary-icon" aria-hidden="true">{{ icon "message-square-quote-lucide" 18 }}</span>
+        <div>
+          <strong>Requested by {{ .PageReviewRequest.RequestedByName }}</strong>
+          <span>{{ timeago .PageReviewRequest.CreatedAt }}</span>
+        </div>
+      </div>
+      {{ if .PageReviewRequest.Note }}
+        <p>{{ .PageReviewRequest.Note }}</p>
+      {{ end }}
+      {{ if ne .PageReviewRequest.Status "pending" }}
+        <p class="review-closed-note">This review is {{ .PageReviewRequest.Status }}. Existing feedback remains visible, but new comments and suggestions are disabled.</p>
+      {{ end }}
+    </section>
+    <section class="review-diff-panel"
+             aria-label="Revision {{ .PageReviewRequest.RevisionNumber }} changes">
+      <div class="review-diff-header">
+        <div>
+          <h2>Changes</h2>
+          <p class="muted">Comment on diff lines or propose Markdown replacements. Suggestions are always anchored to this exact revision.</p>
+        </div>
+      </div>
+      {{ if .ReviewDiff }}
+        <div class="review-diff">
+          {{ range .ReviewDiff }}
+            {{ if or (eq .Diff.Kind "header") (eq .Diff.Kind "hunk") (eq .Diff.Kind "note") }}
+              <div class="review-diff-meta review-diff-{{ .Diff.Kind }}">
+                <span></span><span></span><code>{{ .Diff.Text }}</code>
+              </div>
+            {{ else }}
+              <div class="review-diff-row review-diff-{{ .Diff.Kind }}">
+                <span class="review-line-number"
+                      aria-label="Old line {{ .Diff.OldLine }}">{{ if .Diff.OldLine }}{{ .Diff.OldLine }}{{ end }}</span>
+                <span class="review-line-number"
+                      aria-label="New line {{ .Diff.NewLine }}">{{ if .Diff.NewLine }}{{ .Diff.NewLine }}{{ end }}</span>
+                <span class="review-diff-marker" aria-hidden="true">{{ .Diff.Marker }}</span>
+                <code>{{ .Diff.Text }}</code>
+                {{ if and $.CanCommentReview .AnchorLine }}
+                  <details class="review-line-action">
+                    <summary class="button icon-only compact"
+                             aria-label="Comment on line {{ .AnchorLine }}"
+                             title="Comment on line {{ .AnchorLine }}">{{ icon "message-square-plus-lucide" 14 }}</summary>
+                    <form action="/reviews/{{ $.PageReviewRequest.ID }}/comments/{{ $.Page.Slug }}"
+                          method="post"
+                          class="review-line-form">
+                      <input type="hidden" name="side" value="{{ .AnchorSide }}" />
+                      <input type="hidden" name="start_line" value="{{ .AnchorLine }}" />
+                      <input type="hidden" name="end_line" value="{{ .AnchorLine }}" />
+                      <label>
+                        <span>Comment <span class="optional">Optional for suggestions</span></span>
+                        <textarea name="body"
+                                  rows="3"
+                                  placeholder="What should change or be clarified?"></textarea>
+                      </label>
+                      {{ if and $.CanSuggestReview (eq .AnchorSide "new") }}
+                        <label>
+                          <span>Suggested Markdown</span>
+                          <textarea name="replacement" rows="4">{{ .Diff.Text }}</textarea>
+                        </label>
+                      {{ end }}
+                      <div class="review-line-form-actions">
+                        <button class="button compact" type="submit" name="kind" value="comment">Comment</button>
+                        {{ if and $.CanSuggestReview (eq .AnchorSide "new") }}
+                          <button class="button primary compact"
+                                  type="submit"
+                                  name="kind"
+                                  value="suggestion">
+                            {{ icon "wand-sparkles-lucide" 13 }}<span>Suggest change</span>
+                          </button>
+                        {{ end }}
+                      </div>
+                    </form>
+                  </details>
+                {{ end }}
+              </div>
+            {{ end }}
+            {{ range .Comments }}
+              <article class="review-comment{{ if .IsSuggestion }} review-suggestion{{ end }}"
+                       id="review-comment-{{ .ID }}">
+                <div class="review-comment-heading">
+                  <div>
+                    <strong>{{ .Author }}</strong>
+                    <span>{{ timeago .CreatedAt }}</span>
+                    {{ if .IsSuggestion }}<span class="review-suggestion-badge">Suggestion</span>{{ end }}
+                  </div>
+                  <span class="review-comment-anchor">{{ .Side }} line {{ .StartLine }}{{ if ne .EndLine .StartLine }}–{{ .EndLine }}{{ end }}</span>
+                </div>
+                {{ if .Body }}
+                  <p>{{ .Body }}</p>
+                {{ end }}
+                {{ if .IsSuggestion }}
+                  <div class="review-suggestion-change">
+                    <div class="review-suggestion-original">
+                      <span>Current</span>
+                      <pre><code>{{ .Original }}</code></pre>
+                    </div>
+                    <div class="review-suggestion-replacement">
+                      <span>Suggested</span>
+                      <pre><code>{{ .Replacement }}</code></pre>
+                    </div>
+                  </div>
+                  <div class="review-suggestion-footer">
+                    {{ if .AppliedAt }}
+                      <span class="review-suggestion-applied">
+                        {{ icon "badge-check-lucide" 14 }}Applied{{ if .AppliedByName }} by {{ .AppliedByName }}{{ end }}
+                      </span>
+                    {{ else if $.CanApplyReviewSuggestions }}
+                      <form action="/reviews/{{ $.PageReviewRequest.ID }}/suggestions/{{ .ID }}/apply/{{ $.Page.Slug }}"
+                            method="post"
+                            data-confirm="Apply this suggestion? Kumbuka will create a new page revision and supersede this review."
+                            data-confirm-title="Apply review suggestion"
+                            data-confirm-label="Apply suggestion">
+                        <button class="button primary compact" type="submit">
+                          {{ icon "badge-check-lucide" 13 }}<span>Apply suggestion</span>
+                        </button>
+                      </form>
+                    {{ end }}
+                  </div>
+                {{ end }}
+              </article>
+            {{ end }}
+          {{ end }}
+        </div>
+      {{ else }}
+        <p class="review-empty">This revision has no Markdown changes compared with the previous revision.</p>
+      {{ end }}
+    </section>
+  </section>
+{{ end }}

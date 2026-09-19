@@ -117,6 +117,18 @@ type PluginUpdateStatus struct {
 	LastError string
 }
 
+// ReviewDiffLine combines one revision diff line with feedback anchored at that source position.
+type ReviewDiffLine struct {
+	// Diff is the rendered line from the immutable reviewed revision comparison.
+	Diff revision.DiffLine
+	// AnchorSide selects the old or new source side used when creating feedback.
+	AnchorSide string
+	// AnchorLine is the one-based source line used when creating feedback.
+	AnchorLine int
+	// Comments contains feedback whose range starts at this source line.
+	Comments []domain.PageReviewComment
+}
+
 // Data contains the data shared by server-rendered Kumbuka templates.
 type Data struct {
 	// AdminPlugins contains the admin plugins associated with view data.
@@ -173,6 +185,16 @@ type Data struct {
 	CanReviewPage bool
 	// CanManageReview reports whether the current user may edit or cancel the pending request.
 	CanManageReview bool
+	// ReviewDiff contains the line-oriented diff and feedback for a dedicated review page.
+	ReviewDiff []ReviewDiffLine
+	// CanCommentReview reports whether the current actor may add review comments.
+	CanCommentReview bool
+	// CanSuggestReview reports whether the current actor may propose source changes.
+	CanSuggestReview bool
+	// CanApplyReviewSuggestions reports whether the current actor may apply pending suggestions.
+	CanApplyReviewSuggestions bool
+	// OpenReviewSuggestions is the number of unapplied suggestions on the current review.
+	OpenReviewSuggestions int
 	// ReviewGroups contains collaboration groups available as review targets.
 	ReviewGroups []domain.Group
 	// HTML is the sanitized rendered Markdown for the current page.

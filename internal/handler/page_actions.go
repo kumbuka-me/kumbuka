@@ -237,6 +237,8 @@ func writeReviewProblem(w http.ResponseWriter, logger *slog.Logger, err error) {
 		httpresponse.Problem(w, http.StatusConflict, "This review request is already complete and cannot be changed.")
 	case errors.Is(err, domain.ErrReviewChangesRequired):
 		httpresponse.Problem(w, http.StatusConflict, "Edit the page to address the requested changes before asking for another review.")
+	case errors.Is(err, domain.ErrReviewSuggestionConflict):
+		httpresponse.Problem(w, http.StatusConflict, "The selected review suggestions overlap and cannot be applied together.")
 	default:
 		writePageProblem(logger, w, err)
 	}

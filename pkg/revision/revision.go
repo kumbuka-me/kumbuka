@@ -3,6 +3,7 @@ package revision
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -41,6 +42,10 @@ type DiffLine struct {
 	Marker string `json:"marker,omitempty"`
 	// Text is the escaped line content rendered by the template.
 	Text string `json:"text"`
+	// OldLine is the one-based line number on the previous-revision side, or zero when absent.
+	OldLine int `json:"old_line,omitempty"`
+	// NewLine is the one-based line number on the reviewed-revision side, or zero when absent.
+	NewLine int `json:"new_line,omitempty"`
 }
 
 // Analyze derives line counts and a unified patch for one persisted revision.
@@ -65,7 +70,6 @@ func AnalyzeAll(records []Revision) []Revision {
 // diff returns a compact unified patch with three context lines per hunk.
 func diff(previous, current string, number int) []DiffLine {
 	fromFile := fmt.Sprintf("revision %d", number-1)
-
 	if number == 1 {
 		fromFile = "/dev/null"
 	}
@@ -83,6 +87,7 @@ func diff(previous, current string, number int) []DiffLine {
 
 	lines := strings.Split(strings.TrimSuffix(patch, "\n"), "\n")
 	result := make([]DiffLine, 0, len(lines))
+	oldLine, newLine := 0, 0
 
 	for _, line := range lines {
 		item := DiffLine{Kind: "context", Text: line}
@@ -92,12 +97,20 @@ func diff(previous, current string, number int) []DiffLine {
 			item.Kind = "header"
 		case strings.HasPrefix(line, "@@"):
 			item.Kind = "hunk"
+			oldLine, newLine = hunkStarts(line)
 		case strings.HasPrefix(line, "+"):
 			item.Kind, item.Marker, item.Text = "added", "+", strings.TrimPrefix(line, "+")
+			item.NewLine = newLine
+			newLine++
 		case strings.HasPrefix(line, "-"):
 			item.Kind, item.Marker, item.Text = "removed", "-", strings.TrimPrefix(line, "-")
+			item.OldLine = oldLine
+			oldLine++
 		case strings.HasPrefix(line, " "):
 			item.Marker, item.Text = " ", strings.TrimPrefix(line, " ")
+			item.OldLine, item.NewLine = oldLine, newLine
+			oldLine++
+			newLine++
 		case strings.HasPrefix(line, "\\"):
 			item.Kind = "note"
 		}
@@ -106,6 +119,38 @@ func diff(previous, current string, number int) []DiffLine {
 	}
 
 	return result
+}
+
+// hunkStarts returns the previous and current one-based line starts encoded in a unified-diff hunk header.
+func hunkStarts(header string) (oldLine, newLine int) {
+	body, ok := strings.CutPrefix(header, "@@ -")
+	if !ok {
+		return 0, 0
+	}
+
+	oldRange, body, ok := strings.Cut(body, " +")
+	if !ok {
+		return 0, 0
+	}
+	newRange, _, ok := strings.Cut(body, " @@")
+	if !ok {
+		return 0, 0
+	}
+
+	oldLine = rangeStart(oldRange)
+	newLine = rangeStart(newRange)
+	return oldLine, newLine
+}
+
+// rangeStart returns the first line number from a unified-diff range token.
+func rangeStart(value string) int {
+	start, _, _ := strings.Cut(value, ",")
+	number, err := strconv.Atoi(start)
+	if err != nil {
+		return 0
+	}
+
+	return number
 }
 
 // lineChanges returns line additions and removals between two revision bodies.

@@ -238,6 +238,10 @@ type pageApprovalService interface {
 	UpdateReview(context.Context, service.PageReviewUpdateInput) (domain.PageReviewRequest, error)
 	CancelReview(context.Context, int64, string, domain.User) error
 	DecideReview(context.Context, service.PageReviewDecisionInput) error
+	ReviewDetail(context.Context, int64, string, domain.User) (service.PageReviewDetail, error)
+	AddReviewComment(context.Context, service.PageReviewCommentInput) (domain.PageReviewComment, error)
+	ApplyReviewSuggestion(context.Context, int64, string, int64, domain.User) (domain.Page, error)
+	ApplyAllReviewSuggestions(context.Context, int64, string, domain.User) (domain.Page, error)
 }
 
 type pageRevisionWriter interface {

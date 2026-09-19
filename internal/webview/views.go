@@ -38,6 +38,7 @@ var pageTemplateNames = []string{
 	"shared_page",
 	"home",
 	"page",
+	"review",
 	"not_found",
 	"edit",
 	"search",
