@@ -62,7 +62,7 @@ func TestPageUseCasesEnforceResourceAccessBeforePersistence(t *testing.T) {
 	t.Parallel()
 
 	actor := domain.User{ID: 7, Role: domain.UserRoleEditor}
-	_, err := NewCatalog(nil, denyingPageAccess{}).GetPageFor(context.Background(), actor, "private")
+	_, err := NewLookup(nil, denyingPageAccess{}).GetPageFor(context.Background(), actor, "private")
 	require.ErrorIs(t, err, domain.ErrNotFound)
 
 	_, err = NewPages(nil, denyingPageAccess{}, slog.Default()).Save(context.Background(), PageSaveInput{

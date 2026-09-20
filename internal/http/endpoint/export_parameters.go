@@ -95,7 +95,7 @@ func validExportParameterKey(value string) bool {
 // renderExportHTML renders the shared self-contained page body used by print preview and PDF export.
 func renderExportHTML(
 	ctx context.Context,
-	catalog scopedPageCatalogService,
+	catalog pageReportService,
 	navigation navigationService,
 	media imageContentService,
 	renderer *md.Renderer,
@@ -127,7 +127,7 @@ func renderExportHTML(
 
 // PreviewPageExport returns a self-contained script-free print document without calling the PDF service.
 func PreviewPageExport(
-	catalog scopedPageCatalogService,
+	catalog pageReportService,
 	settings settingsService,
 	navigation navigationService,
 	media imageContentService,

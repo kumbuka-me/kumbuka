@@ -59,8 +59,20 @@ type httpConfig struct {
 	Administration *appadministration.Administration
 	// Access provides page authorization and access-policy use cases.
 	Access *appaccess.Access
-	// Catalog provides page lookup, search, and catalog use cases.
-	Catalog *apppages.Catalog
+	// PageLookup resolves direct page reads and aliases with actor authorization.
+	PageLookup *apppages.Lookup
+	// PageSearch provides actor-filtered page listing, search, and tag queries.
+	PageSearch *apppages.Search
+	// PageDirectory provides page aliases and inventory queries.
+	PageDirectory *apppages.Directory
+	// PageReports supplies authorized page data to reports and plugin capabilities.
+	PageReports *apppages.Reports
+	// PagePersonal owns actor-specific favorite and watch mutations.
+	PagePersonal *apppages.Personal
+	// PageHistory provides actor-authorized revision history.
+	PageHistory *apppages.History
+	// PageRender stores reusable page render artifacts.
+	PageRender *apppages.RenderArtifacts
 	// Drafts provides page-draft use cases.
 	Drafts *apppages.Drafts
 	// Groups provides group-management use cases.
@@ -123,7 +135,13 @@ func newRouteConfig(
 		Assets:         appFS,
 		Administration: appadministration.NewAdministration(database),
 		Access:         access,
-		Catalog:        apppages.NewCatalog(database, access),
+		PageLookup:     apppages.NewLookup(database, access),
+		PageSearch:     apppages.NewSearch(database, access),
+		PageDirectory:  apppages.NewDirectory(database, access),
+		PageReports:    apppages.NewReports(database, access),
+		PagePersonal:   apppages.NewPersonal(database, access),
+		PageHistory:    apppages.NewHistory(database, access),
+		PageRender:     apppages.NewRenderArtifacts(database),
 		Drafts:         apppages.NewDrafts(database),
 		Groups:         appgroups.NewGroups(database),
 		Knowledge:      appsearch.NewKnowledge(database, access),
@@ -143,10 +161,10 @@ func newRouteConfig(
 		AccessLog:      cfg.AccessLog,
 		ReadOnly:       cfg.ReadOnly,
 	}
-	config.Home = apppages.NewHomeQuery(config.Catalog, config.Drafts, config.Access)
-	config.Editor = apppages.NewEditor(config.Catalog, config.Groups, config.Templates)
+	config.Home = apppages.NewHomeQuery(database, config.Drafts, config.Access)
+	config.Editor = apppages.NewEditor(config.PageLookup, config.Groups, config.Templates)
 	config.EditorSave = apppages.NewEditorSave(config.Pages, config.Drafts, config.Templates, config.Logger)
-	config.ViewPage = apppages.NewView(config.Catalog, config.Access, config.Pages, config.Logger)
+	config.ViewPage = apppages.NewView(database, config.Access, config.Pages, config.Logger)
 	return config
 }
 
@@ -226,11 +244,11 @@ func configurePluginAwareServices(config *httpConfig, renderer *markdown.Rendere
 }
 
 // newBrowserContext wires the shared authenticated browser-context aggregation boundary.
-func newBrowserContext(config httpConfig) *endpoint.BrowserContext {
+func newBrowserContext(config httpConfig, database *postgres.Store) *endpoint.BrowserContext {
 	return endpoint.NewBrowserContext(viewer.New(
 		config.Preferences,
 		config.Navigation,
-		config.Catalog,
+		database,
 		config.Settings,
 		config.Knowledge,
 		config.Notifications,

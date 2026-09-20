@@ -62,7 +62,7 @@ type pageRequest struct {
 // PreviewMarkdown renders unsaved Markdown with the same resolver used by persisted pages.
 func PreviewMarkdown(
 	navigationUseCases navigationService,
-	catalogUseCases scopedPageCatalogService,
+	catalogUseCases pageReportService,
 	renderer *md.Renderer,
 	logger *slog.Logger,
 ) http.HandlerFunc {

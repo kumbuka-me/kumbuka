@@ -67,7 +67,7 @@ func ExportPageMarkdown(
 
 // ExportPagePDF renders one page into a downloadable PDF using the configured PDF service.
 func ExportPagePDF(
-	catalogUseCases scopedPageCatalogService,
+	catalogUseCases pageReportService,
 	settingsUseCases settingsService,
 	navigationUseCases navigationService,
 	mediaUseCases imageContentService,

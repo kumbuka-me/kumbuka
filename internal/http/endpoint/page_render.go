@@ -17,7 +17,7 @@ func renderPageContent(
 	options md.Options,
 	capabilities map[string]plugin.Capability,
 	renderer *md.Renderer,
-	catalog pageViewCatalogService,
+	artifacts pageRenderArtifactStore,
 	logger *slog.Logger,
 ) (md.RenderedPage, error) {
 	fingerprint := renderer.RenderFingerprint(options)
@@ -54,7 +54,7 @@ func renderPageContent(
 	}
 
 	stop = measurePageStage(ctx, "render_artifact_store")
-	err = catalog.SavePageRender(ctx, page.ID, page.UpdatedAt, artifact)
+	err = artifacts.SavePageRender(ctx, page.ID, page.UpdatedAt, artifact)
 	stop()
 	if err != nil {
 		logger.Warn(

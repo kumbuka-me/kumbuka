@@ -14,7 +14,7 @@ import (
 
 // ExportPagePlugin invokes one active plugin exporter for an authorized page.
 func ExportPagePlugin(
-	catalog scopedPageCatalogService,
+	catalog pageReportService,
 	navigation navigationService,
 	renderer *markdown.Renderer,
 	logger *slog.Logger,

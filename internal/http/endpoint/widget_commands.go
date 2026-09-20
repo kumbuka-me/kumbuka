@@ -15,7 +15,7 @@ const maxWidgetCommandFormBytes = 16 << 10
 
 // PluginWidgetCommand executes one host-mediated command from an active plugin widget.
 func PluginWidgetCommand(
-	catalog scopedPageCatalogService,
+	catalog pageReportService,
 	navigation navigationService,
 	renderer *md.Renderer,
 ) http.HandlerFunc {

@@ -57,8 +57,8 @@ type visiblePageActions interface {
 	SetPageWatchFor(context.Context, domain.User, string, string) error
 }
 
-// scopedPageCatalogService supplies authorized plugin/report capabilities for one actor.
-type scopedPageCatalogService interface {
+// pageReportService supplies authorized plugin/report capabilities for one actor.
+type pageReportService interface {
 	GetPage(context.Context, string) (domain.Page, error)
 	Search(context.Context, string, int) ([]domain.Page, error)
 	GetPageFor(context.Context, domain.User, string) (domain.Page, error)
@@ -88,16 +88,8 @@ type editorDraftService interface {
 	Delete(context.Context, int64, string) error
 }
 
-// pageViewCatalogService supplies rendering and plugin reads for an already-authorized page view.
-type pageViewCatalogService interface {
-	GetPage(context.Context, string) (domain.Page, error)
-	ResolvePageAlias(context.Context, string) (string, error)
-	Search(context.Context, string, int) ([]domain.Page, error)
-	PageWatch(context.Context, string, int64) (domain.PageWatch, error)
-	Accessible(domain.User) apppages.AccessibleCatalog
-	IsFavorite(context.Context, string, int64) (bool, error)
-	PageLinks(context.Context, string) ([]domain.PageLink, error)
-	PageComments(context.Context, string) ([]domain.PageComment, error)
+// pageRenderArtifactStore persists reusable rendered-page artifacts.
+type pageRenderArtifactStore interface {
 	SavePageRender(context.Context, int64, time.Time, domain.PageRender) error
 }
 

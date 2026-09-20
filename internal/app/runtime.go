@@ -66,7 +66,7 @@ func newApplicationRuntime(
 	routeConfig.Views = views
 
 	configureRenderTimings(cfg, renderer, views, logger)
-	routeConfig.BrowserContext = newBrowserContext(routeConfig)
+	routeConfig.BrowserContext = newBrowserContext(routeConfig, database)
 
 	router := routes.New(routes.Config{
 		Views:       routeConfig.Views,

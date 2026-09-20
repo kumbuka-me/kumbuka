@@ -50,7 +50,7 @@ func (r routeRegistrar) addPublicRoutes() {
 	r.router.HandleFunc("GET /plugins/{pluginID}/{digest}/frames/{frame}", endpoint.PluginFrame(renderer.PluginManager()))
 	r.router.HandleFunc("GET /healthz", endpoint.Health(config.System))
 	r.router.Handle("GET /robots.txt", endpoint.Robots(config.Settings, config.Views, config.Logger))
-	r.router.Handle("GET /sitemap.xml", endpoint.Sitemap(config.Settings, config.Catalog, config.Views, config.Logger))
+	r.router.Handle("GET /sitemap.xml", endpoint.Sitemap(config.Settings, config.PageDirectory, config.Views, config.Logger))
 	r.router.Handle("GET /assets/", endpoint.Assets(config.Assets))
 	r.router.Handle("GET /sw.js", endpoint.ServiceWorker(config.Assets))
 	r.router.Handle("GET /brand/logo", endpoint.BrandLogo(config.Settings, config.Assets, config.Logger))
@@ -77,9 +77,9 @@ func (r routeRegistrar) addBrowserRoutes() {
 
 	r.router.Handle("POST /auth/logout", browserAuthn(auth.Logout(config.BrowserAuth.Local)))
 	r.router.Handle("GET /{$}", browserAuthn(endpoint.Home(config.BrowserContext, config.Home, config.Renderer, config.Views)))
-	r.router.Handle("GET /search", browserAuthn(endpoint.Search(config.BrowserContext, config.Catalog, config.Views)))
+	r.router.Handle("GET /search", browserAuthn(endpoint.Search(config.BrowserContext, config.PageSearch, config.Views)))
 	r.router.Handle("GET /graph", browserAuthn(endpoint.KnowledgeGraphPage(config.BrowserContext, config.Views)))
-	r.router.Handle("GET /p/{id}", browserAuthn(endpoint.PagePermalink(config.Catalog, config.Logger)))
+	r.router.Handle("GET /p/{id}", browserAuthn(endpoint.PagePermalink(config.PageLookup, config.Logger)))
 	r.router.Handle(
 		"GET /settings",
 		browserAuthn(endpoint.Settings(config.BrowserContext, config.Users, config.Tokens, config.Media, config.BrowserAuth.Local, config.Views)),
@@ -156,10 +156,10 @@ func (r routeRegistrar) addAdminRoutes() {
 	r.router.Handle("POST /admin/permissions", browserAuthn(adminAuthz(endpoint.SaveAdminPageAccess(config.Access, config.Logger))))
 	r.router.Handle("POST /admin/permissions/{id}/delete", browserAuthn(adminAuthz(endpoint.DeleteAdminPageAccess(config.Access, config.Logger))))
 	r.router.Handle("GET /admin/audit", browserAuthn(adminAuthz(endpoint.AdminAudit(config.BrowserContext, config.Administration, config.Views))))
-	r.router.Handle("GET /admin/pages", browserAuthn(adminAuthz(endpoint.AdminPages(config.BrowserContext, config.Catalog, config.Groups, config.Views))))
+	r.router.Handle("GET /admin/pages", browserAuthn(adminAuthz(endpoint.AdminPages(config.BrowserContext, config.PageDirectory, config.Groups, config.Views))))
 	r.router.Handle(
 		"POST /admin/pages/bulk",
-		browserAuthn(adminAuthz(endpoint.BulkAdminPages(config.Pages, config.Catalog, config.Media, config.Logger))),
+		browserAuthn(adminAuthz(endpoint.BulkAdminPages(config.Pages, config.PageLookup, config.Media, config.Logger))),
 	)
 	r.router.Handle("GET /admin/import", browserAuthn(adminAuthz(endpoint.AdminImport(config.BrowserContext, config.Views))))
 	r.router.Handle(
@@ -211,7 +211,7 @@ func (r routeRegistrar) addAdminRoutes() {
 	r.router.Handle("DELETE /admin/tokens/{id}", browserAuthn(adminAuthz(endpoint.DeleteAdminToken(config.Tokens, config.Logger))))
 	r.router.Handle(
 		"POST /admin/export",
-		browserAuthn(adminAuthz(endpoint.ExportPortablePages(config.Catalog, config.Navigation, config.Media, config.Logger))),
+		browserAuthn(adminAuthz(endpoint.ExportPortablePages(config.PageLookup, config.Navigation, config.Media, config.Logger))),
 	)
 
 	r.router.Handle("GET /api/admin/users", apiAuthn(adminAuthz(endpoint.SearchAdminUsers(config.Users, config.Logger))))
@@ -229,7 +229,7 @@ func (r routeRegistrar) addAdminRoutes() {
 	)
 	r.router.Handle(
 		"POST /api/admin/export",
-		apiAuthn(adminAuthz(endpoint.ExportPortablePages(config.Catalog, config.Navigation, config.Media, config.Logger))),
+		apiAuthn(adminAuthz(endpoint.ExportPortablePages(config.PageLookup, config.Navigation, config.Media, config.Logger))),
 	)
 	r.router.Handle(
 		"DELETE /api/admin/bin/{slug...}",
@@ -245,19 +245,19 @@ func (r routeRegistrar) addPageRoutes() {
 	editorAuthz := r.router.Editor
 	r.router.Handle(
 		"POST /plugins/actions/{pluginID}/{moduleID}/{actionID}",
-		browserAuthn(endpoint.PluginWidgetCommand(config.Catalog, config.Navigation, config.Renderer)),
+		browserAuthn(endpoint.PluginWidgetCommand(config.PageReports, config.Navigation, config.Renderer)),
 	)
 
 	r.router.Handle(
 		"GET /export/markdown/{slug...}",
-		browserAuthn(endpoint.ExportPageMarkdown(config.Catalog, config.Media, config.Logger)),
+		browserAuthn(endpoint.ExportPageMarkdown(config.PageLookup, config.Media, config.Logger)),
 	)
 	r.router.Handle(
 		"POST /export/plugin/{pluginID}/{moduleID}/{slug...}",
-		browserAuthn(endpoint.ExportPagePlugin(config.Catalog, config.Navigation, config.Renderer, config.Logger)),
+		browserAuthn(endpoint.ExportPagePlugin(config.PageReports, config.Navigation, config.Renderer, config.Logger)),
 	)
 	exportPDF := browserAuthn(endpoint.ExportPagePDF(
-		config.Catalog,
+		config.PageReports,
 		config.Settings,
 		config.Navigation,
 		config.Media,
@@ -270,7 +270,7 @@ func (r routeRegistrar) addPageRoutes() {
 	r.router.Handle(
 		"POST /export/preview/{slug...}",
 		browserAuthn(endpoint.PreviewPageExport(
-			config.Catalog,
+			config.PageReports,
 			config.Settings,
 			config.Navigation,
 			config.Media,
@@ -301,9 +301,9 @@ func (r routeRegistrar) addPageRoutes() {
 		"POST /pages",
 		browserAuthn(editorAuthz(endpoint.SavePageForm(config.EditorSave, config.Views))),
 	)
-	r.router.Handle("POST /pages/{slug...}", browserAuthn(endpoint.FavoritePage(config.Catalog, config.Views)))
-	r.router.Handle("POST /page-watch/{slug...}", browserAuthn(endpoint.WatchPage(config.Catalog, config.Views)))
-	r.router.Handle("GET /revisions/{slug...}", browserAuthn(endpoint.RevisionHistory(config.Catalog, config.Views)))
+	r.router.Handle("POST /pages/{slug...}", browserAuthn(endpoint.FavoritePage(config.PagePersonal, config.Views)))
+	r.router.Handle("POST /page-watch/{slug...}", browserAuthn(endpoint.WatchPage(config.PagePersonal, config.Views)))
+	r.router.Handle("GET /revisions/{slug...}", browserAuthn(endpoint.RevisionHistory(config.PageHistory, config.Views)))
 	r.router.Handle(
 		"POST /revisions/{number}/restore/{slug...}",
 		browserAuthn(editorAuthz(endpoint.RestoreRevision(config.Pages, config.Views))),
@@ -312,7 +312,8 @@ func (r routeRegistrar) addPageRoutes() {
 		"GET /pages/{slug...}",
 		browserAuthn(endpoint.ViewPage(
 			config.BrowserContext,
-			config.Catalog,
+			config.PageReports,
+			config.PageRender,
 			config.ViewPage,
 			config.Renderer,
 			config.Views,
@@ -328,13 +329,13 @@ func (r routeRegistrar) addAPIRoutes() {
 	editorAuthz := r.router.Editor
 
 	r.router.Handle("GET /api/icons", apiAuthn(editorAuthz(endpoint.SearchIcons(config.Views.IconCatalog()))))
-	r.router.Handle("GET /api/pages", apiAuthn(endpoint.ListPages(config.Catalog, config.Logger)))
+	r.router.Handle("GET /api/pages", apiAuthn(endpoint.ListPages(config.PageSearch, config.Logger)))
 	r.router.Handle("POST /api/pages", apiAuthn(editorAuthz(endpoint.SavePage(config.Pages, config.Logger))))
 	r.router.Handle(
 		"POST /api/preview",
 		apiAuthn(editorAuthz(endpoint.PreviewMarkdown(
 			config.Navigation,
-			config.Catalog,
+			config.PageReports,
 			config.Renderer,
 			config.Logger,
 		))),
@@ -345,19 +346,19 @@ func (r routeRegistrar) addAPIRoutes() {
 	r.router.Handle("GET /api/page-presence/{slug...}", apiAuthn(endpoint.PageEditors(config.Pages, config.Logger)))
 	r.router.Handle("PUT /api/page-presence/{slug...}", apiAuthn(editorAuthz(endpoint.TouchPageEditor(config.Pages, config.Logger))))
 	r.router.Handle("DELETE /api/page-presence/{slug...}", apiAuthn(editorAuthz(endpoint.LeavePageEditor(config.Pages, config.Logger))))
-	r.router.Handle("GET /api/pages/{slug...}", apiAuthn(endpoint.GetPage(config.Catalog, config.Logger)))
+	r.router.Handle("GET /api/pages/{slug...}", apiAuthn(endpoint.GetPage(config.PageLookup, config.Logger)))
 	r.router.Handle("PUT /api/pages/{slug...}", apiAuthn(editorAuthz(endpoint.SavePage(config.Pages, config.Logger))))
 	r.router.Handle("DELETE /api/pages/{slug...}", apiAuthn(adminAuthz(endpoint.DeletePage(config.Pages, config.Logger))))
-	r.router.Handle("GET /api/search", apiAuthn(endpoint.SearchAPI(config.Catalog, config.Logger)))
+	r.router.Handle("GET /api/search", apiAuthn(endpoint.SearchAPI(config.PageSearch, config.Logger)))
 	r.router.Handle("GET /api/graph", apiAuthn(endpoint.KnowledgeGraphAPI(config.Knowledge, config.Logger)))
 	r.router.Handle(
 		"GET /api/editor/catalog",
-		apiAuthn(editorAuthz(endpoint.EditorCatalog(config.Navigation, config.Catalog, config.Renderer.PluginManager(), config.Logger))),
+		apiAuthn(editorAuthz(endpoint.EditorCatalog(config.Navigation, config.PageDirectory, config.Renderer.PluginManager(), config.Logger))),
 	)
 	r.router.Handle("GET /api/mentions/users", apiAuthn(endpoint.MentionUsers(config.Users, config.Logger)))
 	r.router.Handle("GET /api/notifications", apiAuthn(endpoint.NotificationsAPI(config.Notifications, config.Logger)))
 	r.router.Handle("POST /api/notifications/{id}/read", apiAuthn(endpoint.MarkNotificationRead(config.Notifications, config.Logger)))
-	r.router.Handle("GET /api/tags", apiAuthn(endpoint.Tags(config.Catalog, config.Logger)))
+	r.router.Handle("GET /api/tags", apiAuthn(endpoint.Tags(config.PageSearch, config.Logger)))
 	r.router.Handle("GET /api/groups", apiAuthn(endpoint.GroupsAPI(config.Groups, config.Logger)))
 	r.router.Handle("GET /api/images", apiAuthn(editorAuthz(endpoint.ListImages(config.Media, config.Logger))))
 	r.router.Handle("GET /api/attachments", apiAuthn(editorAuthz(endpoint.ListAttachments(config.Media, config.Logger))))
@@ -365,7 +366,7 @@ func (r routeRegistrar) addAPIRoutes() {
 	r.router.Handle("DELETE /api/attachments/{id}", apiAuthn(editorAuthz(endpoint.DeleteAttachment(config.Media, config.Logger))))
 	r.router.Handle("POST /api/images", apiAuthn(editorAuthz(endpoint.UploadImage(config.Media, config.Logger))))
 	r.router.Handle("DELETE /api/images/{id}", apiAuthn(editorAuthz(endpoint.DeleteImage(config.Media, config.Logger))))
-	r.router.Handle("GET /api/recent", apiAuthn(endpoint.Recent(config.Catalog, config.Logger)))
+	r.router.Handle("GET /api/recent", apiAuthn(endpoint.Recent(config.PageSearch, config.Logger)))
 }
 
 // addFallbackRoutes registers machine-readable API and themed browser not-found handlers.

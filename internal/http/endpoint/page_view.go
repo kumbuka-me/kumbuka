@@ -20,7 +20,8 @@ import (
 // ViewPage renders one readable page and its active plugin detail widgets.
 func ViewPage(
 	browserContext browserContextLoader,
-	catalogUseCases pageViewCatalogService,
+	reports pageReportService,
+	renderArtifacts pageRenderArtifactStore,
 	viewPage pageViewQuery,
 	renderer *md.Renderer,
 	views *webview.Views,
@@ -48,7 +49,7 @@ func ViewPage(
 			return
 		}
 
-		securedCatalog := catalogUseCases.Accessible(user)
+		securedCatalog := reports.Accessible(user)
 
 		state, outgoingLinks := result.State, result.OutgoingLinks
 
@@ -74,7 +75,7 @@ func ViewPage(
 		capabilities := plugincap.Capabilities(securedCatalog, pageNavigation, renderer.IconCatalog())
 		stop()
 
-		rendered, err := renderPageContent(r.Context(), page, md.DefaultOptions(), capabilities, renderer, catalogUseCases, views.Logger())
+		rendered, err := renderPageContent(r.Context(), page, md.DefaultOptions(), capabilities, renderer, renderArtifacts, views.Logger())
 		if err != nil {
 			httpresponse.InternalServerError(views.Logger(), w, err)
 			return
