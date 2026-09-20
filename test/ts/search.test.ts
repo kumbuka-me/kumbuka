@@ -48,7 +48,8 @@ void test("live search cancels queued and in-flight work when dismissed", async 
       finish = resolve;
     });
   };
-  const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+  const wait = (ms: number) =>
+    new Promise<void>((resolve) => setTimeout(resolve, ms));
   const escape = () =>
     input.dispatchEvent(Object.assign(new Event("keydown"), { key: "Escape" }));
   try {
@@ -65,12 +66,20 @@ void test("live search cancels queued and in-flight work when dismissed", async 
     assert.equal(calls, 1);
     escape();
     assert.equal(signal?.aborted, true);
-    finish!(new Response("[]", { headers: { "Content-Type": "application/json" } }));
+    finish!(
+      new Response("[]", { headers: { "Content-Type": "application/json" } }),
+    );
     await wait(0);
-    assert.equal(results.hidden, true, "A late response cannot reopen dismissed results");
+    assert.equal(
+      results.hidden,
+      true,
+      "A late response cannot reopen dismissed results",
+    );
 
     input.dispatchEvent(new Event("input"));
-    form.dispatchEvent(Object.assign(new Event("focusout"), { relatedTarget: new Element() }));
+    form.dispatchEvent(
+      Object.assign(new Event("focusout"), { relatedTarget: new Element() }),
+    );
     await wait(150);
     assert.equal(calls, 1, "Leaving the search with Tab cancels queued work");
   } finally {
