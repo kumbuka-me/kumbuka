@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
+	apppages "github.com/kumbuka-me/kumbuka/internal/application/pages"
 	"github.com/kumbuka-me/kumbuka/internal/httpresponse"
-	"github.com/kumbuka-me/kumbuka/internal/service"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 )
 
@@ -79,7 +79,7 @@ func BulkAdminPages(
 		}
 
 		groupID, _ := strconv.ParseInt(r.FormValue("group_id"), 10, 64)
-		if err := pageUseCases.Bulk(r.Context(), service.BulkPageInput{
+		if err := pageUseCases.Bulk(r.Context(), apppages.BulkPageInput{
 			Action:  action,
 			Slugs:   slugs,
 			Status:  r.FormValue("status"),

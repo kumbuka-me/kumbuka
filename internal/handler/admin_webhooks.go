@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
+	appwebhooks "github.com/kumbuka-me/kumbuka/internal/application/webhooks"
 	"github.com/kumbuka-me/kumbuka/internal/httpresponse"
-	"github.com/kumbuka-me/kumbuka/internal/service"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 )
 
@@ -31,8 +31,8 @@ func AdminWebhooks(viewDataUseCases viewDataService, webhookUseCases webhookAdmi
 			httpresponse.InternalServerError(views.Logger(), w, err)
 			return
 		}
-		data.WebhookEvents = service.WebhookEvents()
-		data.WebhookDraft = service.DefaultWebhook()
+		data.WebhookEvents = appwebhooks.WebhookEvents()
+		data.WebhookDraft = appwebhooks.DefaultWebhook()
 		views.Render(w, "admin_webhooks", data)
 	}
 }
@@ -69,7 +69,7 @@ func SaveAdminWebhook(webhookUseCases webhookAdminService, logger *slog.Logger) 
 			return
 		}
 
-		_, err = webhookUseCases.SaveWebhook(r.Context(), id, service.WebhookInput{
+		_, err = webhookUseCases.SaveWebhook(r.Context(), id, appwebhooks.WebhookInput{
 			Name:            r.FormValue("name"),
 			URL:             r.FormValue("url"),
 			Events:          r.Form["event"],
@@ -121,14 +121,14 @@ func webhookRetryFromForm(r *http.Request) (int, time.Duration, time.Duration, e
 }
 
 // webhookHeadersFromForm parses dynamic webhook request-header rows.
-func webhookHeadersFromForm(r *http.Request) ([]service.WebhookHeaderInput, error) {
+func webhookHeadersFromForm(r *http.Request) ([]appwebhooks.WebhookHeaderInput, error) {
 	rows := r.Form["webhook_header_row"]
 	if len(rows) == 0 {
 		return nil, nil
 	}
 
 	seen := make(map[string]struct{}, len(rows))
-	headers := make([]service.WebhookHeaderInput, 0, len(rows))
+	headers := make([]appwebhooks.WebhookHeaderInput, 0, len(rows))
 	for _, row := range rows {
 		if !validWebhookHeaderRow(row) {
 			return nil, newRequestError("headers", "The webhook header form is invalid.", nil)
@@ -148,7 +148,7 @@ func webhookHeadersFromForm(r *http.Request) ([]service.WebhookHeaderInput, erro
 			id = parsed
 		}
 
-		headers = append(headers, service.WebhookHeaderInput{
+		headers = append(headers, appwebhooks.WebhookHeaderInput{
 			ID:        id,
 			Name:      r.FormValue(prefix + "name"),
 			Value:     r.FormValue(prefix + "value"),

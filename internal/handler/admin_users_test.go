@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
+	appusers "github.com/kumbuka-me/kumbuka/internal/application/users"
 	"github.com/kumbuka-me/kumbuka/internal/auth"
-	"github.com/kumbuka-me/kumbuka/internal/service"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/stretchr/testify/assert"
@@ -72,9 +72,9 @@ func TestReopenPendingOIDCIdentity(t *testing.T) {
 	assert.False(t, users.rejected)
 }
 
-type passwordUserStub struct{ input service.UserUpdateInput }
+type passwordUserStub struct{ input appusers.UserUpdateInput }
 
-func (s *passwordUserStub) UpdateAccount(_ context.Context, input service.UserUpdateInput) error {
+func (s *passwordUserStub) UpdateAccount(_ context.Context, input appusers.UserUpdateInput) error {
 	s.input = input
 	return nil
 }

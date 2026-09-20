@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"strings"
 
+	apptemplates "github.com/kumbuka-me/kumbuka/internal/application/templates"
 	"github.com/kumbuka-me/kumbuka/internal/httpresponse"
-	"github.com/kumbuka-me/kumbuka/internal/service"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
@@ -84,11 +84,11 @@ func UpdateAdminPageTemplate(templateUseCases templateService, logger *slog.Logg
 }
 
 // pageTemplateInputFromForm translates the blueprint form into a service input.
-func pageTemplateInputFromForm(r *http.Request) service.PageTemplateInput {
+func pageTemplateInputFromForm(r *http.Request) apptemplates.PageTemplateInput {
 	ownerGroupID, _ := strconv.ParseInt(strings.TrimSpace(r.FormValue("owner_group_id")), 10, 64)
 	reviewIntervalDays, _ := strconv.Atoi(strings.TrimSpace(r.FormValue("review_interval_days")))
 
-	return service.PageTemplateInput{
+	return apptemplates.PageTemplateInput{
 		Name:               r.FormValue("name"),
 		Description:        r.FormValue("description"),
 		Markdown:           r.FormValue("markdown"),

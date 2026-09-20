@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"strings"
 
+	appusers "github.com/kumbuka-me/kumbuka/internal/application/users"
 	"github.com/kumbuka-me/kumbuka/internal/httpresponse"
-	"github.com/kumbuka-me/kumbuka/internal/service"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
@@ -124,7 +124,7 @@ func UpdateAdminUser(
 			return
 		}
 
-		if err := userUseCases.UpdateAccount(r.Context(), service.UserUpdateInput{
+		if err := userUseCases.UpdateAccount(r.Context(), appusers.UserUpdateInput{
 			UserID: userID, Actor: admin, Role: role, Enabled: enabled, GroupIDs: groupIDs,
 			Password: password, UpdateLocalCredential: updateLocalCredential,
 			LocalCredentialEnabled: r.FormValue("local_credential_enabled") == "on",

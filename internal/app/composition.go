@@ -5,11 +5,26 @@ import (
 	"log/slog"
 	"time"
 
+	appaccess "github.com/kumbuka-me/kumbuka/internal/application/access"
+	appadministration "github.com/kumbuka-me/kumbuka/internal/application/administration"
+	appgroups "github.com/kumbuka-me/kumbuka/internal/application/groups"
+	appmedia "github.com/kumbuka-me/kumbuka/internal/application/media"
+	appnavigation "github.com/kumbuka-me/kumbuka/internal/application/navigation"
+	appnotifications "github.com/kumbuka-me/kumbuka/internal/application/notifications"
+	apppages "github.com/kumbuka-me/kumbuka/internal/application/pages"
+	apppreferences "github.com/kumbuka-me/kumbuka/internal/application/preferences"
+	apprecyclebin "github.com/kumbuka-me/kumbuka/internal/application/recyclebin"
+	appsearch "github.com/kumbuka-me/kumbuka/internal/application/search"
+	appsettings "github.com/kumbuka-me/kumbuka/internal/application/settings"
+	appsystem "github.com/kumbuka-me/kumbuka/internal/application/system"
+	apptemplates "github.com/kumbuka-me/kumbuka/internal/application/templates"
+	apptokens "github.com/kumbuka-me/kumbuka/internal/application/tokens"
+	appusers "github.com/kumbuka-me/kumbuka/internal/application/users"
+	appwebhooks "github.com/kumbuka-me/kumbuka/internal/application/webhooks"
 	"github.com/kumbuka-me/kumbuka/internal/auth"
 	"github.com/kumbuka-me/kumbuka/internal/flags"
 	"github.com/kumbuka-me/kumbuka/internal/routes"
 	"github.com/kumbuka-me/kumbuka/internal/secrets"
-	"github.com/kumbuka-me/kumbuka/internal/service"
 	"github.com/kumbuka-me/kumbuka/internal/store"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/icons"
@@ -24,7 +39,7 @@ func newRouteConfig(
 	secretCipher *secrets.Cipher,
 	logger *slog.Logger,
 ) routes.Config {
-	webhooks := service.NewWebhooks(
+	webhooks := appwebhooks.NewWebhooks(
 		database,
 		secretCipher,
 		logger.With("component", "webhooks"),
@@ -33,23 +48,23 @@ func newRouteConfig(
 
 	return routes.Config{
 		Assets:         appFS,
-		Administration: service.NewAdministration(database),
-		Access:         service.NewAccess(database),
-		Catalog:        service.NewCatalog(database),
-		Drafts:         service.NewDrafts(database),
-		Groups:         service.NewGroups(database),
-		Knowledge:      service.NewKnowledge(database),
-		Notifications:  service.NewNotifications(database),
-		Media:          service.NewMedia(database),
-		Navigation:     service.NewNavigation(database),
-		Pages:          service.NewPages(database, logger, webhooks),
-		Preferences:    service.NewPreferences(database),
-		RecycleBin:     service.NewRecycleBin(database),
-		Settings:       service.NewSettings(database, secretCipher).WithLogger(logger.With("component", "settings")),
-		System:         service.NewSystem(database).WithLogger(logger.With("component", "system")),
-		Templates:      service.NewTemplates(database),
-		Tokens:         service.NewTokens(database),
-		Users:          service.NewUsers(database).WithLogger(logger.With("component", "users")),
+		Administration: appadministration.NewAdministration(database),
+		Access:         appaccess.NewAccess(database),
+		Catalog:        apppages.NewCatalog(database),
+		Drafts:         apppages.NewDrafts(database),
+		Groups:         appgroups.NewGroups(database),
+		Knowledge:      appsearch.NewKnowledge(database),
+		Notifications:  appnotifications.NewNotifications(database),
+		Media:          appmedia.NewMedia(database),
+		Navigation:     appnavigation.NewNavigation(database),
+		Pages:          apppages.NewPages(database, logger, webhooks),
+		Preferences:    apppreferences.NewPreferences(database),
+		RecycleBin:     apprecyclebin.NewRecycleBin(database),
+		Settings:       appsettings.NewSettings(database, secretCipher).WithLogger(logger.With("component", "settings")),
+		System:         appsystem.NewSystem(database).WithLogger(logger.With("component", "system")),
+		Templates:      apptemplates.NewTemplates(database),
+		Tokens:         apptokens.NewTokens(database),
+		Users:          appusers.NewUsers(database).WithLogger(logger.With("component", "users")),
 		Webhooks:       webhooks,
 		Logger:         logger.With("component", "server"),
 		AccessLog:      cfg.AccessLog,

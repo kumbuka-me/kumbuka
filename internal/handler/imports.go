@@ -8,9 +8,9 @@ import (
 	"strconv"
 	"strings"
 
+	apppages "github.com/kumbuka-me/kumbuka/internal/application/pages"
 	"github.com/kumbuka-me/kumbuka/internal/httpresponse"
 	"github.com/kumbuka-me/kumbuka/internal/importer"
-	"github.com/kumbuka-me/kumbuka/internal/service"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 )
 
@@ -125,11 +125,11 @@ func importUploadedFile(header *multipart.FileHeader, format importer.Format, bu
 }
 
 // serviceImportPages maps parser output onto the page service import contract.
-func serviceImportPages(candidates []importer.Candidate) []service.ImportedPage {
-	pages := make([]service.ImportedPage, 0, len(candidates))
+func serviceImportPages(candidates []importer.Candidate) []apppages.ImportedPage {
+	pages := make([]apppages.ImportedPage, 0, len(candidates))
 
 	for _, candidate := range candidates {
-		pages = append(pages, service.ImportedPage{
+		pages = append(pages, apppages.ImportedPage{
 			Slug:     candidate.Slug,
 			Title:    candidate.Title,
 			Markdown: candidate.Markdown,

@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
+	apppages "github.com/kumbuka-me/kumbuka/internal/application/pages"
 	"github.com/kumbuka-me/kumbuka/internal/auth"
 	"github.com/kumbuka-me/kumbuka/internal/httpresponse"
-	"github.com/kumbuka-me/kumbuka/internal/service"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	md "github.com/kumbuka-me/kumbuka/pkg/markdown"
@@ -70,7 +70,7 @@ func SavePageForm(
 
 		draftKey := "new"
 		if originalSlug != "" {
-			draftKey = service.PageDraftKey(page.ID)
+			draftKey = apppages.PageDraftKey(page.ID)
 		}
 
 		if err := draftUseCases.Delete(r.Context(), user.ID, draftKey); err != nil {
@@ -116,22 +116,22 @@ func pageSaveInput(
 	user domain.User,
 	originalSlug string,
 	metadata domain.PageMetadata,
-) (service.PageSaveInput, error) {
+) (apppages.PageSaveInput, error) {
 	markdown := r.FormValue("markdown")
 	if originalSlug == "" {
 		resolved, err := resolvePageTemplateFields(ctx, r, templates, markdown)
 		if err != nil {
-			return service.PageSaveInput{}, err
+			return apppages.PageSaveInput{}, err
 		}
 		markdown = resolved
 	}
 
 	expectedUpdatedAt, err := expectedPageUpdatedAt(r.FormValue("expected_updated_at"), originalSlug != "")
 	if err != nil {
-		return service.PageSaveInput{}, err
+		return apppages.PageSaveInput{}, err
 	}
 
-	return service.PageSaveInput{
+	return apppages.PageSaveInput{
 		PreviousSlug:       originalSlug,
 		ExpectedUpdatedAt:  expectedUpdatedAt,
 		Slug:               r.FormValue("slug"),
@@ -473,7 +473,7 @@ func writePageProblem(
 			),
 		)
 
-	case errors.Is(err, service.ErrDiscussionsDisabled):
+	case errors.Is(err, apppages.ErrDiscussionsDisabled):
 		httpresponse.Problem(w,
 			http.StatusForbidden,
 			"Page discussions are disabled.",

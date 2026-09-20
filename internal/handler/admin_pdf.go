@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
+	appsettings "github.com/kumbuka-me/kumbuka/internal/application/settings"
 	"github.com/kumbuka-me/kumbuka/internal/httpresponse"
 	"github.com/kumbuka-me/kumbuka/internal/pdf"
-	"github.com/kumbuka-me/kumbuka/internal/service"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
 
@@ -167,14 +167,14 @@ func RevealAdminPDFHeader(settingsUseCases settingsService, logger *slog.Logger)
 }
 
 // pdfHeadersFromForm parses the dynamic request-header rows in the PDF settings form.
-func pdfHeadersFromForm(r *http.Request) ([]service.PDFHeaderInput, error) {
+func pdfHeadersFromForm(r *http.Request) ([]appsettings.PDFHeaderInput, error) {
 	rows := r.Form["pdf_header_row"]
 	if len(rows) == 0 {
 		return nil, nil
 	}
 
 	seen := make(map[string]struct{}, len(rows))
-	headers := make([]service.PDFHeaderInput, 0, len(rows))
+	headers := make([]appsettings.PDFHeaderInput, 0, len(rows))
 	for _, row := range rows {
 		if !validPDFHeaderRow(row) {
 			return nil, newRequestError("pdf_headers", "The PDF header form is invalid.", nil)
@@ -197,7 +197,7 @@ func pdfHeadersFromForm(r *http.Request) ([]service.PDFHeaderInput, error) {
 			id = parsed
 		}
 
-		headers = append(headers, service.PDFHeaderInput{
+		headers = append(headers, appsettings.PDFHeaderInput{
 			ID:        id,
 			Name:      r.FormValue(prefix + "name"),
 			Value:     r.FormValue(prefix + "value"),

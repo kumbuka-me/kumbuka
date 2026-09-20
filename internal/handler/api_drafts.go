@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"strings"
 
+	apppages "github.com/kumbuka-me/kumbuka/internal/application/pages"
 	"github.com/kumbuka-me/kumbuka/internal/httpresponse"
-	"github.com/kumbuka-me/kumbuka/internal/service"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
 
@@ -51,7 +51,7 @@ func SavePageDraft(draftUseCases editorDraftService, logger *slog.Logger) http.H
 		}
 
 		user := currentUser(r)
-		draft, err := draftUseCases.Save(r.Context(), service.PageDraftSaveInput{
+		draft, err := draftUseCases.Save(r.Context(), apppages.PageDraftSaveInput{
 			Key:    strings.TrimSpace(r.PathValue("key")),
 			PageID: request.PageID,
 			Title:  request.Title,

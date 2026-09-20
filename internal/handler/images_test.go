@@ -9,8 +9,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	appmedia "github.com/kumbuka-me/kumbuka/internal/application/media"
 	"github.com/kumbuka-me/kumbuka/internal/auth"
-	"github.com/kumbuka-me/kumbuka/internal/service"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/stretchr/testify/assert"
@@ -22,23 +22,23 @@ func TestSanitizeImageFilename(t *testing.T) {
 
 	t.Run("keeps safe png", func(t *testing.T) {
 		t.Parallel()
-		assert.Equal(t, "architecture.png", service.SanitizeImageFilename("architecture.png", "image/png"))
+		assert.Equal(t, "architecture.png", appmedia.SanitizeImageFilename("architecture.png", "image/png"))
 	})
 	t.Run("normalizes spaces", func(t *testing.T) {
 		t.Parallel()
-		assert.Equal(t, "my-diagram.png", service.SanitizeImageFilename("my diagram.png", "image/png"))
+		assert.Equal(t, "my-diagram.png", appmedia.SanitizeImageFilename("my diagram.png", "image/png"))
 	})
 	t.Run("corrects extension", func(t *testing.T) {
 		t.Parallel()
-		assert.Equal(t, "photo.jpg", service.SanitizeImageFilename("photo.png", "image/jpeg"))
+		assert.Equal(t, "photo.jpg", appmedia.SanitizeImageFilename("photo.png", "image/jpeg"))
 	})
 	t.Run("allows jpeg extension", func(t *testing.T) {
 		t.Parallel()
-		assert.Equal(t, "photo.jpeg", service.SanitizeImageFilename("photo.jpeg", "image/jpeg"))
+		assert.Equal(t, "photo.jpeg", appmedia.SanitizeImageFilename("photo.jpeg", "image/jpeg"))
 	})
 	t.Run("adds extension", func(t *testing.T) {
 		t.Parallel()
-		assert.Equal(t, "diagram.webp", service.SanitizeImageFilename("diagram", "image/webp"))
+		assert.Equal(t, "diagram.webp", appmedia.SanitizeImageFilename("diagram", "image/webp"))
 	})
 }
 
@@ -47,23 +47,23 @@ func TestSupportedImageType(t *testing.T) {
 
 	t.Run("supports JPEG", func(t *testing.T) {
 		t.Parallel()
-		assert.True(t, service.SupportedImageType("image/jpeg"))
+		assert.True(t, appmedia.SupportedImageType("image/jpeg"))
 	})
 	t.Run("supports PNG", func(t *testing.T) {
 		t.Parallel()
-		assert.True(t, service.SupportedImageType("image/png"))
+		assert.True(t, appmedia.SupportedImageType("image/png"))
 	})
 	t.Run("supports GIF", func(t *testing.T) {
 		t.Parallel()
-		assert.True(t, service.SupportedImageType("image/gif"))
+		assert.True(t, appmedia.SupportedImageType("image/gif"))
 	})
 	t.Run("supports WebP", func(t *testing.T) {
 		t.Parallel()
-		assert.True(t, service.SupportedImageType("image/webp"))
+		assert.True(t, appmedia.SupportedImageType("image/webp"))
 	})
 	t.Run("rejects SVG", func(t *testing.T) {
 		t.Parallel()
-		assert.False(t, service.SupportedImageType("image/svg+xml"))
+		assert.False(t, appmedia.SupportedImageType("image/svg+xml"))
 	})
 }
 

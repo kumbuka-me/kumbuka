@@ -11,8 +11,8 @@ import (
 	"strings"
 	"testing"
 
+	appsettings "github.com/kumbuka-me/kumbuka/internal/application/settings"
 	"github.com/kumbuka-me/kumbuka/internal/auth"
-	"github.com/kumbuka-me/kumbuka/internal/service"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -22,16 +22,16 @@ type pdfSettingsStub struct {
 	settingsService
 	url             string
 	actorID         int64
-	savedHeaders    []service.PDFHeaderInput
+	savedHeaders    []appsettings.PDFHeaderInput
 	resolvedHeaders []domain.PDFHeader
-	resolvedInputs  []service.PDFHeaderInput
+	resolvedInputs  []appsettings.PDFHeaderInput
 	revealedValue   string
 }
 
 func (s *pdfSettingsStub) SavePDFSettings(
 	_ context.Context,
 	pdfURL string,
-	headers []service.PDFHeaderInput,
+	headers []appsettings.PDFHeaderInput,
 	actorID int64,
 ) error {
 	s.url = pdfURL
@@ -43,7 +43,7 @@ func (s *pdfSettingsStub) SavePDFSettings(
 
 func (s *pdfSettingsStub) ResolvePDFRequestHeaders(
 	_ context.Context,
-	headers []service.PDFHeaderInput,
+	headers []appsettings.PDFHeaderInput,
 ) ([]domain.PDFHeader, error) {
 	s.resolvedInputs = headers
 	return s.resolvedHeaders, nil
@@ -83,7 +83,7 @@ func TestSaveAdminPDFSettings(t *testing.T) {
 	assert.Equal(t, "/admin/configuration#pdf-rendering", response.Header().Get("Location"))
 	assert.Equal(t, "http://html2pdf:8080/render", settings.url)
 	assert.Equal(t, int64(7), settings.actorID)
-	assert.Equal(t, []service.PDFHeaderInput{{Name: " X-Tenant ", Value: " documentation ", Sensitive: true}}, settings.savedHeaders)
+	assert.Equal(t, []appsettings.PDFHeaderInput{{Name: " X-Tenant ", Value: " documentation ", Sensitive: true}}, settings.savedHeaders)
 }
 
 func TestTestAdminPDFServiceUsesCurrentHeaders(t *testing.T) {
@@ -139,7 +139,7 @@ endobj
 	assert.Equal(t, "2", response.Header().Get("X-Kumbuka-PDF-Pages"))
 	assert.Equal(t, strconv.Itoa(len(payload)), response.Header().Get("X-Kumbuka-PDF-Size"))
 	assert.Equal(t, payload, response.Body.String())
-	assert.Equal(t, []service.PDFHeaderInput{{ID: 12, Name: "Authorization", Sensitive: true}}, settings.resolvedInputs)
+	assert.Equal(t, []appsettings.PDFHeaderInput{{ID: 12, Name: "Authorization", Sensitive: true}}, settings.resolvedInputs)
 }
 
 func TestRevealAdminPDFHeader(t *testing.T) {

@@ -10,8 +10,8 @@ import (
 	"sort"
 	"strings"
 
+	appplugins "github.com/kumbuka-me/kumbuka/internal/application/plugins"
 	"github.com/kumbuka-me/kumbuka/internal/httpresponse"
-	"github.com/kumbuka-me/kumbuka/internal/service"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	md "github.com/kumbuka-me/kumbuka/pkg/markdown"
@@ -28,7 +28,7 @@ type pluginUpdateService interface {
 	// Download retrieves and verifies one selected plugin release.
 	Download(context.Context, string, string) ([]byte, error)
 	// Status returns scheduled and manual catalog refresh state.
-	Status() service.PluginUpdateStatus
+	Status() appplugins.PluginUpdateStatus
 }
 
 // AdminPlugins exposes package metadata and lifecycle operations through the

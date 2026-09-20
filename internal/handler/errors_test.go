@@ -12,8 +12,9 @@ import (
 	"strings"
 	"testing"
 
+	appmedia "github.com/kumbuka-me/kumbuka/internal/application/media"
+	apppages "github.com/kumbuka-me/kumbuka/internal/application/pages"
 	"github.com/kumbuka-me/kumbuka/internal/httpresponse"
-	"github.com/kumbuka-me/kumbuka/internal/service"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -61,7 +62,7 @@ func TestWriteMediaUploadProblem(t *testing.T) {
 		writeMediaUploadProblem(
 			slog.New(slog.NewTextHandler(io.Discard, nil)),
 			response,
-			service.ErrEmptyFile,
+			appmedia.ErrEmptyFile,
 			attachmentMedia,
 		)
 
@@ -75,7 +76,7 @@ func TestWriteMediaUploadProblem(t *testing.T) {
 		writeMediaUploadProblem(
 			slog.New(slog.NewTextHandler(io.Discard, nil)),
 			response,
-			service.ErrFileTooLarge,
+			appmedia.ErrFileTooLarge,
 			attachmentMedia,
 		)
 
@@ -89,7 +90,7 @@ func TestWriteMediaUploadProblem(t *testing.T) {
 		writeMediaUploadProblem(
 			slog.New(slog.NewTextHandler(io.Discard, nil)),
 			response,
-			service.ErrUnsupportedFileType,
+			appmedia.ErrUnsupportedFileType,
 			attachmentMedia,
 		)
 
@@ -104,7 +105,7 @@ func TestWriteMediaDeleteProblem(t *testing.T) {
 	writeMediaDeleteProblem(
 		slog.New(slog.NewTextHandler(io.Discard, nil)),
 		response,
-		&service.MediaInUseError{References: 2},
+		&appmedia.MediaInUseError{References: 2},
 		imageMedia,
 	)
 
@@ -174,7 +175,7 @@ func TestErrorTranslatorsUseProblemResponses(t *testing.T) {
 		writePageProblem(
 			slog.New(slog.NewTextHandler(io.Discard, nil)),
 			response,
-			service.ErrDiscussionsDisabled,
+			apppages.ErrDiscussionsDisabled,
 		)
 
 		assert.Equal(t, http.StatusForbidden, response.Code)

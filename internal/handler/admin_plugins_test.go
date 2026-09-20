@@ -11,9 +11,9 @@ import (
 	"testing"
 	"time"
 
+	appplugins "github.com/kumbuka-me/kumbuka/internal/application/plugins"
 	"github.com/kumbuka-me/kumbuka/internal/auth"
 	"github.com/kumbuka-me/kumbuka/internal/middleware"
-	"github.com/kumbuka-me/kumbuka/internal/service"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/kumbuka-me/kumbuka/pkg/plugin"
@@ -33,7 +33,7 @@ type pluginUpdateServiceStub struct {
 	refreshes     int
 	downloadedID  string
 	downloadedVer string
-	status        service.PluginUpdateStatus
+	status        appplugins.PluginUpdateStatus
 }
 
 // Refresh supports plugin administration regression coverage.
@@ -55,7 +55,7 @@ func (s *pluginUpdateServiceStub) Download(_ context.Context, id, version string
 }
 
 // Status supports plugin administration regression coverage.
-func (s *pluginUpdateServiceStub) Status() service.PluginUpdateStatus {
+func (s *pluginUpdateServiceStub) Status() appplugins.PluginUpdateStatus {
 	return s.status
 }
 
@@ -148,7 +148,7 @@ func TestAdminPluginCatalogUpdate(t *testing.T) {
 	require.NoError(t, err)
 
 	updates := &pluginUpdateServiceStub{
-		status: service.PluginUpdateStatus{
+		status: appplugins.PluginUpdateStatus{
 			Automatic:   true,
 			LastAttempt: time.Date(2026, time.September, 18, 7, 31, 0, 0, time.UTC),
 			LastSuccess: time.Date(2026, time.September, 18, 7, 31, 0, 0, time.UTC),
@@ -192,7 +192,7 @@ func TestAdminPluginCatalogUpdate(t *testing.T) {
 func TestAdminPluginManualCatalogRefresh(t *testing.T) {
 	updates := &pluginUpdateServiceStub{
 		updates: map[string]domain.PluginRelease{},
-		status:  service.PluginUpdateStatus{Automatic: true},
+		status:  appplugins.PluginUpdateStatus{Automatic: true},
 	}
 	views := testHandlerViews(t, webview.RuntimeInfo{})
 	data := viewDataServiceStub{load: func(*http.Request, *webview.Views, string) (webview.Data, error) {
@@ -214,7 +214,7 @@ func TestAdminPluginManualCatalogRefreshFailure(t *testing.T) {
 	updates := &pluginUpdateServiceStub{
 		updatesErr: errors.New("no cached catalog"),
 		refreshErr: errors.New("catalog offline"),
-		status: service.PluginUpdateStatus{
+		status: appplugins.PluginUpdateStatus{
 			Automatic: true,
 		},
 	}

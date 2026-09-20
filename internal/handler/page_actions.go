@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"strings"
 
+	apppages "github.com/kumbuka-me/kumbuka/internal/application/pages"
 	"github.com/kumbuka-me/kumbuka/internal/httpresponse"
-	"github.com/kumbuka-me/kumbuka/internal/service"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	md "github.com/kumbuka-me/kumbuka/pkg/markdown"
 )
@@ -74,7 +74,7 @@ func RequestPageReview(pageUseCases pageApprovalService, logger *slog.Logger) ht
 		}
 
 		slug := strings.TrimSpace(r.PathValue("slug"))
-		_, err := pageUseCases.RequestReview(r.Context(), service.PageReviewRequestInput{
+		_, err := pageUseCases.RequestReview(r.Context(), apppages.PageReviewRequestInput{
 			Slug:              slug,
 			ReviewerUsernames: reviewerUsernames(r.FormValue("reviewers")),
 			ReviewerGroupID:   groupID,
@@ -108,7 +108,7 @@ func UpdatePageReview(pageUseCases pageApprovalService, logger *slog.Logger) htt
 		}
 
 		slug := strings.TrimSpace(r.PathValue("slug"))
-		_, err := pageUseCases.UpdateReview(r.Context(), service.PageReviewUpdateInput{
+		_, err := pageUseCases.UpdateReview(r.Context(), apppages.PageReviewUpdateInput{
 			ID:                id,
 			Slug:              slug,
 			ReviewerUsernames: reviewerUsernames(r.FormValue("reviewers")),
@@ -162,7 +162,7 @@ func DecidePageReview(pageUseCases pageApprovalService, logger *slog.Logger) htt
 		}
 
 		slug := strings.TrimSpace(r.PathValue("slug"))
-		err := pageUseCases.DecideReview(r.Context(), service.PageReviewDecisionInput{
+		err := pageUseCases.DecideReview(r.Context(), apppages.PageReviewDecisionInput{
 			ID:       id,
 			Slug:     slug,
 			Decision: r.FormValue("decision"),

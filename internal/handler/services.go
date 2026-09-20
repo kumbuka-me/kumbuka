@@ -5,7 +5,11 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/kumbuka-me/kumbuka/internal/service"
+	apppages "github.com/kumbuka-me/kumbuka/internal/application/pages"
+	appsettings "github.com/kumbuka-me/kumbuka/internal/application/settings"
+	apptemplates "github.com/kumbuka-me/kumbuka/internal/application/templates"
+	appusers "github.com/kumbuka-me/kumbuka/internal/application/users"
+	appwebhooks "github.com/kumbuka-me/kumbuka/internal/application/webhooks"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/kumbuka-me/kumbuka/pkg/revision"
@@ -24,7 +28,7 @@ type administrationService interface {
 }
 
 // Catalog interfaces are intentionally consumer-oriented instead of mirroring
-// every method exposed by service.Catalog.
+// every method exposed by apppages.Catalog.
 type pageContentService interface {
 	GetPage(context.Context, string) (domain.Page, error)
 }
@@ -61,7 +65,7 @@ type draftListService interface {
 
 type editorDraftService interface {
 	Draft(context.Context, int64, string) (domain.PageDraft, error)
-	Save(context.Context, service.PageDraftSaveInput) (domain.PageDraft, error)
+	Save(context.Context, apppages.PageDraftSaveInput) (domain.PageDraft, error)
 	Delete(context.Context, int64, string) error
 }
 
@@ -174,7 +178,7 @@ type notificationService interface {
 type webhookAdminService interface {
 	Webhooks(context.Context) ([]domain.Webhook, error)
 	WebhookDeliveries(context.Context, int) ([]domain.WebhookDelivery, error)
-	SaveWebhook(context.Context, int64, service.WebhookInput) (domain.Webhook, error)
+	SaveWebhook(context.Context, int64, appwebhooks.WebhookInput) (domain.Webhook, error)
 	DeleteWebhook(context.Context, int64) error
 	TestWebhook(context.Context, int64) error
 	RevealWebhookHeader(context.Context, int64, int64) (string, error)
@@ -223,7 +227,7 @@ type navigationService interface {
 // Page mutation interfaces follow the individual workflows rather than
 // exposing the complete Pages service to every write handler.
 type pageWriterService interface {
-	Save(context.Context, service.PageSaveInput) (domain.Page, error)
+	Save(context.Context, apppages.PageSaveInput) (domain.Page, error)
 	Delete(context.Context, string, domain.User) error
 }
 
@@ -240,12 +244,12 @@ type pageApprovalService interface {
 	ReviewGroups(context.Context) ([]domain.Group, error)
 	CanReview(context.Context, string, domain.User) (bool, error)
 	CanManageReview(domain.PageReviewRequest, domain.User) bool
-	RequestReview(context.Context, service.PageReviewRequestInput) (domain.PageReviewRequest, error)
-	UpdateReview(context.Context, service.PageReviewUpdateInput) (domain.PageReviewRequest, error)
+	RequestReview(context.Context, apppages.PageReviewRequestInput) (domain.PageReviewRequest, error)
+	UpdateReview(context.Context, apppages.PageReviewUpdateInput) (domain.PageReviewRequest, error)
 	CancelReview(context.Context, int64, string, domain.User) error
-	DecideReview(context.Context, service.PageReviewDecisionInput) error
-	ReviewDetail(context.Context, int64, string, domain.User) (service.PageReviewDetail, error)
-	AddReviewComment(context.Context, service.PageReviewCommentInput) (domain.PageReviewComment, error)
+	DecideReview(context.Context, apppages.PageReviewDecisionInput) error
+	ReviewDetail(context.Context, int64, string, domain.User) (apppages.PageReviewDetail, error)
+	AddReviewComment(context.Context, apppages.PageReviewCommentInput) (domain.PageReviewComment, error)
 	ApplyReviewSuggestion(context.Context, int64, string, int64, domain.User) (domain.Page, error)
 	ApplyAllReviewSuggestions(context.Context, int64, string, domain.User) (domain.Page, error)
 }
@@ -262,11 +266,11 @@ type pageDiscussionWriter interface {
 }
 
 type pageImportService interface {
-	Import(context.Context, []service.ImportedPage, string, domain.User) (int, error)
+	Import(context.Context, []apppages.ImportedPage, string, domain.User) (int, error)
 }
 
 type pageBulkService interface {
-	Bulk(context.Context, service.BulkPageInput) error
+	Bulk(context.Context, apppages.BulkPageInput) error
 }
 
 type preferenceService interface {
@@ -287,16 +291,16 @@ type settingsService interface {
 	ApplicationSettings(context.Context) (domain.ApplicationSettings, error)
 	PDFHeaders(context.Context) ([]domain.PDFHeader, error)
 	PDFRequestHeaders(context.Context) ([]domain.PDFHeader, error)
-	ResolvePDFRequestHeaders(context.Context, []service.PDFHeaderInput) ([]domain.PDFHeader, error)
+	ResolvePDFRequestHeaders(context.Context, []appsettings.PDFHeaderInput) ([]domain.PDFHeader, error)
 	RevealPDFHeader(context.Context, int64) (string, error)
 	SaveApplicationSettings(context.Context, domain.ApplicationSettings, int64) error
-	SavePDFSettings(context.Context, string, []service.PDFHeaderInput, int64) error
+	SavePDFSettings(context.Context, string, []appsettings.PDFHeaderInput, int64) error
 	SaveAuthenticationSettings(context.Context, domain.AuthenticationSettings, int64) error
 	RecordLocalPasswordUpdated(context.Context, domain.User)
 }
 
 type sharingService interface {
-	CreatePageShareLink(context.Context, string, domain.User) (service.IssuedPageShareLink, error)
+	CreatePageShareLink(context.Context, string, domain.User) (apppages.IssuedPageShareLink, error)
 	PageShareLink(context.Context, string) (domain.PageShareLink, error)
 }
 
@@ -309,8 +313,8 @@ type systemService interface {
 type templateService interface {
 	PageTemplates(context.Context) ([]domain.PageTemplate, error)
 	PageTemplate(context.Context, int64) (domain.PageTemplate, error)
-	CreatePageTemplate(context.Context, service.PageTemplateInput) (domain.PageTemplate, error)
-	UpdatePageTemplate(context.Context, int64, service.PageTemplateInput) error
+	CreatePageTemplate(context.Context, apptemplates.PageTemplateInput) (domain.PageTemplate, error)
+	UpdatePageTemplate(context.Context, int64, apptemplates.PageTemplateInput) error
 	DeletePageTemplate(context.Context, int64) error
 }
 
@@ -354,5 +358,5 @@ type adminUserOverviewService interface {
 
 // userAccountWriter exposes the complete account mutation without credential or settings capabilities.
 type userAccountWriter interface {
-	UpdateAccount(context.Context, service.UserUpdateInput) error
+	UpdateAccount(context.Context, appusers.UserUpdateInput) error
 }

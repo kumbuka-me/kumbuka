@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
+	apppages "github.com/kumbuka-me/kumbuka/internal/application/pages"
 	"github.com/kumbuka-me/kumbuka/internal/httpresponse"
-	"github.com/kumbuka-me/kumbuka/internal/service"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	md "github.com/kumbuka-me/kumbuka/pkg/markdown"
 	"github.com/kumbuka-me/kumbuka/pkg/navigation"
@@ -235,7 +235,7 @@ func SavePage(pageUseCases pageWriterService, accessUseCases pageAccessReader, l
 			return
 		}
 
-		page, err := pageUseCases.Save(r.Context(), service.PageSaveInput{
+		page, err := pageUseCases.Save(r.Context(), apppages.PageSaveInput{
 			PreviousSlug:       r.PathValue("slug"),
 			ExpectedUpdatedAt:  request.ExpectedUpdatedAt,
 			Slug:               slug,

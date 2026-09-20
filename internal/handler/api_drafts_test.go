@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
+	apppages "github.com/kumbuka-me/kumbuka/internal/application/pages"
 	"github.com/kumbuka-me/kumbuka/internal/auth"
-	"github.com/kumbuka-me/kumbuka/internal/service"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -26,7 +26,7 @@ type draftContractService struct {
 func (s draftContractService) Draft(context.Context, int64, string) (domain.PageDraft, error) {
 	return s.draft, nil
 }
-func (s draftContractService) Save(context.Context, service.PageDraftSaveInput) (domain.PageDraft, error) {
+func (s draftContractService) Save(context.Context, apppages.PageDraftSaveInput) (domain.PageDraft, error) {
 	return s.draft, nil
 }
 

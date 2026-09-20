@@ -6,8 +6,8 @@ import (
 	"log/slog"
 	"net/http"
 
+	appmedia "github.com/kumbuka-me/kumbuka/internal/application/media"
 	"github.com/kumbuka-me/kumbuka/internal/httpresponse"
-	"github.com/kumbuka-me/kumbuka/internal/service"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
 
@@ -63,19 +63,19 @@ func writeMediaUploadProblem(
 	text := mediaErrorTexts[kind]
 
 	switch {
-	case errors.Is(err, service.ErrEmptyFile):
+	case errors.Is(err, appmedia.ErrEmptyFile):
 		httpresponse.Problem(w,
 			http.StatusBadRequest,
 			text.title,
 			httpresponse.NewFieldProblem("file", text.empty),
 		)
-	case errors.Is(err, service.ErrFileTooLarge):
+	case errors.Is(err, appmedia.ErrFileTooLarge):
 		httpresponse.Problem(w,
 			http.StatusRequestEntityTooLarge,
 			text.title,
 			httpresponse.NewFieldProblem("file", text.tooLarge),
 		)
-	case errors.Is(err, service.ErrUnsupportedFileType):
+	case errors.Is(err, appmedia.ErrUnsupportedFileType):
 		httpresponse.Problem(w,
 			http.StatusUnsupportedMediaType,
 			text.title,
@@ -94,12 +94,12 @@ func writeMediaDeleteProblem(
 	kind mediaKind,
 ) {
 	text := mediaErrorTexts[kind]
-	inUse, isInUse := errors.AsType[*service.MediaInUseError](err)
+	inUse, isInUse := errors.AsType[*appmedia.MediaInUseError](err)
 
 	switch {
 	case errors.Is(err, domain.ErrNotFound):
 		httpresponse.Problem(w, http.StatusNotFound, text.noun+" not found.")
-	case errors.Is(err, service.ErrMediaForbidden):
+	case errors.Is(err, appmedia.ErrMediaForbidden):
 		httpresponse.Problem(w, http.StatusForbidden, text.forbidden)
 	case isInUse:
 		httpresponse.Problem(w,

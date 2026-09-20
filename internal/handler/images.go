@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"strings"
 
+	appmedia "github.com/kumbuka-me/kumbuka/internal/application/media"
 	"github.com/kumbuka-me/kumbuka/internal/httpresponse"
-	"github.com/kumbuka-me/kumbuka/internal/service"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
@@ -94,7 +94,7 @@ func UploadImage(mediaUseCases imageService, logger *slog.Logger) http.HandlerFu
 	return func(w http.ResponseWriter, r *http.Request) {
 		user := currentUser(r)
 
-		r.Body = http.MaxBytesReader(w, r.Body, service.MaxImageBytes+(1<<20))
+		r.Body = http.MaxBytesReader(w, r.Body, appmedia.MaxImageBytes+(1<<20))
 		file, header, err := r.FormFile("file")
 		if err != nil {
 			httpresponse.Problem(w,
@@ -107,7 +107,7 @@ func UploadImage(mediaUseCases imageService, logger *slog.Logger) http.HandlerFu
 
 		defer file.Close() // nolint:errcheck
 
-		data, err := io.ReadAll(io.LimitReader(file, service.MaxImageBytes+1))
+		data, err := io.ReadAll(io.LimitReader(file, appmedia.MaxImageBytes+1))
 		if err != nil {
 			httpresponse.InternalServerError(logger, w, err)
 			return

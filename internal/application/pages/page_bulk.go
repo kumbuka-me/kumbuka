@@ -1,0 +1,179 @@
+package pages
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"path"
+	"strings"
+
+	"github.com/kumbuka-me/kumbuka/pkg/domain"
+	md "github.com/kumbuka-me/kumbuka/pkg/markdown"
+)
+
+// ImportedPage contains one transport-independent page discovered by an importer.
+type ImportedPage struct {
+	// Slug is the source page path supplied by the importer.
+	Slug string
+	// Title is the imported page title.
+	Title string
+	// Markdown is the imported canonical source.
+	Markdown string
+	// Source describes the importer or source archive for revision history.
+	Source string
+}
+
+// BulkPageInput contains one mutation to apply to a set of pages.
+type BulkPageInput struct {
+	// Action selects the bulk mutation to perform.
+	Action string
+	// Slugs identifies the selected pages.
+	Slugs []string
+	// Status is the replacement lifecycle status for a status action.
+	Status string
+	// Tag is added by a tag action.
+	Tag string
+	// GroupID is assigned by a group action.
+	GroupID int64
+	// Target is the destination parent path for a move action.
+	Target string
+	// Actor is the authenticated administrator performing the bulk mutation.
+	Actor domain.User
+}
+
+// pageBulkRepository contains persistence operations that mutate sets of pages.
+type pageBulkRepository interface {
+	BulkAddPageTag(context.Context, []string, string) error
+	BulkAssignPageGroup(context.Context, []string, int64) error
+	BulkDeletePages(context.Context, []string, int64) error
+	BulkMovePages(context.Context, []string, string, domain.User) error
+	BulkSetPageStatus(context.Context, []string, string) error
+}
+
+// Import persists imported pages while retaining workflow metadata on replacements.
+func (s *Pages) Import(ctx context.Context, candidates []ImportedPage, format string, actor domain.User) (int, error) {
+	for _, candidate := range candidates {
+		if err := s.importPage(ctx, candidate, actor); err != nil {
+			return 0, err
+		}
+	}
+
+	s.recordAudit(
+		ctx,
+		actor.ID,
+		"pages.imported",
+		"import",
+		format,
+		fmt.Sprintf("Imported %d pages", len(candidates)),
+	)
+
+	return len(candidates), nil
+}
+
+// importPage persists one import candidate while retaining existing metadata.
+func (s *Pages) importPage(ctx context.Context, candidate ImportedPage, actor domain.User) error {
+	slug := md.Slug(candidate.Slug)
+	if slug == "" {
+		return domain.NewValidationError("slug", fmt.Sprintf("Invalid imported page path %q.", candidate.Slug))
+	}
+
+	input := PageSaveInput{
+		Slug:       slug,
+		Title:      candidate.Title,
+		Markdown:   candidate.Markdown,
+		Message:    "Imported from " + candidate.Source,
+		Status:     "verified",
+		Properties: map[string]string{},
+		Actor:      actor,
+	}
+	current, err := s.repository.GetPage(ctx, slug)
+
+	if err == nil {
+		input.Icon = current.Icon
+		input.Language = current.Language
+		input.Tags = current.Tags
+		input.Status = current.Status
+		input.OwnerGroupID = current.OwnerGroupID
+		input.ReviewIntervalDays = current.ReviewIntervalDays
+		input.DeprecatedTarget = current.DeprecatedTarget
+		input.GroupIDs = make([]int64, 0, len(current.Groups))
+
+		for _, group := range current.Groups {
+			input.GroupIDs = append(input.GroupIDs, group.ID)
+		}
+		for _, property := range current.Properties {
+			input.Properties[property.Key] = property.Value
+		}
+	} else if !errors.Is(err, domain.ErrNotFound) {
+		return err
+	}
+
+	_, err = s.save(ctx, input)
+
+	return err
+}
+
+// Bulk applies one administrative mutation and records a single audit event.
+func (s *Pages) Bulk(ctx context.Context, input BulkPageInput) error {
+	if len(input.Slugs) == 0 {
+		return domain.NewValidationError("pages", "Select at least one page.")
+	}
+
+	var err error
+
+	switch input.Action {
+	case "status":
+		if !domain.ValidPageStatus(input.Status) {
+			return domain.NewValidationError("status", "Choose a valid page status.")
+		}
+		err = s.repository.BulkSetPageStatus(ctx, input.Slugs, input.Status)
+	case "tag":
+		if strings.TrimSpace(input.Tag) == "" {
+			return domain.NewValidationError("tag", "Enter a tag.")
+		}
+		err = s.repository.BulkAddPageTag(ctx, input.Slugs, input.Tag)
+	case "group":
+		if input.GroupID <= 0 {
+			return domain.NewValidationError("group_id", "Choose a valid group.")
+		}
+		err = s.repository.BulkAssignPageGroup(ctx, input.Slugs, input.GroupID)
+	case "move":
+		err = s.bulkMove(ctx, input.Slugs, input.Target, input.Actor)
+	case "delete":
+		err = s.repository.BulkDeletePages(ctx, input.Slugs, input.Actor.ID)
+	default:
+		return domain.NewValidationError("action", "Choose a valid bulk action.")
+	}
+
+	if err != nil {
+		return err
+	}
+
+	s.recordAudit(
+		ctx,
+		input.Actor.ID,
+		"page.bulk_"+input.Action,
+		"page",
+		strings.Join(input.Slugs, ","),
+		fmt.Sprintf("%d pages", len(input.Slugs)),
+	)
+
+	return nil
+}
+
+// bulkMove validates the requested target and delegates the complete move set as one transaction.
+func (s *Pages) bulkMove(ctx context.Context, slugs []string, target string, actor domain.User) error {
+	target = md.Slug(target)
+	if target == "" {
+		return domain.NewValidationError("target", "A target path is required.")
+	}
+
+	for _, slug := range slugs {
+		source := strings.Trim(strings.TrimSpace(slug), "/")
+		if source == "" || source == target+"/"+path.Base(source) {
+			return domain.NewValidationError("target", "Choose a different destination for every selected page.")
+		}
+	}
+
+	return s.repository.BulkMovePages(ctx, slugs, target, actor)
+}

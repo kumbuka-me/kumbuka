@@ -6,12 +6,12 @@ import (
 	"log/slog"
 	"net/http"
 
+	appplugins "github.com/kumbuka-me/kumbuka/internal/application/plugins"
 	"github.com/kumbuka-me/kumbuka/internal/auth"
 	"github.com/kumbuka-me/kumbuka/internal/flags"
 	"github.com/kumbuka-me/kumbuka/internal/pluginupdate"
 	"github.com/kumbuka-me/kumbuka/internal/routes"
 	"github.com/kumbuka-me/kumbuka/internal/secrets"
-	"github.com/kumbuka-me/kumbuka/internal/service"
 	"github.com/kumbuka-me/kumbuka/internal/store"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/icons"
@@ -28,7 +28,7 @@ type applicationRuntime struct {
 	// renderer owns plugin runtime resources that must be closed during shutdown.
 	renderer *markdown.Renderer
 	// pluginUpdates performs optional scheduled first-party catalog refreshes.
-	pluginUpdates *service.PluginUpdates
+	pluginUpdates *appplugins.PluginUpdates
 }
 
 // newApplicationRuntime composes runtime-bound authentication, plugins, views, and routes.
@@ -146,8 +146,8 @@ func newPluginUpdateService(
 	renderer *markdown.Renderer,
 	database *store.Store,
 	logger *slog.Logger,
-) *service.PluginUpdates {
-	return service.NewPluginUpdates(
+) *appplugins.PluginUpdates {
+	return appplugins.NewPluginUpdates(
 		pluginupdate.New(pluginupdate.DefaultCatalogURL),
 		renderer.PluginManager(),
 		database,

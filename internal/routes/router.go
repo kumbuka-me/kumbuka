@@ -5,10 +5,26 @@ import (
 	"log/slog"
 	"net/http"
 
+	appaccess "github.com/kumbuka-me/kumbuka/internal/application/access"
+	appadministration "github.com/kumbuka-me/kumbuka/internal/application/administration"
+	appgroups "github.com/kumbuka-me/kumbuka/internal/application/groups"
+	appmedia "github.com/kumbuka-me/kumbuka/internal/application/media"
+	appnavigation "github.com/kumbuka-me/kumbuka/internal/application/navigation"
+	appnotifications "github.com/kumbuka-me/kumbuka/internal/application/notifications"
+	apppages "github.com/kumbuka-me/kumbuka/internal/application/pages"
+	appplugins "github.com/kumbuka-me/kumbuka/internal/application/plugins"
+	apppreferences "github.com/kumbuka-me/kumbuka/internal/application/preferences"
+	apprecyclebin "github.com/kumbuka-me/kumbuka/internal/application/recyclebin"
+	appsearch "github.com/kumbuka-me/kumbuka/internal/application/search"
+	appsettings "github.com/kumbuka-me/kumbuka/internal/application/settings"
+	appsystem "github.com/kumbuka-me/kumbuka/internal/application/system"
+	apptemplates "github.com/kumbuka-me/kumbuka/internal/application/templates"
+	apptokens "github.com/kumbuka-me/kumbuka/internal/application/tokens"
+	appusers "github.com/kumbuka-me/kumbuka/internal/application/users"
+	appwebhooks "github.com/kumbuka-me/kumbuka/internal/application/webhooks"
 	"github.com/kumbuka-me/kumbuka/internal/auth"
 	"github.com/kumbuka-me/kumbuka/internal/handler"
 	"github.com/kumbuka-me/kumbuka/internal/middleware"
-	"github.com/kumbuka-me/kumbuka/internal/service"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/kumbuka-me/kumbuka/pkg/markdown"
@@ -23,47 +39,47 @@ type Config struct {
 	// Renderer renders Markdown and owns the active plugin manager.
 	Renderer *markdown.Renderer
 	// PluginUpdates schedules, discovers, and downloads compatible first-party plugin releases.
-	PluginUpdates *service.PluginUpdates
+	PluginUpdates *appplugins.PluginUpdates
 	// BrowserAuth contains browser authentication handlers and identity resolution.
 	BrowserAuth auth.BrowserAuth
 	// BearerAuth authenticates API requests that use personal access tokens.
 	BearerAuth auth.Authenticator
 	// Administration provides administrator-facing application use cases.
-	Administration *service.Administration
+	Administration *appadministration.Administration
 	// Access provides page authorization and access-policy use cases.
-	Access *service.Access
+	Access *appaccess.Access
 	// Catalog provides page lookup, search, and catalog use cases.
-	Catalog *service.Catalog
+	Catalog *apppages.Catalog
 	// Drafts provides page-draft use cases.
-	Drafts *service.Drafts
+	Drafts *apppages.Drafts
 	// Groups provides group-management use cases.
-	Groups *service.Groups
+	Groups *appgroups.Groups
 	// Knowledge provides knowledge-graph and saved-search use cases.
-	Knowledge *service.Knowledge
+	Knowledge *appsearch.Knowledge
 	// Notifications provides notification use cases.
-	Notifications *service.Notifications
+	Notifications *appnotifications.Notifications
 	// Media provides image and attachment use cases.
-	Media *service.Media
+	Media *appmedia.Media
 	// Navigation provides navigation-tree and icon use cases.
-	Navigation *service.Navigation
+	Navigation *appnavigation.Navigation
 	// Pages provides page mutation and collaboration use cases.
-	Pages *service.Pages
+	Pages *apppages.Pages
 	// Preferences provides per-user preference use cases.
-	Preferences *service.Preferences
+	Preferences *apppreferences.Preferences
 	// RecycleBin provides deleted-page lifecycle use cases.
-	RecycleBin *service.RecycleBin
+	RecycleBin *apprecyclebin.RecycleBin
 	// Settings provides application-settings use cases.
-	Settings *service.Settings
+	Settings *appsettings.Settings
 	// System provides health and setup-state use cases.
-	System *service.System
+	System *appsystem.System
 	// Templates provides page-template use cases.
-	Templates *service.Templates
+	Templates *apptemplates.Templates
 	// Tokens provides personal and administrator token use cases.
-	Tokens *service.Tokens
+	Tokens *apptokens.Tokens
 	// Users provides user and external-identity use cases.
-	Users *service.Users
+	Users *appusers.Users
 	// Webhooks provides webhook configuration and delivery use cases.
-	Webhooks *service.Webhooks
+	Webhooks *appwebhooks.Webhooks
 	// ViewData loads shared page chrome and navigation data.
 	ViewData *webview.Loader
 	// Logger records request, handler, and middleware diagnostics.

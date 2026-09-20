@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kumbuka-me/kumbuka/internal/service"
+	appwebhooks "github.com/kumbuka-me/kumbuka/internal/application/webhooks"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -20,10 +20,10 @@ import (
 type webhookAdminSaveStub struct {
 	webhookAdminService
 	id    int64
-	input service.WebhookInput
+	input appwebhooks.WebhookInput
 }
 
-func (s *webhookAdminSaveStub) SaveWebhook(_ context.Context, id int64, input service.WebhookInput) (domain.Webhook, error) {
+func (s *webhookAdminSaveStub) SaveWebhook(_ context.Context, id int64, input appwebhooks.WebhookInput) (domain.Webhook, error) {
 	s.id = id
 	s.input = input
 	return domain.Webhook{ID: id}, nil
@@ -74,8 +74,8 @@ func TestSaveAdminWebhookParsesDeliveryConfiguration(t *testing.T) {
 	assert.Equal(t, 45*time.Second, stub.input.RetryMaxBackoff)
 	assert.True(t, stub.input.RetryJitter)
 	require.Len(t, stub.input.Headers, 2)
-	assert.Equal(t, service.WebhookHeaderInput{ID: 7, Name: "Authorization", Sensitive: true}, stub.input.Headers[0])
-	assert.Equal(t, service.WebhookHeaderInput{Name: "X-Environment", Value: "production"}, stub.input.Headers[1])
+	assert.Equal(t, appwebhooks.WebhookHeaderInput{ID: 7, Name: "Authorization", Sensitive: true}, stub.input.Headers[0])
+	assert.Equal(t, appwebhooks.WebhookHeaderInput{Name: "X-Environment", Value: "production"}, stub.input.Headers[1])
 }
 
 func TestWebhookHeadersFromFormRejectsDuplicateRows(t *testing.T) {

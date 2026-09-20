@@ -15,10 +15,10 @@ import (
 	"strconv"
 	"strings"
 
+	apppages "github.com/kumbuka-me/kumbuka/internal/application/pages"
 	"github.com/kumbuka-me/kumbuka/internal/httpresponse"
 	"github.com/kumbuka-me/kumbuka/internal/importer"
 	"github.com/kumbuka-me/kumbuka/internal/portable"
-	"github.com/kumbuka-me/kumbuka/internal/service"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
 
@@ -31,7 +31,7 @@ type portableArchiveImportMediaService interface {
 // portableArchivePageImportService combines legacy imports with portable archive page restoration.
 type portableArchivePageImportService interface {
 	pageImportService
-	ImportPortable(context.Context, []service.PortableImportedPage, domain.User) (int, error)
+	ImportPortable(context.Context, []apppages.PortableImportedPage, domain.User) (int, error)
 }
 
 // portableArchiveGroupService resolves and creates collaboration groups referenced by an archive.
@@ -194,7 +194,7 @@ func restorePortableArchive(
 		return 0, err
 	}
 
-	pages := make([]service.PortableImportedPage, 0, len(archive.Pages))
+	pages := make([]apppages.PortableImportedPage, 0, len(archive.Pages))
 	for _, pageData := range archive.Pages {
 		markdown, err := restorePortableResourceReferences(pageData.Entry.Markdown, pageData.Markdown, replacements)
 		if err != nil {
@@ -211,7 +211,7 @@ func restorePortableArchive(
 			}
 		}
 
-		pages = append(pages, service.PortableImportedPage{
+		pages = append(pages, apppages.PortableImportedPage{
 			Slug:               pageData.Metadata.Slug,
 			Title:              pageData.Metadata.Title,
 			Icon:               pageData.Metadata.Icon,

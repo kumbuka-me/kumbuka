@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/kumbuka-me/kumbuka/internal/service"
+	apppages "github.com/kumbuka-me/kumbuka/internal/application/pages"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -18,15 +18,15 @@ import (
 type pageApprovalRouteStub struct {
 	pageApprovalService
 	// update captures the last review update request.
-	update service.PageReviewUpdateInput
+	update apppages.PageReviewUpdateInput
 	// cancelledSlug captures the page path used to cancel a review.
 	cancelledSlug string
 	// decision captures the last review decision request.
-	decision service.PageReviewDecisionInput
+	decision apppages.PageReviewDecisionInput
 }
 
 // UpdateReview captures one review update request.
-func (s *pageApprovalRouteStub) UpdateReview(_ context.Context, input service.PageReviewUpdateInput) (domain.PageReviewRequest, error) {
+func (s *pageApprovalRouteStub) UpdateReview(_ context.Context, input apppages.PageReviewUpdateInput) (domain.PageReviewRequest, error) {
 	s.update = input
 	return domain.PageReviewRequest{}, nil
 }
@@ -38,7 +38,7 @@ func (s *pageApprovalRouteStub) CancelReview(_ context.Context, _ int64, slug st
 }
 
 // DecideReview captures one review decision request.
-func (s *pageApprovalRouteStub) DecideReview(_ context.Context, input service.PageReviewDecisionInput) error {
+func (s *pageApprovalRouteStub) DecideReview(_ context.Context, input apppages.PageReviewDecisionInput) error {
 	s.decision = input
 	return nil
 }

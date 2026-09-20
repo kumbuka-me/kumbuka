@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"strings"
 
+	apppages "github.com/kumbuka-me/kumbuka/internal/application/pages"
 	"github.com/kumbuka-me/kumbuka/internal/httpresponse"
-	"github.com/kumbuka-me/kumbuka/internal/service"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/revision"
 )
@@ -74,7 +74,7 @@ func AddPageReviewComment(pageUseCases pageApprovalService, views *webview.Views
 		}
 
 		slug := strings.TrimSpace(r.PathValue("slug"))
-		comment, err := pageUseCases.AddReviewComment(r.Context(), service.PageReviewCommentInput{
+		comment, err := pageUseCases.AddReviewComment(r.Context(), apppages.PageReviewCommentInput{
 			ReviewID:    reviewID,
 			Slug:        slug,
 			Side:        strings.TrimSpace(r.FormValue("side")),

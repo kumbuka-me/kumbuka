@@ -7,18 +7,18 @@ import (
 	"testing"
 	"testing/fstest"
 
-	"github.com/kumbuka-me/kumbuka/internal/service"
+	appsettings "github.com/kumbuka-me/kumbuka/internal/application/settings"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 type brandLogoServiceStub struct {
-	logo service.BrandLogo
+	logo appsettings.BrandLogo
 	err  error
 }
 
-func (s *brandLogoServiceStub) BrandLogo(context.Context) (service.BrandLogo, error) {
+func (s *brandLogoServiceStub) BrandLogo(context.Context) (appsettings.BrandLogo, error) {
 	return s.logo, s.err
 }
 
@@ -33,7 +33,7 @@ func (*brandLogoServiceStub) ClearBrandLogo(context.Context, int64) error {
 func TestBrandLogoServesCustomLogo(t *testing.T) {
 	t.Parallel()
 
-	settings := &brandLogoServiceStub{logo: service.BrandLogo{
+	settings := &brandLogoServiceStub{logo: appsettings.BrandLogo{
 		ContentType: "image/png",
 		Data:        []byte("custom-logo"),
 	}}

@@ -8,17 +8,17 @@ import (
 	"log/slog"
 	"net/http"
 
+	appsettings "github.com/kumbuka-me/kumbuka/internal/application/settings"
 	"github.com/kumbuka-me/kumbuka/internal/httpresponse"
-	"github.com/kumbuka-me/kumbuka/internal/service"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
 
-const maxBrandLogoRequestBytes = service.MaxBrandLogoBytes + (1 << 20)
+const maxBrandLogoRequestBytes = appsettings.MaxBrandLogoBytes + (1 << 20)
 
 // brandLogoService exposes the branding operations required by HTTP handlers.
 type brandLogoService interface {
-	BrandLogo(context.Context) (service.BrandLogo, error)
+	BrandLogo(context.Context) (appsettings.BrandLogo, error)
 	SaveBrandLogo(context.Context, string, []byte, int64) error
 	ClearBrandLogo(context.Context, int64) error
 }
@@ -80,7 +80,7 @@ func BrandLogo(
 func SaveAdminBrandLogo(settingsUseCases brandLogoService, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		r.Body = http.MaxBytesReader(w, r.Body, maxBrandLogoRequestBytes)
-		if err := r.ParseMultipartForm(service.MaxBrandLogoBytes); err != nil {
+		if err := r.ParseMultipartForm(appsettings.MaxBrandLogoBytes); err != nil {
 			httpresponse.Problem(w, http.StatusBadRequest, "Logo upload is too large or invalid.")
 			return
 		}
@@ -99,7 +99,7 @@ func SaveAdminBrandLogo(settingsUseCases brandLogoService, logger *slog.Logger) 
 			return
 		}
 
-		data, readErr := io.ReadAll(io.LimitReader(file, service.MaxBrandLogoBytes+1))
+		data, readErr := io.ReadAll(io.LimitReader(file, appsettings.MaxBrandLogoBytes+1))
 		closeErr := file.Close()
 		if readErr != nil {
 			httpresponse.InternalServerError(logger, w, readErr)

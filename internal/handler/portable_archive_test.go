@@ -12,8 +12,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	apppages "github.com/kumbuka-me/kumbuka/internal/application/pages"
 	"github.com/kumbuka-me/kumbuka/internal/portable"
-	"github.com/kumbuka-me/kumbuka/internal/service"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -151,18 +151,18 @@ func TestImportPagesWithPortableArchiveAutoDetectsKumbukaZip(t *testing.T) {
 // portableRestorePagesStub records pages passed to the portable service import.
 type portableRestorePagesStub struct {
 	// Pages contains the reconstructed page mutations.
-	Pages []service.PortableImportedPage
+	Pages []apppages.PortableImportedPage
 }
 
 // Import satisfies the legacy page import contract used by the combined handler.
-func (*portableRestorePagesStub) Import(context.Context, []service.ImportedPage, string, domain.User) (int, error) {
+func (*portableRestorePagesStub) Import(context.Context, []apppages.ImportedPage, string, domain.User) (int, error) {
 	return 0, nil
 }
 
 // ImportPortable records portable page mutations.
 func (s *portableRestorePagesStub) ImportPortable(
 	_ context.Context,
-	pages []service.PortableImportedPage,
+	pages []apppages.PortableImportedPage,
 	_ domain.User,
 ) (int, error) {
 	s.Pages = pages
