@@ -23,9 +23,9 @@ type pagePresenceStub struct {
 	left    bool
 }
 
-func (s *pagePresenceStub) PageEditors(_ context.Context, slug string, userID int64) ([]domain.PageEditorPresence, error) {
+func (s *pagePresenceStub) PageEditors(_ context.Context, slug string, user domain.User) ([]domain.PageEditorPresence, error) {
 	s.slug = slug
-	s.userID = userID
+	s.userID = user.ID
 	return s.editors, nil
 }
 

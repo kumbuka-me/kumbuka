@@ -51,7 +51,7 @@ func TestPagesEditorPresenceUsesBoundedHeartbeatWindow(t *testing.T) {
 	repository := &pagePresenceRepositoryStub{editors: []domain.PageEditorPresence{{UserID: 8, Name: "Anna"}}}
 	pages := NewPages(repository, nil, slog.New(slog.NewTextHandler(io.Discard, nil)))
 
-	editors, err := pages.PageEditors(context.Background(), " guide ", 7)
+	editors, err := pages.PageEditors(context.Background(), " guide ", domain.User{ID: 7})
 
 	require.NoError(t, err)
 	require.Len(t, editors, 1)
