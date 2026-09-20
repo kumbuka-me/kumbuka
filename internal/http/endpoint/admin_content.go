@@ -7,6 +7,7 @@ import (
 
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
+	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
 
 // AdminDocumentationHealth renders actionable wiki documentation-quality findings.
@@ -151,4 +152,49 @@ func AdminImages(
 
 		views.Render(w, "admin_images", data)
 	}
+}
+
+// AdminAttachments renders uploaded attachments and their reference counts.
+func AdminAttachments(
+	browserContext browserContextLoader,
+	mediaUseCases attachmentAdminService,
+	views *webview.Views,
+) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		layout, err := administrationData(r, browserContext, views, "Attachments", "attachments")
+		data := webview.AdminAttachmentsView{Layout: layout}
+		if err != nil {
+			httpresponse.InternalServerError(views.Logger(), w, err)
+			return
+		}
+
+		data.AttachmentQuery = strings.TrimSpace(r.URL.Query().Get("attachment_q"))
+		attachments, err := mediaUseCases.Attachments(r.Context())
+		if err != nil {
+			httpresponse.InternalServerError(views.Logger(), w, err)
+			return
+		}
+
+		data.Attachments = filterAdminAttachments(attachments, data.AttachmentQuery)
+		views.Render(w, "admin_attachments", data)
+	}
+}
+
+// filterAdminAttachments applies the administrator attachment search to metadata only.
+func filterAdminAttachments(items []domain.Attachment, query string) []domain.Attachment {
+	query = strings.ToLower(strings.TrimSpace(query))
+	if query == "" {
+		return items
+	}
+
+	filtered := make([]domain.Attachment, 0, len(items))
+	for _, item := range items {
+		if strings.Contains(strings.ToLower(item.Filename), query) ||
+			strings.Contains(strings.ToLower(item.Uploader), query) ||
+			strings.Contains(strings.ToLower(item.ContentType), query) {
+			filtered = append(filtered, item)
+		}
+	}
+
+	return filtered
 }

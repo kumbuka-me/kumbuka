@@ -77,6 +77,16 @@
   color: var(--text);
 }
 
+.admin-table-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-table-actions form {
+  margin: 0;
+}
+
 .inline-create-form {
   display: flex;
   gap: 8px;

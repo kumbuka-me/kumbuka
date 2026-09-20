@@ -58,6 +58,10 @@
          {{ if eq .AdminSection "images" }}class="active"
          aria-current="page"
          {{ end }}>{{ icon "images-lucide" 17 }}<span>Images</span></a>
+      <a href="/admin/attachments"
+         {{ if eq .AdminSection "attachments" }}class="active"
+         aria-current="page"
+         {{ end }}>{{ icon "paperclip-lucide" 17 }}<span>Attachments</span></a>
       <a href="/admin/import"
          {{ if eq .AdminSection "import" }}class="active"
          aria-current="page"

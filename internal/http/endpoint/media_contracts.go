@@ -34,6 +34,12 @@ type imageService interface {
 	DeleteImage(context.Context, int64, domain.User) error
 }
 
+// attachmentAdminService supplies attachment inventory and administrator deletion.
+type attachmentAdminService interface {
+	Attachments(context.Context) ([]domain.Attachment, error)
+	DeleteAttachment(context.Context, int64, domain.User) error
+}
+
 // attachmentService owns attachment listing, upload, download, and deletion endpoints.
 type attachmentService interface {
 	Attachments(context.Context) ([]domain.Attachment, error)

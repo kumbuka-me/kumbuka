@@ -1,0 +1,74 @@
+{{ define "content" }}
+  <section class="admin-page">
+    <div class="settings-heading">
+      <p class="eyebrow">Administration</p>
+      <h1>Attachments</h1>
+      <p class="muted">Inspect uploaded non-image files, reference counts, and remove files when appropriate.</p>
+    </div>
+    <section class="panel settings-panel" id="attachments">
+      <div class="panel-title">
+        <h2>All attachments</h2>
+        <span class="muted">{{ len .Attachments }} shown</span>
+      </div>
+      <p class="settings-note">
+        Usage counts show how many active pages reference each attachment. Administrators may remove referenced attachments; doing so leaves broken links in affected pages.
+      </p>
+      <form class="media-settings-search"
+            method="get"
+            action="/admin/attachments#attachments">
+        <input type="search"
+               name="attachment_q"
+               value="{{ .AttachmentQuery }}"
+               maxlength="200"
+               placeholder="Search by filename, uploader, or type…"
+               aria-label="Search attachments" />
+        <button class="button" type="submit">{{ icon "search-lucide" 16 }}<span>Search</span></button>
+        {{ if .AttachmentQuery }}<a class="button" href="/admin/attachments#attachments">Clear</a>{{ end }}
+      </form>
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>Filename</th>
+              <th>Type</th>
+              <th>Size</th>
+              <th>Uploader</th>
+              <th>Usage</th>
+              <th>Uploaded</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {{ range .Attachments }}
+              <tr>
+                <td><a href="/attachments/{{ .ID }}/{{ .Filename }}">{{ .Filename }}</a></td>
+                <td><code>{{ .ContentType }}</code></td>
+                <td>{{ filesize .SizeBytes }}</td>
+                <td>{{ if .Uploader }}{{ .Uploader }}{{ else }}Unknown uploader{{ end }}</td>
+                <td>
+                  {{ if gt .UsageCount 0 }}Used by {{ .UsageCount }} page{{ if ne .UsageCount 1 }}s{{ end }}{{ else }}Unused{{ end }}
+                </td>
+                <td>{{ timeago .CreatedAt }}</td>
+                <td>
+                  <div class="admin-table-actions">
+                    <a class="button compact" href="/attachments/{{ .ID }}/{{ .Filename }}">Download</a>
+                    <form method="post"
+                          action="/admin/attachments/{{ .ID }}/delete"
+                          data-confirm="Delete {{ .Filename }}?"
+                          data-confirm-label="Delete attachment">
+                      <button class="button compact danger" type="submit">Delete</button>
+                    </form>
+                  </div>
+                </td>
+              </tr>
+            {{ else }}
+              <tr>
+                <td colspan="7">{{ if .AttachmentQuery }}No attachments match your search.{{ else }}No attachments uploaded yet.{{ end }}</td>
+              </tr>
+            {{ end }}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </section>
+{{ end }}

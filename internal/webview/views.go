@@ -61,6 +61,7 @@ var pageTemplateNames = []string{
 	"admin_tokens",
 	"admin_exports",
 	"admin_images",
+	"admin_attachments",
 	"admin_navigation",
 	"admin_bin",
 }

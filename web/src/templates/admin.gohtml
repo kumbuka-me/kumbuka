@@ -52,7 +52,7 @@
         <a href="/admin/pages"><strong>{{ .AdminStats.Pages }}</strong><span>Pages</span></a>
         <a href="/admin/tags"><strong>{{ .AdminStats.Tags }}</strong><span>Tags</span></a>
         <a href="/admin/images"><strong>{{ .AdminStats.Images }}</strong><span>Images</span></a>
-        <div><strong>{{ .AttachmentCount }}</strong><span>Attachments</span></div>
+        <a href="/admin/attachments"><strong>{{ .AttachmentCount }}</strong><span>Attachments</span></a>
         <a href="/admin/bin"><strong>{{ .AdminStats.DeletedPages }}</strong><span>In bin</span></a>
         <a href="/admin/tokens"><strong>{{ .AdminStats.Tokens }}</strong><span>Tokens</span></a>
       </div>
@@ -126,6 +126,7 @@
            href="/admin/exports"><strong>Exports</strong><span>Export one, several, or all pages with media.</span></a>
         <a class="panel admin-overview-card"
            href="/admin/images"><strong>Images</strong><span>Inspect references and clean up uploaded media.</span></a>
+        <a class="panel admin-overview-card" href="/admin/attachments"><strong>Attachments</strong><span>Inspect references, download files, and remove uploaded attachments.</span></a>
       </div>
     </section>
   </section>

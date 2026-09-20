@@ -178,6 +178,8 @@ func (r routeRegistrar) addAdminRoutes() {
 	r.router.Handle("GET /admin/tokens", browserAuthn(adminAuthz(endpoint.AdminTokens(config.BrowserContext, config.Users, config.Tokens, config.Views))))
 	r.router.Handle("GET /admin/exports", browserAuthn(adminAuthz(endpoint.AdminExports(config.BrowserContext, config.Navigation, config.Views))))
 	r.router.Handle("GET /admin/images", browserAuthn(adminAuthz(endpoint.AdminImages(config.BrowserContext, config.Media, config.Views))))
+	r.router.Handle("GET /admin/attachments", browserAuthn(adminAuthz(endpoint.AdminAttachments(config.BrowserContext, config.Media, config.Views))))
+	r.router.Handle("POST /admin/attachments/{id}/delete", browserAuthn(adminAuthz(endpoint.DeleteAdminAttachment(config.Media, config.Views))))
 	r.router.Handle("POST /admin/settings", browserAuthn(adminAuthz(endpoint.SaveAdminSettings(config.Settings, config.Views, config.Logger))))
 	r.router.Handle(
 		"POST /admin/branding/logo",
