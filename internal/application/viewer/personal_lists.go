@@ -1,4 +1,4 @@
-package webview
+package viewer
 
 import (
 	"context"
@@ -6,8 +6,8 @@ import (
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
 
-// personalWidgetSource binds personal page lists to the authenticated viewer and access policy.
-type personalWidgetSource struct {
+// PersonalLists binds personal page lists to the authenticated viewer and access policy.
+type PersonalLists struct {
 	// catalog loads personal page lists.
 	catalog sidebarCatalogReader
 	// access filters those lists for the current viewer.
@@ -17,7 +17,7 @@ type personalWidgetSource struct {
 }
 
 // Favorites returns visible favorites for the current viewer.
-func (s personalWidgetSource) Favorites(ctx context.Context, limit int) ([]domain.Page, error) {
+func (s PersonalLists) Favorites(ctx context.Context, limit int) ([]domain.Page, error) {
 	pages, err := s.catalog.Favorites(ctx, s.user.ID)
 	if err != nil {
 		return nil, err
@@ -30,7 +30,7 @@ func (s personalWidgetSource) Favorites(ctx context.Context, limit int) ([]domai
 }
 
 // RecentViewed returns visible recently viewed pages for the current viewer.
-func (s personalWidgetSource) RecentViewed(ctx context.Context, limit int) ([]domain.Page, error) {
+func (s PersonalLists) RecentViewed(ctx context.Context, limit int) ([]domain.Page, error) {
 	pages, err := s.catalog.RecentViewed(ctx, s.user.ID, limit)
 	if err != nil {
 		return nil, err

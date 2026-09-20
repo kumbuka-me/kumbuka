@@ -1,6 +1,8 @@
 package app
 
 import (
+	"github.com/kumbuka-me/kumbuka/internal/application/viewer"
+	"github.com/kumbuka-me/kumbuka/internal/http/endpoint"
 	"io/fs"
 	"log/slog"
 	"time"
@@ -148,8 +150,8 @@ func configurePluginAwareServices(config *routes.Config, renderer *markdown.Rend
 }
 
 // newViewDataLoader wires the shared authenticated view-data aggregation boundary.
-func newViewDataLoader(config routes.Config) *webview.Loader {
-	return webview.NewLoader(
+func newViewDataLoader(config routes.Config) *endpoint.BrowserContext {
+	return endpoint.NewBrowserContext(viewer.New(
 		config.Preferences,
 		config.Navigation,
 		config.Catalog,
@@ -157,6 +159,6 @@ func newViewDataLoader(config routes.Config) *webview.Loader {
 		config.Knowledge,
 		config.Notifications,
 		config.Access,
-		config.Renderer,
+	), config.Renderer,
 	)
 }

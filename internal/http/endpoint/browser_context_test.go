@@ -1,8 +1,11 @@
-package webview
+package endpoint
 
 import (
 	"context"
 	"errors"
+	"github.com/kumbuka-me/kumbuka/internal/application/viewer"
+	"github.com/kumbuka-me/kumbuka/internal/webview"
+	"github.com/kumbuka-me/kumbuka/web"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -15,49 +18,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-func TestPublicPluginData(t *testing.T) {
-	t.Parallel()
-
-	views := &Views{}
-
-	data, err := views.PublicPluginData("Shared page", nil)
-
-	require.NoError(t, err)
-	assert.Equal(t, "Shared page", data.Title)
-	assert.Equal(t, "[]", string(data.PluginModules))
-	assert.NotEmpty(t, data.PluginStylesVersion)
-}
-
-func TestPublicViewData(t *testing.T) {
-	t.Parallel()
-
-	availableThemes := []themes.Theme{
-		{Title: "Light", ColorScheme: "light"},
-		{Title: "Dark", ColorScheme: "dark"},
-	}
-	views := &Views{
-		version:      "v1.2.3",
-		commit:       "abc123",
-		assetVersion: "0123456789abcdef",
-		themes:       availableThemes,
-		runtime:      RuntimeInfo{PublicURL: "https://kumbuka.example.test"},
-	}
-
-	data, err := views.PublicData("Sign in")
-
-	require.NoError(t, err)
-	assert.Equal(t, "Sign in", data.Title)
-	assert.Equal(t, themes.DefaultTheme, data.ActiveTheme)
-	assert.Equal(t, themes.DefaultTheme, data.Preferences.Theme)
-	assert.Equal(t, "v1.2.3", data.Version)
-	assert.Equal(t, "abc123", data.Commit)
-	assert.Equal(t, "0123456789abcdef", data.AssetVersion)
-	assert.Equal(t, views.Runtime(), data.Runtime)
-	assert.Equal(t, availableThemes, data.Themes)
-	assert.Contains(t, string(data.ThemeData), `"title":"Light"`)
-	assert.Contains(t, string(data.ThemeData), `"title":"Dark"`)
-}
 
 func TestViewDataLoaderLoad(t *testing.T) {
 	t.Parallel()
@@ -72,7 +32,7 @@ func TestViewDataLoaderLoad(t *testing.T) {
 		preferences.ShowNavigationPageCounts = true
 		preferences.ExpandedNavigation = []string{"platforms"}
 
-		loader := NewLoader(
+		loader := newTestBrowserContext(
 			viewDataPreferenceStub{preferences: preferences},
 			viewDataNavigationStub{
 				pages: []domain.Page{
@@ -112,16 +72,11 @@ func TestViewDataLoaderLoad(t *testing.T) {
 			}},
 			nil,
 		)
-		views := &Views{
-			version:      "v1.2.3",
-			commit:       "abc123",
-			assetVersion: "0123456789abcdef",
-			themes: []themes.Theme{
-				{Title: "Light", ColorScheme: "light"},
-				{Title: "Dark", ColorScheme: "dark"},
-			},
-			runtime: RuntimeInfo{PublicURL: "https://kumbuka.example.test"},
-		}
+		views, err := webview.New(web.Assets, testViewsLogger(), "v1.2.3", "abc123", []themes.Theme{
+			{Title: "Light", ColorScheme: "light"}, {Title: "Dark", ColorScheme: "dark"},
+		}, webview.RuntimeInfo{PublicURL: "https://kumbuka.example.test"})
+		require.NoError(t, err)
+
 		request := auth.WithUser(
 			httptest.NewRequest(http.MethodGet, "/pages/platforms/kubernetes", nil),
 			user,
@@ -141,7 +96,7 @@ func TestViewDataLoaderLoad(t *testing.T) {
 		assert.Equal(t, "de-CH", data.PageContentLanguage)
 		assert.Equal(t, "v1.2.3", data.Version)
 		assert.Equal(t, "abc123", data.Commit)
-		assert.Equal(t, "0123456789abcdef", data.AssetVersion)
+		assert.Equal(t, views.AssetVersion(), data.AssetVersion)
 		assert.Len(t, data.SavedSearches, 1)
 		assert.Len(t, data.Notifications, 1)
 		assert.Equal(t, 1, data.UnreadNotifications)
@@ -165,7 +120,7 @@ func TestViewDataLoaderLoad(t *testing.T) {
 		preferences.Theme = "missing-theme"
 		preferences.TypographySize = "invalid-size"
 		user := domain.User{ID: 11, Username: "viewer", Role: "viewer", Enabled: true}
-		loader := NewLoader(
+		loader := newTestBrowserContext(
 			viewDataPreferenceStub{preferences: preferences},
 			nil,
 			nil,
@@ -175,7 +130,8 @@ func TestViewDataLoaderLoad(t *testing.T) {
 			nil,
 			nil,
 		)
-		views := &Views{themes: []themes.Theme{{Title: "Dark", ColorScheme: "dark"}}}
+		views, err := webview.New(web.Assets, testViewsLogger(), "", "", []themes.Theme{{Title: "Dark", ColorScheme: "dark"}}, webview.RuntimeInfo{})
+		require.NoError(t, err)
 		request := auth.WithUser(httptest.NewRequest(http.MethodGet, "/admin", nil), user)
 
 		data, err := loader.Load(request, views, "Administration")
@@ -192,7 +148,7 @@ func TestViewDataLoaderLoad(t *testing.T) {
 		t.Parallel()
 
 		wantErr := errors.New("load preferences")
-		loader := NewLoader(
+		loader := newTestBrowserContext(
 			viewDataPreferenceStub{err: wantErr},
 			nil,
 			nil,
@@ -205,7 +161,7 @@ func TestViewDataLoaderLoad(t *testing.T) {
 
 		_, err := loader.Load(
 			httptest.NewRequest(http.MethodGet, "/admin", nil),
-			&Views{},
+			&webview.Views{},
 			"Administration",
 		)
 
@@ -216,7 +172,7 @@ func TestViewDataLoaderLoad(t *testing.T) {
 		t.Parallel()
 
 		wantErr := errors.New("load settings")
-		loader := NewLoader(
+		loader := newTestBrowserContext(
 			viewDataPreferenceStub{preferences: domain.DefaultUserPreferences()},
 			nil,
 			nil,
@@ -229,7 +185,7 @@ func TestViewDataLoaderLoad(t *testing.T) {
 
 		_, err := loader.Load(
 			httptest.NewRequest(http.MethodGet, "/admin", nil),
-			&Views{},
+			&webview.Views{},
 			"Administration",
 		)
 
@@ -417,4 +373,32 @@ func TestAddPluginFeaturesDoesNotExposeDisabledSyntax(t *testing.T) {
 
 	assert.False(t, features["io.example.tables"])
 	assert.NotContains(t, features, "markdown-syntax.tables")
+}
+
+// newTestBrowserContext wires independent fakes into the shared application query.
+func newTestBrowserContext(preferences interface {
+	Preferences(context.Context, int64) (domain.UserPreferences, error)
+},
+	navigation interface {
+		NavigationPages(context.Context) ([]domain.Page, error)
+		NavigationIcons(context.Context) (map[string]string, error)
+	},
+	catalog interface {
+		Favorites(context.Context, int64) ([]domain.Page, error)
+		RecentViewed(context.Context, int64, int) ([]domain.Page, error)
+	},
+	settings interface {
+		ApplicationSettings(context.Context) (domain.ApplicationSettings, error)
+	},
+	searches interface {
+		SavedSearches(context.Context, int64) ([]domain.SavedSearch, error)
+	},
+	notifications interface {
+		Notifications(context.Context, int64, int) ([]domain.Notification, int, error)
+	},
+	access interface {
+		FilterPages(context.Context, domain.User, []domain.Page) ([]domain.Page, error)
+	},
+	_ any) *BrowserContext {
+	return NewBrowserContext(viewer.New(preferences, navigation, catalog, settings, searches, notifications, access), nil)
 }

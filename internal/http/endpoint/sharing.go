@@ -3,6 +3,7 @@ package endpoint
 import (
 	"cmp"
 	"errors"
+	"github.com/kumbuka-me/kumbuka/pkg/pluginbrowser"
 	"html/template"
 	"log/slog"
 	"net/http"
@@ -119,7 +120,7 @@ func renderSharedPage(
 		return
 	}
 
-	data, err := views.PublicPluginData(page.Title, renderer.PluginManager())
+	data, err := views.PublicPluginData(page.Title, pluginbrowser.Catalog("/plugins", renderer.PluginManager()), pluginbrowser.PresentationStylesVersion(renderer.PluginManager()))
 	if err != nil {
 		writePublicShareError(logger, w, err)
 		return

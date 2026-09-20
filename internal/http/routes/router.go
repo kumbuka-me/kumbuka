@@ -81,7 +81,7 @@ type Config struct {
 	// Webhooks provides webhook configuration and delivery use cases.
 	Webhooks *appwebhooks.Webhooks
 	// ViewData loads shared page chrome and navigation data.
-	ViewData *webview.Loader
+	ViewData *endpoint.BrowserContext
 	// Logger records request, handler, and middleware diagnostics.
 	Logger *slog.Logger
 	// AccessLog enables request access logging when true.

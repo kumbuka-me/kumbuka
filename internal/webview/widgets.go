@@ -41,8 +41,8 @@ func widgetActions(pluginID, moduleID, surface, pageSlug, next string, actions [
 	return result
 }
 
-// pluginWidgetPreferences returns enabled widgets as user-facing visibility controls.
-func pluginWidgetPreferences(items []plugin.LoadedPlugin, hidden []string) []WidgetPreference {
+// PluginWidgetPreferences returns enabled widgets as user-facing visibility controls.
+func PluginWidgetPreferences(items []plugin.LoadedPlugin, hidden []string) []WidgetPreference {
 	hiddenSet := stringSet(hidden)
 	preferences := make([]WidgetPreference, 0)
 

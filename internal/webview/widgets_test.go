@@ -31,7 +31,7 @@ func TestPluginWidgetPreferencesExposeEnabledWidgets(t *testing.T) {
 		},
 	}}
 
-	preferences := pluginWidgetPreferences(items, []string{"me.kumbuka.example/sidebar"})
+	preferences := PluginWidgetPreferences(items, []string{"me.kumbuka.example/sidebar"})
 
 	require.Len(t, preferences, 2)
 	assert.Equal(t, "Example", preferences[0].Label)

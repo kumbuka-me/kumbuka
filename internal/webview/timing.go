@@ -1,7 +1,6 @@
 package webview
 
 import (
-	"context"
 	"log/slog"
 	"net/http"
 	"sort"
@@ -57,11 +56,6 @@ func (v *Views) LogPageTiming(trace *renderprofile.Trace, r *http.Request, slug 
 	}
 
 	v.pageTimingLogger.Info("page handler timing", args...)
-}
-
-// measurePageStage measures one nested page-rendering stage when diagnostics are enabled.
-func measurePageStage(ctx context.Context, stage string) func() {
-	return renderprofile.FromContext(ctx).Measure(stage)
 }
 
 // durationMilliseconds converts a page timing duration to milliseconds.
