@@ -71,7 +71,7 @@ func Run(
 	// Configure process logging and record the effective application identity.
 	logger := logging.Setup(cfg.LogFormat, cfg.Debug, stdout)
 	setupLogger := logger.With("component", "setup")
-	logger.Info(
+	setupLogger.Info(
 		"starting Kumbuka",
 		"event", "app_starting",
 		"version", version,
@@ -79,7 +79,7 @@ func Run(
 	)
 
 	if len(cfg.Overrides) > 0 {
-		logger.Info(
+		setupLogger.Info(
 			"CLI Overrides",
 			"event", "cli_overrides",
 			"overrides", cfg.Overrides,
@@ -227,65 +227,52 @@ func Run(
 		access,
 	), renderer)
 
-	serverConfig := httpserver.Config{
-		// Infrastructure.
-		Assets:    appFS,
-		Views:     views,
-		Renderer:  renderer,
-		Logger:    serverLogger,
-		AccessLog: cfg.AccessLog,
-		ReadOnly:  cfg.ReadOnly,
-
-		// Authentication.
-		BrowserAuth: browserAuth,
-		BearerAuth:  bearerAuth,
-
-		// Administration.
-		Administration: administration,
-		Groups:         groups,
-		Settings:       settings,
-		System:         system,
-		Tokens:         tokens,
-		Users:          users,
-		Webhooks:       webhooks,
-
-		// Content.
-		Access:        access,
-		PageLookup:    pageLookup,
-		PageSearch:    pageSearch,
-		PageDirectory: pageDirectory,
-		PageReports:   pageReports,
-		PagePersonal:  pagePersonal,
-		PageHistory:   pageHistory,
-		PageRender:    pageRender,
-		Drafts:        drafts,
-		Media:         media,
-		Navigation:    navigation,
-		RecycleBin:    recycleBin,
-		Templates:     templates,
-
-		// Page workflows.
+	// Hand the completed application graph to the HTTP adapter for route construction.
+	handler := httpserver.New(httpserver.Config{
+		Assets:                appFS,
+		Views:                 views,
+		Renderer:              renderer,
+		PluginUpdates:         pluginUpdates,
+		BrowserAuth:           browserAuth,
+		BearerAuth:            bearerAuth,
+		Administration:        administration,
+		Access:                access,
+		PageLookup:            pageLookup,
+		PageSearch:            pageSearch,
+		PageDirectory:         pageDirectory,
+		PageReports:           pageReports,
+		PagePersonal:          pagePersonal,
+		PageHistory:           pageHistory,
+		PageRender:            pageRender,
+		Drafts:                drafts,
+		Groups:                groups,
+		Knowledge:             knowledge,
+		Notifications:         notifications,
+		Media:                 media,
+		Navigation:            navigation,
 		PageMutations:         mutations,
 		PagePresence:          presence,
 		PageDiscussions:       discussions,
 		PageReviews:           reviews,
 		PageReviewDiscussions: reviewDiscussions,
 		PageBulk:              bulk,
+		Preferences:           preferences,
+		RecycleBin:            recycleBin,
+		Settings:              settings,
+		System:                system,
+		Templates:             templates,
+		Tokens:                tokens,
+		Users:                 users,
+		Webhooks:              webhooks,
 		Home:                  home,
 		Editor:                editor,
 		EditorSave:            editorSave,
 		ViewPage:              viewPage,
-
-		// Shared browser state.
-		Knowledge:      knowledge,
-		Notifications:  notifications,
-		Preferences:    preferences,
-		BrowserContext: browserContext,
-		PluginUpdates:  pluginUpdates,
-	}
-
-	// Hand the completed application graph to the HTTP adapter for route construction.
-	handler := httpserver.New(serverConfig)
+		BrowserContext:        browserContext,
+		Logger:                serverLogger,
+		AccessLog:             cfg.AccessLog,
+		ReadOnly:              cfg.ReadOnly,
+	})
 
 	// Start background plugin update checks only when scheduling is enabled.
 	if cfg.PluginUpdateCheckInterval > 0 {
