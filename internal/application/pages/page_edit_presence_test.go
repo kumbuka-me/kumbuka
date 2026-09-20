@@ -11,7 +11,6 @@ import (
 )
 
 type pagePresenceRepositoryStub struct {
-	pagePresenceRepository
 	editors        []domain.PageEditorPresence
 	slug           string
 	excludeUserID  int64
