@@ -11,7 +11,7 @@ import (
 	"github.com/kumbuka-me/kumbuka/pkg/pluginbrowser"
 )
 
-// PluginAssets serves one validated browser asset from an enabled plugin.
+// PluginAssets serves one validated package asset. Disabled plugins expose only the bounded static preview PNG.
 func PluginAssets(manager *plugin.Manager) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")

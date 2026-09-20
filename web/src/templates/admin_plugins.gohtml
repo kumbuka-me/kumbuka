@@ -201,6 +201,17 @@
             </div>
           </div>
         </section>
+        <section class="plugin-detail-section plugin-preview-section">
+          <h3>Preview</h3>
+          <figure class="plugin-preview">
+            <img class="plugin-preview-image"
+                 src="/plugins/{{ .Manifest.ID }}/preview/assets/preview.png"
+                 alt="{{ .Manifest.Name }} plugin preview"
+                 loading="lazy"
+                 decoding="async" />
+            <figcaption>Static PNG bundled with the plugin. Viewing this preview does not execute plugin code.</figcaption>
+          </figure>
+        </section>
         {{ with index $.PluginREADMEs .Manifest.ID }}
           <section class="plugin-detail-section plugin-readme-section">
             <div class="plugin-readme prose">{{ . }}</div>

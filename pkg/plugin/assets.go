@@ -1,7 +1,9 @@
 package plugin
 
 import (
+	"bytes"
 	"fmt"
+	"image/png"
 	"io/fs"
 	"strings"
 
@@ -197,13 +199,43 @@ func (m *Manager) ContentStyles() []ContentStyleContribution {
 	return result
 }
 
-// BrowserAsset serves bytes from an enabled, exact-version package only. There
-// is no filesystem extraction, and lifecycle changes invalidate old URLs.
+const (
+	pluginPreviewDigest    = "preview"
+	pluginPreviewAsset     = "preview.png"
+	maxPluginPreviewBytes  = 2 << 20
+	maxPluginPreviewWidth  = 2400
+	maxPluginPreviewHeight = 1600
+)
+
+// BrowserAsset serves one validated package asset. Normal browser-module assets
+// require an enabled exact-version package. The reserved preview.png asset is
+// static documentation and may be read through the "preview" digest alias even
+// while the plugin is disabled; this path never instantiates plugin code.
 func (m *Manager) BrowserAsset(id, digest, name string) ([]byte, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+
 	item, ok := m.loaded[id]
-	if !ok || !item.metadata.Enabled || fmt.Sprintf("%x", item.metadata.Digest) != digest {
+	if !ok {
+		return nil, fs.ErrNotExist
+	}
+
+	if digest == pluginPreviewDigest && name == pluginPreviewAsset {
+		pkg, err := pluginpackage.Read(item.archive)
+		if err != nil {
+			return nil, err
+		}
+		data, err := pkg.Asset(pluginPreviewAsset)
+		if err != nil {
+			return nil, err
+		}
+		if !validPluginPreview(data) {
+			return nil, fs.ErrInvalid
+		}
+		return data, nil
+	}
+
+	if !item.metadata.Enabled || fmt.Sprintf("%x", item.metadata.Digest) != digest {
 		return nil, fs.ErrNotExist
 	}
 	hasBrowser := false
@@ -221,6 +253,24 @@ func (m *Manager) BrowserAsset(id, digest, name string) ([]byte, error) {
 		return nil, err
 	}
 	return pkg.Asset(name)
+}
+
+// validPluginPreview accepts only bounded raster PNG documentation.
+// DecodeConfig reads image metadata without decoding the full pixel payload.
+func validPluginPreview(data []byte) bool {
+	if len(data) == 0 || len(data) > maxPluginPreviewBytes {
+		return false
+	}
+
+	config, err := png.DecodeConfig(bytes.NewReader(data))
+	if err != nil {
+		return false
+	}
+
+	return config.Width > 0 &&
+		config.Height > 0 &&
+		config.Width <= maxPluginPreviewWidth &&
+		config.Height <= maxPluginPreviewHeight
 }
 
 // CodeHighlighterAsset returns an asset declared by an active code-highlighter module.

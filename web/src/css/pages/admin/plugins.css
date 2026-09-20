@@ -118,6 +118,26 @@
   color: var(--text);
 }
 
+.plugin-preview {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.plugin-preview-image {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  background: var(--surface-elevated);
+}
+
+.plugin-preview figcaption {
+  color: var(--text-tertiary);
+  font-size: 11px;
+}
+
 .plugin-readme > :first-child {
   margin-top: 0;
 }
