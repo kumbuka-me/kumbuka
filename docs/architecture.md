@@ -64,7 +64,7 @@ Inherited page access has both single-resource and bulk operations. Collection p
 
 `internal/webview` is passive. It does not fetch application data, perform authorization lookups, or access PostgreSQL. Templates receive typed screen models that embed the common `Layout` only when they use the authenticated browser shell.
 
-The HTTP layer owns render-error mapping. `webview.Views` receives that mapping from the composition root instead of importing the HTTP response package, keeping dependency direction downward.
+The HTTP layer owns render-error mapping. `webview.Views` receives that mapping from the composition root instead of importing the HTTP response package, keeping dependency direction downward. Deployment-owned runtime values are mapped into administrator-safe presentation data by `internal/runtimeinfo`, so `internal/app/run.go` remains focused on process orchestration while webview stays passive.
 
 Template-specific values such as `template.HTML`, navigation nodes, widget presentation, and theme JSON remain outside application packages. Application/domain results are mapped at the HTTP/presentation boundary.
 
@@ -76,7 +76,7 @@ Core owns generic plugin authorization, lifecycle, sandbox/runtime limits, sanit
 
 ## Composition root
 
-`internal/app/run.go` sequences startup and shutdown and wires already-owned components. HTTP route construction lives in `internal/http/server`, plugin/Markdown runtime construction lives in `internal/pluginruntime`, and the composition root keeps the dependency graph explicit instead of hiding it behind a second bootstrap layer.
+`internal/app/run.go` sequences startup and shutdown and wires already-owned components. HTTP route construction lives in `internal/http/server`, plugin/Markdown runtime construction lives in `internal/pluginruntime`, and deployment-to-presentation mapping lives in `internal/runtimeinfo`. The composition root keeps the dependency graph explicit instead of hiding it behind a second bootstrap layer.
 
 ```mermaid
 flowchart LR
@@ -97,9 +97,9 @@ flowchart LR
     VIEWS --> HTTP
 ```
 
-## Architectural checks
+## Validation
 
-`internal/architecture/architecture_test.go` guards the most important dependency rules: production application code cannot import `net/http`, `html/template`, concrete icon catalogs, credential/secret implementations, HTTP/webview/PostgreSQL packages, or own a concrete Markdown renderer; webview cannot import application/HTTP/PostgreSQL packages; and `pgx` imports remain confined to `internal/postgres`. It also prevents reintroducing the old universal `webview.Data` or `webview.Loader` types.
+Architecture is kept visible through package boundaries, narrow interfaces, focused behavioral tests, and normal Go tooling rather than source-shape tests. Refactors should preserve dependency direction and add regression coverage at the owning package boundary.
 
 Normal validation is:
 
@@ -113,6 +113,3 @@ make lint
 ```
 
 The CI workflow additionally builds generated assets and the frontend, checks formatting, runs frontend tests, and executes the selected race-sensitive tests.
-
-
-

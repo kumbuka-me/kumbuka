@@ -357,10 +357,10 @@ handlers run only for active plugins inside the authenticated administrator requ
 
 ## Core page primitives
 
-Wiki links remain core, alongside CommonMark. The same parser extracts canonical
-targets when pages are saved (`internal/service/pages.go`) and validates links
-for other consumers of the shared Markdown package. Plugin activation must not change
-the persisted page-link graph or the meaning of stored page references. The
+Wiki links remain core, alongside CommonMark. Page mutations extract canonical
+targets with `markdown.Links` before persistence (`internal/application/pages/mutations.go`),
+and other consumers use the same shared Markdown package. Plugin activation must not
+change the persisted page-link graph or the meaning of stored page references. The
 Rendering preference controls their presentation; it does not disable extraction.
 Optional Markdown features are declared by plugins and administered in their
 plugin details. Public grammar and rendering-policy declarations are translated
