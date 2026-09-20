@@ -9,9 +9,9 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-type notFoundViewDataLoader struct{}
+type notFoundBrowserContext struct{}
 
-func (notFoundViewDataLoader) Load(_ *http.Request, _ *webview.Views, title string) (webview.Layout, error) {
+func (notFoundBrowserContext) Load(_ *http.Request, _ *webview.Views, title string) (webview.Layout, error) {
 	return webview.Layout{Title: title}, nil
 }
 
@@ -29,7 +29,7 @@ func TestNotFound(t *testing.T) {
 	request := httptest.NewRequest(http.MethodGet, "/missing", nil)
 	response := httptest.NewRecorder()
 
-	NotFound(notFoundViewDataLoader{}, views).ServeHTTP(response, request)
+	NotFound(notFoundBrowserContext{}, views).ServeHTTP(response, request)
 
 	assert.Equal(t, http.StatusNotFound, response.Code)
 	assert.Equal(t, "text/html; charset=utf-8", response.Header().Get("Content-Type"))

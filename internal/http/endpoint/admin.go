@@ -12,12 +12,12 @@ import (
 
 // Administration renders the administrator overview.
 func Administration(
-	viewDataUseCases viewDataService,
+	browserContext browserContextLoader,
 	administrationUseCases administrationService,
 	views *webview.Views,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		layout, err := administrationData(r, viewDataUseCases, views, "Administration", "overview")
+		layout, err := administrationData(r, browserContext, views, "Administration", "overview")
 		data := webview.AdminView{Layout: layout}
 		if err != nil {
 			httpresponse.InternalServerError(views.Logger(), w, err)
@@ -39,11 +39,11 @@ func Administration(
 // administrationData builds common view data for administrator-only pages.
 func administrationData(
 	r *http.Request,
-	viewDataUseCases viewDataService,
+	browserContext browserContextLoader,
 	views *webview.Views,
 	title, section string,
 ) (webview.Layout, error) {
-	data, err := viewDataUseCases.Load(r, views, title)
+	data, err := browserContext.Load(r, views, title)
 	if err != nil {
 		return webview.Layout{}, err
 	}

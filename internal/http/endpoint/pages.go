@@ -12,13 +12,13 @@ import (
 
 // Home renders the dashboard for the current user.
 func Home(
-	viewDataUseCases viewDataService,
+	browserContext browserContextLoader,
 	homeUseCases homeQueryService,
 	renderer *md.Renderer,
 	views *webview.Views,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		layout, err := viewDataUseCases.Load(r, views, "Home")
+		layout, err := browserContext.Load(r, views, "Home")
 		data := webview.HomeView{Layout: layout}
 		if err != nil {
 			httpresponse.InternalServerError(views.Logger(), w, err)

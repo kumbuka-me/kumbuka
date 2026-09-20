@@ -229,7 +229,7 @@ func TestAliasFailureIsNotDiscarded(t *testing.T) {
 		request.SetPathValue("slug", "missing")
 		response := httptest.NewRecorder()
 
-		ViewPage(nil, repository, apppages.NewView(repository, viewDataAccessStub{}, nil, logger), nil, testHandlerViewsWithLogger(t, logger, webview.RuntimeInfo{}))(response, request)
+		ViewPage(nil, repository, apppages.NewView(repository, browserContextAccessStub{}, nil, logger), nil, testHandlerViewsWithLogger(t, logger, webview.RuntimeInfo{}))(response, request)
 
 		assert.Equal(t, http.StatusInternalServerError, response.Code)
 		assert.Contains(t, logs.String(), "alias database offline")

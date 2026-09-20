@@ -21,9 +21,9 @@ const (
 )
 
 // AdminImport renders the import workspace.
-func AdminImport(viewDataUseCases viewDataService, views *webview.Views) http.HandlerFunc {
+func AdminImport(browserContext browserContextLoader, views *webview.Views) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		layout, err := administrationData(r, viewDataUseCases, views, "Import", "import")
+		layout, err := administrationData(r, browserContext, views, "Import", "import")
 		if err != nil {
 			httpresponse.InternalServerError(views.Logger(), w, err)
 			return

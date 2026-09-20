@@ -19,7 +19,7 @@ import (
 
 // ViewPage renders one readable page and its active plugin detail widgets.
 func ViewPage(
-	viewDataUseCases viewDataService,
+	browserContext browserContextLoader,
 	catalogUseCases pageViewCatalogService,
 	viewPage pageViewQuery,
 	renderer *md.Renderer,
@@ -36,7 +36,7 @@ func ViewPage(
 		page, alias := result.Page, result.Alias
 		stop()
 		if errors.Is(err, domain.ErrNotFound) {
-			renderNotFoundPage(w, r, viewDataUseCases, views)
+			renderNotFoundPage(w, r, browserContext, views)
 			return
 		}
 		if err != nil {
@@ -53,7 +53,7 @@ func ViewPage(
 		state, outgoingLinks := result.State, result.OutgoingLinks
 
 		stop = measurePageStage(r.Context(), "view_data")
-		layout, err := viewDataUseCases.Load(r, views, page.Title)
+		layout, err := browserContext.Load(r, views, page.Title)
 		data := webview.PageView{Layout: layout}
 		data.PageContentLanguage = layout.ApplicationSettings.ContentLanguage
 		stop()

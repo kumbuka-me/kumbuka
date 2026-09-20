@@ -11,13 +11,13 @@ import (
 
 // AdminPageAccess renders inherited page-path access rules.
 func AdminPageAccess(
-	viewDataUseCases viewDataService,
+	browserContext browserContextLoader,
 	accessUseCases pageAccessAdmin,
 	groupUseCases groupReader,
 	views *webview.Views,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		layout, err := administrationData(r, viewDataUseCases, views, "Page access", "permissions")
+		layout, err := administrationData(r, browserContext, views, "Page access", "permissions")
 		data := webview.AdminPermissionsView{Layout: layout}
 		if err != nil {
 			httpresponse.InternalServerError(views.Logger(), w, err)

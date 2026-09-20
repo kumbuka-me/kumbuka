@@ -11,12 +11,12 @@ import (
 
 // AdminGroups renders group management.
 func AdminGroups(
-	viewDataUseCases viewDataService,
+	browserContext browserContextLoader,
 	groupUseCases groupReader,
 	views *webview.Views,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		layout, err := administrationData(r, viewDataUseCases, views, "Groups", "groups")
+		layout, err := administrationData(r, browserContext, views, "Groups", "groups")
 		data := webview.AdminGroupsView{Layout: layout}
 		if err != nil {
 			httpresponse.InternalServerError(views.Logger(), w, err)

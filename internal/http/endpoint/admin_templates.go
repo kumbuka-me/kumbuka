@@ -14,13 +14,13 @@ import (
 
 // AdminPageTemplates renders reusable page-template management.
 func AdminPageTemplates(
-	viewDataUseCases viewDataService,
+	browserContext browserContextLoader,
 	templateUseCases templateService,
 	groupUseCases groupReader,
 	views *webview.Views,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		layout, err := administrationData(r, viewDataUseCases, views, "Page templates", "templates")
+		layout, err := administrationData(r, browserContext, views, "Page templates", "templates")
 		data := webview.AdminTemplatesView{Layout: layout}
 		if err != nil {
 			httpresponse.InternalServerError(views.Logger(), w, err)

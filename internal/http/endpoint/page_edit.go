@@ -15,7 +15,7 @@ import (
 
 // EditPage renders the page creation or editing form.
 func EditPage(
-	viewDataUseCases viewDataService,
+	browserContext browserContextLoader,
 	editorUseCases pageEditorQuery,
 	views *webview.Views,
 ) http.HandlerFunc {
@@ -24,7 +24,7 @@ func EditPage(
 		slug := r.PathValue("slug")
 		result, err := editorUseCases.Load(r.Context(), user, slug, selectedPageTemplateID(r.URL.Query().Get("template")))
 		if errors.Is(err, domain.ErrNotFound) {
-			renderNotFoundPage(w, r, viewDataUseCases, views)
+			renderNotFoundPage(w, r, browserContext, views)
 			return
 		}
 		if err != nil {
@@ -36,7 +36,7 @@ func EditPage(
 		if result.Page != nil {
 			title = "Edit " + result.Page.Title
 		}
-		layout, err := viewDataUseCases.Load(r, views, title)
+		layout, err := browserContext.Load(r, views, title)
 		if err != nil {
 			httpresponse.InternalServerError(views.Logger(), w, err)
 			return

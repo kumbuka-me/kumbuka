@@ -13,12 +13,12 @@ import (
 
 // AdminNavigation renders icon configuration for every navigation path.
 func AdminNavigation(
-	viewDataUseCases viewDataService,
+	browserContext browserContextLoader,
 	navigationUseCases navigationService,
 	views *webview.Views,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		layout, err := administrationData(r, viewDataUseCases, views, "Navigation", "navigation")
+		layout, err := administrationData(r, browserContext, views, "Navigation", "navigation")
 		data := webview.AdminNavigationView{Layout: layout}
 		if err != nil {
 			httpresponse.InternalServerError(views.Logger(), w, err)
@@ -113,12 +113,12 @@ func SaveAdminNavigationIcon(navigationUseCases navigationService, logger *slog.
 
 // AdminTags renders tag management and usage counts.
 func AdminTags(
-	viewDataUseCases viewDataService,
+	browserContext browserContextLoader,
 	administrationUseCases administrationService,
 	views *webview.Views,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		layout, err := administrationData(r, viewDataUseCases, views, "Tags", "tags")
+		layout, err := administrationData(r, browserContext, views, "Tags", "tags")
 		data := webview.AdminTagsView{Layout: layout}
 		if err != nil {
 			httpresponse.InternalServerError(views.Logger(), w, err)

@@ -21,7 +21,7 @@ func TestPublicPluginData(t *testing.T) {
 	assert.NotEmpty(t, data.PluginStylesVersion)
 }
 
-func TestPublicViewData(t *testing.T) {
+func TestPublicLayout(t *testing.T) {
 	t.Parallel()
 
 	availableThemes := []themes.Theme{

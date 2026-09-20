@@ -14,7 +14,7 @@ import (
 
 // PageReview renders the immutable requested revision with line comments and applicable suggestions.
 func PageReview(
-	viewDataUseCases viewDataService,
+	browserContext browserContextLoader,
 	pageUseCases pageApprovalService,
 	views *webview.Views,
 ) http.HandlerFunc {
@@ -31,7 +31,7 @@ func PageReview(
 			return
 		}
 
-		layout, err := viewDataUseCases.Load(r, views, "Review "+detail.Page.Title)
+		layout, err := browserContext.Load(r, views, "Review "+detail.Page.Title)
 		data := webview.ReviewView{Layout: layout}
 		if err != nil {
 			httpresponse.InternalServerError(views.Logger(), w, err)

@@ -39,13 +39,13 @@ type AdminPlugins struct {
 	// updates discovers and downloads compatible first-party plugin releases.
 	updates pluginUpdateService
 	// data loads shared administration view data.
-	data viewDataService
+	data browserContextLoader
 	// views renders plugin administration responses.
 	views *webview.Views
 }
 
 // NewAdminPlugins constructs the plugin administration handler.
-func NewAdminPlugins(manager *plugin.Manager, updates pluginUpdateService, data viewDataService, views *webview.Views) *AdminPlugins {
+func NewAdminPlugins(manager *plugin.Manager, updates pluginUpdateService, data browserContextLoader, views *webview.Views) *AdminPlugins {
 	return &AdminPlugins{manager: manager, updates: updates, data: data, views: views}
 }
 

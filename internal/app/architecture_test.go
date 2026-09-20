@@ -30,6 +30,32 @@ func TestArchitectureDependencyDirection(t *testing.T) {
 	})
 }
 
+func TestApplicationHasNoTransportOrTemplateImports(t *testing.T) {
+	t.Parallel()
+
+	root := repositoryRoot(t)
+	walkGoFiles(t, filepath.Join(root, "internal/application"), func(path string, file *ast.File) {
+		if strings.HasSuffix(path, "_test.go") {
+			return
+		}
+
+		rel, err := filepath.Rel(root, path)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		for _, imported := range file.Imports {
+			name, err := strconv.Unquote(imported.Path.Value)
+			if err != nil {
+				t.Fatalf("unquote import in %s: %v", rel, err)
+			}
+			if name == "net/http" || name == "html/template" {
+				t.Errorf("%s imports forbidden application dependency %s", filepath.ToSlash(rel), name)
+			}
+		}
+	})
+}
+
 func TestPostgresOwnsPGXImports(t *testing.T) {
 	t.Parallel()
 

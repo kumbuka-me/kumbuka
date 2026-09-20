@@ -19,7 +19,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestViewDataLoaderLoad(t *testing.T) {
+func TestBrowserContextLoad(t *testing.T) {
 	t.Parallel()
 
 	t.Run("loads authenticated navigation and shared chrome data", func(t *testing.T) {
@@ -32,9 +32,9 @@ func TestViewDataLoaderLoad(t *testing.T) {
 		preferences.ShowNavigationPageCounts = true
 		preferences.ExpandedNavigation = []string{"platforms"}
 
-		loader := newTestBrowserContext(
-			viewDataPreferenceStub{preferences: preferences},
-			viewDataNavigationStub{
+		browserContext := newTestBrowserContext(
+			browserContextPreferenceStub{preferences: preferences},
+			browserContextNavigationStub{
 				pages: []domain.Page{
 					{ID: 1, Slug: "platforms", Title: "Platforms"},
 					{ID: 2, Slug: "platforms/kubernetes", Title: "Kubernetes"},
@@ -42,7 +42,7 @@ func TestViewDataLoaderLoad(t *testing.T) {
 				},
 				icons: map[string]string{"platforms": "folder-lucide"},
 			},
-			viewDataCatalogStub{
+			browserContextCatalogStub{
 				favorites: []domain.Page{{ID: 2, Slug: "platforms/kubernetes", Title: "Kubernetes"}},
 				recent: []domain.Page{
 					{ID: 2, Slug: "platforms/kubernetes", Title: "Kubernetes"},
@@ -50,18 +50,18 @@ func TestViewDataLoaderLoad(t *testing.T) {
 					{ID: 5, Slug: "platforms/consul", Title: "Consul"},
 				},
 			},
-			viewDataSettingsStub{settings: domain.ApplicationSettings{
+			browserContextSettingsStub{settings: domain.ApplicationSettings{
 				ContentLanguage: "de-CH",
 				Rendering: domain.RenderingSettings{
 					DefaultTypographySize: domain.TypographySizeLarge,
 				},
 			}},
-			viewDataSavedSearchStub{searches: []domain.SavedSearch{{ID: 7, Name: "Production", Query: "tag:prod"}}},
-			viewDataNotificationStub{
+			browserContextSavedSearchStub{searches: []domain.SavedSearch{{ID: 7, Name: "Production", Query: "tag:prod"}}},
+			browserContextNotificationStub{
 				notifications: []domain.Notification{{ID: 8, Title: "Mention"}},
 				unread:        1,
 			},
-			viewDataAccessStub{filter: func(pages []domain.Page) []domain.Page {
+			browserContextAccessStub{filter: func(pages []domain.Page) []domain.Page {
 				filtered := make([]domain.Page, 0, len(pages))
 				for _, page := range pages {
 					if page.ID != 99 {
@@ -82,7 +82,7 @@ func TestViewDataLoaderLoad(t *testing.T) {
 			user,
 		)
 
-		data, err := loader.Load(request, views, "Kubernetes")
+		data, err := browserContext.Load(request, views, "Kubernetes")
 
 		require.NoError(t, err)
 		assert.Equal(t, "Kubernetes", data.Title)
@@ -119,13 +119,13 @@ func TestViewDataLoaderLoad(t *testing.T) {
 		preferences.Theme = "missing-theme"
 		preferences.TypographySize = "invalid-size"
 		user := domain.User{ID: 11, Username: "viewer", Role: "viewer", Enabled: true}
-		loader := newTestBrowserContext(
-			viewDataPreferenceStub{preferences: preferences},
+		browserContext := newTestBrowserContext(
+			browserContextPreferenceStub{preferences: preferences},
 			nil,
 			nil,
-			viewDataSettingsStub{settings: domain.ApplicationSettings{}},
-			viewDataSavedSearchStub{},
-			viewDataNotificationStub{},
+			browserContextSettingsStub{settings: domain.ApplicationSettings{}},
+			browserContextSavedSearchStub{},
+			browserContextNotificationStub{},
 			nil,
 			nil,
 		)
@@ -133,7 +133,7 @@ func TestViewDataLoaderLoad(t *testing.T) {
 		require.NoError(t, err)
 		request := auth.WithUser(httptest.NewRequest(http.MethodGet, "/admin", nil), user)
 
-		data, err := loader.Load(request, views, "Administration")
+		data, err := browserContext.Load(request, views, "Administration")
 
 		require.NoError(t, err)
 		assert.Empty(t, data.Navigation)
@@ -147,8 +147,8 @@ func TestViewDataLoaderLoad(t *testing.T) {
 		t.Parallel()
 
 		wantErr := errors.New("load preferences")
-		loader := newTestBrowserContext(
-			viewDataPreferenceStub{err: wantErr},
+		browserContext := newTestBrowserContext(
+			browserContextPreferenceStub{err: wantErr},
 			nil,
 			nil,
 			nil,
@@ -158,7 +158,7 @@ func TestViewDataLoaderLoad(t *testing.T) {
 			nil,
 		)
 
-		_, err := loader.Load(
+		_, err := browserContext.Load(
 			httptest.NewRequest(http.MethodGet, "/admin", nil),
 			&webview.Views{},
 			"Administration",
@@ -171,18 +171,18 @@ func TestViewDataLoaderLoad(t *testing.T) {
 		t.Parallel()
 
 		wantErr := errors.New("load settings")
-		loader := newTestBrowserContext(
-			viewDataPreferenceStub{preferences: domain.DefaultUserPreferences()},
+		browserContext := newTestBrowserContext(
+			browserContextPreferenceStub{preferences: domain.DefaultUserPreferences()},
 			nil,
 			nil,
-			viewDataSettingsStub{err: wantErr},
+			browserContextSettingsStub{err: wantErr},
 			nil,
 			nil,
 			nil,
 			nil,
 		)
 
-		_, err := loader.Load(
+		_, err := browserContext.Load(
 			httptest.NewRequest(http.MethodGet, "/admin", nil),
 			&webview.Views{},
 			"Administration",
@@ -226,108 +226,108 @@ func TestActiveNavigationSlug(t *testing.T) {
 	})
 }
 
-type viewDataPreferenceStub struct {
+type browserContextPreferenceStub struct {
 	preferences domain.UserPreferences
 	err         error
 }
 
-func (s viewDataPreferenceStub) Preferences(context.Context, int64) (domain.UserPreferences, error) {
+func (s browserContextPreferenceStub) Preferences(context.Context, int64) (domain.UserPreferences, error) {
 	return s.preferences, s.err
 }
 
-func (viewDataPreferenceStub) SavePreferences(context.Context, int64, domain.UserPreferences) error {
+func (browserContextPreferenceStub) SavePreferences(context.Context, int64, domain.UserPreferences) error {
 	return nil
 }
 
-func (viewDataPreferenceStub) SetShowPageContents(context.Context, int64, bool) error {
+func (browserContextPreferenceStub) SetShowPageContents(context.Context, int64, bool) error {
 	return nil
 }
 
-func (viewDataPreferenceStub) SetExpandedNavigation(context.Context, int64, []string) error {
+func (browserContextPreferenceStub) SetExpandedNavigation(context.Context, int64, []string) error {
 	return nil
 }
 
-func (viewDataPreferenceStub) SetSidebarWidth(context.Context, int64, int) error {
+func (browserContextPreferenceStub) SetSidebarWidth(context.Context, int64, int) error {
 	return nil
 }
 
-type viewDataNavigationStub struct {
+type browserContextNavigationStub struct {
 	pages []domain.Page
 	icons map[string]string
 	err   error
 }
 
-func (s viewDataNavigationStub) NavigationPages(context.Context) ([]domain.Page, error) {
+func (s browserContextNavigationStub) NavigationPages(context.Context) ([]domain.Page, error) {
 	return s.pages, s.err
 }
 
-func (viewDataNavigationStub) NavigationItems(context.Context) ([]domain.NavigationItem, error) {
+func (browserContextNavigationStub) NavigationItems(context.Context) ([]domain.NavigationItem, error) {
 	return nil, nil
 }
 
-func (s viewDataNavigationStub) NavigationIcons(context.Context) (map[string]string, error) {
+func (s browserContextNavigationStub) NavigationIcons(context.Context) (map[string]string, error) {
 	return s.icons, s.err
 }
 
-func (viewDataNavigationStub) SetNavigationIcon(context.Context, string, string) error {
+func (browserContextNavigationStub) SetNavigationIcon(context.Context, string, string) error {
 	return nil
 }
 
-type viewDataCatalogStub struct {
+type browserContextCatalogStub struct {
 	favorites []domain.Page
 	recent    []domain.Page
 }
 
-func (s viewDataCatalogStub) Favorites(context.Context, int64) ([]domain.Page, error) {
+func (s browserContextCatalogStub) Favorites(context.Context, int64) ([]domain.Page, error) {
 	return s.favorites, nil
 }
 
-func (s viewDataCatalogStub) RecentViewed(context.Context, int64, int) ([]domain.Page, error) {
+func (s browserContextCatalogStub) RecentViewed(context.Context, int64, int) ([]domain.Page, error) {
 	return s.recent, nil
 }
 
-type viewDataSettingsStub struct {
+type browserContextSettingsStub struct {
 	settings domain.ApplicationSettings
 	err      error
 }
 
-func (s viewDataSettingsStub) ApplicationSettings(context.Context) (domain.ApplicationSettings, error) {
+func (s browserContextSettingsStub) ApplicationSettings(context.Context) (domain.ApplicationSettings, error) {
 	return s.settings, s.err
 }
 
-type viewDataSavedSearchStub struct {
+type browserContextSavedSearchStub struct {
 	searches []domain.SavedSearch
 	err      error
 }
 
-func (s viewDataSavedSearchStub) SavedSearches(context.Context, int64) ([]domain.SavedSearch, error) {
+func (s browserContextSavedSearchStub) SavedSearches(context.Context, int64) ([]domain.SavedSearch, error) {
 	return s.searches, s.err
 }
 
-type viewDataNotificationStub struct {
+type browserContextNotificationStub struct {
 	notifications []domain.Notification
 	unread        int
 	err           error
 }
 
-func (s viewDataNotificationStub) Notifications(context.Context, int64, int) ([]domain.Notification, int, error) {
+func (s browserContextNotificationStub) Notifications(context.Context, int64, int) ([]domain.Notification, int, error) {
 	return s.notifications, s.unread, s.err
 }
 
-type viewDataAccessStub struct {
+type browserContextAccessStub struct {
 	filter func([]domain.Page) []domain.Page
 	err    error
 }
 
-func (viewDataAccessStub) CanView(context.Context, domain.User, string) (bool, error) {
+func (browserContextAccessStub) CanView(context.Context, domain.User, string) (bool, error) {
 	return true, nil
 }
 
-func (viewDataAccessStub) CanEdit(context.Context, domain.User, string) (bool, error) {
+func (browserContextAccessStub) CanEdit(context.Context, domain.User, string) (bool, error) {
 	return true, nil
 }
 
-func (s viewDataAccessStub) FilterPages(_ context.Context, _ domain.User, pages []domain.Page) ([]domain.Page, error) {
+func (s browserContextAccessStub) FilterPages(_ context.Context, _ domain.User, pages []domain.Page) ([]domain.Page, error) {
 	if s.err != nil {
 		return nil, s.err
 	}

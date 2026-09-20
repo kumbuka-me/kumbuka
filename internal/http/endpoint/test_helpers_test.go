@@ -71,10 +71,10 @@ func testHandlerViewsWithOverrides(
 	return views
 }
 
-type viewDataServiceStub struct {
+type browserContextLoaderStub struct {
 	load func(*http.Request, *webview.Views, string) (webview.Layout, error)
 }
 
-func (s viewDataServiceStub) Load(r *http.Request, views *webview.Views, title string) (webview.Layout, error) {
+func (s browserContextLoaderStub) Load(r *http.Request, views *webview.Views, title string) (webview.Layout, error) {
 	return s.load(r, views, title)
 }

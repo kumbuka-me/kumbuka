@@ -8,9 +8,9 @@ import (
 )
 
 // NotFound renders the themed browser 404 page.
-func NotFound(viewDataUseCases viewDataService, views *webview.Views) http.HandlerFunc {
+func NotFound(browserContext browserContextLoader, views *webview.Views) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		renderNotFoundPage(w, r, viewDataUseCases, views)
+		renderNotFoundPage(w, r, browserContext, views)
 	}
 }
 
@@ -18,10 +18,10 @@ func NotFound(viewDataUseCases viewDataService, views *webview.Views) http.Handl
 func renderNotFoundPage(
 	w http.ResponseWriter,
 	r *http.Request,
-	viewDataUseCases viewDataService,
+	browserContext browserContextLoader,
 	views *webview.Views,
 ) {
-	data, err := viewDataUseCases.Load(r, views, "Page not found")
+	data, err := browserContext.Load(r, views, "Page not found")
 	if err != nil {
 		httpresponse.InternalServerError(views.Logger(), w, err)
 		return

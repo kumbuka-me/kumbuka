@@ -24,9 +24,9 @@ type brandLogoService interface {
 }
 
 // AdminBranding renders instance-wide branding configuration.
-func AdminBranding(viewDataUseCases viewDataService, views *webview.Views) http.HandlerFunc {
+func AdminBranding(browserContext browserContextLoader, views *webview.Views) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		data, err := administrationData(r, viewDataUseCases, views, "Branding", "branding")
+		data, err := administrationData(r, browserContext, views, "Branding", "branding")
 		if err != nil {
 			httpresponse.InternalServerError(views.Logger(), w, err)
 			return

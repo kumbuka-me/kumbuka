@@ -29,7 +29,7 @@ type sidebarWidthRequest struct {
 
 // Settings renders account information and user presentation preferences.
 func Settings(
-	viewDataUseCases viewDataService,
+	browserContext browserContextLoader,
 	userUseCases userManagementService,
 	tokenUseCases tokenService,
 	mediaUseCases userImageService,
@@ -37,7 +37,7 @@ func Settings(
 	views *webview.Views,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		layout, err := viewDataUseCases.Load(r, views, "Settings")
+		layout, err := browserContext.Load(r, views, "Settings")
 		data := webview.SettingsView{Layout: layout}
 		if err != nil {
 			httpresponse.InternalServerError(views.Logger(), w, err)

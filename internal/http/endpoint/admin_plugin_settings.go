@@ -16,13 +16,13 @@ type AdminPluginSettings struct {
 	// manager owns plugin settings and structured resource persistence.
 	manager *plugin.Manager
 	// data loads shared administration view data.
-	data viewDataService
+	data browserContextLoader
 	// views renders plugin settings responses.
 	views *webview.Views
 }
 
 // NewAdminPluginSettings constructs the dedicated plugin settings handler.
-func NewAdminPluginSettings(manager *plugin.Manager, data viewDataService, views *webview.Views) *AdminPluginSettings {
+func NewAdminPluginSettings(manager *plugin.Manager, data browserContextLoader, views *webview.Views) *AdminPluginSettings {
 	return &AdminPluginSettings{manager: manager, data: data, views: views}
 }
 

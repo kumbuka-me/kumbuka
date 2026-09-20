@@ -11,12 +11,12 @@ import (
 
 // AdminDocumentationHealth renders actionable wiki documentation-quality findings.
 func AdminDocumentationHealth(
-	viewDataUseCases viewDataService,
+	browserContext browserContextLoader,
 	administrationUseCases administrationService,
 	views *webview.Views,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		layout, err := administrationData(r, viewDataUseCases, views, "Documentation health", "health")
+		layout, err := administrationData(r, browserContext, views, "Documentation health", "health")
 		data := webview.AdminHealthView{Layout: layout}
 		if err != nil {
 			httpresponse.InternalServerError(views.Logger(), w, err)
@@ -37,12 +37,12 @@ func AdminDocumentationHealth(
 
 // AdminAudit renders recent application audit events.
 func AdminAudit(
-	viewDataUseCases viewDataService,
+	browserContext browserContextLoader,
 	administrationUseCases administrationService,
 	views *webview.Views,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		layout, err := administrationData(r, viewDataUseCases, views, "Audit log", "audit")
+		layout, err := administrationData(r, browserContext, views, "Audit log", "audit")
 		data := webview.AdminAuditView{Layout: layout}
 		if err != nil {
 			httpresponse.InternalServerError(views.Logger(), w, err)
@@ -63,13 +63,13 @@ func AdminAudit(
 
 // AdminTokens renders administrator-managed personal access tokens.
 func AdminTokens(
-	viewDataUseCases viewDataService,
+	browserContext browserContextLoader,
 	userUseCases userManagementService,
 	tokenUseCases tokenService,
 	views *webview.Views,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		layout, err := administrationData(r, viewDataUseCases, views, "Access tokens", "tokens")
+		layout, err := administrationData(r, browserContext, views, "Access tokens", "tokens")
 		data := webview.AdminTokensView{Layout: layout}
 		if err != nil {
 			httpresponse.InternalServerError(views.Logger(), w, err)
@@ -97,12 +97,12 @@ func AdminTokens(
 
 // AdminExports renders page export controls.
 func AdminExports(
-	viewDataUseCases viewDataService,
+	browserContext browserContextLoader,
 	navigationUseCases navigationService,
 	views *webview.Views,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		layout, err := administrationData(r, viewDataUseCases, views, "Exports", "exports")
+		layout, err := administrationData(r, browserContext, views, "Exports", "exports")
 		data := webview.AdminExportsView{Layout: layout}
 		if err != nil {
 			httpresponse.InternalServerError(views.Logger(), w, err)
@@ -123,12 +123,12 @@ func AdminExports(
 
 // AdminImages renders all uploaded images and their reference counts.
 func AdminImages(
-	viewDataUseCases viewDataService,
+	browserContext browserContextLoader,
 	mediaUseCases imageListService,
 	views *webview.Views,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		layout, err := administrationData(r, viewDataUseCases, views, "Images", "images")
+		layout, err := administrationData(r, browserContext, views, "Images", "images")
 		data := webview.AdminImagesView{Layout: layout}
 		if err != nil {
 			httpresponse.InternalServerError(views.Logger(), w, err)

@@ -10,9 +10,9 @@ import (
 )
 
 // KnowledgeGraphPage renders the interactive page relationship explorer.
-func KnowledgeGraphPage(viewDataUseCases viewDataService, views *webview.Views) http.HandlerFunc {
+func KnowledgeGraphPage(browserContext browserContextLoader, views *webview.Views) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		layout, err := viewDataUseCases.Load(r, views, "Knowledge graph")
+		layout, err := browserContext.Load(r, views, "Knowledge graph")
 		data := webview.GraphView{Layout: layout}
 		if err != nil {
 			httpresponse.InternalServerError(views.Logger(), w, err)

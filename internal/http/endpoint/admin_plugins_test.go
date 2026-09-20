@@ -82,7 +82,7 @@ func TestAdminPluginLifecycleAndAuthorization(t *testing.T) {
 	manager := plugin.NewManager(&plugin.Registry{}, runtime)
 	defer func() { require.NoError(t, manager.Close(ctx)) }()
 	views := testHandlerViews(t, webview.RuntimeInfo{})
-	data := viewDataServiceStub{load: func(*http.Request, *webview.Views, string) (webview.Layout, error) {
+	data := browserContextLoaderStub{load: func(*http.Request, *webview.Views, string) (webview.Layout, error) {
 		return webview.Layout{User: domain.User{ID: 1, Role: "admin"}}, nil
 	}}
 	admin := NewAdminPlugins(manager, nil, data, views)
@@ -162,7 +162,7 @@ func TestAdminPluginCatalogUpdate(t *testing.T) {
 		archive: archive,
 	}
 	views := testHandlerViews(t, webview.RuntimeInfo{})
-	data := viewDataServiceStub{load: func(*http.Request, *webview.Views, string) (webview.Layout, error) {
+	data := browserContextLoaderStub{load: func(*http.Request, *webview.Views, string) (webview.Layout, error) {
 		return webview.Layout{User: domain.User{ID: 1, Role: "admin"}}, nil
 	}}
 	admin := NewAdminPlugins(manager, updates, data, views)
@@ -195,7 +195,7 @@ func TestAdminPluginManualCatalogRefresh(t *testing.T) {
 		status:  appplugins.PluginUpdateStatus{Automatic: true},
 	}
 	views := testHandlerViews(t, webview.RuntimeInfo{})
-	data := viewDataServiceStub{load: func(*http.Request, *webview.Views, string) (webview.Layout, error) {
+	data := browserContextLoaderStub{load: func(*http.Request, *webview.Views, string) (webview.Layout, error) {
 		return webview.Layout{User: domain.User{ID: 1, Role: "admin"}}, nil
 	}}
 	admin := NewAdminPlugins(nil, updates, data, views)
@@ -219,7 +219,7 @@ func TestAdminPluginManualCatalogRefreshFailure(t *testing.T) {
 		},
 	}
 	views := testHandlerViews(t, webview.RuntimeInfo{})
-	data := viewDataServiceStub{load: func(*http.Request, *webview.Views, string) (webview.Layout, error) {
+	data := browserContextLoaderStub{load: func(*http.Request, *webview.Views, string) (webview.Layout, error) {
 		return webview.Layout{User: domain.User{ID: 1, Role: "admin"}}, nil
 	}}
 	admin := NewAdminPlugins(&plugin.Manager{}, updates, data, views)

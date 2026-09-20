@@ -14,13 +14,13 @@ import (
 
 // AdminPages renders bulk page management.
 func AdminPages(
-	viewDataUseCases viewDataService,
+	browserContext browserContextLoader,
 	catalogUseCases pageInventoryService,
 	groupUseCases groupReader,
 	views *webview.Views,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		layout, err := administrationData(r, viewDataUseCases, views, "Pages", "pages")
+		layout, err := administrationData(r, browserContext, views, "Pages", "pages")
 		data := webview.AdminPagesView{Layout: layout}
 		if err != nil {
 			httpresponse.InternalServerError(views.Logger(), w, err)

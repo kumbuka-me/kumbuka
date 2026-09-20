@@ -8,8 +8,8 @@ import (
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
 
-// viewDataService loads the browser layout shared by HTML endpoints.
-type viewDataService interface {
+// browserContextLoader loads the browser layout shared by HTML endpoints.
+type browserContextLoader interface {
 	Load(*http.Request, *webview.Views, string) (webview.Layout, error)
 }
 

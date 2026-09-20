@@ -9,7 +9,7 @@ import (
 
 // Search executes free-text search plus supported field filters.
 func Search(
-	viewDataUseCases viewDataService,
+	browserContext browserContextLoader,
 	catalogUseCases visiblePageSearchService,
 	views *webview.Views,
 ) http.HandlerFunc {
@@ -21,7 +21,7 @@ func Search(
 			return
 		}
 
-		layout, err := viewDataUseCases.Load(r, views, "Search")
+		layout, err := browserContext.Load(r, views, "Search")
 		data := webview.SearchView{Layout: layout}
 		if err != nil {
 			httpresponse.InternalServerError(views.Logger(), w, err)
