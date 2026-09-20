@@ -75,8 +75,13 @@
   margin-bottom: 18px;
 }
 
-.admin-overview-section .admin-stats {
+.admin-overview-status .admin-stats {
   margin-bottom: 0;
+}
+
+.admin-overview-status .admin-stats > div,
+.admin-overview-status .admin-stats > a {
+  background: var(--surface-elevated);
 }
 
 .admin-overview-status {
