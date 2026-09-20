@@ -38,6 +38,9 @@ function setupLiveSearch(form: HTMLFormElement): void {
 
   // Closes results.
   function closeResults(): void {
+    if (timer !== undefined) clearTimeout(timer);
+    timer = undefined;
+    searchRequests.abort();
     results.hidden = true;
     searchInput.setAttribute("aria-expanded", "false");
     activeIndex = -1;
@@ -109,9 +112,10 @@ function setupLiveSearch(form: HTMLFormElement): void {
         { signal },
       );
 
+      if (signal.aborted) return;
       renderResults(requireArrayOf(payload, isSearchPage, "search response"));
     } catch (error) {
-      if (isAbortError(error)) return;
+      if (signal.aborted || isAbortError(error)) return;
 
       console.error("live search failed", error);
       closeResults();
@@ -120,8 +124,11 @@ function setupLiveSearch(form: HTMLFormElement): void {
 
   // Schedules search.
   function scheduleSearch(delay = 120): void {
-    if (timer !== undefined) clearTimeout(timer);
-    timer = setTimeout(() => void search(), delay);
+    closeResults();
+    timer = setTimeout(() => {
+      timer = undefined;
+      void search();
+    }, delay);
   }
 
   searchInput.addEventListener("focus", () => scheduleSearch(0));
@@ -153,6 +160,15 @@ function setupLiveSearch(form: HTMLFormElement): void {
 
   document.addEventListener("pointerdown", (event: PointerEvent) => {
     if (event.target instanceof Node && !form.contains(event.target)) {
+      closeResults();
+    }
+  });
+
+  form.addEventListener("focusout", (event: FocusEvent) => {
+    if (
+      !(event.relatedTarget instanceof Node) ||
+      !form.contains(event.relatedTarget)
+    ) {
       closeResults();
     }
   });
