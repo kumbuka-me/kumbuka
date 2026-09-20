@@ -29,17 +29,24 @@ type userRepository interface {
 	HasLocalCredential(context.Context, int64) (bool, error)
 }
 
+type passwordService interface {
+	Problem(string) string
+	Hash(string) (string, error)
+}
+
 // Users exposes account and external identity administration use cases.
 type Users struct {
 	// repository provides the persistence operations required by users.
 	repository userRepository
+	// passwords validates and hashes local recovery credentials.
+	passwords passwordService
 	// logger reports failures from best-effort audit side effects.
 	logger *slog.Logger
 }
 
 // NewUsers constructs the account administration service.
-func NewUsers(repository userRepository) *Users {
-	return &Users{repository: repository, logger: audit.Logger(nil)}
+func NewUsers(repository userRepository, passwords passwordService) *Users {
+	return &Users{repository: repository, passwords: passwords, logger: audit.Logger(nil)}
 }
 
 // WithLogger uses logger for best-effort service side-effect failures.

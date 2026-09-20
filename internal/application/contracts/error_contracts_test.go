@@ -155,7 +155,7 @@ func TestAdditionalServiceValidationBeforePersistence(t *testing.T) {
 	t.Run("user role", func(t *testing.T) {
 		t.Parallel()
 
-		err := users.NewUsers(nil).UpdateUser(ctx, 1, "invalid", true, nil, nil)
+		err := users.NewUsers(nil, nil).UpdateUser(ctx, 1, "invalid", true, nil, nil)
 
 		validation, ok := errors.AsType[*domain.ValidationError](err)
 		require.True(t, ok)

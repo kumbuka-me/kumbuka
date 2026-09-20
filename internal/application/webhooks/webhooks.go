@@ -2,12 +2,12 @@ package webhooks
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"slices"
 	"strings"
 	"time"
 
-	"github.com/kumbuka-me/kumbuka/internal/secrets"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
 
@@ -118,12 +118,20 @@ type WebhookInput struct {
 	Enabled bool
 }
 
+type secretCodec interface {
+	Configured() bool
+	Encrypt(string) (string, error)
+	Decrypt(string) (string, error)
+}
+
+var errSecretCodecNotConfigured = errors.New("application encryption key is not configured")
+
 // Webhooks owns persisted webhook configuration and Notifykit delivery.
 type Webhooks struct {
 	// repository persists webhook configuration and delivery history.
 	repository webhookRepository
 	// secrets encrypts sensitive request headers at rest.
-	secrets *secrets.Cipher
+	secrets secretCodec
 	// logger records diagnostics emitted by webhooks.
 	logger *slog.Logger
 	// publicURL is the externally visible base URL used when building webhook payloads.
@@ -131,10 +139,10 @@ type Webhooks struct {
 }
 
 // NewWebhooks constructs outgoing webhook use cases.
-func NewWebhooks(repository webhookRepository, secretCipher *secrets.Cipher, logger *slog.Logger, publicURL string) *Webhooks {
+func NewWebhooks(repository webhookRepository, secretCodec secretCodec, logger *slog.Logger, publicURL string) *Webhooks {
 	return &Webhooks{
 		repository: repository,
-		secrets:    secretCipher,
+		secrets:    secretCodec,
 		logger:     logger,
 		publicURL:  strings.TrimRight(strings.TrimSpace(publicURL), "/"),
 	}

@@ -38,3 +38,16 @@ func HashLocalPassword(password string) (string, error) {
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	return string(hash), err
 }
+
+// Passwords adapts local password policy and hashing for application use cases.
+type Passwords struct{}
+
+// Problem returns a user-facing password validation message, or an empty string.
+func (Passwords) Problem(password string) string {
+	return LocalPasswordProblem(password)
+}
+
+// Hash validates and hashes one local password.
+func (Passwords) Hash(password string) (string, error) {
+	return HashLocalPassword(password)
+}

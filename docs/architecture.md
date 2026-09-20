@@ -50,7 +50,7 @@ Resource authorization does not belong in route middleware. Middleware may enfor
 
 `internal/application` is grouped by capability rather than by transport or database table. Queries read and commands mutate, but there is no command bus, query bus, mediator, generic repository, or dependency-injection framework. Page work is split into focused lookup, search, directory, reporting, personal, history, mutation, presence, discussion, review, and bulk capabilities rather than one general-purpose page service.
 
-Repository interfaces live next to the application code that consumes them. They expose only the persistence operations required by that capability. Application errors remain independent of HTTP and are translated by endpoints. Concrete Markdown rendering and icon catalogs are supplied through narrow application-owned capabilities; `internal/pagecontent` adapts the Markdown renderer for persisted page artifacts.
+Repository interfaces live next to the application code that consumes them. They expose only the persistence operations required by that capability. Application errors remain independent of HTTP and are translated by endpoints. Concrete Markdown rendering, icon catalogs, secret encryption, and password hashing are supplied through narrow application-owned capabilities; `internal/pagecontent` adapts the Markdown renderer for persisted page artifacts while the composition root supplies the concrete security adapters.
 
 `internal/application/viewer` is the shared authenticated browser-context query. It loads only data genuinely shared by the browser shell, including preferences, authorized navigation inputs, settings required by the shell, saved searches, and notifications. Page-specific data remains in page-specific use cases.
 
@@ -99,7 +99,7 @@ flowchart LR
 
 ## Architectural checks
 
-`internal/app/architecture_test.go` guards the most important dependency rules: production application code cannot import `net/http`, `html/template`, concrete icon catalogs, HTTP/webview/PostgreSQL packages, or own a concrete Markdown renderer; webview cannot import application/HTTP/PostgreSQL packages; and `pgx` imports remain confined to `internal/postgres`. It also prevents reintroducing the old universal `webview.Data` or `webview.Loader` types.
+`internal/app/architecture_test.go` guards the most important dependency rules: production application code cannot import `net/http`, `html/template`, concrete icon catalogs, credential/secret implementations, HTTP/webview/PostgreSQL packages, or own a concrete Markdown renderer; webview cannot import application/HTTP/PostgreSQL packages; and `pgx` imports remain confined to `internal/postgres`. It also prevents reintroducing the old universal `webview.Data` or `webview.Loader` types.
 
 Normal validation is:
 
@@ -113,5 +113,6 @@ make lint
 ```
 
 The CI workflow additionally builds generated assets and the frontend, checks formatting, runs frontend tests, and executes the selected race-sensitive tests.
+
 
 

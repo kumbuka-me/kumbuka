@@ -50,7 +50,11 @@ func TestApplicationHasNoTransportOrTemplateImports(t *testing.T) {
 			if err != nil {
 				t.Fatalf("unquote import in %s: %v", rel, err)
 			}
-			if name == "net/http" || name == "html/template" || name == modulePath+"pkg/icons" {
+			if name == "net/http" ||
+				name == "html/template" ||
+				name == modulePath+"pkg/icons" ||
+				name == modulePath+"internal/credential" ||
+				name == modulePath+"internal/secrets" {
 				t.Errorf("%s imports forbidden application dependency %s", filepath.ToSlash(rel), name)
 			}
 			if name == modulePath+"pkg/markdown" {

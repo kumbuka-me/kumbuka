@@ -23,6 +23,7 @@ import (
 	appusers "github.com/kumbuka-me/kumbuka/internal/application/users"
 	"github.com/kumbuka-me/kumbuka/internal/application/viewer"
 	appwebhooks "github.com/kumbuka-me/kumbuka/internal/application/webhooks"
+	"github.com/kumbuka-me/kumbuka/internal/credential"
 	"github.com/kumbuka-me/kumbuka/internal/flags"
 	"github.com/kumbuka-me/kumbuka/internal/http/auth"
 	"github.com/kumbuka-me/kumbuka/internal/http/endpoint"
@@ -176,7 +177,7 @@ func newRouteConfig(
 		System:                appsystem.NewSystem(database).WithLogger(logger.With("component", "system")),
 		Templates:             apptemplates.NewTemplates(database),
 		Tokens:                apptokens.NewTokens(database),
-		Users:                 appusers.NewUsers(database).WithLogger(logger.With("component", "users")),
+		Users:                 appusers.NewUsers(database, credential.Passwords{}).WithLogger(logger.With("component", "users")),
 		Webhooks:              webhooks,
 		Logger:                logger.With("component", "server"),
 		AccessLog:             cfg.AccessLog,

@@ -99,7 +99,7 @@ func TestWebhookDeliveryHistoryFailureIsObservableWithoutReplacingPrimaryError(t
 
 	err := NewWebhooks(repository, nil, logger, "").Emit(context.Background(), OutgoingEvent{Event: "page.updated"})
 
-	require.ErrorIs(t, err, secrets.ErrNotConfigured)
+	require.ErrorIs(t, err, errSecretCodecNotConfigured)
 	assert.Contains(t, output.String(), `"event":"webhook_delivery_record_failed"`)
 	assert.Contains(t, output.String(), "delivery history unavailable")
 }

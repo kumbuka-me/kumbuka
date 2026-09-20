@@ -8,7 +8,6 @@ import (
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/crypto/bcrypt"
 )
 
 type accountRepositoryStub struct {
@@ -18,6 +17,15 @@ type accountRepositoryStub struct {
 	mode    string
 	failure error
 }
+
+type passwordServiceStub struct {
+	problem string
+	hash    string
+	err     error
+}
+
+func (s passwordServiceStub) Problem(string) string       { return s.problem }
+func (s passwordServiceStub) Hash(string) (string, error) { return s.hash, s.err }
 
 func (s *accountRepositoryStub) ApplicationSettings(context.Context) (domain.ApplicationSettings, error) {
 	return domain.ApplicationSettings{Authentication: domain.AuthenticationSettings{Mode: s.mode}}, s.failure
@@ -49,7 +57,11 @@ func TestAccountUpdateValidatesBeforeWriting(t *testing.T) {
 			}
 			input := accountInput()
 			tc.change(&input)
-			err := NewUsers(repo).UpdateAccount(context.Background(), input)
+			passwords := passwordServiceStub{hash: "hashed-password"}
+			if tc.name == "password" {
+				passwords.problem = "Use at least 12 characters."
+			}
+			err := NewUsers(repo, passwords).UpdateAccount(context.Background(), input)
 			validation, ok := errors.AsType[*domain.ValidationError](err)
 			require.True(t, ok)
 			assert.Equal(t, tc.field, validation.Fields[0].Field)
@@ -63,9 +75,9 @@ func TestAccountUpdateHashesPasswordAndWritesOnce(t *testing.T) {
 		input := accountInput()
 		input.Password = "a-long-password-123"
 		input.UpdateLocalCredential = toggle
-		require.NoError(t, NewUsers(repo).UpdateAccount(context.Background(), input))
+		require.NoError(t, NewUsers(repo, passwordServiceStub{hash: "hashed-password"}).UpdateAccount(context.Background(), input))
 		assert.Equal(t, 1, repo.calls)
-		require.NoError(t, bcrypt.CompareHashAndPassword([]byte(repo.update.PasswordHash), []byte(input.Password)))
+		assert.Equal(t, "hashed-password", repo.update.PasswordHash)
 		if toggle {
 			require.NotNil(t, repo.update.LocalCredentialEnabled)
 			assert.True(t, *repo.update.LocalCredentialEnabled)
@@ -77,7 +89,7 @@ func TestAccountUpdateHashesPasswordAndWritesOnce(t *testing.T) {
 func TestAccountUpdatePreservesPersistenceFailure(t *testing.T) {
 	failure := errors.New("database unavailable")
 	repo := &accountRepositoryStub{failure: failure}
-	require.ErrorIs(t, NewUsers(repo).UpdateAccount(context.Background(), accountInput()), failure)
+	require.ErrorIs(t, NewUsers(repo, nil).UpdateAccount(context.Background(), accountInput()), failure)
 	assert.Equal(t, 1, repo.calls)
 }
 
@@ -86,7 +98,7 @@ func TestUpdateUserUsesAccountMutationBoundary(t *testing.T) {
 
 	enabled := true
 	repo := &accountRepositoryStub{}
-	err := NewUsers(repo).UpdateUser(
+	err := NewUsers(repo, nil).UpdateUser(
 		context.Background(),
 		7,
 		"editor",

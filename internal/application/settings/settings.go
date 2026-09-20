@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/kumbuka-me/kumbuka/internal/application/audit"
-	"github.com/kumbuka-me/kumbuka/internal/secrets"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"golang.org/x/net/http/httpguts"
 )
@@ -58,12 +57,20 @@ type iconValidator interface {
 	IsIcon(string) bool
 }
 
+type secretCodec interface {
+	Configured() bool
+	Encrypt(string) (string, error)
+	Decrypt(string) (string, error)
+}
+
+var errSecretCodecNotConfigured = errors.New("application encryption key is not configured")
+
 // Settings exposes persisted application configuration use cases.
 type Settings struct {
 	// repository provides the persistence operations required by settings.
 	repository settingsRepository
 	// secrets stores the secrets value used by settings.
-	secrets *secrets.Cipher
+	secrets secretCodec
 	// icons validates configured icons against the active catalog.
 	icons iconValidator
 	// logger reports failures from best-effort audit side effects.
@@ -71,8 +78,8 @@ type Settings struct {
 }
 
 // NewSettings constructs the application settings service.
-func NewSettings(repository settingsRepository, secretCipher *secrets.Cipher) *Settings {
-	return &Settings{repository: repository, secrets: secretCipher, logger: audit.Logger(nil)}
+func NewSettings(repository settingsRepository, secretCodec secretCodec) *Settings {
+	return &Settings{repository: repository, secrets: secretCodec, logger: audit.Logger(nil)}
 }
 
 // WithLogger uses logger for best-effort service side-effect failures.
@@ -132,7 +139,7 @@ func (s *Settings) ResolvePDFRequestHeaders(ctx context.Context, inputs []PDFHea
 	if err == nil {
 		return headers, nil
 	}
-	if errors.Is(err, secrets.ErrNotConfigured) {
+	if errors.Is(err, errSecretCodecNotConfigured) {
 		return nil, &domain.ValidationError{
 			Fields: []domain.FieldError{{
 				Field:   "pdf_headers",
@@ -164,7 +171,7 @@ func (s *Settings) RevealPDFHeader(ctx context.Context, id int64) (string, error
 		if err == nil {
 			return value, nil
 		}
-		if errors.Is(err, secrets.ErrNotConfigured) {
+		if errors.Is(err, errSecretCodecNotConfigured) {
 			return "", &domain.ValidationError{
 				Fields: []domain.FieldError{{
 					Field:   "pdf_headers",
@@ -323,6 +330,9 @@ func (s *Settings) preparePDFHeaderForStorage(header domain.PDFHeader) (domain.P
 	if !header.Sensitive {
 		return header, nil
 	}
+	if s.secrets == nil || !s.secrets.Configured() {
+		return domain.PDFHeader{}, pdfHeaderEncryptionError(errSecretCodecNotConfigured)
+	}
 
 	value, err := s.secrets.Encrypt(header.Value)
 	if err != nil {
@@ -336,7 +346,7 @@ func (s *Settings) preparePDFHeaderForStorage(header domain.PDFHeader) (domain.P
 
 // pdfHeaderEncryptionError converts a missing deployment key into an actionable validation error.
 func pdfHeaderEncryptionError(err error) error {
-	if !errors.Is(err, secrets.ErrNotConfigured) {
+	if !errors.Is(err, errSecretCodecNotConfigured) {
 		return err
 	}
 
@@ -446,8 +456,8 @@ func (s *Settings) decryptPDFHeader(header domain.PDFHeader) (string, error) {
 	if !header.Sensitive {
 		return header.Value, nil
 	}
-	if s.secrets == nil {
-		return "", secrets.ErrNotConfigured
+	if s.secrets == nil || !s.secrets.Configured() {
+		return "", errSecretCodecNotConfigured
 	}
 
 	return s.secrets.Decrypt(header.Value)

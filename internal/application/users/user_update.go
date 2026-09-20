@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/kumbuka-me/kumbuka/internal/credential"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
 
@@ -72,10 +71,13 @@ func (s *Users) UpdateAccount(ctx context.Context, input UserUpdateInput) error 
 		update.LocalCredentialEnabled = &enabled
 	}
 	if input.Password != "" {
-		if problem := credential.LocalPasswordProblem(input.Password); problem != "" {
+		if s.passwords == nil {
+			return fmt.Errorf("hash account password: password service is not configured")
+		}
+		if problem := s.passwords.Problem(input.Password); problem != "" {
 			return domain.NewValidationError("local_password", problem)
 		}
-		hash, err := credential.HashLocalPassword(input.Password)
+		hash, err := s.passwords.Hash(input.Password)
 		if err != nil {
 			return fmt.Errorf("hash account password: %w", err)
 		}

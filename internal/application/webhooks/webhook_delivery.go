@@ -11,7 +11,6 @@ import (
 	kit "github.com/containeroo/notifykit/notify"
 	notifywebhook "github.com/containeroo/notifykit/targets/webhook"
 	"github.com/containeroo/notifykit/templates"
-	"github.com/kumbuka-me/kumbuka/internal/secrets"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
 
@@ -131,7 +130,7 @@ func (s *Webhooks) webhookRequestHeaders(item domain.Webhook, event OutgoingEven
 		value := header.Value
 		if header.Sensitive {
 			if s.secrets == nil || !s.secrets.Configured() {
-				return nil, secrets.ErrNotConfigured
+				return nil, errSecretCodecNotConfigured
 			}
 			plain, err := s.secrets.Decrypt(value)
 			if err != nil {
