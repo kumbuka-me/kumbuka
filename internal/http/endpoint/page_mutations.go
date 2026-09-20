@@ -1,7 +1,6 @@
 package endpoint
 
 import (
-	"context"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -19,9 +18,7 @@ import (
 
 // SavePageForm creates or updates a page from the browser form.
 func SavePageForm(
-	pageUseCases pageWriterService,
-	draftUseCases draftDiscardService,
-	templateUseCases templateService,
+	editorSaveUseCases pageEditorSave,
 	views *webview.Views,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -45,79 +42,93 @@ func SavePageForm(
 			return
 		}
 
-		input, err := pageSaveInput(r.Context(), r, templateUseCases, user, originalSlug, metadata)
+		input, err := pageEditorSaveInput(r, user, originalSlug, metadata)
 		if err != nil {
 			writePageProblem(views.Logger(), w, err)
 			return
 		}
 
-		page, err := pageUseCases.Save(r.Context(), input)
+		page, err := editorSaveUseCases.Execute(r.Context(), input)
 		if err != nil {
 			writePageProblem(views.Logger(), w, err)
 			return
-		}
-
-		draftKey := "new"
-		if originalSlug != "" {
-			draftKey = apppages.PageDraftKey(page.ID)
-		}
-
-		if err := draftUseCases.Delete(r.Context(), user.ID, draftKey); err != nil {
-			views.Logger().Warn(
-				"discard saved page draft",
-				"event", "page_draft_cleanup_failed",
-				"draft_key", draftKey,
-				"user_id", user.ID,
-				"error", err,
-			)
 		}
 
 		http.Redirect(w, r, "/pages/"+page.Slug, http.StatusSeeOther)
 	}
 }
 
-// pageSaveInput builds the service input for a parsed page form.
-func pageSaveInput(
-	ctx context.Context,
+// pageEditorSaveInput builds the application input for a parsed page editor form.
+func pageEditorSaveInput(
 	r *http.Request,
-	templates templateService,
 	user domain.User,
 	originalSlug string,
 	metadata domain.PageMetadata,
-) (apppages.PageSaveInput, error) {
-	markdown := r.FormValue("markdown")
-	if originalSlug == "" {
-		resolved, err := resolvePageTemplateFields(ctx, r, templates, markdown)
-		if err != nil {
-			return apppages.PageSaveInput{}, err
-		}
-		markdown = resolved
-	}
-
+) (apppages.EditorSaveInput, error) {
 	expectedUpdatedAt, err := expectedPageUpdatedAt(r.FormValue("expected_updated_at"), originalSlug != "")
 	if err != nil {
-		return apppages.PageSaveInput{}, err
+		return apppages.EditorSaveInput{}, err
 	}
 
-	return apppages.PageSaveInput{
-		PreviousSlug:       originalSlug,
-		ExpectedUpdatedAt:  expectedUpdatedAt,
-		Slug:               r.FormValue("slug"),
-		Title:              r.FormValue("title"),
-		Icon:               r.FormValue("icon"),
-		Language:           r.FormValue("language"),
-		Markdown:           markdown,
-		Message:            r.FormValue("message"),
-		Tags:               splitTags(r.FormValue("tags")),
-		GroupIDs:           parseGroupIDs(r.Form["group_id"]),
-		Status:             metadata.Status,
-		OwnerGroupID:       metadata.OwnerGroupID,
-		ReviewIntervalDays: metadata.ReviewIntervalDays,
-		MarkReviewed:       metadata.MarkReviewed,
-		DeprecatedTarget:   metadata.DeprecatedTarget,
-		Properties:         pagePropertiesFromForm(r),
-		Actor:              user,
+	templateID := int64(0)
+	if originalSlug == "" {
+		templateID, err = pageTemplateID(r.FormValue("template_id"))
+		if err != nil {
+			return apppages.EditorSaveInput{}, err
+		}
+	}
+
+	return apppages.EditorSaveInput{
+		Page: apppages.PageSaveInput{
+			PreviousSlug:       originalSlug,
+			ExpectedUpdatedAt:  expectedUpdatedAt,
+			Slug:               r.FormValue("slug"),
+			Title:              r.FormValue("title"),
+			Icon:               r.FormValue("icon"),
+			Language:           r.FormValue("language"),
+			Markdown:           r.FormValue("markdown"),
+			Message:            r.FormValue("message"),
+			Tags:               splitTags(r.FormValue("tags")),
+			GroupIDs:           parseGroupIDs(r.Form["group_id"]),
+			Status:             metadata.Status,
+			OwnerGroupID:       metadata.OwnerGroupID,
+			ReviewIntervalDays: metadata.ReviewIntervalDays,
+			MarkReviewed:       metadata.MarkReviewed,
+			DeprecatedTarget:   metadata.DeprecatedTarget,
+			Properties:         pagePropertiesFromForm(r),
+			Actor:              user,
+		},
+		TemplateID:     templateID,
+		TemplateValues: pageTemplateValues(r),
 	}, nil
+}
+
+// pageTemplateID validates an optional template identifier submitted by the editor.
+func pageTemplateID(value string) (int64, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return 0, nil
+	}
+	id, err := strconv.ParseInt(value, 10, 64)
+	if err != nil || id <= 0 {
+		return 0, &domain.ValidationError{Fields: []domain.FieldError{{
+			Field: "template", Message: "Choose a valid page template.",
+		}}}
+	}
+	return id, nil
+}
+
+// pageTemplateValues extracts transport fields without requiring the endpoint to load template metadata.
+func pageTemplateValues(r *http.Request) map[string]string {
+	values := make(map[string]string)
+	for name := range r.Form {
+		field, ok := strings.CutPrefix(name, "blueprint_")
+		if !ok || field == "" {
+			continue
+		}
+		values[field] = r.FormValue(name)
+	}
+	return values
 }
 
 // expectedPageUpdatedAt parses the immutable editor version token for an existing page.
@@ -143,39 +154,6 @@ func expectedPageUpdatedAt(value string, required bool) (time.Time, error) {
 	}
 
 	return time.Unix(0, nanoseconds), nil
-}
-
-// resolvePageTemplateFields validates and materializes creation-time blueprint fields.
-func resolvePageTemplateFields(
-	ctx context.Context,
-	r *http.Request,
-	templates templateService,
-	markdown string,
-) (string, error) {
-	value := strings.TrimSpace(r.FormValue("template_id"))
-	if value == "" {
-		return markdown, nil
-	}
-	id, err := strconv.ParseInt(value, 10, 64)
-	if err != nil || id <= 0 {
-		return "", &domain.ValidationError{Fields: []domain.FieldError{{Field: "template", Message: "Choose a valid page template."}}}
-	}
-	template, err := templates.PageTemplate(ctx, id)
-	if err != nil {
-		return "", err
-	}
-	validation := &domain.ValidationError{}
-	for _, field := range template.Fields {
-		fieldValue := r.FormValue("blueprint_" + field.Name)
-		if field.Required && strings.TrimSpace(fieldValue) == "" {
-			validation.Fields = append(validation.Fields, domain.FieldError{Field: "blueprint_" + field.Name, Message: field.Label + " is required."})
-		}
-		markdown = strings.ReplaceAll(markdown, "{{field:"+field.Name+"}}", fieldValue)
-	}
-	if len(validation.Fields) > 0 {
-		return "", validation
-	}
-	return markdown, nil
 }
 
 // DeletePageForm deletes a page from the browser and returns home.

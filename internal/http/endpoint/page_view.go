@@ -50,10 +50,6 @@ func ViewPage(
 
 		securedCatalog := catalogUseCases.Accessible(user)
 
-		stop = measurePageStage(r.Context(), "record_view")
-		apppages.RecordView(r.Context(), views.Logger(), catalogUseCases, slug, user.ID)
-		stop()
-
 		state, outgoingLinks := result.State, result.OutgoingLinks
 
 		stop = measurePageStage(r.Context(), "view_data")

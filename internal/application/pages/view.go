@@ -3,10 +3,11 @@ package pages
 import (
 	"context"
 	"errors"
+	"log/slog"
+
 	appaccess "github.com/kumbuka-me/kumbuka/internal/application/access"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/kumbuka-me/kumbuka/pkg/renderprofile"
-	"log/slog"
 )
 
 // viewRepository contains the persistence needed for reading a page screen.
@@ -17,6 +18,7 @@ type viewRepository interface {
 	PageWatch(context.Context, string, int64) (domain.PageWatch, error)
 	PageLinks(context.Context, string) ([]domain.PageLink, error)
 	PageComments(context.Context, string) ([]domain.PageComment, error)
+	RecordView(context.Context, string, int64) error
 }
 
 // reviewReader supplies review state without coupling page queries to mutation machinery.
@@ -32,6 +34,7 @@ type View struct {
 	repository viewRepository
 	access     accessReader
 	reviews    reviewReader
+	logger     *slog.Logger
 }
 
 // ViewResult contains application data for a reading page or an alias target.
@@ -43,8 +46,8 @@ type ViewResult struct {
 }
 
 // NewView constructs the page reading query from its narrow read ports.
-func NewView(repository viewRepository, access accessReader, reviews reviewReader) *View {
-	return &View{repository: repository, access: access, reviews: reviews}
+func NewView(repository viewRepository, access accessReader, reviews reviewReader, logger *slog.Logger) *View {
+	return &View{repository: repository, access: access, reviews: reviews, logger: logger}
 }
 
 // Execute authorizes and loads one page, without recording view activity.
@@ -67,6 +70,9 @@ func (q *View) Execute(ctx context.Context, actor domain.User, slug string) (Vie
 	if err != nil {
 		return ViewResult{}, err
 	}
+	stop := measurePageStage(ctx, "record_view")
+	RecordView(ctx, q.logger, q.repository, page.Slug, actor.ID)
+	stop()
 	return ViewResult{Page: page, State: state, OutgoingLinks: links}, nil
 }
 

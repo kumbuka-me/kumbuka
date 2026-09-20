@@ -42,8 +42,12 @@ type visiblePageLookupService interface {
 	GetPageOrAliasFor(context.Context, domain.User, string) (domain.Page, string, error)
 }
 
-type editablePageService interface {
-	GetPageForEdit(context.Context, domain.User, string) (domain.Page, error)
+type pageEditorQuery interface {
+	Load(context.Context, domain.User, string, int64) (apppages.EditorResult, error)
+}
+
+type pageEditorSave interface {
+	Execute(context.Context, apppages.EditorSaveInput) (domain.Page, error)
 }
 
 type visiblePageListService interface {
@@ -123,10 +127,6 @@ type editorDraftService interface {
 	Delete(context.Context, int64, string) error
 }
 
-type draftDiscardService interface {
-	Delete(context.Context, int64, string) error
-}
-
 type sidebarCatalogService interface {
 	Favorites(context.Context, int64) ([]domain.Page, error)
 	RecentViewed(context.Context, int64, int) ([]domain.Page, error)
@@ -137,7 +137,6 @@ type pageViewCatalogService interface {
 	pageSearchService
 	pageWatchReader
 	accessibleCatalogService
-	RecordView(context.Context, string, int64) error
 	IsFavorite(context.Context, string, int64) (bool, error)
 	PageLinks(context.Context, string) ([]domain.PageLink, error)
 	PageComments(context.Context, string) ([]domain.PageComment, error)

@@ -208,6 +208,8 @@ func (s aliasFailureStub) GetPage(context.Context, string) (domain.Page, error) 
 
 func (s aliasFailureStub) ResolvePageAlias(context.Context, string) (string, error) { return "", s.err }
 
+func (aliasFailureStub) RecordView(context.Context, string, int64) error { return nil }
+
 func (s aliasFailureStub) GetPageFor(context.Context, domain.User, string) (domain.Page, error) {
 	return domain.Page{}, domain.ErrNotFound
 }
@@ -227,7 +229,7 @@ func TestAliasFailureIsNotDiscarded(t *testing.T) {
 		request.SetPathValue("slug", "missing")
 		response := httptest.NewRecorder()
 
-		ViewPage(nil, repository, apppages.NewView(repository, viewDataAccessStub{}, nil), nil, testHandlerViewsWithLogger(t, logger, webview.RuntimeInfo{}))(response, request)
+		ViewPage(nil, repository, apppages.NewView(repository, viewDataAccessStub{}, nil, logger), nil, testHandlerViewsWithLogger(t, logger, webview.RuntimeInfo{}))(response, request)
 
 		assert.Equal(t, http.StatusInternalServerError, response.Code)
 		assert.Contains(t, logs.String(), "alias database offline")

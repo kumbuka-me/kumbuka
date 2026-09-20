@@ -294,12 +294,12 @@ func (r routeRegistrar) addPageRoutes() {
 	r.router.Handle(pageCommentSuggestionApplyPattern, browserAuthn(editorAuthz(endpoint.ApplyPageCommentSuggestion(config.Pages, config.Views))))
 	r.router.Handle("POST /page-comments/resolve/{id}/{slug...}", browserAuthn(editorAuthz(endpoint.ResolvePageComment(config.Pages, config.Views))))
 
-	editPage := endpoint.EditPage(config.ViewData, config.Catalog, config.Groups, config.Templates, config.Views)
+	editPage := endpoint.EditPage(config.ViewData, config.Editor, config.Views)
 	r.router.Handle("GET /pages/new", browserAuthn(editorAuthz(editPage)))
 	r.router.Handle("GET /edit/{slug...}", browserAuthn(editorAuthz(editPage)))
 	r.router.Handle(
 		"POST /pages",
-		browserAuthn(editorAuthz(endpoint.SavePageForm(config.Pages, config.Drafts, config.Templates, config.Views))),
+		browserAuthn(editorAuthz(endpoint.SavePageForm(config.EditorSave, config.Views))),
 	)
 	r.router.Handle("POST /pages/{slug...}", browserAuthn(endpoint.FavoritePage(config.Catalog, config.Views)))
 	r.router.Handle("POST /page-watch/{slug...}", browserAuthn(endpoint.WatchPage(config.Catalog, config.Views)))

@@ -79,7 +79,7 @@ func (f aliasReadFake) ResolvePageAlias(context.Context, string) (string, error)
 func TestViewDenialPrecedesPersistence(t *testing.T) {
 	t.Parallel()
 	policy := &viewAccessFake{}
-	_, err := NewView(nil, policy, nil).Execute(context.Background(), domain.User{ID: 5}, "private")
+	_, err := NewView(nil, policy, nil, nil).Execute(context.Background(), domain.User{ID: 5}, "private")
 	require.ErrorIs(t, err, domain.ErrNotFound)
 	assert.Equal(t, 1, policy.calls)
 }
@@ -87,12 +87,12 @@ func TestViewDenialPrecedesPersistence(t *testing.T) {
 func TestViewAliasAndFailure(t *testing.T) {
 	t.Parallel()
 	policy := &viewAccessFake{allowed: true}
-	result, err := NewView(aliasReadFake{alias: "current"}, policy, nil).Execute(context.Background(), domain.User{ID: 5}, "old")
+	result, err := NewView(aliasReadFake{alias: "current"}, policy, nil, nil).Execute(context.Background(), domain.User{ID: 5}, "old")
 	require.NoError(t, err)
 	assert.Equal(t, "current", result.Alias)
 	assert.Equal(t, 1, policy.calls)
 	failure := errors.New("lookup failed")
-	_, err = NewView(aliasReadFake{err: failure}, policy, nil).Execute(context.Background(), domain.User{}, "old")
+	_, err = NewView(aliasReadFake{err: failure}, policy, nil, nil).Execute(context.Background(), domain.User{}, "old")
 	require.ErrorIs(t, err, failure)
 }
 

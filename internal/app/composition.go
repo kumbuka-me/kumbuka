@@ -37,6 +37,10 @@ import (
 type httpConfig struct {
 	// Home loads dashboard page-list capabilities with application-owned access filtering.
 	Home *apppages.HomeQuery
+	// Editor loads create/edit page workflow data.
+	Editor *apppages.Editor
+	// EditorSave coordinates browser-editor page saves and draft cleanup.
+	EditorSave *apppages.EditorSave
 	// ViewPage loads authorized reading-page state.
 	ViewPage *apppages.View
 	// Assets contains the embedded web application assets served by HTTP endpoints.
@@ -140,7 +144,9 @@ func newRouteConfig(
 		ReadOnly:       cfg.ReadOnly,
 	}
 	config.Home = apppages.NewHomeQuery(config.Catalog, config.Drafts, config.Access)
-	config.ViewPage = apppages.NewView(config.Catalog, config.Access, config.Pages)
+	config.Editor = apppages.NewEditor(config.Catalog, config.Groups, config.Templates)
+	config.EditorSave = apppages.NewEditorSave(config.Pages, config.Drafts, config.Templates, config.Logger)
+	config.ViewPage = apppages.NewView(config.Catalog, config.Access, config.Pages, config.Logger)
 	return config
 }
 
