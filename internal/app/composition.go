@@ -35,6 +35,8 @@ import (
 
 // httpConfig contains application and presentation dependencies used only while constructing HTTP endpoints.
 type httpConfig struct {
+	// Home loads dashboard page-list capabilities with application-owned access filtering.
+	Home *apppages.HomeQuery
 	// ViewPage loads authorized reading-page state.
 	ViewPage *apppages.View
 	// Assets contains the embedded web application assets served by HTTP endpoints.
@@ -110,18 +112,21 @@ func newRouteConfig(
 		cfg.PublicURL,
 	)
 
+	access := appaccess.NewAccess(database)
+	pages := apppages.NewPages(database, access, logger, webhooks)
+
 	config := httpConfig{
 		Assets:         appFS,
 		Administration: appadministration.NewAdministration(database),
-		Access:         appaccess.NewAccess(database),
-		Catalog:        apppages.NewCatalog(database),
+		Access:         access,
+		Catalog:        apppages.NewCatalog(database, access),
 		Drafts:         apppages.NewDrafts(database),
 		Groups:         appgroups.NewGroups(database),
-		Knowledge:      appsearch.NewKnowledge(database),
+		Knowledge:      appsearch.NewKnowledge(database, access),
 		Notifications:  appnotifications.NewNotifications(database),
 		Media:          appmedia.NewMedia(database),
-		Navigation:     appnavigation.NewNavigation(database),
-		Pages:          apppages.NewPages(database, logger, webhooks),
+		Navigation:     appnavigation.NewNavigation(database, access),
+		Pages:          pages,
 		Preferences:    apppreferences.NewPreferences(database),
 		RecycleBin:     apprecyclebin.NewRecycleBin(database),
 		Settings:       appsettings.NewSettings(database, secretCipher).WithLogger(logger.With("component", "settings")),
@@ -134,6 +139,7 @@ func newRouteConfig(
 		AccessLog:      cfg.AccessLog,
 		ReadOnly:       cfg.ReadOnly,
 	}
+	config.Home = apppages.NewHomeQuery(config.Catalog, config.Drafts, config.Access)
 	config.ViewPage = apppages.NewView(config.Catalog, config.Access, config.Pages)
 	return config
 }

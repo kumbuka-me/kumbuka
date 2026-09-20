@@ -16,7 +16,7 @@ func TestPageApprovalValidation(t *testing.T) {
 	t.Run("request requires page path", func(t *testing.T) {
 		t.Parallel()
 
-		_, err := NewPages(nil, slog.Default()).RequestReview(context.Background(), PageReviewRequestInput{
+		_, err := NewPages(nil, nil, slog.Default()).RequestReview(context.Background(), PageReviewRequestInput{
 			Slug:  " ",
 			Actor: domain.User{Role: "editor"},
 		})
@@ -29,7 +29,7 @@ func TestPageApprovalValidation(t *testing.T) {
 	t.Run("viewer cannot request review", func(t *testing.T) {
 		t.Parallel()
 
-		_, err := NewPages(nil, slog.Default()).RequestReview(context.Background(), PageReviewRequestInput{
+		_, err := NewPages(nil, nil, slog.Default()).RequestReview(context.Background(), PageReviewRequestInput{
 			Slug:  "guide",
 			Actor: domain.User{Role: "viewer"},
 		})
@@ -40,7 +40,7 @@ func TestPageApprovalValidation(t *testing.T) {
 	t.Run("decision validates value before persistence", func(t *testing.T) {
 		t.Parallel()
 
-		err := NewPages(nil, slog.Default()).DecideReview(context.Background(), PageReviewDecisionInput{
+		err := NewPages(nil, nil, slog.Default()).DecideReview(context.Background(), PageReviewDecisionInput{
 			ID:       1,
 			Slug:     "guide",
 			Decision: "maybe",
@@ -55,7 +55,7 @@ func TestPageApprovalValidation(t *testing.T) {
 	t.Run("administrator can review without target lookup", func(t *testing.T) {
 		t.Parallel()
 
-		allowed, err := NewPages(nil, slog.Default()).CanReview(context.Background(), "guide", domain.User{Role: "admin"})
+		allowed, err := NewPages(nil, nil, slog.Default()).CanReview(context.Background(), "guide", domain.User{Role: "admin"})
 
 		require.NoError(t, err)
 		assert.True(t, allowed)
@@ -65,7 +65,7 @@ func TestPageApprovalValidation(t *testing.T) {
 		t.Parallel()
 
 		request := domain.PageReviewRequest{ID: 7, RequestedBy: 42, Status: domain.PageReviewStatusPending}
-		allowed := NewPages(nil, slog.Default()).CanManageReview(request, domain.User{ID: 42, Role: "editor"})
+		allowed := NewPages(nil, nil, slog.Default()).CanManageReview(request, domain.User{ID: 42, Role: "editor"})
 
 		assert.True(t, allowed)
 	})
@@ -74,7 +74,7 @@ func TestPageApprovalValidation(t *testing.T) {
 		t.Parallel()
 
 		request := domain.PageReviewRequest{ID: 7, RequestedBy: 42, Status: domain.PageReviewStatusApproved}
-		allowed := NewPages(nil, slog.Default()).CanManageReview(request, domain.User{ID: 42, Role: "editor"})
+		allowed := NewPages(nil, nil, slog.Default()).CanManageReview(request, domain.User{ID: 42, Role: "editor"})
 
 		assert.False(t, allowed)
 	})
@@ -124,7 +124,7 @@ func TestReviewGroupsUsesReviewTargetProjection(t *testing.T) {
 	t.Parallel()
 
 	want := []domain.Group{{ID: 2, Name: "Editors"}, {ID: 4, Name: "Security"}}
-	got, err := NewPages(reviewTargetRepositoryStub{groups: want}, slog.Default()).ReviewGroups(context.Background())
+	got, err := NewPages(reviewTargetRepositoryStub{groups: want}, nil, slog.Default()).ReviewGroups(context.Background())
 
 	require.NoError(t, err)
 	assert.Equal(t, want, got)
@@ -137,7 +137,7 @@ func TestResolveReviewTargets(t *testing.T) {
 		t.Parallel()
 
 		repository := reviewTargetRepositoryStub{page: domain.Page{OwnerGroupID: 9}}
-		userIDs, groupID, err := NewPages(repository, slog.Default()).resolveReviewTargets(context.Background(), "guide", nil, 0)
+		userIDs, groupID, err := NewPages(repository, nil, slog.Default()).resolveReviewTargets(context.Background(), "guide", nil, 0)
 
 		require.NoError(t, err)
 		assert.Empty(t, userIDs)
@@ -151,7 +151,7 @@ func TestResolveReviewTargets(t *testing.T) {
 			page:  domain.Page{OwnerGroupID: 9},
 			users: []domain.User{{ID: 4, Username: "alice", Role: "editor"}},
 		}
-		userIDs, groupID, err := NewPages(repository, slog.Default()).resolveReviewTargets(context.Background(), "guide", []string{"@alice"}, 0)
+		userIDs, groupID, err := NewPages(repository, nil, slog.Default()).resolveReviewTargets(context.Background(), "guide", []string{"@alice"}, 0)
 
 		require.NoError(t, err)
 		assert.Equal(t, []int64{4}, userIDs)
@@ -162,7 +162,7 @@ func TestResolveReviewTargets(t *testing.T) {
 		t.Parallel()
 
 		repository := reviewTargetRepositoryStub{}
-		_, _, err := NewPages(repository, slog.Default()).resolveReviewTargets(context.Background(), "guide", []string{"@missing"}, 0)
+		_, _, err := NewPages(repository, nil, slog.Default()).resolveReviewTargets(context.Background(), "guide", []string{"@missing"}, 0)
 		validation, ok := err.(*domain.ValidationError)
 
 		require.True(t, ok)
@@ -176,7 +176,7 @@ func TestRequestReviewRequiresChangesToBeAddressed(t *testing.T) {
 	repository := reviewTargetRepositoryStub{
 		active: domain.PageReviewRequest{ID: 3, Status: domain.PageReviewStatusChangesRequested},
 	}
-	_, err := NewPages(repository, slog.Default()).RequestReview(context.Background(), PageReviewRequestInput{
+	_, err := NewPages(repository, nil, slog.Default()).RequestReview(context.Background(), PageReviewRequestInput{
 		Slug:  "guide",
 		Actor: domain.User{ID: 7, Role: "editor"},
 	})

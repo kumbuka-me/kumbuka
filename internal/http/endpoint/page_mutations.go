@@ -22,7 +22,6 @@ func SavePageForm(
 	pageUseCases pageWriterService,
 	draftUseCases draftDiscardService,
 	templateUseCases templateService,
-	accessUseCases pageAccessReader,
 	views *webview.Views,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -35,16 +34,6 @@ func SavePageForm(
 		}
 
 		originalSlug := strings.TrimSpace(r.FormValue("original_slug"))
-		destinationSlug := md.Slug(r.FormValue("slug"))
-		allowed, err := canEditPagePaths(r.Context(), accessUseCases, user, originalSlug, destinationSlug)
-		if err != nil {
-			httpresponse.InternalServerError(views.Logger(), w, err)
-			return
-		}
-		if !allowed {
-			httpresponse.Problem(w, http.StatusForbidden, "You do not have permission to edit this page path.")
-			return
-		}
 
 		metadata, err := pageMetadataFromForm(r)
 		if err != nil {
@@ -85,27 +74,6 @@ func SavePageForm(
 
 		http.Redirect(w, r, "/pages/"+page.Slug, http.StatusSeeOther)
 	}
-}
-
-// canEditPagePaths reports whether the user may edit every non-empty page path.
-func canEditPagePaths(
-	ctx context.Context,
-	access pageAccessReader,
-	user domain.User,
-	paths ...string,
-) (bool, error) {
-	for _, path := range paths {
-		if strings.TrimSpace(path) == "" {
-			continue
-		}
-
-		allowed, err := access.CanEdit(ctx, user, path)
-		if err != nil || !allowed {
-			return allowed, err
-		}
-	}
-
-	return true, nil
 }
 
 // pageSaveInput builds the service input for a parsed page form.
@@ -229,15 +197,8 @@ func DeletePageForm(
 }
 
 // FavoritePage updates the current user's favorite status for a page.
-func FavoritePage(
-	catalogUseCases favoriteService,
-	views *webview.Views,
-	accessUseCases pageAccessReader,
-) http.HandlerFunc {
+func FavoritePage(catalogUseCases visiblePageActions, views *webview.Views) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !authorizePageRequest(w, r, accessUseCases, false) {
-			return
-		}
 		value := r.PathValue("slug")
 
 		slug, ok := strings.CutSuffix(value, "/favorite")
@@ -248,12 +209,7 @@ func FavoritePage(
 
 		user, _ := auth.User(r)
 
-		if err := catalogUseCases.SetFavorite(
-			r.Context(),
-			slug,
-			user.ID,
-			r.FormValue("on") != "false",
-		); err != nil {
+		if err := catalogUseCases.SetFavoriteFor(r.Context(), user, slug, r.FormValue("on") != "false"); err != nil {
 			writePageProblem(views.Logger(), w, err)
 			return
 		}
@@ -263,15 +219,8 @@ func FavoritePage(
 }
 
 // WatchPage updates the current user's page or subtree subscription.
-func WatchPage(
-	catalogUseCases pageWatchService,
-	views *webview.Views,
-	accessUseCases pageAccessReader,
-) http.HandlerFunc {
+func WatchPage(catalogUseCases visiblePageActions, views *webview.Views) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !authorizePageRequest(w, r, accessUseCases, false) {
-			return
-		}
 		user, _ := auth.User(r)
 		slug := strings.Trim(strings.TrimSpace(r.PathValue("slug")), "/")
 		scope := strings.TrimSpace(r.FormValue("scope"))
@@ -285,7 +234,7 @@ func WatchPage(
 			return
 		}
 
-		if err := catalogUseCases.SetPageWatch(r.Context(), slug, user.ID, scope); err != nil {
+		if err := catalogUseCases.SetPageWatchFor(r.Context(), user, slug, scope); err != nil {
 			writePageProblem(views.Logger(), w, err)
 			return
 		}

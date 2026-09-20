@@ -72,6 +72,9 @@ func (s *Pages) ReviewDetail(ctx context.Context, reviewID int64, slug string, a
 	if reviewID <= 0 || slug == "" {
 		return PageReviewDetail{}, domain.ErrNotFound
 	}
+	if err := s.requireView(ctx, actor, slug); err != nil {
+		return PageReviewDetail{}, err
+	}
 
 	request, err := s.repository.PageReviewRequestByID(ctx, reviewID, slug)
 	if err != nil {
@@ -194,7 +197,11 @@ func (s *Pages) ApplyAllReviewSuggestions(ctx context.Context, reviewID int64, s
 // applyReviewSuggestions validates, merges, and persists selected suggestions as one new revision.
 func (s *Pages) applyReviewSuggestions(ctx context.Context, reviewID int64, slug string, selected []int64, actor domain.User) (domain.Page, error) {
 	applyAll := len(selected) == 0
-	detail, err := s.ReviewDetail(ctx, reviewID, strings.TrimSpace(slug), actor)
+	slug = strings.TrimSpace(slug)
+	if err := s.requireEdit(ctx, actor, slug); err != nil {
+		return domain.Page{}, err
+	}
+	detail, err := s.ReviewDetail(ctx, reviewID, slug, actor)
 	if err != nil {
 		return domain.Page{}, err
 	}

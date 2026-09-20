@@ -104,6 +104,9 @@ func (s *Pages) RequestReview(ctx context.Context, input PageReviewRequestInput)
 	if input.Slug == "" {
 		return domain.PageReviewRequest{}, domain.NewValidationError("slug", "A page path is required.")
 	}
+	if err := s.requireEdit(ctx, input.Actor, input.Slug); err != nil {
+		return domain.PageReviewRequest{}, err
+	}
 	if !canRequestReview(input.Actor) {
 		return domain.PageReviewRequest{}, domain.ErrForbidden
 	}
@@ -156,6 +159,9 @@ func (s *Pages) UpdateReview(ctx context.Context, input PageReviewUpdateInput) (
 	if input.Slug == "" {
 		return domain.PageReviewRequest{}, domain.NewValidationError("slug", "A page path is required.")
 	}
+	if err := s.requireEdit(ctx, input.Actor, input.Slug); err != nil {
+		return domain.PageReviewRequest{}, err
+	}
 
 	request, err := s.repository.PageReviewRequestByID(ctx, input.ID, input.Slug)
 	if err != nil {
@@ -206,6 +212,9 @@ func (s *Pages) CancelReview(ctx context.Context, id int64, slug string, actor d
 	if slug == "" {
 		return domain.NewValidationError("slug", "A page path is required.")
 	}
+	if err := s.requireEdit(ctx, actor, slug); err != nil {
+		return err
+	}
 
 	request, err := s.repository.PageReviewRequestByID(ctx, id, slug)
 	if err != nil {
@@ -236,6 +245,9 @@ func (s *Pages) DecideReview(ctx context.Context, input PageReviewDecisionInput)
 	}
 	if input.Decision != domain.PageReviewStatusApproved && input.Decision != domain.PageReviewStatusChangesRequested {
 		return domain.NewValidationError("decision", "Choose approve or request changes.")
+	}
+	if err := s.requireView(ctx, input.Actor, input.Slug); err != nil {
+		return err
 	}
 
 	allowed, err := s.CanReview(ctx, input.Slug, input.Actor)

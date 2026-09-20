@@ -35,6 +35,10 @@ func (s sitemapCatalogStub) PageInventory(context.Context) ([]domain.Page, error
 	return s.pages, s.err
 }
 
+func (s sitemapCatalogStub) PageInventoryFor(context.Context, domain.User) ([]domain.Page, error) {
+	return s.pages, s.err
+}
+
 func TestRobots(t *testing.T) {
 	t.Parallel()
 
@@ -126,7 +130,6 @@ func TestSitemap(t *testing.T) {
 				{Slug: "deprecated-guide", Status: "deprecated", UpdatedAt: updatedAt},
 				{Slug: "platform/start", Status: "verified", UpdatedAt: updatedAt},
 			}},
-			emptyContractServices{},
 			testHandlerViews(t, webview.RuntimeInfo{PublicURL: "https://kumbuka.example.test/docs/"}),
 			slog.Default(),
 		)
@@ -157,7 +160,6 @@ func TestSitemap(t *testing.T) {
 		handler := Sitemap(
 			robotsSettingsStub{settings: domain.ApplicationSettings{RobotsPolicy: domain.RobotsPolicyDisallow}},
 			sitemapCatalogStub{},
-			emptyContractServices{},
 			testHandlerViews(t, webview.RuntimeInfo{}),
 			slog.Default(),
 		)
@@ -175,7 +177,6 @@ func TestSitemap(t *testing.T) {
 		handler := Sitemap(
 			robotsSettingsStub{settings: domain.ApplicationSettings{RobotsPolicy: domain.RobotsPolicyNone}},
 			sitemapCatalogStub{},
-			emptyContractServices{},
 			testHandlerViews(t, webview.RuntimeInfo{}),
 			slog.Default(),
 		)
@@ -195,7 +196,6 @@ func TestSitemap(t *testing.T) {
 		handler := Sitemap(
 			robotsSettingsStub{settings: domain.ApplicationSettings{RobotsPolicy: domain.RobotsPolicyAllow}},
 			sitemapCatalogStub{err: errors.New("inventory unavailable")},
-			emptyContractServices{},
 			testHandlerViews(t, webview.RuntimeInfo{PublicURL: "https://kumbuka.example.test"}),
 			logger,
 		)

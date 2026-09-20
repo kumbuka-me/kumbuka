@@ -152,7 +152,7 @@ func TestAddSuggestionMapsSelectedText(t *testing.T) {
 		latest:      revision.Revision{Number: 3, Markdown: source},
 		latestCount: 3,
 	}
-	pages := NewPages(repository, slog.Default())
+	pages := NewPages(repository, nil, slog.Default())
 
 	comment, err := pages.AddSuggestion(
 		context.Background(),
@@ -186,7 +186,7 @@ func TestAddSuggestionRejectsAmbiguousSelection(t *testing.T) {
 		latestCount: 2,
 	}
 
-	_, err := NewPages(repository, slog.Default()).AddSuggestion(
+	_, err := NewPages(repository, nil, slog.Default()).AddSuggestion(
 		context.Background(),
 		"guide",
 		"same text",
@@ -247,7 +247,7 @@ func TestApplyCommentSuggestionPersistsNewRevisionSource(t *testing.T) {
 		comment:     domain.PageComment{ID: 42, Anchor: "selected", Suggestion: &suggestion},
 	}
 
-	page, err := NewPages(repository, slog.Default()).ApplyCommentSuggestion(
+	page, err := NewPages(repository, nil, slog.Default()).ApplyCommentSuggestion(
 		context.Background(),
 		"guide",
 		42,
@@ -279,7 +279,7 @@ func TestApplyCommentSuggestionRejectsStaleRevision(t *testing.T) {
 		comment:     domain.PageComment{ID: 42, Anchor: "selected", Suggestion: &suggestion},
 	}
 
-	_, err := NewPages(repository, slog.Default()).ApplyCommentSuggestion(
+	_, err := NewPages(repository, nil, slog.Default()).ApplyCommentSuggestion(
 		context.Background(),
 		"guide",
 		42,
@@ -298,7 +298,7 @@ func TestResolveCommentBindsMutationToPage(t *testing.T) {
 		settings: domain.ApplicationSettings{DiscussionsEnabled: true},
 	}
 
-	err := NewPages(repository, slog.Default()).ResolveComment(context.Background(), " docs/start ", 42, true)
+	err := NewPages(repository, nil, slog.Default()).ResolveComment(context.Background(), " docs/start ", 42, true, domain.User{})
 
 	require.NoError(t, err)
 	assert.Equal(t, "docs/start", repository.resolvedSlug)

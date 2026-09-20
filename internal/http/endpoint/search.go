@@ -10,16 +10,12 @@ import (
 // Search executes free-text search plus supported field filters.
 func Search(
 	viewDataUseCases viewDataService,
-	catalogUseCases pageSearchService,
-	accessUseCases pageAccessReader,
+	catalogUseCases visiblePageSearchService,
 	views *webview.Views,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		query := r.URL.Query().Get("q")
-		pages, err := catalogUseCases.Search(r.Context(), query, 50)
-		if err == nil {
-			pages, err = accessUseCases.FilterPages(r.Context(), currentUser(r), pages)
-		}
+		pages, err := catalogUseCases.SearchFor(r.Context(), currentUser(r), query, 50)
 		if err != nil {
 			httpresponse.InternalServerError(views.Logger(), w, err)
 			return

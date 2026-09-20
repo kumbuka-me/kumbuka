@@ -38,7 +38,7 @@ func TestMovePageFormValidationProblem(t *testing.T) {
 		Field: "slug", Message: "A destination path is required.",
 	}}})
 
-	MovePageForm(moveErrorStub{err: err}, emptyContractServices{}, logger)(response, request)
+	MovePageForm(moveErrorStub{err: err}, logger)(response, request)
 
 	assert.Equal(t, http.StatusUnprocessableEntity, response.Code)
 	assert.JSONEq(t, `{"error":"Page validation failed.","problems":{"slug":"A destination path is required."}}`, response.Body.String())
@@ -51,6 +51,10 @@ func (s graphErrorStub) KnowledgeGraph(context.Context, int) (domain.KnowledgeGr
 	return domain.KnowledgeGraph{}, s.err
 }
 
+func (s graphErrorStub) KnowledgeGraphFor(context.Context, domain.User, int) (domain.KnowledgeGraph, error) {
+	return domain.KnowledgeGraph{}, s.err
+}
+
 func TestKnowledgeGraphFailureIsUnexpected(t *testing.T) {
 	t.Parallel()
 
@@ -60,7 +64,7 @@ func TestKnowledgeGraphFailureIsUnexpected(t *testing.T) {
 	response := httptest.NewRecorder()
 	err := fmt.Errorf("graph dependency: %w", domain.ErrNotFound)
 
-	KnowledgeGraphAPI(graphErrorStub{err: err}, emptyContractServices{}, logger)(response, request)
+	KnowledgeGraphAPI(graphErrorStub{err: err}, logger)(response, request)
 
 	assert.Equal(t, http.StatusInternalServerError, response.Code)
 
@@ -186,7 +190,7 @@ func TestKnownServiceErrorsReachHTTPTranslators(t *testing.T) {
 		request.SetPathValue("slug", "source")
 		request = auth.WithUser(request, domain.User{ID: 1, Role: "admin"})
 		response := httptest.NewRecorder()
-		MovePageForm(moveErrorStub{err: conflict}, emptyContractServices{}, logger)(response, request)
+		MovePageForm(moveErrorStub{err: conflict}, logger)(response, request)
 		assert.Equal(t, http.StatusConflict, response.Code)
 		assert.Contains(t, response.Body.String(), "Page path already exists.")
 		assert.Empty(t, logs.String())
@@ -204,6 +208,14 @@ func (s aliasFailureStub) GetPage(context.Context, string) (domain.Page, error) 
 
 func (s aliasFailureStub) ResolvePageAlias(context.Context, string) (string, error) { return "", s.err }
 
+func (s aliasFailureStub) GetPageFor(context.Context, domain.User, string) (domain.Page, error) {
+	return domain.Page{}, domain.ErrNotFound
+}
+
+func (s aliasFailureStub) GetPageOrAliasFor(context.Context, domain.User, string) (domain.Page, string, error) {
+	return domain.Page{}, "", s.err
+}
+
 func TestAliasFailureIsNotDiscarded(t *testing.T) {
 	t.Parallel()
 	t.Run("page view", func(t *testing.T) {
@@ -215,7 +227,7 @@ func TestAliasFailureIsNotDiscarded(t *testing.T) {
 		request.SetPathValue("slug", "missing")
 		response := httptest.NewRecorder()
 
-		ViewPage(nil, repository, viewDataAccessStub{}, apppages.NewView(repository, viewDataAccessStub{}, nil), nil, testHandlerViewsWithLogger(t, logger, webview.RuntimeInfo{}))(response, request)
+		ViewPage(nil, repository, apppages.NewView(repository, viewDataAccessStub{}, nil), nil, testHandlerViewsWithLogger(t, logger, webview.RuntimeInfo{}))(response, request)
 
 		assert.Equal(t, http.StatusInternalServerError, response.Code)
 		assert.Contains(t, logs.String(), "alias database offline")
@@ -231,7 +243,7 @@ func TestAliasFailureIsNotDiscarded(t *testing.T) {
 		request.SetPathValue("slug", "missing")
 		response := httptest.NewRecorder()
 
-		GetPage(repository, logger, viewDataAccessStub{})(response, request)
+		GetPage(repository, logger)(response, request)
 
 		assert.Equal(t, http.StatusInternalServerError, response.Code)
 		assert.Contains(t, logs.String(), "alias database offline")

@@ -50,7 +50,7 @@ func TestKnownInputFailuresAreValidationErrors(t *testing.T) {
 	t.Run("saved search name", func(t *testing.T) {
 		t.Parallel()
 
-		err := search.NewKnowledge(nil).SaveSavedSearch(ctx, 1, 0, " ", "query", false)
+		err := search.NewKnowledge(nil, nil).SaveSavedSearch(ctx, 1, 0, " ", "query", false)
 
 		validation, ok := errors.AsType[*domain.ValidationError](err)
 		require.True(t, ok)
@@ -61,7 +61,7 @@ func TestKnownInputFailuresAreValidationErrors(t *testing.T) {
 	t.Run("saved search query", func(t *testing.T) {
 		t.Parallel()
 
-		err := search.NewKnowledge(nil).SaveSavedSearch(ctx, 1, 0, "name", " ", false)
+		err := search.NewKnowledge(nil, nil).SaveSavedSearch(ctx, 1, 0, "name", " ", false)
 
 		validation, ok := errors.AsType[*domain.ValidationError](err)
 		require.True(t, ok)
@@ -105,7 +105,7 @@ func TestKnownInputFailuresAreValidationErrors(t *testing.T) {
 	t.Run("same move path", func(t *testing.T) {
 		t.Parallel()
 
-		err := pages.NewPages(nil, slog.Default()).Move(ctx, "/guide/", "guide", domain.MovePageOptions{}, domain.User{})
+		err := pages.NewPages(nil, nil, slog.Default()).Move(ctx, "/guide/", "guide", domain.MovePageOptions{}, domain.User{})
 
 		validation, ok := errors.AsType[*domain.ValidationError](err)
 		require.True(t, ok)
@@ -116,7 +116,7 @@ func TestKnownInputFailuresAreValidationErrors(t *testing.T) {
 	t.Run("move tree into itself", func(t *testing.T) {
 		t.Parallel()
 
-		err := pages.NewPages(nil, slog.Default()).Move(ctx, "guide", "guide/child", domain.MovePageOptions{MoveChildren: true}, domain.User{})
+		err := pages.NewPages(nil, nil, slog.Default()).Move(ctx, "guide", "guide/child", domain.MovePageOptions{MoveChildren: true}, domain.User{})
 
 		validation, ok := errors.AsType[*domain.ValidationError](err)
 		require.True(t, ok)
@@ -127,7 +127,7 @@ func TestKnownInputFailuresAreValidationErrors(t *testing.T) {
 	t.Run("bulk move same path", func(t *testing.T) {
 		t.Parallel()
 
-		err := pages.NewPages(nil, slog.Default()).Bulk(ctx, pages.BulkPageInput{Action: "move", Slugs: []string{"guide/child"}, Target: "guide"})
+		err := pages.NewPages(nil, nil, slog.Default()).Bulk(ctx, pages.BulkPageInput{Action: "move", Slugs: []string{"guide/child"}, Target: "guide"})
 
 		validation, ok := errors.AsType[*domain.ValidationError](err)
 		require.True(t, ok)
@@ -144,7 +144,7 @@ func TestAdditionalServiceValidationBeforePersistence(t *testing.T) {
 	t.Run("comment body", func(t *testing.T) {
 		t.Parallel()
 
-		_, err := pages.NewPages(nil, slog.Default()).AddComment(ctx, "page", 0, "", "", " ", domain.User{})
+		_, err := pages.NewPages(nil, nil, slog.Default()).AddComment(ctx, "page", 0, "", "", " ", domain.User{})
 
 		validation, ok := errors.AsType[*domain.ValidationError](err)
 		require.True(t, ok)
@@ -210,7 +210,7 @@ func TestAdditionalServiceValidationBeforePersistence(t *testing.T) {
 	t.Run("navigation icon", func(t *testing.T) {
 		t.Parallel()
 
-		err := navigation.NewNavigation(nil).SetNavigationIcon(ctx, "page", "not-an-icon")
+		err := navigation.NewNavigation(nil, nil).SetNavigationIcon(ctx, "page", "not-an-icon")
 
 		validation, ok := errors.AsType[*domain.ValidationError](err)
 		require.True(t, ok)

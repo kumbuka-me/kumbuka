@@ -49,7 +49,7 @@ func TestPageEditorsExcludesCurrentUserThroughServiceContract(t *testing.T) {
 	request.SetPathValue("slug", "guide")
 	response := httptest.NewRecorder()
 
-	PageEditors(presence, slog.New(slog.NewTextHandler(io.Discard, nil)), viewDataAccessStub{})(response, request)
+	PageEditors(presence, slog.New(slog.NewTextHandler(io.Discard, nil)))(response, request)
 
 	require.Equal(t, http.StatusOK, response.Code)
 	assert.Equal(t, "guide", presence.slug)
@@ -71,7 +71,7 @@ func TestTouchAndLeavePageEditorUseAuthenticatedUser(t *testing.T) {
 	touch := auth.WithUser(httptest.NewRequest(http.MethodPut, "/api/page-presence/guide", nil), user)
 	touch.SetPathValue("slug", "guide")
 	touchResponse := httptest.NewRecorder()
-	TouchPageEditor(presence, logger, viewDataAccessStub{})(touchResponse, touch)
+	TouchPageEditor(presence, logger)(touchResponse, touch)
 	require.Equal(t, http.StatusNoContent, touchResponse.Code)
 	assert.Equal(t, int64(11), presence.userID)
 	assert.Equal(t, "guide", presence.slug)
@@ -79,7 +79,7 @@ func TestTouchAndLeavePageEditorUseAuthenticatedUser(t *testing.T) {
 	leave := auth.WithUser(httptest.NewRequest(http.MethodDelete, "/api/page-presence/guide", nil), user)
 	leave.SetPathValue("slug", "guide")
 	leaveResponse := httptest.NewRecorder()
-	LeavePageEditor(presence, logger, viewDataAccessStub{})(leaveResponse, leave)
+	LeavePageEditor(presence, logger)(leaveResponse, leave)
 	require.Equal(t, http.StatusNoContent, leaveResponse.Code)
 	assert.True(t, presence.left)
 }

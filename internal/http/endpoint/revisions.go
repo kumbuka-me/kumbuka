@@ -11,14 +11,9 @@ import (
 )
 
 // RevisionHistory renders the full revision history fragment for a page.
-func RevisionHistory(catalogUseCases pageRevisionService, views *webview.Views,
-	accessUseCases pageAccessReader,
-) http.HandlerFunc {
+func RevisionHistory(catalogUseCases visiblePageRevisionService, views *webview.Views) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !authorizePageRequest(w, r, accessUseCases, false) {
-			return
-		}
-		revisions, err := catalogUseCases.Revisions(r.Context(), r.PathValue("slug"))
+		revisions, err := catalogUseCases.RevisionsFor(r.Context(), currentUser(r), r.PathValue("slug"))
 		if err != nil {
 			writePageProblem(views.Logger(), w, err)
 			return
@@ -35,13 +30,8 @@ func RevisionHistory(catalogUseCases pageRevisionService, views *webview.Views,
 }
 
 // RestoreRevision creates a new page revision from an older persisted revision.
-func RestoreRevision(pageUseCases pageRevisionWriter, views *webview.Views,
-	accessUseCases pageAccessReader,
-) http.HandlerFunc {
+func RestoreRevision(pageUseCases pageRevisionWriter, views *webview.Views) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !authorizePageRequest(w, r, accessUseCases, true) {
-			return
-		}
 		user := currentUser(r)
 		number, err := strconv.Atoi(r.PathValue("number"))
 		if err != nil || number <= 0 {

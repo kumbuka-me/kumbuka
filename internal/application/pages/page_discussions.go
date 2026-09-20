@@ -40,6 +40,9 @@ func (s *Pages) AddComment(
 	actor domain.User,
 ) (domain.PageComment, error) {
 	body = strings.TrimSpace(body)
+	if err := s.requireView(ctx, actor, slug); err != nil {
+		return domain.PageComment{}, err
+	}
 	if body == "" {
 		return domain.PageComment{}, domain.NewValidationError("body", "A comment is required.")
 	}
@@ -73,6 +76,9 @@ func (s *Pages) AddSuggestion(
 	actor domain.User,
 ) (domain.PageComment, error) {
 	slug = strings.TrimSpace(slug)
+	if err := s.requireView(ctx, actor, slug); err != nil {
+		return domain.PageComment{}, err
+	}
 	anchor = strings.TrimSpace(anchor)
 	body = strings.TrimSpace(body)
 	replacement = normalizeSuggestionText(replacement)
@@ -135,6 +141,9 @@ func (s *Pages) ApplyCommentSuggestion(
 	actor domain.User,
 ) (domain.Page, error) {
 	slug = strings.TrimSpace(slug)
+	if err := s.requireEdit(ctx, actor, slug); err != nil {
+		return domain.Page{}, err
+	}
 	if slug == "" || commentID <= 0 {
 		return domain.Page{}, domain.NewValidationError("suggestion", "Choose a valid inline suggestion.")
 	}
@@ -200,8 +209,11 @@ func (s *Pages) ApplyCommentSuggestion(
 }
 
 // ResolveComment changes one page-bound discussion's resolution state.
-func (s *Pages) ResolveComment(ctx context.Context, slug string, id int64, resolved bool) error {
+func (s *Pages) ResolveComment(ctx context.Context, slug string, id int64, resolved bool, actor domain.User) error {
 	slug = strings.TrimSpace(slug)
+	if err := s.requireEdit(ctx, actor, slug); err != nil {
+		return err
+	}
 	if slug == "" {
 		return &domain.ValidationError{Fields: []domain.FieldError{{Field: "slug", Message: "A page path is required."}}}
 	}

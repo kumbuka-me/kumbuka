@@ -3,7 +3,6 @@ package endpoint
 import (
 	"cmp"
 	"context"
-	"errors"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -63,8 +62,7 @@ type pageRequest struct {
 // PreviewMarkdown renders unsaved Markdown with the same resolver used by persisted pages.
 func PreviewMarkdown(
 	navigationUseCases navigationService,
-	catalogUseCases pageReportCatalogService,
-	accessUseCases pageAccessReader,
+	catalogUseCases scopedPageCatalogService,
 	renderer *md.Renderer,
 	logger *slog.Logger,
 ) http.HandlerFunc {
@@ -83,8 +81,8 @@ func PreviewMarkdown(
 
 		slug := md.Slug(request.Slug)
 		user := currentUser(r)
-		securedCatalog := apppages.NewAccessibleCatalog(catalogUseCases, accessUseCases, user)
-		pageNavigation, err := subpageNavigation(r.Context(), navigationUseCases, accessUseCases, user, slug)
+		securedCatalog := catalogUseCases.Accessible(user)
+		pageNavigation, err := subpageNavigation(r.Context(), navigationUseCases, user, slug)
 		if err != nil {
 			httpresponse.InternalServerError(logger, w, err)
 			return
@@ -112,15 +110,10 @@ func PreviewMarkdown(
 func subpageNavigation(
 	ctx context.Context,
 	navigationUseCases navigationService,
-	accessUseCases pageAccessReader,
 	user domain.User,
 	slug string,
 ) ([]sdk.NavigationNode, error) {
-	pages, err := navigationUseCases.NavigationPages(ctx)
-	if err != nil {
-		return nil, err
-	}
-	pages, err = accessUseCases.FilterPages(ctx, user, pages)
+	pages, err := navigationUseCases.VisiblePages(ctx, user)
 	if err != nil {
 		return nil, err
 	}
@@ -145,12 +138,9 @@ func pageURL(slug string) string {
 }
 
 // ListPages returns recently updated pages up to the requested limit.
-func ListPages(catalogUseCases pageListService, accessUseCases pageAccessReader, logger *slog.Logger) http.HandlerFunc {
+func ListPages(catalogUseCases visiblePageListService, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		pages, err := catalogUseCases.ListPages(r.Context(), 100)
-		if err == nil {
-			pages, err = accessUseCases.FilterPages(r.Context(), currentUser(r), pages)
-		}
+		pages, err := catalogUseCases.ListPagesFor(r.Context(), currentUser(r), 100)
 		if err != nil {
 			httpresponse.InternalServerError(logger, w, err)
 			return
@@ -162,43 +152,29 @@ func ListPages(catalogUseCases pageListService, accessUseCases pageAccessReader,
 }
 
 // GetPage returns a page by slug.
-func GetPage(catalogUseCases pageLookupService, logger *slog.Logger,
-	accessUseCases pageAccessReader,
-) http.HandlerFunc {
+func GetPage(catalogUseCases visiblePageLookupService, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !authorizePageRequest(w, r, accessUseCases, false) {
-			return
-		}
+		actor := currentUser(r)
 		slug := r.PathValue("slug")
 		if rawSlug, ok := strings.CutSuffix(slug, "/raw"); ok {
-			page, err := catalogUseCases.GetPage(r.Context(), rawSlug)
+			page, err := catalogUseCases.GetPageFor(r.Context(), actor, rawSlug)
 			if err != nil {
 				writePageProblem(logger, w, err)
 				return
 			}
 
 			w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
-
 			_, _ = w.Write([]byte(page.Markdown))
-
 			return
 		}
 
-		page, err := catalogUseCases.GetPage(r.Context(), slug)
-
-		if errors.Is(err, domain.ErrNotFound) {
-			if target, aliasErr := catalogUseCases.ResolvePageAlias(r.Context(), slug); aliasErr == nil {
-				w.Header().Set("Content-Location", "/api/pages/"+target)
-				page, err = catalogUseCases.GetPage(r.Context(), target)
-			} else if !errors.Is(aliasErr, domain.ErrNotFound) {
-				httpresponse.InternalServerError(logger, w, aliasErr)
-				return
-			}
-		}
-
+		page, alias, err := catalogUseCases.GetPageOrAliasFor(r.Context(), actor, slug)
 		if err != nil {
 			writePageProblem(logger, w, err)
 			return
+		}
+		if alias != "" {
+			w.Header().Set("Content-Location", "/api/pages/"+alias)
 		}
 
 		httpresponse.Respond(w, http.StatusOK, page)
@@ -206,7 +182,7 @@ func GetPage(catalogUseCases pageLookupService, logger *slog.Logger,
 }
 
 // SavePage persists page content, revision history, tags, and links transactionally.
-func SavePage(pageUseCases pageWriterService, accessUseCases pageAccessReader, logger *slog.Logger) http.HandlerFunc {
+func SavePage(pageUseCases pageWriterService, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user := currentUser(r)
 		request, err := decode[pageRequest](w, r)
@@ -230,16 +206,6 @@ func SavePage(pageUseCases pageWriterService, accessUseCases pageAccessReader, l
 		}
 
 		slug := cmp.Or(r.PathValue("slug"), request.Slug)
-		allowed, accessErr := accessUseCases.CanEdit(r.Context(), user, slug)
-		if accessErr != nil {
-			httpresponse.InternalServerError(logger, w, accessErr)
-			return
-		}
-		if !allowed {
-			httpresponse.Problem(w, http.StatusForbidden, "You do not have permission to edit this page path.")
-			return
-		}
-
 		page, err := pageUseCases.Save(r.Context(), apppages.PageSaveInput{
 			PreviousSlug:       r.PathValue("slug"),
 			ExpectedUpdatedAt:  request.ExpectedUpdatedAt,
@@ -276,13 +242,8 @@ func SavePage(pageUseCases pageWriterService, accessUseCases pageAccessReader, l
 }
 
 // DeletePage removes a page by slug.
-func DeletePage(pageUseCases pageWriterService, logger *slog.Logger,
-	accessUseCases pageAccessReader,
-) http.HandlerFunc {
+func DeletePage(pageUseCases pageWriterService, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !authorizePageRequest(w, r, accessUseCases, true) {
-			return
-		}
 		user := currentUser(r)
 		if err := pageUseCases.Delete(r.Context(), r.PathValue("slug"), user); err != nil {
 			writePageProblem(logger, w, err)

@@ -23,7 +23,7 @@ type resolveDiscussionWriterStub struct {
 }
 
 // ResolveComment captures one discussion resolution request.
-func (s *resolveDiscussionWriterStub) ResolveComment(_ context.Context, slug string, id int64, resolved bool) error {
+func (s *resolveDiscussionWriterStub) ResolveComment(_ context.Context, slug string, id int64, resolved bool, _ domain.User) error {
 	s.slug = slug
 	s.id = id
 	s.resolved = resolved
@@ -66,7 +66,7 @@ func TestResolvePageCommentUsesRouteSlug(t *testing.T) {
 	request.SetPathValue("slug", "docs/start")
 	response := httptest.NewRecorder()
 
-	ResolvePageComment(writer, nil, viewDataAccessStub{}).ServeHTTP(response, request)
+	ResolvePageComment(writer, nil).ServeHTTP(response, request)
 
 	require.Equal(t, http.StatusSeeOther, response.Code)
 	assert.Equal(t, "docs/start", writer.slug)

@@ -46,10 +46,38 @@ type pageUsageAnalyzerStub struct{ index pluginusage.Index }
 
 func (s pageUsageAnalyzerStub) AnalyzeUsage(string) pluginusage.Index { return s.index }
 
+type denyingPageAccess struct{}
+
+func (denyingPageAccess) CanView(context.Context, domain.User, string) (bool, error) {
+	return false, nil
+}
+func (denyingPageAccess) CanEdit(context.Context, domain.User, string) (bool, error) {
+	return false, nil
+}
+func (denyingPageAccess) FilterPages(context.Context, domain.User, []domain.Page) ([]domain.Page, error) {
+	return nil, nil
+}
+
+func TestPageUseCasesEnforceResourceAccessBeforePersistence(t *testing.T) {
+	t.Parallel()
+
+	actor := domain.User{ID: 7, Role: domain.UserRoleEditor}
+	_, err := NewCatalog(nil, denyingPageAccess{}).GetPageFor(context.Background(), actor, "private")
+	require.ErrorIs(t, err, domain.ErrNotFound)
+
+	_, err = NewPages(nil, denyingPageAccess{}, slog.Default()).Save(context.Background(), PageSaveInput{
+		Slug:   "private",
+		Title:  "Private",
+		Status: "draft",
+		Actor:  actor,
+	})
+	require.ErrorIs(t, err, domain.ErrForbidden)
+}
+
 func TestPagesOptionalDependenciesAreSafe(t *testing.T) {
 	t.Parallel()
 
-	pages := NewPages(nil, nil).WithRenderer(nil)
+	pages := NewPages(nil, nil, nil).WithRenderer(nil)
 
 	assert.NotNil(t, pages.logger)
 	assert.Nil(t, pages.renderer)
@@ -65,7 +93,7 @@ func TestSavePersistsDerivedPluginUsage(t *testing.T) {
 		Fingerprint: "render-plan",
 		Modules:     []pluginusage.Module{{PluginID: "me.kumbuka.variables", ModuleID: "variables", Values: []string{"environment"}}},
 	}
-	pages := NewPages(repository, slog.Default()).WithUsageAnalyzer(pageUsageAnalyzerStub{index: want})
+	pages := NewPages(repository, nil, slog.Default()).WithUsageAnalyzer(pageUsageAnalyzerStub{index: want})
 
 	_, err := pages.save(context.Background(), PageSaveInput{
 		Slug:     "guide",
@@ -84,7 +112,7 @@ func TestSaveMaterializesStableMarkdown(t *testing.T) {
 	repository := &pageSaveRepositoryStub{}
 	renderer := md.NewWithRegistry(&plugin.Registry{})
 	renderer.SetArtifactBuild("test", "abc")
-	pages := NewPages(repository, slog.Default()).WithRenderer(renderer)
+	pages := NewPages(repository, nil, slog.Default()).WithRenderer(renderer)
 
 	_, err := pages.save(context.Background(), PageSaveInput{
 		Slug: "guide", Title: "Guide", Markdown: "# Guide\n\nStatic.", Status: "verified",
@@ -102,7 +130,7 @@ func TestSaveLeavesDynamicMarkdownUnmaterialized(t *testing.T) {
 	repository := &pageSaveRepositoryStub{}
 	renderer := md.NewWithRegistry(&plugin.Registry{})
 	renderer.SetArtifactBuild("test", "abc")
-	pages := NewPages(repository, slog.Default()).WithRenderer(renderer)
+	pages := NewPages(repository, nil, slog.Default()).WithRenderer(renderer)
 
 	_, err := pages.save(context.Background(), PageSaveInput{
 		Slug: "guide", Title: "Guide", Markdown: "{{var:environment}}", Status: "verified",
@@ -116,7 +144,7 @@ func TestSaveLeavesDynamicMarkdownUnmaterialized(t *testing.T) {
 func TestSaveValidatesPageBeforePersistence(t *testing.T) {
 	t.Parallel()
 
-	pages := NewPages(nil, slog.Default())
+	pages := NewPages(nil, nil, slog.Default())
 	_, err := pages.Save(context.Background(), PageSaveInput{
 		Icon:               "not-an-icon",
 		Language:           "klingon",
@@ -140,7 +168,7 @@ func TestSaveValidatesPageBeforePersistence(t *testing.T) {
 func TestMoveValidatesDestinationBeforePersistence(t *testing.T) {
 	t.Parallel()
 
-	pages := NewPages(nil, slog.Default())
+	pages := NewPages(nil, nil, slog.Default())
 	err := pages.Move(context.Background(), "guide", "", domain.MovePageOptions{}, domain.User{})
 
 	validation, ok := errors.AsType[*domain.ValidationError](err)
@@ -156,7 +184,7 @@ func TestSaveSlugResolution(t *testing.T) {
 		t.Parallel()
 
 		repository := &pageSaveRepositoryStub{}
-		_, err := NewPages(repository, slog.Default()).save(context.Background(), PageSaveInput{
+		_, err := NewPages(repository, nil, slog.Default()).save(context.Background(), PageSaveInput{
 			Title:  "Generated Page Path",
 			Status: "verified",
 		})
@@ -169,7 +197,7 @@ func TestSaveSlugResolution(t *testing.T) {
 		t.Parallel()
 
 		repository := &pageSaveRepositoryStub{}
-		_, err := NewPages(repository, slog.Default()).save(context.Background(), PageSaveInput{
+		_, err := NewPages(repository, nil, slog.Default()).save(context.Background(), PageSaveInput{
 			Slug:   "custom/path",
 			Title:  "Generated Page Path",
 			Status: "verified",
@@ -182,7 +210,7 @@ func TestSaveSlugResolution(t *testing.T) {
 	t.Run("rejects a path made only of slashes", func(t *testing.T) {
 		t.Parallel()
 
-		_, err := NewPages(nil, slog.Default()).Save(context.Background(), PageSaveInput{
+		_, err := NewPages(nil, nil, slog.Default()).Save(context.Background(), PageSaveInput{
 			Slug:   "/////",
 			Title:  "Invalid path",
 			Status: "verified",
@@ -198,7 +226,7 @@ func TestSaveSlugResolution(t *testing.T) {
 	t.Run("rejects repeated slashes inside a path", func(t *testing.T) {
 		t.Parallel()
 
-		_, err := NewPages(nil, slog.Default()).Save(context.Background(), PageSaveInput{
+		_, err := NewPages(nil, nil, slog.Default()).Save(context.Background(), PageSaveInput{
 			Slug:   "platform//database",
 			Title:  "Invalid path",
 			Status: "verified",
@@ -213,7 +241,7 @@ func TestSaveSlugResolution(t *testing.T) {
 	t.Run("requires an explicit path when editing an existing page", func(t *testing.T) {
 		t.Parallel()
 
-		_, err := NewPages(nil, slog.Default()).Save(context.Background(), PageSaveInput{
+		_, err := NewPages(nil, nil, slog.Default()).Save(context.Background(), PageSaveInput{
 			PreviousSlug: "existing-page",
 			Title:        "Renamed title",
 			Status:       "verified",
@@ -229,7 +257,7 @@ func TestSaveSlugResolution(t *testing.T) {
 func TestSaveRequiresExplicitStatus(t *testing.T) {
 	t.Parallel()
 
-	_, err := NewPages(nil, slog.Default()).Save(context.Background(), PageSaveInput{Slug: "explicit-path", Title: "Explicit title"})
+	_, err := NewPages(nil, nil, slog.Default()).Save(context.Background(), PageSaveInput{Slug: "explicit-path", Title: "Explicit title"})
 	validation, ok := errors.AsType[*domain.ValidationError](err)
 
 	require.True(t, ok)
@@ -243,7 +271,7 @@ func TestBulkValidatesInputsBeforePersistence(t *testing.T) {
 	t.Run("pages", func(t *testing.T) {
 		t.Parallel()
 
-		err := NewPages(nil, slog.Default()).Bulk(context.Background(), BulkPageInput{})
+		err := NewPages(nil, nil, slog.Default()).Bulk(context.Background(), BulkPageInput{})
 		validation, ok := errors.AsType[*domain.ValidationError](err)
 
 		require.True(t, ok)
@@ -253,7 +281,7 @@ func TestBulkValidatesInputsBeforePersistence(t *testing.T) {
 	t.Run("group", func(t *testing.T) {
 		t.Parallel()
 
-		err := NewPages(nil, slog.Default()).Bulk(context.Background(), BulkPageInput{Action: "group", Slugs: []string{"guide"}})
+		err := NewPages(nil, nil, slog.Default()).Bulk(context.Background(), BulkPageInput{Action: "group", Slugs: []string{"guide"}})
 		validation, ok := errors.AsType[*domain.ValidationError](err)
 
 		require.True(t, ok)
@@ -263,7 +291,7 @@ func TestBulkValidatesInputsBeforePersistence(t *testing.T) {
 	t.Run("status", func(t *testing.T) {
 		t.Parallel()
 
-		err := NewPages(nil, slog.Default()).Bulk(context.Background(), BulkPageInput{Action: "status", Slugs: []string{"guide"}, Status: "invalid"})
+		err := NewPages(nil, nil, slog.Default()).Bulk(context.Background(), BulkPageInput{Action: "status", Slugs: []string{"guide"}, Status: "invalid"})
 		validation, ok := errors.AsType[*domain.ValidationError](err)
 
 		require.True(t, ok)
@@ -273,7 +301,7 @@ func TestBulkValidatesInputsBeforePersistence(t *testing.T) {
 	t.Run("tag", func(t *testing.T) {
 		t.Parallel()
 
-		err := NewPages(nil, slog.Default()).Bulk(context.Background(), BulkPageInput{Action: "tag", Slugs: []string{"guide"}})
+		err := NewPages(nil, nil, slog.Default()).Bulk(context.Background(), BulkPageInput{Action: "tag", Slugs: []string{"guide"}})
 		validation, ok := errors.AsType[*domain.ValidationError](err)
 
 		require.True(t, ok)
@@ -283,7 +311,7 @@ func TestBulkValidatesInputsBeforePersistence(t *testing.T) {
 	t.Run("move target", func(t *testing.T) {
 		t.Parallel()
 
-		err := NewPages(nil, slog.Default()).Bulk(context.Background(), BulkPageInput{Action: "move", Slugs: []string{"guide"}})
+		err := NewPages(nil, nil, slog.Default()).Bulk(context.Background(), BulkPageInput{Action: "move", Slugs: []string{"guide"}})
 		validation, ok := errors.AsType[*domain.ValidationError](err)
 
 		require.True(t, ok)
@@ -293,7 +321,7 @@ func TestBulkValidatesInputsBeforePersistence(t *testing.T) {
 	t.Run("action", func(t *testing.T) {
 		t.Parallel()
 
-		err := NewPages(nil, slog.Default()).Bulk(context.Background(), BulkPageInput{Action: "invalid", Slugs: []string{"guide"}})
+		err := NewPages(nil, nil, slog.Default()).Bulk(context.Background(), BulkPageInput{Action: "invalid", Slugs: []string{"guide"}})
 		validation, ok := errors.AsType[*domain.ValidationError](err)
 
 		require.True(t, ok)
@@ -323,7 +351,7 @@ func TestBulkMoveDelegatesAsSinglePersistenceOperation(t *testing.T) {
 	t.Parallel()
 
 	repository := &bulkMoveRepositoryStub{}
-	pages := NewPages(repository, slog.Default())
+	pages := NewPages(repository, nil, slog.Default())
 	slugs := []string{"guide/first", "guide/second"}
 
 	err := pages.Bulk(context.Background(), BulkPageInput{

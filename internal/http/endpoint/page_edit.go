@@ -16,16 +16,12 @@ import (
 // EditPage renders the page creation or editing form.
 func EditPage(
 	viewDataUseCases viewDataService,
-	catalogUseCases pageContentService,
+	catalogUseCases editablePageService,
 	groupUseCases groupReader,
 	templateUseCases templateService,
-	accessUseCases pageAccessReader,
 	views *webview.Views,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !authorizePageRequest(w, r, accessUseCases, true) {
-			return
-		}
 		user := currentUser(r)
 
 		layout, err := viewDataUseCases.Load(r, views, "New page")
@@ -54,7 +50,7 @@ func EditPage(
 			}
 
 		default:
-			page, err := catalogUseCases.GetPage(r.Context(), slug)
+			page, err := catalogUseCases.GetPageForEdit(r.Context(), user, slug)
 			if errors.Is(err, domain.ErrNotFound) {
 				renderNotFoundPage(w, r, viewDataUseCases, views)
 				return

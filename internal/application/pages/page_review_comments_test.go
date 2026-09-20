@@ -152,7 +152,7 @@ func TestAddReviewCommentCapturesReviewedSource(t *testing.T) {
 			Markdown:         "first\ncurrent value\nlast",
 		},
 	}
-	pages := NewPages(repository, slog.Default())
+	pages := NewPages(repository, nil, slog.Default())
 
 	comment, err := pages.AddReviewComment(context.Background(), PageReviewCommentInput{
 		ReviewID:    7,
@@ -244,7 +244,7 @@ func TestApplyAllReviewSuggestionsPersistsOneRevisionInput(t *testing.T) {
 			{ID: 11, IsSuggestion: true, Side: domain.PageReviewCommentSideNew, StartLine: 3, EndLine: 3, Original: "three", Replacement: "THREE"},
 		},
 	}
-	pages := NewPages(repository, slog.Default())
+	pages := NewPages(repository, nil, slog.Default())
 
 	page, err := pages.ApplyAllReviewSuggestions(context.Background(), 7, "guide", domain.User{ID: 9, Role: "editor"})
 
@@ -278,7 +278,7 @@ func TestApplyReviewSuggestionKeepsSingleSelectionSemantics(t *testing.T) {
 			{ID: 11, IsSuggestion: true, Side: domain.PageReviewCommentSideNew, StartLine: 3, EndLine: 3, Original: "three", Replacement: "THREE"},
 		},
 	}
-	pages := NewPages(repository, slog.Default())
+	pages := NewPages(repository, nil, slog.Default())
 
 	_, err := pages.ApplyReviewSuggestion(context.Background(), 7, "guide", 10, domain.User{ID: 9, Role: "editor"})
 

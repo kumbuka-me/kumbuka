@@ -21,7 +21,6 @@ import (
 func ViewPage(
 	viewDataUseCases viewDataService,
 	catalogUseCases pageViewCatalogService,
-	accessUseCases pageAccessReader,
 	viewPage pageViewQuery,
 	renderer *md.Renderer,
 	views *webview.Views,
@@ -49,7 +48,7 @@ func ViewPage(
 			return
 		}
 
-		securedCatalog := apppages.NewAccessibleCatalog(catalogUseCases, accessUseCases, user)
+		securedCatalog := catalogUseCases.Accessible(user)
 
 		stop = measurePageStage(r.Context(), "record_view")
 		apppages.RecordView(r.Context(), views.Logger(), catalogUseCases, slug, user.ID)

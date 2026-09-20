@@ -30,6 +30,14 @@ func (emptyContractServices) ListPages(context.Context, int) ([]domain.Page, err
 func (emptyContractServices) Search(context.Context, string, int) ([]domain.Page, error) {
 	return nil, nil
 }
+func (emptyContractServices) ListPagesFor(context.Context, domain.User, int) ([]domain.Page, error) {
+	return nil, nil
+}
+
+func (emptyContractServices) SearchFor(context.Context, domain.User, string, int) ([]domain.Page, error) {
+	return nil, nil
+}
+
 func (emptyContractServices) Tags(context.Context) ([]string, error) { return nil, nil }
 func (emptyContractServices) AssignableGroups(context.Context, domain.User) ([]domain.Group, error) {
 	return nil, nil
@@ -48,6 +56,10 @@ func (emptyContractServices) NavigationPages(context.Context) ([]domain.Page, er
 func (emptyContractServices) PageAliases(context.Context) (map[string]string, error) { return nil, nil }
 
 func (emptyContractServices) KnowledgeGraph(context.Context, int) (domain.KnowledgeGraph, error) {
+	return domain.KnowledgeGraph{}, nil
+}
+
+func (emptyContractServices) KnowledgeGraphFor(context.Context, domain.User, int) (domain.KnowledgeGraph, error) {
 	return domain.KnowledgeGraph{}, nil
 }
 
@@ -99,7 +111,7 @@ func TestEmptyAPICollectionContracts(t *testing.T) {
 		request := auth.WithUser(httptest.NewRequest(http.MethodGet, "/?q=nobody", nil), domain.User{ID: 1, Role: "admin", Enabled: true})
 		request.SetPathValue("id", "1")
 		response := httptest.NewRecorder()
-		ListPages(services, services, logger)(response, request)
+		ListPages(services, logger)(response, request)
 		require.Equal(t, http.StatusOK, response.Code, response.Body.String())
 		assert.JSONEq(t, string(fixtures["empty_collection"]), response.Body.String())
 	})
@@ -109,7 +121,7 @@ func TestEmptyAPICollectionContracts(t *testing.T) {
 		request := auth.WithUser(httptest.NewRequest(http.MethodGet, "/?q=nobody", nil), domain.User{ID: 1, Role: "admin", Enabled: true})
 		request.SetPathValue("id", "1")
 		response := httptest.NewRecorder()
-		SearchAPI(services, services, logger)(response, request)
+		SearchAPI(services, logger)(response, request)
 		require.Equal(t, http.StatusOK, response.Code, response.Body.String())
 		assert.JSONEq(t, string(fixtures["empty_collection"]), response.Body.String())
 	})
@@ -119,7 +131,7 @@ func TestEmptyAPICollectionContracts(t *testing.T) {
 		request := auth.WithUser(httptest.NewRequest(http.MethodGet, "/?q=nobody", nil), domain.User{ID: 1, Role: "admin", Enabled: true})
 		request.SetPathValue("id", "1")
 		response := httptest.NewRecorder()
-		Recent(services, services, logger)(response, request)
+		Recent(services, logger)(response, request)
 		require.Equal(t, http.StatusOK, response.Code, response.Body.String())
 		assert.JSONEq(t, string(fixtures["empty_collection"]), response.Body.String())
 	})
@@ -189,7 +201,7 @@ func TestEmptyAPICollectionContracts(t *testing.T) {
 		request := auth.WithUser(httptest.NewRequest(http.MethodGet, "/?q=nobody", nil), domain.User{ID: 1, Role: "admin", Enabled: true})
 		request.SetPathValue("id", "1")
 		response := httptest.NewRecorder()
-		KnowledgeGraphAPI(services, services, logger)(response, request)
+		KnowledgeGraphAPI(services, logger)(response, request)
 		require.Equal(t, http.StatusOK, response.Code, response.Body.String())
 		assert.JSONEq(t, string(fixtures["empty_graph"]), response.Body.String())
 	})

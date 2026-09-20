@@ -27,6 +27,56 @@ type administrationService interface {
 	AuditEvents(context.Context, int) ([]domain.AuditEvent, error)
 }
 
+// Actor-scoped catalog interfaces expose reads that apply resource authorization inside the application layer.
+type visiblePageService interface {
+	GetPageFor(context.Context, domain.User, string) (domain.Page, error)
+}
+
+type visiblePageContentService interface {
+	pageContentService
+	visiblePageService
+}
+
+type visiblePageLookupService interface {
+	visiblePageService
+	GetPageOrAliasFor(context.Context, domain.User, string) (domain.Page, string, error)
+}
+
+type editablePageService interface {
+	GetPageForEdit(context.Context, domain.User, string) (domain.Page, error)
+}
+
+type visiblePageListService interface {
+	ListPagesFor(context.Context, domain.User, int) ([]domain.Page, error)
+}
+
+type visiblePageSearchService interface {
+	SearchFor(context.Context, domain.User, string, int) ([]domain.Page, error)
+}
+
+type visiblePageRevisionService interface {
+	RevisionsFor(context.Context, domain.User, string) ([]revision.Revision, error)
+}
+
+type visiblePageInventoryService interface {
+	PageInventoryFor(context.Context, domain.User) ([]domain.Page, error)
+}
+
+type visiblePageActions interface {
+	SetFavoriteFor(context.Context, domain.User, string, bool) error
+	SetPageWatchFor(context.Context, domain.User, string, string) error
+}
+
+type accessibleCatalogService interface {
+	Accessible(domain.User) apppages.AccessibleCatalog
+}
+
+type scopedPageCatalogService interface {
+	pageReportCatalogService
+	visiblePageService
+	accessibleCatalogService
+}
+
 // Catalog interfaces are intentionally consumer-oriented instead of mirroring
 // every method exposed by apppages.Catalog.
 type pageContentService interface {
@@ -59,6 +109,10 @@ type homeCatalogService interface {
 	Popular(context.Context, int) ([]domain.Page, error)
 }
 
+type homeQueryService interface {
+	Lists(domain.User) apppages.HomeLists
+}
+
 type draftListService interface {
 	List(context.Context, int64, int) ([]domain.PageDraft, error)
 }
@@ -82,6 +136,7 @@ type pageViewCatalogService interface {
 	pageLookupService
 	pageSearchService
 	pageWatchReader
+	accessibleCatalogService
 	RecordView(context.Context, string, int64) error
 	IsFavorite(context.Context, string, int64) (bool, error)
 	PageLinks(context.Context, string) ([]domain.PageLink, error)
@@ -103,7 +158,7 @@ type pageWatchService interface {
 }
 
 type pagePresenceService interface {
-	PageEditors(context.Context, string, int64) ([]domain.PageEditorPresence, error)
+	PageEditors(context.Context, string, domain.User) ([]domain.PageEditorPresence, error)
 	TouchPageEditor(context.Context, string, domain.User) error
 	LeavePageEditor(context.Context, string, domain.User) error
 }
@@ -141,14 +196,7 @@ type groupWriter interface {
 	RemoveGroupMember(context.Context, int64, int64) error
 }
 
-type pageAccessReader interface {
-	CanView(context.Context, domain.User, string) (bool, error)
-	CanEdit(context.Context, domain.User, string) (bool, error)
-	FilterPages(context.Context, domain.User, []domain.Page) ([]domain.Page, error)
-}
-
 type pageAccessAdmin interface {
-	pageAccessReader
 	PageAccessRules(context.Context) ([]domain.PageAccessRule, error)
 	SavePageAccessRule(context.Context, string, int64, string) error
 	DeletePageAccessRule(context.Context, int64) error
@@ -157,6 +205,7 @@ type pageAccessAdmin interface {
 // Knowledge interfaces expose graph and saved-search operations used by handlers.
 type knowledgeGraphService interface {
 	KnowledgeGraph(context.Context, int) (domain.KnowledgeGraph, error)
+	KnowledgeGraphFor(context.Context, domain.User, int) (domain.KnowledgeGraph, error)
 }
 
 type savedSearchService interface {
@@ -219,6 +268,7 @@ type attachmentService interface {
 
 type navigationService interface {
 	NavigationPages(context.Context) ([]domain.Page, error)
+	VisiblePages(context.Context, domain.User) ([]domain.Page, error)
 	NavigationItems(context.Context) ([]domain.NavigationItem, error)
 	NavigationIcons(context.Context) (map[string]string, error)
 	SetNavigationIcon(context.Context, string, string) error
@@ -262,7 +312,7 @@ type pageDiscussionWriter interface {
 	AddComment(context.Context, string, int64, string, string, string, domain.User) (domain.PageComment, error)
 	AddSuggestion(context.Context, string, string, string, string, domain.User) (domain.PageComment, error)
 	ApplyCommentSuggestion(context.Context, string, int64, domain.User) (domain.Page, error)
-	ResolveComment(context.Context, string, int64, bool) error
+	ResolveComment(context.Context, string, int64, bool, domain.User) error
 }
 
 type pageImportService interface {

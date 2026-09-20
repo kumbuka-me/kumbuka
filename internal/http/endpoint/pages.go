@@ -1,7 +1,6 @@
 package endpoint
 
 import (
-	apppages "github.com/kumbuka-me/kumbuka/internal/application/pages"
 	"net/http"
 
 	"github.com/kumbuka-me/kumbuka/internal/http/auth"
@@ -14,9 +13,7 @@ import (
 // Home renders the dashboard for the current user.
 func Home(
 	viewDataUseCases viewDataService,
-	catalogUseCases homeCatalogService,
-	draftUseCases draftListService,
-	accessUseCases pageAccessReader,
+	homeUseCases homeQueryService,
 	renderer *md.Renderer,
 	views *webview.Views,
 ) http.HandlerFunc {
@@ -29,7 +26,7 @@ func Home(
 		}
 
 		user, _ := auth.User(r)
-		source := apppages.NewHomeLists(catalogUseCases, draftUseCases, accessUseCases, user)
+		source := homeUseCases.Lists(user)
 		capabilities := plugincap.MergeCapabilities(
 			plugincap.Capabilities(nil, nil, renderer.IconCatalog()),
 			plugincap.PageListCapabilities(source),

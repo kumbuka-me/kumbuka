@@ -2,8 +2,10 @@ package pages
 
 import (
 	"context"
+	"errors"
 	"time"
 
+	appaccess "github.com/kumbuka-me/kumbuka/internal/application/access"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/kumbuka-me/kumbuka/pkg/revision"
 )
@@ -39,10 +41,96 @@ type catalogRepository interface {
 type Catalog struct {
 	// repository provides the persistence operations required by catalog.
 	repository catalogRepository
+	// access applies actor-specific page visibility rules to public query methods.
+	access accessReader
 }
 
-// NewCatalog constructs the page catalog service.
-func NewCatalog(repository catalogRepository) *Catalog { return &Catalog{repository: repository} }
+// NewCatalog constructs the page catalog service with its resource access policy.
+func NewCatalog(repository catalogRepository, access accessReader) *Catalog {
+	return &Catalog{repository: repository, access: access}
+}
+
+// Accessible binds catalog reads to one actor so callers cannot bypass page visibility rules.
+func (s *Catalog) Accessible(actor domain.User) AccessibleCatalog {
+	return NewAccessibleCatalog(s, s.access, actor)
+}
+
+// GetPageFor returns one page only when the actor may view it.
+func (s *Catalog) GetPageFor(ctx context.Context, actor domain.User, slug string) (domain.Page, error) {
+	return s.Accessible(actor).GetPage(ctx, slug)
+}
+
+// GetPageForEdit returns one page only when the actor may edit its path.
+func (s *Catalog) GetPageForEdit(ctx context.Context, actor domain.User, slug string) (domain.Page, error) {
+	if err := appaccess.RequireEdit(ctx, s.access, actor, slug); err != nil {
+		return domain.Page{}, err
+	}
+	return s.GetPage(ctx, slug)
+}
+
+// GetPageOrAliasFor returns a visible page and reports the resolved alias target when applicable.
+func (s *Catalog) GetPageOrAliasFor(ctx context.Context, actor domain.User, slug string) (domain.Page, string, error) {
+	page, err := s.GetPageFor(ctx, actor, slug)
+	if err == nil {
+		return page, "", nil
+	}
+	if !errors.Is(err, domain.ErrNotFound) {
+		return domain.Page{}, "", err
+	}
+	target, err := s.ResolvePageAlias(ctx, slug)
+	if err != nil {
+		return domain.Page{}, "", err
+	}
+	page, err = s.GetPageFor(ctx, actor, target)
+	if err != nil {
+		return domain.Page{}, "", err
+	}
+	return page, target, nil
+}
+
+// ListPagesFor returns only pages visible to the actor.
+func (s *Catalog) ListPagesFor(ctx context.Context, actor domain.User, limit int) ([]domain.Page, error) {
+	pages, err := s.ListPages(ctx, limit)
+	if err != nil {
+		return nil, err
+	}
+	return s.access.FilterPages(ctx, actor, pages)
+}
+
+// SearchFor returns only search results visible to the actor.
+func (s *Catalog) SearchFor(ctx context.Context, actor domain.User, query string, limit int) ([]domain.Page, error) {
+	return s.Accessible(actor).Search(ctx, query, limit)
+}
+
+// RevisionsFor returns revision history only when the actor may view the page.
+func (s *Catalog) RevisionsFor(ctx context.Context, actor domain.User, slug string) ([]revision.Revision, error) {
+	return s.Accessible(actor).Revisions(ctx, slug)
+}
+
+// SetFavoriteFor updates a favorite only when the actor may view the page.
+func (s *Catalog) SetFavoriteFor(ctx context.Context, actor domain.User, slug string, on bool) error {
+	if _, err := s.GetPageFor(ctx, actor, slug); err != nil {
+		return err
+	}
+	return s.SetFavorite(ctx, slug, actor.ID, on)
+}
+
+// SetPageWatchFor updates a watch only when the actor may view the page.
+func (s *Catalog) SetPageWatchFor(ctx context.Context, actor domain.User, slug, scope string) error {
+	if _, err := s.GetPageFor(ctx, actor, slug); err != nil {
+		return err
+	}
+	return s.SetPageWatch(ctx, slug, actor.ID, scope)
+}
+
+// PageInventoryFor returns only inventory rows visible to the actor.
+func (s *Catalog) PageInventoryFor(ctx context.Context, actor domain.User) ([]domain.Page, error) {
+	pages, err := s.PageInventory(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return s.access.FilterPages(ctx, actor, pages)
+}
 
 // GetPage returns an active page by slug.
 func (s *Catalog) GetPage(ctx context.Context, slug string) (domain.Page, error) {

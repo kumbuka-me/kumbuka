@@ -8,14 +8,9 @@ import (
 )
 
 // PageEditors returns other users who are currently editing the requested page.
-func PageEditors(presence pagePresenceService, logger *slog.Logger,
-	accessUseCases pageAccessReader,
-) http.HandlerFunc {
+func PageEditors(presence pagePresenceService, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !authorizePageRequest(w, r, accessUseCases, false) {
-			return
-		}
-		editors, err := presence.PageEditors(r.Context(), r.PathValue("slug"), currentUser(r).ID)
+		editors, err := presence.PageEditors(r.Context(), r.PathValue("slug"), currentUser(r))
 		if err != nil {
 			writePageProblem(logger, w, err)
 			return
@@ -26,13 +21,8 @@ func PageEditors(presence pagePresenceService, logger *slog.Logger,
 }
 
 // TouchPageEditor refreshes the current user's active editor presence.
-func TouchPageEditor(presence pagePresenceService, logger *slog.Logger,
-	accessUseCases pageAccessReader,
-) http.HandlerFunc {
+func TouchPageEditor(presence pagePresenceService, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !authorizePageRequest(w, r, accessUseCases, true) {
-			return
-		}
 		if err := presence.TouchPageEditor(r.Context(), r.PathValue("slug"), currentUser(r)); err != nil {
 			writePageProblem(logger, w, err)
 			return
@@ -43,13 +33,8 @@ func TouchPageEditor(presence pagePresenceService, logger *slog.Logger,
 }
 
 // LeavePageEditor clears the current user's active editor presence immediately.
-func LeavePageEditor(presence pagePresenceService, logger *slog.Logger,
-	accessUseCases pageAccessReader,
-) http.HandlerFunc {
+func LeavePageEditor(presence pagePresenceService, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !authorizePageRequest(w, r, accessUseCases, true) {
-			return
-		}
 		if err := presence.LeavePageEditor(r.Context(), r.PathValue("slug"), currentUser(r)); err != nil {
 			writePageProblem(logger, w, err)
 			return

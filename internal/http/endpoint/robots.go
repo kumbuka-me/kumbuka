@@ -82,8 +82,7 @@ func Robots(settingsUseCases robotsSettingsService, views *webview.Views, logger
 // Sitemap serves the indexable application pages when crawling is enabled.
 func Sitemap(
 	settingsUseCases robotsSettingsService,
-	catalogUseCases sitemapCatalogService,
-	accessUseCases pageAccessReader,
+	catalogUseCases visiblePageInventoryService,
 	views *webview.Views,
 	logger *slog.Logger,
 ) http.HandlerFunc {
@@ -104,12 +103,7 @@ func Sitemap(
 			return
 		}
 
-		pages, err := catalogUseCases.PageInventory(r.Context())
-		if err != nil {
-			httpresponse.InternalServerError(logger, w, err)
-			return
-		}
-		pages, err = accessUseCases.FilterPages(r.Context(), domain.User{}, pages)
+		pages, err := catalogUseCases.PageInventoryFor(r.Context(), domain.User{})
 		if err != nil {
 			httpresponse.InternalServerError(logger, w, err)
 			return

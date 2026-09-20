@@ -55,7 +55,7 @@ func TestSaveUsesOptimisticConcurrencyForEditorUpdates(t *testing.T) {
 
 	expected := time.Date(2026, time.September, 19, 14, 30, 0, 123000000, time.UTC)
 	repository := &pageConcurrencyRepositoryStub{}
-	pages := NewPages(repository, nil)
+	pages := NewPages(repository, nil, nil)
 
 	_, err := pages.save(context.Background(), PageSaveInput{
 		PreviousSlug:      "guide",
@@ -76,7 +76,7 @@ func TestSaveKeepsInternalWritesUnconditional(t *testing.T) {
 	t.Parallel()
 
 	repository := &pageConcurrencyRepositoryStub{}
-	pages := NewPages(repository, nil)
+	pages := NewPages(repository, nil, nil)
 
 	_, err := pages.save(context.Background(), PageSaveInput{
 		PreviousSlug: "guide",

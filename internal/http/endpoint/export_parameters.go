@@ -4,7 +4,6 @@ import (
 	"cmp"
 	"context"
 	"errors"
-	apppages "github.com/kumbuka-me/kumbuka/internal/application/pages"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -96,17 +95,16 @@ func validExportParameterKey(value string) bool {
 // renderExportHTML renders the shared self-contained page body used by print preview and PDF export.
 func renderExportHTML(
 	ctx context.Context,
-	catalog pageReportCatalogService,
+	catalog scopedPageCatalogService,
 	navigation navigationService,
 	media imageContentService,
 	renderer *md.Renderer,
-	access pageAccessReader,
 	user domain.User,
 	page domain.Page,
 	parameters map[string]map[string]map[string]string,
 ) (string, error) {
-	securedCatalog := apppages.NewAccessibleCatalog(catalog, access, user)
-	pageNavigation, err := subpageNavigation(ctx, navigation, access, user, page.Slug)
+	securedCatalog := catalog.Accessible(user)
+	pageNavigation, err := subpageNavigation(ctx, navigation, user, page.Slug)
 	if err != nil {
 		return "", err
 	}
@@ -129,18 +127,14 @@ func renderExportHTML(
 
 // PreviewPageExport returns a self-contained script-free print document without calling the PDF service.
 func PreviewPageExport(
-	catalog pageReportCatalogService,
+	catalog scopedPageCatalogService,
 	settings settingsService,
 	navigation navigationService,
 	media imageContentService,
-	access pageAccessReader,
 	renderer *md.Renderer,
 	logger *slog.Logger,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !authorizePageRequest(w, r, access, false) {
-			return
-		}
 		w.Header().Set("Cache-Control", "private, no-store")
 		parameters, err := readExportParameters(w, r)
 		if err != nil {
@@ -155,7 +149,7 @@ func PreviewPageExport(
 			httpresponse.Problem(w, http.StatusBadRequest, "A page path is required.")
 			return
 		}
-		page, err := catalog.GetPage(r.Context(), slug)
+		page, err := catalog.GetPageFor(r.Context(), currentUser(r), slug)
 		if err != nil {
 			writePageProblem(logger, w, err)
 			return
@@ -165,7 +159,7 @@ func PreviewPageExport(
 			httpresponse.InternalServerError(logger, w, err)
 			return
 		}
-		rendered, err := renderExportHTML(r.Context(), catalog, navigation, media, renderer, access, currentUser(r), page, parameters)
+		rendered, err := renderExportHTML(r.Context(), catalog, navigation, media, renderer, currentUser(r), page, parameters)
 		if err != nil {
 			writeRenderedExportProblem(logger, w, err)
 			return

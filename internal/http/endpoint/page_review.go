@@ -17,12 +17,8 @@ func PageReview(
 	viewDataUseCases viewDataService,
 	pageUseCases pageApprovalService,
 	views *webview.Views,
-	accessUseCases pageAccessReader,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !authorizePageRequest(w, r, accessUseCases, false) {
-			return
-		}
 		reviewID, ok := reviewRequestID(w, r.PathValue("id"))
 		if !ok {
 			return
@@ -57,13 +53,8 @@ func PageReview(
 }
 
 // AddPageReviewComment adds line feedback or a Markdown suggestion to a pending review.
-func AddPageReviewComment(pageUseCases pageApprovalService, views *webview.Views,
-	accessUseCases pageAccessReader,
-) http.HandlerFunc {
+func AddPageReviewComment(pageUseCases pageApprovalService, views *webview.Views) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !authorizePageRequest(w, r, accessUseCases, false) {
-			return
-		}
 		if err := r.ParseForm(); err != nil {
 			httpresponse.Problem(w, http.StatusBadRequest, "Invalid review comment.")
 			return
@@ -107,13 +98,8 @@ func AddPageReviewComment(pageUseCases pageApprovalService, views *webview.Views
 }
 
 // ApplyPageReviewSuggestion applies one pending suggestion as a new page revision.
-func ApplyPageReviewSuggestion(pageUseCases pageApprovalService, views *webview.Views,
-	accessUseCases pageAccessReader,
-) http.HandlerFunc {
+func ApplyPageReviewSuggestion(pageUseCases pageApprovalService, views *webview.Views) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !authorizePageRequest(w, r, accessUseCases, true) {
-			return
-		}
 		reviewID, ok := reviewRequestID(w, r.PathValue("id"))
 		if !ok {
 			return
@@ -135,13 +121,8 @@ func ApplyPageReviewSuggestion(pageUseCases pageApprovalService, views *webview.
 }
 
 // ApplyAllPageReviewSuggestions applies all pending non-overlapping suggestions as one new revision.
-func ApplyAllPageReviewSuggestions(pageUseCases pageApprovalService, views *webview.Views,
-	accessUseCases pageAccessReader,
-) http.HandlerFunc {
+func ApplyAllPageReviewSuggestions(pageUseCases pageApprovalService, views *webview.Views) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !authorizePageRequest(w, r, accessUseCases, true) {
-			return
-		}
 		reviewID, ok := reviewRequestID(w, r.PathValue("id"))
 		if !ok {
 			return

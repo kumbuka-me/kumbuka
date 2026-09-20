@@ -1,7 +1,6 @@
 package endpoint
 
 import (
-	apppages "github.com/kumbuka-me/kumbuka/internal/application/pages"
 	"net/http"
 
 	"github.com/kumbuka-me/kumbuka/internal/http/auth"
@@ -16,9 +15,8 @@ const maxWidgetCommandFormBytes = 16 << 10
 
 // PluginWidgetCommand executes one host-mediated command from an active plugin widget.
 func PluginWidgetCommand(
-	catalog pageReportCatalogService,
+	catalog scopedPageCatalogService,
 	navigation navigationService,
-	access pageAccessReader,
 	renderer *md.Renderer,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -48,24 +46,15 @@ func PluginWidgetCommand(
 		var pageValue *sdk.Page
 		capabilities := plugincap.Capabilities(nil, nil, renderer.IconCatalog())
 		if slug := pageSlug; slug != "" {
-			allowed, err := access.CanView(r.Context(), user, slug)
-			if err != nil {
-				httpresponse.Problem(w, http.StatusInternalServerError, "The request could not be processed.")
-				return
-			}
-			if !allowed {
-				httpresponse.Problem(w, http.StatusNotFound, "Page not found.")
-				return
-			}
-			page, err := catalog.GetPage(r.Context(), slug)
+			page, err := catalog.GetPageFor(r.Context(), user, slug)
 			if err != nil {
 				httpresponse.Problem(w, http.StatusNotFound, "Page not found.")
 				return
 			}
 			value := plugincap.PageValue(page)
 			pageValue = &value
-			securedCatalog := apppages.NewAccessibleCatalog(catalog, access, user)
-			pageNavigation, err := subpageNavigation(r.Context(), navigation, access, user, slug)
+			securedCatalog := catalog.Accessible(user)
+			pageNavigation, err := subpageNavigation(r.Context(), navigation, user, slug)
 			if err != nil {
 				httpresponse.Problem(w, http.StatusInternalServerError, "The request could not be processed.")
 				return

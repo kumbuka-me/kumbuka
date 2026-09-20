@@ -49,7 +49,7 @@ func (s *pagePresenceRepositoryStub) LeavePageEditor(_ context.Context, slug str
 func TestPagesEditorPresenceUsesBoundedHeartbeatWindow(t *testing.T) {
 	t.Parallel()
 	repository := &pagePresenceRepositoryStub{editors: []domain.PageEditorPresence{{UserID: 8, Name: "Anna"}}}
-	pages := NewPages(repository, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	pages := NewPages(repository, nil, slog.New(slog.NewTextHandler(io.Discard, nil)))
 
 	editors, err := pages.PageEditors(context.Background(), " guide ", 7)
 
@@ -63,7 +63,7 @@ func TestPagesEditorPresenceUsesBoundedHeartbeatWindow(t *testing.T) {
 func TestPagesEditorPresenceTracksAuthenticatedEditor(t *testing.T) {
 	t.Parallel()
 	repository := &pagePresenceRepositoryStub{}
-	pages := NewPages(repository, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	pages := NewPages(repository, nil, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	actor := domain.User{ID: 9}
 
 	require.NoError(t, pages.TouchPageEditor(context.Background(), "/guide/", actor))

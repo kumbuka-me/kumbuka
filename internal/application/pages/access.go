@@ -340,3 +340,23 @@ func visiblePaths(ctx context.Context, access accessReader, user domain.User, pa
 	}
 	return visible, nil
 }
+
+// HomeQuery binds dashboard page-list capabilities to one actor without exposing access policy wiring to HTTP.
+type HomeQuery struct {
+	// catalog supplies dashboard page lists.
+	catalog homeReader
+	// drafts supplies private draft lists.
+	drafts draftReader
+	// access filters all page collections for the actor.
+	access accessReader
+}
+
+// NewHomeQuery constructs the dashboard page-list query.
+func NewHomeQuery(catalog homeReader, drafts draftReader, access accessReader) *HomeQuery {
+	return &HomeQuery{catalog: catalog, drafts: drafts, access: access}
+}
+
+// Lists returns dashboard capabilities scoped to one actor.
+func (q *HomeQuery) Lists(actor domain.User) HomeLists {
+	return NewHomeLists(q.catalog, q.drafts, q.access, actor)
+}

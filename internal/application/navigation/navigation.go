@@ -18,10 +18,17 @@ type navigationRepository interface {
 	SetNavigationIcon(context.Context, string, string) error
 }
 
+// pageFilter removes pages the actor may not view.
+type pageFilter interface {
+	FilterPages(context.Context, domain.User, []domain.Page) ([]domain.Page, error)
+}
+
 // Navigation exposes navigation tree and icon use cases.
 type Navigation struct {
 	// repository provides the persistence operations required by navigation.
 	repository navigationRepository
+	// access filters navigation collections for the current actor.
+	access pageFilter
 	// iconCatalog stores the icon catalog value used by navigation.
 	iconCatalog *icons.Catalog
 
@@ -34,8 +41,8 @@ type Navigation struct {
 }
 
 // NewNavigation constructs the navigation service.
-func NewNavigation(repository navigationRepository) *Navigation {
-	return &Navigation{repository: repository, iconCatalog: icons.Builtin()}
+func NewNavigation(repository navigationRepository, access pageFilter) *Navigation {
+	return &Navigation{repository: repository, access: access, iconCatalog: icons.Builtin()}
 }
 
 // WithIconCatalog uses the active plugin-aware icon catalog for validation.
@@ -50,6 +57,15 @@ func (s *Navigation) WithIconCatalog(catalog *icons.Catalog) *Navigation {
 // NavigationPages returns the page projection needed to build navigation.
 func (s *Navigation) NavigationPages(ctx context.Context) ([]domain.Page, error) {
 	return s.repository.NavigationPages(ctx)
+}
+
+// VisiblePages returns only navigation pages visible to the actor.
+func (s *Navigation) VisiblePages(ctx context.Context, actor domain.User) ([]domain.Page, error) {
+	pages, err := s.NavigationPages(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return s.access.FilterPages(ctx, actor, pages)
 }
 
 // NavigationItems returns configured navigation folders and metadata.

@@ -72,7 +72,7 @@ func TestImportPortablePageRestoresArchiveMetadata(t *testing.T) {
 	t.Parallel()
 
 	repository := &portableImportRepositoryStub{}
-	pages := NewPages(repository, nil)
+	pages := NewPages(repository, nil, nil)
 
 	err := pages.importPortablePage(context.Background(), PortableImportedPage{
 		Slug:               "guide",
@@ -107,7 +107,7 @@ func TestImportPortablePageReplacesExistingMetadata(t *testing.T) {
 	t.Parallel()
 
 	repository := &portableImportRepositoryStub{Existing: true}
-	pages := NewPages(repository, nil)
+	pages := NewPages(repository, nil, nil)
 
 	err := pages.importPortablePage(context.Background(), PortableImportedPage{
 		Slug:       "guide",

@@ -28,15 +28,11 @@ import (
 
 // ExportPageMarkdown exports one page as Markdown or as a ZIP when referenced images must be included.
 func ExportPageMarkdown(
-	catalogUseCases pageContentService,
+	catalogUseCases visiblePageContentService,
 	mediaUseCases imageContentService,
 	logger *slog.Logger,
-	accessUseCases pageAccessReader,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !authorizePageRequest(w, r, accessUseCases, false) {
-			return
-		}
 		slug := strings.TrimSpace(r.PathValue("slug"))
 		if slug == "" {
 			httpresponse.Problem(w,
@@ -47,7 +43,7 @@ func ExportPageMarkdown(
 			return
 		}
 
-		pageData, err := catalogUseCases.GetPage(r.Context(), slug)
+		pageData, err := catalogUseCases.GetPageFor(r.Context(), currentUser(r), slug)
 		if err != nil {
 			writePageProblem(logger, w, err)
 			return
@@ -71,19 +67,15 @@ func ExportPageMarkdown(
 
 // ExportPagePDF renders one page into a downloadable PDF using the configured PDF service.
 func ExportPagePDF(
-	catalogUseCases pageReportCatalogService,
+	catalogUseCases scopedPageCatalogService,
 	settingsUseCases settingsService,
 	navigationUseCases navigationService,
 	mediaUseCases imageContentService,
-	accessUseCases pageAccessReader,
 	renderer *md.Renderer,
 	views *webview.Views,
 	logger *slog.Logger,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !authorizePageRequest(w, r, accessUseCases, false) {
-			return
-		}
 		w.Header().Set("Cache-Control", "private, no-store")
 		parameters, err := readExportParameters(w, r)
 		if err != nil {
@@ -116,7 +108,7 @@ func ExportPagePDF(
 			return
 		}
 
-		pageData, err := catalogUseCases.GetPage(r.Context(), slug)
+		pageData, err := catalogUseCases.GetPageFor(r.Context(), currentUser(r), slug)
 		if err != nil {
 			writePageProblem(logger, w, err)
 			return
@@ -130,7 +122,7 @@ func ExportPagePDF(
 		}
 
 		rendered, err := renderExportHTML(r.Context(), catalogUseCases,
-			navigationUseCases, mediaUseCases, renderer, accessUseCases, currentUser(r), pageData, parameters)
+			navigationUseCases, mediaUseCases, renderer, currentUser(r), pageData, parameters)
 		if err != nil {
 			writeRenderedExportProblem(logger, w, err)
 			return

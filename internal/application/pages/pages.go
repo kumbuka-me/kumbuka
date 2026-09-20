@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	appaccess "github.com/kumbuka-me/kumbuka/internal/application/access"
 	"github.com/kumbuka-me/kumbuka/internal/application/webhooks"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/kumbuka-me/kumbuka/pkg/icons"
@@ -91,6 +92,8 @@ type pageUsageAnalyzer interface {
 type Pages struct {
 	// repository provides the composed persistence capabilities used by page workflows.
 	repository pageRepository
+	// access enforces resource-level page visibility and mutation permissions.
+	access appaccess.Policy
 	// logger records diagnostics emitted by pages.
 	logger *slog.Logger
 	// eventSinks receive committed page events after persistence succeeds.
@@ -105,12 +108,12 @@ type Pages struct {
 
 // NewPages constructs the page application service. Event sinks are optional so
 // page mutations remain independently testable.
-func NewPages(repository pageRepository, logger *slog.Logger, eventSinks ...webhooks.EventSink) *Pages {
+func NewPages(repository pageRepository, access appaccess.Policy, logger *slog.Logger, eventSinks ...webhooks.EventSink) *Pages {
 	if logger == nil {
 		logger = slog.Default()
 	}
 
-	return &Pages{repository: repository, logger: logger, eventSinks: eventSinks, iconCatalog: icons.Builtin()}
+	return &Pages{repository: repository, access: access, logger: logger, eventSinks: eventSinks, iconCatalog: icons.Builtin()}
 }
 
 // WithIconCatalog uses the active plugin-aware icon catalog for validation.
@@ -141,8 +144,35 @@ func (s *Pages) WithRenderer(renderer *md.Renderer) *Pages {
 	return s
 }
 
+// requireView enforces page visibility when a resource access policy is configured.
+func (s *Pages) requireView(ctx context.Context, actor domain.User, slug string) error {
+	if s.access == nil {
+		return nil
+	}
+	return appaccess.RequireView(ctx, s.access, actor, slug)
+}
+
+// requireEdit enforces page mutation access when a resource access policy is configured.
+func (s *Pages) requireEdit(ctx context.Context, actor domain.User, slug string) error {
+	if s.access == nil {
+		return nil
+	}
+	return appaccess.RequireEdit(ctx, s.access, actor, slug)
+}
+
 // Save validates and persists a page, then records audit and mention side effects.
 func (s *Pages) Save(ctx context.Context, input PageSaveInput) (domain.Page, error) {
+	destination := md.Slug(input.Slug)
+	if destination == "" && strings.TrimSpace(input.PreviousSlug) == "" {
+		destination = md.Slug(input.Title)
+	}
+	if err := s.requireEdit(ctx, input.Actor, input.PreviousSlug); err != nil {
+		return domain.Page{}, err
+	}
+	if err := s.requireEdit(ctx, input.Actor, destination); err != nil {
+		return domain.Page{}, err
+	}
+
 	page, err := s.save(ctx, input)
 	if err != nil {
 		return domain.Page{}, err
@@ -173,13 +203,16 @@ func (s *Pages) Save(ctx context.Context, input PageSaveInput) (domain.Page, err
 const pageEditorPresenceTTL = 90 * time.Second
 
 // PageEditors returns other users with a recent editor heartbeat for one page.
-func (s *Pages) PageEditors(ctx context.Context, slug string, excludeUserID int64) ([]domain.PageEditorPresence, error) {
+func (s *Pages) PageEditors(ctx context.Context, slug string, actor domain.User) ([]domain.PageEditorPresence, error) {
 	slug = strings.Trim(strings.TrimSpace(slug), "/")
+	if err := s.requireView(ctx, actor, slug); err != nil {
+		return nil, err
+	}
 	if slug == "" {
 		return nil, domain.ErrNotFound
 	}
 
-	return s.repository.PageEditors(ctx, slug, excludeUserID, pageEditorPresenceTTL)
+	return s.repository.PageEditors(ctx, slug, actor.ID, pageEditorPresenceTTL)
 }
 
 // TouchPageEditor refreshes one authenticated user's editor presence.
@@ -191,6 +224,9 @@ func (s *Pages) TouchPageEditor(ctx context.Context, slug string, actor domain.U
 	slug = strings.Trim(strings.TrimSpace(slug), "/")
 	if slug == "" {
 		return domain.ErrNotFound
+	}
+	if err := s.requireEdit(ctx, actor, slug); err != nil {
+		return err
 	}
 
 	return s.repository.TouchPageEditor(ctx, slug, actor.ID)
@@ -205,6 +241,9 @@ func (s *Pages) LeavePageEditor(ctx context.Context, slug string, actor domain.U
 	slug = strings.Trim(strings.TrimSpace(slug), "/")
 	if slug == "" {
 		return nil
+	}
+	if err := s.requireEdit(ctx, actor, slug); err != nil {
+		return err
 	}
 
 	return s.repository.LeavePageEditor(ctx, slug, actor.ID)
@@ -375,6 +414,9 @@ func (s *Pages) materializeRender(ctx context.Context, source string, usage *plu
 // Delete moves a page to the recycle bin and records the action.
 func (s *Pages) Delete(ctx context.Context, slug string, actor domain.User) error {
 	slug = strings.TrimSpace(slug)
+	if err := s.requireEdit(ctx, actor, slug); err != nil {
+		return err
+	}
 	if err := s.repository.DeletePage(ctx, slug, actor.ID); err != nil {
 		return err
 	}
@@ -403,6 +445,12 @@ func (s *Pages) Move(
 	if options.MoveChildren && strings.HasPrefix(newSlug, oldSlug+"/") {
 		return domain.NewValidationError("slug", "A page tree cannot be moved inside itself.")
 	}
+	if err := s.requireEdit(ctx, actor, oldSlug); err != nil {
+		return err
+	}
+	if err := s.requireEdit(ctx, actor, newSlug); err != nil {
+		return err
+	}
 	if err := s.repository.MovePage(ctx, oldSlug, newSlug, options, actor); err != nil {
 		return err
 	}
@@ -416,6 +464,9 @@ func (s *Pages) Move(
 // Review records a completed documentation review and its audit event.
 func (s *Pages) Review(ctx context.Context, slug string, actor domain.User) error {
 	slug = strings.TrimSpace(slug)
+	if err := s.requireEdit(ctx, actor, slug); err != nil {
+		return err
+	}
 	if err := s.repository.MarkPageReviewed(ctx, slug); err != nil {
 		return err
 	}
@@ -428,6 +479,9 @@ func (s *Pages) Review(ctx context.Context, slug string, actor domain.User) erro
 
 // RestoreRevision creates a new page revision from a persisted historical revision.
 func (s *Pages) RestoreRevision(ctx context.Context, slug string, number int, actor domain.User) (domain.Page, error) {
+	if err := s.requireEdit(ctx, actor, slug); err != nil {
+		return domain.Page{}, err
+	}
 	if number <= 0 {
 		return domain.Page{}, &domain.ValidationError{Fields: []domain.FieldError{{Field: "revision", Message: "Invalid revision."}}}
 	}
