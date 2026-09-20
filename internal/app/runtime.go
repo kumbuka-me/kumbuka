@@ -11,15 +11,14 @@ import (
 	"github.com/kumbuka-me/kumbuka/internal/http/auth"
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
 	httpserver "github.com/kumbuka-me/kumbuka/internal/http/server"
+	"github.com/kumbuka-me/kumbuka/internal/pluginruntime"
 	"github.com/kumbuka-me/kumbuka/internal/pluginupdate"
 	"github.com/kumbuka-me/kumbuka/internal/postgres"
 	"github.com/kumbuka-me/kumbuka/internal/secrets"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/icons"
 	"github.com/kumbuka-me/kumbuka/pkg/markdown"
-	"github.com/kumbuka-me/kumbuka/pkg/plugin/wasm"
 	"github.com/kumbuka-me/kumbuka/pkg/themes"
-	"github.com/kumbuka-me/kumbuka/plugins"
 )
 
 // applicationRuntime contains the request handler and runtime-owned background components.
@@ -48,7 +47,7 @@ func newApplicationRuntime(
 		return applicationRuntime{}, err
 	}
 
-	renderer, err := newRenderer(ctx, database, secretCipher, logger, setupLogger, version, commit)
+	renderer, err := pluginruntime.NewRenderer(ctx, database, secretCipher, authenticatedPluginRequest, logger, setupLogger, version, commit)
 	if err != nil {
 		return applicationRuntime{}, err
 	}
@@ -93,48 +92,6 @@ func configureAuthentication(
 	config.BrowserAuth = browserAuth
 	config.BearerAuth = auth.NewBearer(database)
 	return nil
-}
-
-// newRenderer creates the Markdown renderer and configures its plugin runtime resources.
-func newRenderer(
-	ctx context.Context,
-	database *postgres.Store,
-	secretCipher *secrets.Cipher,
-	logger, setupLogger *slog.Logger,
-	version, commit string,
-) (*markdown.Renderer, error) {
-	pluginArchives, err := plugins.Archives()
-	if err != nil {
-		return nil, setupFailure(setupLogger, "load bundled plugins", "plugin_packages_load_failed", err)
-	}
-
-	renderer, err := markdown.NewWithPluginStore(
-		ctx,
-		database,
-		pluginArchives,
-		wasm.WithStorage(database),
-		wasm.WithSecretCodec(secretCipher),
-		wasm.WithHTTPAuthorizer(authenticatedPluginRequest),
-		wasm.WithPermissions(
-			"network:http",
-			"network:private",
-			"network:insecure-tls",
-			"activity:read",
-			"drafts:read",
-			"settings:read",
-			"settings:write",
-			"storage:read",
-			"storage:write",
-		),
-		wasm.WithLogger(logger.With("component", "plugins")),
-	)
-	if err != nil {
-		return nil, setupFailure(setupLogger, "create markdown renderer", "markdown_renderer_failed", err)
-	}
-
-	renderer.PluginManager().SetSecretCodec(secretCipher)
-	renderer.SetArtifactBuild(version, commit)
-	return renderer, nil
 }
 
 // authenticatedPluginRequest reports whether the current plugin invocation belongs to an authenticated user.
