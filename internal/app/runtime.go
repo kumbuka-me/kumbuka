@@ -67,8 +67,18 @@ func newApplicationRuntime(
 	configureRenderTimings(cfg, renderer, views, logger)
 	routeConfig.ViewData = newViewDataLoader(routeConfig)
 
+	router := routes.New(routes.Config{
+		Views:       routeConfig.Views,
+		BrowserAuth: routeConfig.BrowserAuth,
+		BearerAuth:  routeConfig.BearerAuth,
+		Logger:      routeConfig.Logger,
+		AccessLog:   routeConfig.AccessLog,
+		ReadOnly:    routeConfig.ReadOnly,
+	})
+	addRoutes(router, routeConfig)
+
 	return applicationRuntime{
-		handler:       routes.New(routeConfig),
+		handler:       router.Handler(),
 		renderer:      renderer,
 		pluginUpdates: routeConfig.PluginUpdates,
 	}, nil
@@ -77,7 +87,7 @@ func newApplicationRuntime(
 // configureAuthentication attaches browser and bearer authentication to the route configuration.
 func configureAuthentication(
 	ctx context.Context,
-	config *routes.Config,
+	config *httpConfig,
 	cfg flags.Config,
 	database *postgres.Store,
 	setupLogger *slog.Logger,

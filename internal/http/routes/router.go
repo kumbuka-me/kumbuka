@@ -1,90 +1,25 @@
 package routes
 
 import (
-	"io/fs"
 	"log/slog"
 	"net/http"
 
-	appaccess "github.com/kumbuka-me/kumbuka/internal/application/access"
-	appadministration "github.com/kumbuka-me/kumbuka/internal/application/administration"
-	appgroups "github.com/kumbuka-me/kumbuka/internal/application/groups"
-	appmedia "github.com/kumbuka-me/kumbuka/internal/application/media"
-	appnavigation "github.com/kumbuka-me/kumbuka/internal/application/navigation"
-	appnotifications "github.com/kumbuka-me/kumbuka/internal/application/notifications"
-	apppages "github.com/kumbuka-me/kumbuka/internal/application/pages"
-	appplugins "github.com/kumbuka-me/kumbuka/internal/application/plugins"
-	apppreferences "github.com/kumbuka-me/kumbuka/internal/application/preferences"
-	apprecyclebin "github.com/kumbuka-me/kumbuka/internal/application/recyclebin"
-	appsearch "github.com/kumbuka-me/kumbuka/internal/application/search"
-	appsettings "github.com/kumbuka-me/kumbuka/internal/application/settings"
-	appsystem "github.com/kumbuka-me/kumbuka/internal/application/system"
-	apptemplates "github.com/kumbuka-me/kumbuka/internal/application/templates"
-	apptokens "github.com/kumbuka-me/kumbuka/internal/application/tokens"
-	appusers "github.com/kumbuka-me/kumbuka/internal/application/users"
-	appwebhooks "github.com/kumbuka-me/kumbuka/internal/application/webhooks"
 	"github.com/kumbuka-me/kumbuka/internal/http/auth"
 	"github.com/kumbuka-me/kumbuka/internal/http/endpoint"
 	"github.com/kumbuka-me/kumbuka/internal/http/middleware"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
-	"github.com/kumbuka-me/kumbuka/pkg/markdown"
 )
 
-// Config contains the fully constructed dependencies required by the HTTP router.
+// Config contains transport-level dependencies required to register and wrap HTTP routes.
 type Config struct {
-	// ViewPage loads authorized reading-page state.
-	ViewPage *apppages.View
-	// Assets contains the embedded web application assets served by the router.
-	Assets fs.FS
-	// Views renders HTML responses and exposes the shared icon catalog.
+	// Views renders themed browser problem responses around selected public authentication routes.
 	Views *webview.Views
-	// Renderer renders Markdown and owns the active plugin manager.
-	Renderer *markdown.Renderer
-	// PluginUpdates schedules, discovers, and downloads compatible first-party plugin releases.
-	PluginUpdates *appplugins.PluginUpdates
-	// BrowserAuth contains browser authentication handlers and identity resolution.
+	// BrowserAuth resolves browser identities used by browser and mixed authentication policies.
 	BrowserAuth auth.BrowserAuth
-	// BearerAuth authenticates API requests that use personal access tokens.
+	// BearerAuth resolves personal-access-token identities used by API and media policies.
 	BearerAuth auth.Authenticator
-	// Administration provides administrator-facing application use cases.
-	Administration *appadministration.Administration
-	// Access provides page authorization and access-policy use cases.
-	Access *appaccess.Access
-	// Catalog provides page lookup, search, and catalog use cases.
-	Catalog *apppages.Catalog
-	// Drafts provides page-draft use cases.
-	Drafts *apppages.Drafts
-	// Groups provides group-management use cases.
-	Groups *appgroups.Groups
-	// Knowledge provides knowledge-graph and saved-search use cases.
-	Knowledge *appsearch.Knowledge
-	// Notifications provides notification use cases.
-	Notifications *appnotifications.Notifications
-	// Media provides image and attachment use cases.
-	Media *appmedia.Media
-	// Navigation provides navigation-tree and icon use cases.
-	Navigation *appnavigation.Navigation
-	// Pages provides page mutation and collaboration use cases.
-	Pages *apppages.Pages
-	// Preferences provides per-user preference use cases.
-	Preferences *apppreferences.Preferences
-	// RecycleBin provides deleted-page lifecycle use cases.
-	RecycleBin *apprecyclebin.RecycleBin
-	// Settings provides application-settings use cases.
-	Settings *appsettings.Settings
-	// System provides health and setup-state use cases.
-	System *appsystem.System
-	// Templates provides page-template use cases.
-	Templates *apptemplates.Templates
-	// Tokens provides personal and administrator token use cases.
-	Tokens *apptokens.Tokens
-	// Users provides user and external-identity use cases.
-	Users *appusers.Users
-	// Webhooks provides webhook configuration and delivery use cases.
-	Webhooks *appwebhooks.Webhooks
-	// ViewData loads shared page chrome and navigation data.
-	ViewData *endpoint.BrowserContext
-	// Logger records request, handler, and middleware diagnostics.
+	// Logger records request and middleware diagnostics.
 	Logger *slog.Logger
 	// AccessLog enables request access logging when true.
 	AccessLog bool
@@ -92,7 +27,7 @@ type Config struct {
 	ReadOnly bool
 }
 
-// routePolicies groups authentication and authorization middleware used during route registration.
+// routePolicies groups authentication and authorization middleware used while registering routes.
 type routePolicies struct {
 	// browserAuthn authenticates browser-only routes.
 	browserAuthn middleware.Middleware
@@ -106,37 +41,85 @@ type routePolicies struct {
 	editorAuthz middleware.Middleware
 }
 
-// New constructs the application router and its authentication and authorization policies.
-func New(config Config) http.Handler {
-	mux := http.NewServeMux()
+// Router registers preconstructed HTTP endpoints and applies transport policies.
+type Router struct {
+	// mux owns the HTTP method/path registrations.
+	mux *http.ServeMux
+	// config contains transport-level runtime settings.
+	config Config
+	// policies contains reusable authentication and role middleware.
+	policies routePolicies
+}
 
-	policies := routePolicies{
-		browserAuthn: middleware.Authenticate(config.Logger, config.BrowserAuth.Authenticator),
-		mediaAuthn:   middleware.Authenticate(config.Logger, config.BearerAuth, config.BrowserAuth.Authenticator),
-		apiAuthn:     middleware.AuthenticateAPI(config.Logger, config.BearerAuth, config.BrowserAuth.Authenticator),
-		adminAuthz:   middleware.RequireRole(domain.UserRoleAdmin),
-		editorAuthz:  middleware.RequireRole(domain.UserRoleAdmin, domain.UserRoleEditor),
+// New constructs an empty application router with its authentication and authorization policies.
+func New(config Config) *Router {
+	return &Router{
+		mux:    http.NewServeMux(),
+		config: config,
+		policies: routePolicies{
+			browserAuthn: middleware.Authenticate(config.Logger, config.BrowserAuth.Authenticator),
+			mediaAuthn:   middleware.Authenticate(config.Logger, config.BearerAuth, config.BrowserAuth.Authenticator),
+			apiAuthn:     middleware.AuthenticateAPI(config.Logger, config.BearerAuth, config.BrowserAuth.Authenticator),
+			adminAuthz:   middleware.RequireRole(domain.UserRoleAdmin),
+			editorAuthz:  middleware.RequireRole(domain.UserRoleAdmin, domain.UserRoleEditor),
+		},
 	}
+}
 
-	addRoutes(mux, config, policies)
+// Handle registers one preconstructed handler for an HTTP method/path pattern.
+func (r *Router) Handle(pattern string, handler http.Handler) {
+	r.mux.Handle(pattern, handler)
+}
 
+// HandleFunc registers one preconstructed handler function for an HTTP method/path pattern.
+func (r *Router) HandleFunc(pattern string, handler http.HandlerFunc) {
+	r.mux.HandleFunc(pattern, handler)
+}
+
+// Browser applies browser-session authentication to a handler.
+func (r *Router) Browser(handler http.Handler) http.Handler {
+	return r.policies.browserAuthn(handler)
+}
+
+// Media applies mixed browser or bearer authentication to a media handler.
+func (r *Router) Media(handler http.Handler) http.Handler {
+	return r.policies.mediaAuthn(handler)
+}
+
+// API applies API authentication to a handler.
+func (r *Router) API(handler http.Handler) http.Handler {
+	return r.policies.apiAuthn(handler)
+}
+
+// Admin restricts a handler to administrators after authentication.
+func (r *Router) Admin(handler http.Handler) http.Handler {
+	return r.policies.adminAuthz(handler)
+}
+
+// Editor restricts a handler to editors and administrators after authentication.
+func (r *Router) Editor(handler http.Handler) http.Handler {
+	return r.policies.editorAuthz(handler)
+}
+
+// Handler finalizes the router with global request middleware.
+func (r *Router) Handler() http.Handler {
 	middlewares := []middleware.Middleware{middleware.RequestContext()}
-	if config.AccessLog {
-		middlewares = append(middlewares, middleware.AccessLog(config.Logger))
+	if r.config.AccessLog {
+		middlewares = append(middlewares, middleware.AccessLog(r.config.Logger))
 	}
 	middlewares = append(
 		middlewares,
-		middleware.RecoverPanics(config.Logger),
-		middleware.RejectCrossSiteWrites(config.Logger),
+		middleware.RecoverPanics(r.config.Logger),
+		middleware.RejectCrossSiteWrites(r.config.Logger),
 	)
-	if config.ReadOnly {
+	if r.config.ReadOnly {
 		middlewares = append(middlewares, middleware.ReadOnly())
 	}
 	middlewares = append(middlewares, middleware.SecurityHeaders())
 
 	root := endpoint.HTMLProblems(
-		mux,
-		config.Views,
+		r.mux,
+		r.config.Views,
 		"/auth/login",
 		"/auth/local",
 		"/auth/callback",
