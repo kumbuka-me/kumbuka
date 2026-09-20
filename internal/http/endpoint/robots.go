@@ -22,10 +22,6 @@ type robotsSettingsService interface {
 	ApplicationSettings(context.Context) (domain.ApplicationSettings, error)
 }
 
-type sitemapCatalogService interface {
-	PageInventory(context.Context) ([]domain.Page, error)
-}
-
 // sitemapDocument groups data used by sitemap document.
 type sitemapDocument struct {
 	// XMLName is the XML name associated with sitemap document.
