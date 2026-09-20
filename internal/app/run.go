@@ -57,15 +57,34 @@ func Run(
 	stdout, stderr io.Writer,
 ) error {
 	// Parse deployment configuration before constructing runtime dependencies.
-	cfg, exit, err := parseArguments(args, version, stdout, stderr)
-	if err != nil || exit {
+	cfg, err := flags.Parse(args, version)
+	if err != nil {
+		if tinyflags.IsHelpRequested(err) || tinyflags.IsVersionRequested(err) {
+			_, _ = fmt.Fprint(stdout, err.Error())
+			return nil
+		}
+
+		_, _ = fmt.Fprintln(stderr, err)
 		return err
 	}
 
 	// Configure process logging and record the effective application identity.
 	logger := logging.Setup(cfg.LogFormat, cfg.Debug, stdout)
 	setupLogger := logger.With("component", "setup")
-	logStartup(setupLogger, cfg, version, commit)
+	logger.Info(
+		"starting Kumbuka",
+		"event", "app_starting",
+		"version", version,
+		"commit", commit,
+	)
+
+	if len(cfg.Overrides) > 0 {
+		logger.Info(
+			"CLI Overrides",
+			"event", "cli_overrides",
+			"overrides", cfg.Overrides,
+		)
+	}
 
 	// Bind the process lifetime to operating-system shutdown signals.
 	ctx, stop := server.SignalContext(ctx)
@@ -208,52 +227,65 @@ func Run(
 		access,
 	), renderer)
 
-	// Hand the completed application graph to the HTTP adapter for route construction.
-	handler := httpserver.New(httpserver.Config{
-		Assets:                appFS,
-		Views:                 views,
-		Renderer:              renderer,
-		PluginUpdates:         pluginUpdates,
-		BrowserAuth:           browserAuth,
-		BearerAuth:            bearerAuth,
-		Administration:        administration,
-		Access:                access,
-		PageLookup:            pageLookup,
-		PageSearch:            pageSearch,
-		PageDirectory:         pageDirectory,
-		PageReports:           pageReports,
-		PagePersonal:          pagePersonal,
-		PageHistory:           pageHistory,
-		PageRender:            pageRender,
-		Drafts:                drafts,
-		Groups:                groups,
-		Knowledge:             knowledge,
-		Notifications:         notifications,
-		Media:                 media,
-		Navigation:            navigation,
+	serverConfig := httpserver.Config{
+		// Infrastructure.
+		Assets:    appFS,
+		Views:     views,
+		Renderer:  renderer,
+		Logger:    serverLogger,
+		AccessLog: cfg.AccessLog,
+		ReadOnly:  cfg.ReadOnly,
+
+		// Authentication.
+		BrowserAuth: browserAuth,
+		BearerAuth:  bearerAuth,
+
+		// Administration.
+		Administration: administration,
+		Groups:         groups,
+		Settings:       settings,
+		System:         system,
+		Tokens:         tokens,
+		Users:          users,
+		Webhooks:       webhooks,
+
+		// Content.
+		Access:        access,
+		PageLookup:    pageLookup,
+		PageSearch:    pageSearch,
+		PageDirectory: pageDirectory,
+		PageReports:   pageReports,
+		PagePersonal:  pagePersonal,
+		PageHistory:   pageHistory,
+		PageRender:    pageRender,
+		Drafts:        drafts,
+		Media:         media,
+		Navigation:    navigation,
+		RecycleBin:    recycleBin,
+		Templates:     templates,
+
+		// Page workflows.
 		PageMutations:         mutations,
 		PagePresence:          presence,
 		PageDiscussions:       discussions,
 		PageReviews:           reviews,
 		PageReviewDiscussions: reviewDiscussions,
 		PageBulk:              bulk,
-		Preferences:           preferences,
-		RecycleBin:            recycleBin,
-		Settings:              settings,
-		System:                system,
-		Templates:             templates,
-		Tokens:                tokens,
-		Users:                 users,
-		Webhooks:              webhooks,
 		Home:                  home,
 		Editor:                editor,
 		EditorSave:            editorSave,
 		ViewPage:              viewPage,
-		BrowserContext:        browserContext,
-		Logger:                serverLogger,
-		AccessLog:             cfg.AccessLog,
-		ReadOnly:              cfg.ReadOnly,
-	})
+
+		// Shared browser state.
+		Knowledge:      knowledge,
+		Notifications:  notifications,
+		Preferences:    preferences,
+		BrowserContext: browserContext,
+		PluginUpdates:  pluginUpdates,
+	}
+
+	// Hand the completed application graph to the HTTP adapter for route construction.
+	handler := httpserver.New(serverConfig)
 
 	// Start background plugin update checks only when scheduling is enabled.
 	if cfg.PluginUpdateCheckInterval > 0 {
@@ -272,22 +304,6 @@ func Run(
 	}
 
 	return nil
-}
-
-// parseArguments parses deployment configuration and handles non-error help or version exits.
-func parseArguments(args []string, version string, stdout, stderr io.Writer) (flags.Config, bool, error) {
-	cfg, err := flags.Parse(args, version)
-	if err == nil {
-		return cfg, false, nil
-	}
-
-	if tinyflags.IsHelpRequested(err) || tinyflags.IsVersionRequested(err) {
-		_, _ = fmt.Fprint(stdout, err.Error())
-		return flags.Config{}, true, nil
-	}
-
-	_, _ = fmt.Fprintln(stderr, err)
-	return flags.Config{}, false, err
 }
 
 // browserAuthConfig maps deployment configuration onto the authentication boundary.
@@ -338,24 +354,4 @@ func closeRenderer(renderer *markdown.Renderer, logger *slog.Logger) {
 func setupFailure(logger *slog.Logger, message, event string, err error) error {
 	logger.Error(message, "event", event, "error", err)
 	return err
-}
-
-// logStartup records application identity and explicit deployment overrides.
-func logStartup(logger *slog.Logger, cfg flags.Config, version, commit string) {
-	logger.Info(
-		"starting Kumbuka",
-		"event", "app_starting",
-		"version", version,
-		"commit", commit,
-	)
-
-	if len(cfg.Overrides) == 0 {
-		return
-	}
-
-	logger.Info(
-		"CLI Overrides",
-		"event", "cli_overrides",
-		"overrides", cfg.Overrides,
-	)
 }
