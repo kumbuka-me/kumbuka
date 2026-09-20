@@ -32,9 +32,9 @@
                   <tbody>
                     {{ range .Items }}
                       <tr>
-                        <td><strong>{{ .Name }}</strong></td>
+                        <td>{{ .Name }}</td>
                         <td class="configuration-managed-value">{{ .Value }}</td>
-                        <td class="configuration-managed-source">{{ .Source }}</td>
+                        <td class="configuration-managed-source"><span>{{ .Source }}</span></td>
                       </tr>
                     {{ end }}
                   </tbody>

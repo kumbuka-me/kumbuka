@@ -34,22 +34,25 @@
 
 .configuration-managed-groups {
   display: grid;
-  gap: 18px;
+  gap: 12px;
   margin-top: 16px;
 }
 
 .configuration-managed-group {
   min-width: 0;
-}
-
-.configuration-managed-group + .configuration-managed-group {
-  padding-top: 18px;
-  border-top: 1px solid var(--border-subtle);
+  padding: 14px 16px 6px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 9px;
+  background: var(--surface);
 }
 
 .configuration-managed-group h3 {
-  margin: 0 0 8px;
+  margin: 0 0 2px;
   font-size: 13px;
+}
+
+.configuration-managed-group .admin-table-wrap {
+  margin-top: 6px;
 }
 
 .configuration-managed-table {
@@ -80,6 +83,17 @@
 .configuration-managed-source {
   color: var(--text-secondary);
   font-size: 11px;
+}
+
+.configuration-managed-source > span {
+  display: inline-flex;
+  max-width: 100%;
+  align-items: center;
+  border-radius: 999px;
+  padding: 3px 8px;
+  background: var(--surface-elevated);
+  line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 .configuration-application .toggle-row:first-of-type {
