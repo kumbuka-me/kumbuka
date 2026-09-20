@@ -1,10 +1,11 @@
-package app
+package architecture
 
 import (
 	"go/ast"
 	"go/parser"
 	"go/token"
 	"io/fs"
+	"os"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -13,6 +14,25 @@ import (
 )
 
 const modulePath = "github.com/kumbuka-me/kumbuka/"
+
+func TestAppPackageIsOnlyRun(t *testing.T) {
+	t.Parallel()
+
+	root := repositoryRoot(t)
+	entries, err := fs.ReadDir(os.DirFS(root), "internal/app")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".go") {
+			continue
+		}
+		if entry.Name() != "run.go" {
+			t.Errorf("internal/app contains %s; process composition belongs in run.go and adapter construction belongs with its owning package", entry.Name())
+		}
+	}
+}
 
 func TestArchitectureDependencyDirection(t *testing.T) {
 	t.Parallel()

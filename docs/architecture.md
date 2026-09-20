@@ -38,7 +38,7 @@ flowchart TD
     POSTGRES -. implements consumer-owned ports .-> APPLICATION
 ```
 
-`internal/app` is the composition root. It is allowed to know concrete adapters because its job is construction and wiring. Application packages must not import `net/http`, `html/template`, the HTTP adapter, webview, or PostgreSQL packages. Webview must not import application, HTTP-adapter, or PostgreSQL packages. PostgreSQL owns `pgx` and SQL persistence code.
+`internal/app/run.go` is the process composition root and the only Go source file in `internal/app`. It is allowed to know concrete adapters because its job is construction, lifecycle sequencing, and wiring. Application packages must not import `net/http`, `html/template`, the HTTP adapter, webview, or PostgreSQL packages. Webview must not import application, HTTP-adapter, or PostgreSQL packages. PostgreSQL owns `pgx` and SQL persistence code.
 
 ## HTTP adapter
 
@@ -76,7 +76,7 @@ Core owns generic plugin authorization, lifecycle, sandbox/runtime limits, sanit
 
 ## Composition root
 
-`internal/app` constructs PostgreSQL, application use cases, authentication, plugin/runtime infrastructure, web views, HTTP endpoints, and background services. It contains wiring and lifecycle management, not application rules.
+`internal/app/run.go` sequences startup and shutdown and wires already-owned components. HTTP route construction lives in `internal/http/server`, plugin/Markdown runtime construction lives in `internal/pluginruntime`, and the composition root keeps the dependency graph explicit instead of hiding it behind a second bootstrap layer.
 
 ```mermaid
 flowchart LR
@@ -99,7 +99,7 @@ flowchart LR
 
 ## Architectural checks
 
-`internal/app/architecture_test.go` guards the most important dependency rules: production application code cannot import `net/http`, `html/template`, concrete icon catalogs, credential/secret implementations, HTTP/webview/PostgreSQL packages, or own a concrete Markdown renderer; webview cannot import application/HTTP/PostgreSQL packages; and `pgx` imports remain confined to `internal/postgres`. It also prevents reintroducing the old universal `webview.Data` or `webview.Loader` types.
+`internal/architecture/architecture_test.go` guards the most important dependency rules: production application code cannot import `net/http`, `html/template`, concrete icon catalogs, credential/secret implementations, HTTP/webview/PostgreSQL packages, or own a concrete Markdown renderer; webview cannot import application/HTTP/PostgreSQL packages; and `pgx` imports remain confined to `internal/postgres`. It also prevents reintroducing the old universal `webview.Data` or `webview.Loader` types.
 
 Normal validation is:
 
