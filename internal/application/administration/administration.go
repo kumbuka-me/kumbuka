@@ -10,6 +10,7 @@ import (
 // administrationRepository contains dashboard, tag, health, and audit operations.
 type administrationRepository interface {
 	Stats(context.Context) (domain.AdminStats, error)
+	AttachmentCount(context.Context) (int64, error)
 	TagInfos(context.Context) ([]domain.TagInfo, error)
 	DeleteTag(context.Context, int64) error
 	DocumentationHealth(context.Context, time.Time) (domain.DocumentationHealth, error)
@@ -30,6 +31,11 @@ func NewAdministration(repository administrationRepository) *Administration {
 // Stats returns aggregate counts for the administration dashboard.
 func (s *Administration) Stats(ctx context.Context) (domain.AdminStats, error) {
 	return s.repository.Stats(ctx)
+}
+
+// AttachmentCount returns the number of uploaded attachments.
+func (s *Administration) AttachmentCount(ctx context.Context) (int64, error) {
+	return s.repository.AttachmentCount(ctx)
 }
 
 // TagInfos returns tags with administration usage metadata.

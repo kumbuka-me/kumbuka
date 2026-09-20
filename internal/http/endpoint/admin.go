@@ -13,7 +13,8 @@ import (
 // Administration renders the administrator overview.
 func Administration(
 	browserContext browserContextLoader,
-	administrationUseCases administrationService,
+	administrationUseCases adminOverviewService,
+	databaseInfo databaseInfoService,
 	views *webview.Views,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -31,6 +32,17 @@ func Administration(
 		}
 
 		data.AdminStats = stats
+		data.AttachmentCount, err = administrationUseCases.AttachmentCount(r.Context())
+		if err != nil {
+			httpresponse.InternalServerError(views.Logger(), w, err)
+			return
+		}
+
+		data.DatabaseSizeBytes, err = databaseInfo.DatabaseSize(r.Context())
+		if err != nil {
+			httpresponse.InternalServerError(views.Logger(), w, err)
+			return
+		}
 
 		views.Render(w, "admin", data)
 	}

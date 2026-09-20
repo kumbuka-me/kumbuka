@@ -29,3 +29,13 @@ SELECT
 
 	return stats, err
 }
+
+// AttachmentCount returns the number of uploaded attachments.
+func (s *Store) AttachmentCount(ctx context.Context) (int64, error) {
+	var count int64
+	if err := s.pool.QueryRow(ctx, "SELECT count(*) FROM attachments").Scan(&count); err != nil {
+		return 0, err
+	}
+
+	return count, nil
+}

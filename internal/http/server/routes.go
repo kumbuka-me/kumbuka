@@ -129,7 +129,7 @@ func (r routeRegistrar) addAdminRoutes() {
 	r.router.Handle("GET /admin/plugin-settings/{pluginID}", browserAuthn(adminAuthz(http.HandlerFunc(pluginSettings.Show))))
 	r.router.Handle("POST /admin/plugin-settings/{pluginID}/{action}", browserAuthn(adminAuthz(http.HandlerFunc(pluginSettings.Action))))
 
-	r.router.Handle("GET /admin", browserAuthn(adminAuthz(endpoint.Administration(config.BrowserContext, config.Administration, config.Views))))
+	r.router.Handle("GET /admin", browserAuthn(adminAuthz(endpoint.Administration(config.BrowserContext, config.Administration, config.System, config.Views))))
 	r.router.Handle(
 		"GET /admin/configuration",
 		browserAuthn(adminAuthz(endpoint.AdminConfiguration(config.BrowserContext, config.Groups, config.Users, config.Settings, config.System, config.Views))),

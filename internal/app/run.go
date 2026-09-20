@@ -6,6 +6,7 @@ import (
 	"io"
 	"io/fs"
 	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/containeroo/httpgrace/server"
@@ -379,7 +380,12 @@ func pluginUpdateCheckIntervalLabel(interval time.Duration) string {
 		return "Disabled"
 	}
 
-	return interval.String()
+	label := interval.String()
+	if interval >= time.Minute && interval%time.Minute == 0 {
+		return strings.TrimSuffix(label, "0s")
+	}
+
+	return label
 }
 
 // logStartup records application identity and explicit deployment overrides.

@@ -9,9 +9,14 @@ import (
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
 
-// administrationService supplies dashboard, documentation-health, tag, and audit administration.
-type administrationService interface {
+// adminOverviewService supplies the persisted summary shown on the administration overview.
+type adminOverviewService interface {
 	Stats(context.Context) (domain.AdminStats, error)
+	AttachmentCount(context.Context) (int64, error)
+}
+
+// administrationService supplies documentation-health, tag, and audit administration.
+type administrationService interface {
 	TagInfos(context.Context) ([]domain.TagInfo, error)
 	DeleteTag(context.Context, int64) error
 	DocumentationHealth(context.Context, time.Time) (domain.DocumentationHealth, error)

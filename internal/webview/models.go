@@ -502,6 +502,12 @@ type AdminView struct {
 
 	// AdminStats contains high-level persisted object counts for administrators.
 	AdminStats domain.AdminStats
+
+	// AttachmentCount is the number of uploaded attachments.
+	AttachmentCount int64
+
+	// DatabaseSizeBytes is the current PostgreSQL database size in bytes.
+	DatabaseSizeBytes int64
 }
 
 // AdminWebhooksView contains presentation data for admin webhooks view.
