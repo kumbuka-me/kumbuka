@@ -55,18 +55,22 @@ func Run(
 	version, commit string,
 	stdout, stderr io.Writer,
 ) error {
+	// Parse deployment configuration before constructing runtime dependencies.
 	cfg, exit, err := parseArguments(args, version, stdout, stderr)
 	if err != nil || exit {
 		return err
 	}
 
+	// Configure process logging and record the effective application identity.
 	logger := logging.Setup(cfg.LogFormat, cfg.Debug, stdout)
 	setupLogger := logger.With("component", "setup")
 	logStartup(setupLogger, cfg, version, commit)
 
+	// Bind the process lifetime to operating-system shutdown signals.
 	ctx, stop := server.SignalContext(ctx)
 	defer stop()
 
+	// Load deployment-owned presentation and encryption configuration.
 	availableThemes, err := themes.Load(cfg.ThemeDirectory)
 	if err != nil {
 		return setupFailure(setupLogger, "load themes", "theme_load_failed", err)
@@ -77,16 +81,19 @@ func Run(
 		return setupFailure(setupLogger, "configure application encryption", "application_encryption_failed", err)
 	}
 
+	// Open the persistence adapter with deployment-level database behavior.
 	databaseOptions := make([]postgres.Option, 0, 1)
 	if cfg.AllowUserRegistrationOverride != nil {
 		databaseOptions = append(databaseOptions, postgres.WithUserRegistrationOverride(*cfg.AllowUserRegistrationOverride))
 	}
+
 	database, err := postgres.Open(ctx, cfg.DatabaseURL, setupLogger, databaseOptions...)
 	if err != nil {
 		return setupFailure(setupLogger, "open database", "database_open_failed", err)
 	}
 	defer database.Close()
 
+	// Construct page mutation and collaboration capabilities that other workflows depend on.
 	webhooks := appwebhooks.NewWebhooks(database, secretCipher, logger.With("component", "webhooks"), cfg.PublicURL)
 	access := appaccess.NewAccess(database)
 	mutations := apppages.NewMutations(database, access, database, logger, webhooks)
@@ -96,6 +103,7 @@ func Run(
 	reviewDiscussions := apppages.NewReviewDiscussions(database, access, reviews, nil, database, logger, webhooks)
 	bulk := apppages.NewBulk(database, mutations, database, logger, webhooks)
 
+	// Construct the remaining application capabilities around their narrow repository ports.
 	administration := appadministration.NewAdministration(database)
 	pageLookup := apppages.NewLookup(database, access)
 	pageSearch := apppages.NewSearch(database, access)
@@ -118,18 +126,21 @@ func Run(
 	tokens := apptokens.NewTokens(database)
 	users := appusers.NewUsers(database, credential.Passwords{}).WithLogger(logger.With("component", "users"))
 
+	// Compose higher-level page workflows from the capabilities they coordinate.
 	serverLogger := logger.With("component", "server")
 	home := apppages.NewHomeQuery(database, drafts, access)
 	editor := apppages.NewEditor(pageLookup, groups, templates)
 	editorSave := apppages.NewEditorSave(mutations, drafts, templates, serverLogger)
 	viewPage := apppages.NewView(database, access, reviews, serverLogger)
 
+	// Configure browser and bearer authentication at the HTTP boundary.
 	browserAuth, err := auth.ConfigureBrowserAuth(ctx, browserAuthConfig(cfg), database)
 	if err != nil {
 		return setupFailure(setupLogger, "configure browser auth", "browser_auth_failed", err)
 	}
 	bearerAuth := auth.NewBearer(database)
 
+	// Construct the plugin and Markdown runtime owned by the process.
 	renderer, err := pluginruntime.NewRenderer(
 		ctx,
 		database,
@@ -145,6 +156,7 @@ func Run(
 	}
 	defer closeRenderer(renderer, setupLogger)
 
+	// Inject runtime-derived content and icon capabilities into application services.
 	iconCatalog := renderer.IconCatalog()
 	content := pagecontent.New(renderer)
 	navigation.WithIconValidator(iconCatalog)
@@ -154,6 +166,7 @@ func Run(
 	settings.WithIconValidator(iconCatalog)
 	templates.WithIconValidator(iconCatalog)
 
+	// Construct the optional background plugin-update capability.
 	pluginUpdates := appplugins.NewPluginUpdates(
 		pluginupdate.New(pluginupdate.DefaultCatalogURL),
 		renderer.PluginManager(),
@@ -162,6 +175,7 @@ func Run(
 		logger.With("component", "plugin-updates"),
 	)
 
+	// Construct the passive HTML presentation adapter from fully configured runtime dependencies.
 	views, err := webview.New(
 		appFS,
 		logger,
@@ -176,11 +190,13 @@ func Run(
 	}
 	views.WithRenderErrorHandler(httpresponse.InternalServerError)
 
+	// Enable opt-in render diagnostics without changing normal request behavior.
 	if cfg.DebugRenderTimings {
 		renderer.EnableRenderTimings(logger.With("component", "markdown"))
 		views.EnablePageTimings(logger.With("component", "handler"))
 	}
 
+	// Compose the shared authenticated browser context used by presentation endpoints.
 	browserContext := endpoint.NewBrowserContext(viewer.New(
 		preferences,
 		navigation,
@@ -191,6 +207,7 @@ func Run(
 		access,
 	), renderer)
 
+	// Hand the completed application graph to the HTTP adapter for route construction.
 	handler := httpserver.New(httpserver.Config{
 		Assets:                appFS,
 		Views:                 views,
@@ -237,10 +254,12 @@ func Run(
 		ReadOnly:              cfg.ReadOnly,
 	})
 
+	// Start background plugin update checks only when scheduling is enabled.
 	if cfg.PluginUpdateCheckInterval > 0 {
 		go pluginUpdates.Run(ctx)
 	}
 
+	// Serve requests until shutdown or a server failure terminates the process.
 	if err := server.Run(
 		ctx,
 		cfg.ListenAddress,
