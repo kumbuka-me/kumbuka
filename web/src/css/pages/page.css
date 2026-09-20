@@ -535,7 +535,7 @@
 
 .inline-comment-marker {
   position: absolute;
-  z-index: 34;
+  z-index: 14;
   display: inline-flex;
   min-width: 31px;
   min-height: 26px;
@@ -738,3 +738,4 @@
   place-items: center;
   color: var(--accent);
 }
+
