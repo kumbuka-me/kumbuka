@@ -167,38 +167,6 @@ func VisibleKnowledgeGraph(ctx context.Context, access accessReader, user domain
 	return graph, nil
 }
 
-// personalWidgetSource binds personal page lists to the authenticated viewer and access policy.
-type personalWidgetSource struct {
-	// catalog stores the catalog value used by personal widget source.
-	catalog personalReader
-	// access stores the access value used by personal widget source.
-	access accessReader
-	// user stores the user value used by personal widget source.
-	user domain.User
-}
-
-// Favorites returns visible favorites for the current viewer.
-func (s personalWidgetSource) Favorites(ctx context.Context, limit int) ([]domain.Page, error) {
-	pages, err := s.catalog.Favorites(ctx, s.user.ID)
-	if err != nil {
-		return nil, err
-	}
-	pages, err = s.access.FilterPages(ctx, s.user, pages)
-	if err != nil {
-		return nil, err
-	}
-	return limitPages(pages, limit), nil
-}
-
-// RecentViewed returns visible recently viewed pages for the current viewer.
-func (s personalWidgetSource) RecentViewed(ctx context.Context, limit int) ([]domain.Page, error) {
-	pages, err := s.catalog.RecentViewed(ctx, s.user.ID, limit)
-	if err != nil {
-		return nil, err
-	}
-	return s.access.FilterPages(ctx, s.user, pages)
-}
-
 // HomeLists extends personal page lists with dashboard activity and private drafts.
 type HomeLists struct {
 	// catalog stores the catalog value used by home widget source.
@@ -213,12 +181,24 @@ type HomeLists struct {
 
 // Favorites returns visible favorites for the current viewer.
 func (s HomeLists) Favorites(ctx context.Context, limit int) ([]domain.Page, error) {
-	return personalWidgetSource{catalog: s.catalog, access: s.access, user: s.user}.Favorites(ctx, limit)
+	pages, err := s.catalog.Favorites(ctx, s.user.ID)
+	if err != nil {
+		return nil, err
+	}
+	pages, err = s.access.FilterPages(ctx, s.user, pages)
+	if err != nil {
+		return nil, err
+	}
+	return limitPages(pages, limit), nil
 }
 
 // RecentViewed returns visible recently viewed pages for the current viewer.
 func (s HomeLists) RecentViewed(ctx context.Context, limit int) ([]domain.Page, error) {
-	return personalWidgetSource{catalog: s.catalog, access: s.access, user: s.user}.RecentViewed(ctx, limit)
+	pages, err := s.catalog.RecentViewed(ctx, s.user.ID, limit)
+	if err != nil {
+		return nil, err
+	}
+	return s.access.FilterPages(ctx, s.user, pages)
 }
 
 // Recent returns the newest visible pages.
@@ -281,13 +261,9 @@ type accessReader interface {
 	FilterPages(context.Context, domain.User, []domain.Page) ([]domain.Page, error)
 }
 
-type personalReader interface {
+type homeReader interface {
 	Favorites(context.Context, int64) ([]domain.Page, error)
 	RecentViewed(context.Context, int64, int) ([]domain.Page, error)
-}
-
-type homeReader interface {
-	personalReader
 	ListPages(context.Context, int) ([]domain.Page, error)
 	Popular(context.Context, int) ([]domain.Page, error)
 	RecentEdited(context.Context, int64, int) ([]domain.RecentEdit, error)
@@ -300,11 +276,6 @@ type draftReader interface {
 // NewAccessibleCatalog binds generic plugin capabilities to one authorized actor.
 func NewAccessibleCatalog(catalog reportReader, access accessReader, actor domain.User) AccessibleCatalog {
 	return AccessibleCatalog{catalog: catalog, access: access, user: actor}
-}
-
-// NewHomeLists binds dashboard capabilities to one actor.
-func NewHomeLists(catalog homeReader, drafts draftReader, access accessReader, actor domain.User) HomeLists {
-	return HomeLists{catalog: catalog, drafts: drafts, access: access, user: actor}
 }
 
 // visiblePaths performs one bulk access query and preserves the caller's collections.
@@ -337,5 +308,5 @@ func NewHomeQuery(catalog homeReader, drafts draftReader, access accessReader) *
 
 // Lists returns dashboard capabilities scoped to one actor.
 func (q *HomeQuery) Lists(actor domain.User) HomeLists {
-	return NewHomeLists(q.catalog, q.drafts, q.access, actor)
+	return HomeLists{catalog: q.catalog, drafts: q.drafts, access: q.access, user: actor}
 }
