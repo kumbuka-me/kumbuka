@@ -11,7 +11,7 @@ import (
 	"github.com/kumbuka-me/kumbuka/pkg/pluginbrowser"
 )
 
-// PluginAssets serves one validated package asset. Disabled plugins expose only the bounded static preview PNG.
+// PluginAssets serves one validated browser asset from an enabled plugin.
 func PluginAssets(manager *plugin.Manager) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
@@ -34,6 +34,29 @@ func PluginAssets(manager *plugin.Manager) http.HandlerFunc {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Content-Security-Policy", "default-src 'none'; sandbox")
+		_, _ = w.Write(data)
+	}
+}
+
+// PluginPreview serves static package documentation without enabling or executing the plugin.
+// The route is registered behind browser authentication and administrator authorization.
+func PluginPreview(manager *plugin.Manager) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "private, no-store")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("Content-Security-Policy", "default-src 'none'; sandbox")
+		if manager == nil {
+			http.NotFound(w, r)
+			return
+		}
+
+		data, err := manager.PluginPreview(r.PathValue("pluginID"))
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+
+		w.Header().Set("Content-Type", "image/png")
 		_, _ = w.Write(data)
 	}
 }

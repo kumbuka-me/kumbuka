@@ -127,10 +127,21 @@
 .plugin-preview-image {
   display: block;
   width: 100%;
-  height: auto;
+  aspect-ratio: 16 / 9;
   border: 1px solid var(--border-subtle);
   border-radius: 10px;
   background: var(--surface-elevated);
+  object-fit: contain;
+  overflow: hidden;
+}
+
+.plugin-preview-unavailable {
+  display: grid;
+  min-height: 180px;
+  margin: 0;
+  place-items: center;
+  padding: 24px;
+  text-align: center;
 }
 
 .plugin-preview figcaption {

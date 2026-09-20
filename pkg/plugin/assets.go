@@ -200,18 +200,15 @@ func (m *Manager) ContentStyles() []ContentStyleContribution {
 }
 
 const (
-	pluginPreviewDigest    = "preview"
 	pluginPreviewAsset     = "preview.png"
 	maxPluginPreviewBytes  = 2 << 20
 	maxPluginPreviewWidth  = 2400
 	maxPluginPreviewHeight = 1600
 )
 
-// BrowserAsset serves one validated package asset. Normal browser-module assets
-// require an enabled exact-version package. The reserved preview.png asset is
-// static documentation and may be read through the "preview" digest alias even
-// while the plugin is disabled; this path never instantiates plugin code.
-func (m *Manager) BrowserAsset(id, digest, name string) ([]byte, error) {
+// PluginPreview returns a bounded static PNG bundled with an installed plugin.
+// Reading preview metadata never enables or instantiates plugin code.
+func (m *Manager) PluginPreview(id string) ([]byte, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -220,39 +217,19 @@ func (m *Manager) BrowserAsset(id, digest, name string) ([]byte, error) {
 		return nil, fs.ErrNotExist
 	}
 
-	if digest == pluginPreviewDigest && name == pluginPreviewAsset {
-		pkg, err := pluginpackage.Read(item.archive)
-		if err != nil {
-			return nil, err
-		}
-		data, err := pkg.Asset(pluginPreviewAsset)
-		if err != nil {
-			return nil, err
-		}
-		if !validPluginPreview(data) {
-			return nil, fs.ErrInvalid
-		}
-		return data, nil
-	}
-
-	if !item.metadata.Enabled || fmt.Sprintf("%x", item.metadata.Digest) != digest {
-		return nil, fs.ErrNotExist
-	}
-	hasBrowser := false
-	for _, module := range item.metadata.Manifest.Modules {
-		if module.Type == "browser-module" {
-			hasBrowser = true
-			break
-		}
-	}
-	if !hasBrowser {
-		return nil, fs.ErrNotExist
-	}
 	pkg, err := pluginpackage.Read(item.archive)
 	if err != nil {
 		return nil, err
 	}
-	return pkg.Asset(name)
+	data, err := pkg.Asset(pluginPreviewAsset)
+	if err != nil {
+		return nil, err
+	}
+	if !validPluginPreview(data) {
+		return nil, fs.ErrInvalid
+	}
+
+	return data, nil
 }
 
 // validPluginPreview accepts only bounded raster PNG documentation.
@@ -271,6 +248,32 @@ func validPluginPreview(data []byte) bool {
 		config.Height > 0 &&
 		config.Width <= maxPluginPreviewWidth &&
 		config.Height <= maxPluginPreviewHeight
+}
+
+// BrowserAsset serves bytes from an enabled, exact-version package only. There
+// is no filesystem extraction, and lifecycle changes invalidate old URLs.
+func (m *Manager) BrowserAsset(id, digest, name string) ([]byte, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	item, ok := m.loaded[id]
+	if !ok || !item.metadata.Enabled || fmt.Sprintf("%x", item.metadata.Digest) != digest {
+		return nil, fs.ErrNotExist
+	}
+	hasBrowser := false
+	for _, module := range item.metadata.Manifest.Modules {
+		if module.Type == "browser-module" {
+			hasBrowser = true
+			break
+		}
+	}
+	if !hasBrowser {
+		return nil, fs.ErrNotExist
+	}
+	pkg, err := pluginpackage.Read(item.archive)
+	if err != nil {
+		return nil, err
+	}
+	return pkg.Asset(name)
 }
 
 // CodeHighlighterAsset returns an asset declared by an active code-highlighter module.

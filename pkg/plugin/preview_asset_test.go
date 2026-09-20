@@ -12,60 +12,61 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestBrowserAssetServesPreviewForDisabledPlugin(t *testing.T) {
+func TestPluginPreviewServesDisabledPluginDocumentation(t *testing.T) {
 	t.Parallel()
 
-	archive := previewTestArchive(t, previewTestPNG(t), []byte("not public"))
+	preview := previewTestPNG(t)
+	archive := previewTestArchive(t, preview, []byte("not public"))
 	pkg, err := pluginpackage.Read(archive)
 	require.NoError(t, err)
 
-	manager := NewManager(&Registry{}, nil)
-	manager.loaded[pkg.Manifest().ID] = managedPlugin{
-		archive: archive,
-		metadata: LoadedPlugin{
-			Enabled:  false,
-			Manifest: pkg.Manifest(),
-			Digest:   pkg.Digest(),
-		},
-	}
-	manager.order = []string{pkg.Manifest().ID}
-
-	data, err := manager.BrowserAsset(pkg.Manifest().ID, pluginPreviewDigest, pluginPreviewAsset)
+	manager := previewTestManager(pkg, archive)
+	data, err := manager.PluginPreview(pkg.Manifest().ID)
 
 	require.NoError(t, err)
-	assert.Equal(t, previewTestPNG(t), data)
+	assert.Equal(t, preview, data)
 }
 
-func TestBrowserAssetKeepsOtherDisabledAssetsPrivate(t *testing.T) {
+func TestBrowserAssetDoesNotExposeDisabledPluginPreview(t *testing.T) {
 	t.Parallel()
 
 	archive := previewTestArchive(t, previewTestPNG(t), []byte("not public"))
 	pkg, err := pluginpackage.Read(archive)
 	require.NoError(t, err)
 
-	manager := NewManager(&Registry{}, nil)
-	manager.loaded[pkg.Manifest().ID] = managedPlugin{
-		archive: archive,
-		metadata: LoadedPlugin{
-			Enabled:  false,
-			Manifest: pkg.Manifest(),
-			Digest:   pkg.Digest(),
-		},
-	}
-	manager.order = []string{pkg.Manifest().ID}
-
-	_, err = manager.BrowserAsset(pkg.Manifest().ID, pluginPreviewDigest, "private.txt")
+	manager := previewTestManager(pkg, archive)
+	_, err = manager.BrowserAsset(pkg.Manifest().ID, "preview", pluginPreviewAsset)
 
 	require.Error(t, err)
 }
 
-func TestBrowserAssetRejectsInvalidPreviewPNG(t *testing.T) {
+func TestPluginPreviewRejectsInvalidPNG(t *testing.T) {
 	t.Parallel()
 
 	archive := previewTestArchive(t, []byte("not a png"), nil)
 	pkg, err := pluginpackage.Read(archive)
 	require.NoError(t, err)
 
+	manager := previewTestManager(pkg, archive)
+	_, err = manager.PluginPreview(pkg.Manifest().ID)
+
+	require.Error(t, err)
+}
+
+func TestPluginPreviewReturnsNotFoundWhenPackageHasNoPreview(t *testing.T) {
+	t.Parallel()
+
+	archive := previewTestArchive(t, nil, nil)
+	pkg, err := pluginpackage.Read(archive)
+	require.NoError(t, err)
+
+	manager := previewTestManager(pkg, archive)
+	_, err = manager.PluginPreview(pkg.Manifest().ID)
+
+	require.Error(t, err)
+}
+
+func previewTestManager(pkg *pluginpackage.Package, archive []byte) *Manager {
 	manager := NewManager(&Registry{}, nil)
 	manager.loaded[pkg.Manifest().ID] = managedPlugin{
 		archive: archive,
@@ -76,10 +77,7 @@ func TestBrowserAssetRejectsInvalidPreviewPNG(t *testing.T) {
 		},
 	}
 	manager.order = []string{pkg.Manifest().ID}
-
-	_, err = manager.BrowserAsset(pkg.Manifest().ID, pluginPreviewDigest, pluginPreviewAsset)
-
-	require.Error(t, err)
+	return manager
 }
 
 func previewTestArchive(t *testing.T, preview, private []byte) []byte {
@@ -89,9 +87,11 @@ func previewTestArchive(t *testing.T, preview, private []byte) []byte {
 	writer := zip.NewWriter(&buffer)
 
 	files := map[string][]byte{
-		"README.md":          []byte("# Preview fixture\n"),
-		"plugin.yaml":        []byte("api_version: 1\nid: io.example.preview\nname: Preview fixture\nversion: 1.0.0\nmodules:\n  - type: markdown-syntax\n    id: syntax\n    syntax: strikethrough\npermissions: []\n"),
-		"assets/preview.png": preview,
+		"README.md":   []byte("# Preview fixture\n"),
+		"plugin.yaml": []byte("api_version: 1\nid: io.example.preview\nname: Preview fixture\nversion: 1.0.0\nmodules:\n  - type: markdown-syntax\n    id: syntax\n    syntax: strikethrough\npermissions: []\n"),
+	}
+	if preview != nil {
+		files["assets/preview.png"] = preview
 	}
 	if private != nil {
 		files["assets/private.txt"] = private

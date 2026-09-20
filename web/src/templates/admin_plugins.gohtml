@@ -204,11 +204,12 @@
         <section class="plugin-detail-section plugin-preview-section">
           <h3>Preview</h3>
           <figure class="plugin-preview">
-            <img class="plugin-preview-image"
-                 src="/plugins/{{ .Manifest.ID }}/preview/assets/preview.png"
-                 alt="{{ .Manifest.Name }} plugin preview"
-                 loading="lazy"
-                 decoding="async" />
+            <object class="plugin-preview-image"
+                    data="/admin/plugins/{{ .Manifest.ID }}/preview.png"
+                    type="image/png"
+                    aria-label="{{ .Manifest.Name }} plugin preview">
+              <p class="plugin-preview-unavailable muted">No static preview provided by this plugin.</p>
+            </object>
             <figcaption>Static PNG bundled with the plugin. Viewing this preview does not execute plugin code.</figcaption>
           </figure>
         </section>

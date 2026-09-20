@@ -122,6 +122,7 @@ func (r routeRegistrar) addAdminRoutes() {
 	pluginManager := config.Renderer.PluginManager()
 	pluginsAdmin := endpoint.NewAdminPlugins(pluginManager, config.PluginUpdates, config.BrowserContext, config.Views)
 	r.router.Handle("GET /admin/plugins", browserAuthn(adminAuthz(http.HandlerFunc(pluginsAdmin.List))))
+	r.router.Handle("GET /admin/plugins/{pluginID}/preview.png", browserAuthn(adminAuthz(endpoint.PluginPreview(pluginManager))))
 	r.router.Handle("POST /admin/plugins", browserAuthn(adminAuthz(http.HandlerFunc(pluginsAdmin.Install))))
 	r.router.Handle("POST /admin/plugins/check-updates", browserAuthn(adminAuthz(http.HandlerFunc(pluginsAdmin.CheckUpdates))))
 	r.router.Handle("POST /admin/plugins/{pluginID}/{action}", browserAuthn(adminAuthz(http.HandlerFunc(pluginsAdmin.Action))))
