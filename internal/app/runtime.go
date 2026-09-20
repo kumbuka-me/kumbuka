@@ -10,7 +10,7 @@ import (
 	"github.com/kumbuka-me/kumbuka/internal/flags"
 	"github.com/kumbuka-me/kumbuka/internal/http/auth"
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
-	"github.com/kumbuka-me/kumbuka/internal/http/routes"
+	httpserver "github.com/kumbuka-me/kumbuka/internal/http/server"
 	"github.com/kumbuka-me/kumbuka/internal/pluginupdate"
 	"github.com/kumbuka-me/kumbuka/internal/postgres"
 	"github.com/kumbuka-me/kumbuka/internal/secrets"
@@ -68,18 +68,10 @@ func newApplicationRuntime(
 	configureRenderTimings(cfg, renderer, views, logger)
 	routeConfig.BrowserContext = newBrowserContext(routeConfig, database)
 
-	router := routes.New(routes.Config{
-		Views:       routeConfig.Views,
-		BrowserAuth: routeConfig.BrowserAuth,
-		BearerAuth:  routeConfig.BearerAuth,
-		Logger:      routeConfig.Logger,
-		AccessLog:   routeConfig.AccessLog,
-		ReadOnly:    routeConfig.ReadOnly,
-	})
-	addRoutes(router, routeConfig)
+	handler := httpserver.New(routeConfig)
 
 	return applicationRuntime{
-		handler:       router.Handler(),
+		handler:       handler,
 		renderer:      renderer,
 		pluginUpdates: routeConfig.PluginUpdates,
 	}, nil
@@ -88,7 +80,7 @@ func newApplicationRuntime(
 // configureAuthentication attaches browser and bearer authentication to the route configuration.
 func configureAuthentication(
 	ctx context.Context,
-	config *httpConfig,
+	config *httpserver.Config,
 	cfg flags.Config,
 	database *postgres.Store,
 	setupLogger *slog.Logger,

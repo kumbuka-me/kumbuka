@@ -1,4 +1,4 @@
-package app
+package server
 
 import (
 	"net/http"
@@ -20,11 +20,11 @@ type routeRegistrar struct {
 	// router registers endpoints and applies HTTP authentication/role policies.
 	router *routes.Router
 	// config contains application dependencies used only while constructing endpoints.
-	config httpConfig
+	config Config
 }
 
 // addRoutes registers the complete HTTP surface by functional area.
-func addRoutes(router *routes.Router, config httpConfig) {
+func addRoutes(router *routes.Router, config Config) {
 	registrar := routeRegistrar{
 		router: router,
 		config: config,
