@@ -2,7 +2,6 @@ package pages
 
 import (
 	"context"
-	"errors"
 	"slices"
 
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
@@ -42,12 +41,6 @@ func (c AccessibleCatalog) Search(ctx context.Context, query string, limit int) 
 
 // Backlinks returns only pages visible to the current user that link to slug.
 func (c AccessibleCatalog) Backlinks(ctx context.Context, slug string) ([]domain.Page, error) {
-	source, ok := c.catalog.(interface {
-		Backlinks(context.Context, string) ([]domain.Page, error)
-	})
-	if !ok {
-		return nil, errors.New("page links are unavailable")
-	}
 	allowed, err := c.access.CanView(ctx, c.user, slug)
 	if err != nil || !allowed {
 		if err != nil {
@@ -55,7 +48,7 @@ func (c AccessibleCatalog) Backlinks(ctx context.Context, slug string) ([]domain
 		}
 		return nil, domain.ErrNotFound
 	}
-	pages, err := source.Backlinks(ctx, slug)
+	pages, err := c.catalog.Backlinks(ctx, slug)
 	if err != nil {
 		return nil, err
 	}
@@ -64,12 +57,6 @@ func (c AccessibleCatalog) Backlinks(ctx context.Context, slug string) ([]domain
 
 // PageLinks returns outgoing links without revealing inaccessible target pages.
 func (c AccessibleCatalog) PageLinks(ctx context.Context, slug string) ([]domain.PageLink, error) {
-	source, ok := c.catalog.(interface {
-		PageLinks(context.Context, string) ([]domain.PageLink, error)
-	})
-	if !ok {
-		return nil, errors.New("page links are unavailable")
-	}
 	allowed, err := c.access.CanView(ctx, c.user, slug)
 	if err != nil || !allowed {
 		if err != nil {
@@ -77,7 +64,7 @@ func (c AccessibleCatalog) PageLinks(ctx context.Context, slug string) ([]domain
 		}
 		return nil, domain.ErrNotFound
 	}
-	links, err := source.PageLinks(ctx, slug)
+	links, err := c.catalog.PageLinks(ctx, slug)
 	if err != nil {
 		return nil, err
 	}
@@ -105,12 +92,6 @@ func (c AccessibleCatalog) PageLinks(ctx context.Context, slug string) ([]domain
 
 // Revisions returns revision records only for a page visible to the current user.
 func (c AccessibleCatalog) Revisions(ctx context.Context, slug string) ([]revision.Revision, error) {
-	source, ok := c.catalog.(interface {
-		Revisions(context.Context, string) ([]revision.Revision, error)
-	})
-	if !ok {
-		return nil, errors.New("page revisions are unavailable")
-	}
 	allowed, err := c.access.CanView(ctx, c.user, slug)
 	if err != nil || !allowed {
 		if err != nil {
@@ -118,17 +99,11 @@ func (c AccessibleCatalog) Revisions(ctx context.Context, slug string) ([]revisi
 		}
 		return nil, domain.ErrNotFound
 	}
-	return source.Revisions(ctx, slug)
+	return c.catalog.Revisions(ctx, slug)
 }
 
 // LatestRevision returns the newest revision and total count for an authorized page.
 func (c AccessibleCatalog) LatestRevision(ctx context.Context, slug string) (revision.Revision, int, error) {
-	source, ok := c.catalog.(interface {
-		LatestRevision(context.Context, string) (revision.Revision, int, error)
-	})
-	if !ok {
-		return revision.Revision{}, 0, errors.New("page revisions are unavailable")
-	}
 	allowed, err := c.access.CanView(ctx, c.user, slug)
 	if err != nil || !allowed {
 		if err != nil {
@@ -136,7 +111,7 @@ func (c AccessibleCatalog) LatestRevision(ctx context.Context, slug string) (rev
 		}
 		return revision.Revision{}, 0, domain.ErrNotFound
 	}
-	return source.LatestRevision(ctx, slug)
+	return c.catalog.LatestRevision(ctx, slug)
 }
 
 // visibleRecentEdits filters recent edits to pages the user may view.
@@ -293,6 +268,10 @@ func limitPages(pages []domain.Page, limit int) []domain.Page {
 type reportReader interface {
 	GetPage(context.Context, string) (domain.Page, error)
 	Search(context.Context, string, int) ([]domain.Page, error)
+	Backlinks(context.Context, string) ([]domain.Page, error)
+	PageLinks(context.Context, string) ([]domain.PageLink, error)
+	LatestRevision(context.Context, string) (revision.Revision, int, error)
+	Revisions(context.Context, string) ([]revision.Revision, error)
 }
 
 // accessReader evaluates one resource or filters a collection for an actor.
