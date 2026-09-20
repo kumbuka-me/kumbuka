@@ -329,13 +329,41 @@ func TestAdminTrustedProxyRuntimeTemplate(t *testing.T) {
 	assert.Contains(t, string(html), "runtime-admins")
 }
 
-func TestAdminConfigurationOmitsRuntimeSummary(t *testing.T) {
+func TestAdminConfigurationShowsManagedDeploymentConfiguration(t *testing.T) {
 	t.Parallel()
 
-	views := testHandlerViews(t, webview.RuntimeInfo{})
-	html, err := views.RenderHTML("admin_configuration", "content", webview.AdminConfigurationView{})
+	runtime := webview.RuntimeInfo{
+		ManagedConfiguration: []webview.ManagedConfigurationGroup{
+			{
+				Name: "Server",
+				Items: []webview.ManagedConfigurationItem{
+					{Name: "Database URL", Value: "Configured", Source: "Environment · KUMBUKA__DATABASE_URL"},
+					{Name: "Public URL", Value: "https://kumbuka.example.test", Source: "Flag · --public-url"},
+				},
+			},
+			{
+				Name: "Logging",
+				Items: []webview.ManagedConfigurationItem{
+					{Name: "Access log", Value: "Enabled", Source: "Environment · KUMBUKA__ACCESS_LOG"},
+				},
+			},
+		},
+	}
+	views := testHandlerViews(t, runtime)
+	data := webview.AdminConfigurationView{Layout: webview.Layout{Runtime: runtime}}
+	html, err := views.RenderHTML("admin_configuration", "content", data)
 
 	require.NoError(t, err)
-	assert.NotContains(t, string(html), "<h2>Runtime</h2>")
-	assert.NotContains(t, string(html), "Database size")
+	body := string(html)
+	assert.Contains(t, body, "<h2>Managed</h2>")
+	assert.Contains(t, body, "Deployment-owned process configuration")
+	assert.Contains(t, body, "Database URL")
+	assert.Contains(t, body, "Configured")
+	assert.Contains(t, body, "Environment · KUMBUKA__DATABASE_URL")
+	assert.Contains(t, body, "https://kumbuka.example.test")
+	assert.Contains(t, body, "Flag · --public-url")
+	assert.Contains(t, body, "Access log")
+	assert.Contains(t, body, "Environment · KUMBUKA__ACCESS_LOG")
+	assert.NotContains(t, body, "<h2>Runtime</h2>")
+	assert.NotContains(t, body, "Database size")
 }

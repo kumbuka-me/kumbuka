@@ -21,6 +21,67 @@
   font-size: 12px;
 }
 
+.configuration-managed {
+  grid-column: 1 / -1;
+}
+
+.configuration-managed-note {
+  margin: 12px 0 0;
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.configuration-managed-groups {
+  display: grid;
+  gap: 18px;
+  margin-top: 16px;
+}
+
+.configuration-managed-group {
+  min-width: 0;
+}
+
+.configuration-managed-group + .configuration-managed-group {
+  padding-top: 18px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.configuration-managed-group h3 {
+  margin: 0 0 8px;
+  font-size: 13px;
+}
+
+.configuration-managed-table {
+  table-layout: fixed;
+}
+
+.configuration-managed-table th:first-child {
+  width: 30%;
+}
+
+.configuration-managed-table th:nth-child(2) {
+  width: 38%;
+}
+
+.configuration-managed-table th:last-child {
+  width: 32%;
+}
+
+.configuration-managed-value,
+.configuration-managed-source {
+  overflow-wrap: anywhere;
+}
+
+.configuration-managed-value {
+  color: var(--text);
+}
+
+.configuration-managed-source {
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
 .configuration-application .toggle-row:first-of-type {
   margin-top: 14px;
 }

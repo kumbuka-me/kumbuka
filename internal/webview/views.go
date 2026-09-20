@@ -65,6 +65,24 @@ var pageTemplateNames = []string{
 	"admin_bin",
 }
 
+// ManagedConfigurationItem contains one deployment-owned configuration value safe to show to administrators.
+type ManagedConfigurationItem struct {
+	// Name is the human-readable configuration label.
+	Name string
+	// Value is the redacted or administrator-safe effective value.
+	Value string
+	// Source identifies the effective deployment source and setting name.
+	Source string
+}
+
+// ManagedConfigurationGroup groups related deployment-owned configuration values.
+type ManagedConfigurationGroup struct {
+	// Name is the human-readable group heading.
+	Name string
+	// Items contains the deployment-owned settings in this group.
+	Items []ManagedConfigurationItem
+}
+
 // RuntimeInfo contains non-secret runtime configuration safe to show to administrators.
 type RuntimeInfo struct {
 	// ListenAddress is the configured HTTP listen address.
@@ -111,6 +129,8 @@ type RuntimeInfo struct {
 	ThemeDirectory string
 	// PluginUpdateCheckInterval is the deployment-configured catalog refresh interval or Disabled.
 	PluginUpdateCheckInterval string
+	// ManagedConfiguration groups deployment-owned configuration with safe effective values and sources.
+	ManagedConfiguration []ManagedConfigurationGroup
 }
 
 // RenderErrorHandler maps a template-rendering failure onto an HTTP response.

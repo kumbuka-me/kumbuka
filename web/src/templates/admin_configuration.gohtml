@@ -4,9 +4,46 @@
     <div class="settings-heading">
       <p class="eyebrow">Administration</p>
       <h1>Configuration</h1>
-      <p class="muted">Manage Kumbuka's application settings, integrations, and authentication.</p>
+      <p class="muted">Manage application settings and review deployment-owned configuration.</p>
     </div>
     <div class="settings-grid configuration-grid">
+      <section class="panel settings-panel settings-wide configuration-managed"
+               id="managed">
+        <div class="panel-title configuration-panel-title">
+          <div>
+            <h2>Managed</h2>
+            <p class="muted">Deployment-owned process configuration. Change these values with flags or environment variables and restart Kumbuka.</p>
+          </div>
+        </div>
+        <p class="configuration-managed-note">Secrets and sensitive connection values are never displayed. Their rows only report whether a usable value is configured.</p>
+        <div class="configuration-managed-groups">
+          {{ range .Runtime.ManagedConfiguration }}
+            <section class="configuration-managed-group">
+              <h3>{{ .Name }}</h3>
+              <div class="admin-table-wrap">
+                <table class="admin-table configuration-managed-table">
+                  <thead>
+                    <tr>
+                      <th>Setting</th>
+                      <th>Effective value</th>
+                      <th>Source</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {{ range .Items }}
+                      <tr>
+                        <td><strong>{{ .Name }}</strong></td>
+                        <td class="configuration-managed-value">{{ .Value }}</td>
+                        <td class="configuration-managed-source">{{ .Source }}</td>
+                      </tr>
+                    {{ end }}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          {{ end }}
+        </div>
+      </section>
       <section class="panel settings-panel settings-wide configuration-application">
         <div class="panel-title configuration-panel-title">
           <div>

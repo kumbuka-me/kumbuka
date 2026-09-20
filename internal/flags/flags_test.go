@@ -209,6 +209,31 @@ func TestOverriddenValuesMaskSecrets(t *testing.T) {
 	assert.NotEqual(t, encryptionKey, overrides["encryption-key"])
 }
 
+// TestOverrideSources identifies explicit flag and environment deployment sources.
+func TestOverrideSources(t *testing.T) {
+	t.Run("Flag", func(t *testing.T) {
+		cfg, err := parseTestConfig([]string{
+			"--database-url", "postgres://example/kumbuka",
+			"--public-url", "https://kumbuka.example.test",
+		})
+
+		require.NoError(t, err)
+		assert.Equal(t, "Flag", cfg.OverrideSources["database-url"])
+		assert.Equal(t, "Flag", cfg.OverrideSources["public-url"])
+	})
+
+	t.Run("environment", func(t *testing.T) {
+		t.Setenv("KUMBUKA__DATABASE_URL", "postgres://example/kumbuka")
+		t.Setenv("KUMBUKA__PUBLIC_URL", "https://kumbuka.example.test")
+
+		cfg, err := parseTestConfig(nil)
+
+		require.NoError(t, err)
+		assert.Equal(t, "Environment", cfg.OverrideSources["database-url"])
+		assert.Equal(t, "Environment", cfg.OverrideSources["public-url"])
+	})
+}
+
 // TestEncryptionKeyRejectsInvalidValue verifies the corresponding flag configuration behavior.
 func TestEncryptionKeyRejectsInvalidValue(t *testing.T) {
 	t.Parallel()

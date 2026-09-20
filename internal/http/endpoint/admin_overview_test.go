@@ -92,4 +92,6 @@ func TestAdministrationOverviewShowsInstanceRuntimeAndInventory(t *testing.T) {
 	assert.Contains(t, body, "15m")
 	assert.Contains(t, body, "Application encryption")
 	assert.Contains(t, body, "Configured")
+	assert.Contains(t, body, `href="/admin/configuration#managed"`)
+	assert.Contains(t, body, "Managed configuration")
 }

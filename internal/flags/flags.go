@@ -4,6 +4,7 @@ package flags
 import (
 	"errors"
 	"net"
+	"strings"
 	"time"
 
 	"github.com/containeroo/tinyflags"
@@ -95,6 +96,8 @@ type Config struct {
 	AccessLog bool
 	// Overrides records configuration values explicitly overridden by flags or environment variables.
 	Overrides map[string]any
+	// OverrideSources records whether each explicit override came from a flag or environment variable.
+	OverrideSources map[string]string
 }
 
 // Parse parses command-line arguments into application configuration.
@@ -230,6 +233,41 @@ func Parse(args []string, version string) (Config, error) {
 	cfg.ListenAddress = (*listen).String()
 	cfg.LogFormat = *logFormat
 	cfg.Overrides = tf.OverriddenValues()
+	cfg.OverrideSources = overrideSources(args, cfg.Overrides)
 
 	return cfg, nil
+}
+
+// overrideSources identifies whether each explicit deployment override came from a flag or environment variable.
+func overrideSources(args []string, overrides map[string]any) map[string]string {
+	sources := make(map[string]string, len(overrides))
+	for name := range overrides {
+		sources[name] = "Environment"
+		if argumentSetsFlag(args, name) {
+			sources[name] = "Flag"
+		}
+	}
+
+	return sources
+}
+
+// argumentSetsFlag reports whether command-line arguments explicitly set the named long flag.
+func argumentSetsFlag(args []string, name string) bool {
+	long := "--" + name
+	short := map[string]string{
+		"listen-address": "-a",
+		"log-format":     "-l",
+		"debug":          "-d",
+	}[name]
+
+	for _, argument := range args {
+		if argument == long || strings.HasPrefix(argument, long+"=") {
+			return true
+		}
+		if short != "" && (argument == short || strings.HasPrefix(argument, short+"=")) {
+			return true
+		}
+	}
+
+	return false
 }
