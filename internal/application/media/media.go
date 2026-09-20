@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/kumbuka-me/kumbuka/internal/filetype"
@@ -29,6 +30,12 @@ var (
 )
 
 var (
+	imageTypes = map[string][]string{
+		"image/jpeg": {".jpg", ".jpeg"},
+		"image/png":  {".png"},
+		"image/gif":  {".gif"},
+		"image/webp": {".webp"},
+	}
 	attachmentTypes = map[string]string{
 		".pdf":  "application/pdf",
 		".txt":  "text/plain; charset=utf-8",
@@ -164,36 +171,27 @@ func authorizeMediaDeletion(uploadedBy, usageCount int64, actor domain.User) err
 
 // SupportedImageType reports whether the detected MIME type is accepted for uploads.
 func SupportedImageType(contentType string) bool {
-	switch contentType {
-	case "image/jpeg", "image/png", "image/gif", "image/webp":
-		return true
-	default:
-		return false
-	}
+	_, supported := imageTypes[contentType]
+	return supported
 }
 
 // SanitizeImageFilename produces a stable URL-friendly name with the detected extension.
 func SanitizeImageFilename(filename, contentType string) string {
 	name := sanitizeFilename(filename, "image")
-	extension := strings.ToLower(filepath.Ext(name))
-	expected := imageExtension(contentType)
-	if extension == "" {
-		return name + expected
+	extensions := imageTypes[contentType]
+	if len(extensions) == 0 {
+		return strings.TrimSuffix(name, filepath.Ext(name))
 	}
-	if !matchesImageExtension(extension, contentType, expected) {
-		return strings.TrimSuffix(name, filepath.Ext(name)) + expected
+
+	extension := strings.ToLower(filepath.Ext(name))
+	if extension == "" {
+		return name + extensions[0]
+	}
+	if !slices.Contains(extensions, extension) {
+		return strings.TrimSuffix(name, filepath.Ext(name)) + extensions[0]
 	}
 
 	return name
-}
-
-// matchesImageExtension reports whether a filename extension matches the detected image type.
-func matchesImageExtension(extension, contentType, expected string) bool {
-	if extension == expected {
-		return true
-	}
-
-	return contentType == "image/jpeg" && extension == ".jpeg"
 }
 
 // sanitizeAttachmentFilename produces a safe attachment name with an extension.
@@ -229,22 +227,6 @@ func sanitizeFilename(filename, fallback string) string {
 // isSafeFilenameRune reports whether character can be preserved in a sanitized upload name.
 func isSafeFilenameRune(character rune) bool {
 	return ascii.IsAlphanumeric(character) || character == '.' || character == '_' || character == '-'
-}
-
-// imageExtension returns the canonical extension for a supported image MIME type.
-func imageExtension(contentType string) string {
-	switch contentType {
-	case "image/jpeg":
-		return ".jpg"
-	case "image/png":
-		return ".png"
-	case "image/gif":
-		return ".gif"
-	case "image/webp":
-		return ".webp"
-	default:
-		return ""
-	}
 }
 
 // Images returns all uploaded images with usage metadata.
