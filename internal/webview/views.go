@@ -265,8 +265,8 @@ func (v *Views) RenderTemplate(w http.ResponseWriter, page, name string, data Sc
 	v.RenderDataStatus(w, http.StatusOK, page, name, data)
 }
 
-// RenderDataStatus executes a named template with arbitrary view data and an explicit HTTP status.
-func (v *Views) RenderDataStatus(w http.ResponseWriter, status int, page, name string, data any) {
+// RenderDataStatus executes a named template with a typed view model and an explicit HTTP status.
+func (v *Views) RenderDataStatus(w http.ResponseWriter, status int, page, name string, data Screen) {
 	pageTemplate, ok := v.templates[page]
 	if !ok {
 		v.handleRenderError(w, page, name, fmt.Errorf("page template %q not found", page))

@@ -249,6 +249,30 @@ func CurrentPage(page *domain.Page) *PageSummary {
 // Screen is a typed browser model; embedding Layout supplies its marker.
 type Screen interface{ browserScreen() }
 
+// StatusView contains presentation data for a themed HTTP status page.
+type StatusView struct {
+	Layout
+
+	// StatusCode is the status code displayed above the title.
+	StatusCode int
+	// StatusMessage explains why the request could not be completed.
+	StatusMessage string
+	// StatusIcon is the host icon displayed above the status code.
+	StatusIcon string
+	// PrimaryLabel is the text of the primary action.
+	PrimaryLabel string
+	// PrimaryURL is the local target of the primary action.
+	PrimaryURL string
+	// PrimaryIcon is the host icon rendered in the primary action.
+	PrimaryIcon string
+	// SecondaryLabel is the text of the optional secondary action.
+	SecondaryLabel string
+	// SecondaryURL is the local target of the optional secondary action.
+	SecondaryURL string
+	// SecondaryIcon is the host icon rendered in the secondary action.
+	SecondaryIcon string
+}
+
 // browserScreen marks shared layout and screen models as renderable.
 func (Layout) browserScreen() {}
 

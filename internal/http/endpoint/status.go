@@ -31,30 +31,6 @@ type statusPagePresentation struct {
 	SecondaryIcon string
 }
 
-// statusPageData combines shared page chrome with one themed HTTP status presentation.
-type statusPageData struct {
-	// Data provides the shared fields required by application and public layouts.
-	webview.Layout
-	// StatusCode is the HTTP status code displayed above the title.
-	StatusCode int
-	// StatusMessage explains why the request could not be completed.
-	StatusMessage string
-	// StatusIcon is the host icon displayed above the status code.
-	StatusIcon string
-	// PrimaryLabel is the text of the primary action.
-	PrimaryLabel string
-	// PrimaryURL is the local target of the primary action.
-	PrimaryURL string
-	// PrimaryIcon is the host icon rendered in the primary action.
-	PrimaryIcon string
-	// SecondaryLabel is the text of the optional secondary action.
-	SecondaryLabel string
-	// SecondaryURL is the local target of the optional secondary action.
-	SecondaryURL string
-	// SecondaryIcon is the host icon rendered in the secondary action.
-	SecondaryIcon string
-}
-
 // capturedResponse buffers one selected browser response so JSON problems can become themed HTML pages.
 type capturedResponse struct {
 	// header stores response headers written by the wrapped handler.
@@ -151,7 +127,7 @@ func renderStatusPage(
 ) {
 	data.Title = presentation.Title
 
-	views.RenderDataStatus(w, status, "not_found", layout, statusPageData{
+	views.RenderDataStatus(w, status, "not_found", layout, webview.StatusView{
 		Layout:         data,
 		StatusCode:     status,
 		StatusMessage:  presentation.Message,
