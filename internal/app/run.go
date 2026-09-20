@@ -102,7 +102,7 @@ func Run(
 	}
 
 	// Open the persistence adapter with deployment-level database behavior.
-	databaseOptions := make([]postgres.Option, 0, 1)
+	var databaseOptions []postgres.Option
 	if cfg.AllowUserRegistrationOverride != nil {
 		databaseOptions = append(databaseOptions, postgres.WithUserRegistrationOverride(*cfg.AllowUserRegistrationOverride))
 	}
