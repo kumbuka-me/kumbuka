@@ -228,51 +228,64 @@ func Run(
 	), renderer)
 
 	// Hand the completed application graph to the HTTP adapter for route construction.
-	handler := httpserver.New(httpserver.Config{
-		Assets:                appFS,
-		Views:                 views,
-		Renderer:              renderer,
-		PluginUpdates:         pluginUpdates,
-		BrowserAuth:           browserAuth,
-		BearerAuth:            bearerAuth,
-		Administration:        administration,
-		Access:                access,
-		PageLookup:            pageLookup,
-		PageSearch:            pageSearch,
-		PageDirectory:         pageDirectory,
-		PageReports:           pageReports,
-		PagePersonal:          pagePersonal,
-		PageHistory:           pageHistory,
-		PageRender:            pageRender,
-		Drafts:                drafts,
-		Groups:                groups,
-		Knowledge:             knowledge,
-		Notifications:         notifications,
-		Media:                 media,
-		Navigation:            navigation,
+	serverConfig := httpserver.Config{
+		// Infrastructure.
+		Assets:    appFS,
+		Views:     views,
+		Renderer:  renderer,
+		Logger:    serverLogger,
+		AccessLog: cfg.AccessLog,
+		ReadOnly:  cfg.ReadOnly,
+
+		// Authentication.
+		BrowserAuth: browserAuth,
+		BearerAuth:  bearerAuth,
+
+		// Shared browser capabilities.
+		BrowserContext: browserContext,
+		Preferences:    preferences,
+		Knowledge:      knowledge,
+		Notifications:  notifications,
+
+		// Administration and application management.
+		Administration: administration,
+		PluginUpdates:  pluginUpdates,
+		Groups:         groups,
+		Settings:       settings,
+		System:         system,
+		Templates:      templates,
+		Tokens:         tokens,
+		Users:          users,
+		Webhooks:       webhooks,
+		Media:          media,
+		Navigation:     navigation,
+		RecycleBin:     recycleBin,
+
+		// Page queries.
+		Access:        access,
+		PageLookup:    pageLookup,
+		PageSearch:    pageSearch,
+		PageDirectory: pageDirectory,
+		PageReports:   pageReports,
+		PagePersonal:  pagePersonal,
+		PageHistory:   pageHistory,
+		PageRender:    pageRender,
+		Drafts:        drafts,
+
+		// Page workflows.
 		PageMutations:         mutations,
 		PagePresence:          presence,
 		PageDiscussions:       discussions,
 		PageReviews:           reviews,
 		PageReviewDiscussions: reviewDiscussions,
 		PageBulk:              bulk,
-		Preferences:           preferences,
-		RecycleBin:            recycleBin,
-		Settings:              settings,
-		System:                system,
-		Templates:             templates,
-		Tokens:                tokens,
-		Users:                 users,
-		Webhooks:              webhooks,
 		Home:                  home,
 		Editor:                editor,
 		EditorSave:            editorSave,
 		ViewPage:              viewPage,
-		BrowserContext:        browserContext,
-		Logger:                serverLogger,
-		AccessLog:             cfg.AccessLog,
-		ReadOnly:              cfg.ReadOnly,
-	})
+	}
+
+	handler := httpserver.New(serverConfig)
 
 	// Start background plugin update checks only when scheduling is enabled.
 	if cfg.PluginUpdateCheckInterval > 0 {
