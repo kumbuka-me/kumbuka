@@ -9,6 +9,7 @@ import (
 	appplugins "github.com/kumbuka-me/kumbuka/internal/application/plugins"
 	"github.com/kumbuka-me/kumbuka/internal/flags"
 	"github.com/kumbuka-me/kumbuka/internal/http/auth"
+	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
 	"github.com/kumbuka-me/kumbuka/internal/http/routes"
 	"github.com/kumbuka-me/kumbuka/internal/pluginupdate"
 	"github.com/kumbuka-me/kumbuka/internal/postgres"
@@ -65,7 +66,7 @@ func newApplicationRuntime(
 	routeConfig.Views = views
 
 	configureRenderTimings(cfg, renderer, views, logger)
-	routeConfig.ViewData = newViewDataLoader(routeConfig)
+	routeConfig.BrowserContext = newBrowserContext(routeConfig)
 
 	router := routes.New(routes.Config{
 		Views:       routeConfig.Views,
@@ -189,6 +190,7 @@ func newViews(
 		return nil, setupFailure(setupLogger, "create views", "views_create_failed", err)
 	}
 
+	views.WithRenderErrorHandler(httpresponse.InternalServerError)
 	return views, nil
 }
 

@@ -76,13 +76,13 @@ func (r routeRegistrar) addBrowserRoutes() {
 	mediaAuthn := r.router.Media
 
 	r.router.Handle("POST /auth/logout", browserAuthn(auth.Logout(config.BrowserAuth.Local)))
-	r.router.Handle("GET /{$}", browserAuthn(endpoint.Home(config.ViewData, config.Home, config.Renderer, config.Views)))
-	r.router.Handle("GET /search", browserAuthn(endpoint.Search(config.ViewData, config.Catalog, config.Views)))
-	r.router.Handle("GET /graph", browserAuthn(endpoint.KnowledgeGraphPage(config.ViewData, config.Views)))
+	r.router.Handle("GET /{$}", browserAuthn(endpoint.Home(config.BrowserContext, config.Home, config.Renderer, config.Views)))
+	r.router.Handle("GET /search", browserAuthn(endpoint.Search(config.BrowserContext, config.Catalog, config.Views)))
+	r.router.Handle("GET /graph", browserAuthn(endpoint.KnowledgeGraphPage(config.BrowserContext, config.Views)))
 	r.router.Handle("GET /p/{id}", browserAuthn(endpoint.PagePermalink(config.Catalog, config.Logger)))
 	r.router.Handle(
 		"GET /settings",
-		browserAuthn(endpoint.Settings(config.ViewData, config.Users, config.Tokens, config.Media, config.BrowserAuth.Local, config.Views)),
+		browserAuthn(endpoint.Settings(config.BrowserContext, config.Users, config.Tokens, config.Media, config.BrowserAuth.Local, config.Views)),
 	)
 
 	r.router.Handle("GET /media/{id}/{name...}", mediaAuthn(endpoint.ServeImage(config.Media, config.Logger)))
@@ -120,34 +120,34 @@ func (r routeRegistrar) addAdminRoutes() {
 	adminAuthz := r.router.Admin
 
 	pluginManager := config.Renderer.PluginManager()
-	pluginsAdmin := endpoint.NewAdminPlugins(pluginManager, config.PluginUpdates, config.ViewData, config.Views)
+	pluginsAdmin := endpoint.NewAdminPlugins(pluginManager, config.PluginUpdates, config.BrowserContext, config.Views)
 	r.router.Handle("GET /admin/plugins", browserAuthn(adminAuthz(http.HandlerFunc(pluginsAdmin.List))))
 	r.router.Handle("POST /admin/plugins", browserAuthn(adminAuthz(http.HandlerFunc(pluginsAdmin.Install))))
 	r.router.Handle("POST /admin/plugins/check-updates", browserAuthn(adminAuthz(http.HandlerFunc(pluginsAdmin.CheckUpdates))))
 	r.router.Handle("POST /admin/plugins/{pluginID}/{action}", browserAuthn(adminAuthz(http.HandlerFunc(pluginsAdmin.Action))))
-	pluginSettings := endpoint.NewAdminPluginSettings(pluginManager, config.ViewData, config.Views)
+	pluginSettings := endpoint.NewAdminPluginSettings(pluginManager, config.BrowserContext, config.Views)
 	r.router.Handle("GET /admin/plugin-settings/{pluginID}", browserAuthn(adminAuthz(http.HandlerFunc(pluginSettings.Show))))
 	r.router.Handle("POST /admin/plugin-settings/{pluginID}/{action}", browserAuthn(adminAuthz(http.HandlerFunc(pluginSettings.Action))))
 
-	r.router.Handle("GET /admin", browserAuthn(adminAuthz(endpoint.Administration(config.ViewData, config.Administration, config.Views))))
+	r.router.Handle("GET /admin", browserAuthn(adminAuthz(endpoint.Administration(config.BrowserContext, config.Administration, config.Views))))
 	r.router.Handle(
 		"GET /admin/configuration",
-		browserAuthn(adminAuthz(endpoint.AdminConfiguration(config.ViewData, config.Groups, config.Users, config.Settings, config.Views))),
+		browserAuthn(adminAuthz(endpoint.AdminConfiguration(config.BrowserContext, config.Groups, config.Users, config.Settings, config.Views))),
 	)
 	r.router.Handle(
 		"GET /admin/branding",
-		browserAuthn(adminAuthz(endpoint.AdminBranding(config.ViewData, config.Views))),
+		browserAuthn(adminAuthz(endpoint.AdminBranding(config.BrowserContext, config.Views))),
 	)
 	r.router.Handle(
 		"GET /admin/health",
-		browserAuthn(adminAuthz(endpoint.AdminDocumentationHealth(config.ViewData, config.Administration, config.Views))),
+		browserAuthn(adminAuthz(endpoint.AdminDocumentationHealth(config.BrowserContext, config.Administration, config.Views))),
 	)
 	r.router.Handle(
 		"GET /admin/templates",
-		browserAuthn(adminAuthz(endpoint.AdminPageTemplates(config.ViewData, config.Templates, config.Groups, config.Views))),
+		browserAuthn(adminAuthz(endpoint.AdminPageTemplates(config.BrowserContext, config.Templates, config.Groups, config.Views))),
 	)
-	r.router.Handle("GET /admin/permissions", browserAuthn(adminAuthz(endpoint.AdminPageAccess(config.ViewData, config.Access, config.Groups, config.Views))))
-	r.router.Handle("GET /admin/webhooks", browserAuthn(adminAuthz(endpoint.AdminWebhooks(config.ViewData, config.Webhooks, config.Views))))
+	r.router.Handle("GET /admin/permissions", browserAuthn(adminAuthz(endpoint.AdminPageAccess(config.BrowserContext, config.Access, config.Groups, config.Views))))
+	r.router.Handle("GET /admin/webhooks", browserAuthn(adminAuthz(endpoint.AdminWebhooks(config.BrowserContext, config.Webhooks, config.Views))))
 	r.router.Handle("POST /admin/webhooks", browserAuthn(adminAuthz(endpoint.SaveAdminWebhook(config.Webhooks, config.Logger))))
 	r.router.Handle("POST /admin/webhooks/{id}", browserAuthn(adminAuthz(endpoint.SaveAdminWebhook(config.Webhooks, config.Logger))))
 	r.router.Handle("POST /admin/webhooks/{id}/delete", browserAuthn(adminAuthz(endpoint.DeleteAdminWebhook(config.Webhooks, config.Logger))))
@@ -155,13 +155,13 @@ func (r routeRegistrar) addAdminRoutes() {
 	r.router.Handle("POST /admin/webhooks/{id}/headers/{headerID}/reveal", browserAuthn(adminAuthz(endpoint.RevealAdminWebhookHeader(config.Webhooks, config.Logger))))
 	r.router.Handle("POST /admin/permissions", browserAuthn(adminAuthz(endpoint.SaveAdminPageAccess(config.Access, config.Logger))))
 	r.router.Handle("POST /admin/permissions/{id}/delete", browserAuthn(adminAuthz(endpoint.DeleteAdminPageAccess(config.Access, config.Logger))))
-	r.router.Handle("GET /admin/audit", browserAuthn(adminAuthz(endpoint.AdminAudit(config.ViewData, config.Administration, config.Views))))
-	r.router.Handle("GET /admin/pages", browserAuthn(adminAuthz(endpoint.AdminPages(config.ViewData, config.Catalog, config.Groups, config.Views))))
+	r.router.Handle("GET /admin/audit", browserAuthn(adminAuthz(endpoint.AdminAudit(config.BrowserContext, config.Administration, config.Views))))
+	r.router.Handle("GET /admin/pages", browserAuthn(adminAuthz(endpoint.AdminPages(config.BrowserContext, config.Catalog, config.Groups, config.Views))))
 	r.router.Handle(
 		"POST /admin/pages/bulk",
 		browserAuthn(adminAuthz(endpoint.BulkAdminPages(config.Pages, config.Catalog, config.Media, config.Logger))),
 	)
-	r.router.Handle("GET /admin/import", browserAuthn(adminAuthz(endpoint.AdminImport(config.ViewData, config.Views))))
+	r.router.Handle("GET /admin/import", browserAuthn(adminAuthz(endpoint.AdminImport(config.BrowserContext, config.Views))))
 	r.router.Handle(
 		"POST /admin/import",
 		browserAuthn(adminAuthz(endpoint.ImportPagesWithPortableArchive(config.Pages, config.Media, config.Groups, config.Logger))),
@@ -169,14 +169,14 @@ func (r routeRegistrar) addAdminRoutes() {
 	r.router.Handle("POST /admin/templates", browserAuthn(adminAuthz(endpoint.CreateAdminPageTemplate(config.Templates, config.Logger))))
 	r.router.Handle("POST /admin/templates/{id}", browserAuthn(adminAuthz(endpoint.UpdateAdminPageTemplate(config.Templates, config.Logger))))
 	r.router.Handle("POST /admin/templates/{id}/delete", browserAuthn(adminAuthz(endpoint.DeleteAdminPageTemplate(config.Templates, config.Logger))))
-	r.router.Handle("GET /admin/users", browserAuthn(adminAuthz(endpoint.AdminUsers(config.ViewData, config.Users, config.Groups, config.Views))))
-	r.router.Handle("GET /admin/groups", browserAuthn(adminAuthz(endpoint.AdminGroups(config.ViewData, config.Groups, config.Views))))
-	r.router.Handle("GET /admin/navigation", browserAuthn(adminAuthz(endpoint.AdminNavigation(config.ViewData, config.Navigation, config.Views))))
-	r.router.Handle("GET /admin/bin", browserAuthn(adminAuthz(endpoint.AdminBin(config.ViewData, config.RecycleBin, config.Views))))
-	r.router.Handle("GET /admin/tags", browserAuthn(adminAuthz(endpoint.AdminTags(config.ViewData, config.Administration, config.Views))))
-	r.router.Handle("GET /admin/tokens", browserAuthn(adminAuthz(endpoint.AdminTokens(config.ViewData, config.Users, config.Tokens, config.Views))))
-	r.router.Handle("GET /admin/exports", browserAuthn(adminAuthz(endpoint.AdminExports(config.ViewData, config.Navigation, config.Views))))
-	r.router.Handle("GET /admin/images", browserAuthn(adminAuthz(endpoint.AdminImages(config.ViewData, config.Media, config.Views))))
+	r.router.Handle("GET /admin/users", browserAuthn(adminAuthz(endpoint.AdminUsers(config.BrowserContext, config.Users, config.Groups, config.Views))))
+	r.router.Handle("GET /admin/groups", browserAuthn(adminAuthz(endpoint.AdminGroups(config.BrowserContext, config.Groups, config.Views))))
+	r.router.Handle("GET /admin/navigation", browserAuthn(adminAuthz(endpoint.AdminNavigation(config.BrowserContext, config.Navigation, config.Views))))
+	r.router.Handle("GET /admin/bin", browserAuthn(adminAuthz(endpoint.AdminBin(config.BrowserContext, config.RecycleBin, config.Views))))
+	r.router.Handle("GET /admin/tags", browserAuthn(adminAuthz(endpoint.AdminTags(config.BrowserContext, config.Administration, config.Views))))
+	r.router.Handle("GET /admin/tokens", browserAuthn(adminAuthz(endpoint.AdminTokens(config.BrowserContext, config.Users, config.Tokens, config.Views))))
+	r.router.Handle("GET /admin/exports", browserAuthn(adminAuthz(endpoint.AdminExports(config.BrowserContext, config.Navigation, config.Views))))
+	r.router.Handle("GET /admin/images", browserAuthn(adminAuthz(endpoint.AdminImages(config.BrowserContext, config.Media, config.Views))))
 	r.router.Handle("POST /admin/settings", browserAuthn(adminAuthz(endpoint.SaveAdminSettings(config.Settings, config.Views, config.Logger))))
 	r.router.Handle(
 		"POST /admin/branding/logo",
@@ -286,7 +286,7 @@ func (r routeRegistrar) addPageRoutes() {
 	r.router.Handle("POST /pages/approval/update/{id}/{slug...}", browserAuthn(editorAuthz(endpoint.UpdatePageReview(config.Pages, config.Logger))))
 	r.router.Handle("POST /pages/approval/cancel/{id}/{slug...}", browserAuthn(editorAuthz(endpoint.CancelPageReview(config.Pages, config.Logger))))
 	r.router.Handle("POST /pages/approval/decide/{id}/{slug...}", browserAuthn(editorAuthz(endpoint.DecidePageReview(config.Pages, config.Logger))))
-	r.router.Handle("GET /reviews/{id}/{slug...}", browserAuthn(editorAuthz(endpoint.PageReview(config.ViewData, config.Pages, config.Views))))
+	r.router.Handle("GET /reviews/{id}/{slug...}", browserAuthn(editorAuthz(endpoint.PageReview(config.BrowserContext, config.Pages, config.Views))))
 	r.router.Handle("POST /reviews/{id}/comments/{slug...}", browserAuthn(editorAuthz(endpoint.AddPageReviewComment(config.Pages, config.Views))))
 	r.router.Handle(pageReviewSuggestionApplyPattern, browserAuthn(editorAuthz(endpoint.ApplyPageReviewSuggestion(config.Pages, config.Views))))
 	r.router.Handle(pageReviewSuggestionsApplyAllPattern, browserAuthn(editorAuthz(endpoint.ApplyAllPageReviewSuggestions(config.Pages, config.Views))))
@@ -294,7 +294,7 @@ func (r routeRegistrar) addPageRoutes() {
 	r.router.Handle(pageCommentSuggestionApplyPattern, browserAuthn(editorAuthz(endpoint.ApplyPageCommentSuggestion(config.Pages, config.Views))))
 	r.router.Handle("POST /page-comments/resolve/{id}/{slug...}", browserAuthn(editorAuthz(endpoint.ResolvePageComment(config.Pages, config.Views))))
 
-	editPage := endpoint.EditPage(config.ViewData, config.Editor, config.Views)
+	editPage := endpoint.EditPage(config.BrowserContext, config.Editor, config.Views)
 	r.router.Handle("GET /pages/new", browserAuthn(editorAuthz(editPage)))
 	r.router.Handle("GET /edit/{slug...}", browserAuthn(editorAuthz(editPage)))
 	r.router.Handle(
@@ -311,7 +311,7 @@ func (r routeRegistrar) addPageRoutes() {
 	r.router.Handle(
 		"GET /pages/{slug...}",
 		browserAuthn(endpoint.ViewPage(
-			config.ViewData,
+			config.BrowserContext,
 			config.Catalog,
 			config.ViewPage,
 			config.Renderer,
@@ -373,5 +373,5 @@ func (r routeRegistrar) addFallbackRoutes() {
 	r.router.HandleFunc("GET /api/", func(w http.ResponseWriter, _ *http.Request) {
 		httpresponse.Problem(w, http.StatusNotFound, "Not found.")
 	})
-	r.router.Handle("GET /", r.router.Browser(endpoint.NotFound(r.config.ViewData, r.config.Views)))
+	r.router.Handle("GET /", r.router.Browser(endpoint.NotFound(r.config.BrowserContext, r.config.Views)))
 }

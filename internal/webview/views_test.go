@@ -186,6 +186,26 @@ func TestRenderTemplateStatus(t *testing.T) {
 	})
 }
 
+func TestRenderErrorHandlerIsInjectedByAdapter(t *testing.T) {
+	t.Parallel()
+
+	views := &Views{templates: map[string]*template.Template{}, logger: testViewsLogger()}
+	called := false
+	views.WithRenderErrorHandler(func(logger *slog.Logger, w http.ResponseWriter, err error) {
+		called = true
+		assert.NotNil(t, logger)
+		assert.Error(t, err)
+		http.Error(w, "adapter error", http.StatusInternalServerError)
+	})
+	response := httptest.NewRecorder()
+
+	views.RenderDataStatus(response, http.StatusOK, "missing", "layout", Layout{})
+
+	assert.True(t, called)
+	assert.Equal(t, http.StatusInternalServerError, response.Code)
+	assert.Contains(t, response.Body.String(), "adapter error")
+}
+
 func TestRenderTemplateHTML(t *testing.T) {
 	t.Parallel()
 

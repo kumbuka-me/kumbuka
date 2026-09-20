@@ -10,7 +10,6 @@ import (
 	"slices"
 	"strings"
 
-	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/kumbuka-me/kumbuka/pkg/icons"
 	"github.com/kumbuka-me/kumbuka/pkg/themes"
@@ -114,6 +113,11 @@ type RuntimeInfo struct {
 	PluginUpdateCheckInterval string
 }
 
+// RenderErrorHandler maps a template-rendering failure onto an HTTP response.
+// The HTTP adapter installs the production handler at composition time so webview
+// does not depend on transport packages above it.
+type RenderErrorHandler func(*slog.Logger, http.ResponseWriter, error)
+
 // Views contains the shared server-rendered HTML dependencies.
 type Views struct {
 	// templates maps page names to parsed template sets with the shared layout and partials.
@@ -134,6 +138,8 @@ type Views struct {
 	assetVersion string
 	// iconCatalog combines built-in icons with resources from enabled plugins.
 	iconCatalog *icons.Catalog
+	// renderError maps template failures to transport responses without importing the HTTP adapter.
+	renderError RenderErrorHandler
 }
 
 // New parses each page template with the shared layout and partials once at startup.
@@ -202,6 +208,12 @@ func New(
 	}, nil
 }
 
+// WithRenderErrorHandler installs transport-specific handling for template failures.
+func (v *Views) WithRenderErrorHandler(handler RenderErrorHandler) *Views {
+	v.renderError = handler
+	return v
+}
+
 // IconCatalog returns the catalog used by this view set and icon picker.
 func (v *Views) IconCatalog() *icons.Catalog { return v.iconCatalog }
 
@@ -257,13 +269,13 @@ func (v *Views) RenderTemplate(w http.ResponseWriter, page, name string, data Sc
 func (v *Views) RenderDataStatus(w http.ResponseWriter, status int, page, name string, data any) {
 	pageTemplate, ok := v.templates[page]
 	if !ok {
-		httpresponse.InternalServerError(v.logger.With("operation", "render_template", "page", page, "template", name), w, fmt.Errorf("page template %q not found", page))
+		v.handleRenderError(w, page, name, fmt.Errorf("page template %q not found", page))
 		return
 	}
 
 	var output bytes.Buffer
 	if err := pageTemplate.ExecuteTemplate(&output, name, data); err != nil {
-		httpresponse.InternalServerError(v.logger.With("operation", "render_template", "page", page, "template", name), w, err)
+		v.handleRenderError(w, page, name, err)
 		return
 	}
 
@@ -283,6 +295,18 @@ func (v *Views) RenderDataStatus(w http.ResponseWriter, status int, page, name s
 			err,
 		)
 	}
+}
+
+// handleRenderError delegates HTTP error mapping to the adapter installed by the composition root.
+func (v *Views) handleRenderError(w http.ResponseWriter, page, name string, err error) {
+	logger := v.logger.With("operation", "render_template", "page", page, "template", name)
+	if v.renderError != nil {
+		v.renderError(logger, w, err)
+		return
+	}
+
+	logger.Error("render template", "event", "template_render_failed", "error", err)
+	http.Error(w, "The request could not be processed.", http.StatusInternalServerError)
 }
 
 // RenderHTML renders a trusted template fragment for insertion into rendered Markdown.

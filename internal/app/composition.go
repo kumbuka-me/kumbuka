@@ -91,8 +91,8 @@ type httpConfig struct {
 	Users *appusers.Users
 	// Webhooks provides webhook configuration and delivery use cases.
 	Webhooks *appwebhooks.Webhooks
-	// ViewData loads shared browser context and presentation contributions.
-	ViewData *endpoint.BrowserContext
+	// BrowserContext loads shared browser context and presentation contributions.
+	BrowserContext *endpoint.BrowserContext
 	// Logger records request and endpoint diagnostics.
 	Logger *slog.Logger
 	// AccessLog enables request access logging when true.
@@ -225,8 +225,8 @@ func configurePluginAwareServices(config *httpConfig, renderer *markdown.Rendere
 	config.Templates.WithIconCatalog(catalog)
 }
 
-// newViewDataLoader wires the shared authenticated view-data aggregation boundary.
-func newViewDataLoader(config httpConfig) *endpoint.BrowserContext {
+// newBrowserContext wires the shared authenticated browser-context aggregation boundary.
+func newBrowserContext(config httpConfig) *endpoint.BrowserContext {
 	return endpoint.NewBrowserContext(viewer.New(
 		config.Preferences,
 		config.Navigation,
