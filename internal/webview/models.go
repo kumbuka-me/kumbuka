@@ -744,6 +744,8 @@ type PluginSettingsLink struct {
 	ID string
 	// Name is the human-readable plugin name.
 	Name string
+	// Icon is the validated icon used for this plugin in administration navigation.
+	Icon string
 	// Section is the administration section key used to highlight the active entry.
 	Section string
 }

@@ -401,3 +401,73 @@ func newTestBrowserContext(preferences interface {
 	_ any) *BrowserContext {
 	return NewBrowserContext(viewer.New(preferences, navigation, catalog, settings, searches, notifications, access), nil)
 }
+
+// pluginSettingsIconValidatorStub exposes a small deterministic icon set to sidebar tests.
+type pluginSettingsIconValidatorStub map[string]bool
+
+// IsIcon reports whether name is present in the test icon set.
+func (s pluginSettingsIconValidatorStub) IsIcon(name string) bool { return s[name] }
+
+func TestPluginSettingsLinksUsesManifestIcon(t *testing.T) {
+	t.Parallel()
+
+	items := []plugin.LoadedPlugin{{
+		Manifest: pluginpackage.Manifest{
+			ID:   "io.example.snippets",
+			Name: "Snippets",
+			Icon: "braces-lucide",
+			Modules: []pluginpackage.Module{{
+				Type: "admin-resource",
+				ID:   "snippets",
+			}},
+		},
+	}}
+
+	links := pluginSettingsLinks(items, pluginSettingsIconValidatorStub{"braces-lucide": true})
+
+	require.Len(t, links, 1)
+	assert.Equal(t, "braces-lucide", links[0].Icon)
+}
+
+func TestPluginSettingsLinksFallsBackForUnavailableIcon(t *testing.T) {
+	t.Parallel()
+
+	items := []plugin.LoadedPlugin{{
+		Manifest: pluginpackage.Manifest{
+			ID:   "io.example.settings",
+			Name: "Settings",
+			Icon: "missing-lucide",
+			Modules: []pluginpackage.Module{{
+				Type: "settings",
+				ID:   "appearance",
+				Name: "Appearance",
+			}},
+		},
+	}}
+
+	links := pluginSettingsLinks(items, pluginSettingsIconValidatorStub{})
+
+	require.Len(t, links, 1)
+	assert.Equal(t, defaultPluginSettingsIcon, links[0].Icon)
+}
+
+func TestPluginSettingsLinksIncludesAdminActionOnlyPlugin(t *testing.T) {
+	t.Parallel()
+
+	items := []plugin.LoadedPlugin{{
+		Manifest: pluginpackage.Manifest{
+			ID:   "io.example.action",
+			Name: "Action",
+			Modules: []pluginpackage.Module{{
+				Type: "admin-action",
+				ID:   "refresh",
+				Name: "Refresh",
+			}},
+		},
+	}}
+
+	links := pluginSettingsLinks(items, nil)
+
+	require.Len(t, links, 1)
+	assert.Equal(t, defaultPluginSettingsIcon, links[0].Icon)
+}

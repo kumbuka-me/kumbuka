@@ -85,7 +85,7 @@
           <a href="/admin/plugin-settings/{{ .ID }}"
              {{ if eq $.AdminSection .Section }}class="active"
              aria-current="page"
-             {{ end }}>{{ icon "puzzle-lucide" 17 }}<span>{{ .Name }}</span></a>
+             {{ end }}>{{ icon .Icon 17 }}<span>{{ .Name }}</span></a>
         {{ end }}
       {{ end }}
     </nav>

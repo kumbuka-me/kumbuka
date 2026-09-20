@@ -220,20 +220,42 @@ func (l *BrowserContext) loadPluginData(
 		stylesVersion:     pluginbrowser.PresentationStylesVersion(l.pluginManager),
 		editorInserts:     editorInserts,
 		sidebarWidgets:    sidebarWidgets,
-		settingsLinks:     pluginSettingsLinks(loadedPlugins),
+		settingsLinks:     pluginSettingsLinks(loadedPlugins, pluginSettingsIconCatalog(l.renderer)),
 	}, nil
 }
 
-// pluginSettingsLinks returns installed plugins that expose boolean settings or structured resources.
-func pluginSettingsLinks(items []plugin.LoadedPlugin) []webview.PluginSettingsLink {
+const defaultPluginSettingsIcon = "puzzle-lucide"
+
+// pluginSettingsIconValidator reports whether an icon is available to the current renderer.
+type pluginSettingsIconValidator interface {
+	IsIcon(string) bool
+}
+
+// pluginSettingsIconCatalog returns the active renderer icon catalog when available.
+func pluginSettingsIconCatalog(renderer *md.Renderer) pluginSettingsIconValidator {
+	if renderer == nil {
+		return nil
+	}
+	return renderer.IconCatalog()
+}
+
+// pluginSettingsLinks returns installed plugins that expose administrator-managed configuration.
+func pluginSettingsLinks(items []plugin.LoadedPlugin, icons pluginSettingsIconValidator) []webview.PluginSettingsLink {
 	links := make([]webview.PluginSettingsLink, 0)
 	for _, item := range items {
 		if !pluginExposesSettings(item) {
 			continue
 		}
+
+		icon := defaultPluginSettingsIcon
+		if item.Manifest.Icon != "" && icons != nil && icons.IsIcon(item.Manifest.Icon) {
+			icon = item.Manifest.Icon
+		}
+
 		links = append(links, webview.PluginSettingsLink{
 			ID:      item.Manifest.ID,
 			Name:    item.Manifest.Name,
+			Icon:    icon,
 			Section: "plugin:" + item.Manifest.ID,
 		})
 	}
@@ -246,7 +268,7 @@ func pluginSettingsLinks(items []plugin.LoadedPlugin) []webview.PluginSettingsLi
 // pluginExposesSettings reports whether a plugin contributes administrator-managed configuration.
 func pluginExposesSettings(item plugin.LoadedPlugin) bool {
 	for _, module := range item.Manifest.Modules {
-		if module.Type == "settings" || module.Type == "admin-resource" {
+		if module.Type == "settings" || module.Type == "admin-resource" || module.Type == "admin-action" {
 			return true
 		}
 	}
