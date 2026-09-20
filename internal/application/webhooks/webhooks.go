@@ -3,12 +3,10 @@ package webhooks
 import (
 	"context"
 	"log/slog"
-	"net/http"
 	"slices"
 	"strings"
 	"time"
 
-	notifywebhook "github.com/containeroo/notifykit/targets/webhook"
 	"github.com/kumbuka-me/kumbuka/internal/secrets"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
@@ -126,8 +124,6 @@ type Webhooks struct {
 	repository webhookRepository
 	// secrets encrypts sensitive request headers at rest.
 	secrets *secrets.Cipher
-	// client performs outbound webhook HTTP requests.
-	client *http.Client
 	// logger records diagnostics emitted by webhooks.
 	logger *slog.Logger
 	// publicURL is the externally visible base URL used when building webhook payloads.
@@ -139,7 +135,6 @@ func NewWebhooks(repository webhookRepository, secretCipher *secrets.Cipher, log
 	return &Webhooks{
 		repository: repository,
 		secrets:    secretCipher,
-		client:     notifywebhook.NewClient(5 * time.Second),
 		logger:     logger,
 		publicURL:  strings.TrimRight(strings.TrimSpace(publicURL), "/"),
 	}

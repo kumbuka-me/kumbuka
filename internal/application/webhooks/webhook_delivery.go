@@ -15,6 +15,8 @@ import (
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
 
+var webhookClient = notifywebhook.NewClient(5 * time.Second)
+
 // TestWebhook sends a diagnostic event to one webhook regardless of its filters.
 func (s *Webhooks) TestWebhook(ctx context.Context, id int64) error {
 	item, err := s.repository.Webhook(ctx, id)
@@ -86,7 +88,7 @@ func (s *Webhooks) deliver(ctx context.Context, item domain.Webhook, event Outgo
 		notifywebhook.WithHeaders(headers),
 		notifywebhook.WithTitleTemplate(titleTemplate),
 		notifywebhook.WithTemplate(bodyTemplate),
-		notifywebhook.WithClient(s.client),
+		notifywebhook.WithClient(webhookClient),
 		notifywebhook.WithLogger(s.logger),
 		notifywebhook.WithValidateJSON(),
 		notifywebhook.WithLogResponse(notifywebhook.LogResponseNone),
