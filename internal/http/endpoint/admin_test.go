@@ -329,40 +329,13 @@ func TestAdminTrustedProxyRuntimeTemplate(t *testing.T) {
 	assert.Contains(t, string(html), "runtime-admins")
 }
 
-func TestAdminRuntimeShowsReadOnlyMode(t *testing.T) {
+func TestAdminConfigurationOmitsRuntimeSummary(t *testing.T) {
 	t.Parallel()
 
 	views := testHandlerViews(t, webview.RuntimeInfo{})
-
-	html, err := views.RenderHTML("admin_configuration", "content", webview.AdminConfigurationView{Layout: webview.Layout{Runtime: webview.RuntimeInfo{ReadOnly: true}}})
-
-	require.NoError(t, err)
-	assert.Contains(t, string(html), "Read-only mode")
-	assert.Contains(t, string(html), "Enabled")
-}
-
-func TestAdminRuntimeShowsPluginUpdateCheckInterval(t *testing.T) {
-	t.Parallel()
-
-	views := testHandlerViews(t, webview.RuntimeInfo{})
-
-	html, err := views.RenderHTML("admin_configuration", "content", webview.AdminConfigurationView{Layout: webview.Layout{Runtime: webview.RuntimeInfo{PluginUpdateCheckInterval: "15m0s"}}})
+	html, err := views.RenderHTML("admin_configuration", "content", webview.AdminConfigurationView{})
 
 	require.NoError(t, err)
-	assert.Contains(t, string(html), "Plugin update checks")
-	assert.Contains(t, string(html), "15m0s")
-}
-
-func TestAdminRuntimeShowsDatabaseSize(t *testing.T) {
-	t.Parallel()
-
-	views := testHandlerViews(t, webview.RuntimeInfo{})
-
-	html, err := views.RenderHTML("admin_configuration", "content", webview.AdminConfigurationView{
-		DatabaseSizeBytes: 192 * 1024 * 1024,
-	})
-
-	require.NoError(t, err)
-	assert.Contains(t, string(html), "Database size")
-	assert.Contains(t, string(html), "192.0 MiB")
+	assert.NotContains(t, string(html), "<h2>Runtime</h2>")
+	assert.NotContains(t, string(html), "Database size")
 }

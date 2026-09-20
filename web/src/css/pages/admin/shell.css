@@ -70,6 +70,77 @@
   letter-spacing: 0.08em;
 }
 
+.admin-overview-section,
+.admin-overview-status {
+  margin-bottom: 18px;
+}
+
+.admin-overview-section .admin-stats {
+  margin-bottom: 0;
+}
+
+.admin-overview-status {
+  padding: 16px;
+}
+
+.admin-overview-section-title {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.admin-overview-section-title h2 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.admin-overview-section-title p {
+  margin: 4px 0 0;
+  font-size: 11px;
+}
+
+.admin-overview-facts {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.admin-overview-instance-facts {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.admin-overview-runtime-facts {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.admin-overview-facts > div {
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  background: var(--surface-elevated);
+}
+
+.admin-overview-facts dt {
+  margin-bottom: 5px;
+  color: var(--text-tertiary);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.admin-overview-facts dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 650;
+}
+
 .admin-overview-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -128,6 +199,11 @@
     scrollbar-width: thin;
   }
 
+  .admin-overview-instance-facts,
+  .admin-overview-runtime-facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .admin-overview-grid {
     grid-template-columns: 1fr;
   }
@@ -157,4 +233,11 @@
 .admin-sidebar .admin-plugin-settings-label {
   margin-top: 0;
   padding: 0 9px;
+}
+
+@media (max-width: 520px) {
+  .admin-overview-instance-facts,
+  .admin-overview-runtime-facts {
+    grid-template-columns: 1fr;
+  }
 }

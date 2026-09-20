@@ -33,13 +33,28 @@ func (s adminDatabaseInfoStub) DatabaseSize(context.Context) (int64, error) {
 	return s.size, nil
 }
 
-func TestAdministrationOverviewShowsStorageSummary(t *testing.T) {
+func TestAdministrationOverviewShowsInstanceRuntimeAndInventory(t *testing.T) {
 	t.Parallel()
 
-	views := testHandlerViews(t, webview.RuntimeInfo{})
+	views := testHandlerViews(t, webview.RuntimeInfo{
+		ListenAddress:             "127.0.0.1:51114",
+		PublicURL:                 "http://localhost:8080",
+		ReadOnly:                  true,
+		PluginUpdateCheckInterval: "15m",
+		EncryptionKeyConfigured:   true,
+	})
 	browserContext := browserContextLoaderStub{load: func(_ *http.Request, _ *webview.Views, title string) (webview.Layout, error) {
 		return webview.Layout{
-			Title:       title,
+			Title:   title,
+			Version: "v0.8.0",
+			Commit:  "abc1234",
+			Runtime: webview.RuntimeInfo{
+				ListenAddress:             "127.0.0.1:51114",
+				PublicURL:                 "http://localhost:8080",
+				ReadOnly:                  true,
+				PluginUpdateCheckInterval: "15m",
+				EncryptionKeyConfigured:   true,
+			},
 			User:        domain.User{ID: 1, Role: "admin", DisplayName: "Admin"},
 			Preferences: domain.DefaultUserPreferences(),
 		}, nil
@@ -63,6 +78,18 @@ func TestAdministrationOverviewShowsStorageSummary(t *testing.T) {
 	Administration(browserContext, overview, database, views)(response, request)
 
 	require.Equal(t, http.StatusOK, response.Code, response.Body.String())
-	assert.Contains(t, response.Body.String(), ">23</strong><span>Attachments</span>")
-	assert.Contains(t, response.Body.String(), ">42.0 MiB</strong><span>Database size</span>")
+	body := response.Body.String()
+	assert.Contains(t, body, ">23</strong><span>Attachments</span>")
+	assert.Contains(t, body, "Database size")
+	assert.Contains(t, body, "42.0 MiB")
+	assert.Contains(t, body, "v0.8.0")
+	assert.Contains(t, body, "abc1234")
+	assert.Contains(t, body, "127.0.0.1:51114")
+	assert.Contains(t, body, "http://localhost:8080")
+	assert.Contains(t, body, "Read-only mode")
+	assert.Contains(t, body, "Enabled")
+	assert.Contains(t, body, "Plugin update checks")
+	assert.Contains(t, body, "15m")
+	assert.Contains(t, body, "Application encryption")
+	assert.Contains(t, body, "Configured")
 }

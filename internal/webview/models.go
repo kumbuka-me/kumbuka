@@ -299,9 +299,6 @@ type AdminConfigurationView struct {
 	// Layout contains shared browser presentation.
 	Layout
 
-	// DatabaseSizeBytes is the current PostgreSQL database size in bytes.
-	DatabaseSizeBytes int64
-
 	// PDFHeaders contains administrator-safe PDF request-header metadata.
 	PDFHeaders []domain.PDFHeader
 

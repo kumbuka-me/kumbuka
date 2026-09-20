@@ -30,24 +30,17 @@ var contentLanguageOptions = []webview.ContentLanguageOption{
 	{Code: "pt", Label: "Portuguese"},
 }
 
-// AdminConfiguration renders runtime and application-wide configuration.
+// AdminConfiguration renders application-wide configuration.
 func AdminConfiguration(
 	browserContext browserContextLoader,
 	groupUseCases groupReader,
 	userUseCases oidcIdentityService,
 	settingsUseCases settingsService,
-	databaseInfo databaseInfoService,
 	views *webview.Views,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		layout, err := administrationData(r, browserContext, views, "Configuration", "configuration")
 		data := webview.AdminConfigurationView{Layout: layout}
-		if err != nil {
-			httpresponse.InternalServerError(views.Logger(), w, err)
-			return
-		}
-
-		data.DatabaseSizeBytes, err = databaseInfo.DatabaseSize(r.Context())
 		if err != nil {
 			httpresponse.InternalServerError(views.Logger(), w, err)
 			return

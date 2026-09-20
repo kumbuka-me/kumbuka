@@ -3,40 +3,129 @@
     <div class="settings-heading">
       <p class="eyebrow">Administration</p>
       <h1>Overview</h1>
-      <p class="muted">Manage Kumbuka configuration, identities, metadata, access tokens, exports, and uploaded media.</p>
+      <p class="muted">Monitor this Kumbuka instance and manage its content, identities, and administration.</p>
     </div>
-    <div class="admin-stats">
-      <a href="/admin/users"><strong>{{ .AdminStats.Users }}</strong><span>Users</span></a>
-      <a href="/admin/groups"><strong>{{ .AdminStats.Groups }}</strong><span>Groups</span></a>
-      <a href="/admin/pages"><strong>{{ .AdminStats.Pages }}</strong><span>Pages</span></a>
-      <a href="/admin/tags"><strong>{{ .AdminStats.Tags }}</strong><span>Tags</span></a>
-      <a href="/admin/images"><strong>{{ .AdminStats.Images }}</strong><span>Images</span></a>
-      <div><strong>{{ .AttachmentCount }}</strong><span>Attachments</span></div>
-      <a href="/admin/bin"><strong>{{ .AdminStats.DeletedPages }}</strong><span>In bin</span></a>
-      <a href="/admin/tokens"><strong>{{ .AdminStats.Tokens }}</strong><span>Tokens</span></a>
-      <a href="/admin/configuration"><strong>{{ filesize .DatabaseSizeBytes }}</strong><span>Database size</span></a>
-    </div>
-    <div class="admin-overview-grid">
-      <a class="panel admin-overview-card"
-         href="/admin/configuration"><strong>Configuration</strong><span>Runtime information and application settings.</span></a>
-      <a class="panel admin-overview-card"
-         href="/admin/plugins"><strong>Plugins</strong><span>Install, enable, disable, upgrade, and remove plugins.</span></a>
-      <a class="panel admin-overview-card"
-         href="/admin/users"><strong>Users</strong><span>Roles and group memberships.</span></a>
-      <a class="panel admin-overview-card"
-         href="/admin/groups"><strong>Groups</strong><span>Organize users into named groups.</span></a>
-      <a class="panel admin-overview-card"
-         href="/admin/navigation"><strong>Navigation</strong><span>Assign top-level section icons explicitly.</span></a>
-      <a class="panel admin-overview-card"
-         href="/admin/bin"><strong>Recycle bin</strong><span>Restore pages that were deleted accidentally.</span></a>
-      <a class="panel admin-overview-card"
-         href="/admin/tags"><strong>Tags</strong><span>Review and clean up the shared tag vocabulary.</span></a>
-      <a class="panel admin-overview-card"
-         href="/admin/tokens"><strong>Access tokens</strong><span>Issue and revoke personal access tokens.</span></a>
-      <a class="panel admin-overview-card"
-         href="/admin/exports"><strong>Exports</strong><span>Export one, several, or all pages with media.</span></a>
-      <a class="panel admin-overview-card"
-         href="/admin/images"><strong>Images</strong><span>Inspect references and clean up uploaded media.</span></a>
-    </div>
+    <section class="panel admin-overview-status">
+      <div class="admin-overview-section-title">
+        <div>
+          <h2>Instance</h2>
+          <p class="muted">Build identity and current instance state.</p>
+        </div>
+      </div>
+      <dl class="admin-overview-facts admin-overview-instance-facts">
+        <div>
+          <dt>Version</dt>
+          <dd>
+            {{ .Version }}
+          </dd>
+        </div>
+        <div>
+          <dt>Commit</dt>
+          <dd>
+            <code>{{ .Commit }}</code>
+          </dd>
+        </div>
+        <div>
+          <dt>Database size</dt>
+          <dd>
+            {{ filesize .DatabaseSizeBytes }}
+          </dd>
+        </div>
+        <div>
+          <dt>Read-only mode</dt>
+          <dd>
+            {{ if .Runtime.ReadOnly }}Enabled{{ else }}Disabled{{ end }}
+          </dd>
+        </div>
+      </dl>
+    </section>
+    <section class="admin-overview-section">
+      <div class="admin-overview-section-title">
+        <div>
+          <h2>Inventory</h2>
+          <p class="muted">High-level counts for stored content and identities.</p>
+        </div>
+      </div>
+      <div class="admin-stats">
+        <a href="/admin/users"><strong>{{ .AdminStats.Users }}</strong><span>Users</span></a>
+        <a href="/admin/groups"><strong>{{ .AdminStats.Groups }}</strong><span>Groups</span></a>
+        <a href="/admin/pages"><strong>{{ .AdminStats.Pages }}</strong><span>Pages</span></a>
+        <a href="/admin/tags"><strong>{{ .AdminStats.Tags }}</strong><span>Tags</span></a>
+        <a href="/admin/images"><strong>{{ .AdminStats.Images }}</strong><span>Images</span></a>
+        <div><strong>{{ .AttachmentCount }}</strong><span>Attachments</span></div>
+        <a href="/admin/bin"><strong>{{ .AdminStats.DeletedPages }}</strong><span>In bin</span></a>
+        <a href="/admin/tokens"><strong>{{ .AdminStats.Tokens }}</strong><span>Tokens</span></a>
+      </div>
+    </section>
+    <section class="panel admin-overview-status">
+      <div class="admin-overview-section-title">
+        <div>
+          <h2>Runtime</h2>
+          <p class="muted">Read-only values supplied by the process or deployment.</p>
+        </div>
+      </div>
+      <dl class="admin-overview-facts admin-overview-runtime-facts">
+        <div>
+          <dt>Listen address</dt>
+          <dd>
+            <code>{{ .Runtime.ListenAddress }}</code>
+          </dd>
+        </div>
+        <div>
+          <dt>Public URL</dt>
+          <dd>
+            {{ .Runtime.PublicURL }}
+          </dd>
+        </div>
+        <div>
+          <dt>Themes</dt>
+          <dd>
+            {{ if .Runtime.ThemeDirectory }}{{ .Runtime.ThemeDirectory }}{{ else }}Embedded only{{ end }}
+          </dd>
+        </div>
+        <div>
+          <dt>Plugin update checks</dt>
+          <dd>
+            {{ if .Runtime.PluginUpdateCheckInterval }}{{ .Runtime.PluginUpdateCheckInterval }}{{ else }}Disabled{{ end }}
+          </dd>
+        </div>
+        <div>
+          <dt>Application encryption</dt>
+          <dd>
+            {{ if .Runtime.EncryptionKeyConfigured }}Configured{{ else }}Not configured{{ end }}
+          </dd>
+        </div>
+      </dl>
+    </section>
+    <section class="admin-overview-section">
+      <div class="admin-overview-section-title">
+        <div>
+          <h2>Manage</h2>
+          <p class="muted">Open the most common administration areas.</p>
+        </div>
+      </div>
+      <div class="admin-overview-grid">
+        <a class="panel admin-overview-card"
+           href="/admin/configuration"><strong>Configuration</strong><span>Application settings, integrations, and authentication.</span></a>
+        <a class="panel admin-overview-card"
+           href="/admin/plugins"><strong>Plugins</strong><span>Install, enable, disable, upgrade, and remove plugins.</span></a>
+        <a class="panel admin-overview-card"
+           href="/admin/users"><strong>Users</strong><span>Roles and group memberships.</span></a>
+        <a class="panel admin-overview-card"
+           href="/admin/groups"><strong>Groups</strong><span>Organize users into named groups.</span></a>
+        <a class="panel admin-overview-card"
+           href="/admin/navigation"><strong>Navigation</strong><span>Assign top-level section icons explicitly.</span></a>
+        <a class="panel admin-overview-card"
+           href="/admin/bin"><strong>Recycle bin</strong><span>Restore pages that were deleted accidentally.</span></a>
+        <a class="panel admin-overview-card"
+           href="/admin/tags"><strong>Tags</strong><span>Review and clean up the shared tag vocabulary.</span></a>
+        <a class="panel admin-overview-card"
+           href="/admin/tokens"><strong>Access tokens</strong><span>Issue and revoke personal access tokens.</span></a>
+        <a class="panel admin-overview-card"
+           href="/admin/exports"><strong>Exports</strong><span>Export one, several, or all pages with media.</span></a>
+        <a class="panel admin-overview-card"
+           href="/admin/images"><strong>Images</strong><span>Inspect references and clean up uploaded media.</span></a>
+      </div>
+    </section>
   </section>
 {{ end }}
