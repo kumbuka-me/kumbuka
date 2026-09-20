@@ -110,12 +110,8 @@ func (s *Media) DeleteImage(ctx context.Context, id int64, actor domain.User) er
 	if err != nil {
 		return err
 	}
-	administrator := actor.IsAdministrator()
-	if !administrator && image.UploadedBy != actor.ID {
-		return ErrMediaForbidden
-	}
-	if !administrator && image.UsageCount > 0 {
-		return &MediaInUseError{References: image.UsageCount}
+	if err := authorizeMediaDeletion(image.UploadedBy, image.UsageCount, actor); err != nil {
+		return err
 	}
 
 	return s.repository.DeleteImage(ctx, id)
@@ -145,15 +141,25 @@ func (s *Media) DeleteAttachment(ctx context.Context, id int64, actor domain.Use
 	if err != nil {
 		return err
 	}
-	administrator := actor.IsAdministrator()
-	if !administrator && item.UploadedBy != actor.ID {
-		return ErrMediaForbidden
-	}
-	if !administrator && item.UsageCount > 0 {
-		return &MediaInUseError{References: item.UsageCount}
+	if err := authorizeMediaDeletion(item.UploadedBy, item.UsageCount, actor); err != nil {
+		return err
 	}
 
 	return s.repository.DeleteAttachment(ctx, id)
+}
+
+// authorizeMediaDeletion enforces shared ownership and usage rules for stored media.
+func authorizeMediaDeletion(uploadedBy, usageCount int64, actor domain.User) error {
+	if actor.IsAdministrator() {
+		return nil
+	}
+	if uploadedBy != actor.ID {
+		return ErrMediaForbidden
+	}
+	if usageCount > 0 {
+		return &MediaInUseError{References: usageCount}
+	}
+	return nil
 }
 
 // SupportedImageType reports whether the detected MIME type is accepted for uploads.
