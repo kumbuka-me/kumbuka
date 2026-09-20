@@ -9,16 +9,7 @@
 }
 
 .static-sidebar-footer {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  padding: 12px 10px 2px;
-  color: var(--text-tertiary);
-  font-size: 12px;
-}
-
-.static-sidebar-footer svg {
-  flex: 0 0 auto;
+  display: none;
 }
 
 .static-search-results .page-row {

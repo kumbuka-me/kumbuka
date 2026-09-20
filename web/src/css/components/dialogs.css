@@ -76,6 +76,57 @@
   padding: 0 20px 18px;
 }
 
+.about-dialog {
+  --dialog-width: 480px;
+}
+
+.about-dialog-body {
+  display: grid;
+  gap: 18px;
+}
+
+.about-dialog-details {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.about-dialog-details > div {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr);
+  gap: 12px;
+}
+
+.about-dialog-details dt {
+  color: var(--text-tertiary);
+}
+
+.about-dialog-details dd {
+  min-width: 0;
+  margin: 0;
+  color: var(--text);
+}
+
+.about-dialog-details code {
+  overflow-wrap: anywhere;
+}
+
+.about-dialog-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+
+.about-dialog-links a {
+  color: var(--accent);
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.about-dialog-links a:hover {
+  text-decoration: underline;
+}
+
 @media (max-width: 800px) {
   :where(
     .app-dialog,

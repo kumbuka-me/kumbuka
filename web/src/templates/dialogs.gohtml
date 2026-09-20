@@ -65,6 +65,45 @@
       <button class="button primary" type="button" data-notice-dialog-close>OK</button>
     </div>
   </dialog>
+  <dialog class="app-dialog about-dialog"
+          data-about-dialog
+          aria-labelledby="about-dialog-title">
+    <div class="app-dialog-header">
+      <div>
+        <p class="eyebrow">Kumbuka</p>
+        <h2 id="about-dialog-title">About Kumbuka</h2>
+      </div>
+      <button class="icon-button app-dialog-close"
+              type="button"
+              data-about-close
+              aria-label="Close">{{ icon "x-lucide" 20 }}</button>
+    </div>
+    <div class="app-dialog-body about-dialog-body">
+      <p>A self-hosted, Markdown-first knowledge base.</p>
+      <dl class="about-dialog-details">
+        <div>
+          <dt>Version</dt>
+          <dd>{{ .Version }}</dd>
+        </div>
+        <div>
+          <dt>Commit</dt>
+          <dd><code>{{ .Commit }}</code></dd>
+        </div>
+      </dl>
+      <nav class="about-dialog-links" aria-label="Kumbuka project links">
+        <a href="https://kumbuka.me/" target="_blank" rel="noopener noreferrer">Documentation</a>
+        <a href="https://github.com/kumbuka-me/kumbuka"
+           target="_blank"
+           rel="noopener noreferrer">GitHub</a>
+        <a href="https://github.com/kumbuka-me/kumbuka/blob/main/LICENSE"
+           target="_blank"
+           rel="noopener noreferrer">Apache-2.0</a>
+      </nav>
+    </div>
+    <div class="app-dialog-actions">
+      <button class="button primary" type="button" data-about-close>Close</button>
+    </div>
+  </dialog>
   <dialog class="app-dialog command-palette"
           data-command-palette
           aria-labelledby="command-palette-title">

@@ -65,8 +65,17 @@
     {{ template "content" . }}
   </main>
   </div>
-  <footer>
-    Kumbuka {{ .Version }} · Markdown-first knowledge
+  <footer class="app-footer{{ if .AdminSection }} admin-app-footer{{ end }}">
+    <div class="app-footer-inner">
+      <span>Kumbuka {{ .Version }}</span>
+      <nav class="app-footer-links" aria-label="Kumbuka links">
+        <a href="https://kumbuka.me/" target="_blank" rel="noopener noreferrer">Docs</a>
+        <a href="https://github.com/kumbuka-me/kumbuka"
+           target="_blank"
+           rel="noopener noreferrer">GitHub</a>
+        <button type="button" data-about-open aria-haspopup="dialog">About</button>
+      </nav>
+    </div>
   </footer>
   {{ template "app-dialogs" . }}
   <div data-path-catalog hidden>

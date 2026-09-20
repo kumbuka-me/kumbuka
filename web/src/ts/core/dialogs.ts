@@ -42,6 +42,36 @@ function noticeDialog(): HTMLDialogElement | null {
   return document.querySelector<HTMLDialogElement>("[data-notice-dialog]");
 }
 
+// Wires the application About dialog to its footer trigger.
+export function initAboutDialog(): void {
+  if (typeof document === "undefined") return;
+
+  const dialog = document.querySelector<HTMLDialogElement>("[data-about-dialog]");
+  if (!dialog) return;
+
+  const close = (): void => {
+    if (dialog.open) dialog.close();
+  };
+
+  for (const button of document.querySelectorAll<HTMLButtonElement>(
+    "[data-about-open]",
+  )) {
+    button.addEventListener("click", () => {
+      if (!dialog.open) dialog.showModal();
+    });
+  }
+
+  for (const button of dialog.querySelectorAll<HTMLButtonElement>(
+    "[data-about-close]",
+  )) {
+    button.addEventListener("click", close);
+  }
+
+  dialog.addEventListener("click", (event: MouseEvent) => {
+    if (event.target === dialog) close();
+  });
+}
+
 // Shows a confirmation dialog and resolves with the user choice.
 export function requestConfirmation(
   message: string,

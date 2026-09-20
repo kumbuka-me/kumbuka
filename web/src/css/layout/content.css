@@ -15,6 +15,53 @@ footer {
   font-size: 12px;
 }
 
+.app-footer {
+  margin-left: var(--sidebar);
+  padding: 18px 56px 22px;
+  border-top: 1px solid var(--border-subtle);
+  text-align: left;
+}
+
+.app-footer-inner {
+  display: flex;
+  width: 100%;
+  max-width: 1480px;
+  margin: 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.app-footer-links {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.app-footer a,
+.app-footer button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  text-decoration: none;
+}
+
+.app-footer button {
+  cursor: pointer;
+}
+
+.app-footer a:hover,
+.app-footer button:hover {
+  color: var(--text);
+}
+
+html.sidebar-hidden .app-footer:not(.admin-app-footer),
+body[data-navigation-style="topbar"] .app-footer:not(.admin-app-footer) {
+  margin-left: 0;
+}
+
 main.with-page-contents {
   max-width: 1720px;
 }
@@ -22,5 +69,18 @@ main.with-page-contents {
 @media (min-width: 801px) {
   html.sidebar-hidden .shell:not(.admin-shell) > main:not(.with-page-contents) {
     max-width: calc(1480px + var(--sidebar));
+  }
+}
+
+@media (max-width: 800px) {
+  .app-footer {
+    margin-left: 0;
+    padding: 18px max(16px, env(safe-area-inset-right))
+      max(22px, env(safe-area-inset-bottom))
+      max(16px, env(safe-area-inset-left));
+  }
+
+  .app-footer-inner {
+    flex-wrap: wrap;
   }
 }
