@@ -723,21 +723,6 @@ type SettingsView struct {
 	LocalCredentialAuthenticated bool
 }
 
-// SharedPageView contains presentation data for shared page view.
-type SharedPageView struct {
-	// Layout contains shared browser presentation.
-	Layout
-
-	// Page is the current page when one is being viewed or edited.
-	Page *domain.Page
-
-	// HTML is the sanitized rendered Markdown for the current page.
-	HTML template.HTML
-
-	// PageContentLanguage is the effective language for the current page/editor.
-	PageContentLanguage string
-}
-
 // PluginSettingsLink is one installed plugin exposed in administration settings navigation.
 type PluginSettingsLink struct {
 	// ID is the stable plugin identifier used in the settings URL.

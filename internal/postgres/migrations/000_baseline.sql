@@ -343,18 +343,6 @@ CREATE TABLE local_sessions (
 CREATE INDEX local_sessions_user_idx ON local_sessions (user_id);
 CREATE INDEX local_sessions_expiry_idx ON local_sessions (expires_at);
 
-CREATE TABLE page_share_links (
-  id bigserial PRIMARY KEY,
-  page_id bigint NOT NULL REFERENCES pages (id) ON DELETE CASCADE,
-  token_hash text NOT NULL UNIQUE,
-  created_by bigint REFERENCES users (id) ON DELETE SET NULL,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  revoked_at timestamptz
-);
-
-CREATE INDEX page_share_links_page_idx
-  ON page_share_links (page_id, created_at DESC);
-
 CREATE TABLE page_drafts (
   id bigserial PRIMARY KEY,
   user_id bigint NOT NULL REFERENCES users (id) ON DELETE CASCADE,

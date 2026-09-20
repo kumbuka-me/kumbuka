@@ -34,15 +34,10 @@ void test("selected palette is applied synchronously before the body exists", ()
   assert.equal(properties.get("--surface-elevated"), "#202020");
 });
 
-void test("themed layouts load the blocking initializer immediately after the catalog", () => {
-  for (const path of [
-    "web/src/templates/layout.gohtml",
-    "web/src/templates/shared_page.gohtml",
-  ]) {
-    assert.ok(
-      /<script id="kumbuka-themes"[^>]*>.*?<\/script>\s*<script src="[^\n]*theme-init\.js[^\n]*"><\/script>/.test(
-        readFileSync(path, "utf8"),
-      ),
-    );
-  }
+void test("themed layout loads the blocking initializer immediately after the catalog", () => {
+  assert.ok(
+    /<script id="kumbuka-themes"[^>]*>.*?<\/script>\s*<script src="[^\n]*theme-init\.js[^\n]*"><\/script>/.test(
+      readFileSync("web/src/templates/layout.gohtml", "utf8"),
+    ),
+  );
 });

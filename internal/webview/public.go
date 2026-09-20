@@ -3,7 +3,6 @@ package webview
 import (
 	"encoding/json"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
-	"github.com/kumbuka-me/kumbuka/pkg/pluginbrowser"
 	"github.com/kumbuka-me/kumbuka/pkg/themes"
 	"html/template"
 )
@@ -30,21 +29,4 @@ func (v *Views) PublicData(title string) (Layout, error) {
 		Themes:        v.themes,
 		ActiveTheme:   activeTheme,
 	}, nil
-}
-
-// PublicPluginData builds unauthenticated view data with active browser plugin presentation assets.
-func (v *Views) PublicPluginData(title string, modules []pluginbrowser.Module, stylesVersion string) (Layout, error) {
-	data, err := v.PublicData(title)
-	if err != nil {
-		return Layout{}, err
-	}
-
-	encoded, err := json.Marshal(modules)
-	if err != nil {
-		return Layout{}, err
-	}
-	data.PluginModules = template.JS(encoded)
-	data.PluginStylesVersion = stylesVersion
-
-	return data, nil
 }

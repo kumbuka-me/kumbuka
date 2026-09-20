@@ -139,23 +139,6 @@ func TestExtractedTranslatorsPreserveResponsesAndLogOnlyInternalFailures(t *test
 		assert.Contains(t, logs.String(), failure.Error())
 	})
 
-	t.Run("share", func(t *testing.T) {
-		t.Parallel()
-		var logs bytes.Buffer
-		logger := slog.New(slog.NewTextHandler(&logs, nil))
-		response := httptest.NewRecorder()
-		writePublicShareError(logger, response, fmt.Errorf("wrapped: %w", domain.ErrNotFound))
-		assert.Equal(t, 404, response.Code)
-		assert.Contains(t, response.Body.String(), "Share link not found or no longer available.")
-		assert.Empty(t, logs.String())
-		failure := errors.New("private persistence details")
-		response = httptest.NewRecorder()
-		writePublicShareError(logger, response, failure)
-		assert.Equal(t, http.StatusInternalServerError, response.Code)
-		assert.NotContains(t, response.Body.String(), failure.Error())
-		assert.Contains(t, logs.String(), failure.Error())
-	})
-
 	t.Run("setup conflict", func(t *testing.T) {
 		t.Parallel()
 		var logs bytes.Buffer

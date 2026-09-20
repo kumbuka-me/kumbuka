@@ -5,7 +5,7 @@ Kumbuka's rendering modules register contributions through an application-owned
 and WASM runtime; `NewWithPluginStore` also restores persisted lifecycle state.
 Callers handle startup errors and close the renderer at the end of its scope.
 `markdown.NewWithRegistry` supports an explicitly owned registry.
-Server pages, preview, sharing, and exports use the same pipeline; external tooling can reuse the public runtime packages.
+Server pages, preview, and exports use the same pipeline; external tooling can reuse the public runtime packages.
 
 Kumbuka's optional rendering and content features are bundled `.kumbukaplugin` packages
 under `plugins/`. Executable plugins are independent Go modules; declarative-only

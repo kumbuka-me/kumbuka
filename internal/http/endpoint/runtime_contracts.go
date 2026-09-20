@@ -3,7 +3,6 @@ package endpoint
 import (
 	"context"
 
-	apppages "github.com/kumbuka-me/kumbuka/internal/application/pages"
 	appsettings "github.com/kumbuka-me/kumbuka/internal/application/settings"
 	appwebhooks "github.com/kumbuka-me/kumbuka/internal/application/webhooks"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
@@ -25,12 +24,6 @@ type settingsService interface {
 // databaseInfoService exposes administrator-safe database information.
 type databaseInfoService interface {
 	DatabaseSize(context.Context) (int64, error)
-}
-
-// sharingService owns page-share creation and anonymous share resolution.
-type sharingService interface {
-	CreatePageShareLink(context.Context, string, domain.User) (apppages.IssuedPageShareLink, error)
-	PageShareLink(context.Context, string) (domain.PageShareLink, error)
 }
 
 // systemService owns health and initial-setup application state.

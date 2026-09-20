@@ -1,25 +1,11 @@
 package webview
 
 import (
-	"github.com/kumbuka-me/kumbuka/pkg/pluginbrowser"
 	"github.com/kumbuka-me/kumbuka/pkg/themes"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"testing"
 )
-
-func TestPublicPluginData(t *testing.T) {
-	t.Parallel()
-
-	views := &Views{}
-
-	data, err := views.PublicPluginData("Shared page", []pluginbrowser.Module{}, "styles-version")
-
-	require.NoError(t, err)
-	assert.Equal(t, "Shared page", data.Title)
-	assert.Equal(t, "[]", string(data.PluginModules))
-	assert.NotEmpty(t, data.PluginStylesVersion)
-}
 
 func TestPublicLayout(t *testing.T) {
 	t.Parallel()

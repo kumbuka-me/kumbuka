@@ -70,12 +70,6 @@ type pageContentService interface {
 	GetPage(context.Context, string) (domain.Page, error)
 }
 
-// pageReportCatalogService supplies the generic page reads exposed to reports and shares.
-type pageReportCatalogService interface {
-	GetPage(context.Context, string) (domain.Page, error)
-	Search(context.Context, string, int) ([]domain.Page, error)
-}
-
 // homeQueryService binds dashboard list capabilities to one actor.
 type homeQueryService interface {
 	Lists(domain.User) apppages.HomeLists

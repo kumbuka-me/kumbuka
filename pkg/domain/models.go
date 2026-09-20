@@ -936,16 +936,6 @@ type UserPreferences struct {
 	ExpandedNavigation []string
 }
 
-// PageShareLink identifies the page exposed by one public permalink.
-type PageShareLink struct {
-	// PageID identifies the page associated with page share link.
-	PageID int64
-	// Slug is the normalized page path associated with page share link.
-	Slug string
-	// Title is the title associated with page share link.
-	Title string
-}
-
 const (
 	// UserRoleAdmin grants full account-level administration.
 	UserRoleAdmin = "admin"

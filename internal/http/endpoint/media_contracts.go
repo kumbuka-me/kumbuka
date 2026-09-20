@@ -6,7 +6,7 @@ import (
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
 
-// imageContentService supplies image bytes to export and sharing workflows.
+// imageContentService supplies image bytes to export workflows.
 type imageContentService interface {
 	ImageContent(context.Context, int64) (domain.ImageData, error)
 }

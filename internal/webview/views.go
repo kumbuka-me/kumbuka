@@ -34,7 +34,6 @@ var sharedTemplateFiles = []string{
 var pageTemplateNames = []string{
 	"login",
 	"setup",
-	"shared_page",
 	"home",
 	"page",
 	"review",
@@ -278,11 +277,6 @@ func (v *Views) RenderPublicStatus(w http.ResponseWriter, status int, page strin
 
 // RenderFragment executes one named fragment from a parsed page template set.
 func (v *Views) RenderFragment(w http.ResponseWriter, page, name string, data Screen) {
-	v.RenderDataStatus(w, http.StatusOK, page, name, data)
-}
-
-// RenderTemplate executes a named template with a successful HTTP status.
-func (v *Views) RenderTemplate(w http.ResponseWriter, page, name string, data Screen) {
 	v.RenderDataStatus(w, http.StatusOK, page, name, data)
 }
 

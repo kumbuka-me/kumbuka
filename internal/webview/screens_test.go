@@ -20,7 +20,6 @@ func TestTypedScreensRenderProductionTemplates(t *testing.T) {
 	}{
 		{"admin_templates", AdminTemplatesView{Layout: layout}},
 		{"admin_configuration", AdminConfigurationView{Layout: layout}},
-		{"shared_page", SharedPageView{Layout: layout, Page: &domain.Page{Slug: "docs/start", Title: "Start"}}},
 		{"admin_health", AdminHealthView{Layout: layout}},
 		{"admin_audit", AdminAuditView{Layout: layout}},
 		{"admin_tokens", AdminTokensView{Layout: layout}},
@@ -55,8 +54,6 @@ func TestTypedScreensRenderProductionTemplates(t *testing.T) {
 			switch test.name {
 			case "login", "setup":
 				views.RenderPublic(response, test.name, test.model)
-			case "shared_page":
-				views.RenderTemplate(response, test.name, "shared-layout", test.model)
 			default:
 				views.Render(response, test.name, test.model)
 			}
