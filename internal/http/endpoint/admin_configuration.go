@@ -36,11 +36,18 @@ func AdminConfiguration(
 	groupUseCases groupReader,
 	userUseCases oidcIdentityService,
 	settingsUseCases settingsService,
+	databaseInfo databaseInfoService,
 	views *webview.Views,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		layout, err := administrationData(r, browserContext, views, "Configuration", "configuration")
 		data := webview.AdminConfigurationView{Layout: layout}
+		if err != nil {
+			httpresponse.InternalServerError(views.Logger(), w, err)
+			return
+		}
+
+		data.DatabaseSizeBytes, err = databaseInfo.DatabaseSize(r.Context())
 		if err != nil {
 			httpresponse.InternalServerError(views.Logger(), w, err)
 			return

@@ -22,6 +22,11 @@ type settingsService interface {
 	RecordLocalPasswordUpdated(context.Context, domain.User)
 }
 
+// databaseInfoService exposes administrator-safe database information.
+type databaseInfoService interface {
+	DatabaseSize(context.Context) (int64, error)
+}
+
 // sharingService owns page-share creation and anonymous share resolution.
 type sharingService interface {
 	CreatePageShareLink(context.Context, string, domain.User) (apppages.IssuedPageShareLink, error)

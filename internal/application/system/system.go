@@ -11,6 +11,7 @@ import (
 // systemRepository contains startup and health persistence operations.
 type systemRepository interface {
 	audit.Repository
+	DatabaseSize(context.Context) (int64, error)
 	Ping(context.Context) error
 	SetupRequired(context.Context) (bool, error)
 }
@@ -32,6 +33,11 @@ func NewSystem(repository systemRepository) *System {
 func (s *System) WithLogger(logger *slog.Logger) *System {
 	s.logger = audit.Logger(logger)
 	return s
+}
+
+// DatabaseSize returns the current PostgreSQL database size in bytes.
+func (s *System) DatabaseSize(ctx context.Context) (int64, error) {
+	return s.repository.DatabaseSize(ctx)
 }
 
 // Ping verifies that the application repository is reachable.

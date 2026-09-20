@@ -46,6 +46,12 @@
             </dd>
           </div>
           <div>
+            <dt>Database size</dt>
+            <dd>
+              {{ filesize .DatabaseSizeBytes }}
+            </dd>
+          </div>
+          <div>
             <dt>Themes</dt>
             <dd>
               {{ if .Runtime.ThemeDirectory }}

@@ -46,7 +46,9 @@ function noticeDialog(): HTMLDialogElement | null {
 export function initAboutDialog(): void {
   if (typeof document === "undefined") return;
 
-  const dialog = document.querySelector<HTMLDialogElement>("[data-about-dialog]");
+  const dialog = document.querySelector<HTMLDialogElement>(
+    "[data-about-dialog]",
+  );
   if (!dialog) return;
 
   const close = (): void => {

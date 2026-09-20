@@ -132,7 +132,7 @@ func (r routeRegistrar) addAdminRoutes() {
 	r.router.Handle("GET /admin", browserAuthn(adminAuthz(endpoint.Administration(config.BrowserContext, config.Administration, config.Views))))
 	r.router.Handle(
 		"GET /admin/configuration",
-		browserAuthn(adminAuthz(endpoint.AdminConfiguration(config.BrowserContext, config.Groups, config.Users, config.Settings, config.Views))),
+		browserAuthn(adminAuthz(endpoint.AdminConfiguration(config.BrowserContext, config.Groups, config.Users, config.Settings, config.System, config.Views))),
 	)
 	r.router.Handle(
 		"GET /admin/branding",
