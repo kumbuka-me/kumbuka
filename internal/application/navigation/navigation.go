@@ -32,8 +32,8 @@ type Navigation struct {
 	repository navigationRepository
 	// access filters navigation collections for the current actor.
 	access pageFilter
-	// icons validates navigation icons against the active catalog.
-	icons iconValidator
+	// iconValidator validates navigation icons against the active catalog.
+	iconValidator iconValidator
 
 	// iconsMu stores the icons mu value used by navigation.
 	iconsMu sync.RWMutex
@@ -50,7 +50,7 @@ func NewNavigation(repository navigationRepository, access pageFilter) *Navigati
 
 // WithIconValidator uses the active icon capability for navigation validation.
 func (s *Navigation) WithIconValidator(validator iconValidator) *Navigation {
-	s.icons = validator
+	s.iconValidator = validator
 	return s
 }
 
@@ -110,7 +110,7 @@ func (s *Navigation) NavigationIcons(ctx context.Context) (map[string]string, er
 // SetNavigationIcon sets or clears the icon for a navigation path.
 func (s *Navigation) SetNavigationIcon(ctx context.Context, path, icon string) error {
 	icon = strings.TrimSpace(icon)
-	if icon != "" && (s.icons == nil || !s.icons.IsIcon(icon)) {
+	if icon != "" && (s.iconValidator == nil || !s.iconValidator.IsIcon(icon)) {
 		return domain.NewValidationError("icon", "Choose an icon from the available icon catalog.")
 	}
 	if err := s.repository.SetNavigationIcon(ctx, path, icon); err != nil {

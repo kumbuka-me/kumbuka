@@ -210,6 +210,20 @@ func (s aliasFailureStub) ResolvePageAlias(context.Context, string) (string, err
 
 func (aliasFailureStub) RecordView(context.Context, string, int64) error { return nil }
 
+func (aliasFailureStub) IsFavorite(context.Context, string, int64) (bool, error) { return false, nil }
+
+func (aliasFailureStub) PageWatch(context.Context, string, int64) (domain.PageWatch, error) {
+	return domain.PageWatch{}, nil
+}
+
+func (aliasFailureStub) PageLinks(context.Context, string) ([]domain.PageLink, error) {
+	return nil, nil
+}
+
+func (aliasFailureStub) PageComments(context.Context, string) ([]domain.PageComment, error) {
+	return nil, nil
+}
+
 func (s aliasFailureStub) GetPageFor(context.Context, domain.User, string) (domain.Page, error) {
 	return domain.Page{}, domain.ErrNotFound
 }
