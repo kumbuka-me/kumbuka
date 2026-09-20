@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
+	"net/textproto"
 	"net/url"
 	"slices"
 	"strings"
@@ -178,7 +178,7 @@ func normalizeWebhookHeaderName(name string) (string, error) {
 		return "", domain.NewValidationError("headers", "Webhook header names must be valid HTTP header names.")
 	}
 
-	canonicalName := http.CanonicalHeaderKey(name)
+	canonicalName := textproto.CanonicalMIMEHeaderKey(name)
 	if _, forbidden := reservedWebhookHeaderNames[canonicalName]; forbidden {
 		return "", domain.NewValidationError("headers", canonicalName+" cannot be configured as a webhook request header.")
 	}

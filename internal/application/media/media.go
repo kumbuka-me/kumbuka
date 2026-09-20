@@ -5,10 +5,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/http"
 	"path/filepath"
 	"strings"
 
+	"github.com/kumbuka-me/kumbuka/internal/filetype"
 	"github.com/kumbuka-me/kumbuka/pkg/ascii"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
@@ -96,8 +96,8 @@ func (s *Media) UploadImage(ctx context.Context, filename string, data []byte, a
 		return domain.Image{}, ErrFileTooLarge
 	}
 
-	contentType := http.DetectContentType(data)
-	if !SupportedImageType(contentType) {
+	contentType, supported := filetype.DetectImage(data)
+	if !supported {
 		return domain.Image{}, ErrUnsupportedFileType
 	}
 

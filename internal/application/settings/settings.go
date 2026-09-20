@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
-	"net/http"
+	"net/textproto"
 	"net/url"
 	"strings"
 
@@ -463,7 +463,7 @@ func normalizePDFHeaderName(name string) (string, error) {
 		return "", domain.NewValidationError("pdf_headers", "PDF header names must be valid HTTP header names.")
 	}
 
-	canonicalName := http.CanonicalHeaderKey(name)
+	canonicalName := textproto.CanonicalMIMEHeaderKey(name)
 	if _, forbidden := reservedPDFHeaderNames[canonicalName]; forbidden {
 		return "", domain.NewValidationError("pdf_headers", canonicalName+" cannot be configured as a PDF request header.")
 	}

@@ -6,11 +6,11 @@ import (
 	"encoding/xml"
 	"errors"
 	"io"
-	"net/http"
 	"path/filepath"
 	"strings"
 
 	"github.com/kumbuka-me/kumbuka/internal/application/audit"
+	"github.com/kumbuka-me/kumbuka/internal/filetype"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
 
@@ -91,8 +91,7 @@ func (s *Settings) ClearBrandLogo(ctx context.Context, actorID int64) error {
 
 // brandLogoContentType returns the canonical MIME type for a supported logo payload.
 func brandLogoContentType(filename string, data []byte) (string, bool) {
-	switch contentType := http.DetectContentType(data); contentType {
-	case "image/png", "image/jpeg", "image/gif", "image/webp":
+	if contentType, ok := filetype.DetectImage(data); ok {
 		return contentType, true
 	}
 
