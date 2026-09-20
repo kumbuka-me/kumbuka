@@ -291,7 +291,10 @@ func validateABI(compiled wazero.CompiledModule) error {
 func (i *Instance) instantiate(ctx context.Context) error {
 	// Anonymous instances cannot be imported by another plugin. Only _initialize
 	// is invoked, and it shares the load/call deadline and memory limit.
-	module, err := i.runtime.engine.InstantiateModule(ctx, i.compiled.CompiledModule, wazero.NewModuleConfig().WithName("").WithStartFunctions("_initialize"))
+	// Widgets compare stored timestamps with time.Now, so the WASI wall clock
+	// must reflect real time rather than wazero's default simulated epoch.
+	config := wazero.NewModuleConfig().WithName("").WithStartFunctions("_initialize").WithSysWalltime()
+	module, err := i.runtime.engine.InstantiateModule(ctx, i.compiled.CompiledModule, config)
 	if err != nil {
 		return fmt.Errorf("initialize WASM: %w", err)
 	}

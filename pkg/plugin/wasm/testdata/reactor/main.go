@@ -78,6 +78,8 @@ func transform(pointer, length uint32) uint64 {
 	_ = json.Unmarshal(input, &request)
 	result := renderResult{Parts: []renderPart{{Text: request.Source}}}
 	switch {
+	case request.Source == "walltime":
+		result.Parts[0].Text = time.Now().UTC().Format(time.RFC3339Nano)
 	case strings.HasPrefix(request.Source, "host-raw:"):
 		data := []byte(strings.TrimPrefix(request.Source, "host-raw:"))
 		response := make([]byte, 4096)

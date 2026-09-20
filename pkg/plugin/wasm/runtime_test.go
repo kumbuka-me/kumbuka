@@ -203,6 +203,19 @@ func TestBundledAndInstalledCalloutsUseSameRuntime(t *testing.T) {
 	assert.Equal(t, outputs[0], outputs[1])
 }
 
+// TestWASMClockUsesCurrentTime protects relative dates rendered by widgets.
+func TestWASMClockUsesCurrentTime(t *testing.T) {
+	instance, _ := runtimeFixture(t, "preprocess", wasm.Limits{})
+	before := time.Now()
+	output, err := instance.Contributions().Preprocessors[0].Preprocess(plugin.Context{}, "walltime")
+	require.NoError(t, err)
+	after := time.Now()
+	guestTime, err := time.Parse(time.RFC3339Nano, output)
+	require.NoError(t, err)
+	assert.False(t, guestTime.Before(before), "guest clock must not use a simulated epoch")
+	assert.False(t, guestTime.After(after), "guest clock must not be ahead of the host")
+}
+
 // TestSandboxDeniesAmbientCapabilities verifies sandbox denies ambient capabilities behavior.
 func TestSandboxDeniesAmbientCapabilities(t *testing.T) {
 	instance, _ := runtimeFixture(t, "preprocess", wasm.Limits{})
