@@ -105,7 +105,7 @@ func TestKnownInputFailuresAreValidationErrors(t *testing.T) {
 	t.Run("same move path", func(t *testing.T) {
 		t.Parallel()
 
-		err := pages.NewPages(nil, nil, slog.Default()).Move(ctx, "/guide/", "guide", domain.MovePageOptions{}, domain.User{})
+		err := pages.NewMutations(nil, nil, nil, slog.Default()).Move(ctx, "/guide/", "guide", domain.MovePageOptions{}, domain.User{})
 
 		validation, ok := errors.AsType[*domain.ValidationError](err)
 		require.True(t, ok)
@@ -116,7 +116,7 @@ func TestKnownInputFailuresAreValidationErrors(t *testing.T) {
 	t.Run("move tree into itself", func(t *testing.T) {
 		t.Parallel()
 
-		err := pages.NewPages(nil, nil, slog.Default()).Move(ctx, "guide", "guide/child", domain.MovePageOptions{MoveChildren: true}, domain.User{})
+		err := pages.NewMutations(nil, nil, nil, slog.Default()).Move(ctx, "guide", "guide/child", domain.MovePageOptions{MoveChildren: true}, domain.User{})
 
 		validation, ok := errors.AsType[*domain.ValidationError](err)
 		require.True(t, ok)
@@ -127,7 +127,7 @@ func TestKnownInputFailuresAreValidationErrors(t *testing.T) {
 	t.Run("bulk move same path", func(t *testing.T) {
 		t.Parallel()
 
-		err := pages.NewPages(nil, nil, slog.Default()).Bulk(ctx, pages.BulkPageInput{Action: "move", Slugs: []string{"guide/child"}, Target: "guide"})
+		err := pages.NewBulk(nil, nil, nil, slog.Default()).Bulk(ctx, pages.BulkPageInput{Action: "move", Slugs: []string{"guide/child"}, Target: "guide"})
 
 		validation, ok := errors.AsType[*domain.ValidationError](err)
 		require.True(t, ok)
@@ -144,7 +144,7 @@ func TestAdditionalServiceValidationBeforePersistence(t *testing.T) {
 	t.Run("comment body", func(t *testing.T) {
 		t.Parallel()
 
-		_, err := pages.NewPages(nil, nil, slog.Default()).AddComment(ctx, "page", 0, "", "", " ", domain.User{})
+		_, err := pages.NewDiscussions(nil, nil, nil, nil, slog.Default()).AddComment(ctx, "page", 0, "", "", " ", domain.User{})
 
 		validation, ok := errors.AsType[*domain.ValidationError](err)
 		require.True(t, ok)

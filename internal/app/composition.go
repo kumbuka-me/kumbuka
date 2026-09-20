@@ -85,8 +85,18 @@ type httpConfig struct {
 	Media *appmedia.Media
 	// Navigation provides navigation-tree and icon use cases.
 	Navigation *appnavigation.Navigation
-	// Pages provides page mutation and collaboration use cases.
-	Pages *apppages.Pages
+	// PageMutations owns core page create, update, move, delete, review, and revision restoration.
+	PageMutations *apppages.Mutations
+	// PagePresence owns collaborative editor presence.
+	PagePresence *apppages.Presence
+	// PageDiscussions owns page comments and inline suggestions.
+	PageDiscussions *apppages.Discussions
+	// PageReviews owns approval workflows.
+	PageReviews *apppages.Reviews
+	// PageReviewDiscussions owns review comments and suggestions.
+	PageReviewDiscussions *apppages.ReviewDiscussions
+	// PageBulk owns administrative bulk mutations and imports.
+	PageBulk *apppages.Bulk
 	// Preferences provides per-user preference use cases.
 	Preferences *apppreferences.Preferences
 	// RecycleBin provides deleted-page lifecycle use cases.
@@ -129,42 +139,52 @@ func newRouteConfig(
 	)
 
 	access := appaccess.NewAccess(database)
-	pages := apppages.NewPages(database, access, logger, webhooks)
+	mutations := apppages.NewMutations(database, access, database, logger, webhooks)
+	presence := apppages.NewPresence(database, access)
+	discussions := apppages.NewDiscussions(database, access, mutations, database, logger, webhooks)
+	reviews := apppages.NewReviews(database, access, database, logger, webhooks)
+	reviewDiscussions := apppages.NewReviewDiscussions(database, access, reviews, mutations, database, logger, webhooks)
+	bulk := apppages.NewBulk(database, mutations, database, logger, webhooks)
 
 	config := httpConfig{
-		Assets:         appFS,
-		Administration: appadministration.NewAdministration(database),
-		Access:         access,
-		PageLookup:     apppages.NewLookup(database, access),
-		PageSearch:     apppages.NewSearch(database, access),
-		PageDirectory:  apppages.NewDirectory(database, access),
-		PageReports:    apppages.NewReports(database, access),
-		PagePersonal:   apppages.NewPersonal(database, access),
-		PageHistory:    apppages.NewHistory(database, access),
-		PageRender:     apppages.NewRenderArtifacts(database),
-		Drafts:         apppages.NewDrafts(database),
-		Groups:         appgroups.NewGroups(database),
-		Knowledge:      appsearch.NewKnowledge(database, access),
-		Notifications:  appnotifications.NewNotifications(database),
-		Media:          appmedia.NewMedia(database),
-		Navigation:     appnavigation.NewNavigation(database, access),
-		Pages:          pages,
-		Preferences:    apppreferences.NewPreferences(database),
-		RecycleBin:     apprecyclebin.NewRecycleBin(database),
-		Settings:       appsettings.NewSettings(database, secretCipher).WithLogger(logger.With("component", "settings")),
-		System:         appsystem.NewSystem(database).WithLogger(logger.With("component", "system")),
-		Templates:      apptemplates.NewTemplates(database),
-		Tokens:         apptokens.NewTokens(database),
-		Users:          appusers.NewUsers(database).WithLogger(logger.With("component", "users")),
-		Webhooks:       webhooks,
-		Logger:         logger.With("component", "server"),
-		AccessLog:      cfg.AccessLog,
-		ReadOnly:       cfg.ReadOnly,
+		Assets:                appFS,
+		Administration:        appadministration.NewAdministration(database),
+		Access:                access,
+		PageLookup:            apppages.NewLookup(database, access),
+		PageSearch:            apppages.NewSearch(database, access),
+		PageDirectory:         apppages.NewDirectory(database, access),
+		PageReports:           apppages.NewReports(database, access),
+		PagePersonal:          apppages.NewPersonal(database, access),
+		PageHistory:           apppages.NewHistory(database, access),
+		PageRender:            apppages.NewRenderArtifacts(database),
+		Drafts:                apppages.NewDrafts(database),
+		Groups:                appgroups.NewGroups(database),
+		Knowledge:             appsearch.NewKnowledge(database, access),
+		Notifications:         appnotifications.NewNotifications(database),
+		Media:                 appmedia.NewMedia(database),
+		Navigation:            appnavigation.NewNavigation(database, access),
+		PageMutations:         mutations,
+		PagePresence:          presence,
+		PageDiscussions:       discussions,
+		PageReviews:           reviews,
+		PageReviewDiscussions: reviewDiscussions,
+		PageBulk:              bulk,
+		Preferences:           apppreferences.NewPreferences(database),
+		RecycleBin:            apprecyclebin.NewRecycleBin(database),
+		Settings:              appsettings.NewSettings(database, secretCipher).WithLogger(logger.With("component", "settings")),
+		System:                appsystem.NewSystem(database).WithLogger(logger.With("component", "system")),
+		Templates:             apptemplates.NewTemplates(database),
+		Tokens:                apptokens.NewTokens(database),
+		Users:                 appusers.NewUsers(database).WithLogger(logger.With("component", "users")),
+		Webhooks:              webhooks,
+		Logger:                logger.With("component", "server"),
+		AccessLog:             cfg.AccessLog,
+		ReadOnly:              cfg.ReadOnly,
 	}
 	config.Home = apppages.NewHomeQuery(database, config.Drafts, config.Access)
 	config.Editor = apppages.NewEditor(config.PageLookup, config.Groups, config.Templates)
-	config.EditorSave = apppages.NewEditorSave(config.Pages, config.Drafts, config.Templates, config.Logger)
-	config.ViewPage = apppages.NewView(database, config.Access, config.Pages, config.Logger)
+	config.EditorSave = apppages.NewEditorSave(config.PageMutations, config.Drafts, config.Templates, config.Logger)
+	config.ViewPage = apppages.NewView(database, config.Access, config.PageReviews, config.Logger)
 	return config
 }
 
@@ -238,7 +258,7 @@ func pluginUpdateCheckIntervalLabel(interval time.Duration) string {
 // configurePluginAwareServices installs runtime catalogs and rendering into services that validate plugin-owned data.
 func configurePluginAwareServices(config *httpConfig, renderer *markdown.Renderer, catalog *icons.Catalog) {
 	config.Navigation.WithIconCatalog(catalog)
-	config.Pages.WithIconCatalog(catalog).WithRenderer(renderer)
+	config.PageMutations.WithIconCatalog(catalog).WithRenderer(renderer)
 	config.Settings.WithIconCatalog(catalog)
 	config.Templates.WithIconCatalog(catalog)
 }

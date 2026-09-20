@@ -9,9 +9,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// portableImportRepository contains the persistence needed by portable import tests.
+type portableImportRepository interface {
+	bulkRepository
+	pageContentRepository
+}
+
 // portableImportRepositoryStub records the page mutation produced by portable import.
 type portableImportRepositoryStub struct {
-	pageRepository
+	portableImportRepository
 	// Existing reports whether GetPage should return an existing target page.
 	Existing bool
 	// PreviousSlug records the previous slug supplied to SavePage.
@@ -72,9 +78,10 @@ func TestImportPortablePageRestoresArchiveMetadata(t *testing.T) {
 	t.Parallel()
 
 	repository := &portableImportRepositoryStub{}
-	pages := NewPages(repository, nil, nil)
+	mutations := NewMutations(repository, nil, nil, nil)
+	bulk := NewBulk(repository, mutations, nil, nil)
 
-	err := pages.importPortablePage(context.Background(), PortableImportedPage{
+	err := bulk.importPortablePage(context.Background(), PortableImportedPage{
 		Slug:               "guide",
 		Title:              "Guide",
 		Language:           "german",
@@ -107,9 +114,10 @@ func TestImportPortablePageReplacesExistingMetadata(t *testing.T) {
 	t.Parallel()
 
 	repository := &portableImportRepositoryStub{Existing: true}
-	pages := NewPages(repository, nil, nil)
+	mutations := NewMutations(repository, nil, nil, nil)
+	bulk := NewBulk(repository, mutations, nil, nil)
 
-	err := pages.importPortablePage(context.Background(), PortableImportedPage{
+	err := bulk.importPortablePage(context.Background(), PortableImportedPage{
 		Slug:       "guide",
 		Title:      "Imported Guide",
 		Markdown:   "Imported body",

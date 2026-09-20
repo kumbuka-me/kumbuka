@@ -4,8 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 
+	appaccess "github.com/kumbuka-me/kumbuka/internal/application/access"
+	"github.com/kumbuka-me/kumbuka/internal/application/webhooks"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
 
@@ -55,6 +58,7 @@ type PageReviewDecisionInput struct {
 
 // pageReviewRepository contains persistence for review requests and reviewer resolution.
 type pageReviewRepository interface {
+	GetPage(context.Context, string) (domain.Page, error)
 	PageReviewRequest(context.Context, string) (domain.PageReviewRequest, error)
 	PageReviewRequestByID(context.Context, int64, string) (domain.PageReviewRequest, error)
 	ReviewUsers(context.Context, []string) ([]domain.User, error)
@@ -67,18 +71,40 @@ type pageReviewRepository interface {
 	DecidePageReview(context.Context, int64, string, int64, bool, string, string) (string, error)
 }
 
+// Reviews owns page approval workflows.
+type Reviews struct {
+	repository    pageReviewRepository
+	authorization pageAuthorization
+	effects       *pageEffects
+}
+
+// NewReviews constructs page review use cases.
+func NewReviews(
+	repository pageReviewRepository,
+	access appaccess.Policy,
+	sideEffects pageSideEffectRepository,
+	logger *slog.Logger,
+	eventSinks ...webhooks.EventSink,
+) *Reviews {
+	return &Reviews{
+		repository:    repository,
+		authorization: pageAuthorization{policy: access},
+		effects:       newPageEffects(sideEffects, logger, eventSinks...),
+	}
+}
+
 // PageReviewRequest returns the active review workflow item for a page.
-func (s *Pages) PageReviewRequest(ctx context.Context, slug string) (domain.PageReviewRequest, error) {
+func (s *Reviews) PageReviewRequest(ctx context.Context, slug string) (domain.PageReviewRequest, error) {
 	return s.repository.PageReviewRequest(ctx, strings.TrimSpace(slug))
 }
 
 // ReviewGroups returns collaboration groups that can be selected as review targets.
-func (s *Pages) ReviewGroups(ctx context.Context) ([]domain.Group, error) {
+func (s *Reviews) ReviewGroups(ctx context.Context) ([]domain.Group, error) {
 	return s.repository.ReviewGroups(ctx)
 }
 
 // CanReview reports whether an editor is assigned to the current pending review.
-func (s *Pages) CanReview(ctx context.Context, slug string, actor domain.User) (bool, error) {
+func (s *Reviews) CanReview(ctx context.Context, slug string, actor domain.User) (bool, error) {
 	if actor.IsAdministrator() {
 		return true, nil
 	}
@@ -90,7 +116,7 @@ func (s *Pages) CanReview(ctx context.Context, slug string, actor domain.User) (
 }
 
 // CanManageReview reports whether the actor may edit or cancel the pending request.
-func (s *Pages) CanManageReview(request domain.PageReviewRequest, actor domain.User) bool {
+func (s *Reviews) CanManageReview(request domain.PageReviewRequest, actor domain.User) bool {
 	if request.ID == 0 || request.Status != domain.PageReviewStatusPending {
 		return false
 	}
@@ -99,12 +125,12 @@ func (s *Pages) CanManageReview(request domain.PageReviewRequest, actor domain.U
 }
 
 // RequestReview opens a review for the current page revision and moves the page to draft.
-func (s *Pages) RequestReview(ctx context.Context, input PageReviewRequestInput) (domain.PageReviewRequest, error) {
+func (s *Reviews) RequestReview(ctx context.Context, input PageReviewRequestInput) (domain.PageReviewRequest, error) {
 	input.Slug = strings.TrimSpace(input.Slug)
 	if input.Slug == "" {
 		return domain.PageReviewRequest{}, domain.NewValidationError("slug", "A page path is required.")
 	}
-	if err := s.requireEdit(ctx, input.Actor, input.Slug); err != nil {
+	if err := s.authorization.requireEdit(ctx, input.Actor, input.Slug); err != nil {
 		return domain.PageReviewRequest{}, err
 	}
 	if !canRequestReview(input.Actor) {
@@ -144,14 +170,14 @@ func (s *Pages) RequestReview(ctx context.Context, input PageReviewRequestInput)
 		return domain.PageReviewRequest{}, err
 	}
 
-	s.recordAudit(ctx, input.Actor.ID, "page.review_requested", "page", input.Slug, "Review requested for revision "+fmt.Sprint(request.RevisionNumber))
-	s.notifyWatchers(ctx, input.Actor.ID, input.Slug, "review-requested", "Review requested", "/pages/"+input.Slug)
+	s.effects.recordAudit(ctx, input.Actor.ID, "page.review_requested", "page", input.Slug, "Review requested for revision "+fmt.Sprint(request.RevisionNumber))
+	s.effects.notifyWatchers(ctx, input.Actor.ID, input.Slug, "review-requested", "Review requested", "/pages/"+input.Slug)
 
 	return request, nil
 }
 
 // UpdateReview changes reviewers, reviewer group, or note without changing the requested revision.
-func (s *Pages) UpdateReview(ctx context.Context, input PageReviewUpdateInput) (domain.PageReviewRequest, error) {
+func (s *Reviews) UpdateReview(ctx context.Context, input PageReviewUpdateInput) (domain.PageReviewRequest, error) {
 	if input.ID <= 0 {
 		return domain.PageReviewRequest{}, domain.NewValidationError("review", "Choose a valid review request.")
 	}
@@ -159,7 +185,7 @@ func (s *Pages) UpdateReview(ctx context.Context, input PageReviewUpdateInput) (
 	if input.Slug == "" {
 		return domain.PageReviewRequest{}, domain.NewValidationError("slug", "A page path is required.")
 	}
-	if err := s.requireEdit(ctx, input.Actor, input.Slug); err != nil {
+	if err := s.authorization.requireEdit(ctx, input.Actor, input.Slug); err != nil {
 		return domain.PageReviewRequest{}, err
 	}
 
@@ -197,14 +223,14 @@ func (s *Pages) UpdateReview(ctx context.Context, input PageReviewUpdateInput) (
 		return domain.PageReviewRequest{}, err
 	}
 
-	s.recordAudit(ctx, input.Actor.ID, "page.review_updated", "page", input.Slug, "Pending review request updated")
-	s.notifyWatchers(ctx, input.Actor.ID, input.Slug, "review-updated", "Review request updated", "/pages/"+input.Slug)
+	s.effects.recordAudit(ctx, input.Actor.ID, "page.review_updated", "page", input.Slug, "Pending review request updated")
+	s.effects.notifyWatchers(ctx, input.Actor.ID, input.Slug, "review-updated", "Review request updated", "/pages/"+input.Slug)
 
 	return updated, nil
 }
 
 // CancelReview cancels a pending request without rewriting its history.
-func (s *Pages) CancelReview(ctx context.Context, id int64, slug string, actor domain.User) error {
+func (s *Reviews) CancelReview(ctx context.Context, id int64, slug string, actor domain.User) error {
 	if id <= 0 {
 		return domain.NewValidationError("review", "Choose a valid review request.")
 	}
@@ -212,7 +238,7 @@ func (s *Pages) CancelReview(ctx context.Context, id int64, slug string, actor d
 	if slug == "" {
 		return domain.NewValidationError("slug", "A page path is required.")
 	}
-	if err := s.requireEdit(ctx, actor, slug); err != nil {
+	if err := s.authorization.requireEdit(ctx, actor, slug); err != nil {
 		return err
 	}
 
@@ -232,21 +258,21 @@ func (s *Pages) CancelReview(ctx context.Context, id int64, slug string, actor d
 		return err
 	}
 
-	s.recordAudit(ctx, actor.ID, "page.review_canceled", "page", resolvedSlug, "Pending review request canceled")
-	s.notifyWatchers(ctx, actor.ID, resolvedSlug, "review-canceled", "Review request canceled", "/pages/"+resolvedSlug)
+	s.effects.recordAudit(ctx, actor.ID, "page.review_canceled", "page", resolvedSlug, "Pending review request canceled")
+	s.effects.notifyWatchers(ctx, actor.ID, resolvedSlug, "review-canceled", "Review request canceled", "/pages/"+resolvedSlug)
 
 	return nil
 }
 
 // DecideReview approves the requested revision or asks the author for changes.
-func (s *Pages) DecideReview(ctx context.Context, input PageReviewDecisionInput) error {
+func (s *Reviews) DecideReview(ctx context.Context, input PageReviewDecisionInput) error {
 	if input.ID <= 0 {
 		return domain.NewValidationError("review", "Choose a valid review request.")
 	}
 	if input.Decision != domain.PageReviewStatusApproved && input.Decision != domain.PageReviewStatusChangesRequested {
 		return domain.NewValidationError("decision", "Choose approve or request changes.")
 	}
-	if err := s.requireView(ctx, input.Actor, input.Slug); err != nil {
+	if err := s.authorization.requireView(ctx, input.Actor, input.Slug); err != nil {
 		return err
 	}
 
@@ -272,8 +298,8 @@ func (s *Pages) DecideReview(ctx context.Context, input PageReviewDecisionInput)
 		return err
 	}
 
-	s.recordAudit(ctx, input.Actor.ID, "page.review_"+input.Decision, "page", resolvedSlug, strings.TrimSpace(input.Note))
-	s.notifyWatchers(ctx, input.Actor.ID, resolvedSlug, "review-"+input.Decision, "Review "+strings.ReplaceAll(input.Decision, "_", " "), "/pages/"+resolvedSlug)
+	s.effects.recordAudit(ctx, input.Actor.ID, "page.review_"+input.Decision, "page", resolvedSlug, strings.TrimSpace(input.Note))
+	s.effects.notifyWatchers(ctx, input.Actor.ID, resolvedSlug, "review-"+input.Decision, "Review "+strings.ReplaceAll(input.Decision, "_", " "), "/pages/"+resolvedSlug)
 
 	return nil
 }
@@ -284,7 +310,7 @@ func canRequestReview(actor domain.User) bool {
 }
 
 // resolveReviewTargets validates selected people and the optional group and applies the owner-group fallback.
-func (s *Pages) resolveReviewTargets(
+func (s *Reviews) resolveReviewTargets(
 	ctx context.Context,
 	slug string,
 	usernames []string,

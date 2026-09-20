@@ -15,7 +15,7 @@ import (
 // PageReview renders the immutable requested revision with line comments and applicable suggestions.
 func PageReview(
 	browserContext browserContextLoader,
-	pageUseCases pageApprovalService,
+	pageUseCases pageReviewDiscussionService,
 	views *webview.Views,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -53,7 +53,7 @@ func PageReview(
 }
 
 // AddPageReviewComment adds line feedback or a Markdown suggestion to a pending review.
-func AddPageReviewComment(pageUseCases pageApprovalService, views *webview.Views) http.HandlerFunc {
+func AddPageReviewComment(pageUseCases pageReviewDiscussionService, views *webview.Views) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if err := r.ParseForm(); err != nil {
 			httpresponse.Problem(w, http.StatusBadRequest, "Invalid review comment.")
@@ -98,7 +98,7 @@ func AddPageReviewComment(pageUseCases pageApprovalService, views *webview.Views
 }
 
 // ApplyPageReviewSuggestion applies one pending suggestion as a new page revision.
-func ApplyPageReviewSuggestion(pageUseCases pageApprovalService, views *webview.Views) http.HandlerFunc {
+func ApplyPageReviewSuggestion(pageUseCases pageReviewDiscussionService, views *webview.Views) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		reviewID, ok := reviewRequestID(w, r.PathValue("id"))
 		if !ok {
@@ -121,7 +121,7 @@ func ApplyPageReviewSuggestion(pageUseCases pageApprovalService, views *webview.
 }
 
 // ApplyAllPageReviewSuggestions applies all pending non-overlapping suggestions as one new revision.
-func ApplyAllPageReviewSuggestions(pageUseCases pageApprovalService, views *webview.Views) http.HandlerFunc {
+func ApplyAllPageReviewSuggestions(pageUseCases pageReviewDiscussionService, views *webview.Views) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		reviewID, ok := reviewRequestID(w, r.PathValue("id"))
 		if !ok {

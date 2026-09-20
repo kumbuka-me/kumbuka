@@ -40,7 +40,7 @@ type PortableImportedPage struct {
 
 // ImportPortable persists pages reconstructed from a Kumbuka portable archive.
 // Archive metadata is authoritative for both new pages and replacements.
-func (s *Pages) ImportPortable(
+func (s *Bulk) ImportPortable(
 	ctx context.Context,
 	candidates []PortableImportedPage,
 	actor domain.User,
@@ -51,7 +51,7 @@ func (s *Pages) ImportPortable(
 		}
 	}
 
-	s.recordAudit(
+	s.effects.recordAudit(
 		ctx,
 		actor.ID,
 		"pages.imported",
@@ -64,7 +64,7 @@ func (s *Pages) ImportPortable(
 }
 
 // importPortablePage persists one archive page using portable metadata instead of target defaults.
-func (s *Pages) importPortablePage(
+func (s *Bulk) importPortablePage(
 	ctx context.Context,
 	candidate PortableImportedPage,
 	actor domain.User,
@@ -81,7 +81,7 @@ func (s *Pages) importPortablePage(
 		return err
 	}
 
-	_, err := s.save(ctx, PageSaveInput{
+	_, err := s.mutations.save(ctx, PageSaveInput{
 		PreviousSlug:       previousSlug,
 		Slug:               slug,
 		Title:              candidate.Title,

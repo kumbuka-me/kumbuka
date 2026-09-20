@@ -159,12 +159,12 @@ func (r routeRegistrar) addAdminRoutes() {
 	r.router.Handle("GET /admin/pages", browserAuthn(adminAuthz(endpoint.AdminPages(config.BrowserContext, config.PageDirectory, config.Groups, config.Views))))
 	r.router.Handle(
 		"POST /admin/pages/bulk",
-		browserAuthn(adminAuthz(endpoint.BulkAdminPages(config.Pages, config.PageLookup, config.Media, config.Logger))),
+		browserAuthn(adminAuthz(endpoint.BulkAdminPages(config.PageBulk, config.PageLookup, config.Media, config.Logger))),
 	)
 	r.router.Handle("GET /admin/import", browserAuthn(adminAuthz(endpoint.AdminImport(config.BrowserContext, config.Views))))
 	r.router.Handle(
 		"POST /admin/import",
-		browserAuthn(adminAuthz(endpoint.ImportPagesWithPortableArchive(config.Pages, config.Media, config.Groups, config.Logger))),
+		browserAuthn(adminAuthz(endpoint.ImportPagesWithPortableArchive(config.PageBulk, config.Media, config.Groups, config.Logger))),
 	)
 	r.router.Handle("POST /admin/templates", browserAuthn(adminAuthz(endpoint.CreateAdminPageTemplate(config.Templates, config.Logger))))
 	r.router.Handle("POST /admin/templates/{id}", browserAuthn(adminAuthz(endpoint.UpdateAdminPageTemplate(config.Templates, config.Logger))))
@@ -279,20 +279,20 @@ func (r routeRegistrar) addPageRoutes() {
 		)),
 	)
 
-	r.router.Handle("POST /pages/delete/{slug...}", browserAuthn(adminAuthz(endpoint.DeletePageForm(config.Pages, config.Views))))
-	r.router.Handle("POST /pages/move/{slug...}", browserAuthn(editorAuthz(endpoint.MovePageForm(config.Pages, config.Logger))))
-	r.router.Handle("POST /pages/review/{slug...}", browserAuthn(editorAuthz(endpoint.ReviewPageForm(config.Pages, config.Logger))))
-	r.router.Handle("POST /pages/approval/request/{slug...}", browserAuthn(editorAuthz(endpoint.RequestPageReview(config.Pages, config.Logger))))
-	r.router.Handle("POST /pages/approval/update/{id}/{slug...}", browserAuthn(editorAuthz(endpoint.UpdatePageReview(config.Pages, config.Logger))))
-	r.router.Handle("POST /pages/approval/cancel/{id}/{slug...}", browserAuthn(editorAuthz(endpoint.CancelPageReview(config.Pages, config.Logger))))
-	r.router.Handle("POST /pages/approval/decide/{id}/{slug...}", browserAuthn(editorAuthz(endpoint.DecidePageReview(config.Pages, config.Logger))))
-	r.router.Handle("GET /reviews/{id}/{slug...}", browserAuthn(editorAuthz(endpoint.PageReview(config.BrowserContext, config.Pages, config.Views))))
-	r.router.Handle("POST /reviews/{id}/comments/{slug...}", browserAuthn(editorAuthz(endpoint.AddPageReviewComment(config.Pages, config.Views))))
-	r.router.Handle(pageReviewSuggestionApplyPattern, browserAuthn(editorAuthz(endpoint.ApplyPageReviewSuggestion(config.Pages, config.Views))))
-	r.router.Handle(pageReviewSuggestionsApplyAllPattern, browserAuthn(editorAuthz(endpoint.ApplyAllPageReviewSuggestions(config.Pages, config.Views))))
-	r.router.Handle("POST /page-comments/{slug...}", browserAuthn(endpoint.AddPageComment(config.Pages, config.Views)))
-	r.router.Handle(pageCommentSuggestionApplyPattern, browserAuthn(editorAuthz(endpoint.ApplyPageCommentSuggestion(config.Pages, config.Views))))
-	r.router.Handle("POST /page-comments/resolve/{id}/{slug...}", browserAuthn(editorAuthz(endpoint.ResolvePageComment(config.Pages, config.Views))))
+	r.router.Handle("POST /pages/delete/{slug...}", browserAuthn(adminAuthz(endpoint.DeletePageForm(config.PageMutations, config.Views))))
+	r.router.Handle("POST /pages/move/{slug...}", browserAuthn(editorAuthz(endpoint.MovePageForm(config.PageMutations, config.Logger))))
+	r.router.Handle("POST /pages/review/{slug...}", browserAuthn(editorAuthz(endpoint.ReviewPageForm(config.PageMutations, config.Logger))))
+	r.router.Handle("POST /pages/approval/request/{slug...}", browserAuthn(editorAuthz(endpoint.RequestPageReview(config.PageReviews, config.Logger))))
+	r.router.Handle("POST /pages/approval/update/{id}/{slug...}", browserAuthn(editorAuthz(endpoint.UpdatePageReview(config.PageReviews, config.Logger))))
+	r.router.Handle("POST /pages/approval/cancel/{id}/{slug...}", browserAuthn(editorAuthz(endpoint.CancelPageReview(config.PageReviews, config.Logger))))
+	r.router.Handle("POST /pages/approval/decide/{id}/{slug...}", browserAuthn(editorAuthz(endpoint.DecidePageReview(config.PageReviews, config.Logger))))
+	r.router.Handle("GET /reviews/{id}/{slug...}", browserAuthn(editorAuthz(endpoint.PageReview(config.BrowserContext, config.PageReviewDiscussions, config.Views))))
+	r.router.Handle("POST /reviews/{id}/comments/{slug...}", browserAuthn(editorAuthz(endpoint.AddPageReviewComment(config.PageReviewDiscussions, config.Views))))
+	r.router.Handle(pageReviewSuggestionApplyPattern, browserAuthn(editorAuthz(endpoint.ApplyPageReviewSuggestion(config.PageReviewDiscussions, config.Views))))
+	r.router.Handle(pageReviewSuggestionsApplyAllPattern, browserAuthn(editorAuthz(endpoint.ApplyAllPageReviewSuggestions(config.PageReviewDiscussions, config.Views))))
+	r.router.Handle("POST /page-comments/{slug...}", browserAuthn(endpoint.AddPageComment(config.PageDiscussions, config.Views)))
+	r.router.Handle(pageCommentSuggestionApplyPattern, browserAuthn(editorAuthz(endpoint.ApplyPageCommentSuggestion(config.PageDiscussions, config.Views))))
+	r.router.Handle("POST /page-comments/resolve/{id}/{slug...}", browserAuthn(editorAuthz(endpoint.ResolvePageComment(config.PageDiscussions, config.Views))))
 
 	editPage := endpoint.EditPage(config.BrowserContext, config.Editor, config.Views)
 	r.router.Handle("GET /pages/new", browserAuthn(editorAuthz(editPage)))
@@ -306,7 +306,7 @@ func (r routeRegistrar) addPageRoutes() {
 	r.router.Handle("GET /revisions/{slug...}", browserAuthn(endpoint.RevisionHistory(config.PageHistory, config.Views)))
 	r.router.Handle(
 		"POST /revisions/{number}/restore/{slug...}",
-		browserAuthn(editorAuthz(endpoint.RestoreRevision(config.Pages, config.Views))),
+		browserAuthn(editorAuthz(endpoint.RestoreRevision(config.PageMutations, config.Views))),
 	)
 	r.router.Handle(
 		"GET /pages/{slug...}",
@@ -330,7 +330,7 @@ func (r routeRegistrar) addAPIRoutes() {
 
 	r.router.Handle("GET /api/icons", apiAuthn(editorAuthz(endpoint.SearchIcons(config.Views.IconCatalog()))))
 	r.router.Handle("GET /api/pages", apiAuthn(endpoint.ListPages(config.PageSearch, config.Logger)))
-	r.router.Handle("POST /api/pages", apiAuthn(editorAuthz(endpoint.SavePage(config.Pages, config.Logger))))
+	r.router.Handle("POST /api/pages", apiAuthn(editorAuthz(endpoint.SavePage(config.PageMutations, config.Logger))))
 	r.router.Handle(
 		"POST /api/preview",
 		apiAuthn(editorAuthz(endpoint.PreviewMarkdown(
@@ -343,12 +343,12 @@ func (r routeRegistrar) addAPIRoutes() {
 	r.router.Handle("GET /api/drafts/{key}", apiAuthn(editorAuthz(endpoint.GetPageDraft(config.Drafts, config.Logger))))
 	r.router.Handle("PUT /api/drafts/{key}", apiAuthn(editorAuthz(endpoint.SavePageDraft(config.Drafts, config.Logger))))
 	r.router.Handle("DELETE /api/drafts/{key}", apiAuthn(editorAuthz(endpoint.DeletePageDraft(config.Drafts, config.Logger))))
-	r.router.Handle("GET /api/page-presence/{slug...}", apiAuthn(endpoint.PageEditors(config.Pages, config.Logger)))
-	r.router.Handle("PUT /api/page-presence/{slug...}", apiAuthn(editorAuthz(endpoint.TouchPageEditor(config.Pages, config.Logger))))
-	r.router.Handle("DELETE /api/page-presence/{slug...}", apiAuthn(editorAuthz(endpoint.LeavePageEditor(config.Pages, config.Logger))))
+	r.router.Handle("GET /api/page-presence/{slug...}", apiAuthn(endpoint.PageEditors(config.PagePresence, config.Logger)))
+	r.router.Handle("PUT /api/page-presence/{slug...}", apiAuthn(editorAuthz(endpoint.TouchPageEditor(config.PagePresence, config.Logger))))
+	r.router.Handle("DELETE /api/page-presence/{slug...}", apiAuthn(editorAuthz(endpoint.LeavePageEditor(config.PagePresence, config.Logger))))
 	r.router.Handle("GET /api/pages/{slug...}", apiAuthn(endpoint.GetPage(config.PageLookup, config.Logger)))
-	r.router.Handle("PUT /api/pages/{slug...}", apiAuthn(editorAuthz(endpoint.SavePage(config.Pages, config.Logger))))
-	r.router.Handle("DELETE /api/pages/{slug...}", apiAuthn(adminAuthz(endpoint.DeletePage(config.Pages, config.Logger))))
+	r.router.Handle("PUT /api/pages/{slug...}", apiAuthn(editorAuthz(endpoint.SavePage(config.PageMutations, config.Logger))))
+	r.router.Handle("DELETE /api/pages/{slug...}", apiAuthn(adminAuthz(endpoint.DeletePage(config.PageMutations, config.Logger))))
 	r.router.Handle("GET /api/search", apiAuthn(endpoint.SearchAPI(config.PageSearch, config.Logger)))
 	r.router.Handle("GET /api/graph", apiAuthn(endpoint.KnowledgeGraphAPI(config.Knowledge, config.Logger)))
 	r.router.Handle(

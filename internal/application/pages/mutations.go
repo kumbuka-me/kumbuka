@@ -54,17 +54,6 @@ type PageSaveInput struct {
 	Actor domain.User
 }
 
-// pageRepository composes the persistence capabilities used across page workflows.
-type pageRepository interface {
-	pageContentRepository
-	pagePresenceRepository
-	pageDiscussionRepository
-	pageBulkRepository
-	pageReviewRepository
-	pageReviewDiscussionRepository
-	pageSideEffectRepository
-}
-
 // pageContentRepository contains persistence used by core page mutations and revision restoration.
 type pageContentRepository interface {
 	DeletePage(context.Context, string, int64) error
@@ -77,27 +66,18 @@ type pageContentRepository interface {
 	SavePageIfUnchanged(context.Context, time.Time, string, string, string, string, string, string, string, []string, []string, []int64, domain.PageMetadata, map[string]string, domain.PageRender, domain.User) (domain.Page, error)
 }
 
-// pagePresenceRepository persists short-lived collaborative editor presence.
-type pagePresenceRepository interface {
-	TouchPageEditor(context.Context, string, int64) error
-	LeavePageEditor(context.Context, string, int64) error
-	PageEditors(context.Context, string, int64, time.Duration) ([]domain.PageEditorPresence, error)
-}
-
 type pageUsageAnalyzer interface {
 	AnalyzeUsage(string) pluginusage.Index
 }
 
-// Pages coordinates page mutations and their application-level side effects.
-type Pages struct {
-	// repository provides the composed persistence capabilities used by page workflows.
-	repository pageRepository
-	// access enforces resource-level page visibility and mutation permissions.
-	access appaccess.Policy
-	// logger records diagnostics emitted by pages.
-	logger *slog.Logger
-	// eventSinks receive committed page events after persistence succeeds.
-	eventSinks []webhooks.EventSink
+// Mutations coordinates core page mutations and their application-level side effects.
+type Mutations struct {
+	// repository persists core page content and revision mutations.
+	repository pageContentRepository
+	// authorization enforces resource-level page visibility and mutation permissions.
+	authorization pageAuthorization
+	// effects emits best-effort audit, mention, watcher, and webhook side effects.
+	effects *pageEffects
 	// usageAnalyzer derives plugin usage metadata from Markdown before persistence.
 	usageAnalyzer pageUsageAnalyzer
 	// renderer materializes stable HTML during writes when safe.
@@ -106,18 +86,29 @@ type Pages struct {
 	iconCatalog *icons.Catalog
 }
 
-// NewPages constructs the page application service. Event sinks are optional so
+// NewMutations constructs core page mutation use cases. Event sinks are optional so
 // page mutations remain independently testable.
-func NewPages(repository pageRepository, access appaccess.Policy, logger *slog.Logger, eventSinks ...webhooks.EventSink) *Pages {
+func NewMutations(
+	repository pageContentRepository,
+	access appaccess.Policy,
+	sideEffects pageSideEffectRepository,
+	logger *slog.Logger,
+	eventSinks ...webhooks.EventSink,
+) *Mutations {
 	if logger == nil {
 		logger = slog.Default()
 	}
 
-	return &Pages{repository: repository, access: access, logger: logger, eventSinks: eventSinks, iconCatalog: icons.Builtin()}
+	return &Mutations{
+		repository:    repository,
+		authorization: pageAuthorization{policy: access},
+		effects:       newPageEffects(sideEffects, logger, eventSinks...),
+		iconCatalog:   icons.Builtin(),
+	}
 }
 
 // WithIconCatalog uses the active plugin-aware icon catalog for validation.
-func (s *Pages) WithIconCatalog(catalog *icons.Catalog) *Pages {
+func (s *Mutations) WithIconCatalog(catalog *icons.Catalog) *Mutations {
 	if catalog == nil {
 		catalog = icons.Builtin()
 	}
@@ -126,14 +117,14 @@ func (s *Pages) WithIconCatalog(catalog *icons.Catalog) *Pages {
 }
 
 // WithUsageAnalyzer derives plugin usage metadata for every persisted page write.
-func (s *Pages) WithUsageAnalyzer(analyzer pageUsageAnalyzer) *Pages {
+func (s *Mutations) WithUsageAnalyzer(analyzer pageUsageAnalyzer) *Mutations {
 	s.usageAnalyzer = analyzer
 	return s
 }
 
 // WithRenderer enables materialized HTML for pages whose render is independent
 // of request-local permissions and mutable plugin resource data.
-func (s *Pages) WithRenderer(renderer *md.Renderer) *Pages {
+func (s *Mutations) WithRenderer(renderer *md.Renderer) *Mutations {
 	s.renderer = renderer
 	if renderer == nil {
 		s.usageAnalyzer = nil
@@ -144,32 +135,16 @@ func (s *Pages) WithRenderer(renderer *md.Renderer) *Pages {
 	return s
 }
 
-// requireView enforces page visibility when a resource access policy is configured.
-func (s *Pages) requireView(ctx context.Context, actor domain.User, slug string) error {
-	if s.access == nil {
-		return nil
-	}
-	return appaccess.RequireView(ctx, s.access, actor, slug)
-}
-
-// requireEdit enforces page mutation access when a resource access policy is configured.
-func (s *Pages) requireEdit(ctx context.Context, actor domain.User, slug string) error {
-	if s.access == nil {
-		return nil
-	}
-	return appaccess.RequireEdit(ctx, s.access, actor, slug)
-}
-
 // Save validates and persists a page, then records audit and mention side effects.
-func (s *Pages) Save(ctx context.Context, input PageSaveInput) (domain.Page, error) {
+func (s *Mutations) Save(ctx context.Context, input PageSaveInput) (domain.Page, error) {
 	destination := md.Slug(input.Slug)
 	if destination == "" && strings.TrimSpace(input.PreviousSlug) == "" {
 		destination = md.Slug(input.Title)
 	}
-	if err := s.requireEdit(ctx, input.Actor, input.PreviousSlug); err != nil {
+	if err := s.authorization.requireEdit(ctx, input.Actor, input.PreviousSlug); err != nil {
 		return domain.Page{}, err
 	}
-	if err := s.requireEdit(ctx, input.Actor, destination); err != nil {
+	if err := s.authorization.requireEdit(ctx, input.Actor, destination); err != nil {
 		return domain.Page{}, err
 	}
 
@@ -187,66 +162,17 @@ func (s *Pages) Save(ctx context.Context, input PageSaveInput) (domain.Page, err
 		action = "page.renamed"
 	}
 
-	s.recordAudit(ctx, input.Actor.ID, action, "page", page.Slug, page.Title)
-	s.notifyMentions(
+	s.effects.recordAudit(ctx, input.Actor.ID, action, "page", page.Slug, page.Title)
+	s.effects.notifyMentions(
 		ctx,
 		input.Actor.ID,
 		input.Markdown,
 		"Mention in "+page.Title,
 		"/pages/"+page.Slug,
 	)
-	s.notifyWatchers(ctx, input.Actor.ID, page.Slug, actionTitle(action, page.Title), "A watched page changed.", "/pages/"+page.Slug)
+	s.effects.notifyWatchers(ctx, input.Actor.ID, page.Slug, actionTitle(action, page.Title), "A watched page changed.", "/pages/"+page.Slug)
 
 	return page, nil
-}
-
-const pageEditorPresenceTTL = 90 * time.Second
-
-// PageEditors returns other users with a recent editor heartbeat for one page.
-func (s *Pages) PageEditors(ctx context.Context, slug string, actor domain.User) ([]domain.PageEditorPresence, error) {
-	slug = strings.Trim(strings.TrimSpace(slug), "/")
-	if err := s.requireView(ctx, actor, slug); err != nil {
-		return nil, err
-	}
-	if slug == "" {
-		return nil, domain.ErrNotFound
-	}
-
-	return s.repository.PageEditors(ctx, slug, actor.ID, pageEditorPresenceTTL)
-}
-
-// TouchPageEditor refreshes one authenticated user's editor presence.
-func (s *Pages) TouchPageEditor(ctx context.Context, slug string, actor domain.User) error {
-	if actor.ID <= 0 {
-		return domain.ErrForbidden
-	}
-
-	slug = strings.Trim(strings.TrimSpace(slug), "/")
-	if slug == "" {
-		return domain.ErrNotFound
-	}
-	if err := s.requireEdit(ctx, actor, slug); err != nil {
-		return err
-	}
-
-	return s.repository.TouchPageEditor(ctx, slug, actor.ID)
-}
-
-// LeavePageEditor clears one authenticated user's editor presence.
-func (s *Pages) LeavePageEditor(ctx context.Context, slug string, actor domain.User) error {
-	if actor.ID <= 0 {
-		return domain.ErrForbidden
-	}
-
-	slug = strings.Trim(strings.TrimSpace(slug), "/")
-	if slug == "" {
-		return nil
-	}
-	if err := s.requireEdit(ctx, actor, slug); err != nil {
-		return err
-	}
-
-	return s.repository.LeavePageEditor(ctx, slug, actor.ID)
 }
 
 // validPageWorkflowSettings reports whether page lifecycle and review metadata are internally valid.
@@ -262,7 +188,7 @@ func validPageWorkflowSettings(input PageSaveInput) bool {
 }
 
 // save validates and persists a page without emitting side effects.
-func (s *Pages) save(ctx context.Context, input PageSaveInput) (domain.Page, error) {
+func (s *Mutations) save(ctx context.Context, input PageSaveInput) (domain.Page, error) {
 	input.PreviousSlug = strings.TrimSpace(input.PreviousSlug)
 	input.Slug = md.Slug(input.Slug)
 	input.Title = strings.TrimSpace(input.Title)
@@ -366,7 +292,7 @@ func (s *Pages) save(ctx context.Context, input PageSaveInput) (domain.Page, err
 }
 
 // derivePageContent computes plugin usage and the reusable render artifact for canonical Markdown.
-func (s *Pages) derivePageContent(ctx context.Context, markdown string) (*pluginusage.Index, domain.PageRender, error) {
+func (s *Mutations) derivePageContent(ctx context.Context, markdown string) (*pluginusage.Index, domain.PageRender, error) {
 	var pluginUsage *pluginusage.Index
 	if s.usageAnalyzer != nil {
 		usage := s.usageAnalyzer.AnalyzeUsage(markdown)
@@ -383,7 +309,7 @@ func (s *Pages) derivePageContent(ctx context.Context, markdown string) (*plugin
 
 // materializeRender renders stable page content once so normal GET requests can
 // reuse it. Dynamic macro/substitution pages intentionally return an empty artifact.
-func (s *Pages) materializeRender(ctx context.Context, source string, usage *pluginusage.Index) (domain.PageRender, error) {
+func (s *Mutations) materializeRender(ctx context.Context, source string, usage *pluginusage.Index) (domain.PageRender, error) {
 	if s.renderer == nil || !s.renderer.CanPersist(source, usage) {
 		return domain.PageRender{}, nil
 	}
@@ -412,23 +338,23 @@ func (s *Pages) materializeRender(ctx context.Context, source string, usage *plu
 }
 
 // Delete moves a page to the recycle bin and records the action.
-func (s *Pages) Delete(ctx context.Context, slug string, actor domain.User) error {
+func (s *Mutations) Delete(ctx context.Context, slug string, actor domain.User) error {
 	slug = strings.TrimSpace(slug)
-	if err := s.requireEdit(ctx, actor, slug); err != nil {
+	if err := s.authorization.requireEdit(ctx, actor, slug); err != nil {
 		return err
 	}
 	if err := s.repository.DeletePage(ctx, slug, actor.ID); err != nil {
 		return err
 	}
 
-	s.recordAudit(ctx, actor.ID, "page.deleted", "page", slug, "Moved page to recycle bin")
-	s.notifyWatchers(ctx, actor.ID, slug, "Page deleted: "+slug, "A watched page was moved to the recycle bin.", "/")
+	s.effects.recordAudit(ctx, actor.ID, "page.deleted", "page", slug, "Moved page to recycle bin")
+	s.effects.notifyWatchers(ctx, actor.ID, slug, "Page deleted: "+slug, "A watched page was moved to the recycle bin.", "/")
 
 	return nil
 }
 
 // Move moves a page or subtree and records the action.
-func (s *Pages) Move(
+func (s *Mutations) Move(
 	ctx context.Context,
 	oldSlug, newSlug string,
 	options domain.MovePageOptions,
@@ -445,41 +371,41 @@ func (s *Pages) Move(
 	if options.MoveChildren && strings.HasPrefix(newSlug, oldSlug+"/") {
 		return domain.NewValidationError("slug", "A page tree cannot be moved inside itself.")
 	}
-	if err := s.requireEdit(ctx, actor, oldSlug); err != nil {
+	if err := s.authorization.requireEdit(ctx, actor, oldSlug); err != nil {
 		return err
 	}
-	if err := s.requireEdit(ctx, actor, newSlug); err != nil {
+	if err := s.authorization.requireEdit(ctx, actor, newSlug); err != nil {
 		return err
 	}
 	if err := s.repository.MovePage(ctx, oldSlug, newSlug, options, actor); err != nil {
 		return err
 	}
 
-	s.recordAudit(ctx, actor.ID, "page.moved", "page", newSlug, oldSlug+" → "+newSlug)
-	s.notifyWatchers(ctx, actor.ID, oldSlug, "Page moved: "+oldSlug, "The watched page moved to "+newSlug+".", "/pages/"+newSlug)
+	s.effects.recordAudit(ctx, actor.ID, "page.moved", "page", newSlug, oldSlug+" → "+newSlug)
+	s.effects.notifyWatchers(ctx, actor.ID, oldSlug, "Page moved: "+oldSlug, "The watched page moved to "+newSlug+".", "/pages/"+newSlug)
 
 	return nil
 }
 
 // Review records a completed documentation review and its audit event.
-func (s *Pages) Review(ctx context.Context, slug string, actor domain.User) error {
+func (s *Mutations) Review(ctx context.Context, slug string, actor domain.User) error {
 	slug = strings.TrimSpace(slug)
-	if err := s.requireEdit(ctx, actor, slug); err != nil {
+	if err := s.authorization.requireEdit(ctx, actor, slug); err != nil {
 		return err
 	}
 	if err := s.repository.MarkPageReviewed(ctx, slug); err != nil {
 		return err
 	}
 
-	s.recordAudit(ctx, actor.ID, "page.reviewed", "page", slug, "Documentation review completed")
-	s.notifyWatchers(ctx, actor.ID, slug, "Page reviewed: "+slug, "A watched page was reviewed.", "/pages/"+slug)
+	s.effects.recordAudit(ctx, actor.ID, "page.reviewed", "page", slug, "Documentation review completed")
+	s.effects.notifyWatchers(ctx, actor.ID, slug, "Page reviewed: "+slug, "A watched page was reviewed.", "/pages/"+slug)
 
 	return nil
 }
 
 // RestoreRevision creates a new page revision from a persisted historical revision.
-func (s *Pages) RestoreRevision(ctx context.Context, slug string, number int, actor domain.User) (domain.Page, error) {
-	if err := s.requireEdit(ctx, actor, slug); err != nil {
+func (s *Mutations) RestoreRevision(ctx context.Context, slug string, number int, actor domain.User) (domain.Page, error) {
+	if err := s.authorization.requireEdit(ctx, actor, slug); err != nil {
 		return domain.Page{}, err
 	}
 	if number <= 0 {
@@ -529,7 +455,7 @@ func (s *Pages) RestoreRevision(ctx context.Context, slug string, number int, ac
 		return domain.Page{}, err
 	}
 
-	s.recordAudit(
+	s.effects.recordAudit(
 		ctx,
 		actor.ID,
 		"page.revision_restored",
@@ -537,7 +463,7 @@ func (s *Pages) RestoreRevision(ctx context.Context, slug string, number int, ac
 		page.Slug,
 		"Restored revision "+fmt.Sprint(number),
 	)
-	s.notifyWatchers(ctx, actor.ID, page.Slug, "Revision restored: "+page.Title, "A watched page restored an older revision.", "/pages/"+page.Slug)
+	s.effects.notifyWatchers(ctx, actor.ID, page.Slug, "Revision restored: "+page.Title, "A watched page restored an older revision.", "/pages/"+page.Slug)
 
 	return page, nil
 }

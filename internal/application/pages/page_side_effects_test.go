@@ -34,8 +34,8 @@ func (s *failingPageSideEffects) NotifyPageWatchers(context.Context, int64, stri
 func TestPageSaveReportsSecondaryFailuresWithoutFailingMutation(t *testing.T) {
 	var logs bytes.Buffer
 	repository := &failingPageSideEffects{}
-	pages := NewPages(repository, nil, slog.New(slog.NewJSONHandler(&logs, nil)))
-	page, err := pages.Save(context.Background(), PageSaveInput{Slug: "example", Title: "Example", Markdown: "private page content", Status: "verified", Actor: domain.User{ID: 42}})
+	mutations := NewMutations(repository, nil, repository, slog.New(slog.NewJSONHandler(&logs, nil)))
+	page, err := mutations.Save(context.Background(), PageSaveInput{Slug: "example", Title: "Example", Markdown: "private page content", Status: "verified", Actor: domain.User{ID: 42}})
 	require.NoError(t, err)
 	assert.Equal(t, "example", page.Slug)
 	assert.Equal(t, 1, repository.auditCalls)

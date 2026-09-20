@@ -2,8 +2,6 @@ package pages
 
 import (
 	"context"
-	"io"
-	"log/slog"
 	"testing"
 	"time"
 
@@ -13,7 +11,7 @@ import (
 )
 
 type pagePresenceRepositoryStub struct {
-	pageRepository
+	pagePresenceRepository
 	editors        []domain.PageEditorPresence
 	slug           string
 	excludeUserID  int64
@@ -49,9 +47,9 @@ func (s *pagePresenceRepositoryStub) LeavePageEditor(_ context.Context, slug str
 func TestPagesEditorPresenceUsesBoundedHeartbeatWindow(t *testing.T) {
 	t.Parallel()
 	repository := &pagePresenceRepositoryStub{editors: []domain.PageEditorPresence{{UserID: 8, Name: "Anna"}}}
-	pages := NewPages(repository, nil, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	presence := NewPresence(repository, nil)
 
-	editors, err := pages.PageEditors(context.Background(), " guide ", domain.User{ID: 7})
+	editors, err := presence.PageEditors(context.Background(), " guide ", domain.User{ID: 7})
 
 	require.NoError(t, err)
 	require.Len(t, editors, 1)
@@ -63,13 +61,13 @@ func TestPagesEditorPresenceUsesBoundedHeartbeatWindow(t *testing.T) {
 func TestPagesEditorPresenceTracksAuthenticatedEditor(t *testing.T) {
 	t.Parallel()
 	repository := &pagePresenceRepositoryStub{}
-	pages := NewPages(repository, nil, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	presence := NewPresence(repository, nil)
 	actor := domain.User{ID: 9}
 
-	require.NoError(t, pages.TouchPageEditor(context.Background(), "/guide/", actor))
+	require.NoError(t, presence.TouchPageEditor(context.Background(), "/guide/", actor))
 	assert.Equal(t, "guide", repository.slug)
 	assert.Equal(t, int64(9), repository.touchedUserID)
 
-	require.NoError(t, pages.LeavePageEditor(context.Background(), "/guide/", actor))
+	require.NoError(t, presence.LeavePageEditor(context.Background(), "/guide/", actor))
 	assert.Equal(t, int64(9), repository.departedUserID)
 }

@@ -12,7 +12,7 @@ import (
 
 // pageConcurrencyRepositoryStub records whether a page save used the guarded persistence path.
 type pageConcurrencyRepositoryStub struct {
-	pageRepository
+	pageContentRepository
 	guarded           bool
 	unguarded         bool
 	expectedUpdatedAt time.Time
@@ -55,9 +55,9 @@ func TestSaveUsesOptimisticConcurrencyForEditorUpdates(t *testing.T) {
 
 	expected := time.Date(2026, time.September, 19, 14, 30, 0, 123000000, time.UTC)
 	repository := &pageConcurrencyRepositoryStub{}
-	pages := NewPages(repository, nil, nil)
+	mutations := NewMutations(repository, nil, nil, nil)
 
-	_, err := pages.save(context.Background(), PageSaveInput{
+	_, err := mutations.save(context.Background(), PageSaveInput{
 		PreviousSlug:      "guide",
 		ExpectedUpdatedAt: expected,
 		Slug:              "guide",
@@ -76,9 +76,9 @@ func TestSaveKeepsInternalWritesUnconditional(t *testing.T) {
 	t.Parallel()
 
 	repository := &pageConcurrencyRepositoryStub{}
-	pages := NewPages(repository, nil, nil)
+	mutations := NewMutations(repository, nil, nil, nil)
 
-	_, err := pages.save(context.Background(), PageSaveInput{
+	_, err := mutations.save(context.Background(), PageSaveInput{
 		PreviousSlug: "guide",
 		Slug:         "guide",
 		Title:        "Guide",

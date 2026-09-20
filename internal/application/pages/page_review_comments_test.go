@@ -14,10 +14,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// reviewDiscussionTestRepository contains persistence needed across review discussion and approval checks.
+type reviewDiscussionTestRepository interface {
+	reviewDiscussionRepository
+	pageReviewRepository
+}
+
 // reviewDiscussionRepositoryStub captures review feedback and suggestion application for service tests.
 type reviewDiscussionRepositoryStub struct {
-	// pageRepository supplies unused methods so tests only implement the exercised review boundary.
-	pageRepository
+	// reviewDiscussionTestRepository supplies unused methods so tests implement only the exercised boundary.
+	reviewDiscussionTestRepository
 	// request is the review request returned by lookup methods.
 	request domain.PageReviewRequest
 	// page is the page returned by review detail lookups and applied writes.
@@ -133,6 +139,12 @@ func (*reviewDiscussionRepositoryStub) NotifyPageWatchers(context.Context, int64
 	return nil
 }
 
+func newReviewDiscussionsForTest(repository *reviewDiscussionRepositoryStub) *ReviewDiscussions {
+	reviews := NewReviews(repository, nil, nil, slog.Default())
+	content := NewMutations(nil, nil, nil, slog.Default())
+	return NewReviewDiscussions(repository, nil, reviews, content, nil, slog.Default())
+}
+
 // TestAddReviewCommentCapturesReviewedSource verifies suggestions persist the exact reviewed Markdown range rather than browser text.
 func TestAddReviewCommentCapturesReviewedSource(t *testing.T) {
 	t.Parallel()
@@ -152,9 +164,9 @@ func TestAddReviewCommentCapturesReviewedSource(t *testing.T) {
 			Markdown:         "first\ncurrent value\nlast",
 		},
 	}
-	pages := NewPages(repository, nil, slog.Default())
+	discussions := newReviewDiscussionsForTest(repository)
 
-	comment, err := pages.AddReviewComment(context.Background(), PageReviewCommentInput{
+	comment, err := discussions.AddReviewComment(context.Background(), PageReviewCommentInput{
 		ReviewID:    7,
 		Slug:        "guide",
 		Side:        domain.PageReviewCommentSideNew,
@@ -244,9 +256,9 @@ func TestApplyAllReviewSuggestionsPersistsOneRevisionInput(t *testing.T) {
 			{ID: 11, IsSuggestion: true, Side: domain.PageReviewCommentSideNew, StartLine: 3, EndLine: 3, Original: "three", Replacement: "THREE"},
 		},
 	}
-	pages := NewPages(repository, nil, slog.Default())
+	discussions := newReviewDiscussionsForTest(repository)
 
-	page, err := pages.ApplyAllReviewSuggestions(context.Background(), 7, "guide", domain.User{ID: 9, Role: "editor"})
+	page, err := discussions.ApplyAllReviewSuggestions(context.Background(), 7, "guide", domain.User{ID: 9, Role: "editor"})
 
 	require.NoError(t, err)
 	assert.Equal(t, "guide", page.Slug)
@@ -278,9 +290,9 @@ func TestApplyReviewSuggestionKeepsSingleSelectionSemantics(t *testing.T) {
 			{ID: 11, IsSuggestion: true, Side: domain.PageReviewCommentSideNew, StartLine: 3, EndLine: 3, Original: "three", Replacement: "THREE"},
 		},
 	}
-	pages := NewPages(repository, nil, slog.Default())
+	discussions := newReviewDiscussionsForTest(repository)
 
-	_, err := pages.ApplyReviewSuggestion(context.Background(), 7, "guide", 10, domain.User{ID: 9, Role: "editor"})
+	_, err := discussions.ApplyReviewSuggestion(context.Background(), 7, "guide", 10, domain.User{ID: 9, Role: "editor"})
 
 	require.NoError(t, err)
 	assert.Equal(t, []int64{10}, repository.appliedIDs)

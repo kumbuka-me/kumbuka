@@ -16,8 +16,8 @@ import (
 
 // inlineSuggestionRepositoryStub captures inline suggestion reads and writes for service tests.
 type inlineSuggestionRepositoryStub struct {
-	// pageRepository supplies unused page-service methods so tests implement only the exercised boundary.
-	pageRepository
+	// discussionRepository supplies unused discussion methods so tests implement only the exercised boundary.
+	discussionRepository
 	// settings controls whether discussions are available.
 	settings domain.ApplicationSettings
 	// page is the current page returned to the service.
@@ -141,6 +141,11 @@ func (*inlineSuggestionRepositoryStub) NotifyMentions(context.Context, int64, st
 	return nil
 }
 
+func newDiscussionsForTest(repository *inlineSuggestionRepositoryStub) *Discussions {
+	content := NewMutations(nil, nil, nil, slog.Default())
+	return NewDiscussions(repository, nil, content, repository, slog.Default())
+}
+
 // TestAddSuggestionMapsSelectedText verifies a unique rendered-text selection is mapped to its exact Markdown byte range.
 func TestAddSuggestionMapsSelectedText(t *testing.T) {
 	t.Parallel()
@@ -152,9 +157,9 @@ func TestAddSuggestionMapsSelectedText(t *testing.T) {
 		latest:      revision.Revision{Number: 3, Markdown: source},
 		latestCount: 3,
 	}
-	pages := NewPages(repository, nil, slog.Default())
+	discussions := newDiscussionsForTest(repository)
 
-	comment, err := pages.AddSuggestion(
+	comment, err := discussions.AddSuggestion(
 		context.Background(),
 		"guide",
 		"selected text",
@@ -186,7 +191,7 @@ func TestAddSuggestionRejectsAmbiguousSelection(t *testing.T) {
 		latestCount: 2,
 	}
 
-	_, err := NewPages(repository, nil, slog.Default()).AddSuggestion(
+	_, err := newDiscussionsForTest(repository).AddSuggestion(
 		context.Background(),
 		"guide",
 		"same text",
@@ -247,7 +252,7 @@ func TestApplyCommentSuggestionPersistsNewRevisionSource(t *testing.T) {
 		comment:     domain.PageComment{ID: 42, Anchor: "selected", Suggestion: &suggestion},
 	}
 
-	page, err := NewPages(repository, nil, slog.Default()).ApplyCommentSuggestion(
+	page, err := newDiscussionsForTest(repository).ApplyCommentSuggestion(
 		context.Background(),
 		"guide",
 		42,
@@ -279,7 +284,7 @@ func TestApplyCommentSuggestionRejectsStaleRevision(t *testing.T) {
 		comment:     domain.PageComment{ID: 42, Anchor: "selected", Suggestion: &suggestion},
 	}
 
-	_, err := NewPages(repository, nil, slog.Default()).ApplyCommentSuggestion(
+	_, err := newDiscussionsForTest(repository).ApplyCommentSuggestion(
 		context.Background(),
 		"guide",
 		42,
@@ -298,7 +303,7 @@ func TestResolveCommentBindsMutationToPage(t *testing.T) {
 		settings: domain.ApplicationSettings{DiscussionsEnabled: true},
 	}
 
-	err := NewPages(repository, nil, slog.Default()).ResolveComment(context.Background(), " docs/start ", 42, true, domain.User{})
+	err := newDiscussionsForTest(repository).ResolveComment(context.Background(), " docs/start ", 42, true, domain.User{})
 
 	require.NoError(t, err)
 	assert.Equal(t, "docs/start", repository.resolvedSlug)

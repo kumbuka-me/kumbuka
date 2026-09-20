@@ -3,10 +3,13 @@ package pages
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"slices"
 	"sort"
 	"strings"
 
+	appaccess "github.com/kumbuka-me/kumbuka/internal/application/access"
+	"github.com/kumbuka-me/kumbuka/internal/application/webhooks"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	md "github.com/kumbuka-me/kumbuka/pkg/markdown"
 	"github.com/kumbuka-me/kumbuka/pkg/pluginusage"
@@ -66,13 +69,55 @@ type pageReviewDiscussionRepository interface {
 	ApplyPageReviewSuggestions(context.Context, int64, string, int, int64, []int64, bool, string, string, []string, *pluginusage.Index, domain.PageRender) (domain.Page, error)
 }
 
+// reviewDiscussionRepository contains persistence required to inspect review snapshots and feedback.
+type reviewDiscussionRepository interface {
+	pageReviewDiscussionRepository
+	PageReviewRequestByID(context.Context, int64, string) (domain.PageReviewRequest, error)
+	GetPage(context.Context, string) (domain.Page, error)
+	Revision(context.Context, string, int) (revision.Revision, error)
+}
+
+// reviewPolicy supplies approval permissions to review discussion use cases.
+type reviewPolicy interface {
+	CanReview(context.Context, string, domain.User) (bool, error)
+	CanManageReview(domain.PageReviewRequest, domain.User) bool
+}
+
+// ReviewDiscussions owns line comments and applicable Markdown suggestions for reviews.
+type ReviewDiscussions struct {
+	repository    reviewDiscussionRepository
+	authorization pageAuthorization
+	reviews       reviewPolicy
+	content       pageContentPreparer
+	effects       *pageEffects
+}
+
+// NewReviewDiscussions constructs page review discussion use cases.
+func NewReviewDiscussions(
+	repository reviewDiscussionRepository,
+	access appaccess.Policy,
+	reviews reviewPolicy,
+	content pageContentPreparer,
+	sideEffects pageSideEffectRepository,
+	logger *slog.Logger,
+	eventSinks ...webhooks.EventSink,
+) *ReviewDiscussions {
+	return &ReviewDiscussions{
+		repository:    repository,
+		authorization: pageAuthorization{policy: access},
+		reviews:       reviews,
+		content:       content,
+		effects:       newPageEffects(sideEffects, logger, eventSinks...),
+	}
+}
+
 // ReviewDetail returns the requested revision, its feedback, and review permissions for the actor.
-func (s *Pages) ReviewDetail(ctx context.Context, reviewID int64, slug string, actor domain.User) (PageReviewDetail, error) {
+func (s *ReviewDiscussions) ReviewDetail(ctx context.Context, reviewID int64, slug string, actor domain.User) (PageReviewDetail, error) {
 	slug = strings.TrimSpace(slug)
 	if reviewID <= 0 || slug == "" {
 		return PageReviewDetail{}, domain.ErrNotFound
 	}
-	if err := s.requireView(ctx, actor, slug); err != nil {
+	if err := s.authorization.requireView(ctx, actor, slug); err != nil {
 		return PageReviewDetail{}, err
 	}
 
@@ -94,10 +139,10 @@ func (s *Pages) ReviewDetail(ctx context.Context, reviewID int64, slug string, a
 	}
 
 	pending := request.Status == domain.PageReviewStatusPending
-	canManage := pending && s.CanManageReview(request, actor)
+	canManage := pending && s.reviews.CanManageReview(request, actor)
 	canReview := false
 	if pending {
-		canReview, err = s.CanReview(ctx, slug, actor)
+		canReview, err = s.reviews.CanReview(ctx, slug, actor)
 		if err != nil {
 			return PageReviewDetail{}, err
 		}
@@ -115,7 +160,7 @@ func (s *Pages) ReviewDetail(ctx context.Context, reviewID int64, slug string, a
 }
 
 // AddReviewComment validates and persists one comment or applicable suggestion against the immutable reviewed revision.
-func (s *Pages) AddReviewComment(ctx context.Context, input PageReviewCommentInput) (domain.PageReviewComment, error) {
+func (s *ReviewDiscussions) AddReviewComment(ctx context.Context, input PageReviewCommentInput) (domain.PageReviewComment, error) {
 	input.Slug = strings.TrimSpace(input.Slug)
 	input.Body = strings.TrimSpace(input.Body)
 	input.Replacement = normalizeSuggestionText(input.Replacement)
@@ -174,14 +219,14 @@ func (s *Pages) AddReviewComment(ctx context.Context, input PageReviewCommentInp
 		action = "page.review_suggested"
 		detailText = fmt.Sprintf("Suggested change for revision %d lines %d-%d", detail.Request.RevisionNumber, input.StartLine, input.EndLine)
 	}
-	s.recordAudit(ctx, input.Actor.ID, action, "page", input.Slug, detailText)
-	s.notifyWatchers(ctx, input.Actor.ID, input.Slug, "Review feedback: "+detail.Page.Title, "New feedback was added to a page review.", reviewURL(input.ReviewID, input.Slug))
+	s.effects.recordAudit(ctx, input.Actor.ID, action, "page", input.Slug, detailText)
+	s.effects.notifyWatchers(ctx, input.Actor.ID, input.Slug, "Review feedback: "+detail.Page.Title, "New feedback was added to a page review.", reviewURL(input.ReviewID, input.Slug))
 
 	return comment, nil
 }
 
 // ApplyReviewSuggestion applies one pending suggestion and creates a new page revision.
-func (s *Pages) ApplyReviewSuggestion(ctx context.Context, reviewID int64, slug string, commentID int64, actor domain.User) (domain.Page, error) {
+func (s *ReviewDiscussions) ApplyReviewSuggestion(ctx context.Context, reviewID int64, slug string, commentID int64, actor domain.User) (domain.Page, error) {
 	if commentID <= 0 {
 		return domain.Page{}, domain.NewValidationError("suggestion", "Choose a valid review suggestion.")
 	}
@@ -190,15 +235,15 @@ func (s *Pages) ApplyReviewSuggestion(ctx context.Context, reviewID int64, slug 
 }
 
 // ApplyAllReviewSuggestions applies every pending suggestion in one atomic page revision.
-func (s *Pages) ApplyAllReviewSuggestions(ctx context.Context, reviewID int64, slug string, actor domain.User) (domain.Page, error) {
+func (s *ReviewDiscussions) ApplyAllReviewSuggestions(ctx context.Context, reviewID int64, slug string, actor domain.User) (domain.Page, error) {
 	return s.applyReviewSuggestions(ctx, reviewID, slug, nil, actor)
 }
 
 // applyReviewSuggestions validates, merges, and persists selected suggestions as one new revision.
-func (s *Pages) applyReviewSuggestions(ctx context.Context, reviewID int64, slug string, selected []int64, actor domain.User) (domain.Page, error) {
+func (s *ReviewDiscussions) applyReviewSuggestions(ctx context.Context, reviewID int64, slug string, selected []int64, actor domain.User) (domain.Page, error) {
 	applyAll := len(selected) == 0
 	slug = strings.TrimSpace(slug)
-	if err := s.requireEdit(ctx, actor, slug); err != nil {
+	if err := s.authorization.requireEdit(ctx, actor, slug); err != nil {
 		return domain.Page{}, err
 	}
 	detail, err := s.ReviewDetail(ctx, reviewID, slug, actor)
@@ -221,7 +266,7 @@ func (s *Pages) applyReviewSuggestions(ctx context.Context, reviewID int64, slug
 		return domain.Page{}, err
 	}
 
-	usage, render, err := s.derivePageContent(ctx, updatedMarkdown)
+	usage, render, err := s.content.derivePageContent(ctx, updatedMarkdown)
 	if err != nil {
 		return domain.Page{}, err
 	}
@@ -253,8 +298,8 @@ func (s *Pages) applyReviewSuggestions(ctx context.Context, reviewID int64, slug
 		return domain.Page{}, err
 	}
 
-	s.recordAudit(ctx, actor.ID, "page.review_suggestions_applied", "page", page.Slug, message)
-	s.notifyWatchers(ctx, actor.ID, page.Slug, "Review suggestions applied: "+page.Title, message+" and created a new revision.", "/pages/"+page.Slug)
+	s.effects.recordAudit(ctx, actor.ID, "page.review_suggestions_applied", "page", page.Slug, message)
+	s.effects.notifyWatchers(ctx, actor.ID, page.Slug, "Review suggestions applied: "+page.Title, message+" and created a new revision.", "/pages/"+page.Slug)
 
 	return page, nil
 }

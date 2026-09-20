@@ -4,11 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 
+	appaccess "github.com/kumbuka-me/kumbuka/internal/application/access"
+	"github.com/kumbuka-me/kumbuka/internal/application/webhooks"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	md "github.com/kumbuka-me/kumbuka/pkg/markdown"
 	"github.com/kumbuka-me/kumbuka/pkg/pluginusage"
+	"github.com/kumbuka-me/kumbuka/pkg/revision"
 )
 
 const (
@@ -28,11 +32,53 @@ type pageDiscussionRepository interface {
 	ResolvePageComment(context.Context, string, int64, bool) error
 }
 
+// discussionRepository composes only persistence required by page discussions.
+type discussionRepository interface {
+	pageDiscussionRepository
+	GetPage(context.Context, string) (domain.Page, error)
+	LatestRevision(context.Context, string) (revision.Revision, int, error)
+}
+
+// pageContentPreparer derives plugin usage and reusable render state for a Markdown mutation.
+type pageContentPreparer interface {
+	derivePageContent(context.Context, string) (*pluginusage.Index, domain.PageRender, error)
+}
+
+// Discussions owns page comments and inline Markdown suggestions.
+type Discussions struct {
+	repository    discussionRepository
+	authorization pageAuthorization
+	content       pageContentPreparer
+	effects       *pageEffects
+	logger        *slog.Logger
+}
+
+// NewDiscussions constructs page discussion use cases.
+func NewDiscussions(
+	repository discussionRepository,
+	access appaccess.Policy,
+	content pageContentPreparer,
+	sideEffects pageSideEffectRepository,
+	logger *slog.Logger,
+	eventSinks ...webhooks.EventSink,
+) *Discussions {
+	if logger == nil {
+		logger = slog.Default()
+	}
+	return &Discussions{
+		repository:    repository,
+		authorization: pageAuthorization{policy: access},
+		content:       content,
+		effects:       newPageEffects(sideEffects, logger, eventSinks...),
+		logger:        logger,
+	}
+}
+
 // ErrDiscussionsDisabled indicates that page discussions are globally disabled.
 var ErrDiscussionsDisabled = errors.New("page discussions are disabled")
 
 // AddComment adds a discussion comment and emits mention notifications.
-func (s *Pages) AddComment(
+func (s *Discussions) AddComment(
 	ctx context.Context,
 	slug string,
 	parentID int64,
@@ -40,7 +86,7 @@ func (s *Pages) AddComment(
 	actor domain.User,
 ) (domain.PageComment, error) {
 	body = strings.TrimSpace(body)
-	if err := s.requireView(ctx, actor, slug); err != nil {
+	if err := s.authorization.requireView(ctx, actor, slug); err != nil {
 		return domain.PageComment{}, err
 	}
 	if body == "" {
@@ -57,26 +103,26 @@ func (s *Pages) AddComment(
 	}
 
 	destination := pageCommentURL(slug, comment.ID)
-	s.notifyMentions(ctx, actor.ID, body, "Mention in "+slug, destination)
+	s.effects.notifyMentions(ctx, actor.ID, body, "Mention in "+slug, destination)
 	if parentID > 0 {
 		if err := s.repository.NotifyCommentReply(ctx, actor.ID, parentID, "Reply in "+slug, destination); err != nil {
 			s.logger.ErrorContext(ctx, "comment reply notification failed", "event", "page_side_effect_failed", "error", err)
 		}
 	}
-	s.notifyWatchers(ctx, actor.ID, slug, "New comment: "+slug, "A watched page has a new discussion comment.", destination)
-	s.recordAudit(ctx, actor.ID, "comment.created", "page", slug, "Page discussion comment created")
+	s.effects.notifyWatchers(ctx, actor.ID, slug, "New comment: "+slug, "A watched page has a new discussion comment.", destination)
+	s.effects.recordAudit(ctx, actor.ID, "comment.created", "page", slug, "Page discussion comment created")
 
 	return comment, nil
 }
 
 // AddSuggestion adds an inline Markdown suggestion anchored to uniquely mapped selected page text.
-func (s *Pages) AddSuggestion(
+func (s *Discussions) AddSuggestion(
 	ctx context.Context,
 	slug, anchor, body, replacement string,
 	actor domain.User,
 ) (domain.PageComment, error) {
 	slug = strings.TrimSpace(slug)
-	if err := s.requireView(ctx, actor, slug); err != nil {
+	if err := s.authorization.requireView(ctx, actor, slug); err != nil {
 		return domain.PageComment{}, err
 	}
 	anchor = strings.TrimSpace(anchor)
@@ -125,23 +171,23 @@ func (s *Pages) AddSuggestion(
 
 	destination := pageCommentURL(slug, comment.ID)
 	if body != "" {
-		s.notifyMentions(ctx, actor.ID, body, "Mention in "+slug, destination)
+		s.effects.notifyMentions(ctx, actor.ID, body, "Mention in "+slug, destination)
 	}
-	s.notifyWatchers(ctx, actor.ID, slug, "New suggestion: "+slug, "A watched page has a new inline suggestion.", destination)
-	s.recordAudit(ctx, actor.ID, "comment.suggested", "page", slug, "Inline Markdown suggestion created")
+	s.effects.notifyWatchers(ctx, actor.ID, slug, "New suggestion: "+slug, "A watched page has a new inline suggestion.", destination)
+	s.effects.recordAudit(ctx, actor.ID, "comment.suggested", "page", slug, "Inline Markdown suggestion created")
 
 	return comment, nil
 }
 
 // ApplyCommentSuggestion applies one still-current inline suggestion and creates a new page revision.
-func (s *Pages) ApplyCommentSuggestion(
+func (s *Discussions) ApplyCommentSuggestion(
 	ctx context.Context,
 	slug string,
 	commentID int64,
 	actor domain.User,
 ) (domain.Page, error) {
 	slug = strings.TrimSpace(slug)
-	if err := s.requireEdit(ctx, actor, slug); err != nil {
+	if err := s.authorization.requireEdit(ctx, actor, slug); err != nil {
 		return domain.Page{}, err
 	}
 	if slug == "" || commentID <= 0 {
@@ -181,7 +227,7 @@ func (s *Pages) ApplyCommentSuggestion(
 	if err != nil {
 		return domain.Page{}, err
 	}
-	usage, render, err := s.derivePageContent(ctx, updatedMarkdown)
+	usage, render, err := s.content.derivePageContent(ctx, updatedMarkdown)
 	if err != nil {
 		return domain.Page{}, err
 	}
@@ -202,16 +248,16 @@ func (s *Pages) ApplyCommentSuggestion(
 		return domain.Page{}, err
 	}
 
-	s.recordAudit(ctx, actor.ID, "comment.suggestion_applied", "page", updated.Slug, message)
-	s.notifyWatchers(ctx, actor.ID, updated.Slug, "Inline suggestion applied: "+updated.Title, message+" and created a new revision.", pageCommentURL(updated.Slug, comment.ID))
+	s.effects.recordAudit(ctx, actor.ID, "comment.suggestion_applied", "page", updated.Slug, message)
+	s.effects.notifyWatchers(ctx, actor.ID, updated.Slug, "Inline suggestion applied: "+updated.Title, message+" and created a new revision.", pageCommentURL(updated.Slug, comment.ID))
 
 	return updated, nil
 }
 
 // ResolveComment changes one page-bound discussion's resolution state.
-func (s *Pages) ResolveComment(ctx context.Context, slug string, id int64, resolved bool, actor domain.User) error {
+func (s *Discussions) ResolveComment(ctx context.Context, slug string, id int64, resolved bool, actor domain.User) error {
 	slug = strings.TrimSpace(slug)
-	if err := s.requireEdit(ctx, actor, slug); err != nil {
+	if err := s.authorization.requireEdit(ctx, actor, slug); err != nil {
 		return err
 	}
 	if slug == "" {
@@ -228,7 +274,7 @@ func (s *Pages) ResolveComment(ctx context.Context, slug string, id int64, resol
 }
 
 // requireDiscussions rejects discussion mutations while the global feature is disabled.
-func (s *Pages) requireDiscussions(ctx context.Context) error {
+func (s *Discussions) requireDiscussions(ctx context.Context) error {
 	settings, err := s.repository.ApplicationSettings(ctx)
 	if err != nil {
 		return err

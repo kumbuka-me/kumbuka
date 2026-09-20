@@ -136,7 +136,7 @@ type pageReviewService interface {
 	Review(context.Context, string, domain.User) error
 }
 
-// pageApprovalService owns the approval workflow and review discussions.
+// pageApprovalService owns the page approval workflow.
 type pageApprovalService interface {
 	PageReviewRequest(context.Context, string) (domain.PageReviewRequest, error)
 	ReviewGroups(context.Context) ([]domain.Group, error)
@@ -146,6 +146,10 @@ type pageApprovalService interface {
 	UpdateReview(context.Context, apppages.PageReviewUpdateInput) (domain.PageReviewRequest, error)
 	CancelReview(context.Context, int64, string, domain.User) error
 	DecideReview(context.Context, apppages.PageReviewDecisionInput) error
+}
+
+// pageReviewDiscussionService owns review comments and applicable suggestions.
+type pageReviewDiscussionService interface {
 	ReviewDetail(context.Context, int64, string, domain.User) (apppages.PageReviewDetail, error)
 	AddReviewComment(context.Context, apppages.PageReviewCommentInput) (domain.PageReviewComment, error)
 	ApplyReviewSuggestion(context.Context, int64, string, int64, domain.User) (domain.Page, error)
