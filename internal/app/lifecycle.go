@@ -6,20 +6,20 @@ import (
 	"time"
 
 	"github.com/kumbuka-me/kumbuka/internal/flags"
-	"github.com/kumbuka-me/kumbuka/internal/store"
+	"github.com/kumbuka-me/kumbuka/internal/postgres"
 	"github.com/kumbuka-me/kumbuka/pkg/markdown"
 )
 
 const rendererShutdownTimeout = 10 * time.Second
 
 // openDatabase applies deployment-managed store options before opening PostgreSQL.
-func openDatabase(ctx context.Context, cfg flags.Config, logger *slog.Logger) (*store.Store, error) {
-	options := make([]store.Option, 0, 1)
+func openDatabase(ctx context.Context, cfg flags.Config, logger *slog.Logger) (*postgres.Store, error) {
+	options := make([]postgres.Option, 0, 1)
 	if cfg.AllowUserRegistrationOverride != nil {
-		options = append(options, store.WithUserRegistrationOverride(*cfg.AllowUserRegistrationOverride))
+		options = append(options, postgres.WithUserRegistrationOverride(*cfg.AllowUserRegistrationOverride))
 	}
 
-	database, err := store.Open(ctx, cfg.DatabaseURL, logger, options...)
+	database, err := postgres.Open(ctx, cfg.DatabaseURL, logger, options...)
 	if err != nil {
 		return nil, setupFailure(logger, "open database", "database_open_failed", err)
 	}

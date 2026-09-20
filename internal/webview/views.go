@@ -10,7 +10,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/kumbuka-me/kumbuka/internal/httpresponse"
+	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/kumbuka-me/kumbuka/pkg/icons"
 	"github.com/kumbuka-me/kumbuka/pkg/themes"

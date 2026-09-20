@@ -16,9 +16,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kumbuka-me/kumbuka/internal/auth"
-	"github.com/kumbuka-me/kumbuka/internal/handler"
-	"github.com/kumbuka-me/kumbuka/internal/middleware"
+	"github.com/kumbuka-me/kumbuka/internal/http/auth"
+	"github.com/kumbuka-me/kumbuka/internal/http/endpoint"
+	"github.com/kumbuka-me/kumbuka/internal/http/middleware"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/kumbuka-me/kumbuka/pkg/markdown"
@@ -34,7 +34,7 @@ type dataLoader struct {
 	catalog []themes.Theme
 }
 
-// Load loads the browser-test view data requested by a handler.
+// Load loads the browser-test view data requested by a endpoint.
 func (d dataLoader) Load(_ *http.Request, _ *webview.Views, title string) (webview.Data, error) {
 	data, _ := json.Marshal(d.catalog)
 	return webview.Data{
@@ -80,7 +80,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	admin := handler.NewAdminPlugins(
+	admin := endpoint.NewAdminPlugins(
 		renderer.PluginManager(),
 		nil,
 		dataLoader{catalog: catalog},
@@ -91,8 +91,8 @@ func main() {
 	mux.Handle("GET /admin/plugins", secure(admin.List))
 	mux.Handle("POST /admin/plugins", secure(admin.Install))
 	mux.Handle("POST /admin/plugins/{pluginID}/{action}", secure(admin.Action))
-	mux.Handle("GET /assets/", handler.Assets(web.Assets))
-	mux.HandleFunc("GET /plugins/styles.css", handler.PluginPresentationStyles(renderer.PluginManager()))
+	mux.Handle("GET /assets/", endpoint.Assets(web.Assets))
+	mux.HandleFunc("GET /plugins/styles.css", endpoint.PluginPresentationStyles(renderer.PluginManager()))
 	mux.HandleFunc("GET /fixture/package", func(w http.ResponseWriter, r *http.Request) {
 		version := r.URL.Query().Get("version")
 		if version != "1.1.0" {

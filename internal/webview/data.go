@@ -9,7 +9,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/kumbuka-me/kumbuka/internal/auth"
+	"github.com/kumbuka-me/kumbuka/internal/http/auth"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	md "github.com/kumbuka-me/kumbuka/pkg/markdown"
 	"github.com/kumbuka-me/kumbuka/pkg/navigation"

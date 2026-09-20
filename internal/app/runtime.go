@@ -7,12 +7,12 @@ import (
 	"net/http"
 
 	appplugins "github.com/kumbuka-me/kumbuka/internal/application/plugins"
-	"github.com/kumbuka-me/kumbuka/internal/auth"
 	"github.com/kumbuka-me/kumbuka/internal/flags"
+	"github.com/kumbuka-me/kumbuka/internal/http/auth"
+	"github.com/kumbuka-me/kumbuka/internal/http/routes"
 	"github.com/kumbuka-me/kumbuka/internal/pluginupdate"
-	"github.com/kumbuka-me/kumbuka/internal/routes"
+	"github.com/kumbuka-me/kumbuka/internal/postgres"
 	"github.com/kumbuka-me/kumbuka/internal/secrets"
-	"github.com/kumbuka-me/kumbuka/internal/store"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/icons"
 	"github.com/kumbuka-me/kumbuka/pkg/markdown"
@@ -36,7 +36,7 @@ func newApplicationRuntime(
 	ctx context.Context,
 	appFS fs.FS,
 	cfg flags.Config,
-	database *store.Store,
+	database *postgres.Store,
 	secretCipher *secrets.Cipher,
 	logger, setupLogger *slog.Logger,
 	version, commit string,
@@ -79,7 +79,7 @@ func configureAuthentication(
 	ctx context.Context,
 	config *routes.Config,
 	cfg flags.Config,
-	database *store.Store,
+	database *postgres.Store,
 	setupLogger *slog.Logger,
 ) error {
 	browserAuth, err := auth.ConfigureBrowserAuth(ctx, browserAuthConfig(cfg), database)
@@ -95,7 +95,7 @@ func configureAuthentication(
 // newRenderer creates the Markdown renderer and configures its plugin runtime resources.
 func newRenderer(
 	ctx context.Context,
-	database *store.Store,
+	database *postgres.Store,
 	secretCipher *secrets.Cipher,
 	logger, setupLogger *slog.Logger,
 	version, commit string,
@@ -144,7 +144,7 @@ func authenticatedPluginRequest(ctx context.Context) bool {
 func newPluginUpdateService(
 	cfg flags.Config,
 	renderer *markdown.Renderer,
-	database *store.Store,
+	database *postgres.Store,
 	logger *slog.Logger,
 ) *appplugins.PluginUpdates {
 	return appplugins.NewPluginUpdates(
