@@ -16,6 +16,9 @@ import (
 // MovePageForm safely moves one page or subtree and optionally refactors direct wiki links.
 func MovePageForm(pageUseCases pageMoveService, accessUseCases pageAccessReader, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if !authorizePageRequest(w, r, accessUseCases, true) {
+			return
+		}
 		user := currentUser(r)
 		if err := r.ParseForm(); err != nil {
 			httpresponse.Problem(w, http.StatusBadRequest, "Invalid move form.")
@@ -47,8 +50,13 @@ func MovePageForm(pageUseCases pageMoveService, accessUseCases pageAccessReader,
 }
 
 // ReviewPageForm records an explicit documentation review.
-func ReviewPageForm(pageUseCases pageReviewService, logger *slog.Logger) http.HandlerFunc {
+func ReviewPageForm(pageUseCases pageReviewService, logger *slog.Logger,
+	accessUseCases pageAccessReader,
+) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if !authorizePageRequest(w, r, accessUseCases, true) {
+			return
+		}
 		user := currentUser(r)
 		slug := strings.TrimSpace(r.PathValue("slug"))
 		if err := pageUseCases.Review(r.Context(), slug, user); err != nil {
@@ -61,8 +69,13 @@ func ReviewPageForm(pageUseCases pageReviewService, logger *slog.Logger) http.Ha
 }
 
 // RequestPageReview opens a lightweight approval request for the current revision.
-func RequestPageReview(pageUseCases pageApprovalService, logger *slog.Logger) http.HandlerFunc {
+func RequestPageReview(pageUseCases pageApprovalService, logger *slog.Logger,
+	accessUseCases pageAccessReader,
+) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if !authorizePageRequest(w, r, accessUseCases, true) {
+			return
+		}
 		if err := r.ParseForm(); err != nil {
 			httpresponse.Problem(w, http.StatusBadRequest, "Invalid review request.")
 			return
@@ -91,8 +104,13 @@ func RequestPageReview(pageUseCases pageApprovalService, logger *slog.Logger) ht
 }
 
 // UpdatePageReview edits reviewers or the note of an existing pending request.
-func UpdatePageReview(pageUseCases pageApprovalService, logger *slog.Logger) http.HandlerFunc {
+func UpdatePageReview(pageUseCases pageApprovalService, logger *slog.Logger,
+	accessUseCases pageAccessReader,
+) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if !authorizePageRequest(w, r, accessUseCases, true) {
+			return
+		}
 		if err := r.ParseForm(); err != nil {
 			httpresponse.Problem(w, http.StatusBadRequest, "Invalid review request.")
 			return
@@ -126,8 +144,13 @@ func UpdatePageReview(pageUseCases pageApprovalService, logger *slog.Logger) htt
 }
 
 // CancelPageReview cancels a pending request while preserving its audit history.
-func CancelPageReview(pageUseCases pageApprovalService, logger *slog.Logger) http.HandlerFunc {
+func CancelPageReview(pageUseCases pageApprovalService, logger *slog.Logger,
+	accessUseCases pageAccessReader,
+) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if !authorizePageRequest(w, r, accessUseCases, true) {
+			return
+		}
 		if err := r.ParseForm(); err != nil {
 			httpresponse.Problem(w, http.StatusBadRequest, "Invalid review request.")
 			return
@@ -149,8 +172,13 @@ func CancelPageReview(pageUseCases pageApprovalService, logger *slog.Logger) htt
 }
 
 // DecidePageReview approves the requested revision or asks for changes.
-func DecidePageReview(pageUseCases pageApprovalService, logger *slog.Logger) http.HandlerFunc {
+func DecidePageReview(pageUseCases pageApprovalService, logger *slog.Logger,
+	accessUseCases pageAccessReader,
+) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if !authorizePageRequest(w, r, accessUseCases, false) {
+			return
+		}
 		if err := r.ParseForm(); err != nil {
 			httpresponse.Problem(w, http.StatusBadRequest, "Invalid review decision.")
 			return

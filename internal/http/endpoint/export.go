@@ -31,8 +31,12 @@ func ExportPageMarkdown(
 	catalogUseCases pageContentService,
 	mediaUseCases imageContentService,
 	logger *slog.Logger,
+	accessUseCases pageAccessReader,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if !authorizePageRequest(w, r, accessUseCases, false) {
+			return
+		}
 		slug := strings.TrimSpace(r.PathValue("slug"))
 		if slug == "" {
 			httpresponse.Problem(w,
@@ -77,6 +81,9 @@ func ExportPagePDF(
 	logger *slog.Logger,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if !authorizePageRequest(w, r, accessUseCases, false) {
+			return
+		}
 		w.Header().Set("Cache-Control", "private, no-store")
 		parameters, err := readExportParameters(w, r)
 		if err != nil {

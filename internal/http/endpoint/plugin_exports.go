@@ -1,6 +1,7 @@
 package endpoint
 
 import (
+	apppages "github.com/kumbuka-me/kumbuka/internal/application/pages"
 	"log/slog"
 	"mime"
 	"net/http"
@@ -21,6 +22,9 @@ func ExportPagePlugin(
 	logger *slog.Logger,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if !authorizePageRequest(w, r, access, false) {
+			return
+		}
 		manager := renderer.PluginManager()
 		if manager == nil {
 			httpresponse.Problem(w, http.StatusNotFound, "Plugin exporter not found.")
@@ -34,7 +38,7 @@ func ExportPagePlugin(
 			return
 		}
 		user, _ := auth.User(r)
-		securedCatalog := accessiblePageCatalog{catalog: catalog, access: access, user: user}
+		securedCatalog := apppages.NewAccessibleCatalog(catalog, access, user)
 		pageNavigation, err := subpageNavigation(r.Context(), navigation, access, user, slug)
 		if err != nil {
 			httpresponse.Problem(w, http.StatusInternalServerError, "Could not prepare plugin export.")

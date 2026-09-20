@@ -5,7 +5,6 @@ import (
 
 	"github.com/kumbuka-me/kumbuka/internal/http/auth"
 	"github.com/kumbuka-me/kumbuka/internal/http/endpoint"
-	"github.com/kumbuka-me/kumbuka/internal/http/middleware"
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
 )
 
@@ -23,20 +22,14 @@ type routeRegistrar struct {
 	config Config
 	// policies contains authentication and role middleware.
 	policies routePolicies
-	// pageViewAuthz enforces inherited page-view access.
-	pageViewAuthz middleware.Middleware
-	// pageEditAuthz enforces inherited page-edit access.
-	pageEditAuthz middleware.Middleware
 }
 
 // addRoutes registers the complete HTTP surface by functional area.
 func addRoutes(mux *http.ServeMux, config Config, policies routePolicies) {
 	routes := routeRegistrar{
-		mux:           mux,
-		config:        config,
-		policies:      policies,
-		pageViewAuthz: middleware.RequirePageView(config.Access),
-		pageEditAuthz: middleware.RequirePageEdit(config.Access),
+		mux:      mux,
+		config:   config,
+		policies: policies,
 	}
 
 	routes.addPublicRoutes()
@@ -259,13 +252,13 @@ func (r routeRegistrar) addPageRoutes() {
 
 	r.mux.Handle(
 		"GET /export/markdown/{slug...}",
-		browserAuthn(r.pageViewAuthz(endpoint.ExportPageMarkdown(config.Catalog, config.Media, config.Logger))),
+		browserAuthn(endpoint.ExportPageMarkdown(config.Catalog, config.Media, config.Logger, config.Access)),
 	)
 	r.mux.Handle(
 		"POST /export/plugin/{pluginID}/{moduleID}/{slug...}",
-		browserAuthn(r.pageViewAuthz(endpoint.ExportPagePlugin(config.Catalog, config.Navigation, config.Access, config.Renderer, config.Logger))),
+		browserAuthn(endpoint.ExportPagePlugin(config.Catalog, config.Navigation, config.Access, config.Renderer, config.Logger)),
 	)
-	exportPDF := browserAuthn(r.pageViewAuthz(endpoint.ExportPagePDF(
+	exportPDF := browserAuthn(endpoint.ExportPagePDF(
 		config.Catalog,
 		config.Settings,
 		config.Navigation,
@@ -274,12 +267,12 @@ func (r routeRegistrar) addPageRoutes() {
 		config.Renderer,
 		config.Views,
 		config.Logger,
-	)))
+	))
 	r.mux.Handle("GET /export/pdf/{slug...}", exportPDF)
 	r.mux.Handle("POST /export/pdf/{slug...}", exportPDF)
 	r.mux.Handle(
 		"POST /export/preview/{slug...}",
-		browserAuthn(r.pageViewAuthz(endpoint.PreviewPageExport(
+		browserAuthn(endpoint.PreviewPageExport(
 			config.Catalog,
 			config.Settings,
 			config.Navigation,
@@ -287,48 +280,48 @@ func (r routeRegistrar) addPageRoutes() {
 			config.Access,
 			config.Renderer,
 			config.Logger,
-		))),
+		)),
 	)
 
 	r.mux.Handle("POST /pages/delete/{slug...}", browserAuthn(adminAuthz(endpoint.DeletePageForm(config.Pages, config.Views))))
-	r.mux.Handle("POST /pages/move/{slug...}", browserAuthn(editorAuthz(r.pageEditAuthz(endpoint.MovePageForm(config.Pages, config.Access, config.Logger)))))
-	r.mux.Handle("POST /pages/review/{slug...}", browserAuthn(editorAuthz(r.pageEditAuthz(endpoint.ReviewPageForm(config.Pages, config.Logger)))))
-	r.mux.Handle("POST /pages/approval/request/{slug...}", browserAuthn(editorAuthz(r.pageEditAuthz(endpoint.RequestPageReview(config.Pages, config.Logger)))))
-	r.mux.Handle("POST /pages/approval/update/{id}/{slug...}", browserAuthn(editorAuthz(r.pageEditAuthz(endpoint.UpdatePageReview(config.Pages, config.Logger)))))
-	r.mux.Handle("POST /pages/approval/cancel/{id}/{slug...}", browserAuthn(editorAuthz(r.pageEditAuthz(endpoint.CancelPageReview(config.Pages, config.Logger)))))
-	r.mux.Handle("POST /pages/approval/decide/{id}/{slug...}", browserAuthn(editorAuthz(r.pageViewAuthz(endpoint.DecidePageReview(config.Pages, config.Logger)))))
-	r.mux.Handle("GET /reviews/{id}/{slug...}", browserAuthn(editorAuthz(r.pageViewAuthz(endpoint.PageReview(config.ViewData, config.Pages, config.Views)))))
-	r.mux.Handle("POST /reviews/{id}/comments/{slug...}", browserAuthn(editorAuthz(r.pageViewAuthz(endpoint.AddPageReviewComment(config.Pages, config.Views)))))
-	r.mux.Handle(pageReviewSuggestionApplyPattern, browserAuthn(editorAuthz(r.pageEditAuthz(endpoint.ApplyPageReviewSuggestion(config.Pages, config.Views)))))
-	r.mux.Handle(pageReviewSuggestionsApplyAllPattern, browserAuthn(editorAuthz(r.pageEditAuthz(endpoint.ApplyAllPageReviewSuggestions(config.Pages, config.Views)))))
-	r.mux.Handle("POST /page-comments/{slug...}", browserAuthn(r.pageViewAuthz(endpoint.AddPageComment(config.Pages, config.Views))))
-	r.mux.Handle(pageCommentSuggestionApplyPattern, browserAuthn(editorAuthz(r.pageEditAuthz(endpoint.ApplyPageCommentSuggestion(config.Pages, config.Views)))))
-	r.mux.Handle("POST /page-comments/resolve/{id}/{slug...}", browserAuthn(editorAuthz(r.pageEditAuthz(endpoint.ResolvePageComment(config.Pages, config.Views)))))
+	r.mux.Handle("POST /pages/move/{slug...}", browserAuthn(editorAuthz(endpoint.MovePageForm(config.Pages, config.Access, config.Logger))))
+	r.mux.Handle("POST /pages/review/{slug...}", browserAuthn(editorAuthz(endpoint.ReviewPageForm(config.Pages, config.Logger, config.Access))))
+	r.mux.Handle("POST /pages/approval/request/{slug...}", browserAuthn(editorAuthz(endpoint.RequestPageReview(config.Pages, config.Logger, config.Access))))
+	r.mux.Handle("POST /pages/approval/update/{id}/{slug...}", browserAuthn(editorAuthz(endpoint.UpdatePageReview(config.Pages, config.Logger, config.Access))))
+	r.mux.Handle("POST /pages/approval/cancel/{id}/{slug...}", browserAuthn(editorAuthz(endpoint.CancelPageReview(config.Pages, config.Logger, config.Access))))
+	r.mux.Handle("POST /pages/approval/decide/{id}/{slug...}", browserAuthn(editorAuthz(endpoint.DecidePageReview(config.Pages, config.Logger, config.Access))))
+	r.mux.Handle("GET /reviews/{id}/{slug...}", browserAuthn(editorAuthz(endpoint.PageReview(config.ViewData, config.Pages, config.Views, config.Access))))
+	r.mux.Handle("POST /reviews/{id}/comments/{slug...}", browserAuthn(editorAuthz(endpoint.AddPageReviewComment(config.Pages, config.Views, config.Access))))
+	r.mux.Handle(pageReviewSuggestionApplyPattern, browserAuthn(editorAuthz(endpoint.ApplyPageReviewSuggestion(config.Pages, config.Views, config.Access))))
+	r.mux.Handle(pageReviewSuggestionsApplyAllPattern, browserAuthn(editorAuthz(endpoint.ApplyAllPageReviewSuggestions(config.Pages, config.Views, config.Access))))
+	r.mux.Handle("POST /page-comments/{slug...}", browserAuthn(endpoint.AddPageComment(config.Pages, config.Views, config.Access)))
+	r.mux.Handle(pageCommentSuggestionApplyPattern, browserAuthn(editorAuthz(endpoint.ApplyPageCommentSuggestion(config.Pages, config.Views, config.Access))))
+	r.mux.Handle("POST /page-comments/resolve/{id}/{slug...}", browserAuthn(editorAuthz(endpoint.ResolvePageComment(config.Pages, config.Views, config.Access))))
 
 	editPage := endpoint.EditPage(config.ViewData, config.Catalog, config.Groups, config.Templates, config.Access, config.Views)
-	r.mux.Handle("GET /pages/new", browserAuthn(editorAuthz(r.pageEditAuthz(editPage))))
-	r.mux.Handle("GET /edit/{slug...}", browserAuthn(editorAuthz(r.pageEditAuthz(editPage))))
+	r.mux.Handle("GET /pages/new", browserAuthn(editorAuthz(editPage)))
+	r.mux.Handle("GET /edit/{slug...}", browserAuthn(editorAuthz(editPage)))
 	r.mux.Handle(
 		"POST /pages",
 		browserAuthn(editorAuthz(endpoint.SavePageForm(config.Pages, config.Drafts, config.Templates, config.Access, config.Views))),
 	)
-	r.mux.Handle("POST /pages/{slug...}", browserAuthn(r.pageViewAuthz(endpoint.FavoritePage(config.Catalog, config.Views))))
-	r.mux.Handle("POST /page-watch/{slug...}", browserAuthn(r.pageViewAuthz(endpoint.WatchPage(config.Catalog, config.Views))))
-	r.mux.Handle("GET /revisions/{slug...}", browserAuthn(r.pageViewAuthz(endpoint.RevisionHistory(config.Catalog, config.Views))))
+	r.mux.Handle("POST /pages/{slug...}", browserAuthn(endpoint.FavoritePage(config.Catalog, config.Views, config.Access)))
+	r.mux.Handle("POST /page-watch/{slug...}", browserAuthn(endpoint.WatchPage(config.Catalog, config.Views, config.Access)))
+	r.mux.Handle("GET /revisions/{slug...}", browserAuthn(endpoint.RevisionHistory(config.Catalog, config.Views, config.Access)))
 	r.mux.Handle(
 		"POST /revisions/{number}/restore/{slug...}",
-		browserAuthn(editorAuthz(r.pageEditAuthz(endpoint.RestoreRevision(config.Pages, config.Views)))),
+		browserAuthn(editorAuthz(endpoint.RestoreRevision(config.Pages, config.Views, config.Access))),
 	)
 	r.mux.Handle(
 		"GET /pages/{slug...}",
-		browserAuthn(r.pageViewAuthz(endpoint.ViewPage(
+		browserAuthn(endpoint.ViewPage(
 			config.ViewData,
 			config.Catalog,
 			config.Access,
-			config.Pages,
+			config.ViewPage,
 			config.Renderer,
 			config.Views,
-		))),
+		)),
 	)
 }
 
@@ -355,12 +348,12 @@ func (r routeRegistrar) addAPIRoutes() {
 	r.mux.Handle("GET /api/drafts/{key}", apiAuthn(editorAuthz(endpoint.GetPageDraft(config.Drafts, config.Logger))))
 	r.mux.Handle("PUT /api/drafts/{key}", apiAuthn(editorAuthz(endpoint.SavePageDraft(config.Drafts, config.Logger))))
 	r.mux.Handle("DELETE /api/drafts/{key}", apiAuthn(editorAuthz(endpoint.DeletePageDraft(config.Drafts, config.Logger))))
-	r.mux.Handle("GET /api/page-presence/{slug...}", apiAuthn(r.pageViewAuthz(endpoint.PageEditors(config.Pages, config.Logger))))
-	r.mux.Handle("PUT /api/page-presence/{slug...}", apiAuthn(editorAuthz(r.pageEditAuthz(endpoint.TouchPageEditor(config.Pages, config.Logger)))))
-	r.mux.Handle("DELETE /api/page-presence/{slug...}", apiAuthn(editorAuthz(r.pageEditAuthz(endpoint.LeavePageEditor(config.Pages, config.Logger)))))
-	r.mux.Handle("GET /api/pages/{slug...}", apiAuthn(r.pageViewAuthz(endpoint.GetPage(config.Catalog, config.Logger))))
+	r.mux.Handle("GET /api/page-presence/{slug...}", apiAuthn(endpoint.PageEditors(config.Pages, config.Logger, config.Access)))
+	r.mux.Handle("PUT /api/page-presence/{slug...}", apiAuthn(editorAuthz(endpoint.TouchPageEditor(config.Pages, config.Logger, config.Access))))
+	r.mux.Handle("DELETE /api/page-presence/{slug...}", apiAuthn(editorAuthz(endpoint.LeavePageEditor(config.Pages, config.Logger, config.Access))))
+	r.mux.Handle("GET /api/pages/{slug...}", apiAuthn(endpoint.GetPage(config.Catalog, config.Logger, config.Access)))
 	r.mux.Handle("PUT /api/pages/{slug...}", apiAuthn(editorAuthz(endpoint.SavePage(config.Pages, config.Access, config.Logger))))
-	r.mux.Handle("DELETE /api/pages/{slug...}", apiAuthn(adminAuthz(r.pageEditAuthz(endpoint.DeletePage(config.Pages, config.Logger)))))
+	r.mux.Handle("DELETE /api/pages/{slug...}", apiAuthn(adminAuthz(endpoint.DeletePage(config.Pages, config.Logger, config.Access))))
 	r.mux.Handle("GET /api/search", apiAuthn(endpoint.SearchAPI(config.Catalog, config.Access, config.Logger)))
 	r.mux.Handle("GET /api/graph", apiAuthn(endpoint.KnowledgeGraphAPI(config.Knowledge, config.Access, config.Logger)))
 	r.mux.Handle(

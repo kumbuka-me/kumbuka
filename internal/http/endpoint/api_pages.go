@@ -83,7 +83,7 @@ func PreviewMarkdown(
 
 		slug := md.Slug(request.Slug)
 		user := currentUser(r)
-		securedCatalog := accessiblePageCatalog{catalog: catalogUseCases, access: accessUseCases, user: user}
+		securedCatalog := apppages.NewAccessibleCatalog(catalogUseCases, accessUseCases, user)
 		pageNavigation, err := subpageNavigation(r.Context(), navigationUseCases, accessUseCases, user, slug)
 		if err != nil {
 			httpresponse.InternalServerError(logger, w, err)
@@ -162,8 +162,13 @@ func ListPages(catalogUseCases pageListService, accessUseCases pageAccessReader,
 }
 
 // GetPage returns a page by slug.
-func GetPage(catalogUseCases pageLookupService, logger *slog.Logger) http.HandlerFunc {
+func GetPage(catalogUseCases pageLookupService, logger *slog.Logger,
+	accessUseCases pageAccessReader,
+) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if !authorizePageRequest(w, r, accessUseCases, false) {
+			return
+		}
 		slug := r.PathValue("slug")
 		if rawSlug, ok := strings.CutSuffix(slug, "/raw"); ok {
 			page, err := catalogUseCases.GetPage(r.Context(), rawSlug)
@@ -271,8 +276,13 @@ func SavePage(pageUseCases pageWriterService, accessUseCases pageAccessReader, l
 }
 
 // DeletePage removes a page by slug.
-func DeletePage(pageUseCases pageWriterService, logger *slog.Logger) http.HandlerFunc {
+func DeletePage(pageUseCases pageWriterService, logger *slog.Logger,
+	accessUseCases pageAccessReader,
+) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if !authorizePageRequest(w, r, accessUseCases, true) {
+			return
+		}
 		user := currentUser(r)
 		if err := pageUseCases.Delete(r.Context(), r.PathValue("slug"), user); err != nil {
 			writePageProblem(logger, w, err)

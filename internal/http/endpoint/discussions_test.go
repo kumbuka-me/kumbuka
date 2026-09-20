@@ -66,7 +66,7 @@ func TestResolvePageCommentUsesRouteSlug(t *testing.T) {
 	request.SetPathValue("slug", "docs/start")
 	response := httptest.NewRecorder()
 
-	ResolvePageComment(writer, nil).ServeHTTP(response, request)
+	ResolvePageComment(writer, nil, viewDataAccessStub{}).ServeHTTP(response, request)
 
 	require.Equal(t, http.StatusSeeOther, response.Code)
 	assert.Equal(t, "docs/start", writer.slug)

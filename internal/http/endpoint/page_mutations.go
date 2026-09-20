@@ -232,8 +232,12 @@ func DeletePageForm(
 func FavoritePage(
 	catalogUseCases favoriteService,
 	views *webview.Views,
+	accessUseCases pageAccessReader,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if !authorizePageRequest(w, r, accessUseCases, false) {
+			return
+		}
 		value := r.PathValue("slug")
 
 		slug, ok := strings.CutSuffix(value, "/favorite")
@@ -262,8 +266,12 @@ func FavoritePage(
 func WatchPage(
 	catalogUseCases pageWatchService,
 	views *webview.Views,
+	accessUseCases pageAccessReader,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if !authorizePageRequest(w, r, accessUseCases, false) {
+			return
+		}
 		user, _ := auth.User(r)
 		slug := strings.Trim(strings.TrimSpace(r.PathValue("slug")), "/")
 		scope := strings.TrimSpace(r.FormValue("scope"))

@@ -1,6 +1,7 @@
 package endpoint
 
 import (
+	apppages "github.com/kumbuka-me/kumbuka/internal/application/pages"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -31,7 +32,7 @@ func KnowledgeGraphAPI(knowledgeUseCases knowledgeGraphService, accessUseCases p
 	return func(w http.ResponseWriter, r *http.Request) {
 		graph, err := knowledgeUseCases.KnowledgeGraph(r.Context(), 300)
 		if err == nil {
-			graph, err = visibleKnowledgeGraph(r.Context(), accessUseCases, currentUser(r), graph)
+			graph, err = apppages.VisibleKnowledgeGraph(r.Context(), accessUseCases, currentUser(r), graph)
 		}
 		if err != nil {
 			httpresponse.InternalServerError(logger, w, err)

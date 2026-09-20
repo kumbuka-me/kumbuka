@@ -23,6 +23,9 @@ func EditPage(
 	views *webview.Views,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if !authorizePageRequest(w, r, accessUseCases, true) {
+			return
+		}
 		user := currentUser(r)
 
 		layout, err := viewDataUseCases.Load(r, views, "New page")

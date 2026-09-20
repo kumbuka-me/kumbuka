@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	apppages "github.com/kumbuka-me/kumbuka/internal/application/pages"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -214,7 +215,7 @@ func TestAliasFailureIsNotDiscarded(t *testing.T) {
 		request.SetPathValue("slug", "missing")
 		response := httptest.NewRecorder()
 
-		ViewPage(nil, repository, nil, nil, nil, testHandlerViewsWithLogger(t, logger, webview.RuntimeInfo{}))(response, request)
+		ViewPage(nil, repository, viewDataAccessStub{}, apppages.NewView(repository, viewDataAccessStub{}, nil), nil, testHandlerViewsWithLogger(t, logger, webview.RuntimeInfo{}))(response, request)
 
 		assert.Equal(t, http.StatusInternalServerError, response.Code)
 		assert.Contains(t, logs.String(), "alias database offline")
@@ -230,7 +231,7 @@ func TestAliasFailureIsNotDiscarded(t *testing.T) {
 		request.SetPathValue("slug", "missing")
 		response := httptest.NewRecorder()
 
-		GetPage(repository, logger)(response, request)
+		GetPage(repository, logger, viewDataAccessStub{})(response, request)
 
 		assert.Equal(t, http.StatusInternalServerError, response.Code)
 		assert.Contains(t, logs.String(), "alias database offline")

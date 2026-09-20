@@ -32,6 +32,8 @@ import (
 
 // Config contains the fully constructed dependencies required by the HTTP router.
 type Config struct {
+	// ViewPage loads authorized reading-page state.
+	ViewPage *apppages.View
 	// Assets contains the embedded web application assets served by the router.
 	Assets fs.FS
 	// Views renders HTML responses and exposes the shared icon catalog.

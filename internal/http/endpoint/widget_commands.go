@@ -1,6 +1,7 @@
 package endpoint
 
 import (
+	apppages "github.com/kumbuka-me/kumbuka/internal/application/pages"
 	"net/http"
 
 	"github.com/kumbuka-me/kumbuka/internal/http/auth"
@@ -63,7 +64,7 @@ func PluginWidgetCommand(
 			}
 			value := plugincap.PageValue(page)
 			pageValue = &value
-			securedCatalog := accessiblePageCatalog{catalog: catalog, access: access, user: user}
+			securedCatalog := apppages.NewAccessibleCatalog(catalog, access, user)
 			pageNavigation, err := subpageNavigation(r.Context(), navigation, access, user, slug)
 			if err != nil {
 				httpresponse.Problem(w, http.StatusInternalServerError, "The request could not be processed.")

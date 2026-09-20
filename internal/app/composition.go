@@ -48,7 +48,7 @@ func newRouteConfig(
 		cfg.PublicURL,
 	)
 
-	return routes.Config{
+	config := routes.Config{
 		Assets:         appFS,
 		Administration: appadministration.NewAdministration(database),
 		Access:         appaccess.NewAccess(database),
@@ -72,6 +72,8 @@ func newRouteConfig(
 		AccessLog:      cfg.AccessLog,
 		ReadOnly:       cfg.ReadOnly,
 	}
+	config.ViewPage = apppages.NewView(config.Catalog, config.Access, config.Pages)
+	return config
 }
 
 // browserAuthConfig maps deployment configuration onto the authentication boundary.

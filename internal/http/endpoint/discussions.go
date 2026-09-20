@@ -11,8 +11,13 @@ import (
 )
 
 // AddPageComment adds a page discussion comment or an applicable inline suggestion.
-func AddPageComment(pageUseCases pageDiscussionWriter, views *webview.Views) http.HandlerFunc {
+func AddPageComment(pageUseCases pageDiscussionWriter, views *webview.Views,
+	accessUseCases pageAccessReader,
+) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if !authorizePageRequest(w, r, accessUseCases, false) {
+			return
+		}
 		user, ok := auth.User(r)
 		if !ok {
 			httpresponse.Problem(w, http.StatusUnauthorized, "Unauthorized.")
@@ -70,8 +75,13 @@ func AddPageComment(pageUseCases pageDiscussionWriter, views *webview.Views) htt
 }
 
 // ApplyPageCommentSuggestion applies one inline suggestion and creates a new page revision.
-func ApplyPageCommentSuggestion(pageUseCases pageDiscussionWriter, views *webview.Views) http.HandlerFunc {
+func ApplyPageCommentSuggestion(pageUseCases pageDiscussionWriter, views *webview.Views,
+	accessUseCases pageAccessReader,
+) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if !authorizePageRequest(w, r, accessUseCases, true) {
+			return
+		}
 		id, err := strconv.ParseInt(strings.TrimSpace(r.PathValue("id")), 10, 64)
 		if err != nil || id <= 0 {
 			httpresponse.Problem(w, http.StatusBadRequest, "Invalid inline suggestion.")
@@ -90,8 +100,13 @@ func ApplyPageCommentSuggestion(pageUseCases pageDiscussionWriter, views *webvie
 }
 
 // ResolvePageComment resolves or reopens one discussion item.
-func ResolvePageComment(pageUseCases pageDiscussionWriter, views *webview.Views) http.HandlerFunc {
+func ResolvePageComment(pageUseCases pageDiscussionWriter, views *webview.Views,
+	accessUseCases pageAccessReader,
+) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if !authorizePageRequest(w, r, accessUseCases, true) {
+			return
+		}
 		id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 		if err != nil || id <= 0 {
 			httpresponse.Problem(w, http.StatusBadRequest, "Invalid comment.")

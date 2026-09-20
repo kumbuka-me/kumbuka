@@ -1,6 +1,7 @@
 package endpoint
 
 import (
+	apppages "github.com/kumbuka-me/kumbuka/internal/application/pages"
 	"net/http"
 
 	"github.com/kumbuka-me/kumbuka/internal/http/auth"
@@ -28,7 +29,7 @@ func Home(
 		}
 
 		user, _ := auth.User(r)
-		source := homeWidgetSource{catalog: catalogUseCases, drafts: draftUseCases, access: accessUseCases, user: user}
+		source := apppages.NewHomeLists(catalogUseCases, draftUseCases, accessUseCases, user)
 		capabilities := plugincap.MergeCapabilities(
 			plugincap.Capabilities(nil, nil, renderer.IconCatalog()),
 			plugincap.PageListCapabilities(source),
