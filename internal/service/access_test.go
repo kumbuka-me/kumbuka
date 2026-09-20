@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
@@ -10,13 +11,20 @@ import (
 )
 
 type accessRepositoryStub struct {
-	access domain.PageAccess
-	path   string
-	group  int64
-	level  string
+	batch       map[string]domain.PageAccess
+	batchCalls  int
+	singleCalls int
+	batchErr    error
+	paths       []string
+	userID      int64
+	access      domain.PageAccess
+	path        string
+	group       int64
+	level       string
 }
 
 func (r *accessRepositoryStub) PageAccess(_ context.Context, path string, _ int64) (domain.PageAccess, error) {
+	r.singleCalls++
 	r.path = path
 	return r.access, nil
 }
@@ -75,4 +83,47 @@ func TestPageAccess(t *testing.T) {
 		assert.Equal(t, int64(4), repository.group)
 		assert.Equal(t, PageAccessEdit, repository.level)
 	})
+}
+
+func (r *accessRepositoryStub) PageAccessBatch(_ context.Context, paths []string, userID int64) (map[string]domain.PageAccess, error) {
+	r.batchCalls++
+	r.paths, r.userID = paths, userID
+	return r.batch, r.batchErr
+}
+
+func TestFilterPagesUsesBulkAccess(t *testing.T) {
+	t.Parallel()
+	repository := &accessRepositoryStub{batch: map[string]domain.PageAccess{
+		"open":    {},
+		"allowed": {Restricted: true, CanView: true},
+		"denied":  {Restricted: true},
+	}}
+	pages := []domain.Page{{Slug: "open"}, {Slug: "denied"}, {Slug: "Allowed"}, {Slug: "missing"}, {Slug: "open"}}
+	result, err := NewAccess(repository).FilterPages(context.Background(), domain.User{ID: 42}, pages)
+	require.NoError(t, err)
+	assert.Equal(t, []domain.Page{pages[0], pages[2], pages[4]}, result)
+	assert.Equal(t, 1, repository.batchCalls)
+	assert.Zero(t, repository.singleCalls)
+	assert.Equal(t, int64(42), repository.userID)
+	assert.Equal(t, []string{"open", "denied", "allowed", "missing", "open"}, repository.paths)
+	result[0].Title = "changed"
+	assert.Empty(t, pages[0].Title)
+}
+
+func TestFilterPagesBypassAndFailure(t *testing.T) {
+	t.Parallel()
+	repository := &accessRepositoryStub{batchErr: errors.New("unavailable")}
+	access := NewAccess(repository)
+	pages := []domain.Page{{Slug: "private"}}
+	result, err := access.FilterPages(context.Background(), domain.User{Role: "admin"}, pages)
+	require.NoError(t, err)
+	assert.Equal(t, pages, result)
+	result[0].Slug = "changed"
+	assert.Equal(t, "private", pages[0].Slug)
+	_, err = access.FilterPages(context.Background(), domain.User{}, nil)
+	require.NoError(t, err)
+	assert.Zero(t, repository.batchCalls)
+	result, err = access.FilterPages(context.Background(), domain.User{}, pages)
+	require.ErrorIs(t, err, repository.batchErr)
+	assert.Nil(t, result)
 }

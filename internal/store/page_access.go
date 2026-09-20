@@ -83,3 +83,38 @@ func (s *Store) DeletePageAccessRule(ctx context.Context, id int64) error {
 	}
 	return err
 }
+
+// PageAccessBatch evaluates inherited access for all requested paths in one round trip.
+// The nearest rule set replaces, rather than merges with, ancestor rule sets.
+func (s *Store) PageAccessBatch(ctx context.Context, paths []string, userID int64) (map[string]domain.PageAccess, error) {
+	result := make(map[string]domain.PageAccess, len(paths))
+	if len(paths) == 0 {
+		return result, nil
+	}
+	rows, err := s.pool.Query(ctx, `
+SELECT requested.path, nearest.path IS NOT NULL,
+ COALESCE(bool_or(ug.user_id IS NOT NULL AND r.access IN ('view','edit')), false),
+ COALESCE(bool_or(ug.user_id IS NOT NULL AND r.access='edit'), false)
+FROM (SELECT DISTINCT unnest($1::text[]) AS path) requested
+LEFT JOIN LATERAL (
+ SELECT path FROM page_access_rules
+ WHERE path=requested.path OR requested.path LIKE path || '/%'
+ GROUP BY path ORDER BY length(path) DESC LIMIT 1
+) nearest ON true
+LEFT JOIN page_access_rules r ON r.path=nearest.path
+LEFT JOIN user_groups ug ON ug.group_id=r.group_id AND ug.user_id=$2
+GROUP BY requested.path, nearest.path`, paths, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var path string
+		var access domain.PageAccess
+		if err := rows.Scan(&path, &access.Restricted, &access.CanView, &access.CanEdit); err != nil {
+			return nil, err
+		}
+		result[path] = access
+	}
+	return result, rows.Err()
+}

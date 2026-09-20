@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"slices"
 	"strings"
 
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
@@ -17,6 +18,7 @@ const (
 
 type accessRepository interface {
 	PageAccess(context.Context, string, int64) (domain.PageAccess, error)
+	PageAccessBatch(context.Context, []string, int64) (map[string]domain.PageAccess, error)
 	PageAccessRules(context.Context) ([]domain.PageAccessRule, error)
 	SavePageAccessRule(context.Context, string, int64, string) error
 	DeletePageAccessRule(context.Context, int64) error
@@ -63,18 +65,24 @@ func (s *Access) CanEdit(ctx context.Context, user domain.User, path string) (bo
 
 // FilterPages removes pages the user may not view.
 func (s *Access) FilterPages(ctx context.Context, user domain.User, pages []domain.Page) ([]domain.Page, error) {
+	if user.IsAdministrator() || len(pages) == 0 {
+		return slices.Clone(pages), nil
+	}
+	paths := make([]string, len(pages))
+	for i, page := range pages {
+		paths[i] = normalizeAccessPath(page.Slug)
+	}
+	grants, err := s.repository.PageAccessBatch(ctx, paths, user.ID)
+	if err != nil {
+		return nil, err
+	}
 	result := make([]domain.Page, 0, len(pages))
-
-	for _, page := range pages {
-		allowed, err := s.CanView(ctx, user, page.Slug)
-		if err != nil {
-			return nil, err
+	for i, page := range pages {
+		grant, ok := grants[paths[i]]
+		// An incomplete repository result must never expose a protected page.
+		if ok && (!grant.Restricted || grant.CanView) {
+			result = append(result, page)
 		}
-		if !allowed {
-			continue
-		}
-
-		result = append(result, page)
 	}
 
 	return result, nil
