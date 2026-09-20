@@ -140,6 +140,11 @@ function setupEditorSearch(form: HTMLFormElement): void {
   searchPanel
     .querySelector<HTMLButtonElement>("[data-editor-replace-one]")
     ?.addEventListener("click", () => {
+      if (!findInput.value) {
+        statusElement.textContent = "Enter text to find.";
+        return;
+      }
+
       const selected = sourceEditor.value.slice(
         sourceEditor.selectionStart ?? 0,
         sourceEditor.selectionEnd ?? 0,
