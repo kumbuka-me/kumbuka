@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
-	"github.com/kumbuka-me/kumbuka/pkg/icons"
 	md "github.com/kumbuka-me/kumbuka/pkg/markdown"
 )
 
@@ -44,25 +43,26 @@ type templateRepository interface {
 	DeletePageTemplate(context.Context, int64) error
 }
 
+type iconValidator interface {
+	IsIcon(string) bool
+}
+
 // Templates exposes reusable page-blueprint use cases.
 type Templates struct {
 	// repository provides the persistence operations required by templates.
 	repository templateRepository
-	// iconCatalog stores the icon catalog value used by templates.
-	iconCatalog *icons.Catalog
+	// icons validates template icons against the active catalog.
+	icons iconValidator
 }
 
 // NewTemplates constructs the reusable page template service.
 func NewTemplates(repository templateRepository) *Templates {
-	return &Templates{repository: repository, iconCatalog: icons.Builtin()}
+	return &Templates{repository: repository}
 }
 
-// WithIconCatalog uses the active plugin-aware icon catalog for validation.
-func (s *Templates) WithIconCatalog(catalog *icons.Catalog) *Templates {
-	if catalog == nil {
-		catalog = icons.Builtin()
-	}
-	s.iconCatalog = catalog
+// WithIconValidator uses the active icon capability for template validation.
+func (s *Templates) WithIconValidator(validator iconValidator) *Templates {
+	s.icons = validator
 	return s
 }
 
@@ -78,7 +78,7 @@ func (s *Templates) PageTemplate(ctx context.Context, id int64) (domain.PageTemp
 
 // CreatePageTemplate creates a reusable page blueprint.
 func (s *Templates) CreatePageTemplate(ctx context.Context, input PageTemplateInput) (domain.PageTemplate, error) {
-	item, err := validatePageTemplateWithCatalog(input, s.iconCatalog)
+	item, err := validatePageTemplate(input, s.icons)
 	if err != nil {
 		return domain.PageTemplate{}, err
 	}
@@ -87,7 +87,7 @@ func (s *Templates) CreatePageTemplate(ctx context.Context, input PageTemplateIn
 
 // UpdatePageTemplate replaces a reusable page blueprint.
 func (s *Templates) UpdatePageTemplate(ctx context.Context, id int64, input PageTemplateInput) error {
-	item, err := validatePageTemplateWithCatalog(input, s.iconCatalog)
+	item, err := validatePageTemplate(input, s.icons)
 	if err != nil {
 		return err
 	}
@@ -99,8 +99,8 @@ func (s *Templates) DeletePageTemplate(ctx context.Context, id int64) error {
 	return s.repository.DeletePageTemplate(ctx, id)
 }
 
-// validatePageTemplateWithCatalog validates a page template against the active icon catalog.
-func validatePageTemplateWithCatalog(input PageTemplateInput, catalog *icons.Catalog) (domain.PageTemplate, error) {
+// validatePageTemplate validates a page template against the active icon capability.
+func validatePageTemplate(input PageTemplateInput, icons iconValidator) (domain.PageTemplate, error) {
 	input.Name = strings.TrimSpace(input.Name)
 	input.Description = strings.TrimSpace(input.Description)
 	input.PathPrefix = md.Slug(input.PathPrefix)
@@ -108,7 +108,7 @@ func validatePageTemplateWithCatalog(input PageTemplateInput, catalog *icons.Cat
 	input.Status = defaultPageTemplateStatus(input.Status)
 
 	fields, fieldProblems := normalizeTemplateFields(input.Fields)
-	validation := validatePageTemplateSettings(input, catalog)
+	validation := validatePageTemplateSettings(input, icons)
 	validation.Fields = append(validation.Fields, fieldProblems...)
 
 	if len(validation.Fields) > 0 {
@@ -140,17 +140,13 @@ func defaultPageTemplateStatus(status string) string {
 }
 
 // validatePageTemplateSettings validates blueprint settings outside prompted fields.
-func validatePageTemplateSettings(input PageTemplateInput, catalogs ...*icons.Catalog) *domain.ValidationError {
-	catalog := icons.Builtin()
-	if len(catalogs) > 0 && catalogs[0] != nil {
-		catalog = catalogs[0]
-	}
+func validatePageTemplateSettings(input PageTemplateInput, icons iconValidator) *domain.ValidationError {
 	validation := &domain.ValidationError{}
 
 	if input.Name == "" {
 		validation.Fields = append(validation.Fields, domain.FieldError{Field: "name", Message: "A template name is required."})
 	}
-	if !catalog.IsIcon(input.Icon) {
+	if input.Icon != "" && (icons == nil || !icons.IsIcon(input.Icon)) {
 		validation.Fields = append(validation.Fields, domain.FieldError{Field: "icon", Message: "Choose an icon from the available icon catalog."})
 	}
 	if !domain.ValidPageStatus(input.Status) {

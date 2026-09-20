@@ -306,7 +306,6 @@ func (v *Views) handleRenderError(w http.ResponseWriter, page, name string, err 
 	}
 
 	logger.Error("render template", "event", "template_render_failed", "error", err)
-	http.Error(w, "The request could not be processed.", http.StatusInternalServerError)
 }
 
 // RenderHTML renders a trusted template fragment for insertion into rendered Markdown.

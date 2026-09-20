@@ -111,6 +111,12 @@ func NewReviewDiscussions(
 	}
 }
 
+// WithContentPreparer uses the active Markdown preparation capability for suggestion application.
+func (s *ReviewDiscussions) WithContentPreparer(preparer pageContentPreparer) *ReviewDiscussions {
+	s.content = preparer
+	return s
+}
+
 // ReviewDetail returns the requested revision, its feedback, and review permissions for the actor.
 func (s *ReviewDiscussions) ReviewDetail(ctx context.Context, reviewID int64, slug string, actor domain.User) (PageReviewDetail, error) {
 	slug = strings.TrimSpace(slug)
@@ -266,7 +272,7 @@ func (s *ReviewDiscussions) applyReviewSuggestions(ctx context.Context, reviewID
 		return domain.Page{}, err
 	}
 
-	usage, render, err := s.content.derivePageContent(ctx, updatedMarkdown)
+	usage, render, err := preparePageContent(ctx, s.content, updatedMarkdown)
 	if err != nil {
 		return domain.Page{}, err
 	}

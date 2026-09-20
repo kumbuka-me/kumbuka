@@ -11,7 +11,6 @@ import (
 	"github.com/kumbuka-me/kumbuka/internal/application/audit"
 	"github.com/kumbuka-me/kumbuka/internal/secrets"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
-	"github.com/kumbuka-me/kumbuka/pkg/icons"
 	"golang.org/x/net/http/httpguts"
 )
 
@@ -55,21 +54,25 @@ type settingsRepository interface {
 	SavePDFSettings(context.Context, string, []domain.PDFHeader) error
 }
 
+type iconValidator interface {
+	IsIcon(string) bool
+}
+
 // Settings exposes persisted application configuration use cases.
 type Settings struct {
 	// repository provides the persistence operations required by settings.
 	repository settingsRepository
 	// secrets stores the secrets value used by settings.
 	secrets *secrets.Cipher
-	// iconCatalog stores the icon catalog value used by settings.
-	iconCatalog *icons.Catalog
+	// icons validates configured icons against the active catalog.
+	icons iconValidator
 	// logger reports failures from best-effort audit side effects.
 	logger *slog.Logger
 }
 
 // NewSettings constructs the application settings service.
 func NewSettings(repository settingsRepository, secretCipher *secrets.Cipher) *Settings {
-	return &Settings{repository: repository, secrets: secretCipher, iconCatalog: icons.Builtin(), logger: audit.Logger(nil)}
+	return &Settings{repository: repository, secrets: secretCipher, logger: audit.Logger(nil)}
 }
 
 // WithLogger uses logger for best-effort service side-effect failures.
@@ -78,12 +81,9 @@ func (s *Settings) WithLogger(logger *slog.Logger) *Settings {
 	return s
 }
 
-// WithIconCatalog uses the active plugin-aware icon catalog for validation.
-func (s *Settings) WithIconCatalog(catalog *icons.Catalog) *Settings {
-	if catalog == nil {
-		catalog = icons.Builtin()
-	}
-	s.iconCatalog = catalog
+// WithIconValidator uses the active icon capability for settings validation.
+func (s *Settings) WithIconValidator(validator iconValidator) *Settings {
+	s.icons = validator
 	return s
 }
 
@@ -193,7 +193,7 @@ func (s *Settings) SaveApplicationSettings(
 		return domain.NewValidationError("robots_policy", "Choose a valid robots.txt policy.")
 	}
 
-	externalLinks, err := normalizeExternalLinksWithCatalog(settings.ExternalLinks, s.iconCatalog)
+	externalLinks, err := normalizeExternalLinks(settings.ExternalLinks, s.icons)
 	if err != nil {
 		return err
 	}
@@ -216,8 +216,8 @@ func (s *Settings) SaveApplicationSettings(
 	return nil
 }
 
-// normalizeExternalLinksWithCatalog normalizes external links and validates their icons against the active catalog.
-func normalizeExternalLinksWithCatalog(links []domain.ExternalLink, catalog *icons.Catalog) ([]domain.ExternalLink, error) {
+// normalizeExternalLinks normalizes external links and validates their icons against the active catalog.
+func normalizeExternalLinks(links []domain.ExternalLink, icons iconValidator) ([]domain.ExternalLink, error) {
 	normalized := make([]domain.ExternalLink, 0, len(links))
 
 	for _, link := range links {
@@ -237,7 +237,7 @@ func normalizeExternalLinksWithCatalog(links []domain.ExternalLink, catalog *ico
 		if !validExternalLinkURL(link.URL) {
 			return nil, domain.NewValidationError("external_links", "Enter a valid HTTP or HTTPS URL for every external link.")
 		}
-		if link.Icon != "" && !catalog.IsIcon(link.Icon) {
+		if link.Icon != "" && (icons == nil || !icons.IsIcon(link.Icon)) {
 			return nil, domain.NewValidationError("external_links", "Choose external link icons from the available icon catalog.")
 		}
 		if !domain.ValidExternalLinkHoverEffect(link.HoverEffect) {

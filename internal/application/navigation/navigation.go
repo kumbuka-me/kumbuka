@@ -7,7 +7,6 @@ import (
 	"sync"
 
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
-	"github.com/kumbuka-me/kumbuka/pkg/icons"
 )
 
 // navigationRepository contains navigation tree and icon operations.
@@ -23,14 +22,18 @@ type pageFilter interface {
 	FilterPages(context.Context, domain.User, []domain.Page) ([]domain.Page, error)
 }
 
+type iconValidator interface {
+	IsIcon(string) bool
+}
+
 // Navigation exposes navigation tree and icon use cases.
 type Navigation struct {
 	// repository provides the persistence operations required by navigation.
 	repository navigationRepository
 	// access filters navigation collections for the current actor.
 	access pageFilter
-	// iconCatalog stores the icon catalog value used by navigation.
-	iconCatalog *icons.Catalog
+	// icons validates navigation icons against the active catalog.
+	icons iconValidator
 
 	// iconsMu stores the icons mu value used by navigation.
 	iconsMu sync.RWMutex
@@ -42,15 +45,12 @@ type Navigation struct {
 
 // NewNavigation constructs the navigation service.
 func NewNavigation(repository navigationRepository, access pageFilter) *Navigation {
-	return &Navigation{repository: repository, access: access, iconCatalog: icons.Builtin()}
+	return &Navigation{repository: repository, access: access}
 }
 
-// WithIconCatalog uses the active plugin-aware icon catalog for validation.
-func (s *Navigation) WithIconCatalog(catalog *icons.Catalog) *Navigation {
-	if catalog == nil {
-		catalog = icons.Builtin()
-	}
-	s.iconCatalog = catalog
+// WithIconValidator uses the active icon capability for navigation validation.
+func (s *Navigation) WithIconValidator(validator iconValidator) *Navigation {
+	s.icons = validator
 	return s
 }
 
@@ -110,7 +110,7 @@ func (s *Navigation) NavigationIcons(ctx context.Context) (map[string]string, er
 // SetNavigationIcon sets or clears the icon for a navigation path.
 func (s *Navigation) SetNavigationIcon(ctx context.Context, path, icon string) error {
 	icon = strings.TrimSpace(icon)
-	if !s.iconCatalog.IsIcon(icon) {
+	if icon != "" && (s.icons == nil || !s.icons.IsIcon(icon)) {
 		return domain.NewValidationError("icon", "Choose an icon from the available icon catalog.")
 	}
 	if err := s.repository.SetNavigationIcon(ctx, path, icon); err != nil {

@@ -69,7 +69,7 @@ func TestNavigationIconsCachesRepositoryResult(t *testing.T) {
 	t.Parallel()
 
 	repository := &navigationRepositoryStub{icons: map[string]string{"platform": "folder-lucide"}}
-	navigation := NewNavigation(repository, nil)
+	navigation := NewNavigation(repository, nil).WithIconValidator(icons.Builtin())
 
 	first, err := navigation.NavigationIcons(context.Background())
 	require.NoError(t, err)
@@ -91,7 +91,7 @@ func TestSetNavigationIconUpdatesWarmCache(t *testing.T) {
 	t.Parallel()
 
 	repository := &navigationRepositoryStub{icons: map[string]string{"platform": "folder-lucide"}}
-	navigation := NewNavigation(repository, nil)
+	navigation := NewNavigation(repository, nil).WithIconValidator(icons.Builtin())
 
 	_, err := navigation.NavigationIcons(context.Background())
 	require.NoError(t, err)
@@ -113,7 +113,7 @@ func TestSetNavigationIconAcceptsPluginResource(t *testing.T) {
 	t.Parallel()
 
 	repository := &navigationRepositoryStub{}
-	navigation := NewNavigation(repository, nil).WithIconCatalog(icons.NewCatalog(navigationIconProvider{}))
+	navigation := NewNavigation(repository, nil).WithIconValidator(icons.NewCatalog(navigationIconProvider{}))
 
 	err := navigation.SetNavigationIcon(context.Background(), "platform", "brand-example")
 

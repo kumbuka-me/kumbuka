@@ -44,15 +44,35 @@ func TestApplicationHasNoTransportOrTemplateImports(t *testing.T) {
 			t.Fatal(err)
 		}
 
+		markdownAliases := map[string]bool{}
 		for _, imported := range file.Imports {
 			name, err := strconv.Unquote(imported.Path.Value)
 			if err != nil {
 				t.Fatalf("unquote import in %s: %v", rel, err)
 			}
-			if name == "net/http" || name == "html/template" {
+			if name == "net/http" || name == "html/template" || name == modulePath+"pkg/icons" {
 				t.Errorf("%s imports forbidden application dependency %s", filepath.ToSlash(rel), name)
 			}
+			if name == modulePath+"pkg/markdown" {
+				alias := "markdown"
+				if imported.Name != nil {
+					alias = imported.Name.Name
+				}
+				markdownAliases[alias] = true
+			}
 		}
+
+		ast.Inspect(file, func(node ast.Node) bool {
+			selector, ok := node.(*ast.SelectorExpr)
+			if !ok || selector.Sel.Name != "Renderer" {
+				return true
+			}
+			identifier, ok := selector.X.(*ast.Ident)
+			if ok && markdownAliases[identifier.Name] {
+				t.Errorf("%s depends on concrete markdown.Renderer", filepath.ToSlash(rel))
+			}
+			return true
+		})
 	})
 }
 

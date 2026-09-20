@@ -8,6 +8,7 @@ import (
 
 	"github.com/kumbuka-me/kumbuka/internal/secrets"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
+	"github.com/kumbuka-me/kumbuka/pkg/icons"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -61,7 +62,7 @@ func TestSaveApplicationSettingsValidatesExternalLinks(t *testing.T) {
 		t.Parallel()
 
 		repository := &applicationSettingsRepositoryStub{}
-		settings := NewSettings(repository, nil)
+		settings := NewSettings(repository, nil).WithIconValidator(icons.Builtin())
 
 		err := settings.SaveApplicationSettings(context.Background(), domain.ApplicationSettings{
 			Rendering:    domain.RenderingSettings{DefaultTypographySize: domain.TypographySizeCompact},

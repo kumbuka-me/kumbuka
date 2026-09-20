@@ -142,8 +142,7 @@ func (*inlineSuggestionRepositoryStub) NotifyMentions(context.Context, int64, st
 }
 
 func newDiscussionsForTest(repository *inlineSuggestionRepositoryStub) *Discussions {
-	content := NewMutations(nil, nil, nil, slog.Default())
-	return NewDiscussions(repository, nil, content, repository, slog.Default())
+	return NewDiscussions(repository, nil, nil, repository, slog.Default())
 }
 
 // TestAddSuggestionMapsSelectedText verifies a unique rendered-text selection is mapped to its exact Markdown byte range.

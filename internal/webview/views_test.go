@@ -160,10 +160,10 @@ func TestRenderTemplateStatus(t *testing.T) {
 	t.Run("returns internal server error for unknown page", func(t *testing.T) {
 		t.Parallel()
 
-		views := &Views{
+		views := (&Views{
 			templates: map[string]*template.Template{},
 			logger:    testViewsLogger(),
-		}
+		}).WithRenderErrorHandler(testRenderErrorHandler)
 		response := httptest.NewRecorder()
 
 		views.RenderDataStatus(response, http.StatusOK, "missing", "layout", Layout{})
@@ -234,10 +234,10 @@ func TestRenderTemplateHTML(t *testing.T) {
 	t.Run("returns error for unknown page", func(t *testing.T) {
 		t.Parallel()
 
-		views := &Views{
+		views := (&Views{
 			templates: map[string]*template.Template{},
 			logger:    testViewsLogger(),
-		}
+		}).WithRenderErrorHandler(testRenderErrorHandler)
 
 		html, err := views.RenderHTML("missing", "fragment", Layout{})
 
@@ -289,12 +289,16 @@ func testViewFS() fstest.MapFS {
 }
 
 func testViewsWithTemplate(source string) *Views {
-	return &Views{
+	return (&Views{
 		templates: map[string]*template.Template{
 			"page": template.Must(template.New("page").Parse(source)),
 		},
 		logger: testViewsLogger(),
-	}
+	}).WithRenderErrorHandler(testRenderErrorHandler)
+}
+
+func testRenderErrorHandler(_ *slog.Logger, w http.ResponseWriter, _ error) {
+	http.Error(w, "The request could not be processed.", http.StatusInternalServerError)
 }
 
 func testViewsLogger() *slog.Logger {

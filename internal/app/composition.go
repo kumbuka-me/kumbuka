@@ -26,6 +26,7 @@ import (
 	"github.com/kumbuka-me/kumbuka/internal/flags"
 	"github.com/kumbuka-me/kumbuka/internal/http/auth"
 	"github.com/kumbuka-me/kumbuka/internal/http/endpoint"
+	"github.com/kumbuka-me/kumbuka/internal/pagecontent"
 	"github.com/kumbuka-me/kumbuka/internal/postgres"
 	"github.com/kumbuka-me/kumbuka/internal/secrets"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
@@ -141,9 +142,9 @@ func newRouteConfig(
 	access := appaccess.NewAccess(database)
 	mutations := apppages.NewMutations(database, access, database, logger, webhooks)
 	presence := apppages.NewPresence(database, access)
-	discussions := apppages.NewDiscussions(database, access, mutations, database, logger, webhooks)
+	discussions := apppages.NewDiscussions(database, access, nil, database, logger, webhooks)
 	reviews := apppages.NewReviews(database, access, database, logger, webhooks)
-	reviewDiscussions := apppages.NewReviewDiscussions(database, access, reviews, mutations, database, logger, webhooks)
+	reviewDiscussions := apppages.NewReviewDiscussions(database, access, reviews, nil, database, logger, webhooks)
 	bulk := apppages.NewBulk(database, mutations, database, logger, webhooks)
 
 	config := httpConfig{
@@ -257,10 +258,13 @@ func pluginUpdateCheckIntervalLabel(interval time.Duration) string {
 
 // configurePluginAwareServices installs runtime catalogs and rendering into services that validate plugin-owned data.
 func configurePluginAwareServices(config *httpConfig, renderer *markdown.Renderer, catalog *icons.Catalog) {
-	config.Navigation.WithIconCatalog(catalog)
-	config.PageMutations.WithIconCatalog(catalog).WithRenderer(renderer)
-	config.Settings.WithIconCatalog(catalog)
-	config.Templates.WithIconCatalog(catalog)
+	content := pagecontent.New(renderer)
+	config.Navigation.WithIconValidator(catalog)
+	config.PageMutations.WithIconValidator(catalog).WithContentPreparer(content)
+	config.PageDiscussions.WithContentPreparer(content)
+	config.PageReviewDiscussions.WithContentPreparer(content)
+	config.Settings.WithIconValidator(catalog)
+	config.Templates.WithIconValidator(catalog)
 }
 
 // newBrowserContext wires the shared authenticated browser-context aggregation boundary.

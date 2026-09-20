@@ -10,7 +10,6 @@ import (
 	appaccess "github.com/kumbuka-me/kumbuka/internal/application/access"
 	"github.com/kumbuka-me/kumbuka/internal/application/webhooks"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
-	"github.com/kumbuka-me/kumbuka/pkg/icons"
 	md "github.com/kumbuka-me/kumbuka/pkg/markdown"
 	"github.com/kumbuka-me/kumbuka/pkg/pluginusage"
 	"github.com/kumbuka-me/kumbuka/pkg/revision"
@@ -66,8 +65,12 @@ type pageContentRepository interface {
 	SavePageIfUnchanged(context.Context, time.Time, string, string, string, string, string, string, string, []string, []string, []int64, domain.PageMetadata, map[string]string, domain.PageRender, domain.User) (domain.Page, error)
 }
 
-type pageUsageAnalyzer interface {
-	AnalyzeUsage(string) pluginusage.Index
+type pageContentPreparer interface {
+	Prepare(context.Context, string) (*pluginusage.Index, domain.PageRender, error)
+}
+
+type pageIconValidator interface {
+	IsIcon(string) bool
 }
 
 // Mutations coordinates core page mutations and their application-level side effects.
@@ -78,12 +81,10 @@ type Mutations struct {
 	authorization pageAuthorization
 	// effects emits best-effort audit, mention, watcher, and webhook side effects.
 	effects *pageEffects
-	// usageAnalyzer derives plugin usage metadata from Markdown before persistence.
-	usageAnalyzer pageUsageAnalyzer
-	// renderer materializes stable HTML during writes when safe.
-	renderer *md.Renderer
-	// iconCatalog validates page icons against the active built-in and plugin catalog.
-	iconCatalog *icons.Catalog
+	// content derives plugin usage and reusable render artifacts from canonical Markdown.
+	content pageContentPreparer
+	// icons validates page icons against the active built-in and plugin catalog.
+	icons pageIconValidator
 }
 
 // NewMutations constructs core page mutation use cases. Event sinks are optional so
@@ -103,35 +104,18 @@ func NewMutations(
 		repository:    repository,
 		authorization: pageAuthorization{policy: access},
 		effects:       newPageEffects(sideEffects, logger, eventSinks...),
-		iconCatalog:   icons.Builtin(),
 	}
 }
 
-// WithIconCatalog uses the active plugin-aware icon catalog for validation.
-func (s *Mutations) WithIconCatalog(catalog *icons.Catalog) *Mutations {
-	if catalog == nil {
-		catalog = icons.Builtin()
-	}
-	s.iconCatalog = catalog
+// WithIconValidator uses the active icon capability for page validation.
+func (s *Mutations) WithIconValidator(validator pageIconValidator) *Mutations {
+	s.icons = validator
 	return s
 }
 
-// WithUsageAnalyzer derives plugin usage metadata for every persisted page write.
-func (s *Mutations) WithUsageAnalyzer(analyzer pageUsageAnalyzer) *Mutations {
-	s.usageAnalyzer = analyzer
-	return s
-}
-
-// WithRenderer enables materialized HTML for pages whose render is independent
-// of request-local permissions and mutable plugin resource data.
-func (s *Mutations) WithRenderer(renderer *md.Renderer) *Mutations {
-	s.renderer = renderer
-	if renderer == nil {
-		s.usageAnalyzer = nil
-	} else {
-		s.usageAnalyzer = renderer
-	}
-
+// WithContentPreparer uses the active Markdown preparation capability for persisted page writes.
+func (s *Mutations) WithContentPreparer(preparer pageContentPreparer) *Mutations {
+	s.content = preparer
 	return s
 }
 
@@ -213,7 +197,7 @@ func (s *Mutations) save(ctx context.Context, input PageSaveInput) (domain.Page,
 	if input.Title == "" {
 		validation.Fields = append(validation.Fields, domain.FieldError{Field: "title", Message: "Title is required."})
 	}
-	if !s.iconCatalog.IsIcon(input.Icon) {
+	if input.Icon != "" && (s.icons == nil || !s.icons.IsIcon(input.Icon)) {
 		validation.Fields = append(validation.Fields, domain.FieldError{
 			Field:   "icon",
 			Message: "Choose an icon from the available icon catalog.",
@@ -236,7 +220,7 @@ func (s *Mutations) save(ctx context.Context, input PageSaveInput) (domain.Page,
 		return domain.Page{}, validation
 	}
 
-	pluginUsage, render, err := s.derivePageContent(ctx, input.Markdown)
+	pluginUsage, render, err := preparePageContent(ctx, s.content, input.Markdown)
 	if err != nil {
 		return domain.Page{}, err
 	}
@@ -291,50 +275,13 @@ func (s *Mutations) save(ctx context.Context, input PageSaveInput) (domain.Page,
 	)
 }
 
-// derivePageContent computes plugin usage and the reusable render artifact for canonical Markdown.
-func (s *Mutations) derivePageContent(ctx context.Context, markdown string) (*pluginusage.Index, domain.PageRender, error) {
-	var pluginUsage *pluginusage.Index
-	if s.usageAnalyzer != nil {
-		usage := s.usageAnalyzer.AnalyzeUsage(markdown)
-		pluginUsage = &usage
+// preparePageContent derives persisted plugin metadata and render artifacts when a preparer is configured.
+func preparePageContent(ctx context.Context, preparer pageContentPreparer, source string) (*pluginusage.Index, domain.PageRender, error) {
+	if preparer == nil {
+		return nil, domain.PageRender{}, nil
 	}
 
-	render, err := s.materializeRender(ctx, markdown, pluginUsage)
-	if err != nil {
-		return nil, domain.PageRender{}, err
-	}
-
-	return pluginUsage, render, nil
-}
-
-// materializeRender renders stable page content once so normal GET requests can
-// reuse it. Dynamic macro/substitution pages intentionally return an empty artifact.
-func (s *Mutations) materializeRender(ctx context.Context, source string, usage *pluginusage.Index) (domain.PageRender, error) {
-	if s.renderer == nil || !s.renderer.CanPersist(source, usage) {
-		return domain.PageRender{}, nil
-	}
-	options := md.DefaultOptions()
-	rendered, err := s.renderer.RenderPageResolvedWithFunctions(source, md.Slug, options, md.Functions{
-		Context:     ctx,
-		PluginUsage: usage,
-	})
-	if err != nil {
-		return domain.PageRender{}, err
-	}
-	// Inspector/export metadata originates from mutable substitutions. Keep such
-	// pages on the request-time path as an additional persistence guard.
-	if len(rendered.Inspectors) != 0 || len(rendered.ExportFields) != 0 {
-		return domain.PageRender{}, nil
-	}
-	contents := make([]domain.PageHeading, len(rendered.Contents))
-	for index, heading := range rendered.Contents {
-		contents[index] = domain.PageHeading{Level: heading.Level, ID: heading.ID, Title: heading.Title}
-	}
-	return domain.PageRender{
-		HTML:        rendered.HTML,
-		Contents:    contents,
-		Fingerprint: s.renderer.RenderFingerprint(options),
-	}, nil
+	return preparer.Prepare(ctx, source)
 }
 
 // Delete moves a page to the recycle bin and records the action.

@@ -7,8 +7,6 @@ import (
 	"testing"
 
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
-	md "github.com/kumbuka-me/kumbuka/pkg/markdown"
-	"github.com/kumbuka-me/kumbuka/pkg/plugin"
 	"github.com/kumbuka-me/kumbuka/pkg/pluginusage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -42,9 +40,15 @@ func (r *pageSaveRepositoryStub) ApplicationSettings(context.Context) (domain.Ap
 	return domain.ApplicationSettings{}, nil
 }
 
-type pageUsageAnalyzerStub struct{ index pluginusage.Index }
+type pageContentPreparerStub struct {
+	usage  pluginusage.Index
+	render domain.PageRender
+}
 
-func (s pageUsageAnalyzerStub) AnalyzeUsage(string) pluginusage.Index { return s.index }
+func (s pageContentPreparerStub) Prepare(context.Context, string) (*pluginusage.Index, domain.PageRender, error) {
+	usage := s.usage
+	return &usage, s.render, nil
+}
 
 type denyingPageAccess struct{}
 
@@ -77,11 +81,11 @@ func TestPageUseCasesEnforceResourceAccessBeforePersistence(t *testing.T) {
 func TestPagesOptionalDependenciesAreSafe(t *testing.T) {
 	t.Parallel()
 
-	pages := NewMutations(nil, nil, nil, nil).WithRenderer(nil)
+	pages := NewMutations(nil, nil, nil, nil)
 
 	assert.NotNil(t, pages.effects.logger)
-	assert.Nil(t, pages.renderer)
-	assert.Nil(t, pages.usageAnalyzer)
+	assert.Nil(t, pages.content)
+	assert.Nil(t, pages.icons)
 }
 
 func TestSavePersistsDerivedPluginUsage(t *testing.T) {
@@ -93,7 +97,7 @@ func TestSavePersistsDerivedPluginUsage(t *testing.T) {
 		Fingerprint: "render-plan",
 		Modules:     []pluginusage.Module{{PluginID: "me.kumbuka.variables", ModuleID: "variables", Values: []string{"environment"}}},
 	}
-	pages := NewMutations(repository, nil, nil, slog.Default()).WithUsageAnalyzer(pageUsageAnalyzerStub{index: want})
+	pages := NewMutations(repository, nil, nil, slog.Default()).WithContentPreparer(pageContentPreparerStub{usage: want})
 
 	_, err := pages.save(context.Background(), PageSaveInput{
 		Slug:     "guide",
@@ -105,40 +109,6 @@ func TestSavePersistsDerivedPluginUsage(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, repository.metadata.PluginUsage)
 	assert.Equal(t, want, *repository.metadata.PluginUsage)
-}
-
-func TestSaveMaterializesStableMarkdown(t *testing.T) {
-	t.Parallel()
-	repository := &pageSaveRepositoryStub{}
-	renderer := md.NewWithRegistry(&plugin.Registry{})
-	renderer.SetArtifactBuild("test", "abc")
-	pages := NewMutations(repository, nil, nil, slog.Default()).WithRenderer(renderer)
-
-	_, err := pages.save(context.Background(), PageSaveInput{
-		Slug: "guide", Title: "Guide", Markdown: "# Guide\n\nStatic.", Status: "verified",
-	})
-
-	require.NoError(t, err)
-	assert.Contains(t, repository.render.HTML, `<h1 id="guide">Guide</h1>`)
-	assert.NotEmpty(t, repository.render.Fingerprint)
-	require.Len(t, repository.render.Contents, 1)
-	assert.Equal(t, "guide", repository.render.Contents[0].ID)
-}
-
-func TestSaveLeavesDynamicMarkdownUnmaterialized(t *testing.T) {
-	t.Parallel()
-	repository := &pageSaveRepositoryStub{}
-	renderer := md.NewWithRegistry(&plugin.Registry{})
-	renderer.SetArtifactBuild("test", "abc")
-	pages := NewMutations(repository, nil, nil, slog.Default()).WithRenderer(renderer)
-
-	_, err := pages.save(context.Background(), PageSaveInput{
-		Slug: "guide", Title: "Guide", Markdown: "{{var:environment}}", Status: "verified",
-	})
-
-	require.NoError(t, err)
-	assert.Empty(t, repository.render.Fingerprint)
-	assert.Empty(t, repository.render.HTML)
 }
 
 func TestSaveValidatesPageBeforePersistence(t *testing.T) {

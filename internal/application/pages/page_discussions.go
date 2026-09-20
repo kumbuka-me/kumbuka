@@ -39,11 +39,6 @@ type discussionRepository interface {
 	LatestRevision(context.Context, string) (revision.Revision, int, error)
 }
 
-// pageContentPreparer derives plugin usage and reusable render state for a Markdown mutation.
-type pageContentPreparer interface {
-	derivePageContent(context.Context, string) (*pluginusage.Index, domain.PageRender, error)
-}
-
 // Discussions owns page comments and inline Markdown suggestions.
 type Discussions struct {
 	repository    discussionRepository
@@ -76,6 +71,12 @@ func NewDiscussions(
 
 // ErrDiscussionsDisabled indicates that page discussions are globally disabled.
 var ErrDiscussionsDisabled = errors.New("page discussions are disabled")
+
+// WithContentPreparer uses the active Markdown preparation capability for suggestion application.
+func (s *Discussions) WithContentPreparer(preparer pageContentPreparer) *Discussions {
+	s.content = preparer
+	return s
+}
 
 // AddComment adds a discussion comment and emits mention notifications.
 func (s *Discussions) AddComment(
@@ -227,7 +228,7 @@ func (s *Discussions) ApplyCommentSuggestion(
 	if err != nil {
 		return domain.Page{}, err
 	}
-	usage, render, err := s.content.derivePageContent(ctx, updatedMarkdown)
+	usage, render, err := preparePageContent(ctx, s.content, updatedMarkdown)
 	if err != nil {
 		return domain.Page{}, err
 	}
