@@ -224,32 +224,32 @@ func (v *Views) Runtime() RuntimeInfo { return v.runtime }
 func (v *Views) AssetVersion() string { return v.assetVersion }
 
 // Render executes a page layout into a buffer before writing the HTTP response.
-func (v *Views) Render(w http.ResponseWriter, page string, data Data) {
+func (v *Views) Render(w http.ResponseWriter, page string, data Screen) {
 	v.RenderDataStatus(w, http.StatusOK, page, "layout", data)
 }
 
 // RenderStatus executes a page layout with an explicit HTTP status.
-func (v *Views) RenderStatus(w http.ResponseWriter, status int, page string, data Data) {
+func (v *Views) RenderStatus(w http.ResponseWriter, status int, page string, data Screen) {
 	v.RenderDataStatus(w, status, page, "layout", data)
 }
 
 // RenderPublic executes the minimal unauthenticated page layout.
-func (v *Views) RenderPublic(w http.ResponseWriter, page string, data Data) {
+func (v *Views) RenderPublic(w http.ResponseWriter, page string, data Screen) {
 	v.RenderPublicStatus(w, http.StatusOK, page, data)
 }
 
 // RenderPublicStatus executes the minimal unauthenticated page layout with an explicit HTTP status.
-func (v *Views) RenderPublicStatus(w http.ResponseWriter, status int, page string, data Data) {
+func (v *Views) RenderPublicStatus(w http.ResponseWriter, status int, page string, data Screen) {
 	v.RenderDataStatus(w, status, page, "public-layout", data)
 }
 
 // RenderFragment executes one named fragment from a parsed page template set.
-func (v *Views) RenderFragment(w http.ResponseWriter, page, name string, data Data) {
+func (v *Views) RenderFragment(w http.ResponseWriter, page, name string, data Screen) {
 	v.RenderDataStatus(w, http.StatusOK, page, name, data)
 }
 
 // RenderTemplate executes a named template with a successful HTTP status.
-func (v *Views) RenderTemplate(w http.ResponseWriter, page, name string, data Data) {
+func (v *Views) RenderTemplate(w http.ResponseWriter, page, name string, data Screen) {
 	v.RenderDataStatus(w, http.StatusOK, page, name, data)
 }
 
@@ -286,7 +286,7 @@ func (v *Views) RenderDataStatus(w http.ResponseWriter, status int, page, name s
 }
 
 // RenderHTML renders a trusted template fragment for insertion into rendered Markdown.
-func (v *Views) RenderHTML(page, name string, data Data) (template.HTML, error) {
+func (v *Views) RenderHTML(page, name string, data Screen) (template.HTML, error) {
 	pageTemplate, ok := v.templates[page]
 	if !ok {
 		return "", fmt.Errorf("page template %q not found", page)

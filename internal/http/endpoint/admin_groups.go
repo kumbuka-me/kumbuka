@@ -16,7 +16,8 @@ func AdminGroups(
 	views *webview.Views,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		data, err := administrationData(r, viewDataUseCases, views, "Groups", "groups")
+		layout, err := administrationData(r, viewDataUseCases, views, "Groups", "groups")
+		data := webview.AdminGroupsView{Layout: layout}
 		if err != nil {
 			httpresponse.InternalServerError(views.Logger(), w, err)
 			return

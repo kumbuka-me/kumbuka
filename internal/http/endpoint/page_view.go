@@ -105,7 +105,9 @@ func ViewPage(
 		}
 
 		stop = measurePageStage(r.Context(), "view_data")
-		data, err := viewDataUseCases.Load(r, views, page.Title)
+		layout, err := viewDataUseCases.Load(r, views, page.Title)
+		data := webview.PageView{Layout: layout}
+		data.PageContentLanguage = layout.ApplicationSettings.ContentLanguage
 		stop()
 		if err != nil {
 			httpresponse.InternalServerError(views.Logger(), w, err)
@@ -146,6 +148,7 @@ func ViewPage(
 		data.PageFavorite = state.favorite
 		data.PageWatchScope = state.watch.Scope
 		data.PageContents = rendered.Contents
+		data.HasPageContents = len(rendered.Contents) > 0
 		if manager := renderer.PluginManager(); manager != nil {
 			data.PluginPageActions = manager.PageActions(page.ID, page.Slug)
 			data.PluginExporters = manager.Exporters(page.Slug)
@@ -169,6 +172,7 @@ func ViewPage(
 		data.PageDetailWidgets = webview.Widgets(widgets, "page.details", page.Slug, pageURL(page.Slug))
 
 		stop = measurePageStage(r.Context(), "template_render")
+		data.CurrentPage = webview.CurrentPage(data.Page)
 		views.Render(w, "page", data)
 		stop()
 	}

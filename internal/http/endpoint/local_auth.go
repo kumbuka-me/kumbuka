@@ -64,7 +64,8 @@ func LocalLogin(
 			return
 		}
 
-		data, err := views.PublicData("Local sign in")
+		layout, err := views.PublicData("Local sign in")
+		data := webview.AuthenticationView{Layout: layout}
 		if err != nil {
 			httpresponse.InternalServerError(views.Logger(), w, err)
 			return
@@ -176,7 +177,8 @@ func submitSetup(
 
 // renderSetupForm renders the setup form with the requested browser status.
 func renderSetupForm(w http.ResponseWriter, views *webview.Views, status int, message string) {
-	data, err := views.PublicData("Set up Kumbuka")
+	layout, err := views.PublicData("Set up Kumbuka")
+	data := webview.AuthenticationView{Layout: layout}
 	if err != nil {
 		httpresponse.InternalServerError(views.Logger(), w, err)
 		return
@@ -200,7 +202,8 @@ func safeAuthNext(value string) string {
 func writeLocalLoginProblem(views *webview.Views, w http.ResponseWriter, err error, next string) {
 	switch {
 	case errors.Is(err, auth.ErrInvalidCredentials):
-		data, dataErr := views.PublicData("Local sign in")
+		layout, dataErr := views.PublicData("Local sign in")
+		data := webview.AuthenticationView{Layout: layout}
 		if dataErr != nil {
 			httpresponse.InternalServerError(views.Logger(), w, dataErr)
 			return

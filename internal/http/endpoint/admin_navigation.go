@@ -18,7 +18,8 @@ func AdminNavigation(
 	views *webview.Views,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		data, err := administrationData(r, viewDataUseCases, views, "Navigation", "navigation")
+		layout, err := administrationData(r, viewDataUseCases, views, "Navigation", "navigation")
+		data := webview.AdminNavigationView{Layout: layout}
 		if err != nil {
 			httpresponse.InternalServerError(views.Logger(), w, err)
 			return
@@ -117,7 +118,8 @@ func AdminTags(
 	views *webview.Views,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		data, err := administrationData(r, viewDataUseCases, views, "Tags", "tags")
+		layout, err := administrationData(r, viewDataUseCases, views, "Tags", "tags")
+		data := webview.AdminTagsView{Layout: layout}
 		if err != nil {
 			httpresponse.InternalServerError(views.Logger(), w, err)
 			return

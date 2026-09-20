@@ -12,7 +12,8 @@ import (
 // KnowledgeGraphPage renders the interactive page relationship explorer.
 func KnowledgeGraphPage(viewDataUseCases viewDataService, views *webview.Views) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		data, err := viewDataUseCases.Load(r, views, "Knowledge graph")
+		layout, err := viewDataUseCases.Load(r, views, "Knowledge graph")
+		data := webview.GraphView{Layout: layout}
 		if err != nil {
 			httpresponse.InternalServerError(views.Logger(), w, err)
 			return
@@ -20,6 +21,7 @@ func KnowledgeGraphPage(viewDataUseCases viewDataService, views *webview.Views) 
 
 		data.Query = strings.TrimSpace(r.URL.Query().Get("slug"))
 
+		data.SearchQuery = data.Query
 		views.Render(w, "graph", data)
 	}
 }

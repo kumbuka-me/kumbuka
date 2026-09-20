@@ -120,7 +120,9 @@ func renderSharedPage(
 		return
 	}
 
-	data, err := views.PublicPluginData(page.Title, pluginbrowser.Catalog("/plugins", renderer.PluginManager()), pluginbrowser.PresentationStylesVersion(renderer.PluginManager()))
+	layout, err := views.PublicPluginData(page.Title, pluginbrowser.Catalog("/plugins", renderer.PluginManager()), pluginbrowser.PresentationStylesVersion(renderer.PluginManager()))
+	data := webview.SharedPageView{Layout: layout}
+	data.PageContentLanguage = layout.ApplicationSettings.ContentLanguage
 	if err != nil {
 		writePublicShareError(logger, w, err)
 		return
@@ -131,6 +133,7 @@ func renderSharedPage(
 	data.ApplicationSettings = application
 	data.PageContentLanguage = cmp.Or(page.Language, application.ContentLanguage)
 
+	data.CurrentPage = webview.CurrentPage(data.Page)
 	views.RenderTemplate(w, "shared_page", "shared-layout", data)
 }
 

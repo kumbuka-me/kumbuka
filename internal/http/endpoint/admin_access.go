@@ -17,7 +17,8 @@ func AdminPageAccess(
 	views *webview.Views,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		data, err := administrationData(r, viewDataUseCases, views, "Page access", "permissions")
+		layout, err := administrationData(r, viewDataUseCases, views, "Page access", "permissions")
+		data := webview.AdminPermissionsView{Layout: layout}
 		if err != nil {
 			httpresponse.InternalServerError(views.Logger(), w, err)
 			return

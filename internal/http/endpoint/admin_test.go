@@ -249,7 +249,7 @@ func TestEffectiveAuthenticationSettings(t *testing.T) {
 func TestAdminAuthenticationTemplates(t *testing.T) {
 	views := testHandlerViews(t, webview.RuntimeInfo{})
 
-	data := webview.Data{Runtime: webview.RuntimeInfo{
+	data := webview.Layout{Runtime: webview.RuntimeInfo{
 		AuthModeOverride:       "oidc",
 		OIDCIssuerOverride:     "https://runtime.example.test",
 		OIDCClientIDOverride:   "runtime-client",
@@ -257,7 +257,7 @@ func TestAdminAuthenticationTemplates(t *testing.T) {
 		OIDCAdminGroupOverride: "runtime-admins",
 	}}
 	data.ApplicationSettings.Authentication.Mode = "none"
-	html, err := views.RenderHTML("admin_configuration", "content", data)
+	html, err := views.RenderHTML("admin_configuration", "content", webview.AdminConfigurationView{Layout: data})
 
 	require.NoError(t, err)
 	assert.Contains(t, string(html), "Authentication mode")
@@ -281,7 +281,7 @@ func TestAdminAuthenticationTemplates(t *testing.T) {
 	assert.Contains(t, string(html), "Test endpoint")
 	assert.NotContains(t, string(html), "auth-recovery-form")
 
-	html, err = views.RenderHTML("admin_users", "content", data)
+	html, err = views.RenderHTML("admin_users", "content", webview.AdminUsersView{Layout: data})
 
 	require.NoError(t, err)
 	assert.Contains(t, string(html), `<details class="admin-user-local-password" data-admin-user-local-password>`)
@@ -312,7 +312,7 @@ func TestAdminTrustedProxyRuntimeTemplate(t *testing.T) {
 
 	views := testHandlerViews(t, webview.RuntimeInfo{})
 
-	data := webview.Data{Runtime: webview.RuntimeInfo{
+	data := webview.Layout{Runtime: webview.RuntimeInfo{
 		AuthModeOverride:                  "trusted-proxy",
 		TrustedUsernameHeadersOverride:    []string{"Runtime-User"},
 		TrustedEmailHeadersOverride:       []string{"Runtime-Email"},
@@ -320,7 +320,7 @@ func TestAdminTrustedProxyRuntimeTemplate(t *testing.T) {
 		TrustedGroupHeadersOverride:       []string{"Runtime-Groups"},
 		TrustedAdminGroupOverride:         "runtime-admins",
 	}}
-	html, err := views.RenderHTML("admin_configuration", "content", data)
+	html, err := views.RenderHTML("admin_configuration", "content", webview.AdminConfigurationView{Layout: data})
 
 	require.NoError(t, err)
 	assert.Contains(t, string(html), "KUMBUKA__TRUSTED_GROUP_HEADERS")
@@ -334,7 +334,7 @@ func TestAdminRuntimeShowsReadOnlyMode(t *testing.T) {
 
 	views := testHandlerViews(t, webview.RuntimeInfo{})
 
-	html, err := views.RenderHTML("admin_configuration", "content", webview.Data{Runtime: webview.RuntimeInfo{ReadOnly: true}})
+	html, err := views.RenderHTML("admin_configuration", "content", webview.AdminConfigurationView{Layout: webview.Layout{Runtime: webview.RuntimeInfo{ReadOnly: true}}})
 
 	require.NoError(t, err)
 	assert.Contains(t, string(html), "Read-only mode")
@@ -346,7 +346,7 @@ func TestAdminRuntimeShowsPluginUpdateCheckInterval(t *testing.T) {
 
 	views := testHandlerViews(t, webview.RuntimeInfo{})
 
-	html, err := views.RenderHTML("admin_configuration", "content", webview.Data{Runtime: webview.RuntimeInfo{PluginUpdateCheckInterval: "15m0s"}})
+	html, err := views.RenderHTML("admin_configuration", "content", webview.AdminConfigurationView{Layout: webview.Layout{Runtime: webview.RuntimeInfo{PluginUpdateCheckInterval: "15m0s"}}})
 
 	require.NoError(t, err)
 	assert.Contains(t, string(html), "Plugin update checks")

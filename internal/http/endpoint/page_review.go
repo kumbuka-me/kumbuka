@@ -31,7 +31,8 @@ func PageReview(
 			return
 		}
 
-		data, err := viewDataUseCases.Load(r, views, "Review "+detail.Page.Title)
+		layout, err := viewDataUseCases.Load(r, views, "Review "+detail.Page.Title)
+		data := webview.ReviewView{Layout: layout}
 		if err != nil {
 			httpresponse.InternalServerError(views.Logger(), w, err)
 			return
@@ -46,6 +47,7 @@ func PageReview(
 		data.CanApplyReviewSuggestions = detail.CanApply
 		data.OpenReviewSuggestions = webview.OpenReviewSuggestionCount(detail.Comments)
 
+		data.CurrentPage = webview.CurrentPage(data.Page)
 		views.Render(w, "review", data)
 	}
 }

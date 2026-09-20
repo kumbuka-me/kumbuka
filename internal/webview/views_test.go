@@ -109,7 +109,7 @@ func TestRender(t *testing.T) {
 		views := testViewsWithTemplate(`{{ define "layout" }}layout: {{ .Title }}{{ end }}`)
 		response := httptest.NewRecorder()
 
-		views.Render(response, "page", Data{Title: "Example"})
+		views.Render(response, "page", Layout{Title: "Example"})
 
 		assert.Equal(t, http.StatusOK, response.Code)
 		assert.Equal(t, "text/html; charset=utf-8", response.Header().Get("Content-Type"))
@@ -122,7 +122,7 @@ func TestRender(t *testing.T) {
 		views := testViewsWithTemplate(`{{ define "layout" }}not found{{ end }}`)
 		response := httptest.NewRecorder()
 
-		views.RenderStatus(response, http.StatusNotFound, "page", Data{})
+		views.RenderStatus(response, http.StatusNotFound, "page", Layout{})
 
 		assert.Equal(t, http.StatusNotFound, response.Code)
 		assert.Equal(t, "text/html; charset=utf-8", response.Header().Get("Content-Type"))
@@ -135,7 +135,7 @@ func TestRender(t *testing.T) {
 		views := testViewsWithTemplate(`{{ define "public-layout" }}public: {{ .Title }}{{ end }}`)
 		response := httptest.NewRecorder()
 
-		views.RenderPublic(response, "page", Data{Title: "Login"})
+		views.RenderPublic(response, "page", Layout{Title: "Login"})
 
 		assert.Equal(t, http.StatusOK, response.Code)
 		assert.Equal(t, "public: Login", response.Body.String())
@@ -147,7 +147,7 @@ func TestRender(t *testing.T) {
 		views := testViewsWithTemplate(`{{ define "fragment" }}fragment: {{ .Title }}{{ end }}`)
 		response := httptest.NewRecorder()
 
-		views.RenderFragment(response, "page", "fragment", Data{Title: "Navigation"})
+		views.RenderFragment(response, "page", "fragment", Layout{Title: "Navigation"})
 
 		assert.Equal(t, http.StatusOK, response.Code)
 		assert.Equal(t, "fragment: Navigation", response.Body.String())
@@ -166,7 +166,7 @@ func TestRenderTemplateStatus(t *testing.T) {
 		}
 		response := httptest.NewRecorder()
 
-		views.RenderDataStatus(response, http.StatusOK, "missing", "layout", Data{})
+		views.RenderDataStatus(response, http.StatusOK, "missing", "layout", Layout{})
 
 		assert.Equal(t, http.StatusInternalServerError, response.Code)
 		assert.Contains(t, response.Body.String(), "The request could not be processed")
@@ -178,7 +178,7 @@ func TestRenderTemplateStatus(t *testing.T) {
 		views := testViewsWithTemplate(`{{ define "layout" }}prefix{{ .UnknownField }}{{ end }}`)
 		response := httptest.NewRecorder()
 
-		views.RenderDataStatus(response, http.StatusOK, "page", "layout", Data{})
+		views.RenderDataStatus(response, http.StatusOK, "page", "layout", Layout{})
 
 		assert.Equal(t, http.StatusInternalServerError, response.Code)
 		assert.NotContains(t, response.Body.String(), "prefix")
@@ -194,7 +194,7 @@ func TestRenderTemplateHTML(t *testing.T) {
 
 		views := testViewsWithTemplate(`{{ define "fragment" }}<strong>{{ .Title }}</strong>{{ end }}`)
 
-		html, err := views.RenderHTML("page", "fragment", Data{Title: "Example"})
+		html, err := views.RenderHTML("page", "fragment", Layout{Title: "Example"})
 
 		require.NoError(t, err)
 		assert.Equal(t, template.HTML("<strong>Example</strong>"), html)
@@ -205,7 +205,7 @@ func TestRenderTemplateHTML(t *testing.T) {
 
 		views := testViewsWithTemplate(`{{ define "fragment" }}{{ .Title }}{{ end }}`)
 
-		html, err := views.RenderHTML("page", "fragment", Data{Title: "<script>alert(1)</script>"})
+		html, err := views.RenderHTML("page", "fragment", Layout{Title: "<script>alert(1)</script>"})
 
 		require.NoError(t, err)
 		assert.Equal(t, template.HTML("&lt;script&gt;alert(1)&lt;/script&gt;"), html)
@@ -219,7 +219,7 @@ func TestRenderTemplateHTML(t *testing.T) {
 			logger:    testViewsLogger(),
 		}
 
-		html, err := views.RenderHTML("missing", "fragment", Data{})
+		html, err := views.RenderHTML("missing", "fragment", Layout{})
 
 		assert.Empty(t, html)
 		require.Error(t, err)
@@ -231,7 +231,7 @@ func TestRenderTemplateHTML(t *testing.T) {
 
 		views := testViewsWithTemplate(`{{ define "fragment" }}{{ .UnknownField }}{{ end }}`)
 
-		html, err := views.RenderHTML("page", "fragment", Data{})
+		html, err := views.RenderHTML("page", "fragment", Layout{})
 
 		assert.Empty(t, html)
 		require.Error(t, err)

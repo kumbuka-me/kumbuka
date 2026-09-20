@@ -72,9 +72,9 @@ func testHandlerViewsWithOverrides(
 }
 
 type viewDataServiceStub struct {
-	load func(*http.Request, *webview.Views, string) (webview.Data, error)
+	load func(*http.Request, *webview.Views, string) (webview.Layout, error)
 }
 
-func (s viewDataServiceStub) Load(r *http.Request, views *webview.Views, title string) (webview.Data, error) {
+func (s viewDataServiceStub) Load(r *http.Request, views *webview.Views, title string) (webview.Layout, error) {
 	return s.load(r, views, title)
 }

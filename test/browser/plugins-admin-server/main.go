@@ -35,9 +35,9 @@ type dataLoader struct {
 }
 
 // Load loads the browser-test view data requested by a endpoint.
-func (d dataLoader) Load(_ *http.Request, _ *webview.Views, title string) (webview.Data, error) {
+func (d dataLoader) Load(_ *http.Request, _ *webview.Views, title string) (webview.Layout, error) {
 	data, _ := json.Marshal(d.catalog)
-	return webview.Data{
+	return webview.Layout{
 		Preferences: domain.DefaultUserPreferences(),
 		Themes:      d.catalog,
 		Title:       title,

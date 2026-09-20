@@ -20,7 +20,8 @@ func Home(
 	views *webview.Views,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		data, err := viewDataUseCases.Load(r, views, "Home")
+		layout, err := viewDataUseCases.Load(r, views, "Home")
+		data := webview.HomeView{Layout: layout}
 		if err != nil {
 			httpresponse.InternalServerError(views.Logger(), w, err)
 			return

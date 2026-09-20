@@ -92,16 +92,16 @@
              data-command-static
              role="option">{{ icon "plus-lucide" 17 }}<span><strong>New page</strong><small>Create a page</small></span></a>
         {{ end }}
-        {{ if .Page }}
+        {{ if .CurrentPage }}
           {{ if .CanEdit }}
-            <a href="/edit/{{ .Page.Slug }}"
+            <a href="/edit/{{ .CurrentPage.Slug }}"
                class="command-palette-option"
                data-command-option
                data-command-static
-               role="option">{{ icon "pencil-lucide" 17 }}<span><strong>Edit current page</strong><small>{{ .Page.Title }}</small></span></a>
+               role="option">{{ icon "pencil-lucide" 17 }}<span><strong>Edit current page</strong><small>{{ .CurrentPage.Title }}</small></span></a>
           {{ end }}
         {{ end }}
-        <a href="/graph{{ if .Page }}?slug={{ .Page.Slug }}{{ end }}"
+        <a href="/graph{{ if .CurrentPage }}?slug={{ .CurrentPage.Slug }}{{ end }}"
            class="command-palette-option"
            data-command-option
            data-command-static

@@ -9,16 +9,16 @@ import (
 )
 
 // PublicData builds shared data for unauthenticated setup and login pages.
-func (v *Views) PublicData(title string) (Data, error) {
+func (v *Views) PublicData(title string) (Layout, error) {
 	preferences := domain.DefaultUserPreferences()
 	activeTheme := themes.DefaultTheme
 	preferences.Theme = activeTheme
 	themeData, err := json.Marshal(v.themes)
 	if err != nil {
-		return Data{}, err
+		return Layout{}, err
 	}
 
-	return Data{
+	return Layout{
 		Title:         title,
 		Preferences:   preferences,
 		Version:       v.version,
@@ -33,15 +33,15 @@ func (v *Views) PublicData(title string) (Data, error) {
 }
 
 // PublicPluginData builds unauthenticated view data with active browser plugin presentation assets.
-func (v *Views) PublicPluginData(title string, modules []pluginbrowser.Module, stylesVersion string) (Data, error) {
+func (v *Views) PublicPluginData(title string, modules []pluginbrowser.Module, stylesVersion string) (Layout, error) {
 	data, err := v.PublicData(title)
 	if err != nil {
-		return Data{}, err
+		return Layout{}, err
 	}
 
 	encoded, err := json.Marshal(modules)
 	if err != nil {
-		return Data{}, err
+		return Layout{}, err
 	}
 	data.PluginModules = template.JS(encoded)
 	data.PluginStylesVersion = stylesVersion

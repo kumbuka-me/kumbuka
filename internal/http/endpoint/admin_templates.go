@@ -20,7 +20,8 @@ func AdminPageTemplates(
 	views *webview.Views,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		data, err := administrationData(r, viewDataUseCases, views, "Page templates", "templates")
+		layout, err := administrationData(r, viewDataUseCases, views, "Page templates", "templates")
+		data := webview.AdminTemplatesView{Layout: layout}
 		if err != nil {
 			httpresponse.InternalServerError(views.Logger(), w, err)
 			return

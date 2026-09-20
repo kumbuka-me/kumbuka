@@ -37,7 +37,8 @@ func Settings(
 	views *webview.Views,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		data, err := viewDataUseCases.Load(r, views, "Settings")
+		layout, err := viewDataUseCases.Load(r, views, "Settings")
+		data := webview.SettingsView{Layout: layout}
 		if err != nil {
 			httpresponse.InternalServerError(views.Logger(), w, err)
 			return

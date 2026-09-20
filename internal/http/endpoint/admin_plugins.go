@@ -77,7 +77,8 @@ func (a *AdminPlugins) render(w http.ResponseWriter, r *http.Request, id string,
 		http.Error(w, "Plugin manager unavailable.", http.StatusServiceUnavailable)
 		return
 	}
-	data, err := administrationData(r, a.data, a.views, "Plugins", "plugins")
+	layout, err := administrationData(r, a.data, a.views, "Plugins", "plugins")
+	data := webview.AdminPluginsView{Layout: layout}
 	if err != nil {
 		httpresponse.InternalServerError(a.views.Logger(), w, err)
 		return

@@ -55,12 +55,12 @@ type pluginData struct {
 }
 
 // Load builds the common template data used by every authenticated browser page.
-func (l *BrowserContext) Load(r *http.Request, views *webview.Views, title string) (webview.Data, error) {
+func (l *BrowserContext) Load(r *http.Request, views *webview.Views, title string) (webview.Layout, error) {
 	user, _ := auth.User(r)
 
 	context, err := l.query.Load(r.Context(), user, !strings.HasPrefix(r.URL.Path, "/admin"))
 	if err != nil {
-		return webview.Data{}, err
+		return webview.Layout{}, err
 	}
 	preferences := context.Preferences
 	applicationSettings := context.Settings
@@ -73,26 +73,26 @@ func (l *BrowserContext) Load(r *http.Request, views *webview.Views, title strin
 	themeData, err := json.Marshal(views.Themes())
 	stop()
 	if err != nil {
-		return webview.Data{}, err
+		return webview.Layout{}, err
 	}
 
 	plugins, err := l.loadPluginData(r, user, preferences)
 	if err != nil {
-		return webview.Data{}, err
+		return webview.Layout{}, err
 	}
 
-	return webview.Data{
-		Title:                   title,
-		User:                    user,
-		Preferences:             preferences,
-		TypographySize:          typographySize,
-		Navigation:              pageNavigation,
-		NewPageParent:           activeNavigationSlug(r.URL.Path),
-		SidebarWidgets:          plugins.sidebarWidgets,
-		SavedSearches:           context.SavedSearches,
-		Notifications:           context.Notifications,
-		UnreadNotifications:     context.UnreadNotifications,
-		PageStatuses:            domain.PageStatuses(),
+	return webview.Layout{
+		Title:               title,
+		User:                user,
+		Preferences:         preferences,
+		TypographySize:      typographySize,
+		Navigation:          pageNavigation,
+		NewPageParent:       activeNavigationSlug(r.URL.Path),
+		SidebarWidgets:      plugins.sidebarWidgets,
+		SavedSearches:       context.SavedSearches,
+		Notifications:       context.Notifications,
+		UnreadNotifications: context.UnreadNotifications,
+
 		Version:                 views.Version(),
 		AssetVersion:            views.AssetVersion(),
 		Commit:                  views.Commit(),
@@ -108,7 +108,6 @@ func (l *BrowserContext) Load(r *http.Request, views *webview.Views, title strin
 		EditorInserts:           plugins.editorInserts,
 		PluginSettingsLinks:     plugins.settingsLinks,
 		CanEdit:                 user.CanEditContent(),
-		PageContentLanguage:     applicationSettings.ContentLanguage,
 	}, nil
 }
 

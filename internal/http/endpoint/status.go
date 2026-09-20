@@ -34,7 +34,7 @@ type statusPagePresentation struct {
 // statusPageData combines shared page chrome with one themed HTTP status presentation.
 type statusPageData struct {
 	// Data provides the shared fields required by application and public layouts.
-	webview.Data
+	webview.Layout
 	// StatusCode is the HTTP status code displayed above the title.
 	StatusCode int
 	// StatusMessage explains why the request could not be completed.
@@ -146,13 +146,13 @@ func renderStatusPage(
 	w http.ResponseWriter,
 	status int,
 	layout string,
-	data webview.Data,
+	data webview.Layout,
 	presentation statusPagePresentation,
 ) {
 	data.Title = presentation.Title
 
 	views.RenderDataStatus(w, status, "not_found", layout, statusPageData{
-		Data:           data,
+		Layout:         data,
 		StatusCode:     status,
 		StatusMessage:  presentation.Message,
 		StatusIcon:     presentation.Icon,

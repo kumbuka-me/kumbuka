@@ -16,7 +16,8 @@ import (
 // AdminWebhooks renders outgoing webhook configuration and recent deliveries.
 func AdminWebhooks(viewDataUseCases viewDataService, webhookUseCases webhookAdminService, views *webview.Views) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		data, err := administrationData(r, viewDataUseCases, views, "Webhooks", "webhooks")
+		layout, err := administrationData(r, viewDataUseCases, views, "Webhooks", "webhooks")
+		data := webview.AdminWebhooksView{Layout: layout}
 		if err != nil {
 			httpresponse.InternalServerError(views.Logger(), w, err)
 			return

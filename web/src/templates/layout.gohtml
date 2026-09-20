@@ -28,7 +28,7 @@
       data-navigation-density="{{ .Preferences.NavigationDensity }}"
       data-typography-size="{{ .TypographySize }}"
       data-navigation-guides="{{ if .Preferences.ShowNavigationGuides }}true{{ else }}false{{ end }}"
-      data-current-page="{{ if .Page }}{{ .Page.Slug }}{{ end }}"
+      data-current-page="{{ if .CurrentPage }}{{ .CurrentPage.Slug }}{{ end }}"
       data-user-id="{{ .User.ID }}"
       data-can-edit="{{ if .CanEdit }}true{{ else }}false{{ end }}"
       style="--sidebar: {{ .Preferences.SidebarWidth }}px">
@@ -59,7 +59,7 @@
       {{ end }}
 <main {{ if .AdminSection }}
       class="admin-main"
-      {{ else if .PageContents }}
+      {{ else if .HasPageContents }}
       class="with-page-contents"
       {{ end }}>
     {{ template "content" . }}

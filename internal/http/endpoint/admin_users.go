@@ -21,7 +21,8 @@ func AdminUsers(
 	views *webview.Views,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		data, err := administrationData(r, viewDataUseCases, views, "Users", "users")
+		layout, err := administrationData(r, viewDataUseCases, views, "Users", "users")
+		data := webview.AdminUsersView{Layout: layout}
 		if err != nil {
 			httpresponse.InternalServerError(views.Logger(), w, err)
 			return

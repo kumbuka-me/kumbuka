@@ -151,7 +151,8 @@ func (a *AdminPluginSettings) render(w http.ResponseWriter, r *http.Request, plu
 		http.NotFound(w, r)
 		return
 	}
-	data, err := administrationData(r, a.data, a.views, selected.Manifest.Name+" settings", "plugin:"+selected.Manifest.ID)
+	layout, err := administrationData(r, a.data, a.views, selected.Manifest.Name+" settings", "plugin:"+selected.Manifest.ID)
+	data := webview.AdminPluginSettingsView{Layout: layout}
 	if err != nil {
 		httpresponse.InternalServerError(a.views.Logger(), w, err)
 		return

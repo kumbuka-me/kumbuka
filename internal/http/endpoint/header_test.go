@@ -30,7 +30,7 @@ func TestNotificationHeaderUnreadClass(t *testing.T) {
 	}).Parse(string(source))
 	require.NoError(t, err)
 
-	data := webview.Data{
+	data := webview.Layout{
 		ApplicationSettings: domain.ApplicationSettings{ExternalLinks: []domain.ExternalLink{{
 			Label:       "Repository",
 			URL:         "https://github.com/kumbuka-me/kumbuka",

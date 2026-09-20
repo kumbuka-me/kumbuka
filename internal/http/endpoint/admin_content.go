@@ -16,7 +16,8 @@ func AdminDocumentationHealth(
 	views *webview.Views,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		data, err := administrationData(r, viewDataUseCases, views, "Documentation health", "health")
+		layout, err := administrationData(r, viewDataUseCases, views, "Documentation health", "health")
+		data := webview.AdminHealthView{Layout: layout}
 		if err != nil {
 			httpresponse.InternalServerError(views.Logger(), w, err)
 			return
@@ -41,7 +42,8 @@ func AdminAudit(
 	views *webview.Views,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		data, err := administrationData(r, viewDataUseCases, views, "Audit log", "audit")
+		layout, err := administrationData(r, viewDataUseCases, views, "Audit log", "audit")
+		data := webview.AdminAuditView{Layout: layout}
 		if err != nil {
 			httpresponse.InternalServerError(views.Logger(), w, err)
 			return
@@ -67,7 +69,8 @@ func AdminTokens(
 	views *webview.Views,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		data, err := administrationData(r, viewDataUseCases, views, "Access tokens", "tokens")
+		layout, err := administrationData(r, viewDataUseCases, views, "Access tokens", "tokens")
+		data := webview.AdminTokensView{Layout: layout}
 		if err != nil {
 			httpresponse.InternalServerError(views.Logger(), w, err)
 			return
@@ -99,7 +102,8 @@ func AdminExports(
 	views *webview.Views,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		data, err := administrationData(r, viewDataUseCases, views, "Exports", "exports")
+		layout, err := administrationData(r, viewDataUseCases, views, "Exports", "exports")
+		data := webview.AdminExportsView{Layout: layout}
 		if err != nil {
 			httpresponse.InternalServerError(views.Logger(), w, err)
 			return
@@ -124,7 +128,8 @@ func AdminImages(
 	views *webview.Views,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		data, err := administrationData(r, viewDataUseCases, views, "Images", "images")
+		layout, err := administrationData(r, viewDataUseCases, views, "Images", "images")
+		data := webview.AdminImagesView{Layout: layout}
 		if err != nil {
 			httpresponse.InternalServerError(views.Logger(), w, err)
 			return

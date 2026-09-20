@@ -11,8 +11,8 @@ import (
 
 type notFoundViewDataLoader struct{}
 
-func (notFoundViewDataLoader) Load(_ *http.Request, _ *webview.Views, title string) (webview.Data, error) {
-	return webview.Data{Title: title}, nil
+func (notFoundViewDataLoader) Load(_ *http.Request, _ *webview.Views, title string) (webview.Layout, error) {
+	return webview.Layout{Title: title}, nil
 }
 
 func TestNotFound(t *testing.T) {

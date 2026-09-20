@@ -39,7 +39,8 @@ func AdminConfiguration(
 	views *webview.Views,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		data, err := administrationData(r, viewDataUseCases, views, "Configuration", "configuration")
+		layout, err := administrationData(r, viewDataUseCases, views, "Configuration", "configuration")
+		data := webview.AdminConfigurationView{Layout: layout}
 		if err != nil {
 			httpresponse.InternalServerError(views.Logger(), w, err)
 			return

@@ -23,13 +23,15 @@ const (
 // AdminImport renders the import workspace.
 func AdminImport(viewDataUseCases viewDataService, views *webview.Views) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		data, err := administrationData(r, viewDataUseCases, views, "Import", "import")
+		layout, err := administrationData(r, viewDataUseCases, views, "Import", "import")
 		if err != nil {
 			httpresponse.InternalServerError(views.Logger(), w, err)
 			return
 		}
 
+		data := webview.AdminImportView{Layout: layout}
 		data.Query = r.URL.Query().Get("result")
+		data.SearchQuery = data.Query
 		views.Render(w, "admin_import", data)
 	}
 }

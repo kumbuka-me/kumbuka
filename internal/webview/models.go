@@ -141,206 +141,571 @@ type PageCommentThread struct {
 	Comments []domain.PageComment
 }
 
-// Data contains the data shared by server-rendered Kumbuka templates.
-type Data struct {
-	// AdminPlugins contains the admin plugins associated with view data.
-	AdminPlugins []plugin.LoadedPlugin
-	// PluginMessage contains the plugin message for view data.
-	PluginMessage string
-	// OpenPluginID identifies the plugin detail modal that should open after rendering.
-	OpenPluginID string
-	// PluginRequiredIDs identifies plugins protected by trusted operator policy.
-	PluginRequiredIDs map[string]bool
-	// PluginUpdates contains newer compatible first-party releases keyed by plugin ID.
-	PluginUpdates map[string]*PluginUpdate
-	// PluginUpdateStatus contains scheduled and manual catalog refresh state.
-	PluginUpdateStatus PluginUpdateStatus
-	// PluginCatalogUnavailable reports that the update catalog could not be checked for this render.
-	PluginCatalogUnavailable bool
-	// PluginHasSettings identifies plugins that expose administrator settings.
-	PluginHasSettings map[string]bool
-	// PluginSettings is the plugin currently shown on its dedicated settings page.
-	PluginSettings *plugin.LoadedPlugin
+// Layout contains presentation data for layout.
+type Layout struct {
+	// CurrentPage identifies contextual actions in shared browser chrome.
+	CurrentPage *PageSummary
+	// HasPageContents selects the reading-page layout.
+	HasPageContents bool
+	// SearchQuery is the current value of the global search input.
+	SearchQuery string
+
 	// PluginSettingsLinks contains installed plugins that expose settings or resources.
 	PluginSettingsLinks []PluginSettingsLink
-	// PluginSettingsGroups contains typed singleton settings shown on the current plugin settings page.
-	PluginSettingsGroups []plugin.SettingGroup
-	// PluginSettingsResources contains structured settings shown on the current plugin settings page.
-	PluginSettingsResources []PluginResource
-	// PluginREADMEs contains sanitized packaged documentation keyed by plugin ID.
-	PluginREADMEs map[string]template.HTML
+
 	// PluginFeatures contains enabled plugin and plugin-setting flags for browser UI decisions.
 	PluginFeatures map[string]bool
+
 	// PluginWidgetPreferences contains enabled plugin widgets and their user visibility.
 	PluginWidgetPreferences []WidgetPreference
+
 	// PluginModules is the current browser-module catalog embedded in the page.
 	PluginModules template.JS
+
 	// PluginStylesVersion fingerprints active plugin presentation styles for immutable browser caching.
 	PluginStylesVersion string
+
 	// Title is the page title displayed in the browser chrome.
 	Title string
+
 	// User is the authenticated user rendering the page.
 	User domain.User
+
 	// Preferences contains the current user's presentation preferences.
 	Preferences domain.UserPreferences
+
 	// TypographySize is the effective content typography preset after applying the application default.
 	TypographySize string
-	// Page is the current page when one is being viewed or edited.
-	Page *domain.Page
-	// PageFavorite reports whether the current user has pinned the current page.
-	PageFavorite bool
-	// PageWatchScope is page or subtree when the current user watches this path.
-	PageWatchScope string
-	// PageReviewRequest is the active lightweight approval workflow item.
-	PageReviewRequest domain.PageReviewRequest
-	// CanReviewPage reports whether the current user may decide the pending review.
-	CanReviewPage bool
-	// CanManageReview reports whether the current user may edit or cancel the pending request.
-	CanManageReview bool
-	// ReviewDiff contains the line-oriented diff and feedback for a dedicated review page.
-	ReviewDiff []ReviewDiffLine
-	// CanCommentReview reports whether the current actor may add review comments.
-	CanCommentReview bool
-	// CanSuggestReview reports whether the current actor may propose source changes.
-	CanSuggestReview bool
-	// CanApplyReviewSuggestions reports whether the current actor may apply pending suggestions.
-	CanApplyReviewSuggestions bool
-	// OpenReviewSuggestions is the number of unapplied suggestions on the current review.
-	OpenReviewSuggestions int
-	// ReviewGroups contains collaboration groups available as review targets.
-	ReviewGroups []domain.Group
-	// HTML is the sanitized rendered Markdown for the current page.
-	HTML template.HTML
-	// PageContents contains heading links for the current rendered page.
-	PageContents []markdown.Heading
-	// Pages contains the primary page collection for the current view.
-	Pages []domain.Page
+
 	// SavedSearches contains named smart collections for the current user.
 	SavedSearches []domain.SavedSearch
+
 	// Notifications contains recent inbox items for the current user.
 	Notifications []domain.Notification
+
 	// UnreadNotifications is the current unread inbox count.
 	UnreadNotifications int
-	// HomeWidgets contains sanitized plugin widgets for the home dashboard.
-	HomeWidgets []Widget
+
 	// SidebarWidgets contains sanitized plugin widgets above structural navigation.
 	SidebarWidgets []Widget
-	// PageDetailWidgets contains sanitized plugin widgets for the page details surface.
-	PageDetailWidgets []Widget
-	// PluginPageActions contains host-rendered navigation actions contributed for the current page.
-	PluginPageActions []plugin.PageActionContribution
-	// PluginExporters contains active plugin-owned page download formats.
-	PluginExporters []plugin.ExporterContribution
-	// Comments contains page-level discussion items that are not anchored inline.
-	Comments []domain.PageComment
-	// InlineCommentThreads contains anchored discussion threads rendered beside page text.
-	InlineCommentThreads []PageCommentThread
-	// Revisions contains revision history rendered in the on-demand history dialog.
-	Revisions []revision.Revision
-	// RevisionSlug is the page path used by revision history actions.
-	RevisionSlug string
-	// Images contains uploaded media shown in settings or administration.
-	Images []MediaItem
-	// ImageQuery is the active filename/uploader filter for a managed image list.
-	ImageQuery string
-	// ImagesHasMore reports whether another managed image page is available.
-	ImagesHasMore bool
-	// UserTokens contains personal access tokens owned by the current user.
-	UserTokens []domain.APIToken
+
 	// AdminSection identifies the active administration navigation section.
 	AdminSection string
-	// AdminStats contains high-level persisted object counts for administrators.
-	AdminStats domain.AdminStats
+
 	// ApplicationSettings contains mutable application-wide settings for administrators.
 	ApplicationSettings domain.ApplicationSettings
-	// PDFHeaders contains administrator-safe PDF request-header metadata.
-	PDFHeaders []domain.PDFHeader
-	// DocumentationHealth contains actionable documentation quality findings.
-	DocumentationHealth domain.DocumentationHealth
-	// ContentLanguages lists content languages available to administrators.
-	ContentLanguages []ContentLanguageOption
-	// PageContentLanguage is the effective language for the current page/editor.
-	PageContentLanguage string
-	// AdminUsers contains users and group memberships for administrators.
-	AdminUsers []domain.AdminUser
-	// PendingOIDCIdentities contains verified OIDC identities awaiting an administrator decision.
-	PendingOIDCIdentities []domain.PendingOIDCIdentity
-	// OIDCIdentityCount is the number of active external OIDC bindings.
-	OIDCIdentityCount int
-	// Groups contains administratively managed user groups.
-	Groups []domain.Group
-	// PageTemplates contains reusable templates available to page authors.
-	PageTemplates []domain.PageTemplate
-	// PageAccessRules contains inherited path access rules for administrators.
-	PageAccessRules []domain.PageAccessRule
-	// Webhooks contains outgoing administrator integrations.
-	Webhooks []domain.Webhook
-	// WebhookDeliveries contains recent outgoing delivery attempts.
-	WebhookDeliveries []domain.WebhookDelivery
-	// WebhookEvents contains supported event names.
-	WebhookEvents []string
-	// WebhookDraft provides enabled defaults for the create form.
-	WebhookDraft domain.Webhook
-	// PluginInspectors contains active plugin-owned reading-page inspection data.
-	PluginInspectors []plugin.Inspector
-	// PluginExportFields contains plugin-owned request-local export controls used by this page.
-	PluginExportFields []plugin.ExportField
+
 	// EditorInserts contains active plugin-owned editor actions.
 	EditorInserts []plugin.EditorInsertContribution
-	// PageStatuses contains lifecycle statuses available to page editors.
-	PageStatuses []string
-	// EditorTemplate is the selected template used to prefill a new page.
-	EditorTemplate *domain.PageTemplate
-	// EditorInitialSlug pre-fills a requested path for a new page.
-	EditorInitialSlug string
-	// EditorParentPath is the selected parent location in the guided page-path picker.
-	EditorParentPath string
-	// EditorPathSegment is the stable final path segment for edits and explicit new-page links.
-	EditorPathSegment string
+
 	// PagePathOptions contains existing page and folder locations available as parents.
 	PagePathOptions []PagePathOption
+
 	// NewPageParent is the active page path inherited by contextual new-page actions.
 	NewPageParent string
-	// AdminTags contains tags and page usage counts for administrators.
-	AdminTags []domain.TagInfo
-	// AdminTokens contains all personal access tokens for administrators.
-	AdminTokens []domain.APIToken
-	// AuditEvents contains recent administrative audit events.
-	AuditEvents []domain.AuditEvent
-	// AdminPages contains all pages available for administrative export.
-	AdminPages []domain.Page
-	// DeletedPages contains pages currently held in the recycle bin.
-	DeletedPages []domain.DeletedPage
-	// AdminNavigation contains top-level navigation sections and their persisted icons.
-	AdminNavigation []domain.NavigationItem
-	// Tags contains tags exposed by the current view.
-	Tags []string
-	// Query is the active search query.
-	Query string
-	// AuthError contains a browser-facing authentication or setup validation error.
-	AuthError string
-	// AuthNext is the validated local path restored after interactive authentication.
-	AuthNext string
-	// LocalCredentialAuthenticated reports whether this request used a local session.
-	LocalCredentialAuthenticated bool
+
 	// Navigation is the slug-derived sidebar navigation tree.
 	Navigation []navigation.Node
+
 	// Version is the application version shown in the footer.
 	Version string
+
 	// AssetVersion fingerprints embedded browser assets for cache-safe URLs.
 	AssetVersion string
+
 	// Commit is the application commit shown in administration.
 	Commit string
+
 	// Runtime contains non-secret runtime configuration for administrators.
 	Runtime RuntimeInfo
+
 	// ThemeData is the JSON theme catalog consumed by the browser.
 	ThemeData template.JS
+
 	// Themes lists the theme titles available in settings.
 	Themes []themes.Theme
+
 	// ActiveTheme is the current user's validated theme title.
 	ActiveTheme string
+
 	// CanEdit reports whether the current user may create or edit pages.
 	CanEdit bool
+}
+
+// PageSummary identifies the current page in shared browser chrome.
+type PageSummary struct {
+	Slug  string
+	Title string
+}
+
+// CurrentPage projects a loaded page into contextual browser navigation.
+func CurrentPage(page *domain.Page) *PageSummary {
+	if page == nil {
+		return nil
+	}
+	return &PageSummary{Slug: page.Slug, Title: page.Title}
+}
+
+// Screen is a typed browser model; embedding Layout supplies its marker.
+type Screen interface{ browserScreen() }
+
+// browserScreen marks shared layout and screen models as renderable.
+func (Layout) browserScreen() {}
+
+// AdminAuditView contains presentation data for admin audit view.
+type AdminAuditView struct {
+	// Layout contains shared browser presentation.
+	Layout
+
+	// AuditEvents contains recent administrative audit events.
+	AuditEvents []domain.AuditEvent
+}
+
+// AdminBinView contains presentation data for admin bin view.
+type AdminBinView struct {
+	// Layout contains shared browser presentation.
+	Layout
+
+	// DeletedPages contains pages currently held in the recycle bin.
+	DeletedPages []domain.DeletedPage
+}
+
+// AdminConfigurationView contains presentation data for admin configuration view.
+type AdminConfigurationView struct {
+	// Layout contains shared browser presentation.
+	Layout
+
+	// PDFHeaders contains administrator-safe PDF request-header metadata.
+	PDFHeaders []domain.PDFHeader
+
+	// ContentLanguages lists content languages available to administrators.
+	ContentLanguages []ContentLanguageOption
+
+	// Groups contains administratively managed user groups.
+	Groups []domain.Group
+}
+
+// AdminExportsView contains presentation data for admin exports view.
+type AdminExportsView struct {
+	// Layout contains shared browser presentation.
+	Layout
+
+	// AdminPages contains all pages available for administrative export.
+	AdminPages []domain.Page
+}
+
+// AdminGroupsView contains presentation data for admin groups view.
+type AdminGroupsView struct {
+	// Layout contains shared browser presentation.
+	Layout
+
+	// Groups contains administratively managed user groups.
+	Groups []domain.Group
+}
+
+// AdminHealthView contains presentation data for admin health view.
+type AdminHealthView struct {
+	// Layout contains shared browser presentation.
+	Layout
+
+	// DocumentationHealth contains actionable documentation quality findings.
+	DocumentationHealth domain.DocumentationHealth
+}
+
+// AdminImagesView contains presentation data for admin images view.
+type AdminImagesView struct {
+	// Layout contains shared browser presentation.
+	Layout
+
+	// Images contains uploaded media shown in settings or administration.
+	Images []MediaItem
+
+	// ImageQuery is the active filename/uploader filter for a managed image list.
+	ImageQuery string
+
+	// ImagesHasMore reports whether another managed image page is available.
+	ImagesHasMore bool
+}
+
+// AdminNavigationView contains presentation data for admin navigation view.
+type AdminNavigationView struct {
+	// Layout contains shared browser presentation.
+	Layout
+
+	// AdminNavigation contains top-level navigation sections and their persisted icons.
+	AdminNavigation []domain.NavigationItem
+}
+
+// AdminPagesView contains presentation data for admin pages view.
+type AdminPagesView struct {
+	// Layout contains shared browser presentation.
+	Layout
+
+	// Groups contains administratively managed user groups.
+	Groups []domain.Group
+
+	// PageStatuses contains lifecycle statuses available to page editors.
+	PageStatuses []string
+
+	// AdminPages contains all pages available for administrative export.
+	AdminPages []domain.Page
+}
+
+// AdminPermissionsView contains presentation data for admin permissions view.
+type AdminPermissionsView struct {
+	// Layout contains shared browser presentation.
+	Layout
+
+	// Groups contains administratively managed user groups.
+	Groups []domain.Group
+
+	// PageAccessRules contains inherited path access rules for administrators.
+	PageAccessRules []domain.PageAccessRule
+}
+
+// AdminPluginSettingsView contains presentation data for admin plugin settings view.
+type AdminPluginSettingsView struct {
+	// Layout contains shared browser presentation.
+	Layout
+
+	// PluginMessage contains the plugin message for view data.
+	PluginMessage string
+
+	// PluginSettings is the plugin currently shown on its dedicated settings page.
+	PluginSettings *plugin.LoadedPlugin
+
+	// PluginSettingsGroups contains typed singleton settings shown on the current plugin settings page.
+	PluginSettingsGroups []plugin.SettingGroup
+
+	// PluginSettingsResources contains structured settings shown on the current plugin settings page.
+	PluginSettingsResources []PluginResource
+}
+
+// AdminPluginsView contains presentation data for admin plugins view.
+type AdminPluginsView struct {
+	// Layout contains shared browser presentation.
+	Layout
+
+	// AdminPlugins contains the admin plugins associated with view data.
+	AdminPlugins []plugin.LoadedPlugin
+
+	// PluginMessage contains the plugin message for view data.
+	PluginMessage string
+
+	// OpenPluginID identifies the plugin detail modal that should open after rendering.
+	OpenPluginID string
+
+	// PluginRequiredIDs identifies plugins protected by trusted operator policy.
+	PluginRequiredIDs map[string]bool
+
+	// PluginUpdates contains newer compatible first-party releases keyed by plugin ID.
+	PluginUpdates map[string]*PluginUpdate
+
+	// PluginUpdateStatus contains scheduled and manual catalog refresh state.
+	PluginUpdateStatus PluginUpdateStatus
+
+	// PluginCatalogUnavailable reports that the update catalog could not be checked for this render.
+	PluginCatalogUnavailable bool
+
+	// PluginHasSettings identifies plugins that expose administrator settings.
+	PluginHasSettings map[string]bool
+
+	// PluginREADMEs contains sanitized packaged documentation keyed by plugin ID.
+	PluginREADMEs map[string]template.HTML
+}
+
+// AdminTagsView contains presentation data for admin tags view.
+type AdminTagsView struct {
+	// Layout contains shared browser presentation.
+	Layout
+
+	// AdminTags contains tags and page usage counts for administrators.
+	AdminTags []domain.TagInfo
+}
+
+// AdminTemplatesView contains presentation data for admin templates view.
+type AdminTemplatesView struct {
+	// Layout contains shared browser presentation.
+	Layout
+
+	// Groups contains administratively managed user groups.
+	Groups []domain.Group
+
+	// PageTemplates contains reusable templates available to page authors.
+	PageTemplates []domain.PageTemplate
+
+	// PageStatuses contains lifecycle statuses available to page editors.
+	PageStatuses []string
+}
+
+// AdminTokensView contains presentation data for admin tokens view.
+type AdminTokensView struct {
+	// Layout contains shared browser presentation.
+	Layout
+
+	// AdminUsers contains users and group memberships for administrators.
+	AdminUsers []domain.AdminUser
+
+	// AdminTokens contains all personal access tokens for administrators.
+	AdminTokens []domain.APIToken
+}
+
+// AdminUsersView contains presentation data for admin users view.
+type AdminUsersView struct {
+	// Layout contains shared browser presentation.
+	Layout
+
+	// AdminUsers contains users and group memberships for administrators.
+	AdminUsers []domain.AdminUser
+
+	// PendingOIDCIdentities contains verified OIDC identities awaiting an administrator decision.
+	PendingOIDCIdentities []domain.PendingOIDCIdentity
+
+	// OIDCIdentityCount is the number of active external OIDC bindings.
+	OIDCIdentityCount int
+
+	// Groups contains administratively managed user groups.
+	Groups []domain.Group
+}
+
+// AdminView contains presentation data for admin view.
+type AdminView struct {
+	// Layout contains shared browser presentation.
+	Layout
+
+	// AdminStats contains high-level persisted object counts for administrators.
+	AdminStats domain.AdminStats
+}
+
+// AdminWebhooksView contains presentation data for admin webhooks view.
+type AdminWebhooksView struct {
+	// Layout contains shared browser presentation.
+	Layout
+
+	// Webhooks contains outgoing administrator integrations.
+	Webhooks []domain.Webhook
+
+	// WebhookDeliveries contains recent outgoing delivery attempts.
+	WebhookDeliveries []domain.WebhookDelivery
+
+	// WebhookEvents contains supported event names.
+	WebhookEvents []string
+
+	// WebhookDraft provides enabled defaults for the create form.
+	WebhookDraft domain.Webhook
+}
+
+// AuthenticationView contains presentation data for authentication view.
+type AuthenticationView struct {
+	// Layout contains shared browser presentation.
+	Layout
+
+	// AuthError contains a browser-facing authentication or setup validation error.
+	AuthError string
+
+	// AuthNext is the validated local path restored after interactive authentication.
+	AuthNext string
+}
+
+// EditView contains presentation data for edit view.
+type EditView struct {
+	// Layout contains shared browser presentation.
+	Layout
+
+	// Page is the current page when one is being viewed or edited.
+	Page *domain.Page
+
+	// ContentLanguages lists content languages available to administrators.
+	ContentLanguages []ContentLanguageOption
+
+	// PageContentLanguage is the effective language for the current page/editor.
+	PageContentLanguage string
+
+	// Groups contains administratively managed user groups.
+	Groups []domain.Group
+
+	// PageTemplates contains reusable templates available to page authors.
+	PageTemplates []domain.PageTemplate
+
+	// PageStatuses contains lifecycle statuses available to page editors.
+	PageStatuses []string
+
+	// EditorTemplate is the selected template used to prefill a new page.
+	EditorTemplate *domain.PageTemplate
+
+	// EditorInitialSlug pre-fills a requested path for a new page.
+	EditorInitialSlug string
+
+	// EditorParentPath is the selected parent location in the guided page-path picker.
+	EditorParentPath string
+
+	// EditorPathSegment is the stable final path segment for edits and explicit new-page links.
+	EditorPathSegment string
+}
+
+// GraphView contains presentation data for graph view.
+type GraphView struct {
+	// Layout contains shared browser presentation.
+	Layout
+
+	// Query is the active search query.
+	Query string
+}
+
+// HomeView contains presentation data for home view.
+type HomeView struct {
+	// Layout contains shared browser presentation.
+	Layout
+
+	// HomeWidgets contains sanitized plugin widgets for the home dashboard.
+	HomeWidgets []Widget
+}
+
+// PageView contains presentation data for page view.
+type PageView struct {
+	// Layout contains shared browser presentation.
+	Layout
+
+	// Page is the current page when one is being viewed or edited.
+	Page *domain.Page
+
+	// PageFavorite reports whether the current user has pinned the current page.
+	PageFavorite bool
+
+	// PageWatchScope is page or subtree when the current user watches this path.
+	PageWatchScope string
+
+	// PageReviewRequest is the active lightweight approval workflow item.
+	PageReviewRequest domain.PageReviewRequest
+
+	// CanReviewPage reports whether the current user may decide the pending review.
+	CanReviewPage bool
+
+	// CanManageReview reports whether the current user may edit or cancel the pending request.
+	CanManageReview bool
+
+	// ReviewGroups contains collaboration groups available as review targets.
+	ReviewGroups []domain.Group
+
+	// HTML is the sanitized rendered Markdown for the current page.
+	HTML template.HTML
+
+	// PageContents contains heading links for the current rendered page.
+	PageContents []markdown.Heading
+
+	// PageDetailWidgets contains sanitized plugin widgets for the page details surface.
+	PageDetailWidgets []Widget
+
+	// PluginPageActions contains host-rendered navigation actions contributed for the current page.
+	PluginPageActions []plugin.PageActionContribution
+
+	// PluginExporters contains active plugin-owned page download formats.
+	PluginExporters []plugin.ExporterContribution
+
+	// Comments contains page-level discussion items that are not anchored inline.
+	Comments []domain.PageComment
+
+	// InlineCommentThreads contains anchored discussion threads rendered beside page text.
+	InlineCommentThreads []PageCommentThread
+
+	// PageContentLanguage is the effective language for the current page/editor.
+	PageContentLanguage string
+
+	// PluginInspectors contains active plugin-owned reading-page inspection data.
+	PluginInspectors []plugin.Inspector
+
+	// PluginExportFields contains plugin-owned request-local export controls used by this page.
+	PluginExportFields []plugin.ExportField
+}
+
+// ReviewView contains presentation data for review view.
+type ReviewView struct {
+	// Layout contains shared browser presentation.
+	Layout
+
+	// Page is the current page when one is being viewed or edited.
+	Page *domain.Page
+
+	// PageReviewRequest is the active lightweight approval workflow item.
+	PageReviewRequest domain.PageReviewRequest
+
+	// ReviewDiff contains the line-oriented diff and feedback for a dedicated review page.
+	ReviewDiff []ReviewDiffLine
+
+	// CanCommentReview reports whether the current actor may add review comments.
+	CanCommentReview bool
+
+	// CanSuggestReview reports whether the current actor may propose source changes.
+	CanSuggestReview bool
+
+	// CanApplyReviewSuggestions reports whether the current actor may apply pending suggestions.
+	CanApplyReviewSuggestions bool
+
+	// OpenReviewSuggestions is the number of unapplied suggestions on the current review.
+	OpenReviewSuggestions int
+}
+
+// RevisionsView contains presentation data for revisions view.
+type RevisionsView struct {
+	// Layout contains shared browser presentation.
+	Layout
+
+	// Revisions contains revision history rendered in the on-demand history dialog.
+	Revisions []revision.Revision
+
+	// RevisionSlug is the page path used by revision history actions.
+	RevisionSlug string
+}
+
+// SearchView contains presentation data for search view.
+type SearchView struct {
+	// Layout contains shared browser presentation.
+	Layout
+
+	// Pages contains the primary page collection for the current view.
+	Pages []domain.Page
+
+	// Query is the active search query.
+	Query string
+}
+
+// SettingsView contains presentation data for settings view.
+type SettingsView struct {
+	// Layout contains shared browser presentation.
+	Layout
+
+	// Images contains uploaded media shown in settings or administration.
+	Images []MediaItem
+
+	// ImageQuery is the active filename/uploader filter for a managed image list.
+	ImageQuery string
+
+	// ImagesHasMore reports whether another managed image page is available.
+	ImagesHasMore bool
+
+	// UserTokens contains personal access tokens owned by the current user.
+	UserTokens []domain.APIToken
+
+	// Groups contains administratively managed user groups.
+	Groups []domain.Group
+
+	// LocalCredentialAuthenticated reports whether this request used a local session.
+	LocalCredentialAuthenticated bool
+}
+
+// SharedPageView contains presentation data for shared page view.
+type SharedPageView struct {
+	// Layout contains shared browser presentation.
+	Layout
+
+	// Page is the current page when one is being viewed or edited.
+	Page *domain.Page
+
+	// HTML is the sanitized rendered Markdown for the current page.
+	HTML template.HTML
+
+	// PageContentLanguage is the effective language for the current page/editor.
+	PageContentLanguage string
 }
 
 // PluginSettingsLink is one installed plugin exposed in administration settings navigation.
@@ -422,4 +787,10 @@ func HasPagePathOption(options []PagePathOption, slug string) bool {
 	return slices.ContainsFunc(options, func(option PagePathOption) bool {
 		return option.Slug == slug
 	})
+}
+
+// AdminImportView presents an import result.
+type AdminImportView struct {
+	Layout
+	Query string
 }

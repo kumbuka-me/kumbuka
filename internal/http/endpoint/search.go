@@ -25,7 +25,8 @@ func Search(
 			return
 		}
 
-		data, err := viewDataUseCases.Load(r, views, "Search")
+		layout, err := viewDataUseCases.Load(r, views, "Search")
+		data := webview.SearchView{Layout: layout}
 		if err != nil {
 			httpresponse.InternalServerError(views.Logger(), w, err)
 			return
@@ -33,6 +34,7 @@ func Search(
 
 		data.Query, data.Pages = query, pages
 
+		data.SearchQuery = data.Query
 		views.Render(w, "search", data)
 	}
 }

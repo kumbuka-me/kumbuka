@@ -17,7 +17,8 @@ func Administration(
 	views *webview.Views,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		data, err := administrationData(r, viewDataUseCases, views, "Administration", "overview")
+		layout, err := administrationData(r, viewDataUseCases, views, "Administration", "overview")
+		data := webview.AdminView{Layout: layout}
 		if err != nil {
 			httpresponse.InternalServerError(views.Logger(), w, err)
 			return
@@ -41,10 +42,10 @@ func administrationData(
 	viewDataUseCases viewDataService,
 	views *webview.Views,
 	title, section string,
-) (webview.Data, error) {
+) (webview.Layout, error) {
 	data, err := viewDataUseCases.Load(r, views, title)
 	if err != nil {
-		return webview.Data{}, err
+		return webview.Layout{}, err
 	}
 
 	data.AdminSection = section

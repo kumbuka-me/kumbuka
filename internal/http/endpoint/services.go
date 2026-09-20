@@ -16,7 +16,7 @@ import (
 )
 
 type viewDataService interface {
-	Load(*http.Request, *webview.Views, string) (webview.Data, error)
+	Load(*http.Request, *webview.Views, string) (webview.Layout, error)
 }
 
 type administrationService interface {

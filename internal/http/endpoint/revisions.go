@@ -21,10 +21,10 @@ func RevisionHistory(catalogUseCases pageRevisionService, views *webview.Views) 
 
 		user, _ := auth.User(r)
 
-		views.RenderFragment(w, "page", "revision-list", webview.Data{
+		views.RenderFragment(w, "page", "revision-list", webview.RevisionsView{
 			Revisions:    revision.AnalyzeAll(revisions),
 			RevisionSlug: r.PathValue("slug"),
-			CanEdit:      user.CanEditContent(),
+			Layout:       webview.Layout{CanEdit: user.CanEditContent()},
 		})
 	}
 }

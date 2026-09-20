@@ -25,7 +25,9 @@ func EditPage(
 	return func(w http.ResponseWriter, r *http.Request) {
 		user := currentUser(r)
 
-		data, err := viewDataUseCases.Load(r, views, "New page")
+		layout, err := viewDataUseCases.Load(r, views, "New page")
+		data := webview.EditView{Layout: layout}
+		data.PageContentLanguage = layout.ApplicationSettings.ContentLanguage
 		if err != nil {
 			httpresponse.InternalServerError(views.Logger(), w, err)
 			return
@@ -67,6 +69,7 @@ func EditPage(
 			data.PageContentLanguage = cmp.Or(page.Language, data.PageContentLanguage)
 		}
 
+		data.CurrentPage = webview.CurrentPage(data.Page)
 		views.Render(w, "edit", data)
 	}
 }
@@ -74,7 +77,7 @@ func EditPage(
 // prepareNewPageEditor initializes editor state used only when creating a page.
 func prepareNewPageEditor(
 	r *http.Request,
-	data *webview.Data,
+	data *webview.EditView,
 	templateUseCases templateService,
 ) error {
 	data.PagePathOptions = webview.PagePathOptions(data.Navigation, "")

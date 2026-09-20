@@ -16,7 +16,8 @@ func AdminBin(
 	views *webview.Views,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		data, err := administrationData(r, viewDataUseCases, views, "Recycle bin", "bin")
+		layout, err := administrationData(r, viewDataUseCases, views, "Recycle bin", "bin")
+		data := webview.AdminBinView{Layout: layout}
 		if err != nil {
 			httpresponse.InternalServerError(views.Logger(), w, err)
 			return
