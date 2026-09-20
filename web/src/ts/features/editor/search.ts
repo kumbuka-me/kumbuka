@@ -76,9 +76,9 @@ function setupEditorSearch(form: HTMLFormElement): void {
     let index: number;
 
     if (direction < 0) {
-      const from = Math.max(0, (sourceEditor.selectionStart ?? 0) - 1);
+      const from = (sourceEditor.selectionStart ?? 0) - 1;
 
-      index = haystack.lastIndexOf(needle, from);
+      index = from >= 0 ? haystack.lastIndexOf(needle, from) : -1;
 
       if (index < 0) index = haystack.lastIndexOf(needle);
     } else {
