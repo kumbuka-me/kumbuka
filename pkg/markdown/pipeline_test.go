@@ -211,7 +211,7 @@ func TestRemovedMacrosCannotBeActivatedByRequestBindings(t *testing.T) {
 	registry := renderer.registry
 	require.NoError(t, registry.Unregister("me.kumbuka.subpages"))
 	got, err := NewWithRegistry(registry).RenderPageResolvedWithFunctions("{{subpages}}", Slug, DefaultOptions(), Functions{
-		Macros: map[string]plugin.MacroRenderer{"subpages": func(plugin.Invocation) (string, error) { t.Fatal("removed macro invoked"); return "", nil }},
+		Macros: map[string]plugin.MacroRenderer{"subpages": func(plugin.Invocation) (string, error) { require.FailNow(t, "removed macro invoked"); return "", nil }},
 	})
 	require.NoError(t, err)
 	assert.Contains(t, got.HTML, "{{subpages}}")

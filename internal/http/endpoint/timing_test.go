@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"log/slog"
 	"net/http/httptest"
-	"strings"
 	"testing"
 
 	"github.com/kumbuka-me/kumbuka/internal/webview"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestPageTimingLogsStructuredSummary(t *testing.T) {
@@ -17,9 +18,7 @@ func TestPageTimingLogsStructuredSummary(t *testing.T) {
 
 	request := httptest.NewRequest("GET", "/pages/example", nil)
 	request, trace := views.StartPageTiming(request)
-	if trace == nil {
-		t.Fatal("page timing trace was not created")
-	}
+	require.NotNil(t, trace, "page timing trace was not created")
 
 	stop := measurePageStage(request.Context(), "view_data")
 	stop()
@@ -34,9 +33,7 @@ func TestPageTimingLogsStructuredSummary(t *testing.T) {
 		"duration_ms=",
 		"stages.view_data_ms=",
 	} {
-		if !strings.Contains(output, want) {
-			t.Fatalf("timing log missing %q: %s", want, output)
-		}
+		assert.Contains(t, output, want)
 	}
 }
 
@@ -45,10 +42,6 @@ func TestPageTimingDisabledDoesNotAttachTrace(t *testing.T) {
 	request := httptest.NewRequest("GET", "/pages/example", nil)
 
 	profiled, trace := views.StartPageTiming(request)
-	if trace != nil {
-		t.Fatal("page timing trace was created while diagnostics were disabled")
-	}
-	if profiled != request {
-		t.Fatal("disabled page timing replaced the request")
-	}
+	assert.Nil(t, trace, "page timing trace was created while diagnostics were disabled")
+	assert.Same(t, request, profiled, "disabled page timing replaced the request")
 }

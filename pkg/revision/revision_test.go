@@ -99,6 +99,6 @@ func findDiffLine(t *testing.T, lines []DiffLine, kind, text string) DiffLine {
 		}
 	}
 
-	t.Fatalf("missing %s diff line containing %q", kind, text)
+	require.FailNowf(t, "missing diff line", "missing %s diff line containing %q", kind, text)
 	return DiffLine{}
 }

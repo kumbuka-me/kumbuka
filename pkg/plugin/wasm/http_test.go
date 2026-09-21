@@ -15,6 +15,8 @@ import (
 	"testing"
 
 	sdk "github.com/kumbuka-me/sdk"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // clearPluginHTTPEnv removes ambient proxy and certificate settings from one test.
@@ -28,26 +30,19 @@ func clearPluginHTTPEnv(t *testing.T) {
 // TestPluginHTTPNetworkPolicy verifies special-use destinations stay blocked unless an exact private address is allowed.
 func TestPluginHTTPNetworkPolicy(t *testing.T) {
 	for _, raw := range []string{"127.0.0.1", "0.0.0.0", "169.254.169.254", "10.0.0.1", "172.16.0.1", "192.168.1.1", "100.100.100.200", "192.0.2.1", "198.18.0.1", "224.0.0.1", "::1", "fe80::1", "fc00::1", "64:ff9b::7f00:1", "2002:7f00:1::", "2001:db8::1"} {
-		if allowedHTTPIP(netip.MustParseAddr(raw), nil) {
-			t.Errorf("allowed %s", raw)
-		}
+		assert.False(t, allowedHTTPIP(netip.MustParseAddr(raw), nil), "allowed %s", raw)
 	}
-	if !allowedHTTPIP(netip.MustParseAddr("10.0.0.1"), []string{"10.0.0.1"}) || allowedHTTPIP(netip.MustParseAddr("10.0.0.2"), []string{"10.0.0.1"}) {
-		t.Fatal("private IP exception is not exact")
-	}
+	assert.True(t, allowedHTTPIP(netip.MustParseAddr("10.0.0.1"), []string{"10.0.0.1"}))
+	assert.False(t, allowedHTTPIP(netip.MustParseAddr("10.0.0.2"), []string{"10.0.0.1"}))
 	for _, raw := range []string{"127.0.0.1", "169.254.169.254", "10.0.0.0/8", "::ffff:10.0.0.1"} {
-		if validHTTPPrivateIP(raw) {
-			t.Errorf("accepted invalid private exception %s", raw)
-		}
+		assert.False(t, validHTTPPrivateIP(raw), "accepted invalid private exception %s", raw)
 	}
 }
 
 // TestPluginHTTPRequestValidation verifies the generic HTTP wire contract rejects unsafe request metadata.
 func TestPluginHTTPRequestValidation(t *testing.T) {
 	valid := sdk.HTTPRequest{Method: http.MethodGet, URL: "https://example.com/api", Headers: map[string]string{"Accept": "application/json"}}
-	if !validHTTPRequest(valid) {
-		t.Fatal("valid request rejected")
-	}
+	require.True(t, validHTTPRequest(valid), "valid request rejected")
 	for _, request := range []sdk.HTTPRequest{
 		{Method: "TRACE", URL: valid.URL},
 		{Method: http.MethodGet, URL: "file:///etc/passwd"},
@@ -57,9 +52,7 @@ func TestPluginHTTPRequestValidation(t *testing.T) {
 		{Method: http.MethodGet, URL: "http://example.com", InsecureSkipVerify: true},
 		{Method: http.MethodGet, URL: valid.URL, AllowedPrivateIPs: []string{"127.0.0.1"}},
 	} {
-		if validHTTPRequest(request) {
-			t.Fatalf("unsafe request accepted: %+v", request)
-		}
+		assert.False(t, validHTTPRequest(request), "unsafe request accepted: %+v", request)
 	}
 }
 
@@ -70,24 +63,22 @@ func TestPluginHTTPConventionalProxyEnvironment(t *testing.T) {
 	for _, key := range []string{"HTTPS_PROXY", "https_proxy"} {
 		t.Setenv(key, "http://proxy.example:3128")
 		got, err := pluginProxyFor(target)
-		if err != nil || got == nil || got.Host != "proxy.example:3128" {
-			t.Fatalf("%s: %v %v", key, got, err)
-		}
+		require.NoError(t, err, "%s", key)
+		require.NotNil(t, got, "%s", key)
+		assert.Equal(t, "proxy.example:3128", got.Host, "%s", key)
 		t.Setenv(key, "")
 	}
 
 	t.Setenv("HTTPS_PROXY", "http://proxy.example:3128")
 	t.Setenv("NO_PROXY", "git.example")
 	got, err := pluginProxyFor(target)
-	if err != nil || got != nil {
-		t.Fatal("NO_PROXY ignored")
-	}
+	require.NoError(t, err)
+	assert.Nil(t, got, "NO_PROXY ignored")
 
 	t.Setenv("NO_PROXY", "")
 	t.Setenv("HTTPS_PROXY", "socks5://proxy.example")
-	if _, err := pluginProxyFor(target); err == nil {
-		t.Fatal("unsupported proxy silently accepted")
-	}
+	_, err = pluginProxyFor(target)
+	assert.Error(t, err, "unsupported proxy silently accepted")
 }
 
 // TestPluginHTTPProxyTunnelPinsDestination verifies proxy CONNECT receives a validated numeric target and separate proxy credentials.
@@ -95,13 +86,12 @@ func TestPluginHTTPProxyTunnelPinsDestination(t *testing.T) {
 	clearPluginHTTPEnv(t)
 	seen := make(chan string, 1)
 	proxy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodConnect || r.Header.Get("Authorization") != "" || r.Header.Get("Proxy-Authorization") != "Basic dXNlcjpwYXNz" {
-			t.Error("invalid proxy request")
-		}
+		assert.Equal(t, http.MethodConnect, r.Method)
+		assert.Empty(t, r.Header.Get("Authorization"))
+		assert.Equal(t, "Basic dXNlcjpwYXNz", r.Header.Get("Proxy-Authorization"))
 		seen <- r.Host
 		connection, buffer, err := w.(http.Hijacker).Hijack()
-		if err != nil {
-			t.Error(err)
+		if !assert.NoError(t, err) {
 			return
 		}
 		defer func() { _ = connection.Close() }()
@@ -114,20 +104,13 @@ func TestPluginHTTPProxyTunnelPinsDestination(t *testing.T) {
 	proxyURL.User = url.UserPassword("user", "pass")
 	t.Setenv("HTTPS_PROXY", proxyURL.String())
 	client, err := secureHTTPClient(sdk.HTTPRequest{Method: http.MethodGet, URL: "https://example.com"})
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	connection, err := client.Transport.(*http.Transport).DialContext(context.Background(), "tcp", "93.184.216.34:443")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	_ = connection.Close()
-	if host := <-seen; host != "93.184.216.34:443" {
-		t.Fatalf("proxy received unpinned destination %s", host)
-	}
-	if _, err = client.Transport.(*http.Transport).DialContext(context.Background(), "tcp", "169.254.169.254:443"); err == nil {
-		t.Fatal("proxy bypassed special-use destination block")
-	}
+	assert.Equal(t, "93.184.216.34:443", <-seen, "proxy received unpinned destination")
+	_, err = client.Transport.(*http.Transport).DialContext(context.Background(), "tcp", "169.254.169.254:443")
+	assert.Error(t, err, "proxy bypassed special-use destination block")
 }
 
 // TestPluginHTTPTLSOptions verifies plugin HTTP honors the explicit TLS override and conventional custom certificate roots.
@@ -135,32 +118,22 @@ func TestPluginHTTPTLSOptions(t *testing.T) {
 	clearPluginHTTPEnv(t)
 	for _, enabled := range []bool{false, true} {
 		client, err := secureHTTPClient(sdk.HTTPRequest{Method: http.MethodGet, URL: "https://example.com", InsecureSkipVerify: enabled})
-		if err != nil {
-			t.Fatal(err)
-		}
-		if client.Transport.(*http.Transport).TLSClientConfig.InsecureSkipVerify != enabled {
-			t.Fatal("TLS option ignored")
-		}
+		require.NoError(t, err)
+		assert.Equal(t, enabled, client.Transport.(*http.Transport).TLSClientConfig.InsecureSkipVerify, "TLS option ignored")
 	}
 
 	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = fmt.Fprint(w, "ok") }))
 	defer server.Close()
 	file := filepath.Join(t.TempDir(), "ca.pem")
-	if err := os.WriteFile(file, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: server.Certificate().Raw}), 0600); err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, os.WriteFile(file, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: server.Certificate().Raw}), 0600))
 	t.Setenv("SSL_CERT_FILE", file)
 	roots, err := pluginCertificateRoots()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err = server.Certificate().Verify(x509.VerifyOptions{Roots: roots}); err != nil {
-		t.Fatal("custom CA not trusted", err)
-	}
+	require.NoError(t, err)
+	_, err = server.Certificate().Verify(x509.VerifyOptions{Roots: roots})
+	require.NoError(t, err, "custom CA not trusted")
 	t.Setenv("SSL_CERT_FILE", file+".missing")
-	if _, err = pluginCertificateRoots(); err == nil {
-		t.Fatal("missing custom CA silently ignored")
-	}
+	_, err = pluginCertificateRoots()
+	assert.Error(t, err, "missing custom CA silently ignored")
 }
 
 // TestPluginHTTPProxyHeaderBound verifies oversized CONNECT responses are rejected.
@@ -176,8 +149,9 @@ func TestPluginHTTPProxyHeaderBound(t *testing.T) {
 	}))
 	defer proxy.Close()
 	proxyURL, _ := url.Parse(proxy.URL)
-	if connection, err := pluginProxyTunnel(context.Background(), proxyURL, "93.184.216.34:443", nil); err == nil {
+	connection, err := pluginProxyTunnel(context.Background(), proxyURL, "93.184.216.34:443", nil)
+	if connection != nil {
 		_ = connection.Close()
-		t.Fatal("oversized CONNECT response accepted")
 	}
+	assert.Error(t, err, "oversized CONNECT response accepted")
 }

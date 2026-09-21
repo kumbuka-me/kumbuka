@@ -100,7 +100,7 @@ func TestNotificationsAPI(t *testing.T) {
 		t.Parallel()
 
 		useCases := notificationServiceStub{list: func(context.Context, int64, int) ([]domain.Notification, int, error) {
-			t.Fatal("service must not be called")
+			require.FailNow(t, "service must not be called")
 			return nil, 0, nil
 		}}
 		response := httptest.NewRecorder()
@@ -177,7 +177,7 @@ func TestOpenNotification(t *testing.T) {
 		t.Parallel()
 
 		useCases := notificationServiceStub{open: func(context.Context, int64, int64) (string, error) {
-			t.Fatal("service must not be called")
+			require.FailNow(t, "service must not be called")
 			return "", nil
 		}}
 		request := httptest.NewRequest(http.MethodPost, "/notifications/7/open", nil)
@@ -244,7 +244,7 @@ func TestMarkNotificationRead(t *testing.T) {
 				return nil
 			},
 			markAll: func(context.Context, int64) error {
-				t.Fatal("mark all must not be called")
+				require.FailNow(t, "mark all must not be called")
 				return nil
 			},
 		}
@@ -262,7 +262,7 @@ func TestMarkNotificationRead(t *testing.T) {
 		useCases := notificationServiceStub{
 			open: func(context.Context, int64, int64) (string, error) { return "", nil },
 			mark: func(context.Context, int64, int64) error {
-				t.Fatal("single mark must not be called")
+				require.FailNow(t, "single mark must not be called")
 				return nil
 			},
 			markAll: func(_ context.Context, userID int64) error {
