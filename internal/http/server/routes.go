@@ -9,12 +9,6 @@ import (
 	"github.com/kumbuka-me/kumbuka/internal/http/routes"
 )
 
-const (
-	pageCommentSuggestionApplyPattern    = "POST /page-comments/suggestions/apply/{id}/{slug...}"
-	pageReviewSuggestionApplyPattern     = "POST /reviews/{id}/suggestions/apply/{commentID}/{slug...}"
-	pageReviewSuggestionsApplyAllPattern = "POST /reviews/{id}/suggestions/apply-all/{slug...}"
-)
-
 // routeRegistrar binds fully constructed endpoints to HTTP patterns.
 type routeRegistrar struct {
 	// router registers endpoints and applies HTTP authentication/role policies.
@@ -291,10 +285,10 @@ func (r routeRegistrar) addPageRoutes() {
 	r.router.Handle("POST /pages/approval/decide/{id}/{slug...}", browserAuthn(editorAuthz(endpoint.DecidePageReview(config.PageReviews, config.Logger))))
 	r.router.Handle("GET /reviews/{id}/{slug...}", browserAuthn(editorAuthz(endpoint.PageReview(config.BrowserContext, config.PageReviewDiscussions, config.Views))))
 	r.router.Handle("POST /reviews/{id}/comments/{slug...}", browserAuthn(editorAuthz(endpoint.AddPageReviewComment(config.PageReviewDiscussions, config.Views))))
-	r.router.Handle(pageReviewSuggestionApplyPattern, browserAuthn(editorAuthz(endpoint.ApplyPageReviewSuggestion(config.PageReviewDiscussions, config.Views))))
-	r.router.Handle(pageReviewSuggestionsApplyAllPattern, browserAuthn(editorAuthz(endpoint.ApplyAllPageReviewSuggestions(config.PageReviewDiscussions, config.Views))))
+	r.router.Handle("POST /reviews/{id}/suggestions/apply/{commentID}/{slug...}", browserAuthn(editorAuthz(endpoint.ApplyPageReviewSuggestion(config.PageReviewDiscussions, config.Views))))
+	r.router.Handle("POST /reviews/{id}/suggestions/apply-all/{slug...}", browserAuthn(editorAuthz(endpoint.ApplyAllPageReviewSuggestions(config.PageReviewDiscussions, config.Views))))
 	r.router.Handle("POST /page-comments/{slug...}", browserAuthn(endpoint.AddPageComment(config.PageDiscussions, config.Views)))
-	r.router.Handle(pageCommentSuggestionApplyPattern, browserAuthn(editorAuthz(endpoint.ApplyPageCommentSuggestion(config.PageDiscussions, config.Views))))
+	r.router.Handle("POST /page-comments/suggestions/apply/{id}/{slug...}", browserAuthn(editorAuthz(endpoint.ApplyPageCommentSuggestion(config.PageDiscussions, config.Views))))
 	r.router.Handle("POST /page-comments/resolve/{id}/{slug...}", browserAuthn(editorAuthz(endpoint.ResolvePageComment(config.PageDiscussions, config.Views))))
 
 	editPage := endpoint.EditPage(config.BrowserContext, config.Editor, config.Views)
