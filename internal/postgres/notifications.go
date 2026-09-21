@@ -63,12 +63,31 @@ WHERE id=$1 AND user_id=$2`, id, userID)
 	return err
 }
 
+// MarkNotificationUnread marks one owned notification unread without exposing foreign identifiers.
+func (s *Store) MarkNotificationUnread(ctx context.Context, userID, id int64) error {
+	_, err := s.pool.Exec(ctx, `
+UPDATE notifications
+SET read_at=NULL
+WHERE id=$1 AND user_id=$2`, id, userID)
+
+	return err
+}
+
 // MarkAllNotificationsRead marks every notification owned by a user as read.
 func (s *Store) MarkAllNotificationsRead(ctx context.Context, userID int64) error {
 	_, err := s.pool.Exec(ctx, `
 UPDATE notifications
 SET read_at=coalesce(read_at,now())
 WHERE user_id=$1`, userID)
+
+	return err
+}
+
+// DeleteNotification removes one owned notification without exposing foreign identifiers.
+func (s *Store) DeleteNotification(ctx context.Context, userID, id int64) error {
+	_, err := s.pool.Exec(ctx, `
+DELETE FROM notifications
+WHERE id=$1 AND user_id=$2`, id, userID)
 
 	return err
 }

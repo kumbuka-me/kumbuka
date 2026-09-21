@@ -16,10 +16,12 @@ import (
 )
 
 type notificationServiceStub struct {
-	list    func(context.Context, int64, int) ([]domain.Notification, int, error)
-	open    func(context.Context, int64, int64) (string, error)
-	mark    func(context.Context, int64, int64) error
-	markAll func(context.Context, int64) error
+	list       func(context.Context, int64, int) ([]domain.Notification, int, error)
+	open       func(context.Context, int64, int64) (string, error)
+	mark       func(context.Context, int64, int64) error
+	markUnread func(context.Context, int64, int64) error
+	markAll    func(context.Context, int64) error
+	deleteOne  func(context.Context, int64, int64) error
 }
 
 // Notifications delegates inbox reads to the configured test function.
@@ -41,6 +43,15 @@ func (s notificationServiceStub) MarkNotificationRead(ctx context.Context, userI
 	return s.mark(ctx, userID, id)
 }
 
+// MarkNotificationUnread delegates single-item unread mutations to the configured test function.
+func (s notificationServiceStub) MarkNotificationUnread(ctx context.Context, userID, id int64) error {
+	if s.markUnread == nil {
+		return nil
+	}
+
+	return s.markUnread(ctx, userID, id)
+}
+
 // MarkAllNotificationsRead delegates whole-inbox reads to the configured test function.
 func (s notificationServiceStub) MarkAllNotificationsRead(ctx context.Context, userID int64) error {
 	if s.markAll == nil {
@@ -48,6 +59,15 @@ func (s notificationServiceStub) MarkAllNotificationsRead(ctx context.Context, u
 	}
 
 	return s.markAll(ctx, userID)
+}
+
+// DeleteNotification delegates notification deletion to the configured test function.
+func (s notificationServiceStub) DeleteNotification(ctx context.Context, userID, id int64) error {
+	if s.deleteOne == nil {
+		return nil
+	}
+
+	return s.deleteOne(ctx, userID, id)
 }
 
 // notificationTestLogger returns a logger that discards handler diagnostics.
@@ -284,6 +304,70 @@ func TestMarkNotificationRead(t *testing.T) {
 		response := httptest.NewRecorder()
 
 		MarkNotificationRead(useCases, notificationTestLogger())(response, notificationRequest(http.MethodPost, "/api/notifications/nope/read", "nope"))
+
+		assert.Equal(t, http.StatusBadRequest, response.Code)
+	})
+}
+
+func TestMarkNotificationUnread(t *testing.T) {
+	t.Parallel()
+
+	t.Run("marks one notification unread", func(t *testing.T) {
+		t.Parallel()
+
+		useCases := notificationServiceStub{
+			markUnread: func(_ context.Context, userID, id int64) error {
+				assert.Equal(t, int64(42), userID)
+				assert.Equal(t, int64(7), id)
+				return nil
+			},
+		}
+		response := httptest.NewRecorder()
+
+		MarkNotificationUnread(useCases, notificationTestLogger())(response, notificationRequest(http.MethodPost, "/api/notifications/7/unread", "7"))
+
+		assert.Equal(t, http.StatusNoContent, response.Code)
+		assert.Equal(t, "private, no-store", response.Header().Get("Cache-Control"))
+	})
+
+	t.Run("rejects invalid id", func(t *testing.T) {
+		t.Parallel()
+
+		response := httptest.NewRecorder()
+
+		MarkNotificationUnread(notificationServiceStub{}, notificationTestLogger())(response, notificationRequest(http.MethodPost, "/api/notifications/nope/unread", "nope"))
+
+		assert.Equal(t, http.StatusBadRequest, response.Code)
+	})
+}
+
+func TestDeleteNotification(t *testing.T) {
+	t.Parallel()
+
+	t.Run("deletes one notification", func(t *testing.T) {
+		t.Parallel()
+
+		useCases := notificationServiceStub{
+			deleteOne: func(_ context.Context, userID, id int64) error {
+				assert.Equal(t, int64(42), userID)
+				assert.Equal(t, int64(7), id)
+				return nil
+			},
+		}
+		response := httptest.NewRecorder()
+
+		DeleteNotification(useCases, notificationTestLogger())(response, notificationRequest(http.MethodDelete, "/api/notifications/7", "7"))
+
+		assert.Equal(t, http.StatusNoContent, response.Code)
+		assert.Equal(t, "private, no-store", response.Header().Get("Cache-Control"))
+	})
+
+	t.Run("rejects invalid id", func(t *testing.T) {
+		t.Parallel()
+
+		response := httptest.NewRecorder()
+
+		DeleteNotification(notificationServiceStub{}, notificationTestLogger())(response, notificationRequest(http.MethodDelete, "/api/notifications/nope", "nope"))
 
 		assert.Equal(t, http.StatusBadRequest, response.Code)
 	})

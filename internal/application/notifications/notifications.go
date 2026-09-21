@@ -15,7 +15,9 @@ const (
 type notificationRepository interface {
 	Notifications(context.Context, int64, int) (notifications []domain.Notification, unread int, err error)
 	MarkNotificationRead(context.Context, int64, int64) error
+	MarkNotificationUnread(context.Context, int64, int64) error
 	MarkAllNotificationsRead(context.Context, int64) error
+	DeleteNotification(context.Context, int64, int64) error
 	OpenNotification(context.Context, int64, int64) (string, error)
 }
 
@@ -53,9 +55,27 @@ func (s *Notifications) MarkNotificationRead(ctx context.Context, userID, id int
 	return s.repository.MarkNotificationRead(ctx, userID, id)
 }
 
+// MarkNotificationUnread marks one owned notification as unread.
+func (s *Notifications) MarkNotificationUnread(ctx context.Context, userID, id int64) error {
+	if id <= 0 {
+		return domain.NewValidationError("notification", "Invalid notification.")
+	}
+
+	return s.repository.MarkNotificationUnread(ctx, userID, id)
+}
+
 // MarkAllNotificationsRead marks every notification owned by a user as read.
 func (s *Notifications) MarkAllNotificationsRead(ctx context.Context, userID int64) error {
 	return s.repository.MarkAllNotificationsRead(ctx, userID)
+}
+
+// DeleteNotification removes one owned notification.
+func (s *Notifications) DeleteNotification(ctx context.Context, userID, id int64) error {
+	if id <= 0 {
+		return domain.NewValidationError("notification", "Invalid notification.")
+	}
+
+	return s.repository.DeleteNotification(ctx, userID, id)
 }
 
 // OpenNotification marks an owned notification read and returns its stored destination.

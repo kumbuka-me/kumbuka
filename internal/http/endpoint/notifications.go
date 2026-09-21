@@ -96,6 +96,54 @@ func MarkNotificationRead(notificationUseCases notificationService, logger *slog
 	}
 }
 
+// MarkNotificationUnread marks one notification as unread.
+func MarkNotificationUnread(notificationUseCases notificationService, logger *slog.Logger) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user, ok := auth.User(r)
+		if !ok {
+			httpresponse.Problem(w, http.StatusUnauthorized, "Unauthorized.")
+			return
+		}
+
+		id, err := notificationID(r.PathValue("id"))
+		if err != nil {
+			httpresponse.Problem(w, http.StatusBadRequest, "Invalid notification.")
+			return
+		}
+		if err := notificationUseCases.MarkNotificationUnread(r.Context(), user.ID, id); err != nil {
+			httpresponse.InternalServerError(logger, w, err)
+			return
+		}
+
+		w.Header().Set("Cache-Control", "private, no-store")
+		w.WriteHeader(http.StatusNoContent)
+	}
+}
+
+// DeleteNotification removes one notification from the current user's inbox.
+func DeleteNotification(notificationUseCases notificationService, logger *slog.Logger) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user, ok := auth.User(r)
+		if !ok {
+			httpresponse.Problem(w, http.StatusUnauthorized, "Unauthorized.")
+			return
+		}
+
+		id, err := notificationID(r.PathValue("id"))
+		if err != nil {
+			httpresponse.Problem(w, http.StatusBadRequest, "Invalid notification.")
+			return
+		}
+		if err := notificationUseCases.DeleteNotification(r.Context(), user.ID, id); err != nil {
+			httpresponse.InternalServerError(logger, w, err)
+			return
+		}
+
+		w.Header().Set("Cache-Control", "private, no-store")
+		w.WriteHeader(http.StatusNoContent)
+	}
+}
+
 // notificationID parses one positive notification identifier.
 func notificationID(value string) (int64, error) {
 	id, err := strconv.ParseInt(value, 10, 64)

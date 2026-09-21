@@ -32,6 +32,8 @@ type savedSearchService interface {
 type notificationService interface {
 	Notifications(context.Context, int64, int) (notifications []domain.Notification, unread int, err error)
 	MarkNotificationRead(context.Context, int64, int64) error
+	MarkNotificationUnread(context.Context, int64, int64) error
 	MarkAllNotificationsRead(context.Context, int64) error
+	DeleteNotification(context.Context, int64, int64) error
 	OpenNotification(context.Context, int64, int64) (string, error)
 }

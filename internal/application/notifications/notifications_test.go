@@ -12,7 +12,9 @@ import (
 type notificationRepositoryStub struct {
 	limit       int
 	markedID    int64
+	unreadID    int64
 	markedAllID int64
+	deletedID   int64
 	openedID    int64
 }
 
@@ -30,9 +32,23 @@ func (s *notificationRepositoryStub) MarkNotificationRead(_ context.Context, _ i
 	return nil
 }
 
+// MarkNotificationUnread records the notification selected by the service.
+func (s *notificationRepositoryStub) MarkNotificationUnread(_ context.Context, _ int64, id int64) error {
+	s.unreadID = id
+
+	return nil
+}
+
 // MarkAllNotificationsRead records the user selected by the service.
 func (s *notificationRepositoryStub) MarkAllNotificationsRead(_ context.Context, userID int64) error {
 	s.markedAllID = userID
+
+	return nil
+}
+
+// DeleteNotification records the notification selected by the service.
+func (s *notificationRepositoryStub) DeleteNotification(_ context.Context, _ int64, id int64) error {
+	s.deletedID = id
 
 	return nil
 }
@@ -91,6 +107,16 @@ func TestNotificationMutationsDelegateExplicitly(t *testing.T) {
 		assert.Zero(t, repository.markedAllID)
 	})
 
+	t.Run("marks unread", func(t *testing.T) {
+		t.Parallel()
+
+		repository := &notificationRepositoryStub{}
+		require.NoError(t, NewNotifications(repository).MarkNotificationUnread(context.Background(), 42, 8))
+
+		assert.Equal(t, int64(8), repository.unreadID)
+		assert.Zero(t, repository.markedID)
+	})
+
 	t.Run("marks all", func(t *testing.T) {
 		t.Parallel()
 
@@ -99,6 +125,15 @@ func TestNotificationMutationsDelegateExplicitly(t *testing.T) {
 
 		assert.Equal(t, int64(42), repository.markedAllID)
 		assert.Zero(t, repository.markedID)
+	})
+
+	t.Run("deletes one", func(t *testing.T) {
+		t.Parallel()
+
+		repository := &notificationRepositoryStub{}
+		require.NoError(t, NewNotifications(repository).DeleteNotification(context.Background(), 42, 9))
+
+		assert.Equal(t, int64(9), repository.deletedID)
 	})
 
 	t.Run("opens one", func(t *testing.T) {

@@ -355,6 +355,8 @@ func (r routeRegistrar) addAPIRoutes() {
 	r.router.Handle("GET /api/mentions/users", apiAuthn(endpoint.MentionUsers(config.Users, config.Logger)))
 	r.router.Handle("GET /api/notifications", apiAuthn(endpoint.NotificationsAPI(config.Notifications, config.Logger)))
 	r.router.Handle("POST /api/notifications/{id}/read", apiAuthn(endpoint.MarkNotificationRead(config.Notifications, config.Logger)))
+	r.router.Handle("POST /api/notifications/{id}/unread", apiAuthn(endpoint.MarkNotificationUnread(config.Notifications, config.Logger)))
+	r.router.Handle("DELETE /api/notifications/{id}", apiAuthn(endpoint.DeleteNotification(config.Notifications, config.Logger)))
 	r.router.Handle("GET /api/tags", apiAuthn(endpoint.Tags(config.PageSearch, config.Logger)))
 	r.router.Handle("GET /api/groups", apiAuthn(endpoint.GroupsAPI(config.Groups, config.Logger)))
 	r.router.Handle("GET /api/images", apiAuthn(editorAuthz(endpoint.ListImages(config.Media, config.Logger))))

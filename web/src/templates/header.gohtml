@@ -37,33 +37,51 @@
     {{ end }}
     <details class="notification-menu" data-notification-menu>
       <summary class="icon-button" aria-label="Notifications" title="Notifications">
-        {{ icon "bell-lucide" 18 }}{{ if gt .UnreadNotifications 0 }}
-        <span class="notification-badge">{{ .UnreadNotifications }}</span>
-{{ end }}
-</summary>
-<div class="notification-popover">
-  <div class="notification-heading">
-    <strong>Notifications</strong>{{ if gt .UnreadNotifications 0 }}
-    <button type="button" data-notifications-read-all>Mark all read</button>
-  {{ end }}
-</div>
-<div class="notification-list">
-  {{ range .Notifications }}
-    <form action="/notifications/{{ .ID }}/open" method="post">
-      <button type="submit"
-              class="notification-item{{ if not .ReadAt }} unread{{ end }}"
-              data-notification-id="{{ .ID }}">
-        <span class="notification-icon">{{ if eq .Kind "mention" }}
-          {{ icon "at-sign-lucide" 15 }}
-  {{ else if eq .Kind "plugin-update" }}
-    {{ icon "package-search-lucide" 15 }}
-  {{ else }}
-    {{ icon "bell-lucide" 15 }}
-  {{ end }}</span><span><strong>{{ .Title }}</strong>{{ if .Body }}<small>{{ .Body }}</small>{{ end }}<time>{{ timeago .CreatedAt }}</time></span>
-</button>
-</form>
+        {{ icon "bell-lucide" 18 }}
+        <span class="notification-badge"
+              data-notification-badge{{ if eq .UnreadNotifications 0 }}
+              hidden{{ end }}>{{ .UnreadNotifications }}</span>
+      </summary>
+      <div class="notification-popover">
+        <div class="notification-heading">
+          <strong>Notifications</strong>
+          <button type="button"
+                  data-notifications-read-all{{ if eq .UnreadNotifications 0 }}
+                  hidden{{ end }}>Mark all read</button>
+        </div>
+        <div class="notification-list" data-notification-list>
+          {{ range .Notifications }}
+            <div class="notification-row{{ if not .ReadAt }} unread{{ end }}"
+                 data-notification-id="{{ .ID }}">
+              <form class="notification-open"
+                    action="/notifications/{{ .ID }}/open"
+                    method="post">
+                <button type="submit" class="notification-item">
+                  <span class="notification-icon">{{ if eq .Kind "mention" }}
+                    {{ icon "at-sign-lucide" 15 }}
+          {{ else if eq .Kind "plugin-update" }}
+            {{ icon "package-search-lucide" 15 }}
+          {{ else }}
+            {{ icon "bell-lucide" 15 }}
+          {{ end }}</span>
+        <span>
+          <strong>{{ .Title }}</strong>
+          {{ if .Body }}<small>{{ .Body }}</small>{{ end }}
+          <time>{{ timeago .CreatedAt }}</time>
+        </span>
+      </button>
+    </form>
+    <div class="notification-actions">
+      <button type="button"
+              data-notification-toggle-read
+              aria-label="{{ if .ReadAt }}Mark notification unread{{ else }}Mark notification read{{ end }}">{{ if .ReadAt }}Unread{{ else }}Read{{ end }}</button>
+      <button type="button"
+              data-notification-delete
+              aria-label="Delete notification">Delete</button>
+    </div>
+  </div>
 {{ else }}
-<p class="muted notification-empty">Nothing new.</p>
+  <p class="muted notification-empty">Nothing new.</p>
 {{ end }}
 </div>
 </div>

@@ -69,7 +69,11 @@ func (emptyContractServices) Notifications(context.Context, int64, int) ([]domai
 
 func (emptyContractServices) MarkNotificationRead(context.Context, int64, int64) error { return nil }
 
+func (emptyContractServices) MarkNotificationUnread(context.Context, int64, int64) error { return nil }
+
 func (emptyContractServices) MarkAllNotificationsRead(context.Context, int64) error { return nil }
+
+func (emptyContractServices) DeleteNotification(context.Context, int64, int64) error { return nil }
 
 func (emptyContractServices) OpenNotification(context.Context, int64, int64) (string, error) {
 	return "", nil

@@ -82,3 +82,53 @@ func TestMarkNotificationsRead(t *testing.T) {
 		require.Zero(t, unread)
 	})
 }
+
+func TestNotificationUnreadAndDelete(t *testing.T) {
+	ctx := context.Background()
+	database, err := Open(ctx, integrationDatabase(t), slog.New(slog.NewTextHandler(io.Discard, nil)))
+	require.NoError(t, err)
+	t.Cleanup(database.Close)
+
+	var owner, other int64
+	require.NoError(t, database.pool.QueryRow(ctx, `INSERT INTO users(username) VALUES('notification-toggle-owner') RETURNING id`).Scan(&owner))
+	require.NoError(t, database.pool.QueryRow(ctx, `INSERT INTO users(username) VALUES('notification-toggle-other') RETURNING id`).Scan(&other))
+	require.NoError(t, database.AddNotification(ctx, owner, "mention", "Mutable", "", "/pages/mutable"))
+
+	var id int64
+	require.NoError(t, database.pool.QueryRow(ctx, `SELECT id FROM notifications WHERE user_id=$1`, owner).Scan(&id))
+	require.NoError(t, database.MarkNotificationRead(ctx, owner, id))
+
+	t.Run("foreign user cannot mark unread", func(t *testing.T) {
+		require.NoError(t, database.MarkNotificationUnread(ctx, other, id))
+
+		_, unread, err := database.Notifications(ctx, owner, 8)
+		require.NoError(t, err)
+		require.Zero(t, unread)
+	})
+
+	t.Run("owner can mark unread", func(t *testing.T) {
+		require.NoError(t, database.MarkNotificationUnread(ctx, owner, id))
+
+		items, unread, err := database.Notifications(ctx, owner, 8)
+		require.NoError(t, err)
+		require.Equal(t, 1, unread)
+		require.Nil(t, items[0].ReadAt)
+	})
+
+	t.Run("foreign user cannot delete", func(t *testing.T) {
+		require.NoError(t, database.DeleteNotification(ctx, other, id))
+
+		items, _, err := database.Notifications(ctx, owner, 8)
+		require.NoError(t, err)
+		require.Len(t, items, 1)
+	})
+
+	t.Run("owner can delete", func(t *testing.T) {
+		require.NoError(t, database.DeleteNotification(ctx, owner, id))
+
+		items, unread, err := database.Notifications(ctx, owner, 8)
+		require.NoError(t, err)
+		require.Empty(t, items)
+		require.Zero(t, unread)
+	})
+}
