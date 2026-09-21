@@ -65,6 +65,9 @@ function syncEmptyState(menu: HTMLElement): void {
 
 function setRowReadState(row: HTMLElement, read: boolean): void {
   row.classList.toggle("unread", !read);
+  row
+    .querySelector<HTMLElement>(".notification-item")
+    ?.classList.toggle("unread", !read);
 
   const trigger = row.querySelector<HTMLButtonElement>(
     "[data-notification-toggle-read]",

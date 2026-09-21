@@ -115,7 +115,7 @@ func TestPluginUpdateCheckIntervalDefaultsToFifteenMinutes(t *testing.T) {
 	cfg, err := parseTestConfig([]string{"--database-url", "postgres://example/kumbuka"})
 
 	require.NoError(t, err)
-	assert.Equal(t, 15*time.Minute, cfg.PluginUpdateCheckInterval)
+	assert.Equal(t, 1*time.Hour, cfg.PluginUpdateCheckInterval)
 }
 
 // TestPluginUpdateCheckIntervalCanBeConfiguredFromEnvironment verifies the corresponding flag configuration behavior.

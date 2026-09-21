@@ -56,7 +56,8 @@
               <form class="notification-open"
                     action="/notifications/{{ .ID }}/open"
                     method="post">
-                <button type="submit" class="notification-item">
+                <button type="submit"
+                        class="notification-item{{ if not .ReadAt }} unread{{ end }}">
                   <span class="notification-icon">{{ if eq .Kind "mention" }}
                     {{ icon "at-sign-lucide" 15 }}
           {{ else if eq .Kind "plugin-update" }}

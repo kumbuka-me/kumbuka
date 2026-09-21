@@ -15,7 +15,7 @@ import (
 )
 
 // DefaultPluginUpdateCheckInterval is the default background plugin catalog refresh interval.
-const DefaultPluginUpdateCheckInterval = 15 * time.Minute
+const DefaultPluginUpdateCheckInterval = 60 * time.Minute
 
 var trustedUsernameHeaders = []string{
 	"X-Forwarded-User",
