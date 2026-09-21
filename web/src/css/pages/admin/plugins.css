@@ -590,9 +590,7 @@
 .plugin-list-header,
 .plugin-list-row {
   display: grid;
-  grid-template-columns:
-    repeat(var(--plugin-list-columns, 1), minmax(0, 1fr))
-    34px;
+  grid-template-columns: var(--plugin-list-template, minmax(0, 1fr) 34px);
   align-items: center;
   gap: 8px;
 }
@@ -616,9 +614,25 @@
 }
 
 .plugin-list-row input[type="color"] {
+  width: 64px;
+  min-width: 64px;
+  height: 38px;
   min-height: 38px;
-  padding: 4px;
+  justify-self: start;
+  padding: 3px;
+  border-radius: 8px;
+  background: var(--surface);
   cursor: pointer;
+}
+
+.plugin-list-row input[type="color"]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.plugin-list-row input[type="color"]::-webkit-color-swatch,
+.plugin-list-row input[type="color"]::-moz-color-swatch {
+  border: 0;
+  border-radius: 5px;
 }
 
 .plugin-list-row .icon-button {

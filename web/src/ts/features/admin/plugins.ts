@@ -221,6 +221,13 @@ function pluginListControls(root: ParentNode): PluginListControl[] {
   ];
 }
 
+// pluginListTrack returns a compact grid track for color pickers and a flexible track for other controls.
+function pluginListTrack(control: PluginListControl): string {
+  if (control instanceof HTMLInputElement && control.type === "color")
+    return "72px";
+  return "minmax(0, 1fr)";
+}
+
 // parsePluginListRows decodes canonical JSON and the legacy pipe-delimited row format.
 function parsePluginListRows(
   value: string,
@@ -286,10 +293,9 @@ function setupPluginListField(field: HTMLElement): void {
     Number.parseInt(field.dataset.maxItems || "16", 10) || 16,
   );
 
-  field.style.setProperty(
-    "--plugin-list-columns",
-    String(Math.max(1, templateControls.length)),
-  );
+  const tracks = templateControls.map(pluginListTrack);
+  tracks.push("34px");
+  field.style.setProperty("--plugin-list-template", tracks.join(" "));
 
   // sync serializes the current rows and keeps server-side field errors attached to a visible control.
   const sync = (): void => {
