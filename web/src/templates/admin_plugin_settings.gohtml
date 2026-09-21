@@ -156,35 +156,93 @@
             <input type="hidden" name="resource_id" value="{{ .Module.ID }}" />
             {{ range .Module.Fields }}
               {{ $field := . }}
-              <label{{ if eq .Type "boolean" }} class="toggle-row"{{ end }}>
-                <span>{{ .Name }}{{ if .Required }} <small>required</small>{{ end }}</span>
-                {{ if eq .Type "textarea" }}
-                  <textarea name="resource_{{ .ID }}" {{ if .Required }}required{{ end }}>{{ .Default }}</textarea>
-                {{ else if eq .Type "boolean" }}
-                  <input type="checkbox"
+              {{ if eq .Type "list" }}
+                <div class="plugin-list-field" data-plugin-list-field data-max-items="{{ .MaxItems }}">
+                  <div class="plugin-list-heading">
+                    <span>{{ .Name }}{{ if .Required }} <small>required</small>{{ end }}</span>
+                    <button class="button compact" type="button" data-plugin-list-add>Add row</button>
+                  </div>
+                  <input type="hidden"
                          name="resource_{{ .ID }}"
-                         {{ if eq .Default "true" }}checked{{ end }} />
-                {{ else if eq .Type "select" }}
-                  <select name="resource_{{ .ID }}" {{ if .Required }}required{{ end }}>
-                    {{ if not .Required }}
-                      <option value=""></option>
-                    {{ end }}
-                    {{ range .Options }}
-                      <option value="{{ . }}" {{ if eq . $field.Default }}selected{{ end }}>{{ . }}</option>
-                    {{ end }}
-                  </select>
-                {{ else if eq .Type "secret" }}
-                  <input type="password"
-                         name="resource_{{ .ID }}"
-                         autocomplete="new-password"
-                         {{ if .Required }}required{{ end }} />
-                {{ else }}
-                  <input type="{{ if eq .Type "url" }}url{{ else }}text{{ end }}"
-                         name="resource_{{ .ID }}"
-                         value="{{ .Default }}"
-                         {{ if .Required }}required{{ end }} />
-                {{ end }}
-              </label>
+                         value=""
+                         data-plugin-list-value
+                         data-error-label="{{ .Name }}" />
+                  <div class="plugin-list-table">
+                    <div class="plugin-list-header" aria-hidden="true">
+                      {{ range .Columns }}<span>{{ .Name }}</span>{{ end }}<span></span>
+                    </div>
+                    <div class="plugin-list-rows" data-plugin-list-rows></div>
+                  </div>
+                  <template data-plugin-list-template>
+                    <div class="plugin-list-row">
+                      {{ range .Columns }}
+                        {{ $column := . }}
+                        {{ if eq .Type "color" }}
+                          <input type="color"
+                                 aria-label="{{ .Name }}"
+                                 value="{{ if .Default }}{{ .Default }}{{ else }}#64748b{{ end }}"
+                                 data-plugin-list-column="{{ .ID }}"
+                                 data-plugin-list-default="{{ .Default }}"
+                                 {{ if .Required }}required{{ end }} />
+                        {{ else if eq .Type "select" }}
+                          <select aria-label="{{ .Name }}"
+                                  data-plugin-list-column="{{ .ID }}"
+                                  data-plugin-list-default="{{ .Default }}"
+                                  {{ if .Required }}required{{ end }}>
+                            {{ if not .Required }}<option value=""></option>{{ end }}
+                            {{ range .Options }}
+                              <option value="{{ . }}" {{ if eq . $column.Default }}selected{{ end }}>{{ . }}</option>
+                            {{ end }}
+                          </select>
+                        {{ else }}
+                          <input type="{{ if eq .Type "url" }}url{{ else }}text{{ end }}"
+                                 aria-label="{{ .Name }}"
+                                 value="{{ .Default }}"
+                                 data-plugin-list-column="{{ .ID }}"
+                                 data-plugin-list-default="{{ .Default }}"
+                                 {{ if .Required }}required{{ end }} />
+                        {{ end }}
+                      {{ end }}
+                      <button class="icon-button" type="button" data-plugin-list-remove aria-label="Remove row" title="Remove row">{{ icon "trash-2-lucide" 16 }}</button>
+                    </div>
+                  </template>
+                </div>
+              {{ else }}
+                <label{{ if eq .Type "boolean" }} class="toggle-row"{{ end }}>
+                  <span>{{ .Name }}{{ if .Required }} <small>required</small>{{ end }}</span>
+                  {{ if eq .Type "textarea" }}
+                    <textarea name="resource_{{ .ID }}" {{ if .Required }}required{{ end }}>{{ .Default }}</textarea>
+                  {{ else if eq .Type "boolean" }}
+                    <input type="checkbox"
+                           name="resource_{{ .ID }}"
+                           {{ if eq .Default "true" }}checked{{ end }} />
+                  {{ else if eq .Type "select" }}
+                    <select name="resource_{{ .ID }}" {{ if .Required }}required{{ end }}>
+                      {{ if not .Required }}
+                        <option value=""></option>
+                      {{ end }}
+                      {{ range .Options }}
+                        <option value="{{ . }}" {{ if eq . $field.Default }}selected{{ end }}>{{ . }}</option>
+                      {{ end }}
+                    </select>
+                  {{ else if eq .Type "color" }}
+                    <input type="color"
+                           name="resource_{{ .ID }}"
+                           value="{{ if .Default }}{{ .Default }}{{ else }}#64748b{{ end }}"
+                           {{ if .Required }}required{{ end }} />
+                  {{ else if eq .Type "secret" }}
+                    <input type="password"
+                           name="resource_{{ .ID }}"
+                           autocomplete="new-password"
+                           {{ if .Required }}required{{ end }} />
+                  {{ else }}
+                    <input type="{{ if eq .Type "url" }}url{{ else }}text{{ end }}"
+                           name="resource_{{ .ID }}"
+                           value="{{ .Default }}"
+                           {{ if .Required }}required{{ end }} />
+                  {{ end }}
+                </label>
+              {{ end }}
             {{ end }}
             <div class="settings-actions">
               <button class="button primary compact" type="submit">Add</button>
@@ -205,38 +263,97 @@
                 <input type="hidden" name="original_key" value="{{ .Key }}" />
                 <input type="hidden" name="record_key" value="{{ .Key }}" />
                 {{ range $resource.Module.Fields }}
+                  {{ $field := . }}
                   {{ $value := index $record.Values .ID }}
                   {{ $hasSecret := index $record.SecretFields .ID }}
-                  <label{{ if eq .Type "boolean" }} class="toggle-row"{{ end }}>
-                    <span>{{ .Name }}{{ if .Required }} <small>required</small>{{ end }}</span>
-                    {{ if eq .Type "textarea" }}
-                      <textarea name="resource_{{ .ID }}" {{ if .Required }}required{{ end }}>{{ $value }}</textarea>
-                    {{ else if eq .Type "boolean" }}
-                      <input type="checkbox"
-                             name="resource_{{ .ID }}"
-                             {{ if eq $value "true" }}checked{{ end }} />
-                    {{ else if eq .Type "select" }}
-                      <select name="resource_{{ .ID }}" {{ if .Required }}required{{ end }}>
-                        {{ if not .Required }}
-                          <option value=""></option>
-                        {{ end }}
-                        {{ range .Options }}
-                          <option value="{{ . }}" {{ if eq . $value }}selected{{ end }}>{{ . }}</option>
-                        {{ end }}
-                      </select>
-                    {{ else if eq .Type "secret" }}
-                      <input type="password"
-                             name="resource_{{ .ID }}"
-                             autocomplete="new-password"
-                             {{ if $hasSecret }}placeholder="Stored secret — leave blank to keep"
-                             {{ else if .Required }}required{{ end }} />
-                    {{ else }}
-                      <input type="{{ if eq .Type "url" }}url{{ else }}text{{ end }}"
+                  {{ if eq .Type "list" }}
+                    <div class="plugin-list-field" data-plugin-list-field data-max-items="{{ .MaxItems }}">
+                      <div class="plugin-list-heading">
+                        <span>{{ .Name }}{{ if .Required }} <small>required</small>{{ end }}</span>
+                        <button class="button compact" type="button" data-plugin-list-add>Add row</button>
+                      </div>
+                      <input type="hidden"
                              name="resource_{{ .ID }}"
                              value="{{ $value }}"
-                             {{ if .Required }}required{{ end }} />
-                    {{ end }}
-                  </label>
+                             data-plugin-list-value
+                             data-error-label="{{ .Name }}" />
+                      <div class="plugin-list-table">
+                        <div class="plugin-list-header" aria-hidden="true">
+                          {{ range .Columns }}<span>{{ .Name }}</span>{{ end }}<span></span>
+                        </div>
+                        <div class="plugin-list-rows" data-plugin-list-rows></div>
+                      </div>
+                      <template data-plugin-list-template>
+                        <div class="plugin-list-row">
+                          {{ range .Columns }}
+                            {{ $column := . }}
+                            {{ if eq .Type "color" }}
+                              <input type="color"
+                                     aria-label="{{ .Name }}"
+                                     value="{{ if .Default }}{{ .Default }}{{ else }}#64748b{{ end }}"
+                                     data-plugin-list-column="{{ .ID }}"
+                                     data-plugin-list-default="{{ .Default }}"
+                                     {{ if .Required }}required{{ end }} />
+                            {{ else if eq .Type "select" }}
+                              <select aria-label="{{ .Name }}"
+                                      data-plugin-list-column="{{ .ID }}"
+                                      data-plugin-list-default="{{ .Default }}"
+                                      {{ if .Required }}required{{ end }}>
+                                {{ if not .Required }}<option value=""></option>{{ end }}
+                                {{ range .Options }}
+                                  <option value="{{ . }}" {{ if eq . $column.Default }}selected{{ end }}>{{ . }}</option>
+                                {{ end }}
+                              </select>
+                            {{ else }}
+                              <input type="{{ if eq .Type "url" }}url{{ else }}text{{ end }}"
+                                     aria-label="{{ .Name }}"
+                                     value="{{ .Default }}"
+                                     data-plugin-list-column="{{ .ID }}"
+                                     data-plugin-list-default="{{ .Default }}"
+                                     {{ if .Required }}required{{ end }} />
+                            {{ end }}
+                          {{ end }}
+                          <button class="icon-button" type="button" data-plugin-list-remove aria-label="Remove row" title="Remove row">{{ icon "trash-2-lucide" 16 }}</button>
+                        </div>
+                      </template>
+                    </div>
+                  {{ else }}
+                    <label{{ if eq .Type "boolean" }} class="toggle-row"{{ end }}>
+                      <span>{{ .Name }}{{ if .Required }} <small>required</small>{{ end }}</span>
+                      {{ if eq .Type "textarea" }}
+                        <textarea name="resource_{{ .ID }}" {{ if .Required }}required{{ end }}>{{ $value }}</textarea>
+                      {{ else if eq .Type "boolean" }}
+                        <input type="checkbox"
+                               name="resource_{{ .ID }}"
+                               {{ if eq $value "true" }}checked{{ end }} />
+                      {{ else if eq .Type "select" }}
+                        <select name="resource_{{ .ID }}" {{ if .Required }}required{{ end }}>
+                          {{ if not .Required }}
+                            <option value=""></option>
+                          {{ end }}
+                          {{ range .Options }}
+                            <option value="{{ . }}" {{ if eq . $value }}selected{{ end }}>{{ . }}</option>
+                          {{ end }}
+                        </select>
+                      {{ else if eq .Type "color" }}
+                        <input type="color"
+                               name="resource_{{ .ID }}"
+                               value="{{ if $value }}{{ $value }}{{ else if .Default }}{{ .Default }}{{ else }}#64748b{{ end }}"
+                               {{ if .Required }}required{{ end }} />
+                      {{ else if eq .Type "secret" }}
+                        <input type="password"
+                               name="resource_{{ .ID }}"
+                               autocomplete="new-password"
+                               {{ if $hasSecret }}placeholder="Stored secret — leave blank to keep"
+                               {{ else if .Required }}required{{ end }} />
+                      {{ else }}
+                        <input type="{{ if eq .Type "url" }}url{{ else }}text{{ end }}"
+                               name="resource_{{ .ID }}"
+                               value="{{ $value }}"
+                               {{ if .Required }}required{{ end }} />
+                      {{ end }}
+                    </label>
+                  {{ end }}
                 {{ end }}
                 <div class="settings-actions plugin-resource-actions">
                   <button class="button primary compact" type="submit">Save</button>
@@ -256,3 +373,5 @@
     {{ end }}
   </section>
 {{ end }}
+
+

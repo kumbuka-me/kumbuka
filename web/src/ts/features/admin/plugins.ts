@@ -199,8 +199,173 @@ function setupPluginUpdate(form: HTMLFormElement): void {
   });
 }
 
+
+type PluginListControl = HTMLInputElement | HTMLSelectElement;
+type PluginListRow = Record<string, string>;
+
+const legacyPluginColors = new Map<string, string>([
+  ["gray", "#64748b"],
+  ["blue", "#2563eb"],
+  ["green", "#16a34a"],
+  ["yellow", "#ca8a04"],
+  ["orange", "#ea580c"],
+  ["red", "#dc2626"],
+  ["purple", "#9333ea"],
+  ["teal", "#0f766e"],
+]);
+
+// pluginListControls returns the editable column controls inside one list row.
+function pluginListControls(root: ParentNode): PluginListControl[] {
+  return [
+    ...root.querySelectorAll<PluginListControl>("[data-plugin-list-column]"),
+  ];
+}
+
+// parsePluginListRows decodes canonical JSON and the legacy pipe-delimited row format.
+function parsePluginListRows(
+  value: string,
+  columns: PluginListControl[],
+): PluginListRow[] {
+  if (!value.trim()) return [];
+
+  try {
+    const parsed: unknown = JSON.parse(value);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.flatMap((row): PluginListRow[] => {
+      if (!row || typeof row !== "object" || Array.isArray(row)) return [];
+      const record = row as Record<string, unknown>;
+      const normalized: PluginListRow = {};
+      for (const column of columns) {
+        const id = column.dataset.pluginListColumn || "";
+        const cell = record[id];
+        if (!id || typeof cell !== "string") return [];
+        normalized[id] = cell;
+      }
+      return [normalized];
+    });
+  } catch {
+    const rows: PluginListRow[] = [];
+    for (const rawLine of value.split("\n")) {
+      const line = rawLine.trim();
+      if (!line) continue;
+      const cells = line.split("|").map((cell) => cell.trim());
+      if (cells.length !== columns.length) return [];
+      const row: PluginListRow = {};
+      columns.forEach((column, index) => {
+        const id = column.dataset.pluginListColumn || "";
+        let cell = cells[index] || "";
+        if (column instanceof HTMLInputElement && column.type === "color") {
+          cell = legacyPluginColors.get(cell.toLowerCase()) || cell;
+        }
+        row[id] = cell;
+      });
+      rows.push(row);
+    }
+    return rows;
+  }
+}
+
+// setupPluginListField turns one manifest list field into addable structured rows backed by canonical JSON.
+function setupPluginListField(field: HTMLElement): void {
+  const value = requiredElement<HTMLInputElement>(
+    field,
+    "[data-plugin-list-value]",
+  );
+  const rows = requiredElement<HTMLElement>(field, "[data-plugin-list-rows]");
+  const template = requiredElement<HTMLTemplateElement>(
+    field,
+    "[data-plugin-list-template]",
+  );
+  const add = requiredElement<HTMLButtonElement>(field, "[data-plugin-list-add]");
+  const templateControls = pluginListControls(template.content);
+  const maxItems = Math.max(
+    1,
+    Number.parseInt(field.dataset.maxItems || "16", 10) || 16,
+  );
+
+  field.style.setProperty(
+    "--plugin-list-columns",
+    String(Math.max(1, templateControls.length)),
+  );
+
+  // sync serializes the current rows and keeps server-side field errors attached to a visible control.
+  const sync = (): void => {
+    const result: PluginListRow[] = [];
+    const rowElements = rows.querySelectorAll<HTMLElement>(
+      "[data-plugin-list-row]",
+    );
+    for (const rowElement of rowElements) {
+      const row: PluginListRow = {};
+      for (const control of pluginListControls(rowElement)) {
+        const id = control.dataset.pluginListColumn || "";
+        if (id) row[id] = control.value;
+      }
+      result.push(row);
+    }
+    value.value = JSON.stringify(result);
+
+    for (const control of field.querySelectorAll<PluginListControl>(
+      "[data-error-field]",
+    )) {
+      delete control.dataset.errorField;
+    }
+    const first = pluginListControls(rows)[0];
+    if (first) first.dataset.errorField = value.name;
+
+    add.disabled = rowElements.length >= maxItems;
+  };
+
+  // appendRow creates one editable row from the declarative column template.
+  const appendRow = (initial: PluginListRow = {}): void => {
+    if (rows.childElementCount >= maxItems) return;
+    const fragment = template.content.cloneNode(true) as DocumentFragment;
+    const row = fragment.querySelector<HTMLElement>(".plugin-list-row");
+    if (!row) return;
+    row.dataset.pluginListRow = "true";
+
+    for (const control of pluginListControls(row)) {
+      const id = control.dataset.pluginListColumn || "";
+      const fallback = control.dataset.pluginListDefault || control.value;
+      control.value = initial[id] || fallback;
+      control.addEventListener("input", sync);
+      control.addEventListener("change", sync);
+    }
+
+    row
+      .querySelector<HTMLButtonElement>("[data-plugin-list-remove]")
+      ?.addEventListener("click", () => {
+        row.remove();
+        sync();
+      });
+    rows.append(row);
+    sync();
+  };
+
+  const storedValue = value.value;
+  const initialRows = parsePluginListRows(storedValue, templateControls);
+  if (storedValue.trim() && initialRows.length === 0) {
+    const error = document.createElement("small");
+    error.className = "field-validation-error";
+    error.setAttribute("role", "alert");
+    error.textContent =
+      "The saved list value is invalid. Re-enter the rows and save the record.";
+    field.append(error);
+  }
+  for (const row of initialRows) appendRow(row);
+  if (rows.childElementCount === 0) appendRow();
+
+  add.addEventListener("click", () => appendRow());
+  sync();
+}
+
 // initAdminPlugins initializes plugin package pickers on administration pages.
 export function initAdminPlugins(): void {
+  for (const field of document.querySelectorAll<HTMLElement>(
+    "[data-plugin-list-field]",
+  )) {
+    setupPluginListField(field);
+  }
+
   for (const form of document.querySelectorAll<HTMLFormElement>(
     "[data-plugin-upload]",
   )) {
@@ -491,3 +656,5 @@ function setupPluginDialogs(): void {
   );
   if (initial?.dataset.pluginId) openPluginDialog(initial.dataset.pluginId);
 }
+
+

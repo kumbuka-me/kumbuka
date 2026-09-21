@@ -561,3 +561,91 @@
 .plugin-settings-page .plugin-resource-create {
   margin-top: 12px;
 }
+
+
+
+/* Manifest-declared repeatable plugin configuration fields. */
+.plugin-list-field {
+  display: grid;
+  gap: 8px;
+}
+
+.plugin-list-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-weight: 600;
+}
+
+.plugin-list-heading small {
+  color: var(--text-tertiary);
+  font-size: 10px;
+  font-weight: 400;
+}
+
+.plugin-list-table {
+  display: grid;
+  gap: 6px;
+}
+
+.plugin-list-header,
+.plugin-list-row {
+  display: grid;
+  grid-template-columns: repeat(
+      var(--plugin-list-columns, 1),
+      minmax(0, 1fr)
+    )
+    34px;
+  align-items: center;
+  gap: 8px;
+}
+
+.plugin-list-header {
+  padding-inline: 2px;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.plugin-list-rows {
+  display: grid;
+  gap: 6px;
+}
+
+.plugin-list-row input,
+.plugin-list-row select {
+  width: 100%;
+  min-width: 0;
+}
+
+.plugin-list-row input[type="color"] {
+  min-height: 38px;
+  padding: 4px;
+  cursor: pointer;
+}
+
+.plugin-list-row .icon-button {
+  width: 34px;
+  min-width: 34px;
+  height: 34px;
+}
+
+@media (max-width: 640px) {
+  .plugin-list-header {
+    display: none;
+  }
+
+  .plugin-list-row {
+    grid-template-columns: 1fr 44px;
+  }
+
+  .plugin-list-row > [data-plugin-list-column] {
+    grid-column: 1;
+  }
+
+  .plugin-list-row .icon-button {
+    grid-column: 2;
+    grid-row: 1 / span 8;
+  }
+}

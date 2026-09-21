@@ -123,7 +123,12 @@ func cloneLoaded(metadata LoadedPlugin) LoadedPlugin {
 		metadata.Manifest.Modules[i].Requires = append([]string(nil), metadata.Manifest.Modules[i].Requires...)
 		metadata.Manifest.Modules[i].Fields = append([]pluginpackage.ConfigurationField(nil), metadata.Manifest.Modules[i].Fields...)
 		for fieldIndex := range metadata.Manifest.Modules[i].Fields {
-			metadata.Manifest.Modules[i].Fields[fieldIndex].Options = append([]string(nil), metadata.Manifest.Modules[i].Fields[fieldIndex].Options...)
+			field := &metadata.Manifest.Modules[i].Fields[fieldIndex]
+			field.Options = append([]string(nil), field.Options...)
+			field.Columns = append([]pluginpackage.ConfigurationField(nil), field.Columns...)
+			for columnIndex := range field.Columns {
+				field.Columns[columnIndex].Options = append([]string(nil), field.Columns[columnIndex].Options...)
+			}
 		}
 	}
 	metadata.Manifest.Requires = append([]string(nil), metadata.Manifest.Requires...)

@@ -1,7 +1,9 @@
 package plugin
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
 	"net/url"
 	"strings"
 	"unicode"
@@ -44,7 +46,7 @@ func normalizeConfigurationValue(field pluginpackage.ConfigurationField, value s
 
 // normalizeConfigurationWhitespace trims field types whose surrounding whitespace is never meaningful.
 func normalizeConfigurationWhitespace(field pluginpackage.ConfigurationField, value string) string {
-	if field.Key || field.Type == "text" || field.Type == "url" || field.Type == "select" || field.Type == "boolean" {
+	if field.Key || field.Type == "text" || field.Type == "url" || field.Type == "select" || field.Type == "boolean" || field.Type == "color" {
 		return strings.TrimSpace(value)
 	}
 
@@ -71,7 +73,7 @@ func configurationValueLimit(field pluginpackage.ConfigurationField) int {
 	if field.Key {
 		return maxResourceKeyBytes
 	}
-	if field.Type == "textarea" {
+	if field.Type == "textarea" || field.Type == "list" {
 		return 48 << 10
 	}
 
@@ -83,6 +85,10 @@ func validateConfigurationType(field pluginpackage.ConfigurationField, value str
 	switch field.Type {
 	case "text", "textarea", "secret":
 		return value, nil
+	case "color":
+		return validateColorConfiguration(field, value)
+	case "list":
+		return validateListConfiguration(field, value)
 	case "boolean":
 		return validateBooleanConfiguration(field, value)
 	case "select":
@@ -92,6 +98,88 @@ func validateConfigurationType(field pluginpackage.ConfigurationField, value str
 	default:
 		return "", configurationFieldError(field, field.Name+" uses an unsupported field type.")
 	}
+}
+
+// validateColorConfiguration accepts canonical six-digit CSS hex colors.
+func validateColorConfiguration(field pluginpackage.ConfigurationField, value string) (string, error) {
+	if value == "" && !field.Required {
+		return "", nil
+	}
+	if len(value) != 7 || value[0] != '#' {
+		return "", configurationFieldError(field, field.Name+" must be a six-digit hex color.")
+	}
+	for _, char := range value[1:] {
+		if char >= '0' && char <= '9' || char >= 'a' && char <= 'f' || char >= 'A' && char <= 'F' {
+			continue
+		}
+		return "", configurationFieldError(field, field.Name+" must be a six-digit hex color.")
+	}
+	return strings.ToLower(value), nil
+}
+
+// validateListConfiguration normalizes one repeatable structured configuration value as canonical JSON.
+func validateListConfiguration(field pluginpackage.ConfigurationField, value string) (string, error) {
+	if strings.TrimSpace(value) == "" {
+		if field.Required {
+			return "", configurationFieldError(field, field.Name+" requires at least one row.")
+		}
+		return "", nil
+	}
+
+	var rows []map[string]string
+	if err := json.Unmarshal([]byte(value), &rows); err != nil {
+		return "", configurationFieldError(field, field.Name+" contains invalid rows.")
+	}
+	limit := field.MaxItems
+	if limit == 0 {
+		limit = 16
+	}
+	if len(rows) == 0 && field.Required {
+		return "", configurationFieldError(field, field.Name+" requires at least one row.")
+	}
+	if len(rows) > limit {
+		return "", configurationFieldError(field, fmt.Sprintf("%s allows at most %d rows.", field.Name, limit))
+	}
+
+	columns := make(map[string]pluginpackage.ConfigurationField, len(field.Columns))
+	for _, column := range field.Columns {
+		columns[column.ID] = column
+	}
+
+	normalizedRows := make([]map[string]string, 0, len(rows))
+	for rowIndex, row := range rows {
+		for key := range row {
+			if _, ok := columns[key]; !ok {
+				return "", configurationFieldError(field, fmt.Sprintf("%s row %d contains an unknown column.", field.Name, rowIndex+1))
+			}
+		}
+
+		normalizedRow := make(map[string]string, len(field.Columns))
+		for _, column := range field.Columns {
+			normalized, err := normalizeConfigurationValue(column, row[column.ID])
+			if err != nil {
+				var fieldErr *ConfigurationFieldError
+				if errors.As(err, &fieldErr) {
+					return "", configurationFieldError(field, fmt.Sprintf("%s row %d: %s", field.Name, rowIndex+1, fieldErr.Message))
+				}
+				return "", err
+			}
+			if column.Required && normalized == "" {
+				return "", configurationFieldError(field, fmt.Sprintf("%s row %d: %s is required.", field.Name, rowIndex+1, column.Name))
+			}
+			normalizedRow[column.ID] = normalized
+		}
+		normalizedRows = append(normalizedRows, normalizedRow)
+	}
+
+	encoded, err := json.Marshal(normalizedRows)
+	if err != nil {
+		return "", configurationFieldError(field, field.Name+" contains invalid rows.")
+	}
+	if len(encoded) > configurationValueLimit(field) {
+		return "", configurationFieldError(field, field.Name+" is too long.")
+	}
+	return string(encoded), nil
 }
 
 // validateBooleanConfiguration accepts the canonical persisted boolean values only.

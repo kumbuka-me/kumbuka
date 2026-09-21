@@ -292,3 +292,45 @@ func TestPluginResourceSecretRequiresConfiguredEncryption(t *testing.T) {
 	assert.ErrorIs(t, err, ErrSecretEncryptionUnavailable)
 	assert.Empty(t, storage.values)
 }
+
+// TestPluginResourceListAndColorFields verifies repeatable rows are normalized and validated before persistence.
+func TestPluginResourceListAndColorFields(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	storage := &resourceStorage{values: make(map[string][]byte)}
+	manifest := pluginpackage.Manifest{ID: "io.example.statuses", Modules: []pluginpackage.Module{{
+		Type: "admin-resource", ID: "sets", Name: "Sets", Fields: []pluginpackage.ConfigurationField{
+			{ID: "name", Name: "Name", Type: "text", Required: true, Key: true},
+			{
+				ID: "statuses", Name: "Statuses", Type: "list", Required: true, MaxItems: 4,
+				Columns: []pluginpackage.ConfigurationField{
+					{ID: "label", Name: "Status", Type: "text", Required: true, MaxBytes: 64},
+					{ID: "color", Name: "Color", Type: "color", Required: true, Default: "#64748b"},
+				},
+			},
+		},
+	}}}
+	manager := NewManager(&Registry{}, nil, WithStorage(storage))
+	manager.loaded[manifest.ID] = managedPlugin{metadata: LoadedPlugin{Manifest: manifest, Enabled: true}}
+	manager.order = []string{manifest.ID}
+
+	require.NoError(t, manager.SaveResourceRecord(ctx, manifest.ID, "sets", "", map[string]string{
+		"name":     "risk",
+		"statuses": `[{"label":"Low","color":"#64748B"},{"label":"High","color":"#DC2626"}]`,
+	}))
+	record, found, err := ReadResourceRecord(ctx, storage, manifest.ID, manifest.Modules[0], "risk")
+	require.NoError(t, err)
+	require.True(t, found)
+	assert.JSONEq(t, `[{"label":"Low","color":"#64748b"},{"label":"High","color":"#dc2626"}]`, record.Values["statuses"])
+
+	err = manager.SaveResourceRecord(ctx, manifest.ID, "sets", "risk", map[string]string{
+		"name":     "risk",
+		"statuses": `[{"label":"Low","color":"rosa"}]`,
+	})
+	var fieldErr *ConfigurationFieldError
+	require.ErrorAs(t, err, &fieldErr)
+	assert.Equal(t, "statuses", fieldErr.Field)
+	assert.Contains(t, fieldErr.Message, "row 1")
+	assert.Contains(t, fieldErr.Message, "six-digit hex color")
+}
