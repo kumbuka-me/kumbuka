@@ -128,7 +128,7 @@
   display: block;
   width: min(100%, 800px);
   margin-inline: auto;
-  aspect-ratio: 16 / 9;
+  height: auto;
   border: 1px solid var(--border-subtle);
   border-radius: 10px;
   background: var(--surface-elevated);
