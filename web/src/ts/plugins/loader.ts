@@ -387,5 +387,3 @@ async function rasterBlob(response: Response): Promise<Blob> {
   }
   return new Blob(parts, { type });
 }
-
-

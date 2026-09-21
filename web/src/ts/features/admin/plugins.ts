@@ -199,7 +199,6 @@ function setupPluginUpdate(form: HTMLFormElement): void {
   });
 }
 
-
 type PluginListControl = HTMLInputElement | HTMLSelectElement;
 type PluginListRow = Record<string, string>;
 
@@ -276,7 +275,10 @@ function setupPluginListField(field: HTMLElement): void {
     field,
     "[data-plugin-list-template]",
   );
-  const add = requiredElement<HTMLButtonElement>(field, "[data-plugin-list-add]");
+  const add = requiredElement<HTMLButtonElement>(
+    field,
+    "[data-plugin-list-add]",
+  );
   const templateControls = pluginListControls(template.content);
   const maxItems = Math.max(
     1,
@@ -656,5 +658,3 @@ function setupPluginDialogs(): void {
   );
   if (initial?.dataset.pluginId) openPluginDialog(initial.dataset.pluginId);
 }
-
-

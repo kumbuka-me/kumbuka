@@ -180,5 +180,3 @@
   });
   parent.postMessage({ type: "kumbuka-plugin-listening" }, "*");
 })();
-
-

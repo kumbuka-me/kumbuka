@@ -562,8 +562,6 @@
   margin-top: 12px;
 }
 
-
-
 /* Manifest-declared repeatable plugin configuration fields. */
 .plugin-list-field {
   display: grid;
@@ -592,10 +590,8 @@
 .plugin-list-header,
 .plugin-list-row {
   display: grid;
-  grid-template-columns: repeat(
-      var(--plugin-list-columns, 1),
-      minmax(0, 1fr)
-    )
+  grid-template-columns:
+    repeat(var(--plugin-list-columns, 1), minmax(0, 1fr))
     34px;
   align-items: center;
   gap: 8px;

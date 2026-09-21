@@ -157,7 +157,9 @@
             {{ range .Module.Fields }}
               {{ $field := . }}
               {{ if eq .Type "list" }}
-                <div class="plugin-list-field" data-plugin-list-field data-max-items="{{ .MaxItems }}">
+                <div class="plugin-list-field"
+                     data-plugin-list-field
+                     data-max-items="{{ .MaxItems }}">
                   <div class="plugin-list-heading">
                     <span>{{ .Name }}{{ if .Required }} <small>required</small>{{ end }}</span>
                     <button class="button compact" type="button" data-plugin-list-add>Add row</button>
@@ -189,7 +191,9 @@
                                   data-plugin-list-column="{{ .ID }}"
                                   data-plugin-list-default="{{ .Default }}"
                                   {{ if .Required }}required{{ end }}>
-                            {{ if not .Required }}<option value=""></option>{{ end }}
+                            {{ if not .Required }}
+                              <option value=""></option>
+                            {{ end }}
                             {{ range .Options }}
                               <option value="{{ . }}" {{ if eq . $column.Default }}selected{{ end }}>{{ . }}</option>
                             {{ end }}
@@ -203,7 +207,11 @@
                                  {{ if .Required }}required{{ end }} />
                         {{ end }}
                       {{ end }}
-                      <button class="icon-button" type="button" data-plugin-list-remove aria-label="Remove row" title="Remove row">{{ icon "trash-2-lucide" 16 }}</button>
+                      <button class="icon-button"
+                              type="button"
+                              data-plugin-list-remove
+                              aria-label="Remove row"
+                              title="Remove row">{{ icon "trash-2-lucide" 16 }}</button>
                     </div>
                   </template>
                 </div>
@@ -267,7 +275,9 @@
                   {{ $value := index $record.Values .ID }}
                   {{ $hasSecret := index $record.SecretFields .ID }}
                   {{ if eq .Type "list" }}
-                    <div class="plugin-list-field" data-plugin-list-field data-max-items="{{ .MaxItems }}">
+                    <div class="plugin-list-field"
+                         data-plugin-list-field
+                         data-max-items="{{ .MaxItems }}">
                       <div class="plugin-list-heading">
                         <span>{{ .Name }}{{ if .Required }} <small>required</small>{{ end }}</span>
                         <button class="button compact" type="button" data-plugin-list-add>Add row</button>
@@ -299,9 +309,12 @@
                                       data-plugin-list-column="{{ .ID }}"
                                       data-plugin-list-default="{{ .Default }}"
                                       {{ if .Required }}required{{ end }}>
-                                {{ if not .Required }}<option value=""></option>{{ end }}
+                                {{ if not .Required }}
+                                  <option value=""></option>
+                                {{ end }}
                                 {{ range .Options }}
-                                  <option value="{{ . }}" {{ if eq . $column.Default }}selected{{ end }}>{{ . }}</option>
+                                  <option value="{{ . }}"
+                                          {{ if eq . $column.Default }}selected{{ end }}>{{ . }}</option>
                                 {{ end }}
                               </select>
                             {{ else }}
@@ -313,7 +326,11 @@
                                      {{ if .Required }}required{{ end }} />
                             {{ end }}
                           {{ end }}
-                          <button class="icon-button" type="button" data-plugin-list-remove aria-label="Remove row" title="Remove row">{{ icon "trash-2-lucide" 16 }}</button>
+                          <button class="icon-button"
+                                  type="button"
+                                  data-plugin-list-remove
+                                  aria-label="Remove row"
+                                  title="Remove row">{{ icon "trash-2-lucide" 16 }}</button>
                         </div>
                       </template>
                     </div>
@@ -373,5 +390,3 @@
     {{ end }}
   </section>
 {{ end }}
-
-
