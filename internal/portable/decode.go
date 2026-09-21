@@ -259,7 +259,7 @@ func readArchiveResource(
 	remaining *int64,
 	resources map[string][]byte,
 ) error {
-	if !strings.HasPrefix(resource.Path, prefix) || path.Base(resource.Path) != resource.Filename || strings.TrimSpace(resource.Filename) == "" {
+	if !validArchiveResource(resource, prefix) {
 		return validationError(
 			"The Kumbuka archive contains an invalid resource inventory.",
 			fmt.Errorf("invalid portable resource %q", resource.Path),
@@ -278,6 +278,13 @@ func readArchiveResource(
 	}
 	resources[resource.Path] = data
 	return nil
+}
+
+// validArchiveResource reports whether a manifest resource stays in its section and names its own path.
+func validArchiveResource(resource ResourceEntry, prefix string) bool {
+	return strings.HasPrefix(resource.Path, prefix) &&
+		strings.TrimSpace(resource.Filename) != "" &&
+		path.Base(resource.Path) == resource.Filename
 }
 
 // readManifestFile reads one manifest-listed path and marks it consumed.

@@ -4,7 +4,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -108,11 +107,21 @@ func (r *Renderer) CanPersist(source string, usage *pluginusage.Index) bool {
 // hasDynamicReadPermission reports whether a plugin manifest grants a dynamic read capability.
 func hasDynamicReadPermission(permissions []string) bool {
 	for _, permission := range permissions {
-		if slices.Contains([]string{"pages:read", "pages:content", "attachments:read", "settings:read", "storage:read", "network:http"}, permission) {
+		if dynamicReadPermission(permission) {
 			return true
 		}
 	}
 	return false
+}
+
+// dynamicReadPermission reports whether a permission can make rendered output depend on mutable request-time data.
+func dynamicReadPermission(permission string) bool {
+	switch permission {
+	case "pages:read", "pages:content", "attachments:read", "settings:read", "storage:read", "network:http":
+		return true
+	default:
+		return false
+	}
 }
 
 // renderExecutableModule renders one executable plugin module with the supplied context.

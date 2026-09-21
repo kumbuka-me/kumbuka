@@ -89,7 +89,11 @@ func validateExportParameters(parameters map[string]map[string]map[string]string
 
 // validExportParameterKey reports whether one nested export parameter key is safe and bounded.
 func validExportParameterKey(value string) bool {
-	return value != "" && len(value) <= 128 && utf8.ValidString(value) && strings.TrimSpace(value) == value && !strings.ContainsAny(value, "\x00\r\n{}")
+	if value == "" || len(value) > 128 || !utf8.ValidString(value) {
+		return false
+	}
+
+	return strings.TrimSpace(value) == value && !strings.ContainsAny(value, "\x00\r\n{}")
 }
 
 // renderExportHTML renders the shared self-contained page body used by print preview and PDF export.

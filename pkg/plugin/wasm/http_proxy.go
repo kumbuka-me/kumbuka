@@ -21,10 +21,18 @@ func pluginProxyFor(target *url.URL) (*url.URL, error) {
 	if err != nil {
 		return nil, errHTTPUnavailable
 	}
-	if proxyURL != nil && (proxyURL.Hostname() == "" || (proxyURL.Scheme != "http" && proxyURL.Scheme != "https") || proxyURL.RawQuery != "" || proxyURL.Fragment != "" || (proxyURL.Path != "" && proxyURL.Path != "/")) {
+	if proxyURL != nil && !validPluginProxyURL(proxyURL) {
 		return nil, errHTTPUnavailable
 	}
 	return proxyURL, nil
+}
+
+// validPluginProxyURL reports whether a deployment proxy URL can safely carry pinned CONNECT requests.
+func validPluginProxyURL(proxyURL *url.URL) bool {
+	validScheme := proxyURL.Scheme == "http" || proxyURL.Scheme == "https"
+	validPath := proxyURL.Path == "" || proxyURL.Path == "/"
+
+	return proxyURL.Hostname() != "" && validScheme && validPath && proxyURL.RawQuery == "" && proxyURL.Fragment == ""
 }
 
 // pluginProxyTunnel connects through a deployment-trusted proxy to a validated numeric destination.

@@ -383,14 +383,13 @@ func (i *Instance) validateRenderResult(
 		return fmt.Errorf("plugin returned error: %.1024s", result.Error)
 	}
 	if stage == "admin-action" {
-		if result.Matched || len(result.Invocation) != 0 || len(result.Parts) != 0 || len(result.Actions) != 0 || result.File != nil || result.WidgetCommand != nil {
+		if !validAdminActionResult(result) {
 			return errors.New("invalid plugin admin action response")
 		}
 		return nil
 	}
 	if stage == "widget-command" {
-		if len(result.Parts) != 0 || len(result.Actions) != 0 || result.File != nil || result.WidgetCommand == nil ||
-			(result.WidgetCommand.Redirect != "" && !validWidgetActionURL(result.WidgetCommand.Redirect)) {
+		if !validWidgetCommandResult(result) {
 			return errors.New("invalid plugin widget command response")
 		}
 		return nil
@@ -399,7 +398,7 @@ func (i *Instance) validateRenderResult(
 		return errors.New("unexpected plugin widget command response")
 	}
 	if stage == "export" {
-		if len(result.Parts) != 0 || len(result.Actions) != 0 || result.File == nil {
+		if !validExportResult(result) {
 			return errors.New("invalid plugin export response")
 		}
 		return nil
@@ -425,6 +424,30 @@ func (i *Instance) validateRenderResult(
 	}
 
 	return nil
+}
+
+// validAdminActionResult reports whether an admin action returned only its permitted response fields.
+func validAdminActionResult(result sdk.RenderResult) bool {
+	return !result.Matched &&
+		len(result.Invocation) == 0 &&
+		len(result.Parts) == 0 &&
+		len(result.Actions) == 0 &&
+		result.File == nil &&
+		result.WidgetCommand == nil
+}
+
+// validWidgetCommandResult reports whether a widget command returned only a valid command response.
+func validWidgetCommandResult(result sdk.RenderResult) bool {
+	if len(result.Parts) != 0 || len(result.Actions) != 0 || result.File != nil || result.WidgetCommand == nil {
+		return false
+	}
+
+	return result.WidgetCommand.Redirect == "" || validWidgetActionURL(result.WidgetCommand.Redirect)
+}
+
+// validExportResult reports whether an export invocation returned exactly one file response.
+func validExportResult(result sdk.RenderResult) bool {
+	return len(result.Parts) == 0 && len(result.Actions) == 0 && result.File != nil
 }
 
 // timingStarted returns the current time only when profiling is enabled.

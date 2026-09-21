@@ -72,7 +72,7 @@ func PluginFrame(manager *plugin.Manager) http.HandlerFunc {
 			return
 		}
 		for _, module := range manager.BrowserModules() {
-			if module.PluginID != r.PathValue("pluginID") || module.Digest != r.PathValue("digest") || module.ModuleID+".html" != r.PathValue("frame") {
+			if !matchesPluginFrameRequest(r, module) {
 				continue
 			}
 			data, policy, err := pluginbrowser.Frame("/plugins", "/plugins/runtime.js", []string{"http://" + r.Host, "https://" + r.Host}, module)
@@ -89,6 +89,13 @@ func PluginFrame(manager *plugin.Manager) http.HandlerFunc {
 		}
 		http.NotFound(w, r)
 	}
+}
+
+// matchesPluginFrameRequest reports whether a browser module owns the requested immutable frame path.
+func matchesPluginFrameRequest(r *http.Request, module plugin.BrowserContribution) bool {
+	return module.PluginID == r.PathValue("pluginID") &&
+		module.Digest == r.PathValue("digest") &&
+		module.ModuleID+".html" == r.PathValue("frame")
 }
 
 // PluginBrowserRuntime serves the shared browser bootstrap used by plugin frames.

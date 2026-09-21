@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"net/netip"
 	"net/url"
-	"slices"
 	"strings"
 
 	"github.com/kumbuka-me/sdk"
@@ -22,12 +21,13 @@ var blockedHTTPPrefixes = []netip.Prefix{
 
 // validHTTPRequest validates bounded request metadata before any network side effect.
 func validHTTPRequest(request sdk.HTTPRequest) bool {
-	if !slices.Contains([]string{http.MethodGet, http.MethodHead, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete, http.MethodOptions}, request.Method) {
+	if !validPluginHTTPMethod(request.Method) {
 		return false
 	}
-	if len(request.URL) == 0 || len(request.URL) > maxHTTPDestination || len(request.Body) > maxHTTPRequestBody || len(request.Headers) > maxHTTPHeaderCount || len(request.AllowedPrivateIPs) > maxHTTPPrivateIPs {
+	if !boundedHTTPRequest(request) {
 		return false
 	}
+
 	parsed, ok := parsePluginHTTPDestination(request.URL)
 	if !ok {
 		return false
@@ -35,17 +35,38 @@ func validHTTPRequest(request sdk.HTTPRequest) bool {
 	if request.InsecureSkipVerify && parsed.Scheme != "https" {
 		return false
 	}
+
 	for _, raw := range request.AllowedPrivateIPs {
 		if !validHTTPPrivateIP(raw) {
 			return false
 		}
 	}
+
 	for name, value := range request.Headers {
 		if !validPluginHTTPHeader(name, value) {
 			return false
 		}
 	}
 	return true
+}
+
+// validPluginHTTPMethod reports whether plugins may use the requested HTTP method.
+func validPluginHTTPMethod(method string) bool {
+	switch method {
+	case http.MethodGet, http.MethodHead, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete, http.MethodOptions:
+		return true
+	default:
+		return false
+	}
+}
+
+// boundedHTTPRequest reports whether request metadata fits the plugin HTTP wire limits.
+func boundedHTTPRequest(request sdk.HTTPRequest) bool {
+	return len(request.URL) > 0 &&
+		len(request.URL) <= maxHTTPDestination &&
+		len(request.Body) <= maxHTTPRequestBody &&
+		len(request.Headers) <= maxHTTPHeaderCount &&
+		len(request.AllowedPrivateIPs) <= maxHTTPPrivateIPs
 }
 
 // parsePluginHTTPDestination validates and parses one absolute HTTP destination without user info or fragments.

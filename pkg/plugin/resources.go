@@ -420,7 +420,11 @@ func normalizeResourceRecord(module pluginpackage.Module, values, previous map[s
 
 // validResourceKey reports whether key can be used in a macro and plugin storage key.
 func validResourceKey(key string) bool {
-	return key != "" && len(key) <= maxResourceKeyBytes && utf8.ValidString(key) && strings.TrimSpace(key) == key && !strings.ContainsAny(key, "\x00\r\n{}")
+	if key == "" || len(key) > maxResourceKeyBytes || !utf8.ValidString(key) {
+		return false
+	}
+
+	return strings.TrimSpace(key) == key && !strings.ContainsAny(key, "\x00\r\n{}")
 }
 
 // resourcePrefix returns the storage prefix for one resource module.

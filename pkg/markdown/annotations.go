@@ -348,23 +348,8 @@ func normalizedAnnotationHTML(value string) (string, error) {
 	for _, node := range nodes {
 		root.AppendChild(node)
 	}
-	var unwrap func(*xhtml.Node)
-	unwrap = func(parent *xhtml.Node) {
-		for node := parent.FirstChild; node != nil; {
-			next := node.NextSibling
-			unwrap(node)
-			if node.Type == xhtml.ElementNode && node.Data == "span" && htmlAttribute(node, "class") == "plugin-annotation" && htmlAttribute(node, "data-plugin-annotation") != "" {
-				for node.FirstChild != nil {
-					child := node.FirstChild
-					node.RemoveChild(child)
-					parent.InsertBefore(child, node)
-				}
-				parent.RemoveChild(node)
-			}
-			node = next
-		}
-	}
-	unwrap(root)
+	unwrapAnnotationElements(root)
+
 	var output strings.Builder
 	for node := root.FirstChild; node != nil; node = node.NextSibling {
 		if err := xhtml.Render(&output, node); err != nil {
@@ -372,4 +357,34 @@ func normalizedAnnotationHTML(value string) (string, error) {
 		}
 	}
 	return output.String(), nil
+}
+
+// unwrapAnnotationElements removes generic annotation spans while preserving their child nodes.
+func unwrapAnnotationElements(parent *xhtml.Node) {
+	for node := parent.FirstChild; node != nil; {
+		next := node.NextSibling
+		unwrapAnnotationElements(node)
+		if isAnnotationElement(node) {
+			unwrapElement(parent, node)
+		}
+		node = next
+	}
+}
+
+// isAnnotationElement reports whether an HTML node is a generic plugin annotation wrapper.
+func isAnnotationElement(node *xhtml.Node) bool {
+	return node.Type == xhtml.ElementNode &&
+		node.Data == "span" &&
+		htmlAttribute(node, "class") == "plugin-annotation" &&
+		htmlAttribute(node, "data-plugin-annotation") != ""
+}
+
+// unwrapElement replaces an element with its children in the original order.
+func unwrapElement(parent, element *xhtml.Node) {
+	for element.FirstChild != nil {
+		child := element.FirstChild
+		element.RemoveChild(child)
+		parent.InsertBefore(child, element)
+	}
+	parent.RemoveChild(element)
 }
