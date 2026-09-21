@@ -2,6 +2,7 @@ package endpoint
 
 import (
 	"context"
+	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
@@ -49,6 +50,19 @@ func TestPluginPresentationStylesCaching(t *testing.T) {
 		assert.Equal(t, 404, response.Code)
 		assert.Equal(t, "no-store", response.Header().Get("Cache-Control"))
 	})
+}
+
+func TestPluginPreviewAllowsSameOriginEmbedding(t *testing.T) {
+	t.Parallel()
+
+	response := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/admin/plugins/missing/preview.png", nil)
+
+	PluginPreview(nil)(response, request)
+
+	assert.Equal(t, http.StatusNotFound, response.Code)
+	assert.Equal(t, "SAMEORIGIN", response.Header().Get("X-Frame-Options"))
+	assert.Equal(t, "default-src 'none'; sandbox; frame-ancestors 'self'", response.Header().Get("Content-Security-Policy"))
 }
 
 func TestBrowserPluginLifecycleAndAssetBoundary(t *testing.T) {
