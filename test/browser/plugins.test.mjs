@@ -80,3 +80,99 @@ test("real Mermaid is isolated and plugin changes require a page reload", async 
   }
 });
 
+
+
+
+
+test("trusted browser-module changes relay only same-plugin widget commands", async () => {
+  const browser = await chromium.launch({
+    channel: process.env.BROWSER_CHANNEL || "chrome",
+    headless: true,
+  });
+  try {
+    const page = await browser.newPage();
+    const statusModule = {
+      plugin_id: "me.kumbuka.status-dropdowns",
+      module_id: "status-ui",
+      name: "Status Dropdowns",
+      digest: "c".repeat(64),
+      commands: [{ module_id: "page-details", surface: "page.details" }],
+    };
+    const fakeJavaScript = `
+      globalThis.kumbukaPlugin = {
+        render(root) {
+          const select = document.createElement("select");
+          select.setAttribute("aria-label", "API status");
+          select.dataset.kumbukaCommandModule = "page-details";
+          const todo = document.createElement("option");
+          todo.value = "set-aaaaaaaaaaaaaaaaaaaaaaaa-0";
+          todo.textContent = "To do";
+          const done = document.createElement("option");
+          done.value = "set-aaaaaaaaaaaaaaaaaaaaaaaa-3";
+          done.textContent = "Done";
+          select.append(todo, done);
+          root.append(select);
+        }
+      };
+    `;
+    let commandRequest;
+
+    await page.route("http://status.test/**", async (route) => {
+      const request = route.request();
+      const path = new URL(request.url()).pathname;
+      if (
+        path ===
+        "/plugins/actions/me.kumbuka.status-dropdowns/page-details/set-aaaaaaaaaaaaaaaaaaaaaaaa-3"
+      ) {
+        commandRequest = request;
+        await route.fulfill({ status: 204 });
+        return;
+      }
+      if (
+        await pluginRoute(route, {
+          enabled: true,
+          fakeJavaScript,
+          module: statusModule,
+        })
+      )
+        return;
+      if (path.startsWith("/assets/")) {
+        await route.fulfill({
+          contentType: "text/javascript",
+          body: await readFile(
+            new URL("../../web/dist/" + path.slice(8), import.meta.url),
+          ),
+        });
+        return;
+      }
+      await route.fulfill({
+        contentType: "text/html",
+        body: `<body data-current-page="release/readiness">${pluginCatalog(statusModule, true)}<span data-kumbuka-plugin="me.kumbuka.status-dropdowns" data-kumbuka-module="status-ui" data-kumbuka-input="html"><span data-kumbuka-fallback>In progress</span></span><script type="module">import {renderPluginModules} from '/assets/js/plugins/loader.js';await renderPluginModules();</script></body>`,
+      });
+    });
+
+    await page.goto("http://status.test/pages/release/readiness");
+    await page.locator("iframe[data-plugin-ready]").waitFor();
+
+    const command = page.waitForRequest(
+      (request) =>
+        request.method() === "POST" &&
+        new URL(request.url()).pathname.endsWith(
+          "/set-aaaaaaaaaaaaaaaaaaaaaaaa-3",
+        ),
+    );
+    await page
+      .frameLocator("iframe")
+      .getByRole("combobox", { name: "API status" })
+      .selectOption("set-aaaaaaaaaaaaaaaaaaaaaaaa-3");
+    await command;
+
+    assert.ok(commandRequest);
+    const form = new URLSearchParams(commandRequest.postData() || "");
+    assert.equal(form.get("surface"), "page.details");
+    assert.equal(form.get("page"), "release/readiness");
+    assert.equal(form.get("next"), "/pages/release/readiness");
+  } finally {
+    await browser.close();
+  }
+});

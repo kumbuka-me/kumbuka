@@ -59,6 +59,7 @@ export async function pluginRoute(
   {
     enabled = true,
     fake = false,
+    fakeJavaScript = "",
     module = plugin,
     assetDirectory = "mermaid",
   } = {},
@@ -87,10 +88,17 @@ export async function pluginRoute(
         new URL("../../web/dist/js/plugins/frame.js", import.meta.url),
       ),
     });
-  } else if (path === base + "assets/plugin.js" && fake) {
+  } else if (path === base + "assets/plugin.css" && fakeJavaScript) {
+    await route.fulfill({ contentType: "text/css", body: "" });
+  } else if (
+    path === base + "assets/plugin.js" &&
+    (fake || fakeJavaScript)
+  ) {
     await route.fulfill({
       contentType: "text/javascript",
-      body: `globalThis.kumbukaPlugin={async render(root){await new Promise(r=>setTimeout(r,150));root.innerHTML='<svg height="80" aria-label="Diagram"></svg>';}};`,
+      body:
+        fakeJavaScript ||
+        `globalThis.kumbukaPlugin={async render(root){await new Promise(r=>setTimeout(r,150));root.innerHTML='<svg height="80" aria-label="Diagram"></svg>';}};`,
     });
   } else if (path.startsWith(base + "assets/")) {
     const name = path.slice((base + "assets/").length);
@@ -107,3 +115,5 @@ export async function pluginRoute(
   }
   return true;
 }
+
+

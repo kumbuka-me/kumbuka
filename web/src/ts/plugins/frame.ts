@@ -1,6 +1,6 @@
 // Core-owned harness. Plugin code runs only in this opaque, resource-restricted
 // document. Outgoing messages report readiness, errors, bounded height, and
-// user clicks; core validates link destinations against the original fallback.
+// trusted user interactions; core validates links and same-plugin command targets.
 (() => {
   let started = false;
   window.addEventListener("message", async (event: MessageEvent<unknown>) => {
@@ -21,13 +21,84 @@
         (typeof input.html !== "string" || input.html.length > 1_000_000))
     )
       return;
+    // Keep the capability token private to the core harness. Browser-module
+    // JavaScript is loaded only after this event has been consumed and cannot
+    // observe or replay the token itself.
+    event.stopImmediatePropagation();
     started = true;
-    const send = (type: string, height = 0) =>
-      parent.postMessage({ type, token: input.token, height }, "*");
+    const send = (type: string, height = 0, width = 0) =>
+      parent.postMessage({ type, token: input.token, height, width }, "*");
+    const sendCommand = (module: string, action: string) =>
+      parent.postMessage(
+        {
+          type: "kumbuka-plugin-command",
+          token: input.token,
+          module,
+          action,
+        },
+        "*",
+      );
     try {
       const url = document.body.dataset.pluginJavascript;
       const root = document.getElementById("plugin-root");
       if (!url || !root) throw new Error("Missing module");
+      // Install the core-owned interaction bridge before loading plugin code.
+      // Only trusted browser events can reach the command channel.
+      root.addEventListener("click", (event) => {
+        const target = event.target;
+        const link =
+          target instanceof Element
+            ? target.closest<HTMLAnchorElement>("a[href]")
+            : null;
+        if (link) {
+          event.preventDefault();
+          if (event.isTrusted)
+            parent.postMessage(
+              {
+                type: "kumbuka-plugin-link",
+                token: input.token,
+                href: link.href,
+              },
+              "*",
+            );
+          return;
+        }
+
+        const command =
+          target instanceof Element
+            ? target.closest<HTMLElement>(
+                "[data-kumbuka-command-module][data-kumbuka-command-action]",
+              )
+            : null;
+        if (
+          event.isTrusted &&
+          command &&
+          /^[a-z0-9][a-z0-9._-]{0,127}$/.test(
+            command.dataset.kumbukaCommandModule || "",
+          ) &&
+          /^[a-z0-9][a-z0-9._-]{0,127}$/.test(
+            command.dataset.kumbukaCommandAction || "",
+          )
+        )
+          sendCommand(
+            command.dataset.kumbukaCommandModule || "",
+            command.dataset.kumbukaCommandAction || "",
+          );
+      });
+      root.addEventListener("change", (event) => {
+        const target = event.target;
+        if (
+          !event.isTrusted ||
+          !(target instanceof HTMLSelectElement) ||
+          !/^[a-z0-9][a-z0-9._-]{0,127}$/.test(
+            target.dataset.kumbukaCommandModule || "",
+          ) ||
+          !/^[a-z0-9][a-z0-9._-]{0,127}$/.test(target.value)
+        )
+          return;
+
+        sendCommand(target.dataset.kumbukaCommandModule || "", target.value);
+      });
       await new Promise<void>((resolve, reject) => {
         const script = document.createElement("script");
         script.src = url;
@@ -57,24 +128,6 @@
             document.documentElement.style.setProperty("--" + name, value);
         }
       }
-      root.addEventListener("click", (event) => {
-        const target = event.target;
-        const link =
-          target instanceof Element
-            ? target.closest<HTMLAnchorElement>("a[href]")
-            : null;
-        if (!link) return;
-        event.preventDefault();
-        if (event.isTrusted)
-          parent.postMessage(
-            {
-              type: "kumbuka-plugin-link",
-              token: input.token,
-              href: link.href,
-            },
-            "*",
-          );
-      });
       await module.render(root, {
         source: input.source,
         html: input.html || "",
@@ -92,6 +145,15 @@
                   root.getBoundingClientRect().height,
                   root.scrollHeight,
                 ),
+              ),
+            ),
+          ),
+          Math.min(
+            480,
+            Math.max(
+              72,
+              Math.ceil(
+                Math.max(root.getBoundingClientRect().width, root.scrollWidth),
               ),
             ),
           ),
@@ -118,3 +180,5 @@
   });
   parent.postMessage({ type: "kumbuka-plugin-listening" }, "*");
 })();
+
+

@@ -1,12 +1,17 @@
 // Only core code runs in Kumbuka's document. Browser modules receive their own
 // marked block's text inside a sandboxed frame and cannot return host HTML.
 type Root = Document | HTMLElement;
+type CommandTarget = {
+  module_id: string;
+  surface: string;
+};
 type Module = {
   plugin_id: string;
   module_id: string;
   digest: string;
   name: string;
   frame_url: string;
+  commands?: CommandTarget[];
 };
 type Active = {
   frame: HTMLIFrameElement;
@@ -20,6 +25,18 @@ const active = new Map<HTMLElement, Active>();
 let catalog: Module[] | undefined;
 let watching = false;
 const identifier = /^[a-z0-9][a-z0-9._-]{0,127}$/;
+function validCommandTarget(value: unknown): value is CommandTarget {
+  if (typeof value !== "object" || value === null) return false;
+  const target = value as Record<string, unknown>;
+  return (
+    typeof target.module_id === "string" &&
+    identifier.test(target.module_id) &&
+    typeof target.surface === "string" &&
+    target.surface.length > 0 &&
+    target.surface.length <= 64
+  );
+}
+
 function validModule(value: unknown): value is Module {
   if (typeof value !== "object" || value === null) return false;
   const m = value as Record<string, unknown>;
@@ -31,7 +48,9 @@ function validModule(value: unknown): value is Module {
     typeof m.digest === "string" &&
     /^[a-f0-9]{64}$/.test(m.digest) &&
     typeof m.name === "string" &&
-    typeof m.frame_url === "string"
+    typeof m.frame_url === "string" &&
+    (m.commands === undefined ||
+      (Array.isArray(m.commands) && m.commands.every(validCommandTarget)))
   );
 }
 function modules(): Module[] {
@@ -65,6 +84,43 @@ function modules(): Module[] {
   return catalog;
 }
 
+const pageSurfaces = new Set([
+  "page.details",
+  "page.after-content",
+  "page.aside",
+]);
+
+function submitPluginCommand(
+  pluginID: string,
+  target: CommandTarget,
+  action: string,
+): void {
+  const page = document.body.dataset.currentPage?.trim() || "";
+  if (pageSurfaces.has(target.surface) && !page) return;
+
+  const form = document.createElement("form");
+  form.method = "post";
+  form.action = `/plugins/actions/${encodeURIComponent(pluginID)}/${encodeURIComponent(target.module_id)}/${encodeURIComponent(action)}`;
+  form.hidden = true;
+
+  const fields: Record<string, string> = {
+    surface: target.surface,
+    next: `${location.pathname}${location.search}`,
+  };
+  if (pageSurfaces.has(target.surface)) fields.page = page;
+
+  for (const [name, value] of Object.entries(fields)) {
+    const input = document.createElement("input");
+    input.type = "hidden";
+    input.name = name;
+    input.value = value;
+    form.append(input);
+  }
+
+  document.body.append(form);
+  form.submit();
+}
+
 function remove(block: HTMLElement): void {
   const state = active.get(block);
   if (!state) return;
@@ -90,7 +146,10 @@ function mount(block: HTMLElement, module: Module): Promise<void> {
     ? prepareHTML(source, transfer.signal).catch(() => null)
     : Promise.resolve("");
   const frame = document.createElement("iframe");
-  frame.className = "kumbuka-plugin-frame";
+  const inline = block instanceof HTMLSpanElement;
+  frame.className = inline
+    ? "kumbuka-plugin-frame kumbuka-plugin-frame-inline"
+    : "kumbuka-plugin-frame";
   frame.title = module.name;
   frame.setAttribute("sandbox", "allow-scripts");
   frame.setAttribute("referrerpolicy", "no-referrer");
@@ -151,11 +210,31 @@ function mount(block: HTMLElement, module: Module): Promise<void> {
       return;
     }
     if (
+      data.type === "kumbuka-plugin-command" &&
+      typeof data.module === "string" &&
+      identifier.test(data.module) &&
+      typeof data.action === "string" &&
+      identifier.test(data.action)
+    ) {
+      const target = module.commands?.find(
+        (candidate) => candidate.module_id === data.module,
+      );
+      if (target && !block.closest("[data-editor-preview]"))
+        submitPluginCommand(module.plugin_id, target, data.action);
+      return;
+    }
+    if (
       data.type === "kumbuka-plugin-ready" &&
       typeof data.height === "number" &&
       Number.isFinite(data.height)
     ) {
       frame.style.height = `${Math.min(10000, Math.max(24, data.height))}px`;
+      if (
+        inline &&
+        typeof data.width === "number" &&
+        Number.isFinite(data.width)
+      )
+        frame.style.width = `${Math.min(480, Math.max(72, data.width))}px`;
       source.hidden = true;
       frame.dataset.pluginReady = "true";
       clearTimeout(timeout);
@@ -308,3 +387,5 @@ async function rasterBlob(response: Response): Promise<Blob> {
   }
   return new Blob(parts, { type });
 }
+
+

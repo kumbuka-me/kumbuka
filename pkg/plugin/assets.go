@@ -13,6 +13,14 @@ import (
 
 var _ icons.ResourceProvider = (*Manager)(nil)
 
+// BrowserCommandTarget is one same-plugin widget command that an isolated browser module may request after a trusted user action.
+type BrowserCommandTarget struct {
+	// ModuleID identifies the owning widget module.
+	ModuleID string `json:"module_id"`
+	// Surface identifies the widget placement expected by the command handler.
+	Surface string `json:"surface"`
+}
+
 // BrowserContribution is public asset metadata; it contains no settings or capabilities. The digest pins every module and auxiliary asset to one version.
 type BrowserContribution struct {
 	// PluginID identifies the plugin that owns the contribution.
@@ -29,6 +37,8 @@ type BrowserContribution struct {
 	JavaScript string `json:"javascript"`
 	// CSS is the validated path of the optional module stylesheet.
 	CSS string `json:"css,omitempty"`
+	// Commands contains same-plugin widget command targets exposed through the core-owned browser bridge.
+	Commands []BrowserCommandTarget `json:"commands,omitempty"`
 }
 
 // ContentStyleContribution is safe parent-document stylesheet metadata for one active plugin version. Core still filters the stylesheet before publishing it.
@@ -131,11 +141,27 @@ func (m *Manager) BrowserModules() []BrowserContribution {
 		if !ok || !item.metadata.Enabled {
 			continue
 		}
+		commands := browserCommandTargets(item.metadata.Manifest)
 		for _, module := range item.metadata.Manifest.Modules {
 			if module.Type != "browser-module" {
 				continue
 			}
-			result = append(result, BrowserContribution{PluginID: id, ModuleID: module.ID, Name: item.metadata.Manifest.Name, Version: item.metadata.Manifest.Version, Digest: fmt.Sprintf("%x", item.metadata.Digest), JavaScript: module.JavaScript, CSS: module.CSS})
+			result = append(result, BrowserContribution{
+				PluginID: id, ModuleID: module.ID, Name: item.metadata.Manifest.Name,
+				Version: item.metadata.Manifest.Version, Digest: fmt.Sprintf("%x", item.metadata.Digest),
+				JavaScript: module.JavaScript, CSS: module.CSS, Commands: append([]BrowserCommandTarget(nil), commands...),
+			})
+		}
+	}
+	return result
+}
+
+// browserCommandTargets returns host-validated widget command targets owned by one plugin package.
+func browserCommandTargets(manifest pluginpackage.Manifest) []BrowserCommandTarget {
+	result := make([]BrowserCommandTarget, 0)
+	for _, module := range manifest.Modules {
+		if module.Type == "widget" {
+			result = append(result, BrowserCommandTarget{ModuleID: module.ID, Surface: module.Surface})
 		}
 	}
 	return result

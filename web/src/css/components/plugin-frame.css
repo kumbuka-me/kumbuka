@@ -11,3 +11,11 @@
 .kumbuka-plugin-block > pre[hidden] {
   display: none;
 }
+
+
+.kumbuka-plugin-frame-inline {
+  display: inline-block;
+  width: 20rem;
+  max-width: 100%;
+  vertical-align: middle;
+}
