@@ -72,9 +72,9 @@ FAVICON_SOURCE ?= web/src/favicon.svg
 FAVICON_OUTPUT ?= web/src
 FAVICON_SIZES ?= 16x16 32x32
 
-LOGO_SOURCE ?= web/src/kumbuka.svg
+LOGO_SOURCE ?= web/src/favicon.svg
 LOGO_PNG ?= build/kumbuka.png
-LOGO_PNG_WIDTH ?= 1200
+LOGO_PNG_WIDTH ?= 1280
 
 ## Formatting
 
