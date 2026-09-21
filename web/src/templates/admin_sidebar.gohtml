@@ -1,6 +1,6 @@
 {{ define "admin-sidebar" }}
   <aside class="sidebar admin-sidebar" id="kumbuka-sidebar" data-sidebar>
-    <nav>
+    <nav data-navigation>
       <p class="nav-label">Administration</p>
       <a href="/admin"
          {{ if eq .AdminSection "overview" }}class="active"
@@ -93,6 +93,7 @@
         {{ end }}
       {{ end }}
     </nav>
+    <span data-navigation-scroll-ready hidden></span>
     <a class="admin-back-link" href="/">{{ icon "arrow-left-lucide" 17 }}<span>Back to Kumbuka</span></a>
     {{ template "account-menu" . }}
   </aside>

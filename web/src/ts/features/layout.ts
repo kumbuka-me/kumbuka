@@ -84,10 +84,9 @@ function initNavigationTree(): void {
     ),
   ];
   const remember = navigation.dataset.navigationRemember?.trim() === "true";
-  const stateURL = requiredAttribute(
-    navigationRoot,
-    "data-navigation-state-url",
-  );
+  const stateURL = remember
+    ? requiredAttribute(navigationRoot, "data-navigation-state-url")
+    : "";
   const scrollKey = `${NAVIGATION_SCROLL_KEY}:${window.matchMedia(MOBILE_SIDEBAR_QUERY).matches ? "mobile" : "desktop"}`;
   let saveTimer: ReturnType<typeof setTimeout> | undefined;
   let savePromise: Promise<void> = Promise.resolve();
@@ -167,7 +166,8 @@ function initNavigationTree(): void {
   document.addEventListener("navigation-style-change", () => {
     if (filter) filter.value = "";
     filterTree();
-    if (document.body.dataset.navigationStyle === "tree") revealCurrentPage();
+    if (reveal && document.body.dataset.navigationStyle === "tree")
+      revealCurrentPage();
   });
 
   function saveScrollPosition(destination: string): void {
@@ -257,7 +257,8 @@ function initNavigationTree(): void {
     navigation.dataset.navigationScrollRestored === "true";
   const active = navigation.querySelector<HTMLElement>('[aria-current="page"]');
 
-  if (document.body.dataset.navigationStyle === "tree") revealCurrentPage();
+  if (reveal && document.body.dataset.navigationStyle === "tree")
+    revealCurrentPage();
 
   if (active && !restoredScrollPosition) {
     const navigationRect = navigation.getBoundingClientRect();
