@@ -304,8 +304,15 @@
                 <p class="muted">Published {{ .ReleasedAt.Format "2006-01-02" }}. Kumbuka verifies the catalog checksum and package identity before switching versions.</p>
               </div>
               <form method="post"
-                    action="/admin/plugins/{{ $plugin.Manifest.ID }}/update?return=detail">
-                <button class="button primary" type="submit">Update to {{ .Version }}</button>
+                    action="/admin/plugins/{{ $plugin.Manifest.ID }}/update?return=detail"
+                    data-plugin-update>
+                <button class="button primary" type="submit" data-plugin-update-submit>
+                  <span class="plugin-update-spinner"
+                        data-plugin-update-spinner
+                        aria-hidden="true"
+                        hidden></span>
+                  <span data-plugin-update-label>Update to {{ .Version }}</span>
+                </button>
               </form>
             </div>
           {{ else }}

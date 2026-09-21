@@ -166,12 +166,51 @@ function setupPluginUpload(form: HTMLFormElement): void {
   sync();
 }
 
+// setupPluginUpdate shows immediate feedback while the blocking catalog update request is running.
+function setupPluginUpdate(form: HTMLFormElement): void {
+  const submit = requiredElement<HTMLButtonElement>(
+    form,
+    "[data-plugin-update-submit]",
+  );
+  const spinner = requiredElement<HTMLElement>(
+    form,
+    "[data-plugin-update-spinner]",
+  );
+  const label = requiredElement<HTMLElement>(
+    form,
+    "[data-plugin-update-label]",
+  );
+
+  let submitting = false;
+
+  form.addEventListener("submit", (event: SubmitEvent) => {
+    if (submitting) return;
+
+    event.preventDefault();
+    submitting = true;
+
+    form.setAttribute("aria-busy", "true");
+    submit.disabled = true;
+    spinner.hidden = false;
+    label.textContent = "Downloading update…";
+
+    // Give the browser one paint before navigation starts so the pending state is visible.
+    requestAnimationFrame(() => HTMLFormElement.prototype.submit.call(form));
+  });
+}
+
 // initAdminPlugins initializes plugin package pickers on administration pages.
 export function initAdminPlugins(): void {
   for (const form of document.querySelectorAll<HTMLFormElement>(
     "[data-plugin-upload]",
   )) {
     setupPluginUpload(form);
+  }
+
+  for (const form of document.querySelectorAll<HTMLFormElement>(
+    "[data-plugin-update]",
+  )) {
+    setupPluginUpdate(form);
   }
 
   setupPluginToggles();

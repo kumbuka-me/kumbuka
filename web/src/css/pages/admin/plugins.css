@@ -487,6 +487,29 @@
   flex: none;
 }
 
+.plugin-update-spinner:not([hidden]) {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: plugin-update-spinner 650ms linear infinite;
+}
+
+@keyframes plugin-update-spinner {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .plugin-update-spinner {
+    animation-duration: 1.4s;
+  }
+}
+
 .plugin-manual-upgrade {
   margin-top: 16px;
 }
