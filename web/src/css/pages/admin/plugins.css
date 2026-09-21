@@ -126,7 +126,8 @@
 
 .plugin-preview-image {
   display: block;
-  width: 100%;
+  width: min(100%, 800px);
+  margin-inline: auto;
   aspect-ratio: 16 / 9;
   border: 1px solid var(--border-subtle);
   border-radius: 10px;
