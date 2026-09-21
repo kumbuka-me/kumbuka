@@ -203,15 +203,6 @@ func WatchPage(catalogUseCases visiblePageActions, views *webview.Views) http.Ha
 		slug := strings.Trim(strings.TrimSpace(r.PathValue("slug")), "/")
 		scope := strings.TrimSpace(r.FormValue("scope"))
 
-		if scope != "" && scope != domain.PageWatchScopePage && scope != domain.PageWatchScopeSubtree {
-			httpresponse.Problem(w,
-				http.StatusUnprocessableEntity,
-				"Watch settings are invalid.",
-				httpresponse.NewFieldProblem("scope", "Choose page or subtree notifications."),
-			)
-			return
-		}
-
 		if err := catalogUseCases.SetPageWatchFor(r.Context(), user, slug, scope); err != nil {
 			writePageProblem(views.Logger(), w, err)
 			return

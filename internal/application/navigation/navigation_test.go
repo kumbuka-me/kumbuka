@@ -2,6 +2,7 @@ package navigation
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
@@ -97,7 +98,7 @@ func TestSetNavigationIconUpdatesWarmCache(t *testing.T) {
 	require.NoError(t, err)
 
 	icon := "book-lucide"
-	err = navigation.SetNavigationIcon(context.Background(), "platform", icon)
+	err = navigation.SetNavigationIcon(context.Background(), " /platform/ ", icon)
 	require.NoError(t, err)
 
 	cached, err := navigation.NavigationIcons(context.Background())
@@ -107,6 +108,19 @@ func TestSetNavigationIconUpdatesWarmCache(t *testing.T) {
 	assert.Equal(t, "platform", repository.setPath)
 	assert.Equal(t, icon, repository.setIcon)
 	assert.Equal(t, icon, cached["platform"])
+}
+
+func TestSetNavigationIconRejectsEmptyPathBeforePersistence(t *testing.T) {
+	t.Parallel()
+
+	repository := &navigationRepositoryStub{}
+	err := NewNavigation(repository, nil).SetNavigationIcon(context.Background(), " / ", "")
+
+	validation, ok := errors.AsType[*domain.ValidationError](err)
+	require.True(t, ok)
+	require.Len(t, validation.Fields, 1)
+	assert.Equal(t, "path", validation.Fields[0].Field)
+	assert.Empty(t, repository.setPath)
 }
 
 func TestSetNavigationIconAcceptsPluginResource(t *testing.T) {

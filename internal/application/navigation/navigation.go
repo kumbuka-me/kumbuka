@@ -109,7 +109,11 @@ func (s *Navigation) NavigationIcons(ctx context.Context) (map[string]string, er
 
 // SetNavigationIcon sets or clears the icon for a navigation path.
 func (s *Navigation) SetNavigationIcon(ctx context.Context, path, icon string) error {
+	path = strings.Trim(strings.TrimSpace(path), "/")
 	icon = strings.TrimSpace(icon)
+	if path == "" {
+		return domain.NewValidationError("path", "Choose a navigation path.")
+	}
 	if icon != "" && (s.iconValidator == nil || !s.iconValidator.IsIcon(icon)) {
 		return domain.NewValidationError("icon", "Choose an icon from the available icon catalog.")
 	}
@@ -119,13 +123,12 @@ func (s *Navigation) SetNavigationIcon(ctx context.Context, path, icon string) e
 
 	// Keep an already-loaded cache coherent with successful admin writes. A
 	// cold cache remains cold and will load the complete set on first use.
-	cachePath := strings.Trim(strings.TrimSpace(path), "/")
 	s.iconsMu.Lock()
 	if s.iconsLoaded {
 		if icon == "" {
-			delete(s.icons, cachePath)
+			delete(s.icons, path)
 		} else {
-			s.icons[cachePath] = icon
+			s.icons[path] = icon
 		}
 	}
 	s.iconsMu.Unlock()

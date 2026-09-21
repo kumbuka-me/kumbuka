@@ -101,34 +101,6 @@ LIMIT $2`, userID, limit)
 	return items, rows.Err()
 }
 
-// DueReviewPages returns pages whose configured review interval has elapsed.
-func (s *Store) DueReviewPages(ctx context.Context, limit int) ([]domain.Page, error) {
-	rows, err := s.pool.Query(ctx, `
-SELECT slug,title,status,review_interval_days,last_reviewed_at
-FROM pages
-WHERE deleted_at IS NULL AND review_interval_days>0 AND coalesce(last_reviewed_at,created_at)+(review_interval_days || ' days')::interval <= now()
-ORDER BY coalesce(last_reviewed_at,created_at),slug
-LIMIT $1`, limit)
-	if err != nil {
-		return nil, err
-	}
-
-	defer rows.Close()
-
-	var pages []domain.Page
-
-	for rows.Next() {
-		var page domain.Page
-		if err := rows.Scan(&page.Slug, &page.Title, &page.Status, &page.ReviewIntervalDays, &page.LastReviewedAt); err != nil {
-			return nil, err
-		}
-
-		pages = append(pages, page)
-	}
-
-	return pages, rows.Err()
-}
-
 // MarkPageReviewed records a documentation review timestamp.
 func (s *Store) MarkPageReviewed(ctx context.Context, slug string) error {
 	tag, err := s.pool.Exec(ctx, `

@@ -134,39 +134,6 @@ func visibleRecentEdits(ctx context.Context, access accessReader, user domain.Us
 	return result, nil
 }
 
-// VisibleKnowledgeGraph removes graph nodes and edges hidden from the user.
-func VisibleKnowledgeGraph(ctx context.Context, access accessReader, user domain.User, graph domain.KnowledgeGraph) (domain.KnowledgeGraph, error) {
-	paths := make([]domain.Page, len(graph.Nodes))
-	for i, node := range graph.Nodes {
-		paths[i].Slug = node.Slug
-	}
-	visible, err := visiblePaths(ctx, access, user, paths)
-	if err != nil {
-		return domain.KnowledgeGraph{}, err
-	}
-	nodes := make([]domain.GraphNode, 0, len(graph.Nodes))
-	for _, node := range graph.Nodes {
-		if visible[node.Slug] {
-			nodes = append(nodes, node)
-		}
-	}
-
-	edges := make([]domain.GraphEdge, 0, len(graph.Edges))
-
-	for _, edge := range graph.Edges {
-		if !visible[edge.Source] || !visible[edge.Target] {
-			continue
-		}
-
-		edges = append(edges, edge)
-	}
-
-	graph.Nodes = nodes
-	graph.Edges = edges
-
-	return graph, nil
-}
-
 // HomeLists extends personal page lists with dashboard activity and private drafts.
 type HomeLists struct {
 	// catalog stores the catalog value used by home widget source.

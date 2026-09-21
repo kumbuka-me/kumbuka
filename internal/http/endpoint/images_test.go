@@ -42,31 +42,6 @@ func TestSanitizeImageFilename(t *testing.T) {
 	})
 }
 
-func TestSupportedImageType(t *testing.T) {
-	t.Parallel()
-
-	t.Run("supports JPEG", func(t *testing.T) {
-		t.Parallel()
-		assert.True(t, appmedia.SupportedImageType("image/jpeg"))
-	})
-	t.Run("supports PNG", func(t *testing.T) {
-		t.Parallel()
-		assert.True(t, appmedia.SupportedImageType("image/png"))
-	})
-	t.Run("supports GIF", func(t *testing.T) {
-		t.Parallel()
-		assert.True(t, appmedia.SupportedImageType("image/gif"))
-	})
-	t.Run("supports WebP", func(t *testing.T) {
-		t.Parallel()
-		assert.True(t, appmedia.SupportedImageType("image/webp"))
-	})
-	t.Run("rejects SVG", func(t *testing.T) {
-		t.Parallel()
-		assert.False(t, appmedia.SupportedImageType("image/svg+xml"))
-	})
-}
-
 type imageListHandlerStub struct {
 	imageService
 	images       []domain.Image

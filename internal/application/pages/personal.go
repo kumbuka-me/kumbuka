@@ -2,6 +2,7 @@ package pages
 
 import (
 	"context"
+	"strings"
 
 	appaccess "github.com/kumbuka-me/kumbuka/internal/application/access"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
@@ -27,6 +28,7 @@ func NewPersonal(repository personalRepository, access accessReader) *Personal {
 
 // SetFavoriteFor updates a favorite only when the actor may view an existing page.
 func (c *Personal) SetFavoriteFor(ctx context.Context, actor domain.User, slug string, on bool) error {
+	slug = strings.Trim(strings.TrimSpace(slug), "/")
 	if err := appaccess.RequireView(ctx, c.access, actor, slug); err != nil {
 		return err
 	}
@@ -38,6 +40,11 @@ func (c *Personal) SetFavoriteFor(ctx context.Context, actor domain.User, slug s
 
 // SetPageWatchFor updates a watch only when the actor may view an existing page.
 func (c *Personal) SetPageWatchFor(ctx context.Context, actor domain.User, slug, scope string) error {
+	slug = strings.Trim(strings.TrimSpace(slug), "/")
+	scope = strings.TrimSpace(scope)
+	if !validPageWatchScope(scope) {
+		return domain.NewValidationError("scope", "Choose page or subtree notifications.")
+	}
 	if err := appaccess.RequireView(ctx, c.access, actor, slug); err != nil {
 		return err
 	}
@@ -45,4 +52,9 @@ func (c *Personal) SetPageWatchFor(ctx context.Context, actor domain.User, slug,
 		return err
 	}
 	return c.repository.SetPageWatch(ctx, slug, actor.ID, scope)
+}
+
+// validPageWatchScope reports whether a page-watch scope is empty or one of the supported domain values.
+func validPageWatchScope(scope string) bool {
+	return scope == "" || scope == domain.PageWatchScopePage || scope == domain.PageWatchScopeSubtree
 }

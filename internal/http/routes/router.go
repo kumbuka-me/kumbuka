@@ -103,7 +103,10 @@ func (r *Router) Editor(handler http.Handler) http.Handler {
 
 // Handler finalizes the router with global request middleware.
 func (r *Router) Handler() http.Handler {
-	middlewares := []middleware.Middleware{middleware.RequestContext()}
+	middlewares := []middleware.Middleware{
+		middleware.SecurityHeaders(),
+		middleware.RequestContext(),
+	}
 	if r.config.AccessLog {
 		middlewares = append(middlewares, middleware.AccessLog(r.config.Logger))
 	}
@@ -115,7 +118,6 @@ func (r *Router) Handler() http.Handler {
 	if r.config.ReadOnly {
 		middlewares = append(middlewares, middleware.ReadOnly())
 	}
-	middlewares = append(middlewares, middleware.SecurityHeaders())
 
 	root := endpoint.HTMLProblems(
 		r.mux,

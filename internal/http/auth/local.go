@@ -186,16 +186,6 @@ func (l *Local) setup(
 	return user, token, nil
 }
 
-// SetPassword creates or replaces one Kumbuka user's local recovery password.
-func (l *Local) SetPassword(ctx context.Context, userID int64, password string) error {
-	passwordHash, err := credential.HashLocalPassword(password)
-	if err != nil {
-		return err
-	}
-
-	return l.repository.SetLocalCredential(ctx, userID, passwordHash)
-}
-
 // WriteSessionCookie stores a local session token in an HTTP-only cookie.
 func (l *Local) WriteSessionCookie(w http.ResponseWriter, token string) {
 	http.SetCookie(w, l.sessionCookie(localSessionCookie, token, int(localSessionTTL.Seconds())))

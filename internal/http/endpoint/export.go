@@ -150,64 +150,6 @@ func ExportPagePDF(
 	}
 }
 
-// ExportPages creates an archive containing selected Markdown pages and referenced images.
-func ExportPages(
-	catalogUseCases pageContentService,
-	navigationUseCases navigationService,
-	mediaUseCases imageContentService,
-	logger *slog.Logger,
-) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if err := r.ParseForm(); err != nil {
-			httpresponse.Problem(w, http.StatusBadRequest, "Invalid export request.")
-			return
-		}
-
-		slugs, err := exportSlugs(r, navigationUseCases)
-		if err != nil {
-			httpresponse.InternalServerError(logger, w, err)
-			return
-		}
-		if len(slugs) == 0 {
-			httpresponse.Problem(w,
-				http.StatusBadRequest,
-				"Export validation failed.",
-				httpresponse.NewFieldProblem("slug", "Select at least one page to export."),
-			)
-			return
-		}
-
-		if len(slugs) == 1 {
-			pageData, err := catalogUseCases.GetPage(r.Context(), slugs[0])
-			if err != nil {
-				writePageProblem(logger, w, err)
-				return
-			}
-			if len(referencedImageIDs(pageData.Markdown)) == 0 {
-				serveMarkdown(w, pageData)
-				return
-			}
-		}
-
-		file, modTime, cleanup, err := createExportArchive(
-			r.Context(),
-			catalogUseCases,
-			mediaUseCases,
-			slugs,
-		)
-		if err != nil {
-			writeExportProblem(logger, w, err)
-			return
-		}
-
-		defer cleanup()
-
-		filename := "kumbuka-export-" + time.Now().UTC().Format("20060102-150405") + ".zip"
-
-		serveExportArchive(w, r, filename, file, modTime)
-	}
-}
-
 // serveMarkdown writes one page as a plain Markdown attachment.
 func serveMarkdown(w http.ResponseWriter, pageData domain.Page) {
 	filename := path.Base(pageData.Slug) + ".md"
@@ -270,7 +212,6 @@ func exportSlugs(r *http.Request, navigationUseCases navigationService) ([]strin
 		}
 
 		slugs := make([]string, 0, len(pages))
-
 		for _, page := range pages {
 			slugs = append(slugs, page.Slug)
 		}
@@ -280,7 +221,6 @@ func exportSlugs(r *http.Request, navigationUseCases navigationService) ([]strin
 
 	seen := map[string]bool{}
 	var slugs []string
-
 	for _, slug := range r.Form["slug"] {
 		slug = strings.TrimSpace(slug)
 		if slug == "" || seen[slug] {

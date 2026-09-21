@@ -99,15 +99,9 @@ func TestViewAliasAndFailure(t *testing.T) {
 func TestCollectionAccessIsBulk(t *testing.T) {
 	t.Parallel()
 	policy := &viewAccessFake{}
-	graph := domain.KnowledgeGraph{Nodes: []domain.GraphNode{{Slug: "open"}, {Slug: "private"}}, Edges: []domain.GraphEdge{{Source: "open", Target: "private"}}}
-	filtered, err := VisibleKnowledgeGraph(context.Background(), policy, domain.User{}, graph)
-	require.NoError(t, err)
-	assert.Len(t, filtered.Nodes, 1)
-	assert.Empty(t, filtered.Edges)
-	assert.Len(t, graph.Nodes, 2)
 	edits, err := visibleRecentEdits(context.Background(), policy, domain.User{}, []domain.RecentEdit{{Slug: "open"}, {Slug: "private"}})
 	require.NoError(t, err)
 	assert.Len(t, edits, 1)
-	assert.Equal(t, 2, policy.bulkCalls)
+	assert.Equal(t, 1, policy.bulkCalls)
 	assert.Zero(t, policy.calls)
 }

@@ -169,12 +169,6 @@ func authorizeMediaDeletion(uploadedBy, usageCount int64, actor domain.User) err
 	return nil
 }
 
-// SupportedImageType reports whether the detected MIME type is accepted for uploads.
-func SupportedImageType(contentType string) bool {
-	_, supported := imageTypes[contentType]
-	return supported
-}
-
 // SanitizeImageFilename produces a stable URL-friendly name with the detected extension.
 func SanitizeImageFilename(filename, contentType string) string {
 	name := sanitizeFilename(filename, "image")
