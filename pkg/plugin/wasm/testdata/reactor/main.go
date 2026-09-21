@@ -201,4 +201,3 @@ func address() uint64 { return uint64(len(output))<<32 | uint64(uintptr(unsafe.P
 //
 //go:wasmimport kumbuka_v1 call
 func rawHost(pointer, length, output, capacity uint32) uint32
-

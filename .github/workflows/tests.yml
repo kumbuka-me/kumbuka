@@ -63,7 +63,11 @@ jobs:
 
       - name: Check generated files and formatting
         run: |
-          test -z "$(gofmt -l .)"
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            printf 'Go files need formatting:\n%s\n' "$unformatted"
+            exit 1
+          fi
           make lint-go
           git diff --check
 
