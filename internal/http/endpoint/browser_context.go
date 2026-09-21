@@ -22,9 +22,12 @@ import (
 
 // BrowserContext assembles browser presentation at the HTTP orchestration boundary.
 type BrowserContext struct {
-	query         *viewer.Query
+	// query loads the authenticated viewer context shared by browser screens.
+	query *viewer.Query
+	// pluginManager provides the active plugin presentation contributions.
 	pluginManager *plugin.Manager
-	renderer      *md.Renderer
+	// renderer renders plugin-owned Markdown fragments for browser presentation.
+	renderer *md.Renderer
 }
 
 // NewBrowserContext wires shared application data and plugin presentation.

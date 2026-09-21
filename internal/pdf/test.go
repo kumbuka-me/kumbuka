@@ -85,9 +85,7 @@ func pdfPageCount(file *os.File) (int, error) {
 	return count, nil
 }
 
-// withoutPDFStreamBodies removes raw stream payloads before scanning the PDF body.
-// Compressed object streams may contain literal /Type /Page bytes by chance, and
-// those objects are counted separately after the stream has been decoded.
+// withoutPDFStreamBodies removes raw stream payloads before scanning the PDF body. Compressed object streams may contain literal /Type /Page bytes by chance, and those objects are counted separately after the stream has been decoded.
 func withoutPDFStreamBodies(data []byte) []byte {
 	stripped := bytes.Clone(data)
 	offset := 0

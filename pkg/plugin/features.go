@@ -2,8 +2,7 @@ package plugin
 
 import "fmt"
 
-// ValidateFeatures checks request-scoped preferences against active declarations.
-// Absent flags retain the default-enabled behavior used by public plugins.
+// ValidateFeatures checks request-scoped preferences against active declarations. Absent flags retain the default-enabled behavior used by public plugins.
 func (s Snapshot) ValidateFeatures(features map[string]bool) error {
 	for _, entry := range s.Entries {
 		prefix := entry.Descriptor.ID + "."

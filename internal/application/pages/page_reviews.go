@@ -73,9 +73,12 @@ type pageReviewRepository interface {
 
 // Reviews owns page approval workflows.
 type Reviews struct {
-	repository    pageReviewRepository
+	// repository persists review requests and reviewer decisions.
+	repository pageReviewRepository
+	// authorization applies page-level view and edit policy.
 	authorization pageAuthorization
-	effects       *pageEffects
+	// effects emits best-effort audit, notification, and webhook side effects.
+	effects *pageEffects
 }
 
 // NewReviews constructs page review use cases.

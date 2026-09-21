@@ -7,9 +7,7 @@ import (
 	"sync"
 )
 
-// Registry owns active contributions. Its zero value is ready for use.
-// Registration is atomic; renderers lease immutable render plans rather than hold
-// registry locks while invoking modules. A removed module may finish an already-started render.
+// Registry owns active contributions. Its zero value is ready for use. Registration is atomic; renderers lease immutable render plans rather than hold registry locks while invoking modules. A removed module may finish an already-started render.
 type Registry struct {
 	// mu protects concurrent access to the receiver state.
 	mu sync.RWMutex
@@ -31,9 +29,7 @@ type Entry struct {
 	Contributions Contributions
 }
 
-// Snapshot is an isolated view of active modules in deterministic order.
-// Use Acquire for executable snapshots that must survive lifecycle changes.
-// Callbacks are shared and must be concurrency safe; all metadata slices are copied.
+// Snapshot is an isolated view of active modules in deterministic order. Use Acquire for executable snapshots that must survive lifecycle changes. Callbacks are shared and must be concurrency safe; all metadata slices are copied.
 type Snapshot struct {
 	// Entries contains cloned active entries in deterministic registry order.
 	Entries []Entry
@@ -41,8 +37,7 @@ type Snapshot struct {
 
 var validID = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]*$`)
 
-// Register publishes all contributions or none. Required plugins must already
-// be active, so load order is explicit and dependency cycles cannot be introduced.
+// Register publishes all contributions or none. Required plugins must already be active, so load order is explicit and dependency cycles cannot be introduced.
 func (r *Registry) Register(descriptor Descriptor, modules Contributions) (err error) {
 	defer recoverRegistrationPanic(&err, descriptor.ID)
 
@@ -64,8 +59,7 @@ func (r *Registry) Register(descriptor Descriptor, modules Contributions) (err e
 	return nil
 }
 
-// Unregister removes every contribution owned by id. Dependents must be removed
-// first. Existing executable leases stay valid; future renders see the removal.
+// Unregister removes every contribution owned by id. Dependents must be removed first. Existing executable leases stay valid; future renders see the removal.
 func (r *Registry) Unregister(id string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()

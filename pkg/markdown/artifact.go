@@ -14,8 +14,7 @@ import (
 
 const renderArtifactVersion = 1
 
-// SetArtifactBuild identifies the core renderer build used by persisted page artifacts.
-// Release builds should pass their version/commit so an upgrade invalidates old HTML.
+// SetArtifactBuild identifies the core renderer build used by persisted page artifacts. Release builds should pass their version/commit so an upgrade invalidates old HTML.
 func (r *Renderer) SetArtifactBuild(version, commit string) {
 	version = strings.TrimSpace(version)
 	commit = strings.TrimSpace(commit)
@@ -61,8 +60,7 @@ func (r *Renderer) RenderFingerprint(options Options) string {
 	return hex.EncodeToString(hash.Sum(nil))
 }
 
-// CanPersist reports whether a page can be rendered once without capturing
-// request-local authorization or mutable plugin resource data.
+// CanPersist reports whether a page can be rendered once without capturing request-local authorization or mutable plugin resource data.
 func (r *Renderer) CanPersist(source string, usage *pluginusage.Index) bool {
 	scanner := newUsageScanner(source)
 	for _, line := range scanner.outside {

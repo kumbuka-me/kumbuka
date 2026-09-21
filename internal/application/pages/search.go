@@ -15,8 +15,10 @@ type searchRepository interface {
 
 // Search owns actor-filtered page discovery queries.
 type Search struct {
+	// repository loads page lists, search matches, and known tags.
 	repository searchRepository
-	access     accessReader
+	// access filters page results for an authenticated actor.
+	access accessReader
 }
 
 // NewSearch constructs page discovery queries.

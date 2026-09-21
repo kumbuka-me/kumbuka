@@ -9,14 +9,7 @@ import (
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 )
 
-// New returns administrator-safe runtime information for the active deployment.
-//
-// Parameters:
-//   - cfg: Parsed deployment-owned process configuration.
-//   - encryptionKeyConfigured: Whether application encryption is available without exposing its key.
-//
-// Returns:
-//   - webview.RuntimeInfo: Redacted runtime and managed-configuration presentation data.
+// New returns administrator-safe runtime information for the active deployment. Parameters: - cfg: Parsed deployment-owned process configuration. - encryptionKeyConfigured: Whether application encryption is available without exposing its key. Returns: - webview.RuntimeInfo: Redacted runtime and managed-configuration presentation data.
 func New(cfg flags.Config, encryptionKeyConfigured bool) webview.RuntimeInfo {
 	registrationOverrideConfigured := cfg.AllowUserRegistrationOverride != nil
 	allowUserRegistrationOverride := false

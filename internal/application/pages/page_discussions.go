@@ -41,11 +41,16 @@ type discussionRepository interface {
 
 // Discussions owns page comments and inline Markdown suggestions.
 type Discussions struct {
-	repository    discussionRepository
+	// repository persists page discussions and loads suggestion context.
+	repository discussionRepository
+	// authorization applies page-level view and edit policy.
 	authorization pageAuthorization
-	content       pageContentPreparer
-	effects       *pageEffects
-	logger        *slog.Logger
+	// content prepares replacement Markdown before a suggestion is applied.
+	content pageContentPreparer
+	// effects emits best-effort audit, notification, and webhook side effects.
+	effects *pageEffects
+	// logger records non-fatal discussion notification failures.
+	logger *slog.Logger
 }
 
 // NewDiscussions constructs page discussion use cases.

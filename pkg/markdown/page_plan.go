@@ -2,10 +2,7 @@ package markdown
 
 import "github.com/kumbuka-me/kumbuka/pkg/plugin"
 
-// pageRenderPlan is the request-local subset of the immutable global render
-// plan selected by one Markdown source. It contains only modules that can affect
-// that source, while the global plan remains available for conservative
-// include-all paths such as opaque replacements.
+// pageRenderPlan is the request-local subset of the immutable global render plan selected by one Markdown source. It contains only modules that can affect that source, while the global plan remains available for conservative include-all paths such as opaque replacements.
 type pageRenderPlan struct {
 	// contentPreprocessors contains the content preprocessors associated with page render plan.
 	contentPreprocessors []plugin.ContentPreprocessorBinding

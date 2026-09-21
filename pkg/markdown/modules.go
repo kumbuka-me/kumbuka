@@ -7,22 +7,17 @@ import (
 	"github.com/kumbuka-me/kumbuka/pkg/plugin/wasm"
 )
 
-// New constructs a renderer with no distribution packages. Callers that own
-// bundled packages can pass them explicitly to NewWithPluginStore or
-// NewWithPluginPackages.
+// New constructs a renderer with no distribution packages. Callers that own bundled packages can pass them explicitly to NewWithPluginStore or NewWithPluginPackages.
 func New(ctx context.Context, runtimeOptions ...wasm.Option) (*Renderer, error) {
 	return newWithPluginPackages(ctx, nil, nil, nil, runtimeOptions...)
 }
 
-// NewWithPluginStore restores durable plugin lifecycle state and bootstraps the
-// supplied distribution packages before rendering.
+// NewWithPluginStore restores durable plugin lifecycle state and bootstraps the supplied distribution packages before rendering.
 func NewWithPluginStore(ctx context.Context, store plugin.Store, archives [][]byte, runtimeOptions ...wasm.Option) (*Renderer, error) {
 	return newWithPluginPackages(ctx, store, archives, nil, runtimeOptions...)
 }
 
-// NewWithPluginPackages constructs an isolated renderer from only the supplied
-// packages. Required IDs are force-enabled regardless of distribution defaults so
-// callers can build a renderer from an explicitly selected package set.
+// NewWithPluginPackages constructs an isolated renderer from only the supplied packages. Required IDs are force-enabled regardless of distribution defaults so callers can build a renderer from an explicitly selected package set.
 func NewWithPluginPackages(ctx context.Context, archives [][]byte, required []string, runtimeOptions ...wasm.Option) (*Renderer, error) {
 	return newWithPluginPackages(ctx, nil, archives, required, runtimeOptions...)
 }
@@ -68,6 +63,5 @@ func (r *Renderer) pluginFeatures() map[string]bool {
 	return r.manager.FeatureSettings()
 }
 
-// PluginManager exposes lifecycle operations to the trusted application layer.
-// Renderers built from an external registry have no owned manager.
+// PluginManager exposes lifecycle operations to the trusted application layer. Renderers built from an external registry have no owned manager.
 func (r *Renderer) PluginManager() *plugin.Manager { return r.manager }

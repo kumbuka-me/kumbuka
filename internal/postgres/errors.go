@@ -7,8 +7,7 @@ import (
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
 
-// mutationError translates only constraints with an established domain meaning.
-// Unknown constraints remain infrastructure errors, and known errors retain their cause.
+// mutationError translates only constraints with an established domain meaning. Unknown constraints remain infrastructure errors, and known errors retain their cause.
 func mutationError(err error) error {
 	databaseError, ok := errors.AsType[*pgconn.PgError](err)
 	if !ok {

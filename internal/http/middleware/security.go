@@ -70,11 +70,7 @@ func RejectCrossSiteWrites(logger *slog.Logger) Middleware {
 	}
 }
 
-// isCrossOriginWrite reports whether browser metadata identifies an unsafe
-// request as originating outside this HTTP origin. Same-site is intentionally
-// rejected because sibling origins can still receive SameSite cookies.
-// Headerless non-browser clients remain allowed; Origin provides a fallback
-// for browsers that do not send Fetch Metadata headers.
+// isCrossOriginWrite reports whether browser metadata identifies an unsafe request as originating outside this HTTP origin. Same-site is intentionally rejected because sibling origins can still receive SameSite cookies. Headerless non-browser clients remain allowed; Origin provides a fallback for browsers that do not send Fetch Metadata headers.
 func isCrossOriginWrite(r *http.Request) bool {
 	switch strings.ToLower(strings.TrimSpace(r.Header.Get("Sec-Fetch-Site"))) {
 	case "cross-site", "same-site":

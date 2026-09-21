@@ -20,8 +20,10 @@ type reportRepository interface {
 
 // Reports supplies generic page data to reports and plugin capabilities.
 type Reports struct {
+	// repository loads report data and plugin-facing page records.
 	repository reportRepository
-	access     accessReader
+	// access authorizes and filters actor-specific report reads.
+	access accessReader
 }
 
 // NewReports constructs report and plugin page reads.

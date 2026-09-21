@@ -17,8 +17,7 @@ import (
 	"github.com/tetratelabs/wazero/api"
 )
 
-// Instance serializes calls into a reactor. The gate is released before host
-// Markdown rendering, so recursive blocks never re-enter a suspended guest.
+// Instance serializes calls into a reactor. The gate is released before host Markdown rendering, so recursive blocks never re-enter a suspended guest.
 type Instance struct {
 	// runtime owns executable plugin runtime operations.
 	runtime *Runtime

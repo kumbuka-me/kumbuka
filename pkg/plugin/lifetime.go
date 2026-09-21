@@ -8,8 +8,7 @@ import (
 	"github.com/kumbuka-me/sdk/pluginpackage"
 )
 
-// A lifetime belongs to one contribution version. Render-plan leases retain it,
-// so retirement cannot close a reactor while a render still uses it.
+// lifetime tracks one contribution version so retirement cannot close a reactor while a render still uses it.
 type lifetime struct {
 	// mu protects concurrent access to the receiver state.
 	mu sync.Mutex
@@ -48,8 +47,7 @@ func (l *lifetime) retire() <-chan struct{} {
 	return l.done
 }
 
-// AcquireRenderPlan pins the immutable render-only registry view for one complete
-// render without cloning contribution metadata on the hot path.
+// AcquireRenderPlan pins the immutable render-only registry view for one complete render without cloning contribution metadata on the hot path.
 func (r *Registry) AcquireRenderPlan() (*RenderPlan, func()) {
 	r.mu.RLock()
 	if r.renderPlan == nil {
@@ -105,8 +103,7 @@ func (r *Registry) AcquireEntry(id string) (Entry, func(), bool) {
 	return entry, func() { once.Do(entry.lifetime.release) }, true
 }
 
-// transition validates a candidate before committing persistence or publication.
-// Replacement keeps contribution order and is never observable as remove/add.
+// transition validates a candidate before committing persistence or publication. Replacement keeps contribution order and is never observable as remove/add.
 func (r *Registry) transition(id string, replacement *Entry, replace bool, commit func() error) (*lifetime, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -169,8 +166,7 @@ func (r *Registry) initialize(entries []Entry) error {
 	return nil
 }
 
-// detach removes all manager-owned versions together during shutdown. Normal
-// lifecycle transitions still enforce dependency rules.
+// detach removes all manager-owned versions together during shutdown. Normal lifecycle transitions still enforce dependency rules.
 func (r *Registry) detach(ids map[string]managedPlugin) map[string]*lifetime {
 	r.mu.Lock()
 	defer r.mu.Unlock()

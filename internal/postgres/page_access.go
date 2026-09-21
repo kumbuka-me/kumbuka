@@ -84,8 +84,7 @@ func (s *Store) DeletePageAccessRule(ctx context.Context, id int64) error {
 	return err
 }
 
-// PageAccessBatch evaluates inherited access for all requested paths in one round trip.
-// The nearest rule set replaces, rather than merges with, ancestor rule sets.
+// PageAccessBatch evaluates inherited access for all requested paths in one round trip. The nearest rule set replaces, rather than merges with, ancestor rule sets.
 func (s *Store) PageAccessBatch(ctx context.Context, paths []string, userID int64) (map[string]domain.PageAccess, error) {
 	result := make(map[string]domain.PageAccess, len(paths))
 	if len(paths) == 0 {

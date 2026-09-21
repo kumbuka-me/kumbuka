@@ -87,8 +87,7 @@ type Mutations struct {
 	icons pageIconValidator
 }
 
-// NewMutations constructs core page mutation use cases. Event sinks are optional so
-// page mutations remain independently testable.
+// NewMutations constructs core page mutation use cases. Event sinks are optional so page mutations remain independently testable.
 func NewMutations(
 	repository pageContentRepository,
 	access appaccess.Policy,

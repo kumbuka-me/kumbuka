@@ -216,9 +216,7 @@ func (p *renderPipeline) setUsageSource(source string) {
 	stop()
 }
 
-// RequiredPluginIDs returns declared plugin packages that can affect at least one source.
-// Modules with no usage rules are intentionally treated as always active, matching the
-// runtime selector semantics. Browser/admin/editor-only modules do not select a package.
+// RequiredPluginIDs returns declared plugin packages that can affect at least one source. Modules with no usage rules are intentionally treated as always active, matching the runtime selector semantics. Browser/admin/editor-only modules do not select a package.
 func RequiredPluginIDs(sources []string, manifests []pluginpackage.Manifest) []string {
 	scanners := make([]usageScanner, 0, len(sources))
 	for _, source := range sources {

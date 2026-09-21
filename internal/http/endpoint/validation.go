@@ -31,8 +31,7 @@ func setupValidationProblems(r *http.Request) []httpresponse.FieldProblem {
 	return problems
 }
 
-// localPasswordValidationProblems validates a new local password and its confirmation.
-// Optional password fields are ignored when both values are empty.
+// localPasswordValidationProblems validates a new local password and its confirmation. Optional password fields are ignored when both values are empty.
 func localPasswordValidationProblems(
 	password, confirmation, passwordField, confirmationField string,
 	required bool,

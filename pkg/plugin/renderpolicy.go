@@ -6,8 +6,7 @@ import (
 	"github.com/kumbuka-me/sdk"
 )
 
-// RenderFeatures merges request-scoped feature flags with semantic rendering
-// policies contributed by active plugins. Policy names remain opaque to core.
+// RenderFeatures merges request-scoped feature flags with semantic rendering policies contributed by active plugins. Policy names remain opaque to core.
 func (p *RenderPlan) RenderFeatures(features map[string]bool) map[string]bool {
 	result := maps.Clone(features)
 	if result == nil {

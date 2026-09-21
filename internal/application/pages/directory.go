@@ -14,8 +14,10 @@ type directoryRepository interface {
 
 // Directory owns page metadata and inventory queries.
 type Directory struct {
+	// repository loads aliases and page inventory metadata.
 	repository directoryRepository
-	access     accessReader
+	// access filters inventory rows for an authenticated actor.
+	access accessReader
 }
 
 // NewDirectory constructs page directory queries.

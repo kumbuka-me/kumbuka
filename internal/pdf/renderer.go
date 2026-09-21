@@ -77,8 +77,7 @@ func validRenderEndpoint(endpoint *url.URL) bool {
 	return true
 }
 
-// Render POSTs HTML to endpoint exactly as configured and returns a temporary PDF.
-// The caller must call cleanup after serving the file.
+// Render POSTs HTML to endpoint exactly as configured and returns a temporary PDF. The caller must call cleanup after serving the file.
 func Render(ctx context.Context, endpoint, title, language, rendered string, headers http.Header) (file *os.File, cleanup func(), err error) {
 	noop := func() {}
 	if endpoint == "" {
@@ -155,8 +154,7 @@ func Render(ctx context.Context, endpoint, title, language, rendered string, hea
 	return file, cleanup, nil
 }
 
-// Document wraps rendered page HTML in a self-contained print-oriented document.
-// The caller must sanitize rendered HTML before passing it to this function.
+// Document wraps rendered page HTML in a self-contained print-oriented document. The caller must sanitize rendered HTML before passing it to this function.
 func Document(title, language, rendered string) string {
 	rendered = strings.ReplaceAll(rendered, " markdown-tab-panel-hidden", "")
 	rendered = strings.ReplaceAll(

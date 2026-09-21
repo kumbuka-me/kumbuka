@@ -31,17 +31,25 @@ type reviewReader interface {
 
 // View loads an authorized page and the actor's available actions.
 type View struct {
+	// repository loads pages, aliases, links, and reading state.
 	repository viewRepository
-	access     accessReader
-	reviews    reviewReader
-	logger     *slog.Logger
+	// access authorizes actor-specific page reads.
+	access accessReader
+	// reviews loads pending review state for the page.
+	reviews reviewReader
+	// logger records non-fatal page view activity failures.
+	logger *slog.Logger
 }
 
 // ViewResult contains application data for a reading page or an alias target.
 type ViewResult struct {
-	Page          domain.Page
-	Alias         string
-	State         ViewState
+	// Page is the resolved active page.
+	Page domain.Page
+	// Alias is the requested historical path when the page was resolved through an alias.
+	Alias string
+	// State contains actor-specific reading and review state.
+	State ViewState
+	// OutgoingLinks contains resolved links originating from the page.
 	OutgoingLinks []domain.PageLink
 }
 
@@ -76,8 +84,7 @@ func (q *View) Execute(ctx context.Context, actor domain.User, slug string) (Vie
 	return ViewResult{Page: page, State: state, OutgoingLinks: links}, nil
 }
 
-// Comments loads discussions only when the shared feature setting enables them.
-// The page comes from Execute, which has already authorized the resource.
+// Comments loads discussions only when the shared feature setting enables them. The page comes from Execute, which has already authorized the resource.
 func (q *View) Comments(ctx context.Context, page domain.Page, enabled bool) ([]domain.PageComment, error) {
 	return loadPageComments(ctx, page.Slug, enabled, q.repository)
 }

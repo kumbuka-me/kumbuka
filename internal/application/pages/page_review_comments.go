@@ -85,11 +85,16 @@ type reviewPolicy interface {
 
 // ReviewDiscussions owns line comments and applicable Markdown suggestions for reviews.
 type ReviewDiscussions struct {
-	repository    reviewDiscussionRepository
+	// repository persists review feedback and loads its page context.
+	repository reviewDiscussionRepository
+	// authorization applies page-level view and edit policy.
 	authorization pageAuthorization
-	reviews       reviewPolicy
-	content       pageContentPreparer
-	effects       *pageEffects
+	// reviews enforces review lifecycle and reviewer policy.
+	reviews reviewPolicy
+	// content prepares replacement Markdown before a suggestion is applied.
+	content pageContentPreparer
+	// effects emits best-effort audit, notification, and webhook side effects.
+	effects *pageEffects
 }
 
 // NewReviewDiscussions constructs page review discussion use cases.

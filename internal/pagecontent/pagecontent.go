@@ -10,6 +10,7 @@ import (
 
 // Preparer derives persisted plugin usage and reusable render artifacts from canonical Markdown.
 type Preparer struct {
+	// renderer analyzes plugin usage and renders persistable page content.
 	renderer *md.Renderer
 }
 

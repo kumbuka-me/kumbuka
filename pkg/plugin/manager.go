@@ -59,8 +59,7 @@ type managedPlugin struct {
 	instance Instance
 }
 
-// Manager coordinates package validation, runtime ownership, and atomic registry
-// publication. Durable lifecycle state is provided by a small store interface.
+// Manager coordinates package validation, runtime ownership, and atomic registry publication. Durable lifecycle state is provided by a small store interface.
 type Manager struct {
 	// required maps keys to required values used by manager.
 	required map[string]bool

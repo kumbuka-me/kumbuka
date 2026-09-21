@@ -17,9 +17,7 @@ var (
 	presentationFunction = regexp.MustCompile(`([a-zA-Z_-]+)\s*\(`)
 )
 
-// PresentationStylesVersion fingerprints the ordered active stylesheet contributions.
-// Package digests already cover the referenced CSS bytes, so this stays cheap enough
-// to compute while rendering each page without reparsing stylesheet contents.
+// PresentationStylesVersion fingerprints the ordered active stylesheet contributions. Package digests already cover the referenced CSS bytes, so this stays cheap enough to compute while rendering each page without reparsing stylesheet contents.
 func PresentationStylesVersion(manager *plugin.Manager) string {
 	var identity strings.Builder
 	appendContribution := func(kind, pluginID, moduleID, digest, css string) {
@@ -48,9 +46,7 @@ func PresentationStylesVersion(manager *plugin.Manager) string {
 	return hex.EncodeToString(digest[:8])
 }
 
-// PresentationStyles publishes only scoped presentation declarations from active
-// package stylesheets. Arbitrary CSS stays in the sandbox: positioning, URLs,
-// generated content, imports, escapes and selector functions are not admitted.
+// PresentationStyles publishes only scoped presentation declarations from active package stylesheets. Arbitrary CSS stays in the sandbox: positioning, URLs, generated content, imports, escapes and selector functions are not admitted.
 func PresentationStyles(manager *plugin.Manager) string {
 	if manager == nil {
 		return ""
@@ -257,9 +253,7 @@ func scopedContentStyles(source string) string {
 	return output.String()
 }
 
-// safeContentSelector limits parent-document plugin CSS to rendered prose and
-// plugin-owned class hooks. Complex selectors, pseudo classes, IDs and attributes
-// stay unavailable so a content plugin cannot reach application chrome.
+// safeContentSelector limits parent-document plugin CSS to rendered prose and plugin-owned class hooks. Complex selectors, pseudo classes, IDs and attributes stay unavailable so a content plugin cannot reach application chrome.
 func safeContentSelector(selector string) bool {
 	selector = strings.TrimSpace(selector)
 	switch selector {

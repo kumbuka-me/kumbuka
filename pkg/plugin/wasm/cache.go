@@ -59,9 +59,7 @@ func (l *compiledLease) Close(ctx context.Context) error {
 	return err
 }
 
-// releaseRetiredCode releases one cache lease and returns code that became
-// unreferenced while retired. Resource cleanup deliberately happens after the
-// caller leaves the global cache lock.
+// releaseRetiredCode releases one cache lease and returns code that became unreferenced while retired. Resource cleanup deliberately happens after the caller leaves the global cache lock.
 func releaseRetiredCode(entry *codeEntry) wazero.CompiledModule {
 	codeMu.Lock()
 	defer codeMu.Unlock()
@@ -74,9 +72,7 @@ func releaseRetiredCode(entry *codeEntry) wazero.CompiledModule {
 	return nil
 }
 
-// compile prepares guest code. Compiler mode reuses immutable compiled modules
-// across runtimes and single-flights cache misses; interpreter modules stay
-// runtime-local because interpreter runtimes do not share a compilation engine.
+// compile prepares guest code. Compiler mode reuses immutable compiled modules across runtimes and single-flights cache misses; interpreter modules stay runtime-local because interpreter runtimes do not share a compilation engine.
 func (r *Runtime) compile(ctx context.Context, binary []byte) (*compiledLease, error) {
 	// Interpreter runtimes don't share an engine through wazero's compilation
 	// cache, so their prepared modules stay owned by the creating runtime.
@@ -126,8 +122,7 @@ func (r *Runtime) compile(ctx context.Context, binary []byte) (*compiledLease, e
 	return &compiledLease{CompiledModule: module, entry: entry}, nil
 }
 
-// retainCompiledCode publishes compiled code and returns an unreferenced
-// eviction for cleanup after the cache lock is released.
+// retainCompiledCode publishes compiled code and returns an unreferenced eviction for cleanup after the cache lock is released.
 func retainCompiledCode(digest [32]byte, pages uint32, module wazero.CompiledModule) (*codeEntry, wazero.CompiledModule) {
 	codeMu.Lock()
 	defer codeMu.Unlock()
@@ -148,8 +143,7 @@ func retainCompiledCode(digest [32]byte, pages uint32, module wazero.CompiledMod
 	return entry, evicted
 }
 
-// retainedLease returns a lease for cached code and promotes it to the most
-// recently used position. The caller receives its own reference count.
+// retainedLease returns a lease for cached code and promotes it to the most recently used position. The caller receives its own reference count.
 func retainedLease(digest [32]byte, pages uint32) *compiledLease {
 	codeMu.Lock()
 	defer codeMu.Unlock()

@@ -96,8 +96,7 @@ func writeDraftProblem(logger *slog.Logger, w http.ResponseWriter, err error) {
 	}
 }
 
-// pageDraftResponse always exposes form values as an object of string arrays.
-// Domain summaries may omit Values; the editor API must not omit empty state.
+// pageDraftResponse always exposes form values as an object of string arrays. Domain summaries may omit Values; the editor API must not omit empty state.
 type pageDraftResponse struct {
 	// PageDraft embeds page draft behavior in page draft response.
 	domain.PageDraft

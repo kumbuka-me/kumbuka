@@ -20,7 +20,9 @@ type pagePresenceRepository interface {
 
 // Presence owns short-lived collaborative editor presence.
 type Presence struct {
-	repository    pagePresenceRepository
+	// repository persists heartbeats and loads active page editors.
+	repository pagePresenceRepository
+	// authorization applies page-level view and edit policy.
 	authorization pageAuthorization
 }
 

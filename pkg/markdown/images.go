@@ -12,9 +12,7 @@ import (
 
 const maxImageWidthPixels = 10000
 
-// imageWidthTransformer consumes a width directive immediately after a parsed
-// Markdown image. Goldmark still owns image URLs, titles, alt text and references;
-// code spans, code blocks and raw HTML are not interpreted as image syntax.
+// imageWidthTransformer consumes a width directive immediately after a parsed Markdown image. Goldmark still owns image URLs, titles, alt text and references; code spans, code blocks and raw HTML are not interpreted as image syntax.
 type imageWidthTransformer struct{}
 
 // Transform applies image widths without changing the stored Markdown source.
@@ -57,8 +55,7 @@ func (imageWidthTransformer) Transform(document *ast.Document, reader text.Reade
 	})
 }
 
-// parseImageWidthDirective accepts only {width=N}, {width=Npx} or {width=N%}.
-// Invalid directives remain visible text instead of silently discarding input.
+// parseImageWidthDirective accepts only {width=N}, {width=Npx} or {width=N%}. Invalid directives remain visible text instead of silently discarding input.
 func parseImageWidthDirective(value []byte) (width string, consumed int) {
 	const prefix = "{width="
 	value, ok := bytes.CutPrefix(value, []byte(prefix))
@@ -79,8 +76,7 @@ func parseImageWidthDirective(value []byte) (width string, consumed int) {
 	return width, len(prefix) + end + 1
 }
 
-// normalizeImageWidth returns a bounded CSS width, using pixels for bare numbers.
-// Only whole positive numbers are accepted; arbitrary CSS is never passed through.
+// normalizeImageWidth returns a bounded CSS width, using pixels for bare numbers. Only whole positive numbers are accepted; arbitrary CSS is never passed through.
 func normalizeImageWidth(value string) string {
 	unit, maximum := "px", maxImageWidthPixels
 	if number, ok := strings.CutSuffix(value, "%"); ok {

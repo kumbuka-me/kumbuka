@@ -38,8 +38,7 @@ func PluginAssets(manager *plugin.Manager) http.HandlerFunc {
 	}
 }
 
-// PluginPreview serves static package documentation without enabling or executing the plugin.
-// The route is registered behind browser authentication and administrator authorization.
+// PluginPreview serves static package documentation without enabling or executing the plugin. The route is registered behind browser authentication and administrator authorization.
 func PluginPreview(manager *plugin.Manager) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "private, no-store")

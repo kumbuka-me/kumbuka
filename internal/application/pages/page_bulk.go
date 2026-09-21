@@ -60,9 +60,12 @@ type bulkRepository interface {
 
 // Bulk owns administrative bulk mutations and imports.
 type Bulk struct {
+	// repository applies set-based page mutations and loads imported targets.
 	repository bulkRepository
-	mutations  *Mutations
-	effects    *pageEffects
+	// mutations owns single-page create and update rules reused by imports.
+	mutations *Mutations
+	// effects emits best-effort audit, notification, and webhook side effects.
+	effects *pageEffects
 }
 
 // NewBulk constructs page bulk and import use cases.

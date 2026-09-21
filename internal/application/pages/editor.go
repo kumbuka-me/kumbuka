@@ -37,8 +37,11 @@ type editorDraftDiscarder interface {
 
 // Editor loads all application data required to open the create or edit workflow.
 type Editor struct {
-	catalog   editorCatalog
-	groups    editorGroupReader
+	// catalog loads existing pages and resolves aliases for editing.
+	catalog editorCatalog
+	// groups loads groups the actor may assign to a page.
+	groups editorGroupReader
+	// templates loads reusable content for new pages.
 	templates editorTemplateReader
 }
 
@@ -112,10 +115,14 @@ type EditorSaveInput struct {
 
 // EditorSave coordinates template materialization, page persistence, and draft cleanup.
 type EditorSave struct {
-	pages     editorPageSaver
-	drafts    editorDraftDiscarder
+	// pages validates and persists page edits.
+	pages editorPageSaver
+	// drafts discards the actor's saved draft after a successful save.
+	drafts editorDraftDiscarder
+	// templates applies and tracks new-page templates.
 	templates editorTemplateReader
-	logger    *slog.Logger
+	// logger records non-fatal draft and template bookkeeping failures.
+	logger *slog.Logger
 }
 
 // NewEditorSave constructs the browser-editor save use case.

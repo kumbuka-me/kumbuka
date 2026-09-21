@@ -31,8 +31,7 @@ type pluginUpdateService interface {
 	Status() appplugins.PluginUpdateStatus
 }
 
-// AdminPlugins exposes package metadata and lifecycle operations through the
-// existing administration layout. Routes apply browser authentication/admin authorization.
+// AdminPlugins exposes package metadata and lifecycle operations through the existing administration layout. Routes apply browser authentication/admin authorization.
 type AdminPlugins struct {
 	// manager owns active plugin lifecycle state.
 	manager *plugin.Manager

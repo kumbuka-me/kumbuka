@@ -17,8 +17,10 @@ type lookupRepository interface {
 
 // Lookup owns direct page lookup and alias resolution.
 type Lookup struct {
+	// repository resolves active pages, aliases, and stable identifiers.
 	repository lookupRepository
-	access     accessReader
+	// access authorizes actor-specific page reads.
+	access accessReader
 }
 
 // NewLookup constructs direct page lookup use cases.
@@ -26,8 +28,7 @@ func NewLookup(repository lookupRepository, access accessReader) *Lookup {
 	return &Lookup{repository: repository, access: access}
 }
 
-// GetPage returns an active page by slug without actor filtering.
-// It is intended for already-authorized administrator and export workflows.
+// GetPage returns an active page by slug without actor filtering. It is intended for already-authorized administrator and export workflows.
 func (q *Lookup) GetPage(ctx context.Context, slug string) (domain.Page, error) {
 	return q.repository.GetPage(ctx, slug)
 }

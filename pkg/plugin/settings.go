@@ -27,8 +27,7 @@ type SettingGroup struct {
 	SecretFields map[string]bool
 }
 
-// loadSettings returns persisted boolean feature settings for every untyped settings module in manifest.
-// Feature settings default to enabled when no value has been stored yet.
+// loadSettings returns persisted boolean feature settings for every untyped settings module in manifest. Feature settings default to enabled when no value has been stored yet.
 func (m *Manager) loadSettings(ctx context.Context, manifest pluginpackage.Manifest) (map[string]bool, error) {
 	settings := make(map[string]bool)
 

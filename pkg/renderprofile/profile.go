@@ -37,8 +37,7 @@ type Trace struct {
 	droppedWASMCall int
 }
 
-// WASMCall contains one guest boundary timing. Durations are measured on the
-// host and intentionally separate queueing, wire work, and guest execution.
+// WASMCall contains one guest boundary timing. Durations are measured on the host and intentionally separate queueing, wire work, and guest execution.
 type WASMCall struct {
 	// PluginID identifies the plugin associated with WASM call.
 	PluginID string
@@ -74,8 +73,7 @@ type WASMCall struct {
 	Failed bool
 }
 
-// WASMSummary aggregates all guest calls, including calls omitted from the
-// bounded per-call sample.
+// WASMSummary aggregates all guest calls, including calls omitted from the bounded per-call sample.
 type WASMSummary struct {
 	// Calls stores the calls value used by WASM summary.
 	Calls int
@@ -147,8 +145,7 @@ func FromContext(ctx context.Context) *Trace {
 	return trace
 }
 
-// Measure returns a completion function that adds elapsed time to one stage.
-// Calling it on a nil trace is intentionally a cheap no-op.
+// Measure returns a completion function that adds elapsed time to one stage. Calling it on a nil trace is intentionally a cheap no-op.
 func (t *Trace) Measure(stage string) func() {
 	if t == nil {
 		return noopMeasure
@@ -169,8 +166,7 @@ func (t *Trace) addStage(stage string, duration time.Duration) {
 	t.mu.Unlock()
 }
 
-// RecordWASM records one guest boundary measurement. Aggregate values include
-// every call while detailed call storage is bounded for pathological renders.
+// RecordWASM records one guest boundary measurement. Aggregate values include every call while detailed call storage is bounded for pathological renders.
 func (t *Trace) RecordWASM(call WASMCall) {
 	if t == nil {
 		return

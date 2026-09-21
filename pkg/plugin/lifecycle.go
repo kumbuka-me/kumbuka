@@ -200,10 +200,7 @@ func (m *Manager) Disable(ctx context.Context, id string) error {
 	return m.publish(ctx, id, item)
 }
 
-// prepareBundledFallback validates and reconstructs the embedded package that
-// becomes visible after an installed override is removed. It runs before the
-// durable/registry transition so a corrupt package or settings read cannot
-// leave the manager half-uninstalled.
+// prepareBundledFallback validates and reconstructs the embedded package that becomes visible after an installed override is removed. It runs before the durable/registry transition so a corrupt package or settings read cannot leave the manager half-uninstalled.
 func (m *Manager) prepareBundledFallback(ctx context.Context, id string) (managedPlugin, bool, error) {
 	archive, bundled := m.bundled[id]
 	if !bundled {
@@ -233,8 +230,7 @@ func (m *Manager) find(id string) (managedPlugin, error) {
 	return item, nil
 }
 
-// Upgrade preserves enabled state. New bytes are validated before changing
-// durable state or the registry; in-flight snapshots retain the old version.
+// Upgrade preserves enabled state. New bytes are validated before changing durable state or the registry; in-flight snapshots retain the old version.
 func (m *Manager) Upgrade(ctx context.Context, id string, archive []byte) (LoadedPlugin, error) {
 	pkg, err := pluginpackage.Read(archive)
 	if err != nil {
@@ -262,9 +258,7 @@ func (m *Manager) Upgrade(ctx context.Context, id string, archive []byte) (Loade
 	return cloneLoaded(item.metadata), nil
 }
 
-// Uninstall removes installed bytes. For a bundled ID, retain only a disabled
-// bundled record so restarting Kumbuka cannot silently reactivate its embedded copy.
-// Namespaced plugin data is intentionally retained for a possible reinstall.
+// Uninstall removes installed bytes. For a bundled ID, retain only a disabled bundled record so restarting Kumbuka cannot silently reactivate its embedded copy. Namespaced plugin data is intentionally retained for a possible reinstall.
 func (m *Manager) Uninstall(ctx context.Context, id string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()

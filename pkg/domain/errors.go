@@ -10,8 +10,7 @@ type FieldError struct {
 	Message string
 }
 
-// ValidationError carries input failures across persistence and application boundaries.
-// Cause is optional diagnostic context and must not be included in HTTP responses.
+// ValidationError carries input failures across persistence and application boundaries. Cause is optional diagnostic context and must not be included in HTTP responses.
 type ValidationError struct {
 	// Fields contains the fields associated with validation error.
 	Fields []FieldError
@@ -45,8 +44,7 @@ func NewValidationError(field, message string) *ValidationError {
 	return &ValidationError{Fields: []FieldError{{Field: field, Message: message}}}
 }
 
-// GroupAssignmentError identifies which page group selection is not assignable.
-// It deliberately does not distinguish a hidden group from a nonexistent group.
+// GroupAssignmentError identifies which page group selection is not assignable. It deliberately does not distinguish a hidden group from a nonexistent group.
 type GroupAssignmentError struct {
 	// Field stores the field value used by group assignment error.
 	Field string

@@ -4,8 +4,7 @@ package pluginusage
 
 const Version = 1
 
-// Index is a rebuildable summary of source-aware plugin modules used by one page.
-// Markdown remains the source of truth; a nil index means the page has not been indexed.
+// Index is a rebuildable summary of source-aware plugin modules used by one page. Markdown remains the source of truth; a nil index means the page has not been indexed.
 type Index struct {
 	// Version stores the version value used by index.
 	Version int `json:"version"`

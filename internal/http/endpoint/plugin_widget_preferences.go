@@ -6,8 +6,7 @@ import (
 	"github.com/kumbuka-me/kumbuka/pkg/plugin"
 )
 
-// hiddenPluginWidgets applies submitted visibility only to widgets that were actually presented.
-// Disabled widgets keep their previous preference and removed widgets are discarded.
+// hiddenPluginWidgets applies submitted visibility only to widgets that were actually presented. Disabled widgets keep their previous preference and removed widgets are discarded.
 func hiddenPluginWidgets(items []plugin.LoadedPlugin, current, presented, visible []string) []string {
 	currentSet := stringSet(current)
 	presentedSet := stringSet(presented)

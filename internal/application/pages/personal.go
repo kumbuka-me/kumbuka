@@ -17,8 +17,10 @@ type personalRepository interface {
 
 // Personal owns favorite and watch mutations for one actor.
 type Personal struct {
+	// repository persists actor-owned favorites and page watches.
 	repository personalRepository
-	access     accessReader
+	// access authorizes actor-specific personal page changes.
+	access accessReader
 }
 
 // NewPersonal constructs actor-owned page preference commands.

@@ -217,8 +217,7 @@ func ExternalLinkHoverEffects() []string {
 	return []string{ExternalLinkHoverHighlight, ExternalLinkHoverLift, ExternalLinkHoverNone}
 }
 
-// ValidExternalLinkHoverEffect reports whether value is a supported hover presentation.
-// Empty selects the default highlight presentation.
+// ValidExternalLinkHoverEffect reports whether value is a supported hover presentation. Empty selects the default highlight presentation.
 func ValidExternalLinkHoverEffect(value string) bool {
 	switch value {
 	case "", ExternalLinkHoverHighlight, ExternalLinkHoverLift, ExternalLinkHoverNone:
@@ -975,8 +974,7 @@ type PageHeading struct {
 	Title string `json:"title"`
 }
 
-// PageRender is a reusable, theme-independent render artifact for one current page revision.
-// Empty Fingerprint means the page must be rendered dynamically.
+// PageRender is a reusable, theme-independent render artifact for one current page revision. Empty Fingerprint means the page must be rendered dynamically.
 type PageRender struct {
 	// HTML is sanitized rendered Markdown.
 	HTML string `json:"-"`

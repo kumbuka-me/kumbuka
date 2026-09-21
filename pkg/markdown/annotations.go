@@ -26,8 +26,7 @@ type annotationRange struct {
 	id string
 }
 
-// resolvePluginReplacements restores opaque plugin substitutions without rescanning
-// inserted values and records annotated byte ranges for the Goldmark pass.
+// resolvePluginReplacements restores opaque plugin substitutions without rescanning inserted values and records annotated byte ranges for the Goldmark pass.
 func resolvePluginReplacements(source string, replacements []plugin.Replacement) (string, []annotationRange) {
 	if len(replacements) == 0 {
 		return source, nil

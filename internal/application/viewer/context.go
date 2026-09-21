@@ -45,25 +45,40 @@ type accessReader interface {
 
 // Context contains only data shared by authenticated browser screens.
 type Context struct {
-	User                domain.User
-	Preferences         domain.UserPreferences
-	Pages               []domain.Page
-	NavigationIcons     map[string]string
-	Settings            domain.ApplicationSettings
-	SavedSearches       []domain.SavedSearch
-	Notifications       []domain.Notification
+	// User is the authenticated viewer.
+	User domain.User
+	// Preferences contains the viewer's presentation choices.
+	Preferences domain.UserPreferences
+	// Pages contains the visible navigation page set.
+	Pages []domain.Page
+	// NavigationIcons maps page paths to their persisted icon names.
+	NavigationIcons map[string]string
+	// Settings contains application-wide presentation settings.
+	Settings domain.ApplicationSettings
+	// SavedSearches contains the viewer's reusable search queries.
+	SavedSearches []domain.SavedSearch
+	// Notifications contains the viewer's most recent notifications.
+	Notifications []domain.Notification
+	// UnreadNotifications is the viewer's unread notification count.
 	UnreadNotifications int
 }
 
 // Query loads the shared browser context through consumer-owned read ports.
 type Query struct {
-	preferences   preferenceReader
-	navigation    navigationReader
-	catalog       sidebarCatalogReader
-	settings      settingsReader
+	// preferences loads viewer-specific presentation preferences.
+	preferences preferenceReader
+	// navigation loads pages and icons used by shared navigation.
+	navigation navigationReader
+	// catalog loads viewer-specific page collections for widgets.
+	catalog sidebarCatalogReader
+	// settings loads application-wide presentation settings.
+	settings settingsReader
+	// savedSearches loads the viewer's reusable search queries.
 	savedSearches savedSearchReader
+	// notifications loads recent notifications and unread counts.
 	notifications notificationReader
-	access        accessReader
+	// access filters page collections for the authenticated viewer.
+	access accessReader
 }
 
 // New constructs the shared browser query.

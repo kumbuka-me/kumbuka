@@ -17,8 +17,11 @@ type pageSideEffectRepository interface {
 
 // pageEffects owns best-effort side effects shared by page commands.
 type pageEffects struct {
+	// repository persists audit records and notification deliveries.
 	repository pageSideEffectRepository
-	logger     *slog.Logger
+	// logger records side-effect failures without failing the primary mutation.
+	logger *slog.Logger
+	// eventSinks receive outgoing webhook events after successful mutations.
 	eventSinks []webhooks.EventSink
 }
 
@@ -34,8 +37,7 @@ func newPageEffects(
 	return &pageEffects{repository: repository, logger: logger, eventSinks: eventSinks}
 }
 
-// recordAudit is best effort after the primary mutation commits. Failures are
-// observable, but must not turn a successful mutation into a retryable HTTP failure.
+// recordAudit is best effort after the primary mutation commits. Failures are observable, but must not turn a successful mutation into a retryable HTTP failure.
 func (e *pageEffects) recordAudit(ctx context.Context, actorID int64, action, objectType, objectKey, detail string) {
 	if e == nil || e.repository == nil {
 		return

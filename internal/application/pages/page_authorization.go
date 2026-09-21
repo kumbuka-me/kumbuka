@@ -9,6 +9,7 @@ import (
 
 // pageAuthorization applies resource-level page access consistently across page use cases.
 type pageAuthorization struct {
+	// policy decides whether an actor may view or edit a page path.
 	policy appaccess.Policy
 }
 

@@ -259,8 +259,7 @@ func validRevisionQuery(request sdk.RevisionQuery) bool {
 	return len(request.Slug) > 0 && len(request.Slug) <= 4096 && request.Limit >= 1 && request.Limit <= 100
 }
 
-// SharedPages constrains anonymous capability calls to the explicitly shared
-// page. Knowing another slug or matching it in search never grants access.
+// SharedPages constrains anonymous capability calls to the explicitly shared page. Knowing another slug or matching it in search never grants access.
 type SharedPages struct {
 	// Source is the authorized page catalog used for plugin lookups.
 	Source Source

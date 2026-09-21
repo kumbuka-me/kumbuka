@@ -20,8 +20,7 @@ import (
 	"github.com/tetratelabs/wazero/imports/wasi_snapshot_preview1"
 )
 
-// Limits bounds individual sandbox calls, guest memory, and wire payloads.
-// Each page is 64 KiB. Zero fields use conservative defaults.
+// Limits bounds individual sandbox calls, guest memory, and wire payloads. Each page is 64 KiB. Zero fields use conservative defaults.
 type Limits struct {
 	// MemoryPages is the maximum guest memory in 64 KiB WebAssembly pages.
 	MemoryPages uint32
@@ -68,9 +67,7 @@ var (
 	compilationCache     wazero.CompilationCache
 )
 
-// sharedCompilationCache returns one process-wide cache backed by the user's
-// normal cache directory when available. Read-only or unusual environments fall
-// back to the in-memory cache instead of preventing Kumbuka from starting.
+// sharedCompilationCache returns one process-wide cache backed by the user's normal cache directory when available. Read-only or unusual environments fall back to the in-memory cache instead of preventing Kumbuka from starting.
 func sharedCompilationCache() wazero.CompilationCache {
 	compilationCacheOnce.Do(func() {
 		if root, err := os.UserCacheDir(); err == nil {
@@ -137,12 +134,10 @@ func WithHTTPAuthorizer(authorize func(context.Context) bool) Option {
 	return func(r *Runtime) { r.httpAuthorizer = authorize }
 }
 
-// WithLogger enables runtime diagnostics such as per-plugin initialization timings.
-// Timing messages use DEBUG level, so normal application logging remains unchanged.
+// WithLogger enables runtime diagnostics such as per-plugin initialization timings. Timing messages use DEBUG level, so normal application logging remains unchanged.
 func WithLogger(logger *slog.Logger) Option { return func(r *Runtime) { r.logger = logger } }
 
-// WithInterpreter uses wazero's interpreter instead of AOT compilation. It is
-// useful for tests that exercise guest behavior without benchmarking compilation.
+// WithInterpreter uses wazero's interpreter instead of AOT compilation. It is useful for tests that exercise guest behavior without benchmarking compilation.
 func WithInterpreter() Option { return func(r *Runtime) { r.interpreter = true } }
 
 // New creates a WASM plugin runtime with bounded resources and explicit host policy.
@@ -188,8 +183,7 @@ func validLimits(limits Limits) bool {
 	return limits.MemoryPages <= 65536 && limits.WireBytes <= 16<<20 && limits.Parts <= 4096
 }
 
-// Load validates policy and returns one isolated plugin instance. Declarative
-// packages never compile or instantiate WASM.
+// Load validates policy and returns one isolated plugin instance. Declarative packages never compile or instantiate WASM.
 func (r *Runtime) Load(ctx context.Context, pkg *pluginpackage.Package) (loaded plugin.Instance, err error) {
 	manifest := pkg.Manifest()
 	started := time.Now()

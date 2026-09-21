@@ -19,9 +19,7 @@ func Logger(logger *slog.Logger) *slog.Logger {
 	return logger
 }
 
-// Record records an audit event without turning an already-committed
-// primary mutation into a retryable error. Persistence failures remain visible
-// through structured logs.
+// Record records an audit event without turning an already-committed primary mutation into a retryable error. Persistence failures remain visible through structured logs.
 func Record(
 	ctx context.Context,
 	logger *slog.Logger,

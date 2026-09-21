@@ -109,8 +109,7 @@ WHERE p.id=$1`, page.ID).Scan(
 	return page, nil
 }
 
-// SavePageRender replaces the reusable render artifact when the page has not
-// changed since it was read. A concurrent edit simply makes this refresh a no-op.
+// SavePageRender replaces the reusable render artifact when the page has not changed since it was read. A concurrent edit simply makes this refresh a no-op.
 func (s *Store) SavePageRender(ctx context.Context, pageID int64, updatedAt time.Time, render domain.PageRender) error {
 	contents, err := json.Marshal(render.Contents)
 	if err != nil {

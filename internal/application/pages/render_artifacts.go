@@ -14,6 +14,7 @@ type renderArtifactRepository interface {
 
 // RenderArtifacts owns persistence of reusable page render results.
 type RenderArtifacts struct {
+	// repository persists reusable render results for unchanged pages.
 	repository renderArtifactRepository
 }
 

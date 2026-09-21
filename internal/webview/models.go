@@ -234,7 +234,9 @@ type Layout struct {
 
 // PageSummary identifies the current page in shared browser chrome.
 type PageSummary struct {
-	Slug  string
+	// Slug is the active page path used by contextual actions.
+	Slug string
+	// Title is the page title shown in shared browser chrome.
 	Title string
 }
 
@@ -251,6 +253,7 @@ type Screen interface{ browserScreen() }
 
 // StatusView contains presentation data for a themed HTTP status page.
 type StatusView struct {
+	// Layout contains shared browser chrome and authenticated viewer context.
 	Layout
 
 	// StatusCode is the status code displayed above the title.
@@ -808,6 +811,8 @@ func HasPagePathOption(options []PagePathOption, slug string) bool {
 
 // AdminImportView presents an import result.
 type AdminImportView struct {
+	// Layout contains shared browser chrome and authenticated viewer context.
 	Layout
+	// Query preserves the submitted import source or filter value.
 	Query string
 }

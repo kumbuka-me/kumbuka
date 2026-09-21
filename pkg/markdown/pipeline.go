@@ -16,8 +16,7 @@ import (
 	"github.com/yuin/goldmark/v2/parser"
 )
 
-// renderPipeline pins one immutable global render plan for the whole document,
-// including nested Markdown and the variable-provenance rendering pass.
+// renderPipeline pins one immutable global render plan for the whole document, including nested Markdown and the variable-provenance rendering pass.
 type renderPipeline struct {
 	// context carries cancellation through the complete render.
 	context context.Context
@@ -100,9 +99,7 @@ func (r *Renderer) moduleContext(resolve func(string) string, options Options) p
 	}
 }
 
-// prepareContent runs selected content preprocessors once in pre-sorted priority order.
-// If one module transforms Markdown, later modules are reselected from the new source
-// without rerunning modules whose priority/order has already passed.
+// prepareContent runs selected content preprocessors once in pre-sorted priority order. If one module transforms Markdown, later modules are reselected from the new source without rerunning modules whose priority/order has already passed.
 func (p *renderPipeline) prepareContent(source string, ctx plugin.Context) (plugin.PreparedContent, error) {
 	prepared := plugin.PreparedContent{Markdown: source}
 	page := p.pagePlanForSource(prepared.Markdown)
@@ -158,8 +155,7 @@ func cloneExportParameters(source map[string]map[string]map[string]string) map[s
 	return result
 }
 
-// preprocess runs selected source preprocessors in registry order. A transform
-// may activate later modules, so the page plan is refreshed only when source changes.
+// preprocess runs selected source preprocessors in registry order. A transform may activate later modules, so the page plan is refreshed only when source changes.
 func (p *renderPipeline) preprocess(source string, ctx plugin.Context, page pageRenderPlan) (string, pageRenderPlan, error) {
 	modules := page.preprocessors
 	for position := 0; position < len(modules); position++ {
@@ -244,9 +240,7 @@ func (p *renderPipeline) postprocess(source string, ctx plugin.Context, page pag
 	return source, nil
 }
 
-// preprocessMacros protects code using CommonMark's own parser, including long
-// fences, blockquote/list fences, and indented code. Macro names are globally
-// unique, so candidate lines dispatch directly through the page plan's name map.
+// preprocessMacros protects code using CommonMark's own parser, including long fences, blockquote/list fences, and indented code. Macro names are globally unique, so candidate lines dispatch directly through the page plan's name map.
 func (p *renderPipeline) preprocessMacros(source string, ctx plugin.Context, page pageRenderPlan) (string, []macroInvocation, error) {
 	lines := strings.Split(source, "\n")
 	protected := codeLines(source)
@@ -333,8 +327,7 @@ func (p *renderPipeline) expandMacros(source string, invocations []macroInvocati
 	return source, nil
 }
 
-// codeLines records code body lines, not fences themselves, whose delimiters
-// cannot match a standalone macro invocation.
+// codeLines records code body lines, not fences themselves, whose delimiters cannot match a standalone macro invocation.
 func codeLines(source string) map[int]bool {
 	document := parser.New().Parse([]byte(source))
 	protected := make(map[int]bool)

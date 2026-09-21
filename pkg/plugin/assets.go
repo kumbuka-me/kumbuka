@@ -13,8 +13,7 @@ import (
 
 var _ icons.ResourceProvider = (*Manager)(nil)
 
-// BrowserContribution is public asset metadata; it contains no settings or
-// capabilities. The digest pins every module and auxiliary asset to one version.
+// BrowserContribution is public asset metadata; it contains no settings or capabilities. The digest pins every module and auxiliary asset to one version.
 type BrowserContribution struct {
 	// PluginID identifies the plugin that owns the contribution.
 	PluginID string `json:"plugin_id"`
@@ -32,8 +31,7 @@ type BrowserContribution struct {
 	CSS string `json:"css,omitempty"`
 }
 
-// ContentStyleContribution is safe parent-document stylesheet metadata for one
-// active plugin version. Core still filters the stylesheet before publishing it.
+// ContentStyleContribution is safe parent-document stylesheet metadata for one active plugin version. Core still filters the stylesheet before publishing it.
 type ContentStyleContribution struct {
 	// PluginID identifies the plugin that owns the contribution.
 	PluginID string
@@ -57,8 +55,7 @@ type CodeHighlighterContribution struct {
 	CSS string
 }
 
-// IconResourceVersion returns a stable generation key for enabled icon providers.
-// Unrelated plugin lifecycle changes therefore do not invalidate the icon catalog.
+// IconResourceVersion returns a stable generation key for enabled icon providers. Unrelated plugin lifecycle changes therefore do not invalidate the icon catalog.
 func (m *Manager) IconResourceVersion() string {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -77,8 +74,7 @@ func (m *Manager) IconResourceVersion() string {
 	return version.String()
 }
 
-// IconResources returns assets explicitly declared by enabled icon-resource modules.
-// Package validation guarantees that every declared asset exists and is bounded.
+// IconResources returns assets explicitly declared by enabled icon-resource modules. Package validation guarantees that every declared asset exists and is bounded.
 func (m *Manager) IconResources() ([]icons.Resource, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -206,8 +202,7 @@ const (
 	maxPluginPreviewHeight = 1600
 )
 
-// PluginPreview returns a bounded static PNG bundled with an installed plugin.
-// Reading preview metadata never enables or instantiates plugin code.
+// PluginPreview returns a bounded static PNG bundled with an installed plugin. Reading preview metadata never enables or instantiates plugin code.
 func (m *Manager) PluginPreview(id string) ([]byte, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -232,8 +227,7 @@ func (m *Manager) PluginPreview(id string) ([]byte, error) {
 	return data, nil
 }
 
-// validPluginPreview accepts only bounded raster PNG documentation.
-// DecodeConfig reads image metadata without decoding the full pixel payload.
+// validPluginPreview accepts only bounded raster PNG documentation. DecodeConfig reads image metadata without decoding the full pixel payload.
 func validPluginPreview(data []byte) bool {
 	if len(data) == 0 || len(data) > maxPluginPreviewBytes {
 		return false
@@ -250,8 +244,7 @@ func validPluginPreview(data []byte) bool {
 		config.Height <= maxPluginPreviewHeight
 }
 
-// BrowserAsset serves bytes from an enabled, exact-version package only. There
-// is no filesystem extraction, and lifecycle changes invalidate old URLs.
+// BrowserAsset serves bytes from an enabled, exact-version package only. There is no filesystem extraction, and lifecycle changes invalidate old URLs.
 func (m *Manager) BrowserAsset(id, digest, name string) ([]byte, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()

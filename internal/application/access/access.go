@@ -24,8 +24,7 @@ type accessRepository interface {
 	DeletePageAccessRule(context.Context, int64) error
 }
 
-// Access owns inherited path authorization. Rules on the nearest matching path
-// form an allow-list; paths without rules remain open to authenticated users.
+// Access owns inherited path authorization. Rules on the nearest matching path form an allow-list; paths without rules remain open to authenticated users.
 type Access struct {
 	// repository provides the persistence operations required by access.
 	repository accessRepository

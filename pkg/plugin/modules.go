@@ -27,8 +27,7 @@ type Descriptor struct {
 	Requires []string
 }
 
-// SourceUsageRule is a cheap host-side selector for one source-aware module.
-// Rules are hints only: modules without rules remain always active.
+// SourceUsageRule is a cheap host-side selector for one source-aware module. Rules are hints only: modules without rules remain always active.
 type SourceUsageRule struct {
 	// Contains selects the module when the Markdown contains this literal text.
 	Contains string
@@ -54,9 +53,7 @@ type SourceUsageProvider interface {
 	SourceUsage() SourceUsage
 }
 
-// Context contains only render-local capabilities. RenderMarkdown returns
-// intermediate HTML: the host must sanitize the complete document afterwards.
-// Callbacks must not retain this context or mutate its maps.
+// Context contains only render-local capabilities. RenderMarkdown returns intermediate HTML: the host must sanitize the complete document afterwards. Callbacks must not retain this context or mutate its maps.
 type Context struct {
 	// Context carries cancellation and request-scoped values.
 	Context context.Context
@@ -261,8 +258,7 @@ type MarkdownExtension interface {
 	Components(Context) MarkdownComponents
 }
 
-// CodeHighlightResult contains one highlighter response. HTML remains untrusted
-// until Kumbuka sanitizes the complete rendered document.
+// CodeHighlightResult contains one highlighter response. HTML remains untrusted until Kumbuka sanitizes the complete rendered document.
 type CodeHighlightResult struct {
 	// HTML contains highlighted block markup when Matched is true.
 	HTML string
@@ -394,8 +390,7 @@ type SettingsModule struct {
 	Requires []string
 }
 
-// ContentStyle declares a stylesheet that core may expose to rendered page
-// content after applying its parent-document CSS safety filter.
+// ContentStyle declares a stylesheet that core may expose to rendered page content after applying its parent-document CSS safety filter.
 type ContentStyle struct {
 	// ID identifies the contribution within its plugin.
 	ID string
@@ -411,8 +406,7 @@ type RenderPolicy struct {
 	Policy string
 }
 
-// Contributions is registered and removed atomically under its owner's ID.
-// Order within a stage is registration order, then slice order.
+// Contributions is registered and removed atomically under its owner's ID. Order within a stage is registration order, then slice order.
 type Contributions struct {
 	// ContentPreprocessors transform application Markdown before the normal render pipeline.
 	ContentPreprocessors []ContentPreprocessor
@@ -505,8 +499,7 @@ func (m BoundMacro[T]) Render(ctx Context, value Invocation) (string, error) {
 	return "", fmt.Errorf("macro %s has no request binding", m.Name())
 }
 
-// Guard converts synchronous native module panics into render errors. Native
-// modules remain trusted; installed contributions execute in the WASM sandbox.
+// Guard converts synchronous native module panics into render errors. Native modules remain trusted; installed contributions execute in the WASM sandbox.
 func Guard[T any](owner string, run func() (T, error)) (result T, err error) {
 	defer func() {
 		if recover() != nil {

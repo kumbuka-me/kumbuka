@@ -6,9 +6,7 @@ import (
 	"github.com/kumbuka-me/kumbuka/pkg/ascii"
 )
 
-// mentionedUsernames extracts distinct, lower-case mentions in source order.
-// A mention begins at the start of text or after a non-word character. Names
-// contain ASCII letters, digits, underscores, dots and hyphens.
+// mentionedUsernames extracts distinct, lower-case mentions in source order. A mention begins at the start of text or after a non-word character. Names contain ASCII letters, digits, underscores, dots and hyphens.
 func mentionedUsernames(text string) []string {
 	var usernames []string
 	seen := map[string]bool{}

@@ -7,8 +7,7 @@ import (
 	"sync"
 )
 
-// Record is durable installation state. Bundled records contain no archive:
-// their distribution bytes always come from the running Kumbuka binary.
+// Record is durable installation state. Bundled records contain no archive: their distribution bytes always come from the running Kumbuka binary.
 type Record struct {
 	// ID identifies the associated object.
 	ID string
@@ -91,8 +90,7 @@ func (s *memoryStore) DeletePlugin(_ context.Context, id string) error {
 // cloneRecord copies archive bytes so callers cannot mutate stored state.
 func cloneRecord(record Record) Record { record.Package = bytes.Clone(record.Package); return record }
 
-// WithRequiredPlugins protects operator-selected plugin IDs from disable/removal.
-// A package cannot make itself required by declaring manifest metadata.
+// WithRequiredPlugins protects operator-selected plugin IDs from disable/removal. A package cannot make itself required by declaring manifest metadata.
 func WithRequiredPlugins(ids ...string) ManagerOption {
 	required := make(map[string]bool, len(ids))
 	for _, id := range ids {

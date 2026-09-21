@@ -15,8 +15,10 @@ type historyRepository interface {
 
 // History owns actor-authorized revision history queries.
 type History struct {
+	// repository loads persisted revision history.
 	repository historyRepository
-	access     accessReader
+	// access authorizes actor-specific history reads.
+	access accessReader
 }
 
 // NewHistory constructs revision history queries.

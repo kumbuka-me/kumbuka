@@ -7,8 +7,7 @@ import (
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
 
-// UserUpdateInput describes the administrator's intended account change.
-// Password confirmation belongs to the form; password policy belongs to this operation.
+// UserUpdateInput describes the administrator's intended account change. Password confirmation belongs to the form; password policy belongs to this operation.
 type UserUpdateInput struct {
 	// UserID identifies the account being changed.
 	UserID int64

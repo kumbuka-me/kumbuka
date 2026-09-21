@@ -9,10 +9,7 @@ const (
 	ImageWebP = "image/webp"
 )
 
-// DetectImage returns the MIME type for the image formats accepted by Kumbuka.
-//
-// It follows the same signatures used by net/http.DetectContentType for GIF,
-// JPEG, PNG, and WebP without coupling application packages to net/http.
+// DetectImage returns the MIME type for the image formats accepted by Kumbuka. It follows the same signatures used by net/http.DetectContentType for GIF, JPEG, PNG, and WebP without coupling application packages to net/http.
 func DetectImage(data []byte) (string, bool) {
 	switch {
 	case bytes.HasPrefix(data, []byte("GIF87a")), bytes.HasPrefix(data, []byte("GIF89a")):

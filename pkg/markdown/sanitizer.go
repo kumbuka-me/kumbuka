@@ -6,8 +6,7 @@ import (
 	"github.com/microcosm-cc/bluemonday"
 )
 
-// newSanitizer is the trusted final boundary for both authored and generated
-// HTML. Plugins cannot extend this policy or return already-trusted markup.
+// newSanitizer is the trusted final boundary for both authored and generated HTML. Plugins cannot extend this policy or return already-trusted markup.
 func newSanitizer() *bluemonday.Policy {
 	policy := bluemonday.UGCPolicy()
 

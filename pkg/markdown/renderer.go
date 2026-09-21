@@ -59,8 +59,7 @@ type RenderedPage struct {
 	ExportFields []plugin.ExportField
 }
 
-// Functions supplies request-local plugin capabilities and export data.
-// Bindings cannot activate an unregistered macro.
+// Functions supplies request-local plugin capabilities and export data. Bindings cannot activate an unregistered macro.
 type Functions struct {
 	// Capabilities maps keys to capabilities values used by functions.
 	Capabilities map[string]plugin.Capability
@@ -74,8 +73,7 @@ type Functions struct {
 	PluginUsage *pluginusage.Index
 }
 
-// Close releases the attached plugin manager, if any. Renderers created with
-// NewWithRegistry alone do not own plugin runtime resources.
+// Close releases the attached plugin manager, if any. Renderers created with NewWithRegistry alone do not own plugin runtime resources.
 func (r *Renderer) Close(ctx context.Context) error {
 	if r.manager != nil {
 		return r.manager.Close(ctx)
@@ -83,8 +81,7 @@ func (r *Renderer) Close(ctx context.Context) error {
 	return nil
 }
 
-// NewWithRegistry uses an application-owned registry for every render path.
-// An empty registry enables only the remaining core Markdown features.
+// NewWithRegistry uses an application-owned registry for every render path. An empty registry enables only the remaining core Markdown features.
 func NewWithRegistry(registry *plugin.Registry) *Renderer {
 	if registry == nil {
 		registry = &plugin.Registry{}
@@ -93,9 +90,7 @@ func NewWithRegistry(registry *plugin.Registry) *Renderer {
 	return &Renderer{sanitizer: newSanitizer(), registry: registry, iconCatalog: icons.Builtin()}
 }
 
-// NewWithManager attaches a plugin manager to a renderer so
-// lifecycle metadata and browser assets remain available through PluginManager.
-// Closing the renderer closes the manager.
+// NewWithManager attaches a plugin manager to a renderer so lifecycle metadata and browser assets remain available through PluginManager. Closing the renderer closes the manager.
 func NewWithManager(registry *plugin.Registry, manager *plugin.Manager) *Renderer {
 	renderer := NewWithRegistry(registry)
 	renderer.manager = manager

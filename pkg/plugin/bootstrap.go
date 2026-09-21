@@ -11,9 +11,7 @@ import (
 	"github.com/kumbuka-me/sdk/pluginpackage"
 )
 
-// Bootstrap merges embedded distribution bytes with durable overrides, checks
-// the complete enabled dependency graph, and publishes once. Failed startup
-// closes every prepared instance and leaves both persistence and registry alone.
+// Bootstrap merges embedded distribution bytes with durable overrides, checks the complete enabled dependency graph, and publishes once. Failed startup closes every prepared instance and leaves both persistence and registry alone.
 func (m *Manager) Bootstrap(ctx context.Context, archives [][]byte) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()

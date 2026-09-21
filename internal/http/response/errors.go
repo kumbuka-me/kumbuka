@@ -7,8 +7,7 @@ import (
 	"github.com/containeroo/uuidv7"
 )
 
-// RequestWriter retains diagnostic context for the request and its access log.
-// Unwrap lets http.ResponseController reach optional transport capabilities.
+// RequestWriter retains diagnostic context for the request and its access log. Unwrap lets http.ResponseController reach optional transport capabilities.
 type RequestWriter struct {
 	// ResponseWriter embeds response writer behavior in request writer.
 	http.ResponseWriter

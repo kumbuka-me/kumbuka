@@ -38,8 +38,7 @@ type PortableImportedPage struct {
 	Properties map[string]string
 }
 
-// ImportPortable persists pages reconstructed from a Kumbuka portable archive.
-// Archive metadata is authoritative for both new pages and replacements.
+// ImportPortable persists pages reconstructed from a Kumbuka portable archive. Archive metadata is authoritative for both new pages and replacements.
 func (s *Bulk) ImportPortable(
 	ctx context.Context,
 	candidates []PortableImportedPage,

@@ -7,8 +7,7 @@ import (
 	"sort"
 )
 
-// RenderSelector identifies one contribution and whether its execution can be
-// limited to pages whose source usage index contains the module.
+// RenderSelector identifies one contribution and whether its execution can be limited to pages whose source usage index contains the module.
 type RenderSelector struct {
 	// PluginID identifies the plugin associated with render selector.
 	PluginID string
@@ -98,9 +97,7 @@ type SourceUsageBinding struct {
 	Usage SourceUsage
 }
 
-// RenderPlan is the immutable render-only view of the active registry. It is
-// rebuilt only when plugin lifecycle state changes and shared by all renders of
-// that generation. Callers must not mutate its slices or maps.
+// RenderPlan is the immutable render-only view of the active registry. It is rebuilt only when plugin lifecycle state changes and shared by all renders of that generation. Callers must not mutate its slices or maps.
 type RenderPlan struct {
 	// Generation stores the generation value used by render plan.
 	Generation uint64
@@ -275,8 +272,7 @@ func renderUsageFingerprint(descriptors []SourceUsageBinding) string {
 	return hex.EncodeToString(hash.Sum(nil))
 }
 
-// publishEntriesLocked atomically publishes entries and their immutable render
-// plan. The registry write lock must be held by the caller.
+// publishEntriesLocked atomically publishes entries and their immutable render plan. The registry write lock must be held by the caller.
 func (r *Registry) publishEntriesLocked(entries []Entry) {
 	generation := r.renderGeneration + 1
 	plan := buildRenderPlan(entries, generation)
@@ -285,8 +281,7 @@ func (r *Registry) publishEntriesLocked(entries []Entry) {
 	r.renderPlan = plan
 }
 
-// rebuildRenderPlanLocked initializes a missing plan without changing lifecycle
-// generation. The registry write lock must be held by the caller.
+// rebuildRenderPlanLocked initializes a missing plan without changing lifecycle generation. The registry write lock must be held by the caller.
 func (r *Registry) rebuildRenderPlanLocked() {
 	if r.renderGeneration == 0 {
 		r.renderGeneration = 1

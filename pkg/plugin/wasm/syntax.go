@@ -5,8 +5,7 @@ import (
 	"github.com/yuin/goldmark/v2/extension"
 )
 
-// syntaxModule selects a public standard grammar through the same manifest for
-// every distribution source. Feature flags control each fresh parser instance.
+// syntaxModule selects a public standard grammar through the same manifest for every distribution source. Feature flags control each fresh parser instance.
 type syntaxModule struct {
 	// owner, id, and syntax store the corresponding values for syntax module.
 	owner, id, syntax string

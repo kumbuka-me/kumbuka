@@ -144,9 +144,7 @@ func (s *Webhooks) webhookRequestHeaders(item domain.Webhook, event OutgoingEven
 	return headers, nil
 }
 
-// recordWebhookDelivery persists one delivery outcome and reports history failures.
-// Callers may preserve a more important primary delivery error while the log keeps
-// the secondary persistence failure observable.
+// recordWebhookDelivery persists one delivery outcome and reports history failures. Callers may preserve a more important primary delivery error while the log keeps the secondary persistence failure observable.
 func (s *Webhooks) recordWebhookDelivery(ctx context.Context, webhookID int64, event string, statusCode, attempts int, message string) error {
 	err := s.repository.AddWebhookDelivery(ctx, webhookID, event, statusCode, attempts, message)
 	if err != nil {

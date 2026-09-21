@@ -73,9 +73,7 @@ func (s *Navigation) NavigationItems(ctx context.Context) ([]domain.NavigationIt
 	return s.repository.NavigationItems(ctx)
 }
 
-// NavigationIcons returns configured icons keyed by navigation path. The icon
-// set changes only through the navigation administration workflow, so cache it
-// after the first load instead of querying the database for every page view.
+// NavigationIcons returns configured icons keyed by navigation path. The icon set changes only through the navigation administration workflow, so cache it after the first load instead of querying the database for every page view.
 func (s *Navigation) NavigationIcons(ctx context.Context) (map[string]string, error) {
 	s.iconsMu.RLock()
 	if s.iconsLoaded {

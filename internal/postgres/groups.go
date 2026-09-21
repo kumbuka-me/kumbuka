@@ -7,9 +7,7 @@ import (
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
 
-// Groups returns all groups and their current user and page counts. Aggregate
-// each relation independently so memberships and page assignments do not form
-// a multiplicative join before counting.
+// Groups returns all groups and their current user and page counts. Aggregate each relation independently so memberships and page assignments do not form a multiplicative join before counting.
 func (s *Store) Groups(ctx context.Context) ([]domain.Group, error) {
 	rows, err := s.pool.Query(ctx, `
 SELECT

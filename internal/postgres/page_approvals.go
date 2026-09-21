@@ -105,8 +105,7 @@ WHERE id=$1`, id).Scan(&group.ID, &group.Name)
 	return group, err
 }
 
-// ReviewGroups returns only the fields needed by page review target selectors.
-// Unlike Groups, this deliberately avoids membership and page-count aggregates.
+// ReviewGroups returns only the fields needed by page review target selectors. Unlike Groups, this deliberately avoids membership and page-count aggregates.
 func (s *Store) ReviewGroups(ctx context.Context) ([]domain.Group, error) {
 	rows, err := s.pool.Query(ctx, `
 SELECT id,name

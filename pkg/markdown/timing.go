@@ -8,8 +8,7 @@ import (
 	"github.com/kumbuka-me/kumbuka/pkg/renderprofile"
 )
 
-// EnableRenderTimings enables opt-in structured render profiling. Call it
-// during application setup, before the renderer is served concurrently.
+// EnableRenderTimings enables opt-in structured render profiling. Call it during application setup, before the renderer is served concurrently.
 func (r *Renderer) EnableRenderTimings(logger *slog.Logger) {
 	r.timingLogger = logger
 }
