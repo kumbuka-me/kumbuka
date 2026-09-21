@@ -687,20 +687,20 @@
     </div>
   </div>
   <div class="table-format-body table-insert-body" data-table-format-insert>
-    <p class="muted">Place the cursor in an existing Markdown table to format it, or insert a new table here.</p>
-    <div class="table-insert-grid">
-      <label>
-        Body rows<input type="number" min="1" max="20" value="3" data-table-insert-rows />
-      </label>
-      <label>
-        Columns<input type="number" min="1" max="10" value="3" data-table-insert-columns />
-      </label>
+    <div class="table-insert-heading">
+      <div>
+        <strong>Insert table</strong>
+        <span class="muted">Choose the size, then click to insert.</span>
+      </div>
+      <strong class="table-insert-size" data-table-insert-size aria-live="polite">3 × 3</strong>
     </div>
+    <div class="table-size-grid"
+         data-table-insert-grid
+         role="grid"
+         aria-label="Choose table size"></div>
+    <p class="muted table-insert-hint">The first row is the Markdown header. The grid size counts body rows and columns.</p>
     <div class="app-dialog-actions">
       <button class="button" type="button" data-table-format-close>Cancel</button>
-      <button class="button primary" type="button" data-table-insert-submit>
-        {{ icon "table-2-lucide" 16 }}<span>Insert table</span>
-      </button>
     </div>
   </div>
 </dialog>

@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  buildMarkdownTable,
   findMarkdownTable,
   parseTableDirective,
   rewriteTableDirectiveSource,
@@ -92,4 +93,16 @@ test("palette parser preserves existing semantic table tones", () => {
 
   assert.ok(directive);
   assert.equal(serializeTableDirective(directive), source);
+});
+
+test("table insertion builds the selected Confluence-style grid size", () => {
+  assert.equal(
+    buildMarkdownTable(2, 3),
+    [
+      "| Column 1 | Column 2 | Column 3 |",
+      "| --- | --- | --- |",
+      "|  |  |  |",
+      "|  |  |  |",
+    ].join("\n"),
+  );
 });

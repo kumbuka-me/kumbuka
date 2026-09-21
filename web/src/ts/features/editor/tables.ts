@@ -453,7 +453,7 @@ function setDirectiveTone(
   return next;
 }
 
-function buildMarkdownTable(bodyRows: number, columns: number): string {
+export function buildMarkdownTable(bodyRows: number, columns: number): string {
   const header = Array.from(
     { length: columns },
     (_, index) => `Column ${index + 1}`,
@@ -551,23 +551,73 @@ function setupTablePalette(toolbar: HTMLElement): void {
     tableDialog,
     "[data-table-format-clear]",
   );
-  const rowInput = requiredElement<HTMLInputElement>(
+  const insertGrid = requiredElement<HTMLElement>(
     tableDialog,
-    "[data-table-insert-rows]",
+    "[data-table-insert-grid]",
   );
-  const columnInput = requiredElement<HTMLInputElement>(
+  const insertSize = requiredElement<HTMLElement>(
     tableDialog,
-    "[data-table-insert-columns]",
-  );
-  const insertButton = requiredElement<HTMLButtonElement>(
-    tableDialog,
-    "[data-table-insert-submit]",
+    "[data-table-insert-size]",
   );
   const closeButtons = requiredElements<HTMLButtonElement>(
     tableDialog,
     "[data-table-format-close]",
   );
   let currentTable: MarkdownTable | null = null;
+  let selectedRows = 3;
+  let selectedColumns = 3;
+
+  function syncInsertGrid(rows: number, columns: number): void {
+    selectedRows = rows;
+    selectedColumns = columns;
+    insertSize.textContent = `${rows} × ${columns}`;
+
+    for (const cell of insertGrid.querySelectorAll<HTMLButtonElement>(
+      "[data-table-size-cell]",
+    )) {
+      const cellRows = Number.parseInt(cell.dataset.rows || "0", 10);
+      const cellColumns = Number.parseInt(cell.dataset.columns || "0", 10);
+      const active = cellRows <= rows && cellColumns <= columns;
+
+      cell.classList.toggle("active", active);
+      cell.setAttribute(
+        "aria-pressed",
+        String(cellRows === rows && cellColumns === columns),
+      );
+    }
+  }
+
+  function buildInsertGrid(): void {
+    const fragment = document.createDocumentFragment();
+
+    for (let rows = 1; rows <= 10; rows += 1) {
+      for (let columns = 1; columns <= 10; columns += 1) {
+        const cell = document.createElement("button");
+        cell.type = "button";
+        cell.className = "table-size-cell";
+        cell.dataset.tableSizeCell = "true";
+        cell.dataset.rows = String(rows);
+        cell.dataset.columns = String(columns);
+        cell.setAttribute("role", "gridcell");
+        cell.setAttribute(
+          "aria-label",
+          `${rows} body rows by ${columns} columns`,
+        );
+        cell.addEventListener("mouseenter", () =>
+          syncInsertGrid(rows, columns),
+        );
+        cell.addEventListener("focus", () => syncInsertGrid(rows, columns));
+        cell.addEventListener("click", () => {
+          tableDialog.close();
+          insertTable(editor, rows, columns);
+        });
+        fragment.append(cell);
+      }
+    }
+
+    insertGrid.replaceChildren(fragment);
+    syncInsertGrid(selectedRows, selectedColumns);
+  }
 
   function selectedTarget(): string {
     return (
@@ -606,7 +656,11 @@ function setupTablePalette(toolbar: HTMLElement): void {
     currentTable = findMarkdownTable(editor.value, editor.selectionStart ?? 0);
     existing.hidden = !currentTable;
     insertControls.hidden = Boolean(currentTable);
-    if (!currentTable) return;
+    tableDialog.classList.toggle("table-insert-dialog", !currentTable);
+    if (!currentTable) {
+      syncInsertGrid(selectedRows, selectedColumns);
+      return;
+    }
 
     const { kind, row, column } = currentTable.context;
 
@@ -707,23 +761,11 @@ function setupTablePalette(toolbar: HTMLElement): void {
   clearButton.addEventListener("click", () => {
     if (currentTable) writeDirective(emptyDirective());
   });
-  insertButton.addEventListener("click", () => {
-    const rowCount = Math.max(
-      1,
-      Math.min(20, Number.parseInt(rowInput.value, 10) || 3),
-    );
-    const columnCount = Math.max(
-      1,
-      Math.min(10, Number.parseInt(columnInput.value, 10) || 3),
-    );
+  insertGrid.addEventListener("mouseleave", () =>
+    syncInsertGrid(selectedRows, selectedColumns),
+  );
 
-    rowInput.value = String(rowCount);
-    columnInput.value = String(columnCount);
-    tableDialog.close();
-    insertTable(editor, rowCount, columnCount);
-    refresh();
-    tableDialog.showModal();
-  });
+  buildInsertGrid();
 }
 
 // Initializes table palette.

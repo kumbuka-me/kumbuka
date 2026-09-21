@@ -219,31 +219,77 @@
   padding: 4px 0 18px;
 }
 
-.table-insert-body > p {
-  margin: 0 0 16px;
+.table-format-dialog.table-insert-dialog {
+  --dialog-width: 430px;
 }
 
-.table-insert-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-  padding-bottom: 18px;
+.table-insert-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
 }
 
-.table-insert-grid label {
+.table-insert-heading > div {
   display: grid;
-  gap: 6px;
-  color: var(--text-secondary);
+  gap: 3px;
+}
+
+.table-insert-heading > div > strong {
+  font-size: 14px;
+}
+
+.table-insert-heading .muted,
+.table-insert-hint {
   font-size: 12px;
-  font-weight: 700;
 }
 
-.table-insert-grid input {
-  width: 100%;
+.table-insert-size {
+  min-width: 64px;
+  color: var(--accent);
+  font-size: 14px;
+  text-align: right;
+}
+
+.table-size-grid {
+  display: grid;
+  width: max-content;
+  max-width: 100%;
+  grid-template-columns: repeat(10, 26px);
+  gap: 4px;
+  margin: 0 auto;
+  padding: 4px;
+}
+
+.table-size-cell {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.table-size-cell:hover,
+.table-size-cell:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.table-size-cell.active {
+  border-color: color-mix(in srgb, var(--accent) 70%, var(--border));
+  background: color-mix(in srgb, var(--accent) 18%, var(--surface));
+}
+
+.table-insert-hint {
+  margin: 14px 0 0;
+  text-align: center;
 }
 
 .table-insert-body .app-dialog-actions {
-  margin: 0 -20px;
+  margin: 16px -20px 0;
   padding-top: 14px;
   border-top: 1px solid var(--border);
 }
@@ -259,9 +305,18 @@
     text-align: left;
   }
 
-  .table-format-toggles,
-  .table-insert-grid {
+  .table-format-toggles {
     grid-template-columns: 1fr;
+  }
+
+  .table-size-grid {
+    grid-template-columns: repeat(10, 22px);
+    gap: 3px;
+  }
+
+  .table-size-cell {
+    width: 22px;
+    height: 22px;
   }
 
   .table-format-targets,
