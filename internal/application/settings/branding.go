@@ -71,7 +71,7 @@ func (s *Settings) SaveBrandLogo(
 	return nil
 }
 
-// ClearBrandLogo restores the built-in favicon.svg brand logo.
+// ClearBrandLogo restores the built-in kumbuka.svg brand logo.
 func (s *Settings) ClearBrandLogo(ctx context.Context, actorID int64) error {
 	if err := s.repository.ClearBrandLogo(ctx); err != nil {
 		return err

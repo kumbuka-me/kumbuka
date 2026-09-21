@@ -1,74 +1,104 @@
-<svg xmlns="http://www.w3.org/2000/svg" class="kumbuka-logo"
-     viewBox="0 0 512 512"
-     role="img"
-     aria-labelledby="title desc">
-  <title id="title">Kumbuka</title>
-  <desc id="desc">Kumbuka logo with an open book, connected knowledge graph, and Kumbuka wordmark.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 1280" role="img" aria-labelledby="title desc">
+<title id="title">Kumbuka dhow</title>
+<desc id="desc">Vector recreation of the supplied dhow logo with a K integrated into the sail.</desc>
+<defs>
+  <linearGradient id="sail" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#fffaf0"/>
+    <stop offset="1" stop-color="#f5ead4"/>
+  </linearGradient>
+  <linearGradient id="teal" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#08798d"/>
+    <stop offset="1" stop-color="#07566c"/>
+  </linearGradient>
+  <linearGradient id="wood" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#71301f"/>
+    <stop offset="1" stop-color="#572519"/>
+  </linearGradient>
+</defs>
 
-  <defs>
-    <linearGradient id="kumbukaBlue" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="var(--accent-soft, #7CB7FF)"/>
-      <stop offset="55%" stop-color="var(--accent, #3B82F6)"/>
-      <stop offset="100%" stop-color="var(--accent-secondary, #2563EB)"/>
-    </linearGradient>
-    <linearGradient id="kumbukaNavy" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="var(--accent-secondary, #1E3A8A)"/>
-      <stop offset="100%" stop-color="var(--text, #0F172A)"/>
-    </linearGradient>
-  </defs>
+<!-- rigging -->
+<path d="M438 378L199 883M438 379L252 885" fill="none" stroke="#063e54" stroke-width="17" stroke-linecap="round"/>
 
-  <g transform="translate(18 0) scale(0.96)">
-    <g id="mark">
-      <!-- Knowledge graph -->
-      <g fill="none" stroke="var(--accent, #3B82F6)" stroke-width="18" stroke-linecap="round">
-        <path d="M256 188 L256 112"/>
-        <path d="M232 194 L178 146"/>
-        <path d="M280 194 L334 146"/>
-        <path d="M222 220 L154 208"/>
-        <path d="M290 220 L358 208"/>
-      </g>
+<!-- mast -->
+<path d="M424 114h39l10 797h-52z" fill="#063e54"/>
+<circle cx="443" cy="115" r="24" fill="#063e54"/>
 
-      <circle cx="256" cy="220" r="46" fill="url(#kumbukaNavy)"/>
-      <circle cx="256" cy="88" r="32" fill="var(--accent, #3B82F6)"/>
-      <circle cx="156" cy="126" r="28" fill="var(--accent-secondary, #2563EB)"/>
-      <circle cx="356" cy="126" r="28" fill="var(--accent-soft, #7CB7FF)"/>
-      <circle cx="126" cy="204" r="24" fill="var(--accent-soft, #7CB7FF)"/>
-      <circle cx="386" cy="204" r="24" fill="var(--accent-secondary, #2563EB)"/>
+<!-- cream sail -->
+<path d="M466 146
+ C596 225 782 205 1057 102
+ C914 227 777 356 648 486
+ C771 583 871 706 951 858
+ C768 792 607 790 474 866
+ C491 617 490 378 466 146Z"
+ fill="url(#sail)" stroke="#ead5b1" stroke-width="14" stroke-linejoin="round"/>
 
-      <!-- Open book -->
-      <path d="M72 248
-               C132 238 191 250 240 282
-               L240 432
-               C190 397 132 383 72 389
-               Z"
-            fill="url(#kumbukaNavy)"/>
+<!-- upper teal K field -->
+<path d="M476 161
+ C506 205 531 280 543 374
+ L548 374
+ L950 185
+ L484 579
+ C486 428 483 285 476 161Z"
+ fill="url(#teal)"/>
 
-      <path d="M440 248
-               C380 238 321 250 272 282
-               L272 432
-               C322 397 380 383 440 389
-               Z"
-            fill="url(#kumbukaBlue)"/>
+<!-- lower teal K field -->
+<path d="M494 594
+ L596 518
+ L861 792
+ C727 725 604 658 494 594Z"
+ fill="url(#teal)"/>
 
-      <path d="M104 270
-               C152 266 194 277 224 298
-               L224 399
-               C190 379 150 369 104 371
-               Z"
-            fill="none" stroke="var(--accent-soft, #93C5FD)" stroke-width="14" stroke-linejoin="round"/>
+<!-- hull upper rail -->
+<path d="M119 875
+ C388 915 666 923 887 897
+ C1005 883 1097 844 1167 777
+ C1147 825 1117 874 1079 919
+ C821 975 483 976 171 929Z"
+ fill="#d77a20"/>
 
-      <path d="M408 270
-               C360 266 318 277 288 298
-               L288 399
-               C322 379 362 369 408 371
-               Z"
-            fill="none" stroke="var(--text-secondary, #BFDBFE)" stroke-width="14" stroke-linejoin="round"/>
+<!-- hull body -->
+<path d="M132 897
+ C405 934 671 938 891 913
+ C1004 900 1080 871 1130 837
+ C1100 902 1044 974 962 1027
+ C688 1003 450 1043 200 1001Z"
+ fill="url(#wood)"/>
 
-      <path d="M256 282 L256 440"
-            stroke="var(--text, #0F172A)" stroke-width="12" stroke-linecap="round"/>
+<!-- darker hull facet -->
+<path d="M166 935
+ C421 965 680 967 899 941
+ C982 931 1043 913 1091 890
+ L1013 971
+ C755 1010 489 1007 211 980Z"
+ fill="#64291d" opacity=".75"/>
 
-      <circle cx="256" cy="438" r="12" fill="var(--text, #0F172A)"/>
-    </g>
-  </g>
+<!-- cream hull stripe -->
+<path d="M137 905
+ C397 940 663 945 887 921
+ C966 912 1034 896 1091 874"
+ fill="none" stroke="#f4dfb7" stroke-width="12" stroke-linecap="round"/>
 
+<!-- orange gunwale -->
+<path d="M121 876
+ C393 917 668 924 890 898
+ C1007 884 1099 844 1166 778"
+ fill="none" stroke="#dc7c1e" stroke-width="15" stroke-linecap="round"/>
+
+<!-- waves -->
+<path d="M78 1042
+ C202 995 300 1048 415 1057
+ C548 1067 635 1007 761 1011
+ C887 1015 993 1088 1168 1038
+ C1110 1095 1015 1112 918 1092
+ C789 1065 711 1045 600 1076
+ C421 1127 277 1108 78 1042Z"
+ fill="#078c9d"/>
+<path d="M273 1090
+ C388 1128 472 1132 574 1102
+ C691 1068 779 1065 888 1097
+ C956 1117 1018 1120 1077 1094
+ C1014 1142 938 1152 853 1130
+ C748 1103 679 1107 588 1138
+ C473 1177 366 1157 273 1090Z"
+ fill="#50b8c1"/>
 </svg>

@@ -48,12 +48,12 @@ func TestBrandLogoServesCustomLogo(t *testing.T) {
 	assert.Equal(t, "custom-logo", response.Body.String())
 }
 
-func TestBrandLogoFallsBackToFavicon(t *testing.T) {
+func TestBrandLogoFallsBackToKumbukaLogo(t *testing.T) {
 	t.Parallel()
 
 	settings := &brandLogoServiceStub{err: domain.ErrNotFound}
 	assets := fstest.MapFS{
-		"favicon.svg": &fstest.MapFile{Data: []byte(`<svg viewBox="0 0 10 10"></svg>`)},
+		"kumbuka.svg": &fstest.MapFile{Data: []byte(`<svg viewBox="0 0 10 10"></svg>`)},
 	}
 	response := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodGet, "/brand/logo", nil)

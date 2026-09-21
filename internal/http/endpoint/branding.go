@@ -36,7 +36,7 @@ func AdminBranding(browserContext browserContextLoader, views *webview.Views) ht
 	}
 }
 
-// BrandLogo serves the configured logo and falls back to the embedded favicon.svg.
+// BrandLogo serves the configured logo and falls back to the embedded kumbuka.svg.
 func BrandLogo(
 	settingsUseCases brandLogoService,
 	appFS fs.FS,
@@ -61,7 +61,7 @@ func BrandLogo(
 			}
 		}
 
-		data, err := fs.ReadFile(appFS, "favicon.svg")
+		data, err := fs.ReadFile(appFS, "kumbuka.svg")
 		if err != nil {
 			if logger == nil {
 				httpresponse.Problem(w, http.StatusInternalServerError, "The request could not be processed.")
@@ -120,7 +120,7 @@ func SaveAdminBrandLogo(settingsUseCases brandLogoService, logger *slog.Logger) 
 	}
 }
 
-// ResetAdminBrandLogo removes the custom logo so favicon.svg is used again.
+// ResetAdminBrandLogo removes the custom logo so kumbuka.svg is used again.
 func ResetAdminBrandLogo(settingsUseCases brandLogoService, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		admin := currentUser(r)
