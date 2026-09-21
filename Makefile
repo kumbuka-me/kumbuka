@@ -78,7 +78,7 @@ LOGO_PNG_WIDTH ?= 1200
 
 ## Formatting
 
-PRETTIER_MD_SOURCES := README.md
+PRETTIER_MD_SOURCES := README.md "**/*.md"
 
 
 ##@ Development
@@ -314,7 +314,7 @@ fmt-go: generate web ## Format Go code.
 
 .PHONY: fmt-md
 fmt-md: $(NODE_MODULES) ## Format Markdown files.
-	$(NPX) prettier --write $(PRETTIER_MD_SOURCES)
+	$(NPX) prettier --write --prose-wrap never $(PRETTIER_MD_SOURCES)
 
 .PHONY: check-templates
 check-templates: ## Check Go HTML template formatting.

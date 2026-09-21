@@ -21,4 +21,3 @@
 3. Avoid duplicate selectors across files when the later rule merely completes the earlier one. Consolidate the effective rule in its owner instead.
 4. Keep feature-local breakpoints next to the feature. Use `responsive/mobile.css` only when the behavior coordinates multiple surfaces or global touch/layout behavior.
 5. Do not put selectors in `app.css`; they would be invisible to the concatenating build and blur ownership.
-
