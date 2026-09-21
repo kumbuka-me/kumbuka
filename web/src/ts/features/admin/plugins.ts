@@ -192,7 +192,8 @@ function setupPluginUpdate(form: HTMLFormElement): void {
     form.setAttribute("aria-busy", "true");
     submit.disabled = true;
     spinner.hidden = false;
-    label.textContent = "Downloading update…";
+    label.textContent =
+      form.dataset.pluginUpdatePending || "Downloading update…";
 
     // Give the browser one paint before navigation starts so the pending state is visible.
     requestAnimationFrame(() => HTMLFormElement.prototype.submit.call(form));

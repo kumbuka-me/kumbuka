@@ -168,6 +168,20 @@ func (a *AdminPlugins) Action(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	id, action := r.PathValue("pluginID"), r.PathValue("action")
+	if id == "all" && action == "update" {
+		updated, err := a.updateAllFromCatalog(r.Context())
+		if err != nil {
+			a.views.Logger().Error("bulk plugin update failed", "event", "plugin.update_all_failed", "error", err, "actor_id", currentUser(r).ID)
+			a.render(w, r, "", http.StatusUnprocessableEntity, "Could not update all plugins from the Kumbuka catalog. Plugins updated before the failure remain on their new versions; the remaining plugins were left unchanged.")
+			return
+		}
+		for _, pluginID := range updated {
+			a.audit(r, "update", pluginID)
+		}
+		http.Redirect(w, r, "/admin/plugins", http.StatusSeeOther)
+		return
+	}
+
 	var err error
 	switch action {
 	case "enable":
@@ -237,6 +251,68 @@ func (a *AdminPlugins) updateFromCatalog(ctx context.Context, id string) error {
 	}
 	_, err = a.manager.Upgrade(ctx, id, archive)
 	return err
+}
+
+// updateAllFromCatalog downloads and applies every newer compatible installed plugin release.
+func (a *AdminPlugins) updateAllFromCatalog(ctx context.Context) ([]string, error) {
+	if a.updates == nil {
+		return nil, errors.New("plugin update catalog is unavailable")
+	}
+
+	updates, err := a.updates.Available()
+	if err != nil {
+		return nil, fmt.Errorf("check plugin update catalog: %w", err)
+	}
+	if len(updates) == 0 {
+		return nil, nil
+	}
+
+	installed := make(map[string]bool, len(a.manager.Plugins()))
+	for _, item := range a.manager.Plugins() {
+		installed[item.Manifest.ID] = true
+	}
+
+	ids := make([]string, 0, len(updates))
+	for id := range updates {
+		if installed[id] {
+			ids = append(ids, id)
+		}
+	}
+	sort.Strings(ids)
+
+	// pendingUpdate keeps one validated catalog package ready for installation.
+	type pendingUpdate struct {
+		// id identifies the installed plugin to upgrade.
+		id string
+		// archive contains the validated plugin package bytes.
+		archive []byte
+	}
+	pending := make([]pendingUpdate, 0, len(ids))
+	for _, id := range ids {
+		release := updates[id]
+		archive, err := a.updates.Download(ctx, id, release.Version)
+		if err != nil {
+			return nil, fmt.Errorf("download %s update: %w", id, err)
+		}
+		pkg, err := pluginpackage.Read(archive)
+		if err != nil {
+			return nil, fmt.Errorf("validate %s update: %w", id, err)
+		}
+		if pkg.Manifest().ID != id {
+			return nil, fmt.Errorf("validate %s update: package identity mismatch", id)
+		}
+		pending = append(pending, pendingUpdate{id: id, archive: archive})
+	}
+
+	updated := make([]string, 0, len(pending))
+	for _, item := range pending {
+		if _, err := a.manager.Upgrade(ctx, item.id, item.archive); err != nil {
+			return updated, fmt.Errorf("upgrade %s: %w", item.id, err)
+		}
+		updated = append(updated, item.id)
+	}
+
+	return updated, nil
 }
 
 // pluginInstalled reports whether the manager snapshot contains id.

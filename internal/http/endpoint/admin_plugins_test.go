@@ -27,12 +27,14 @@ import (
 type pluginUpdateServiceStub struct {
 	updates       map[string]domain.PluginRelease
 	archive       []byte
+	archives      map[string][]byte
 	updatesErr    error
 	refreshErr    error
 	downloadErr   error
 	refreshes     int
 	downloadedID  string
 	downloadedVer string
+	downloads     []string
 	status        appplugins.PluginUpdateStatus
 }
 
@@ -51,6 +53,10 @@ func (s *pluginUpdateServiceStub) Available() (map[string]domain.PluginRelease, 
 func (s *pluginUpdateServiceStub) Download(_ context.Context, id, version string) ([]byte, error) {
 	s.downloadedID = id
 	s.downloadedVer = version
+	s.downloads = append(s.downloads, id+"@"+version)
+	if archive, ok := s.archives[id]; ok {
+		return archive, s.downloadErr
+	}
 	return s.archive, s.downloadErr
 }
 
@@ -173,6 +179,7 @@ func TestAdminPluginCatalogUpdate(t *testing.T) {
 	require.Equal(t, http.StatusOK, w.Code)
 	assert.Contains(t, w.Body.String(), "9.9.9 available")
 	assert.Contains(t, w.Body.String(), "Update to 9.9.9")
+	assert.Contains(t, w.Body.String(), "Update all (1)")
 	assert.Contains(t, w.Body.String(), "Published 2026-09-18")
 	assert.NotContains(t, w.Body.String(), "0001-01-01")
 
@@ -186,6 +193,93 @@ func TestAdminPluginCatalogUpdate(t *testing.T) {
 	assert.Equal(t, "/admin/plugins?plugin="+item.Manifest.ID, w.Header().Get("Location"))
 	assert.Equal(t, item.Manifest.ID, updates.downloadedID)
 	assert.Equal(t, "9.9.9", updates.downloadedVer)
+}
+
+// TestAdminPluginCatalogUpdateAll supports bulk plugin update regression coverage.
+func TestAdminPluginCatalogUpdateAll(t *testing.T) {
+	ctx := context.Background()
+	runtime, err := wasm.New(ctx, wasm.Limits{InitTimeout: 30 * time.Second}, wasm.WithInterpreter())
+	require.NoError(t, err)
+	manager := plugin.NewManager(&plugin.Registry{}, runtime)
+	defer func() { require.NoError(t, manager.Close(ctx)) }()
+
+	calloutsArchive, err := plugins.Packages.ReadFile("callouts.kumbukaplugin")
+	require.NoError(t, err)
+	callouts, err := manager.Install(ctx, calloutsArchive)
+	require.NoError(t, err)
+
+	detailsArchive, err := plugins.Packages.ReadFile("details.kumbukaplugin")
+	require.NoError(t, err)
+	details, err := manager.Install(ctx, detailsArchive)
+	require.NoError(t, err)
+
+	updates := &pluginUpdateServiceStub{
+		updates: map[string]domain.PluginRelease{
+			callouts.Manifest.ID: {Version: "9.9.9"},
+			details.Manifest.ID:  {Version: "8.8.8"},
+		},
+		archives: map[string][]byte{
+			callouts.Manifest.ID: calloutsArchive,
+			details.Manifest.ID:  detailsArchive,
+		},
+	}
+	views := testHandlerViews(t, webview.RuntimeInfo{})
+	data := browserContextLoaderStub{load: func(*http.Request, *webview.Views, string) (webview.Layout, error) {
+		return webview.Layout{User: domain.User{ID: 1, Role: "admin"}}, nil
+	}}
+	admin := NewAdminPlugins(manager, updates, data, views)
+
+	request := auth.WithUser(httptest.NewRequest("POST", "/admin/plugins/all/update", nil), domain.User{ID: 1, Role: "admin"})
+	request.SetPathValue("pluginID", "all")
+	request.SetPathValue("action", "update")
+	w := httptest.NewRecorder()
+	admin.Action(w, request)
+
+	require.Equal(t, http.StatusSeeOther, w.Code)
+	assert.Equal(t, "/admin/plugins", w.Header().Get("Location"))
+	assert.ElementsMatch(t, []string{
+		callouts.Manifest.ID + "@9.9.9",
+		details.Manifest.ID + "@8.8.8",
+	}, updates.downloads)
+}
+
+// TestAdminPluginCatalogUpdateAllPrevalidatesPackages ensures package failures happen before any upgrade is applied.
+func TestAdminPluginCatalogUpdateAllPrevalidatesPackages(t *testing.T) {
+	ctx := context.Background()
+	runtime, err := wasm.New(ctx, wasm.Limits{InitTimeout: 30 * time.Second}, wasm.WithInterpreter())
+	require.NoError(t, err)
+	manager := plugin.NewManager(&plugin.Registry{}, runtime)
+	defer func() { require.NoError(t, manager.Close(ctx)) }()
+
+	calloutsArchive, err := plugins.Packages.ReadFile("callouts.kumbukaplugin")
+	require.NoError(t, err)
+	callouts, err := manager.Install(ctx, calloutsArchive)
+	require.NoError(t, err)
+
+	updates := &pluginUpdateServiceStub{
+		updates: map[string]domain.PluginRelease{
+			callouts.Manifest.ID: {Version: "9.9.9"},
+		},
+		archives: map[string][]byte{
+			callouts.Manifest.ID: []byte("invalid package"),
+		},
+	}
+	views := testHandlerViews(t, webview.RuntimeInfo{})
+	data := browserContextLoaderStub{load: func(*http.Request, *webview.Views, string) (webview.Layout, error) {
+		return webview.Layout{User: domain.User{ID: 1, Role: "admin"}}, nil
+	}}
+	admin := NewAdminPlugins(manager, updates, data, views)
+
+	request := auth.WithUser(httptest.NewRequest("POST", "/admin/plugins/all/update", nil), domain.User{ID: 1, Role: "admin"})
+	request.SetPathValue("pluginID", "all")
+	request.SetPathValue("action", "update")
+	w := httptest.NewRecorder()
+	admin.Action(w, request)
+
+	assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
+	assert.Contains(t, w.Body.String(), "Could not update all plugins")
+	require.Len(t, manager.Plugins(), 1)
+	assert.Equal(t, callouts.Manifest.Version, manager.Plugins()[0].Manifest.Version)
 }
 
 // TestAdminPluginManualCatalogRefresh supports plugin administration regression coverage.

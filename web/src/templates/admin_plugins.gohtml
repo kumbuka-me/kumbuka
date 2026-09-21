@@ -71,6 +71,22 @@
             <form method="post" action="/admin/plugins/check-updates">
               <button class="button compact" type="submit">Check for updates</button>
             </form>
+            {{ if gt (len .PluginUpdates) 0 }}
+              <form method="post"
+                    action="/admin/plugins/all/update"
+                    data-plugin-update
+                    data-plugin-update-pending="Updating plugins…">
+                <button class="button compact primary"
+                        type="submit"
+                        data-plugin-update-submit>
+                  <span class="plugin-update-spinner"
+                        data-plugin-update-spinner
+                        aria-hidden="true"
+                        hidden></span>
+                  <span data-plugin-update-label>Update all ({{ len .PluginUpdates }})</span>
+                </button>
+              </form>
+            {{ end }}
           {{ end }}
         </div>
       </div>
