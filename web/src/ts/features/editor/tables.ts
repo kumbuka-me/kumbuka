@@ -38,10 +38,6 @@ export type MarkdownTable = {
   context: TableContext;
 };
 
-type TableTargetInput = HTMLInputElement & {
-  dataset: DOMStringMap & { tableTarget?: string };
-};
-
 function emptyDirective(): TableDirective {
   return {
     header: "",
@@ -506,22 +502,359 @@ function insertTable(
   textarea.dispatchEvent(new Event("input", { bubbles: true }));
 }
 
+type TableEditResult = { source: string; cursor: number };
+
+function formatTableRow(cells: string[]): string {
+  return `| ${cells.map((cell) => cell.trim()).join(" | ")} |`;
+}
+
+function sourceLineOffset(lines: string[], line: number): number {
+  let offset = 0;
+
+  for (let index = 0; index < line; index += 1)
+    offset += (lines[index]?.length ?? 0) + 1;
+
+  return offset;
+}
+
+function tableCellOffset(line: string, column: number): number {
+  const cells = cellParts(line).map((cell) => cell.trim());
+  const safeColumn = Math.max(1, Math.min(column, Math.max(1, cells.length)));
+  let offset = 2;
+
+  for (let index = 0; index < safeColumn - 1; index += 1)
+    offset += (cells[index]?.length ?? 0) + 3;
+
+  return offset;
+}
+
+function tableColumnCount(lines: string[], table: MarkdownTable): number {
+  return Math.max(1, cellParts(lines[table.headerLine] ?? "").length);
+}
+
+function removeDirectiveLine(lines: string[], table: MarkdownTable): void {
+  if (table.directiveLine >= 0) lines.splice(table.directiveLine, 1);
+}
+
+function insertDirectiveAfterTable(
+  lines: string[],
+  endLine: number,
+  directive: TableDirective,
+): void {
+  const serialized = serializeTableDirective(directive);
+  if (!serialized) return;
+
+  let insertAt = endLine + 1;
+  if ((lines[insertAt] ?? "").trim() === "") insertAt += 1;
+  else {
+    lines.splice(insertAt, 0, "");
+    insertAt += 1;
+  }
+
+  lines.splice(insertAt, 0, serialized);
+}
+
+function insertIndexedValue(
+  values: Record<string, string>,
+  at: number,
+): Record<string, string> {
+  const next: Record<string, string> = {};
+
+  for (const [key, value] of numericEntries(values)) {
+    const index = Number(key);
+    next[String(index >= at ? index + 1 : index)] = value;
+  }
+
+  return next;
+}
+
+function deleteIndexedValue(
+  values: Record<string, string>,
+  at: number,
+): Record<string, string> {
+  const next: Record<string, string> = {};
+
+  for (const [key, value] of numericEntries(values)) {
+    const index = Number(key);
+    if (index === at) continue;
+
+    next[String(index > at ? index - 1 : index)] = value;
+  }
+
+  return next;
+}
+
+function remapCells(
+  values: Record<string, string>,
+  mapRow: (row: number) => number | null,
+  mapColumn: (column: number) => number | null,
+): Record<string, string> {
+  const next: Record<string, string> = {};
+
+  for (const [cell, tone] of cellEntries(values)) {
+    const [row = 0, column = 0] = cell.split(",").map(Number);
+    const nextRow = mapRow(row);
+    const nextColumn = mapColumn(column);
+    if (nextRow === null || nextColumn === null) continue;
+
+    next[`${nextRow},${nextColumn}`] = tone;
+  }
+
+  return next;
+}
+
+function cursorForCell(lines: string[], line: number, column: number): number {
+  if (line < 0 || line >= lines.length) return 0;
+
+  return (
+    sourceLineOffset(lines, line) + tableCellOffset(lines[line] ?? "", column)
+  );
+}
+
+// Inserts an empty body row and shifts row/cell formatting with it.
+export function insertMarkdownTableRow(
+  source: string,
+  table: MarkdownTable,
+  row: number,
+  after: boolean,
+): TableEditResult {
+  const lines = source.split("\n");
+  const bodyRows = Math.max(0, table.endLine - table.separatorLine);
+  const columns = tableColumnCount(lines, table);
+  const anchor = bodyRows > 0 ? Math.max(1, Math.min(row, bodyRows)) : 1;
+  const insertRow = bodyRows === 0 ? 1 : anchor + (after ? 1 : 0);
+  const insertLine = table.separatorLine + insertRow;
+  const directive = cloneDirective(table.directive);
+
+  removeDirectiveLine(lines, table);
+  lines.splice(insertLine, 0, formatTableRow(Array(columns).fill("")));
+
+  directive.rows = insertIndexedValue(directive.rows, insertRow);
+  directive.cells = remapCells(
+    directive.cells,
+    (value) => (value >= insertRow ? value + 1 : value),
+    (value) => value,
+  );
+
+  const endLine = table.endLine + 1;
+  insertDirectiveAfterTable(lines, endLine, directive);
+
+  return {
+    source: lines.join("\n"),
+    cursor: cursorForCell(lines, insertLine, 1),
+  };
+}
+
+// Deletes one body row and compacts row/cell formatting coordinates.
+export function deleteMarkdownTableRow(
+  source: string,
+  table: MarkdownTable,
+  row: number,
+): TableEditResult {
+  const lines = source.split("\n");
+  const bodyRows = Math.max(0, table.endLine - table.separatorLine);
+  if (row < 1 || row > bodyRows)
+    return { source, cursor: cursorForCell(lines, table.headerLine, 1) };
+
+  const columns = tableColumnCount(lines, table);
+  const deleteLine = table.separatorLine + row;
+  const directive = cloneDirective(table.directive);
+
+  removeDirectiveLine(lines, table);
+  lines.splice(deleteLine, 1);
+
+  directive.rows = deleteIndexedValue(directive.rows, row);
+  directive.cells = remapCells(
+    directive.cells,
+    (value) => (value === row ? null : value > row ? value - 1 : value),
+    (value) => value,
+  );
+
+  const endLine = table.endLine - 1;
+  insertDirectiveAfterTable(lines, endLine, directive);
+
+  const remainingRows = bodyRows - 1;
+  const targetLine =
+    remainingRows > 0
+      ? table.separatorLine + Math.min(row, remainingRows)
+      : table.headerLine;
+
+  return {
+    source: lines.join("\n"),
+    cursor: cursorForCell(
+      lines,
+      targetLine,
+      Math.min(table.context.column, columns),
+    ),
+  };
+}
+
+// Inserts a column and shifts column/cell formatting with it.
+export function insertMarkdownTableColumn(
+  source: string,
+  table: MarkdownTable,
+  column: number,
+  after: boolean,
+): TableEditResult {
+  const lines = source.split("\n");
+  const columns = tableColumnCount(lines, table);
+  const anchor = Math.max(1, Math.min(column, columns));
+  const insertColumn = anchor + (after ? 1 : 0);
+  const directive = cloneDirective(table.directive);
+
+  removeDirectiveLine(lines, table);
+
+  for (let line = table.headerLine; line <= table.endLine; line += 1) {
+    const cells = cellParts(lines[line] ?? "");
+    while (cells.length < columns) cells.push("");
+
+    cells.splice(
+      insertColumn - 1,
+      0,
+      line === table.separatorLine ? "---" : "",
+    );
+    lines[line] = formatTableRow(cells);
+  }
+
+  directive.columns = insertIndexedValue(directive.columns, insertColumn);
+  directive.cells = remapCells(
+    directive.cells,
+    (value) => value,
+    (value) => (value >= insertColumn ? value + 1 : value),
+  );
+  insertDirectiveAfterTable(lines, table.endLine, directive);
+
+  const targetLine =
+    table.context.kind === "body"
+      ? table.separatorLine + table.context.row
+      : table.headerLine;
+
+  return {
+    source: lines.join("\n"),
+    cursor: cursorForCell(lines, targetLine, insertColumn),
+  };
+}
+
+// Deletes a column and compacts column/cell formatting coordinates.
+export function deleteMarkdownTableColumn(
+  source: string,
+  table: MarkdownTable,
+  column: number,
+): TableEditResult {
+  const lines = source.split("\n");
+  const columns = tableColumnCount(lines, table);
+  if (columns <= 1)
+    return { source, cursor: cursorForCell(lines, table.headerLine, 1) };
+
+  const deleteColumn = Math.max(1, Math.min(column, columns));
+  const directive = cloneDirective(table.directive);
+
+  removeDirectiveLine(lines, table);
+
+  for (let line = table.headerLine; line <= table.endLine; line += 1) {
+    const cells = cellParts(lines[line] ?? "");
+    while (cells.length < columns) cells.push("");
+
+    cells.splice(deleteColumn - 1, 1);
+    lines[line] = formatTableRow(cells);
+  }
+
+  directive.columns = deleteIndexedValue(directive.columns, deleteColumn);
+  directive.cells = remapCells(
+    directive.cells,
+    (value) => value,
+    (value) =>
+      value === deleteColumn ? null : value > deleteColumn ? value - 1 : value,
+  );
+  insertDirectiveAfterTable(lines, table.endLine, directive);
+
+  const targetLine =
+    table.context.kind === "body"
+      ? table.separatorLine + table.context.row
+      : table.headerLine;
+  const targetColumn = Math.min(deleteColumn, columns - 1);
+
+  return {
+    source: lines.join("\n"),
+    cursor: cursorForCell(lines, targetLine, targetColumn),
+  };
+}
+
+// Clears the current header/body cell without changing table structure.
+export function clearMarkdownTableCell(
+  source: string,
+  table: MarkdownTable,
+): TableEditResult {
+  const lines = source.split("\n");
+  const { kind, row, column } = table.context;
+  const targetLine =
+    kind === "header"
+      ? table.headerLine
+      : kind === "body"
+        ? table.separatorLine + row
+        : -1;
+  if (targetLine < 0) return { source, cursor: 0 };
+
+  const cells = cellParts(lines[targetLine] ?? "");
+  if (column < 1 || column > cells.length)
+    return { source, cursor: cursorForCell(lines, targetLine, 1) };
+
+  cells[column - 1] = "";
+  lines[targetLine] = formatTableRow(cells);
+
+  return {
+    source: lines.join("\n"),
+    cursor: cursorForCell(lines, targetLine, column),
+  };
+}
+
+// Removes the complete table and its optional formatting directive.
+export function deleteMarkdownTable(
+  source: string,
+  table: MarkdownTable,
+): TableEditResult {
+  const lines = source.split("\n");
+  const endLine =
+    table.directiveLine >= 0 ? table.directiveLine : table.endLine;
+
+  lines.splice(table.headerLine, endLine - table.headerLine + 1);
+
+  if (
+    table.headerLine > 0 &&
+    table.headerLine < lines.length &&
+    (lines[table.headerLine - 1] ?? "").trim() === "" &&
+    (lines[table.headerLine] ?? "").trim() === ""
+  )
+    lines.splice(table.headerLine, 1);
+
+  const cursor =
+    table.headerLine < lines.length
+      ? sourceLineOffset(lines, table.headerLine)
+      : lines.join("\n").length;
+
+  return { source: lines.join("\n"), cursor };
+}
+
+function directiveTarget(table: MarkdownTable, target: string): string | null {
+  const { kind, row, column } = table.context;
+
+  if (target === "header") return "header";
+  if (target === "row" && kind === "body") return `row:${row}`;
+  if (target === "column" && (kind === "header" || kind === "body"))
+    return `col:${column}`;
+  if (target === "cell" && kind === "body") return `cell:${row},${column}`;
+
+  return null;
+}
+
 function setupTablePalette(toolbar: HTMLElement): void {
   const editor = requiredElement<HTMLTextAreaElement>(
     document,
     "[data-markdown-editor]",
   );
-  const tableDialog = requiredElement<HTMLDialogElement>(
-    document,
-    "[data-table-format-dialog]",
-  );
   const open = requiredElement<HTMLButtonElement>(
     toolbar,
     "[data-table-format-open]",
-  );
-  const existing = requiredElement<HTMLElement>(
-    tableDialog,
-    "[data-table-format-existing]",
   );
   const insertOwner = requiredElement<HTMLElement>(
     toolbar,
@@ -531,30 +864,6 @@ function setupTablePalette(toolbar: HTMLElement): void {
     insertOwner,
     "[data-table-insert-popover]",
   );
-  const tableContext = requiredElement<HTMLElement>(
-    tableDialog,
-    "[data-table-format-context]",
-  );
-  const targetInputs = requiredElements<TableTargetInput>(
-    tableDialog,
-    '[name="table-format-target"]',
-  );
-  const toneInputs = requiredElements<HTMLInputElement>(
-    tableDialog,
-    '[name="table-format-tone"]',
-  );
-  const sortableControl = requiredElement<HTMLInputElement>(
-    tableDialog,
-    "[data-table-format-sortable]",
-  );
-  const filterableControl = requiredElement<HTMLInputElement>(
-    tableDialog,
-    "[data-table-format-filterable]",
-  );
-  const clearButton = requiredElement<HTMLButtonElement>(
-    tableDialog,
-    "[data-table-format-clear]",
-  );
   const insertGrid = requiredElement<HTMLElement>(
     insertPopover,
     "[data-table-insert-grid]",
@@ -563,9 +872,37 @@ function setupTablePalette(toolbar: HTMLElement): void {
     insertPopover,
     "[data-table-insert-size]",
   );
-  const closeButtons = requiredElements<HTMLButtonElement>(
-    tableDialog,
-    "[data-table-format-close]",
+  const contextToolbar = requiredElement<HTMLElement>(
+    document,
+    "[data-table-context-toolbar]",
+  );
+  const contextLabel = requiredElement<HTMLElement>(
+    contextToolbar,
+    "[data-table-context-label]",
+  );
+  const actionButtons = requiredElements<HTMLButtonElement>(
+    contextToolbar,
+    "[data-table-action]",
+  );
+  const colorTarget = requiredElement<HTMLSelectElement>(
+    contextToolbar,
+    "[data-table-color-target]",
+  );
+  const toneButtons = requiredElements<HTMLButtonElement>(
+    contextToolbar,
+    "[data-table-tone]",
+  );
+  const sortableControl = requiredElement<HTMLInputElement>(
+    contextToolbar,
+    "[data-table-format-sortable]",
+  );
+  const filterableControl = requiredElement<HTMLInputElement>(
+    contextToolbar,
+    "[data-table-format-filterable]",
+  );
+  const moreMenu = requiredElement<HTMLDetailsElement>(
+    contextToolbar,
+    "[data-table-context-more]",
   );
   let currentTable: MarkdownTable | null = null;
   let selectedRows = 3;
@@ -614,6 +951,7 @@ function setupTablePalette(toolbar: HTMLElement): void {
         cell.addEventListener("click", () => {
           closeInsertPopover();
           insertTable(editor, rows, columns);
+          refreshContext();
         });
         fragment.append(cell);
       }
@@ -621,100 +959,6 @@ function setupTablePalette(toolbar: HTMLElement): void {
 
     insertGrid.replaceChildren(fragment);
     syncInsertGrid(selectedRows, selectedColumns);
-  }
-
-  function selectedTarget(): string {
-    return (
-      targetInputs.find((input) => input.checked && !input.disabled)?.value ||
-      "header"
-    );
-  }
-
-  function syncTone(directive: TableDirective): void {
-    const tone = directiveTone(directive, selectedTarget());
-    for (const input of toneInputs) input.checked = input.value === tone;
-  }
-
-  function setTarget(
-    input: TableTargetInput | undefined,
-    value: string,
-    label: string,
-    enabled: boolean,
-  ): void {
-    if (!input) return;
-
-    input.value = value;
-    input.disabled = !enabled;
-
-    const targetName = input.dataset.tableTarget;
-    const text = targetName
-      ? tableDialog.querySelector<HTMLElement>(
-          `[data-table-target-label="${targetName}"]`,
-        )
-      : null;
-
-    if (text) text.textContent = label;
-  }
-
-  function refresh(preferredTarget = ""): void {
-    currentTable = findMarkdownTable(editor.value, editor.selectionStart ?? 0);
-    existing.hidden = !currentTable;
-    if (!currentTable) return;
-
-    const { kind, row, column } = currentTable.context;
-
-    if (kind === "header")
-      tableContext.textContent = `Header · column ${column}`;
-    else if (kind === "body")
-      tableContext.textContent = `Body row ${row} · column ${column}`;
-    else tableContext.textContent = "Table options";
-
-    const byKind = Object.fromEntries(
-      targetInputs.map((input) => [input.dataset.tableTarget || "", input]),
-    ) as Record<string, TableTargetInput>;
-
-    setTarget(byKind.header, "header", "Header", true);
-    setTarget(byKind.row, `row:${row}`, `Row ${row}`, kind === "body");
-    setTarget(
-      byKind.column,
-      `col:${column}`,
-      `Column ${column}`,
-      kind !== "separator",
-    );
-    setTarget(
-      byKind.cell,
-      `cell:${row},${column}`,
-      `Cell ${row},${column}`,
-      kind === "body",
-    );
-
-    const desired =
-      preferredTarget || (kind === "body" ? `cell:${row},${column}` : "header");
-    let selected = targetInputs.find(
-      (input) => !input.disabled && input.value === desired,
-    );
-
-    selected ||= targetInputs.find((input) => !input.disabled);
-
-    if (selected) selected.checked = true;
-
-    sortableControl.checked = currentTable.directive.sortable;
-    filterableControl.checked = currentTable.directive.filterable;
-    syncTone(currentTable.directive);
-  }
-
-  function writeDirective(nextDirective: TableDirective): void {
-    if (!currentTable) return;
-
-    const cursor = editor.selectionStart ?? 0;
-    const nextValue = rewriteTableDirectiveSource(
-      editor.value,
-      currentTable,
-      nextDirective,
-    );
-
-    replaceTextarea(editor, nextValue, cursor);
-    refresh(selectedTarget());
   }
 
   function closeInsertPopover(): void {
@@ -728,11 +972,113 @@ function setupTablePalette(toolbar: HTMLElement): void {
     open.setAttribute("aria-expanded", "true");
   }
 
+  function selectedDirectiveTarget(): string | null {
+    return currentTable
+      ? directiveTarget(currentTable, colorTarget.value)
+      : null;
+  }
+
+  function syncTone(): void {
+    const target = selectedDirectiveTarget();
+    const tone =
+      currentTable && target
+        ? directiveTone(currentTable.directive, target)
+        : "";
+
+    for (const button of toneButtons) {
+      const active = (button.dataset.tableTone ?? "") === tone;
+      button.classList.toggle("active", active);
+      button.setAttribute("aria-pressed", String(active));
+    }
+  }
+
+  function syncColorTarget(): void {
+    if (!currentTable) return;
+
+    const { kind } = currentTable.context;
+    const enabled = new Set<string>(["header"]);
+    if (kind === "header" || kind === "body") enabled.add("column");
+    if (kind === "body") {
+      enabled.add("cell");
+      enabled.add("row");
+    }
+
+    for (const option of colorTarget.options)
+      option.disabled = !enabled.has(option.value);
+
+    if (!enabled.has(colorTarget.value))
+      colorTarget.value = kind === "body" ? "cell" : "header";
+
+    syncTone();
+  }
+
+  function refreshContext(): void {
+    currentTable = findMarkdownTable(editor.value, editor.selectionStart ?? 0);
+    const kind = currentTable?.context.kind;
+    const visible =
+      currentTable !== null &&
+      (kind === "header" || kind === "separator" || kind === "body");
+
+    contextToolbar.hidden = !visible;
+    if (!visible || !currentTable) return;
+
+    const { row, column } = currentTable.context;
+    if (kind === "header")
+      contextLabel.textContent = `Table · Header · Column ${column}`;
+    else if (kind === "body")
+      contextLabel.textContent = `Table · Row ${row} · Column ${column}`;
+    else contextLabel.textContent = "Table · Separator";
+
+    const lines = editor.value.split("\n");
+    const columns = tableColumnCount(lines, currentTable);
+    const onBody = kind === "body";
+    const onCell = kind === "body" || kind === "header";
+
+    for (const button of actionButtons) {
+      const action = button.dataset.tableAction;
+      if (action === "insert-row-above" || action === "insert-row-below")
+        button.disabled = !onBody;
+      else if (action === "delete-row") button.disabled = !onBody;
+      else if (
+        action === "insert-column-left" ||
+        action === "insert-column-right"
+      )
+        button.disabled = !onCell;
+      else if (action === "delete-column")
+        button.disabled = !onCell || columns <= 1;
+      else if (action === "clear-cell") button.disabled = !onCell;
+    }
+
+    sortableControl.checked = currentTable.directive.sortable;
+    filterableControl.checked = currentTable.directive.filterable;
+    syncColorTarget();
+  }
+
+  function writeDirective(nextDirective: TableDirective): void {
+    if (!currentTable) return;
+
+    const cursor = editor.selectionStart ?? 0;
+    const nextValue = rewriteTableDirectiveSource(
+      editor.value,
+      currentTable,
+      nextDirective,
+    );
+
+    replaceTextarea(editor, nextValue, cursor);
+    editor.focus();
+    refreshContext();
+  }
+
+  function applyTableEdit(result: TableEditResult): void {
+    replaceTextarea(editor, result.source, result.cursor);
+    editor.focus();
+    refreshContext();
+  }
+
   open.addEventListener("click", () => {
-    refresh();
-    if (currentTable) {
+    refreshContext();
+    if (!contextToolbar.hidden) {
       closeInsertPopover();
-      tableDialog.showModal();
       return;
     }
 
@@ -740,37 +1086,24 @@ function setupTablePalette(toolbar: HTMLElement): void {
     else closeInsertPopover();
   });
 
-  document.addEventListener("click", (event) => {
-    const target = event.target;
-    if (!(target instanceof Node) || insertOwner.contains(target)) return;
+  for (const eventName of ["input", "keyup", "click", "select", "focus"])
+    editor.addEventListener(eventName, refreshContext);
 
-    closeInsertPopover();
-  });
+  colorTarget.addEventListener("change", syncTone);
 
-  document.addEventListener("keydown", (event) => {
-    if (event.key !== "Escape" || insertPopover.hidden) return;
+  for (const button of toneButtons)
+    button.addEventListener("click", () => {
+      if (!currentTable || button.disabled) return;
 
-    event.preventDefault();
-    closeInsertPopover();
-    open.focus();
-  });
+      const target = selectedDirectiveTarget();
+      if (!target) return;
 
-  for (const button of closeButtons)
-    button.addEventListener("click", () => tableDialog.close());
-
-  tableDialog.addEventListener("click", (event) => {
-    if (event.target === tableDialog) tableDialog.close();
-  });
-
-  for (const input of targetInputs)
-    input.addEventListener("change", () => {
-      if (currentTable) syncTone(currentTable.directive);
-    });
-  for (const input of toneInputs)
-    input.addEventListener("change", () => {
-      if (!currentTable || input.disabled) return;
       writeDirective(
-        setDirectiveTone(currentTable.directive, selectedTarget(), input.value),
+        setDirectiveTone(
+          currentTable.directive,
+          target,
+          button.dataset.tableTone ?? "",
+        ),
       );
     });
 
@@ -778,26 +1111,104 @@ function setupTablePalette(toolbar: HTMLElement): void {
     if (!currentTable || sortableControl.disabled) return;
 
     const next = cloneDirective(currentTable.directive);
-
     next.sortable = sortableControl.checked;
     writeDirective(next);
   });
+
   filterableControl.addEventListener("change", () => {
     if (!currentTable || filterableControl.disabled) return;
 
     const next = cloneDirective(currentTable.directive);
-
     next.filterable = filterableControl.checked;
     writeDirective(next);
   });
-  clearButton.addEventListener("click", () => {
-    if (currentTable) writeDirective(emptyDirective());
+
+  for (const button of actionButtons)
+    button.addEventListener("click", () => {
+      if (!currentTable || button.disabled) return;
+
+      const { row, column } = currentTable.context;
+      switch (button.dataset.tableAction) {
+        case "insert-row-above":
+          applyTableEdit(
+            insertMarkdownTableRow(editor.value, currentTable, row, false),
+          );
+          break;
+        case "insert-row-below":
+          applyTableEdit(
+            insertMarkdownTableRow(editor.value, currentTable, row, true),
+          );
+          break;
+        case "delete-row":
+          applyTableEdit(
+            deleteMarkdownTableRow(editor.value, currentTable, row),
+          );
+          break;
+        case "insert-column-left":
+          applyTableEdit(
+            insertMarkdownTableColumn(
+              editor.value,
+              currentTable,
+              column,
+              false,
+            ),
+          );
+          break;
+        case "insert-column-right":
+          applyTableEdit(
+            insertMarkdownTableColumn(editor.value, currentTable, column, true),
+          );
+          break;
+        case "delete-column":
+          applyTableEdit(
+            deleteMarkdownTableColumn(editor.value, currentTable, column),
+          );
+          break;
+        case "clear-cell":
+          applyTableEdit(clearMarkdownTableCell(editor.value, currentTable));
+          break;
+        case "clear-colors": {
+          const next = cloneDirective(currentTable.directive);
+          next.header = "";
+          next.rows = {};
+          next.columns = {};
+          next.cells = {};
+          writeDirective(next);
+          moreMenu.open = false;
+          break;
+        }
+        case "delete-table":
+          applyTableEdit(deleteMarkdownTable(editor.value, currentTable));
+          moreMenu.open = false;
+          break;
+      }
+    });
+
+  document.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof Node)) return;
+
+    if (!insertOwner.contains(target)) closeInsertPopover();
+    if (!moreMenu.contains(target)) moreMenu.open = false;
   });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
+
+    if (!insertPopover.hidden) {
+      event.preventDefault();
+      closeInsertPopover();
+      open.focus();
+    }
+    moreMenu.open = false;
+  });
+
   insertGrid.addEventListener("mouseleave", () =>
     syncInsertGrid(selectedRows, selectedColumns),
   );
 
   buildInsertGrid();
+  refreshContext();
 }
 
 // Initializes table palette.

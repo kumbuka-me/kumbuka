@@ -3,7 +3,13 @@ import assert from "node:assert/strict";
 
 import {
   buildMarkdownTable,
+  clearMarkdownTableCell,
+  deleteMarkdownTable,
+  deleteMarkdownTableColumn,
+  deleteMarkdownTableRow,
   findMarkdownTable,
+  insertMarkdownTableColumn,
+  insertMarkdownTableRow,
   parseTableDirective,
   rewriteTableDirectiveSource,
   serializeTableDirective,
@@ -103,6 +109,155 @@ test("table insertion builds the selected Confluence-style grid size", () => {
       "| --- | --- | --- |",
       "|  |  |  |",
       "|  |  |  |",
+    ].join("\n"),
+  );
+});
+
+test("row insertion shifts row and cell color directives", () => {
+  const source = [
+    "| Service | Status |",
+    "| --- | --- |",
+    "| API | Healthy |",
+    "| DB | Warning |",
+    "",
+    "{table row:2=yellow cell:2,2=red}",
+  ].join("\n");
+  const table = findMarkdownTable(source, source.indexOf("Healthy"));
+
+  assert.ok(table);
+
+  const result = insertMarkdownTableRow(source, table, 1, true);
+
+  assert.equal(
+    result.source,
+    [
+      "| Service | Status |",
+      "| --- | --- |",
+      "| API | Healthy |",
+      "|  |  |",
+      "| DB | Warning |",
+      "",
+      "{table row:3=yellow cell:3,2=red}",
+    ].join("\n"),
+  );
+});
+
+test("column deletion compacts column and cell color directives", () => {
+  const source = [
+    "| Service | Status | Owner |",
+    "| --- | --- | --- |",
+    "| API | Healthy | Platform |",
+    "",
+    "{table col:2=yellow col:3=blue cell:1,2=red cell:1,3=green}",
+  ].join("\n");
+  const table = findMarkdownTable(source, source.indexOf("Healthy"));
+
+  assert.ok(table);
+
+  const result = deleteMarkdownTableColumn(source, table, 2);
+
+  assert.equal(
+    result.source,
+    [
+      "| Service | Owner |",
+      "| --- | --- |",
+      "| API | Platform |",
+      "",
+      "{table col:2=blue cell:1,2=green}",
+    ].join("\n"),
+  );
+});
+
+test("clear cell keeps the table structure intact", () => {
+  const source = [
+    "| Service | Status |",
+    "| --- | --- |",
+    "| API | Healthy |",
+  ].join("\n");
+  const table = findMarkdownTable(source, source.indexOf("Healthy"));
+
+  assert.ok(table);
+
+  const result = clearMarkdownTableCell(source, table);
+
+  assert.equal(
+    result.source,
+    ["| Service | Status |", "| --- | --- |", "| API |  |"].join("\n"),
+  );
+});
+
+test("delete table removes its formatting directive and preserves surrounding text", () => {
+  const source = [
+    "Before",
+    "",
+    "| Service | Status |",
+    "| --- | --- |",
+    "| API | Healthy |",
+    "",
+    "{table header=blue sortable}",
+    "",
+    "After",
+  ].join("\n");
+  const table = findMarkdownTable(source, source.indexOf("Healthy"));
+
+  assert.ok(table);
+
+  const result = deleteMarkdownTable(source, table);
+
+  assert.equal(result.source, ["Before", "", "After"].join("\n"));
+});
+
+test("row deletion compacts row and cell color directives", () => {
+  const source = [
+    "| Service | Status |",
+    "| --- | --- |",
+    "| API | Healthy |",
+    "| DB | Warning |",
+    "| Cache | Healthy |",
+    "",
+    "{table row:2=yellow row:3=green cell:2,2=red cell:3,2=blue}",
+  ].join("\n");
+  const table = findMarkdownTable(source, source.indexOf("Warning"));
+
+  assert.ok(table);
+
+  const result = deleteMarkdownTableRow(source, table, 2);
+
+  assert.equal(
+    result.source,
+    [
+      "| Service | Status |",
+      "| --- | --- |",
+      "| API | Healthy |",
+      "| Cache | Healthy |",
+      "",
+      "{table row:2=green cell:2,2=blue}",
+    ].join("\n"),
+  );
+});
+
+test("column insertion shifts column and cell color directives", () => {
+  const source = [
+    "| Service | Owner |",
+    "| --- | --- |",
+    "| API | Platform |",
+    "",
+    "{table col:2=blue cell:1,2=green}",
+  ].join("\n");
+  const table = findMarkdownTable(source, source.indexOf("Service"));
+
+  assert.ok(table);
+
+  const result = insertMarkdownTableColumn(source, table, 1, true);
+
+  assert.equal(
+    result.source,
+    [
+      "| Service |  | Owner |",
+      "| --- | --- | --- |",
+      "| API |  | Platform |",
+      "",
+      "{table col:3=blue cell:1,3=green}",
     ].join("\n"),
   );
 });

@@ -489,6 +489,152 @@
               aria-label="Format complete document">{{ icon "wand-sparkles-lucide" 16 }}</button>
     </div>
   </div>
+  {{ if index .PluginFeatures "markdown-syntax.tables" }}
+    <div class="table-context-toolbar"
+         data-table-context-toolbar
+         aria-label="Table tools"
+         hidden>
+      <strong class="table-context-label" data-table-context-label>Table</strong>
+      <div class="table-context-group" aria-label="Rows">
+        <button type="button"
+                data-table-action="insert-row-above"
+                title="Insert row above">+ Row ↑</button>
+        <button type="button"
+                data-table-action="insert-row-below"
+                title="Insert row below">+ Row ↓</button>
+        <button type="button" data-table-action="delete-row" title="Delete row">Delete row</button>
+      </div>
+      <div class="table-context-group" aria-label="Columns">
+        <button type="button"
+                data-table-action="insert-column-left"
+                title="Insert column left">+ Col ←</button>
+        <button type="button"
+                data-table-action="insert-column-right"
+                title="Insert column right">+ Col →</button>
+        <button type="button" data-table-action="delete-column" title="Delete column">Delete col</button>
+      </div>
+      <div class="table-context-group">
+        <button type="button"
+                data-table-action="clear-cell"
+                title="Clear current cell">Clear cell</button>
+      </div>
+      <div class="table-context-color" data-table-color-controls>
+  <select data-table-color-target
+          aria-label="Color target"
+          {{ if index .PluginFeatures "markdown-syntax.tables.styles" }}
+          {{ else }}
+          disabled
+          {{ end }}>
+      <option value="cell">Cell</option>
+      <option value="row">Row</option>
+      <option value="column">Column</option>
+      <option value="header">Header</option>
+    </select>
+    <div class="table-context-swatches" role="group" aria-label="Table color">
+  <button type="button"
+          class="table-tone-button table-color-default"
+          data-table-tone=""
+          aria-label="Default color"
+          title="Default"
+          {{ if index .PluginFeatures "markdown-syntax.tables.styles" }}
+          {{ else }}
+          disabled
+          {{ end }}></button>
+  <button type="button"
+          class="table-tone-button table-color-gray"
+          data-table-tone="gray"
+          aria-label="Gray"
+          title="Gray"
+          {{ if index .PluginFeatures "markdown-syntax.tables.styles" }}
+          {{ else }}
+          disabled
+          {{ end }}></button>
+  <button type="button"
+          class="table-tone-button table-color-blue"
+          data-table-tone="blue"
+          aria-label="Blue"
+          title="Blue"
+          {{ if index .PluginFeatures "markdown-syntax.tables.styles" }}
+          {{ else }}
+          disabled
+          {{ end }}></button>
+  <button type="button"
+          class="table-tone-button table-color-purple"
+          data-table-tone="purple"
+          aria-label="Purple"
+          title="Purple"
+          {{ if index .PluginFeatures "markdown-syntax.tables.styles" }}
+          {{ else }}
+          disabled
+          {{ end }}></button>
+  <button type="button"
+          class="table-tone-button table-color-green"
+          data-table-tone="green"
+          aria-label="Green"
+          title="Green"
+          {{ if index .PluginFeatures "markdown-syntax.tables.styles" }}
+          {{ else }}
+          disabled
+          {{ end }}></button>
+  <button type="button"
+          class="table-tone-button table-color-yellow"
+          data-table-tone="yellow"
+          aria-label="Yellow"
+          title="Yellow"
+          {{ if index .PluginFeatures "markdown-syntax.tables.styles" }}
+          {{ else }}
+          disabled
+          {{ end }}></button>
+  <button type="button"
+          class="table-tone-button table-color-orange"
+          data-table-tone="orange"
+          aria-label="Orange"
+          title="Orange"
+          {{ if index .PluginFeatures "markdown-syntax.tables.styles" }}
+          {{ else }}
+          disabled
+          {{ end }}></button>
+  <button type="button"
+          class="table-tone-button table-color-red"
+          data-table-tone="red"
+          aria-label="Red"
+          title="Red"
+          {{ if index .PluginFeatures "markdown-syntax.tables.styles" }}
+          {{ else }}
+          disabled
+          {{ end }}></button>
+    </div>
+    </div>
+    <details class="table-context-more" data-table-context-more>
+      <summary aria-label="More table options" title="More table options">⋯</summary>
+      <div class="table-context-more-popover">
+        <label>
+          <span>Sortable</span>
+          <input type="checkbox"
+                 data-table-format-sortable
+                 {{ if index .PluginFeatures "markdown-syntax.tables.sorting" }}
+                 {{ else }}
+                 disabled
+                 {{ end }} />
+        </label>
+        <label>
+          <span>Filterable</span>
+          <input type="checkbox"
+                 data-table-format-filterable
+                 {{ if index .PluginFeatures "markdown-syntax.tables.filtering" }}
+                 {{ else }}
+                 disabled
+                 {{ end }} />
+        </label>
+        <button type="button"
+                data-table-action="clear-colors">{{ icon "eraser-lucide" 15 }}<span>Clear colors</span></button>
+        <button type="button"
+                class="table-context-danger"
+                data-table-action="delete-table">{{ icon "trash-2-lucide" 15 }}<span>Delete table</span></button>
+      </div>
+    </details>
+    </div>
+  {{ end }}
   <div class="editor-search-panel" data-editor-search hidden>
     <div class="editor-search-fields">
       <label>
@@ -582,149 +728,6 @@
   </div>
 </section>
 </form>
-<dialog class="app-dialog table-format-dialog"
-        data-table-format-dialog
-        aria-labelledby="table-format-title">
-  <div class="app-dialog-header">
-    <div>
-      <p class="eyebrow">Markdown table</p>
-      <h2 id="table-format-title">Table formatting</h2>
-    </div>
-    <button class="icon-button app-dialog-close"
-            type="button"
-            data-table-format-close
-            aria-label="Close table formatting">{{ icon "x-lucide" 20 }}</button>
-  </div>
-  <div class="table-format-body" data-table-format-existing hidden>
-    <div class="table-format-context">
-      <strong data-table-format-context>Table options</strong>
-      <span class="muted">Changes are written to the Markdown immediately.</span>
-    </div>
-    <fieldset class="table-format-section">
-      <legend>Interaction</legend>
-      <div class="table-format-toggles">
-        <label class="toggle-row compact">
-          <span><strong>Sortable</strong><small>Click column headers to sort rows.</small></span>
-          <input type="checkbox"
-                 data-table-format-sortable{{ if index .PluginFeatures "markdown-syntax.tables.sorting" }}
-                 {{ else }}
-                 disabled
-                 {{ end }} />
-        </label>
-        <label class="toggle-row compact">
-          <span><strong>Filterable</strong><small>Add a filter control to each column header.</small></span>
-          <input type="checkbox"
-                 data-table-format-filterable{{ if index .PluginFeatures "markdown-syntax.tables.filtering" }}
-                 {{ else }}
-                 disabled
-                 {{ end }} />
-        </label>
-      </div>
-      {{ if index .PluginFeatures "markdown-syntax.tables.sorting" }}
-      {{ else }}
-        <small class="muted">Table sorting is disabled in the Tables plugin settings.</small>
-      {{ end }}
-      {{ if index .PluginFeatures "markdown-syntax.tables.filtering" }}
-      {{ else }}
-        <small class="muted">Table filtering is disabled in the Tables plugin settings.</small>
-      {{ end }}
-    </fieldset>
-    <fieldset class="table-format-section">
-      <legend>Apply color to</legend>
-      <div class="table-format-targets">
-        <label>
-          <input type="radio"
-                 name="table-format-target"
-                 value="header"
-                 data-table-target="header" /><span data-table-target-label="header">Header</span>
-        </label>
-        <label>
-          <input type="radio"
-                 name="table-format-target"
-                 value="row:1"
-                 data-table-target="row" /><span data-table-target-label="row">Row 1</span>
-        </label>
-        <label>
-          <input type="radio"
-                 name="table-format-target"
-                 value="col:1"
-                 data-table-target="column" /><span data-table-target-label="column">Column 1</span>
-        </label>
-        <label>
-          <input type="radio"
-                 name="table-format-target"
-                 value="cell:1,1"
-                 data-table-target="cell" /><span data-table-target-label="cell">Cell 1,1</span>
-        </label>
-      </div>
-    </fieldset>
-  <fieldset class="table-format-section"
-            {{ if index .PluginFeatures "markdown-syntax.tables.styles" }}
-            {{ else }}
-            disabled
-            {{ end }}>
-    <legend>Color</legend>
-    <div class="table-format-palette"
-         role="radiogroup"
-         aria-label="Table color">
-      <label class="table-color-choice table-color-default" title="Default">
-        <input type="radio" name="table-format-tone" value="" aria-label="Default" />
-        <span></span>
-      </label>
-      <label class="table-color-choice table-color-gray" title="Gray">
-        <input type="radio" name="table-format-tone" value="gray" aria-label="Gray" />
-        <span></span>
-      </label>
-      <label class="table-color-choice table-color-blue" title="Blue">
-        <input type="radio" name="table-format-tone" value="blue" aria-label="Blue" />
-        <span></span>
-      </label>
-      <label class="table-color-choice table-color-purple" title="Purple">
-        <input type="radio"
-               name="table-format-tone"
-               value="purple"
-               aria-label="Purple" />
-        <span></span>
-      </label>
-      <label class="table-color-choice table-color-green" title="Green">
-        <input type="radio"
-               name="table-format-tone"
-               value="green"
-               aria-label="Green" />
-        <span></span>
-      </label>
-      <label class="table-color-choice table-color-yellow" title="Yellow">
-        <input type="radio"
-               name="table-format-tone"
-               value="yellow"
-               aria-label="Yellow" />
-        <span></span>
-      </label>
-      <label class="table-color-choice table-color-orange" title="Orange">
-        <input type="radio"
-               name="table-format-tone"
-               value="orange"
-               aria-label="Orange" />
-        <span></span>
-      </label>
-      <label class="table-color-choice table-color-red" title="Red">
-        <input type="radio" name="table-format-tone" value="red" aria-label="Red" />
-        <span></span>
-      </label>
-    </div>
-    {{ if index .PluginFeatures "markdown-syntax.tables.styles" }}
-    {{ else }}
-      <small class="muted">Table colors are disabled in the Tables plugin settings.</small>
-    {{ end }}
-    </fieldset>
-    <div class="app-dialog-actions table-format-actions">
-      <button class="button" type="button" data-table-format-clear>
-        {{ icon "eraser-lucide" 16 }}<span>Clear table options</span>
-      </button>
-      <button class="button primary" type="button" data-table-format-close>Done</button>
-    </div>
-  </div>
-</dialog>
 <dialog class="icon-picker-dialog"
         data-page-icon-picker-dialog
         data-icons-url="/api/icons"
