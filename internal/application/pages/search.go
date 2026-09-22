@@ -9,8 +9,8 @@ import (
 
 // searchRepository contains page listing, search, and tag discovery reads.
 type searchRepository interface {
-	ListPages(context.Context, int) ([]domain.Page, error)
-	Search(context.Context, string, int) ([]domain.Page, error)
+	ListPagesPage(context.Context, int, int) ([]domain.Page, error)
+	SearchPage(context.Context, string, int, int) ([]domain.Page, error)
 	TaggedPages(context.Context) ([]domain.Page, error)
 }
 
@@ -29,20 +29,14 @@ func NewSearch(repository searchRepository, access accessReader) *Search {
 
 // ListPagesFor returns only pages visible to the actor.
 func (q *Search) ListPagesFor(ctx context.Context, actor domain.User, limit int) ([]domain.Page, error) {
-	pages, err := q.repository.ListPages(ctx, limit)
-	if err != nil {
-		return nil, err
-	}
-	return q.access.FilterPages(ctx, actor, pages)
+	return visiblePageWindow(ctx, q.access, actor, limit, q.repository.ListPagesPage)
 }
 
 // SearchFor returns only search results visible to the actor.
 func (q *Search) SearchFor(ctx context.Context, actor domain.User, query string, limit int) ([]domain.Page, error) {
-	pages, err := q.repository.Search(ctx, query, limit)
-	if err != nil {
-		return nil, err
-	}
-	return q.access.FilterPages(ctx, actor, pages)
+	return visiblePageWindow(ctx, q.access, actor, limit, func(ctx context.Context, size, offset int) ([]domain.Page, error) {
+		return q.repository.SearchPage(ctx, query, size, offset)
+	})
 }
 
 // TagsFor returns tags attached to pages visible to the actor.

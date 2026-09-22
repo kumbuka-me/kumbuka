@@ -12,6 +12,7 @@ import (
 type reportRepository interface {
 	GetPage(context.Context, string) (domain.Page, error)
 	Search(context.Context, string, int) ([]domain.Page, error)
+	SearchPage(context.Context, string, int, int) ([]domain.Page, error)
 	Backlinks(context.Context, string) ([]domain.Page, error)
 	PageLinks(context.Context, string) ([]domain.PageLink, error)
 	LatestRevision(context.Context, string) (revision.Revision, int, error)
@@ -52,6 +53,11 @@ func (q *Reports) GetPage(ctx context.Context, slug string) (domain.Page, error)
 // Search returns raw report search results; actor-scoped callers use Accessible.
 func (q *Reports) Search(ctx context.Context, query string, limit int) ([]domain.Page, error) {
 	return q.repository.Search(ctx, query, limit)
+}
+
+// SearchPage returns one raw deterministic search window for actor-scoped filtering.
+func (q *Reports) SearchPage(ctx context.Context, query string, limit, offset int) ([]domain.Page, error) {
+	return q.repository.SearchPage(ctx, query, limit, offset)
 }
 
 // Backlinks returns pages linking to slug.

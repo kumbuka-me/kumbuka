@@ -32,11 +32,9 @@ func (c AccessibleCatalog) GetPage(ctx context.Context, slug string) (domain.Pag
 
 // Search returns only report pages visible to the current user.
 func (c AccessibleCatalog) Search(ctx context.Context, query string, limit int) ([]domain.Page, error) {
-	pages, err := c.catalog.Search(ctx, query, limit)
-	if err != nil {
-		return nil, err
-	}
-	return c.access.FilterPages(ctx, c.user, pages)
+	return visiblePageWindow(ctx, c.access, c.user, limit, func(ctx context.Context, size, offset int) ([]domain.Page, error) {
+		return c.catalog.SearchPage(ctx, query, size, offset)
+	})
 }
 
 // Backlinks returns only pages visible to the current user that link to slug.
@@ -214,7 +212,7 @@ func limitPages(pages []domain.Page, limit int) []domain.Page {
 // reportReader supplies the generic page search and include capabilities.
 type reportReader interface {
 	GetPage(context.Context, string) (domain.Page, error)
-	Search(context.Context, string, int) ([]domain.Page, error)
+	SearchPage(context.Context, string, int, int) ([]domain.Page, error)
 	Backlinks(context.Context, string) ([]domain.Page, error)
 	PageLinks(context.Context, string) ([]domain.PageLink, error)
 	LatestRevision(context.Context, string) (revision.Revision, int, error)
@@ -243,6 +241,47 @@ type draftReader interface {
 // NewAccessibleCatalog binds generic plugin capabilities to one authorized actor.
 func NewAccessibleCatalog(catalog reportReader, access accessReader, actor domain.User) AccessibleCatalog {
 	return AccessibleCatalog{catalog: catalog, access: access, user: actor}
+}
+
+const visiblePageWindowSize = 50
+
+// visiblePageWindow fills a bounded result set after access filtering without letting hidden rows consume the limit.
+func visiblePageWindow(
+	ctx context.Context,
+	access accessReader,
+	actor domain.User,
+	limit int,
+	fetch func(context.Context, int, int) ([]domain.Page, error),
+) ([]domain.Page, error) {
+	if limit <= 0 {
+		return nil, nil
+	}
+
+	result := make([]domain.Page, 0, limit)
+	offset := 0
+	for len(result) < limit {
+		windowSize := max(limit-len(result), visiblePageWindowSize)
+		pages, err := fetch(ctx, windowSize, offset)
+		if err != nil {
+			return nil, err
+		}
+		if len(pages) == 0 {
+			break
+		}
+
+		visible, err := access.FilterPages(ctx, actor, pages)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, visible...)
+		offset += len(pages)
+
+		if len(pages) < windowSize {
+			break
+		}
+	}
+
+	return limitPages(result, limit), nil
 }
 
 // visiblePaths performs one bulk access query and preserves the caller's collections.

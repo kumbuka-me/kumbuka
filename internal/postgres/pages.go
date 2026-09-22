@@ -129,14 +129,20 @@ WHERE id=$1 AND updated_at=$2`, pageID, updatedAt, render.HTML, json.RawMessage(
 
 // ListPages returns recently updated pages up to the requested limit.
 func (s *Store) ListPages(ctx context.Context, limit int) ([]domain.Page, error) {
+	return s.ListPagesPage(ctx, limit, 0)
+}
+
+// ListPagesPage returns one deterministic window of recently updated pages.
+func (s *Store) ListPagesPage(ctx context.Context, limit, offset int) ([]domain.Page, error) {
 	rows, err := s.pool.Query(
 		ctx,
 		pageSelect+`
 WHERE p.deleted_at IS NULL
 GROUP BY p.id,u.id
-ORDER BY p.updated_at DESC
-LIMIT $1`,
+ORDER BY p.updated_at DESC,p.id DESC
+LIMIT $1 OFFSET $2`,
 		limit,
+		offset,
 	)
 	if err != nil {
 		return nil, err

@@ -21,6 +21,11 @@ func isSearchFilter(key string) bool {
 
 // Search supports free text and field filters for taxonomy, ownership, lifecycle, and structured properties.
 func (s *Store) Search(ctx context.Context, query string, limit int) ([]domain.Page, error) {
+	return s.SearchPage(ctx, query, limit, 0)
+}
+
+// SearchPage returns one deterministic window of filtered search results.
+func (s *Store) SearchPage(ctx context.Context, query string, limit, offset int) ([]domain.Page, error) {
 	var textTerms []string
 	filters := map[string][]string{}
 
@@ -94,6 +99,7 @@ func (s *Store) Search(ctx context.Context, query string, limit int) ([]domain.P
 	}
 
 	limitParam := args.add(limit)
+	offsetParam := args.add(offset)
 	sql := `
 SELECT p.id,p.slug,p.title,coalesce(max(ni.icon),''),p.markdown_content,coalesce(p.created_by,0),coalesce(p.updated_by,0),coalesce(u.display_name,u.username,''),p.created_at,p.updated_at,p.view_count,coalesce(array_agg(t.name ORDER BY t.name) FILTER (WHERE t.name IS NOT NULL),'{}'),p.status,` + rank + `
 FROM pages p
@@ -103,8 +109,8 @@ LEFT JOIN page_tags pt ON pt.page_id=p.id
 LEFT JOIN tags t ON t.id=pt.tag_id
 WHERE ` + strings.Join(where, " AND ") + `
 GROUP BY p.id,u.id
-ORDER BY ` + rank + ` DESC,p.updated_at DESC
-LIMIT ` + limitParam
+ORDER BY ` + rank + ` DESC,p.updated_at DESC,p.id DESC
+LIMIT ` + limitParam + ` OFFSET ` + offsetParam
 	rows, err := s.pool.Query(ctx, sql, args...)
 	if err != nil {
 		return nil, err
