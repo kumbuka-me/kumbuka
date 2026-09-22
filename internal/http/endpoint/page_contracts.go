@@ -99,9 +99,9 @@ type pageTagService interface {
 	Tags(context.Context) ([]string, error)
 }
 
-// pageAliasService lists aliases used by editor catalog endpoints.
+// pageAliasService lists actor-visible aliases used by editor catalog endpoints.
 type pageAliasService interface {
-	PageAliases(context.Context) (map[string]string, error)
+	PageAliasesFor(context.Context, domain.User) (map[string]string, error)
 }
 
 // pageInventoryService supplies the unfiltered administrator page inventory.

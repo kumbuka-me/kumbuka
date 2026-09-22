@@ -53,7 +53,9 @@ func (emptyContractServices) SearchUsers(context.Context, string, int) ([]domain
 
 func (emptyContractServices) NavigationPages(context.Context) ([]domain.Page, error) { return nil, nil }
 
-func (emptyContractServices) PageAliases(context.Context) (map[string]string, error) { return nil, nil }
+func (emptyContractServices) PageAliasesFor(context.Context, domain.User) (map[string]string, error) {
+	return nil, nil
+}
 
 func (emptyContractServices) KnowledgeGraph(context.Context, int) (domain.KnowledgeGraph, error) {
 	return domain.KnowledgeGraph{}, nil

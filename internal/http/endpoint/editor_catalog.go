@@ -25,7 +25,8 @@ func EditorCatalog(
 	}
 
 	return func(w http.ResponseWriter, r *http.Request) {
-		pages, err := navigationUseCases.NavigationPages(r.Context())
+		actor := currentUser(r)
+		pages, err := navigationUseCases.VisiblePages(r.Context(), actor)
 		if err != nil {
 			httpresponse.InternalServerError(logger, w, err)
 			return
@@ -49,7 +50,7 @@ func EditorCatalog(
 			}
 
 			completionProviders = plugins.EditorCompletionProviders()
-			canCreateResources := currentUser(r).Role == domain.UserRoleAdmin
+			canCreateResources := actor.Role == domain.UserRoleAdmin
 			for index := range completionProviders {
 				completionProviders[index].CanCreate = completionProviders[index].CanCreate && canCreateResources
 				if !completionProviders[index].CanCreate {
@@ -64,7 +65,7 @@ func EditorCatalog(
 			widgets, widgetProblems = plugins.EditorWidgets()
 		}
 
-		aliases, err := catalogUseCases.PageAliases(r.Context())
+		aliases, err := catalogUseCases.PageAliasesFor(r.Context(), actor)
 		if err != nil {
 			httpresponse.InternalServerError(logger, w, err)
 			return
