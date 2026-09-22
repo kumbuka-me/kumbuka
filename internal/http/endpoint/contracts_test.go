@@ -38,7 +38,7 @@ func (emptyContractServices) SearchFor(context.Context, domain.User, string, int
 	return nil, nil
 }
 
-func (emptyContractServices) Tags(context.Context) ([]string, error) { return nil, nil }
+func (emptyContractServices) TagsFor(context.Context, domain.User) ([]string, error) { return nil, nil }
 func (emptyContractServices) AssignableGroups(context.Context, domain.User) ([]domain.Group, error) {
 	return nil, nil
 }

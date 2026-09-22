@@ -23,10 +23,10 @@ func SearchAPI(catalogUseCases visiblePageSearchService, logger *slog.Logger) ht
 	}
 }
 
-// Tags returns all known tags as JSON.
+// Tags returns tags from pages visible to the current actor as JSON.
 func Tags(catalogUseCases pageTagService, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tags, err := catalogUseCases.Tags(r.Context())
+		tags, err := catalogUseCases.TagsFor(r.Context(), currentUser(r))
 		if err != nil {
 			httpresponse.InternalServerError(logger, w, err)
 			return

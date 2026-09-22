@@ -94,9 +94,9 @@ type pagePresenceService interface {
 	LeavePageEditor(context.Context, string, domain.User) error
 }
 
-// pageTagService lists tags exposed through the page API.
+// pageTagService lists actor-visible tags exposed through the page API.
 type pageTagService interface {
-	Tags(context.Context) ([]string, error)
+	TagsFor(context.Context, domain.User) ([]string, error)
 }
 
 // pageAliasService lists actor-visible aliases used by editor catalog endpoints.

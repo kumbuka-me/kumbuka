@@ -892,28 +892,30 @@ ORDER BY h.revision_number DESC`
 	return revisions, rows.Err()
 }
 
-// Tags returns all known tags as JSON.
-func (s *Store) Tags(ctx context.Context) ([]string, error) {
+// TaggedPages returns page slugs and tags for access-aware tag discovery.
+func (s *Store) TaggedPages(ctx context.Context) ([]domain.Page, error) {
 	rows, err := s.pool.Query(ctx, `
-SELECT name
-FROM tags
-ORDER BY name`)
+SELECT p.slug,array_agg(t.name ORDER BY t.name)
+FROM pages p
+JOIN page_tags pt ON pt.page_id=p.id
+JOIN tags t ON t.id=pt.tag_id
+WHERE p.deleted_at IS NULL
+GROUP BY p.id
+ORDER BY p.slug`)
 	if err != nil {
 		return nil, err
 	}
 
 	defer rows.Close()
 
-	var out []string
-
+	var pages []domain.Page
 	for rows.Next() {
-		var v string
-		if err := rows.Scan(&v); err != nil {
+		var page domain.Page
+		if err := rows.Scan(&page.Slug, &page.Tags); err != nil {
 			return nil, err
 		}
-
-		out = append(out, v)
+		pages = append(pages, page)
 	}
 
-	return out, rows.Err()
+	return pages, rows.Err()
 }

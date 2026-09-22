@@ -2,6 +2,7 @@ package pages
 
 import (
 	"context"
+	"slices"
 
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
@@ -10,7 +11,7 @@ import (
 type searchRepository interface {
 	ListPages(context.Context, int) ([]domain.Page, error)
 	Search(context.Context, string, int) ([]domain.Page, error)
-	Tags(context.Context) ([]string, error)
+	TaggedPages(context.Context) ([]domain.Page, error)
 }
 
 // Search owns actor-filtered page discovery queries.
@@ -44,7 +45,29 @@ func (q *Search) SearchFor(ctx context.Context, actor domain.User, query string,
 	return q.access.FilterPages(ctx, actor, pages)
 }
 
-// Tags returns all known page tags.
-func (q *Search) Tags(ctx context.Context) ([]string, error) {
-	return q.repository.Tags(ctx)
+// TagsFor returns tags attached to pages visible to the actor.
+func (q *Search) TagsFor(ctx context.Context, actor domain.User) ([]string, error) {
+	pages, err := q.repository.TaggedPages(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	pages, err = q.access.FilterPages(ctx, actor, pages)
+	if err != nil {
+		return nil, err
+	}
+
+	set := make(map[string]struct{})
+	for _, page := range pages {
+		for _, tag := range page.Tags {
+			set[tag] = struct{}{}
+		}
+	}
+
+	tags := make([]string, 0, len(set))
+	for tag := range set {
+		tags = append(tags, tag)
+	}
+	slices.Sort(tags)
+	return tags, nil
 }
