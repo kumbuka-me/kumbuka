@@ -711,16 +711,17 @@ function setupEditorExperience(form: HTMLFormElement): void {
 
 export function preferredEditorMode(): EditorMode {
   try {
-    const mode = localStorage.getItem(editorModeStorageKey);
-    return mode === "split" ? "split" : "write";
+    return localStorage.getItem(editorModeStorageKey) === "visual"
+      ? "visual"
+      : "write";
   } catch {
     return "write";
   }
 }
 
 export function rememberEditorMode(mode: EditorMode): void {
-  // Preview is temporary; reopening the editor must keep the source visible.
-  if (mode === "preview") return;
+  // Split preview is a temporary Markdown aid, not a primary editor mode.
+  if (mode === "split") return;
 
   try {
     localStorage.setItem(editorModeStorageKey, mode);

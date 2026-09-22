@@ -108,7 +108,14 @@ func (m *Manager) prepare(ctx context.Context, pkg *pluginpackage.Package, archi
 		return managedPlugin{}, err
 	}
 
-	item := managedPlugin{metadata: LoadedPlugin{Manifest: pkg.Manifest(), README: pkg.README(), Settings: settings, Source: source, Digest: pkg.Digest(), Enabled: enabled}, archive: append([]byte(nil), archive...), instance: instance}
+	editorWidgets, editorWidgetProblem := editorWidgetsFromPackage(pkg)
+	item := managedPlugin{
+		metadata:            LoadedPlugin{Manifest: pkg.Manifest(), README: pkg.README(), Settings: settings, Source: source, Digest: pkg.Digest(), Enabled: enabled},
+		archive:             append([]byte(nil), archive...),
+		editorWidgets:       editorWidgets,
+		editorWidgetProblem: editorWidgetProblem,
+		instance:            instance,
+	}
 	if !enabled {
 		if err := instance.Close(ctx); err != nil {
 			return managedPlugin{}, err

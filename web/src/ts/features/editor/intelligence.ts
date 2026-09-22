@@ -1,11 +1,12 @@
 import { slugifyPagePath as editorSlug } from "../../core/slug.ts";
 // Editor diagnostics, outline, and metadata assistance.
 
-import { requestJSON } from "../../core/http.ts";
-import { parseEditorCatalog, type EditorCatalog } from "./catalog.ts";
+import {
+  loadEditorCatalog,
+  parseEditorCatalog,
+  type EditorCatalog,
+} from "./catalog.ts";
 import type { DraftValues } from "./events.ts";
-
-const catalogURL = "/api/editor/catalog";
 
 type MarkdownHeading = { level: number; title: string; offset: number };
 type SourceRange = { start: number; end: number };
@@ -318,6 +319,8 @@ function setupIntelligence(form: HTMLFormElement): void {
     aliases: {},
     completions: [],
     inserts: [],
+    widgets: [],
+    widget_problems: [],
   };
   let diagnostics: Diagnostic[] = [];
   let activeTab: "problems" | "outline" = "problems";
@@ -496,9 +499,9 @@ function setupIntelligence(form: HTMLFormElement): void {
       selectTab("problems");
     });
 
-  async function loadCatalog(url: string): Promise<void> {
+  async function loadCatalog(): Promise<void> {
     try {
-      catalog = parseEditorCatalog(await requestJSON(url));
+      catalog = await loadEditorCatalog();
     } catch {
       // The editor remains useful without the optional catalog.
     }
@@ -506,7 +509,7 @@ function setupIntelligence(form: HTMLFormElement): void {
     render();
   }
 
-  void loadCatalog(catalogURL);
+  void loadCatalog();
 
   selectTab(activeTab, false);
   render();

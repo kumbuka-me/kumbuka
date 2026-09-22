@@ -1,4 +1,4 @@
-// Editor write, split, and preview modes.
+// Editor mode switching and Markdown preview behavior.
 
 import { createLatestRequest, isAbortError } from "../../core/async.ts";
 import { requiredAttribute } from "../../core/dom.ts";
@@ -8,9 +8,9 @@ import { setupMarkdownEnhancements } from "../markdown.ts";
 import { renderPluginModules } from "../../plugins/loader.ts";
 import { preferredEditorMode, rememberEditorMode } from "./experience.ts";
 
-export type EditorMode = "write" | "split" | "preview";
+export type EditorMode = "write" | "visual" | "split";
 
-const modes = new Set<EditorMode>(["write", "split", "preview"]);
+const modes = new Set<EditorMode>(["write", "visual", "split"]);
 
 interface PreviewPayload {
   html: string;
@@ -32,37 +32,42 @@ export function editorModeCopy(mode: string): {
   description: string;
 } {
   switch (mode) {
+    case "visual":
+      return {
+        title: "Visual",
+        description:
+          "Edit the page directly while Markdown remains the source of truth.",
+      };
     case "split":
       return {
-        title: "Markdown & preview",
-        description: "Edit Markdown with a live rendered preview.",
-      };
-    case "preview":
-      return {
-        title: "Preview",
-        description: "Rendered page preview.",
+        title: "Markdown",
+        description: "Live preview is open beside the Markdown source.",
       };
     default:
       return {
         title: "Markdown",
-        description: "Markdown stays the source of truth.",
+        description: "Edit the Markdown source directly.",
       };
   }
 }
 
-// Wires editor preview behavior.
+// Wires editor mode and Markdown preview behavior.
 function setupEditorPreview(form: HTMLFormElement): void {
   const workspace = form.querySelector<HTMLElement>("[data-editor-workspace]");
   const source = form.querySelector<HTMLTextAreaElement>(
     "[data-markdown-editor]",
   );
   const slug = form.querySelector<HTMLInputElement>('[name="slug"]');
+  const visual = form.querySelector<HTMLElement>("[data-visual-editor-pane]");
   const preview = form.querySelector<HTMLElement>("[data-editor-preview]");
   const content = form.querySelector<HTMLElement>(
     "[data-editor-preview-content]",
   );
   const status = form.querySelector<HTMLElement>(
     "[data-editor-preview-status]",
+  );
+  const previewToggle = form.querySelector<HTMLButtonElement>(
+    "[data-editor-preview-toggle]",
   );
   const sectionTitle = form.querySelector<HTMLElement>(
     "[data-editor-section-title]",
@@ -86,6 +91,7 @@ function setupEditorPreview(form: HTMLFormElement): void {
   const previewEndpoint = requiredAttribute(form, "data-preview-url");
   const editorWorkspace = workspace;
   const sourceEditor = source;
+  const visualPanel = visual;
   const previewPanel = preview;
   let previewContent = content;
   const previewStatus = status;
@@ -117,7 +123,7 @@ function setupEditorPreview(form: HTMLFormElement): void {
     });
   }
 
-  // Renders preview.
+  // Renders the Markdown preview without flashing stale intermediate content.
   async function renderPreview(): Promise<void> {
     timer = undefined;
     const input = previewInput();
@@ -188,7 +194,7 @@ function setupEditorPreview(form: HTMLFormElement): void {
     }
   }
 
-  // Schedules preview.
+  // Schedules preview only while the Markdown split view is open.
   function schedulePreview(): void {
     if (previewInput() === pendingInput) return;
 
@@ -196,39 +202,54 @@ function setupEditorPreview(form: HTMLFormElement): void {
     // Invalidate old responses immediately, including during the debounce.
     previewRequests.abort();
     pendingInput = undefined;
-    if (mode === "write") return;
+    if (mode !== "split") return;
 
     timer = setTimeout(() => void renderPreview(), 180);
   }
 
-  // Sets mode.
+  // Sets the primary editor mode or the Markdown split submode.
   function setMode(nextMode: string | undefined, remember = true): void {
     if (timer !== undefined) clearTimeout(timer);
     timer = undefined;
     mode = editorMode(nextMode);
     form.dataset.editorMode = mode;
     editorWorkspace.dataset.editorMode = mode;
-    previewPanel.hidden = mode === "write";
+    if (visualPanel) visualPanel.hidden = mode !== "visual";
+    previewPanel.hidden = mode !== "split";
 
     const copy = editorModeCopy(mode);
 
     if (sectionTitle) sectionTitle.textContent = copy.title;
     if (sectionDescription) sectionDescription.textContent = copy.description;
     for (const button of buttons) {
-      const active = button.dataset.editorMode === mode;
+      const buttonMode = button.dataset.editorMode;
+      const active =
+        buttonMode === mode || (buttonMode === "write" && mode === "split");
 
       button.classList.toggle("active", active);
       button.setAttribute("aria-pressed", String(active));
     }
+
+    if (previewToggle) {
+      previewToggle.hidden = mode === "visual";
+      previewToggle.classList.toggle("active", mode === "split");
+      previewToggle.setAttribute("aria-pressed", String(mode === "split"));
+    }
+
     if (remember) rememberEditorMode(mode);
-    if (mode !== "write") void renderPreview();
+    form.dispatchEvent(new CustomEvent("editor:mode-change"));
+    if (mode === "visual") {
+      previewRequests.abort();
+      pendingInput = undefined;
+      form.dispatchEvent(new CustomEvent("editor:visual-activate"));
+    } else if (mode === "split") void renderPreview();
     else {
       previewRequests.abort();
       pendingInput = undefined;
     }
   }
 
-  // Synchronizes scroll.
+  // Synchronizes source and preview scrolling in split mode.
   function syncScroll(from: HTMLElement, to: HTMLElement): void {
     if (mode !== "split" || syncing) return;
 
@@ -245,8 +266,11 @@ function setupEditorPreview(form: HTMLFormElement): void {
     button.addEventListener("click", () => setMode(button.dataset.editorMode));
   }
 
+  previewToggle?.addEventListener("click", () =>
+    setMode(mode === "split" ? "write" : "split"),
+  );
   form.addEventListener("editor:toggle-preview", () =>
-    setMode(mode === "write" ? "split" : "write"),
+    setMode(mode === "split" ? "write" : "split"),
   );
   sourceEditor.addEventListener("input", schedulePreview);
   slug?.addEventListener("input", schedulePreview);
@@ -265,7 +289,7 @@ function setupEditorPreview(form: HTMLFormElement): void {
   setMode(preferredEditorMode(), false);
 }
 
-// Initializes editor preview.
+// Initializes editor mode and Markdown preview behavior.
 export function initEditorPreview(): void {
   for (const form of document.querySelectorAll<HTMLFormElement>(
     "[data-editor-form]",

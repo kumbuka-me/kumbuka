@@ -46,9 +46,8 @@ test("split preview ignores cursor clicks and refreshes without flashing", async
             ${pluginCatalog()}
             <form data-editor-form data-preview-url="/preview">
               <input name="slug" value="example">
-              <button type="button" data-editor-mode="write">Write</button>
-              <button type="button" data-editor-mode="split">Split</button>
-              <button type="button" data-editor-mode="preview">Preview</button>
+              <button type="button" data-editor-mode="write">Markdown</button>
+              <button type="button" data-editor-preview-toggle>Preview</button>
               <div class="editor-workspace" data-editor-workspace data-editor-mode="write">
                 <div class="editor-source-pane"><textarea class="editor-source" data-markdown-editor>Original</textarea></div>
                 <section class="editor-preview" data-editor-preview hidden>
@@ -65,7 +64,7 @@ test("split preview ignores cursor clicks and refreshes without flashing", async
       }
     });
     await page.goto("http://preview.test/");
-    await page.getByRole("button", { name: "Split", exact: true }).click();
+    await page.getByRole("button", { name: "Preview", exact: true }).click();
     const content = page.locator("[data-editor-preview-content]");
     await page.waitForFunction(
       () =>
@@ -124,7 +123,7 @@ test("split preview ignores cursor clicks and refreshes without flashing", async
     assert.deepEqual(requests, ["Original", "Intermediate", "Final"]);
 
     await page.getByRole("button", { name: "Preview", exact: true }).click();
-    await page.getByRole("button", { name: "Split", exact: true }).click();
+    await page.getByRole("button", { name: "Preview", exact: true }).click();
     await source.dispatchEvent("input");
     await page.waitForTimeout(700);
     assert.equal(requests.length, 3, "unchanged content should not refresh");
@@ -133,4 +132,3 @@ test("split preview ignores cursor clicks and refreshes without flashing", async
     await browser.close();
   }
 });
-

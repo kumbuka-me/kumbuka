@@ -106,6 +106,10 @@ function setupEditorSearch(form: HTMLFormElement): void {
 
   // Opens the editor search panel.
   function open(): void {
+    if (form.dataset.editorMode === "visual")
+      form
+        .querySelector<HTMLButtonElement>('button[data-editor-mode="write"]')
+        ?.click();
     searchPanel.hidden = false;
 
     const selected = sourceEditor.value.slice(

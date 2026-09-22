@@ -27,10 +27,6 @@
   top: 113px;
 }
 
-.editor[data-editor-mode="preview"] .table-context-toolbar {
-  display: none;
-}
-
 .table-context-label {
   padding: 0 7px 0 3px;
   color: var(--text-secondary);

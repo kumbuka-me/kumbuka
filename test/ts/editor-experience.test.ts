@@ -11,7 +11,7 @@ import {
 import { replaceAllPlainText } from "../../web/src/ts/features/editor/search.ts";
 import { editorModeCopy } from "../../web/src/ts/features/editor/preview.ts";
 
-test("editor reopens in the last source-visible mode, never preview", () => {
+test("editor reopens in the last primary mode, never split preview", () => {
   const values = new Map<string, string>();
   const original = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
   Object.defineProperty(globalThis, "localStorage", {
@@ -24,12 +24,13 @@ test("editor reopens in the last source-visible mode, never preview", () => {
 
   try {
     assert.equal(preferredEditorMode(), "write");
-    for (const mode of ["write", "split"] as const) {
-      rememberEditorMode(mode);
-      rememberEditorMode("preview");
-      assert.equal(preferredEditorMode(), mode);
-    }
-    values.set("kumbuka.editor.mode", "preview");
+    rememberEditorMode("visual");
+    assert.equal(preferredEditorMode(), "visual");
+    rememberEditorMode("split");
+    assert.equal(preferredEditorMode(), "visual");
+    rememberEditorMode("write");
+    assert.equal(preferredEditorMode(), "write");
+    values.set("kumbuka.editor.mode", "split");
     assert.equal(preferredEditorMode(), "write");
     values.set("kumbuka.editor.mode", "invalid");
     assert.equal(preferredEditorMode(), "write");
@@ -96,14 +97,15 @@ test("replace all can match case", () => {
 test("editor mode copy matches the visible workspace", () => {
   assert.deepEqual(editorModeCopy("write"), {
     title: "Markdown",
-    description: "Markdown stays the source of truth.",
+    description: "Edit the Markdown source directly.",
+  });
+  assert.deepEqual(editorModeCopy("visual"), {
+    title: "Visual",
+    description:
+      "Edit the page directly while Markdown remains the source of truth.",
   });
   assert.deepEqual(editorModeCopy("split"), {
-    title: "Markdown & preview",
-    description: "Edit Markdown with a live rendered preview.",
-  });
-  assert.deepEqual(editorModeCopy("preview"), {
-    title: "Preview",
-    description: "Rendered page preview.",
+    title: "Markdown",
+    description: "Live preview is open beside the Markdown source.",
   });
 });

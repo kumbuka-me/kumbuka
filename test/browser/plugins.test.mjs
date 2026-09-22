@@ -2,7 +2,12 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { chromium } from "playwright";
-import { block, plugin, pluginCatalog, pluginRoute } from "./plugin-fixture.mjs";
+import {
+  block,
+  plugin,
+  pluginCatalog,
+  pluginRoute,
+} from "./plugin-fixture.mjs";
 
 test("real Mermaid is isolated and plugin changes require a page reload", async () => {
   const browser = await chromium.launch({
@@ -80,10 +85,6 @@ test("real Mermaid is isolated and plugin changes require a page reload", async 
   }
 });
 
-
-
-
-
 test("trusted browser-module changes relay only same-plugin widget commands", async () => {
   const browser = await chromium.launch({
     channel: process.env.BROWSER_CHANNEL || "chrome",
@@ -103,6 +104,7 @@ test("trusted browser-module changes relay only same-plugin widget commands", as
         render(root) {
           const select = document.createElement("select");
           select.setAttribute("aria-label", "API status");
+          select.size = 2;
           select.dataset.kumbukaCommandModule = "page-details";
           const todo = document.createElement("option");
           todo.value = "set-aaaaaaaaaaaaaaaaaaaaaaaa-0";
@@ -161,10 +163,11 @@ test("trusted browser-module changes relay only same-plugin widget commands", as
           "/set-aaaaaaaaaaaaaaaaaaaaaaaa-3",
         ),
     );
+    // Click a visible option to produce a trusted native change on every platform.
     await page
       .frameLocator("iframe")
-      .getByRole("combobox", { name: "API status" })
-      .selectOption("set-aaaaaaaaaaaaaaaaaaaaaaaa-3");
+      .getByRole("option", { name: "Done", exact: true })
+      .click();
     await command;
 
     assert.ok(commandRequest);

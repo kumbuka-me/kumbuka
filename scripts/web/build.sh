@@ -9,7 +9,10 @@ cp -R web/src/. web/dist/
 # native ES modules plus the root-scoped service worker.
 rm -rf web/dist/ts
 "${TSC:-./node_modules/.bin/tsc}" -p tsconfig.json
+
+# Build locally hosted, shared chunks for the lazy visual editor.
+sh scripts/web/build-visual.sh
+
 "${TSC:-./node_modules/.bin/tsc}" -p web/src/ts/service-worker/tsconfig.json
 
 "${CSS_BUILD:-scripts/web/build-css.sh}"
-

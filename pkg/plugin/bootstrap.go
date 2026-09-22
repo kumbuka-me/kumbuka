@@ -109,6 +109,7 @@ func (m *Manager) managedPluginFromArchive(
 		return managedPlugin{}, err
 	}
 
+	editorWidgets, editorWidgetProblem := editorWidgetsFromPackage(pkg)
 	return managedPlugin{
 		archive: bytes.Clone(archive),
 		metadata: LoadedPlugin{
@@ -119,6 +120,8 @@ func (m *Manager) managedPluginFromArchive(
 			Digest:   pkg.Digest(),
 			Enabled:  pkg.Manifest().DefaultEnabled,
 		},
+		editorWidgets:       editorWidgets,
+		editorWidgetProblem: editorWidgetProblem,
 	}, nil
 }
 

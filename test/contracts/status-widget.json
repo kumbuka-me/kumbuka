@@ -1,0 +1,195 @@
+{
+  "pages": [],
+  "aliases": {},
+  "completions": [],
+  "inserts": [],
+  "widgets": [
+    {
+      "id": "status",
+      "name": "Status",
+      "inline": true,
+      "syntax": {
+        "kind": "macro",
+        "name": "status"
+      },
+      "attributes": [
+        {
+          "name": "id",
+          "type": "identifier",
+          "required": true,
+          "max_bytes": 128
+        },
+        {
+          "name": "set",
+          "type": "identifier",
+          "max_bytes": 128
+        },
+        {
+          "name": "options",
+          "type": "list",
+          "max_bytes": 64,
+          "max_items": 16,
+          "separator": ";",
+          "fallback_separator": ",",
+          "unique": true
+        },
+        {
+          "name": "colors",
+          "type": "color-list",
+          "max_bytes": 16,
+          "max_items": 16,
+          "separator": ";",
+          "fallback_separator": ",",
+          "aliases": {
+            "gray": "#64748b",
+            "blue": "#2563eb",
+            "green": "#16a34a",
+            "yellow": "#ca8a04",
+            "orange": "#ea580c",
+            "red": "#dc2626",
+            "purple": "#9333ea",
+            "teal": "#0f766e",
+            "pink": "#db2777"
+          }
+        },
+        {
+          "name": "initial",
+          "type": "string",
+          "max_bytes": 64
+        },
+        {
+          "name": "prefix",
+          "type": "string",
+          "max_bytes": 64
+        },
+        {
+          "name": "style",
+          "type": "enum",
+          "default": "solid",
+          "values": [
+            "solid",
+            "outline"
+          ]
+        }
+      ],
+      "settings": [
+        {
+          "type": "text",
+          "label": "ID",
+          "attribute": "id",
+          "placeholder": "release-readiness"
+        },
+        {
+          "type": "text",
+          "label": "Reusable set",
+          "attribute": "set",
+          "placeholder": "workflow",
+          "suggestions": [
+            "workflow",
+            "approval"
+          ]
+        },
+        {
+          "type": "table",
+          "label": "Page-local statuses",
+          "attributes": [
+            "options",
+            "colors"
+          ],
+          "columns": [
+            {
+              "label": "Status",
+              "type": "text"
+            },
+            {
+              "label": "Color",
+              "type": "color"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "label": "Initial status",
+          "attribute": "initial",
+          "placeholder": "To do"
+        },
+        {
+          "type": "text",
+          "label": "Prefix",
+          "attribute": "prefix",
+          "placeholder": "Release"
+        },
+        {
+          "type": "select",
+          "label": "Style",
+          "attribute": "style"
+        }
+      ],
+      "constraints": [
+        {
+          "kind": "exactly-one",
+          "attributes": [
+            "set",
+            "options"
+          ]
+        },
+        {
+          "kind": "same-length",
+          "attributes": [
+            "options",
+            "colors"
+          ],
+          "optional": true
+        },
+        {
+          "kind": "member-of",
+          "attributes": [
+            "initial",
+            "options"
+          ],
+          "optional": true
+        }
+      ],
+      "preview": {
+        "kind": "badge",
+        "badge": {
+          "class": "kumbuka-status",
+          "solid_class": "kumbuka-status-solid",
+          "outline_class": "kumbuka-status-outline",
+          "prefix_class": "kumbuka-status-prefix",
+          "value_class": "kumbuka-status-value",
+          "prefix_attribute": "prefix",
+          "label_attribute": "initial",
+          "labels_attribute": "options",
+          "fallback_attribute": "set",
+          "colors_attribute": "colors",
+          "style_attribute": "style",
+          "default_label": "Status",
+          "default_colors": [
+            "#64748b",
+            "#2563eb",
+            "#ca8a04",
+            "#16a34a",
+            "#9333ea",
+            "#0f766e",
+            "#ea580c",
+            "#db2777"
+          ],
+          "tone_classes": {
+            "#64748b": "kumbuka-status-gray",
+            "#2563eb": "kumbuka-status-blue",
+            "#16a34a": "kumbuka-status-green",
+            "#ca8a04": "kumbuka-status-yellow",
+            "#ea580c": "kumbuka-status-orange",
+            "#dc2626": "kumbuka-status-red",
+            "#9333ea": "kumbuka-status-purple",
+            "#0f766e": "kumbuka-status-teal",
+            "#db2777": "kumbuka-status-pink"
+          }
+        }
+      },
+      "plugin_id": "me.kumbuka.status-dropdowns"
+    }
+  ],
+  "widget_problems": []
+}

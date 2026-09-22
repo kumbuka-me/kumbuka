@@ -118,14 +118,14 @@
 
 .editor-mode-button {
   display: inline-flex;
-  width: 84px;
+  min-width: 92px;
   height: 30px;
   align-items: center;
   justify-content: center;
   gap: 6px;
   border: 0;
   border-radius: 5px;
-  padding: 0 8px;
+  padding: 0 9px;
   background: transparent;
   color: var(--text-tertiary);
   cursor: pointer;
@@ -138,6 +138,40 @@
 .editor-mode-button.active {
   background: var(--surface-elevated);
   color: var(--accent);
+}
+
+.editor-preview-toggle {
+  display: inline-flex;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  padding: 0 7px;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.editor-preview-toggle:hover,
+.editor-preview-toggle:focus-visible {
+  border-color: var(--border);
+  background: var(--surface-hover);
+  color: var(--text-secondary);
+  outline: none;
+}
+
+.editor-preview-toggle.active {
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+  color: var(--accent);
+}
+
+.editor-preview-toggle[hidden] {
+  display: none;
 }
 
 .editor-draft-banner {
@@ -431,13 +465,21 @@ body.editor-focus-mode {
   }
 
   .editor-focus-button span,
-  .editor-mode-button span {
+  .editor-mode-button span,
+  .editor-preview-toggle span {
     display: none;
   }
 
   .editor-mode-button {
     width: 32px;
+    min-width: 32px;
     justify-content: center;
+    padding: 0;
+  }
+
+  .editor-preview-toggle {
+    width: 32px;
+    min-width: 32px;
     padding: 0;
   }
 

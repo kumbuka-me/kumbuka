@@ -18,11 +18,20 @@ test("editor accepts the empty Go catalog contract", () => {
     aliases: {},
     completions: [],
     inserts: [],
+    widgets: [],
+    widget_problems: [],
   });
 });
 
 test("editor catalog checks every field used by both consumers", () => {
-  const empty = { pages: [], aliases: {}, completions: [], inserts: [] };
+  const empty = {
+    pages: [],
+    aliases: {},
+    completions: [],
+    inserts: [],
+    widgets: [],
+    widget_problems: [],
+  };
   for (const value of [
     { ...empty, aliases: [] },
     { ...empty, aliases: { old: 42 } },
@@ -96,6 +105,8 @@ test("editor accepts declarative plugin action metadata", () => {
         inline: false,
       },
     ],
+    widgets: [],
+    widget_problems: [],
   });
 
   assert.equal(catalog.inserts[0]?.mode, "wrap");

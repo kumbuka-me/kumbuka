@@ -1,7 +1,6 @@
 // Editor slash-command matching and menu behavior.
 
-import { requestJSON } from "../../core/http.ts";
-import { parseEditorCatalog, type CatalogInsert } from "./catalog.ts";
+import { loadEditorCatalog, type CatalogInsert } from "./catalog.ts";
 import { applyEditorInsertAction, insertInlineAtSelection } from "./toolbar.ts";
 
 interface SlashCommand {
@@ -106,9 +105,7 @@ function setupSlashCommands(form: HTMLFormElement): void {
 
   async function loadReusableCommands(): Promise<void> {
     try {
-      const catalog = parseEditorCatalog(
-        await requestJSON("/api/editor/catalog"),
-      );
+      const catalog = await loadEditorCatalog();
       const inserts: SlashCommand[] = catalog.inserts.map((item) => ({
         id: `${item.plugin_id}-${item.module_id}`,
         label: item.name,

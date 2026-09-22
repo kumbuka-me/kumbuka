@@ -48,6 +48,7 @@ SVG_TO_PNG := $(DEV_TOOLS_BIN)/svg-to-png
 BINARY ?= kumbuka
 COMMAND ?= ./cmd/kumbuka
 GO_TEST_RACE_FLAGS ?= -p=2 -parallel=4
+BROWSER_TEST_CONCURRENCY ?= 2
 RACE_TEST_PACKAGES := ./pkg/markdown ./pkg/plugin ./pkg/plugin/wasm ./internal/postgres
 RACE_TEST_PATTERN := ^(TestMacroCapabilitiesStayRequestLocal|TestRegistryConcurrentSnapshotsAndRemoval|TestWASMRequestsAreIsolatedAndSerialized|TestCapabilitiesUseCurrentRequestAndRecoverFromHostPanic|TestUpgradeDuringRenderingKeepsWholeSnapshotAlive|TestConcurrentStartupMigrations)$$
 RUN_ARGS ?=
@@ -214,7 +215,7 @@ test-web: check-web ## Compile and run the TypeScript frontend unit tests.
 
 .PHONY: test-browser
 test-browser: check-web ## Run browser regressions in Chrome.
-	$(NODE) --test test/browser/*.test.mjs
+	$(NODE) --test --test-concurrency=$(BROWSER_TEST_CONCURRENCY) test/browser/*.test.mjs
 
 .PHONY: download
 download: $(NODE_MODULES) dev-tools plugins ## Download all project dependencies.

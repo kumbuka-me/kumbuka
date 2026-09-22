@@ -64,6 +64,7 @@
   cursor: pointer;
 }
 
+.markdown-toolbar button.active,
 .markdown-toolbar button:hover,
 .markdown-toolbar button:focus-visible,
 .markdown-toolbar-menu > summary:hover,
@@ -116,11 +117,6 @@
 
 .editor.focus-mode .markdown-toolbar {
   top: 66px;
-}
-
-.editor[data-editor-mode="preview"] .markdown-toolbar,
-.editor[data-editor-mode="preview"] .editor-search-panel {
-  display: none;
 }
 
 .editor-search-panel {

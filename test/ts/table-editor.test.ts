@@ -8,6 +8,7 @@ import {
   deleteMarkdownTableColumn,
   deleteMarkdownTableRow,
   findMarkdownTable,
+  markdownTables,
   insertMarkdownTableColumn,
   insertMarkdownTableRow,
   parseTableDirective,
@@ -260,4 +261,52 @@ test("column insertion shifts column and cell color directives", () => {
       "{table col:3=blue cell:1,3=green}",
     ].join("\n"),
   );
+});
+
+test("visual table mapping skips fenced examples and retains directives in source order", () => {
+  const source = [
+    "```markdown",
+    buildMarkdownTable(1, 2),
+    "```",
+    "",
+    buildMarkdownTable(2, 3),
+    "{table header=blue}",
+    "",
+    "~~~",
+    buildMarkdownTable(1, 1),
+    "~~~",
+    "",
+    buildMarkdownTable(1, 2),
+    "{table header=red}",
+  ].join("\n");
+  const tables = markdownTables(source);
+  assert.equal(tables.length, 2);
+  assert.deepEqual(
+    tables.map((table) => table.directive.header),
+    ["blue", "red"],
+  );
+});
+
+test("table dimensions round-trip and follow inserted rows and columns", () => {
+  const source =
+    buildMarkdownTable(2, 2) +
+    "\n\n{table widths=120,180 heights=32,64,48 cell:1,1=blue}";
+  const table = findMarkdownTable(source, 0)!;
+  assert.deepEqual(table.directive.widths, [120, 180]);
+  assert.equal(
+    serializeTableDirective(table.directive),
+    "{table widths=120,180 heights=32,64,48 cell:1,1=blue}",
+  );
+  const rows = insertMarkdownTableRow(source, table, 1, false);
+  assert.deepEqual(
+    findMarkdownTable(rows.source, 0)?.directive.heights,
+    [32, 0, 64, 48],
+  );
+  const columns = insertMarkdownTableColumn(source, table, 1, false);
+  assert.deepEqual(
+    findMarkdownTable(columns.source, 0)?.directive.widths,
+    [0, 120, 180],
+  );
+  assert.equal(parseTableDirective("{table widths=5000}"), null);
+  assert.equal(parseTableDirective("{table heights=1px}"), null);
 });

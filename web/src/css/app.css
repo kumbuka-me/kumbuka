@@ -89,6 +89,8 @@
 
 @import "./editor/preview.css";
 
+@import "./editor/visual.css";
+
 @import "./editor/toolbar.css";
 
 @import "./editor/media.css";

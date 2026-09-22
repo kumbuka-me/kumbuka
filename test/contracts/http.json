@@ -18,11 +18,15 @@
     "pages": [],
     "aliases": {},
     "completions": [],
-    "inserts": []
+    "inserts": [],
+    "widgets": [],
+    "widget_problems": []
   },
   "empty_notifications": {
     "items": [],
     "unread": 0
   }
 }
+
+
 

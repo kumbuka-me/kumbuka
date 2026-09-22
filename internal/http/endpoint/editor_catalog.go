@@ -37,6 +37,8 @@ func EditorCatalog(
 
 		var completions []plugin.EditorCompletionItem
 		var inserts []plugin.EditorInsertContribution
+		var widgets []plugin.EditorWidgetContribution
+		var widgetProblems []plugin.EditorWidgetProblem
 		if plugins != nil {
 			completions, err = plugins.EditorCompletions(r.Context())
 			if err != nil {
@@ -44,6 +46,7 @@ func EditorCatalog(
 				return
 			}
 			inserts = plugins.EditorInserts()
+			widgets, widgetProblems = plugins.EditorWidgets()
 		}
 
 		aliases, err := catalogUseCases.PageAliases(r.Context())
@@ -56,10 +59,12 @@ func EditorCatalog(
 		}
 
 		httpresponse.Respond(w, http.StatusOK, map[string]any{
-			"pages":       items,
-			"completions": jsonSlice(completions),
-			"inserts":     jsonSlice(inserts),
-			"aliases":     aliases,
+			"pages":           items,
+			"completions":     jsonSlice(completions),
+			"inserts":         jsonSlice(inserts),
+			"widgets":         jsonSlice(widgets),
+			"widget_problems": jsonSlice(widgetProblems),
+			"aliases":         aliases,
 		})
 	}
 }

@@ -1,6 +1,13 @@
 // Runtime-checked metadata returned by GET /api/editor/catalog.
 
 import { isRecord, isStringRecord, requireArrayOf } from "../../core/guards.ts";
+import { requestJSON } from "../../core/http.ts";
+import {
+  isCatalogWidget,
+  isCatalogWidgetProblem,
+  type CatalogWidget,
+  type CatalogWidgetProblem,
+} from "./widget-contract.ts";
 
 export interface CatalogPage {
   slug: string;
@@ -35,6 +42,8 @@ export interface EditorCatalog {
   aliases: Record<string, string>;
   completions: CatalogCompletion[];
   inserts: CatalogInsert[];
+  widgets: CatalogWidget[];
+  widget_problems: CatalogWidgetProblem[];
 }
 
 function isCatalogPage(value: unknown): value is CatalogPage {
@@ -92,6 +101,31 @@ export function parseEditorCatalog(value: unknown): EditorCatalog {
       isCatalogInsert,
       "editor catalog inserts",
     ),
+    widgets: requireArrayOf(
+      value.widgets ?? [],
+      isCatalogWidget,
+      "editor catalog widgets",
+    ),
+    widget_problems: requireArrayOf(
+      value.widget_problems ?? [],
+      isCatalogWidgetProblem,
+      "editor catalog widget problems",
+    ),
     aliases: value.aliases,
   };
+}
+
+let catalogLoad: Promise<EditorCatalog> | null = null;
+
+// loadEditorCatalog shares one in-flight/cached catalog request across editor features.
+export function loadEditorCatalog(): Promise<EditorCatalog> {
+  if (catalogLoad) return catalogLoad;
+
+  catalogLoad = requestJSON("/api/editor/catalog")
+    .then(parseEditorCatalog)
+    .catch((error) => {
+      catalogLoad = null;
+      throw error;
+    });
+  return catalogLoad;
 }

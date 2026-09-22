@@ -3,11 +3,26 @@
 import { formatMarkdownDocument } from "./formatter.ts";
 import { dispatchEditorEvent } from "./events.ts";
 
+function insertIntoVisualEditor(
+  textarea: HTMLTextAreaElement,
+  markdown: string,
+): boolean {
+  const form = textarea.closest<HTMLFormElement>("[data-editor-form]");
+  if (form?.dataset.editorMode !== "visual") return false;
+  form.dispatchEvent(
+    new CustomEvent("editor:visual-command", {
+      detail: { action: "plugin-insert", insert: { markdown } },
+    }),
+  );
+  return true;
+}
+
 // Inserts inline text at the textarea selection without adding line breaks.
 export function insertInlineAtSelection(
   textarea: HTMLTextAreaElement,
   text: string,
 ): void {
+  if (insertIntoVisualEditor(textarea, text)) return;
   const start = textarea.selectionStart ?? textarea.value.length;
   const end = textarea.selectionEnd ?? start;
 
@@ -21,6 +36,7 @@ export function insertMarkdownAtSelection(
   textarea: HTMLTextAreaElement,
   markdown: string,
 ): void {
+  if (insertIntoVisualEditor(textarea, markdown)) return;
   const start = textarea.selectionStart ?? textarea.value.length;
   const end = textarea.selectionEnd ?? start;
   const before = textarea.value.slice(0, start);
@@ -146,6 +162,19 @@ function setupMarkdownToolbar(toolbar: HTMLElement): void {
 
   const editor = textarea;
 
+  function visualCommand(
+    action: string,
+    detail: Record<string, unknown> = {},
+  ): boolean {
+    if (form?.dataset.editorMode !== "visual") return false;
+    form.dispatchEvent(
+      new CustomEvent("editor:visual-command", {
+        detail: { action, ...detail },
+      }),
+    );
+    return true;
+  }
+
   // Returns selected Markdown or the action placeholder.
   function selectedText(placeholder: string): string {
     return (
@@ -159,6 +188,12 @@ function setupMarkdownToolbar(toolbar: HTMLElement): void {
   // Applies action.
   function applyAction(action: string | undefined): void {
     if (!action) return;
+    if (
+      action !== "find" &&
+      action !== "format-document" &&
+      visualCommand(action)
+    )
+      return;
     if (action.startsWith("heading-")) {
       const level = Number(action.slice("heading-".length));
 
@@ -254,13 +289,15 @@ function setupMarkdownToolbar(toolbar: HTMLElement): void {
       "[data-plugin-insert-markdown]",
     );
     if (pluginInsert) {
-      applyEditorInsertAction(editor, {
+      const insert: EditorInsertAction = {
         markdown: pluginInsert.dataset.pluginInsertMarkdown ?? "",
         suffix: pluginInsert.dataset.pluginInsertSuffix,
         placeholder: pluginInsert.dataset.pluginInsertPlaceholder,
         mode: pluginInsert.dataset.pluginInsertMode,
         inline: pluginInsert.dataset.pluginInsertInline === "true",
-      });
+      };
+      if (!visualCommand("plugin-insert", { insert }))
+        applyEditorInsertAction(editor, insert);
       closeToolbarMenus(toolbar);
       return;
     }

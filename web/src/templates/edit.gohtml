@@ -42,29 +42,29 @@
           Ready
         {{ end }}
       </span>
-      <div class="editor-mode-switcher" role="group" aria-label="Editor view">
+      <div class="editor-mode-switcher" role="group" aria-label="Editor mode">
         <button class="editor-mode-button"
                 type="button"
                 data-editor-mode="write"
                 aria-pressed="true"
-                title="Write">
-          {{ icon "pencil-lucide" 16 }}<span>Write</span>
+                title="Markdown editor">
+          {{ icon "code-2-lucide" 16 }}<span>Markdown</span>
         </button>
         <button class="editor-mode-button"
                 type="button"
-                data-editor-mode="split"
+                data-editor-mode="visual"
                 aria-pressed="false"
-                title="Split view">
-          {{ icon "columns-2-lucide" 16 }}<span>Split</span>
-        </button>
-        <button class="editor-mode-button"
-                type="button"
-                data-editor-mode="preview"
-                aria-pressed="false"
-                title="Preview">
-          {{ icon "eye-lucide" 16 }}<span>Preview</span>
+                title="Visual editor">
+          {{ icon "pencil-lucide" 16 }}<span>Visual</span>
         </button>
       </div>
+      <button class="editor-preview-toggle"
+              type="button"
+              data-editor-preview-toggle
+              aria-pressed="false"
+              title="Toggle Markdown preview">
+        {{ icon "panel-right-lucide" 16 }}<span>Preview</span>
+      </button>
       <button class="button editor-focus-button"
               type="button"
               data-editor-focus-toggle
@@ -324,14 +324,14 @@
   <div class="editor-writing-heading">
     <div>
       <strong data-editor-section-title>Markdown</strong>
-      <span class="muted" data-editor-section-description>Markdown stays the source of truth.</span>
+      <span class="muted" data-editor-section-description>Edit the Markdown source directly.</span>
     </div>
     <span class="editor-shortcuts muted">⌘/Ctrl+S save · ⌘/Ctrl+F find · ⌘/Ctrl+Shift+P preview</span>
   </div>
   <div class="markdown-toolbar"
        data-markdown-toolbar
        role="toolbar"
-       aria-label="Markdown formatting">
+       aria-label="Editor formatting">
     <div class="markdown-toolbar-group" aria-label="Text formatting">
       <span class="markdown-toolbar-group-label"></span>
       <button type="button"

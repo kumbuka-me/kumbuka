@@ -19,6 +19,8 @@ const tableTones = new Set([
 ]);
 
 export type TableDirective = {
+  widths?: number[];
+  heights?: number[];
   header: string;
   rows: Record<string, string>;
   columns: Record<string, string>;
@@ -51,6 +53,8 @@ function emptyDirective(): TableDirective {
 
 function cloneDirective(directive: TableDirective): TableDirective {
   return {
+    ...(directive.widths ? { widths: [...directive.widths] } : {}),
+    ...(directive.heights ? { heights: [...directive.heights] } : {}),
     header: directive.header || "",
     rows: { ...(directive.rows || {}) },
     columns: { ...(directive.columns || {}) },
@@ -203,6 +207,13 @@ export function parseTableDirective(line: string): TableDirective | null {
 
     const key = token.slice(0, equals);
     const tone = token.slice(equals + 1);
+    if (key === "widths" || key === "heights") {
+      if (!/^\d+(,\d+)*$/.test(tone)) return null;
+      const values = tone.split(",").map(Number);
+      if (values.some((value) => value > 4000)) return null;
+      directive[key] = values;
+      continue;
+    }
     if (!tableTones.has(tone)) return null;
 
     if (key === "header") {
@@ -259,6 +270,9 @@ function cellEntries(values: Record<string, string>): [string, string][] {
 export function serializeTableDirective(directive: TableDirective): string {
   const tokens: string[] = [];
 
+  for (const key of ["widths", "heights"] as const)
+    if (directive[key]?.length)
+      tokens.push(`${key}=${directive[key]!.join(",")}`);
   if (directive.header) tokens.push(`header=${directive.header}`);
   for (const [column, tone] of numericEntries(directive.columns || {}))
     tokens.push(`col:${column}=${tone}`);
@@ -382,6 +396,33 @@ export function findMarkdownTable(
     directive: parsedDirective || emptyDirective(),
     context: { kind, row, column },
   };
+}
+
+// Enumerates tables in source order for visual table styles and selection mapping.
+export function markdownTables(source: string): MarkdownTable[] {
+  const tables: MarkdownTable[] = [];
+  const lines = source.split("\n");
+  const starts = lineStarts(source);
+  let fenced = false;
+  let fence = "";
+  for (let index = 0; index < lines.length; index += 1) {
+    const marker = /^\s*(`{3,}|~{3,})/.exec(lines[index] || "")?.[1];
+    if (marker) {
+      if (!fenced) {
+        fenced = true;
+        fence = marker;
+      } else if (marker[0] === fence[0] && marker.length >= fence.length)
+        fenced = false;
+      continue;
+    }
+    if (fenced || !isTableSeparator(lines[index] || "")) continue;
+    const table = findMarkdownTable(source, starts[index] || 0);
+    if (table) {
+      tables.push(table);
+      index = table.endLine;
+    }
+  }
+  return tables;
 }
 
 // Replaces or inserts the directive for one Markdown table.
@@ -629,6 +670,7 @@ export function insertMarkdownTableRow(
   removeDirectiveLine(lines, table);
   lines.splice(insertLine, 0, formatTableRow(Array(columns).fill("")));
 
+  directive.heights?.splice(insertRow, 0, 0);
   directive.rows = insertIndexedValue(directive.rows, insertRow);
   directive.cells = remapCells(
     directive.cells,
@@ -663,6 +705,7 @@ export function deleteMarkdownTableRow(
   removeDirectiveLine(lines, table);
   lines.splice(deleteLine, 1);
 
+  directive.heights?.splice(row, 1);
   directive.rows = deleteIndexedValue(directive.rows, row);
   directive.cells = remapCells(
     directive.cells,
@@ -716,6 +759,7 @@ export function insertMarkdownTableColumn(
     lines[line] = formatTableRow(cells);
   }
 
+  directive.widths?.splice(insertColumn - 1, 0, 0);
   directive.columns = insertIndexedValue(directive.columns, insertColumn);
   directive.cells = remapCells(
     directive.cells,
@@ -759,6 +803,7 @@ export function deleteMarkdownTableColumn(
     lines[line] = formatTableRow(cells);
   }
 
+  directive.widths?.splice(deleteColumn - 1, 1);
   directive.columns = deleteIndexedValue(directive.columns, deleteColumn);
   directive.cells = remapCells(
     directive.cells,
@@ -950,6 +995,15 @@ function setupTablePalette(toolbar: HTMLElement): void {
         cell.addEventListener("focus", () => syncInsertGrid(rows, columns));
         cell.addEventListener("click", () => {
           closeInsertPopover();
+          const form = editor.closest<HTMLFormElement>("[data-editor-form]");
+          if (form?.dataset.editorMode === "visual") {
+            form.dispatchEvent(
+              new CustomEvent("editor:visual-table-insert", {
+                detail: { rows, columns },
+              }),
+            );
+            return;
+          }
           insertTable(editor, rows, columns);
           refreshContext();
         });
@@ -1012,8 +1066,34 @@ function setupTablePalette(toolbar: HTMLElement): void {
     syncTone();
   }
 
+  let visualContext: {
+    tableIndex: number;
+    kind: "header" | "body";
+    row: number;
+    column: number;
+  } | null = null;
+  const form = editor.closest<HTMLFormElement>("[data-editor-form]");
+  form?.addEventListener("editor:visual-table-context", (event) => {
+    const next = (event as CustomEvent).detail;
+    if (next && next.kind !== visualContext?.kind)
+      colorTarget.value = next.kind === "body" ? "cell" : "header";
+    visualContext = next;
+    refreshContext();
+  });
+  form?.addEventListener("editor:mode-change", () => refreshContext());
+
   function refreshContext(): void {
-    currentTable = findMarkdownTable(editor.value, editor.selectionStart ?? 0);
+    if (form?.dataset.editorMode === "visual") {
+      currentTable = visualContext
+        ? markdownTables(editor.value)[visualContext.tableIndex] || null
+        : null;
+      if (currentTable && visualContext)
+        currentTable.context = { ...visualContext };
+    } else
+      currentTable = findMarkdownTable(
+        editor.value,
+        editor.selectionStart ?? 0,
+      );
     const kind = currentTable?.context.kind;
     const visible =
       currentTable !== null &&

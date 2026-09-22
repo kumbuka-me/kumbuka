@@ -1,8 +1,7 @@
 // Generic plugin-owned editor completion behavior.
 
-import { requestJSON } from "../../core/http.ts";
 import { textareaCaretOffset } from "../../core/textarea.ts";
-import { parseEditorCatalog, type CatalogCompletion } from "./catalog.ts";
+import { loadEditorCatalog, type CatalogCompletion } from "./catalog.ts";
 
 type CompletionTrigger = { start: number; query: string; trigger: string };
 type Fence = { character: string; length: number };
@@ -164,8 +163,8 @@ function setupPluginCompletions(source: HTMLTextAreaElement): void {
   async function loadItems(): Promise<CatalogCompletion[]> {
     if (catalog) return catalog;
     if (load) return load;
-    load = requestJSON("/api/editor/catalog")
-      .then((payload) => parseEditorCatalog(payload).completions)
+    load = loadEditorCatalog()
+      .then((catalog) => catalog.completions)
       .then((items) => {
         catalog = items;
         return items;
