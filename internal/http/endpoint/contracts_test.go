@@ -30,6 +30,7 @@ func (emptyContractServices) ListPages(context.Context, int) ([]domain.Page, err
 func (emptyContractServices) Search(context.Context, string, int) ([]domain.Page, error) {
 	return nil, nil
 }
+
 func (emptyContractServices) ListPagesFor(context.Context, domain.User, int) ([]domain.Page, error) {
 	return nil, nil
 }
@@ -39,6 +40,7 @@ func (emptyContractServices) SearchFor(context.Context, domain.User, string, int
 }
 
 func (emptyContractServices) TagsFor(context.Context, domain.User) ([]string, error) { return nil, nil }
+
 func (emptyContractServices) AssignableGroups(context.Context, domain.User) ([]domain.Group, error) {
 	return nil, nil
 }
@@ -84,9 +86,11 @@ func (emptyContractServices) Images(context.Context) ([]domain.Image, error) { r
 func (emptyContractServices) SearchImages(context.Context, string, int, int) ([]domain.Image, error) {
 	return nil, nil
 }
+
 func (emptyContractServices) SearchImagesByUser(context.Context, int64, string, int, int) ([]domain.Image, error) {
 	return nil, nil
 }
+
 func (emptyContractServices) Attachments(context.Context) ([]domain.Attachment, error) {
 	return nil, nil
 }
