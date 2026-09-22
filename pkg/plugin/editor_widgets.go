@@ -628,148 +628,182 @@ func validateEditorWidgetConstraint(constraint EditorWidgetConstraint, attribute
 
 // validateEditorWidgetPreview validates safe class names and attribute references for one preview.
 func validateEditorWidgetPreview(preview EditorWidgetPreview, attributes map[string]EditorWidgetAttribute) error {
-	class := func(value string) error {
-		if value != "" && !editorWidgetClass.MatchString(value) {
-			return fmt.Errorf("preview class %q is invalid", value)
-		}
-		return nil
+	switch preview.Kind {
+	case "badge":
+		return validateEditorWidgetBadgePreview(preview, attributes)
+	case "reference":
+		return validateEditorWidgetReferencePreview(preview, attributes)
+	case "card":
+		return validateEditorWidgetCardPreview(preview, attributes)
+	case "callout":
+		return validateEditorWidgetCalloutPreview(preview, attributes)
+	case "details":
+		return validateEditorWidgetDetailsPreview(preview, attributes)
+	case "tabs":
+		return validateEditorWidgetTabsPreview(preview, attributes)
+	default:
+		return fmt.Errorf("unsupported visual editor preview kind %q", preview.Kind)
 	}
-	attribute := func(name string) error {
+}
+
+// validateEditorWidgetBadgePreview validates badge-specific preview metadata.
+func validateEditorWidgetBadgePreview(preview EditorWidgetPreview, attributes map[string]EditorWidgetAttribute) error {
+	if preview.Badge == nil || previewHasOtherKind(preview, "badge") {
+		return errors.New("badge preview metadata is invalid")
+	}
+
+	badge := preview.Badge
+	if err := validateEditorWidgetClasses(badge.Class, badge.SolidClass, badge.OutlineClass, badge.PrefixClass, badge.ValueClass); err != nil {
+		return err
+	}
+	if badge.Class == "" || len(badge.DefaultLabel) > 128 || len(badge.DefaultColors) > 32 || len(badge.ToneClasses) > 32 {
+		return errors.New("badge preview metadata is invalid")
+	}
+	if err := validateEditorWidgetAttributeReferences(attributes, badge.PrefixAttribute, badge.LabelAttribute, badge.LabelsAttribute, badge.FallbackAttribute, badge.ColorsAttribute, badge.StyleAttribute); err != nil {
+		return err
+	}
+	for _, color := range badge.DefaultColors {
+		if !validEditorWidgetColor(color) {
+			return fmt.Errorf("preview color %q is invalid", color)
+		}
+	}
+	for color, className := range badge.ToneClasses {
+		if !validEditorWidgetColor(color) || !editorWidgetClass.MatchString(className) {
+			return errors.New("preview tone class mapping is invalid")
+		}
+	}
+	return nil
+}
+
+// validateEditorWidgetReferencePreview validates inline-reference preview metadata.
+func validateEditorWidgetReferencePreview(preview EditorWidgetPreview, attributes map[string]EditorWidgetAttribute) error {
+	if preview.Reference == nil || previewHasOtherKind(preview, "reference") {
+		return errors.New("reference preview metadata is invalid")
+	}
+
+	reference := preview.Reference
+	if reference.Class == "" || strings.TrimSpace(reference.Prefix) == "" || len(reference.Prefix) > 64 || len(reference.DefaultValue) > 128 {
+		return errors.New("reference preview metadata is invalid")
+	}
+	if err := validateEditorWidgetClasses(reference.Class); err != nil {
+		return err
+	}
+	return validateEditorWidgetAttributeReferences(attributes, reference.ValueAttribute)
+}
+
+// validateEditorWidgetCardPreview validates card-specific preview metadata.
+func validateEditorWidgetCardPreview(preview EditorWidgetPreview, attributes map[string]EditorWidgetAttribute) error {
+	if preview.Card == nil || previewHasOtherKind(preview, "card") {
+		return errors.New("card preview metadata is invalid")
+	}
+
+	card := preview.Card
+	if card.Class == "" || strings.TrimSpace(card.Title) == "" || len(card.Title) > 128 || len(card.BodyText) > 512 || len(card.MetadataAttributes) > 8 {
+		return errors.New("card preview metadata is invalid")
+	}
+	if err := validateEditorWidgetClasses(card.Class, card.TitleClass, card.SubtitleClass, card.MetadataClass); err != nil {
+		return err
+	}
+	return validateEditorWidgetAttributeReferences(attributes, append([]string{card.SubtitleAttribute}, card.MetadataAttributes...)...)
+}
+
+// validateEditorWidgetCalloutPreview validates callout-specific preview metadata.
+func validateEditorWidgetCalloutPreview(preview EditorWidgetPreview, attributes map[string]EditorWidgetAttribute) error {
+	if preview.Callout == nil || previewHasOtherKind(preview, "callout") {
+		return errors.New("callout preview metadata is invalid")
+	}
+
+	callout := preview.Callout
+	if callout.Class == "" {
+		return errors.New("callout preview class is required")
+	}
+	if err := validateEditorWidgetClasses(callout.Class, callout.BodyClass); err != nil {
+		return err
+	}
+	return validateEditorWidgetAttributeReferences(attributes, callout.KindAttribute, callout.BodyAttribute)
+}
+
+// validateEditorWidgetDetailsPreview validates details-specific preview metadata.
+func validateEditorWidgetDetailsPreview(preview EditorWidgetPreview, attributes map[string]EditorWidgetAttribute) error {
+	if preview.Details == nil || previewHasOtherKind(preview, "details") {
+		return errors.New("details preview metadata is invalid")
+	}
+
+	details := preview.Details
+	if details.Class == "" {
+		return errors.New("details preview class is required")
+	}
+	if err := validateEditorWidgetClasses(details.Class, details.BodyClass); err != nil {
+		return err
+	}
+	return validateEditorWidgetAttributeReferences(attributes, details.TitleAttribute, details.OpenAttribute, details.BodyAttribute)
+}
+
+// validateEditorWidgetTabsPreview validates tabs-specific preview metadata.
+func validateEditorWidgetTabsPreview(preview EditorWidgetPreview, attributes map[string]EditorWidgetAttribute) error {
+	if preview.Tabs == nil || previewHasOtherKind(preview, "tabs") {
+		return errors.New("tabs preview metadata is invalid")
+	}
+
+	tabs := preview.Tabs
+	if err := validateEditorWidgetClasses(tabs.Class, tabs.ListClass, tabs.TabClass, tabs.ActiveClass, tabs.PanelsClass, tabs.PanelClass, tabs.HiddenClass); err != nil {
+		return err
+	}
+	if tabs.Class == "" || tabs.ListClass == "" || tabs.TabClass == "" || tabs.PanelsClass == "" || tabs.PanelClass == "" {
+		return errors.New("tabs preview classes are required")
+	}
+	for _, name := range []string{tabs.TitlesAttribute, tabs.BodiesAttribute} {
+		if err := validateEditorWidgetAttributeReferences(attributes, name); err != nil {
+			return err
+		}
+		if attributes[name].Type != "list" {
+			return errors.New("tabs preview attributes must be lists")
+		}
+	}
+	return nil
+}
+
+// previewHasOtherKind reports whether preview contains metadata for a different preview renderer.
+func previewHasOtherKind(preview EditorWidgetPreview, allowed string) bool {
+	if allowed != "badge" && preview.Badge != nil {
+		return true
+	}
+	if allowed != "reference" && preview.Reference != nil {
+		return true
+	}
+	if allowed != "card" && preview.Card != nil {
+		return true
+	}
+	if allowed != "callout" && preview.Callout != nil {
+		return true
+	}
+	if allowed != "details" && preview.Details != nil {
+		return true
+	}
+	return allowed != "tabs" && preview.Tabs != nil
+}
+
+// validateEditorWidgetClasses rejects unsafe non-empty presentation class names.
+func validateEditorWidgetClasses(classes ...string) error {
+	for _, className := range classes {
+		if className != "" && !editorWidgetClass.MatchString(className) {
+			return fmt.Errorf("preview class %q is invalid", className)
+		}
+	}
+	return nil
+}
+
+// validateEditorWidgetAttributeReferences rejects preview references to undeclared widget attributes.
+func validateEditorWidgetAttributeReferences(attributes map[string]EditorWidgetAttribute, names ...string) error {
+	for _, name := range names {
 		if name == "" {
-			return nil
+			continue
 		}
 		if _, ok := attributes[name]; !ok {
 			return fmt.Errorf("preview references unknown attribute %q", name)
 		}
-		return nil
 	}
-
-	switch preview.Kind {
-	case "badge":
-		if preview.Badge == nil || preview.Reference != nil || preview.Card != nil || preview.Callout != nil || preview.Details != nil || preview.Tabs != nil {
-			return errors.New("badge preview metadata is invalid")
-		}
-		badge := preview.Badge
-		for _, className := range []string{badge.Class, badge.SolidClass, badge.OutlineClass, badge.PrefixClass, badge.ValueClass} {
-			if err := class(className); err != nil {
-				return err
-			}
-		}
-		if badge.Class == "" || len(badge.DefaultLabel) > 128 || len(badge.DefaultColors) > 32 || len(badge.ToneClasses) > 32 {
-			return errors.New("badge preview metadata is invalid")
-		}
-		for _, name := range []string{badge.PrefixAttribute, badge.LabelAttribute, badge.LabelsAttribute, badge.FallbackAttribute, badge.ColorsAttribute, badge.StyleAttribute} {
-			if err := attribute(name); err != nil {
-				return err
-			}
-		}
-		for _, color := range badge.DefaultColors {
-			if !validEditorWidgetColor(color) {
-				return fmt.Errorf("preview color %q is invalid", color)
-			}
-		}
-		for color, className := range badge.ToneClasses {
-			if !validEditorWidgetColor(color) || !editorWidgetClass.MatchString(className) {
-				return errors.New("preview tone class mapping is invalid")
-			}
-		}
-		return nil
-	case "reference":
-		if preview.Reference == nil || preview.Badge != nil || preview.Card != nil || preview.Callout != nil || preview.Details != nil || preview.Tabs != nil {
-			return errors.New("reference preview metadata is invalid")
-		}
-		reference := preview.Reference
-		if reference.Class == "" || strings.TrimSpace(reference.Prefix) == "" || len(reference.Prefix) > 64 || len(reference.DefaultValue) > 128 {
-			return errors.New("reference preview metadata is invalid")
-		}
-		if err := class(reference.Class); err != nil {
-			return err
-		}
-		return attribute(reference.ValueAttribute)
-	case "card":
-		if preview.Card == nil || preview.Badge != nil || preview.Reference != nil || preview.Callout != nil || preview.Details != nil || preview.Tabs != nil {
-			return errors.New("card preview metadata is invalid")
-		}
-		card := preview.Card
-		if card.Class == "" || strings.TrimSpace(card.Title) == "" || len(card.Title) > 128 || len(card.BodyText) > 512 || len(card.MetadataAttributes) > 8 {
-			return errors.New("card preview metadata is invalid")
-		}
-		for _, className := range []string{card.Class, card.TitleClass, card.SubtitleClass, card.MetadataClass} {
-			if err := class(className); err != nil {
-				return err
-			}
-		}
-		if err := attribute(card.SubtitleAttribute); err != nil {
-			return err
-		}
-		for _, name := range card.MetadataAttributes {
-			if err := attribute(name); err != nil {
-				return err
-			}
-		}
-		return nil
-	case "callout":
-		if preview.Callout == nil || preview.Badge != nil || preview.Reference != nil || preview.Card != nil || preview.Details != nil || preview.Tabs != nil {
-			return errors.New("callout preview metadata is invalid")
-		}
-		callout := preview.Callout
-		if callout.Class == "" {
-			return errors.New("callout preview class is required")
-		}
-		for _, className := range []string{callout.Class, callout.BodyClass} {
-			if err := class(className); err != nil {
-				return err
-			}
-		}
-		if err := attribute(callout.KindAttribute); err != nil {
-			return err
-		}
-		return attribute(callout.BodyAttribute)
-	case "details":
-		if preview.Details == nil || preview.Badge != nil || preview.Reference != nil || preview.Card != nil || preview.Callout != nil || preview.Tabs != nil {
-			return errors.New("details preview metadata is invalid")
-		}
-		details := preview.Details
-		if details.Class == "" {
-			return errors.New("details preview class is required")
-		}
-		for _, className := range []string{details.Class, details.BodyClass} {
-			if err := class(className); err != nil {
-				return err
-			}
-		}
-		for _, name := range []string{details.TitleAttribute, details.OpenAttribute, details.BodyAttribute} {
-			if err := attribute(name); err != nil {
-				return err
-			}
-		}
-		return nil
-	case "tabs":
-		if preview.Tabs == nil || preview.Badge != nil || preview.Reference != nil || preview.Card != nil || preview.Callout != nil || preview.Details != nil {
-			return errors.New("tabs preview metadata is invalid")
-		}
-		tabs := preview.Tabs
-		for _, className := range []string{tabs.Class, tabs.ListClass, tabs.TabClass, tabs.ActiveClass, tabs.PanelsClass, tabs.PanelClass, tabs.HiddenClass} {
-			if err := class(className); err != nil {
-				return err
-			}
-		}
-		if tabs.Class == "" || tabs.ListClass == "" || tabs.TabClass == "" || tabs.PanelsClass == "" || tabs.PanelClass == "" {
-			return errors.New("tabs preview classes are required")
-		}
-		for _, name := range []string{tabs.TitlesAttribute, tabs.BodiesAttribute} {
-			if err := attribute(name); err != nil {
-				return err
-			}
-			decl := attributes[name]
-			if decl.Type != "list" {
-				return errors.New("tabs preview attributes must be lists")
-			}
-		}
-		return nil
-	default:
-		return fmt.Errorf("unsupported visual editor preview kind %q", preview.Kind)
-	}
+	return nil
 }
 
 // validEditorWidgetColor validates one canonical six-digit hexadecimal color.
