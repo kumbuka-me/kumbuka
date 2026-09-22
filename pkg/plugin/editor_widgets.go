@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/kumbuka-me/kumbuka/pkg/ascii"
 	"github.com/kumbuka-me/sdk/pluginpackage"
 )
 
@@ -659,7 +660,15 @@ func validateEditorWidgetBadgePreview(preview EditorWidgetPreview, attributes ma
 	if badge.Class == "" || len(badge.DefaultLabel) > 128 || len(badge.DefaultColors) > 32 || len(badge.ToneClasses) > 32 {
 		return errors.New("badge preview metadata is invalid")
 	}
-	if err := validateEditorWidgetAttributeReferences(attributes, badge.PrefixAttribute, badge.LabelAttribute, badge.LabelsAttribute, badge.FallbackAttribute, badge.ColorsAttribute, badge.StyleAttribute); err != nil {
+	if err := validateEditorWidgetAttributeReferences(
+		attributes,
+		badge.PrefixAttribute,
+		badge.LabelAttribute,
+		badge.LabelsAttribute,
+		badge.FallbackAttribute,
+		badge.ColorsAttribute,
+		badge.StyleAttribute,
+	); err != nil {
 		return err
 	}
 	for _, color := range badge.DefaultColors {
@@ -812,7 +821,7 @@ func validEditorWidgetColor(value string) bool {
 		return false
 	}
 	for _, char := range value[1:] {
-		if char >= '0' && char <= '9' || char >= 'a' && char <= 'f' || char >= 'A' && char <= 'F' {
+		if ascii.IsAlphanumeric(char) {
 			continue
 		}
 		return false
