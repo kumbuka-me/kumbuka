@@ -2,9 +2,10 @@ package webview
 
 import (
 	"encoding/json"
+	"html/template"
+
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/kumbuka-me/kumbuka/pkg/themes"
-	"html/template"
 )
 
 // PublicData builds shared data for unauthenticated setup and login pages.

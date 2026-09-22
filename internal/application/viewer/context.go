@@ -2,6 +2,7 @@ package viewer
 
 import (
 	"context"
+
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/kumbuka-me/kumbuka/pkg/renderprofile"
 )

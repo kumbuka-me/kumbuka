@@ -1,10 +1,10 @@
 package endpoint
 
 import (
-	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"net/http"
 
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
+	"github.com/kumbuka-me/kumbuka/internal/webview"
 )
 
 // Search executes free-text search plus supported field filters.

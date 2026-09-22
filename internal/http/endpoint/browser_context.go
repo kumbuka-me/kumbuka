@@ -2,15 +2,15 @@ package endpoint
 
 import (
 	"encoding/json"
-	"github.com/kumbuka-me/kumbuka/internal/application/viewer"
-	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"html/template"
 	"net/http"
 	"slices"
 	"sort"
 	"strings"
 
+	"github.com/kumbuka-me/kumbuka/internal/application/viewer"
 	"github.com/kumbuka-me/kumbuka/internal/http/auth"
+	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	md "github.com/kumbuka-me/kumbuka/pkg/markdown"
 	"github.com/kumbuka-me/kumbuka/pkg/navigation"

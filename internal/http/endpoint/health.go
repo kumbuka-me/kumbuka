@@ -2,8 +2,9 @@ package endpoint
 
 import (
 	"context"
-	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
 	"net/http"
+
+	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
 )
 
 // HealthProber verifies that a required application dependency is available.

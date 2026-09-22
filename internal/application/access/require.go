@@ -2,8 +2,9 @@ package access
 
 import (
 	"context"
-	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"strings"
+
+	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
 
 // Policy evaluates resource access independently of transport.

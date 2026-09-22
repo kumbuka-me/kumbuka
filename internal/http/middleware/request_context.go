@@ -1,8 +1,9 @@
 package middleware
 
 import (
-	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
 	"net/http"
+
+	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
 )
 
 // RequestContext supplies diagnostics even when access logging is disabled.

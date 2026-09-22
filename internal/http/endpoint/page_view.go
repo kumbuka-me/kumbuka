@@ -4,10 +4,10 @@ import (
 	"cmp"
 	"context"
 	"errors"
-	apppages "github.com/kumbuka-me/kumbuka/internal/application/pages"
 	"html/template"
 	"net/http"
 
+	apppages "github.com/kumbuka-me/kumbuka/internal/application/pages"
 	"github.com/kumbuka-me/kumbuka/internal/http/auth"
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
 	"github.com/kumbuka-me/kumbuka/internal/webview"

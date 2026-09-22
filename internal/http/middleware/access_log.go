@@ -1,10 +1,11 @@
 package middleware
 
 import (
-	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
 	"log/slog"
 	"net/http"
 	"time"
+
+	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
 )
 
 // AccessLog records request method, path, and elapsed time after handling.
