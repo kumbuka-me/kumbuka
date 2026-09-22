@@ -17,6 +17,7 @@ test("editor accepts the empty Go catalog contract", () => {
     pages: [],
     aliases: {},
     completions: [],
+    completion_providers: [],
     inserts: [],
     widgets: [],
     widget_problems: [],
@@ -28,6 +29,7 @@ test("editor catalog checks every field used by both consumers", () => {
     pages: [],
     aliases: {},
     completions: [],
+    completion_providers: [],
     inserts: [],
     widgets: [],
     widget_problems: [],
@@ -38,6 +40,7 @@ test("editor catalog checks every field used by both consumers", () => {
     { ...empty, pages: [null] },
     { ...empty, pages: [{ slug: 42, title: "Invalid" }] },
     { ...empty, completions: null },
+    { ...empty, completion_providers: [null] },
     { ...empty, inserts: null },
   ]) {
     let caught: unknown;
@@ -86,6 +89,19 @@ test("editor rejects malformed draft fields rather than coercing them", () => {
   }
 });
 
+test("editor treats omitted completion providers as an empty optional extension", () => {
+  const catalog = parseEditorCatalog({
+    pages: [],
+    aliases: {},
+    completions: [],
+    inserts: [],
+    widgets: [],
+    widget_problems: [],
+  });
+
+  assert.deepEqual(catalog.completion_providers, []);
+});
+
 test("editor accepts declarative plugin action metadata", () => {
   const catalog = parseEditorCatalog({
     pages: [],
@@ -112,4 +128,54 @@ test("editor accepts declarative plugin action metadata", () => {
   assert.equal(catalog.inserts[0]?.mode, "wrap");
   assert.equal(catalog.inserts[0]?.group, "text");
   assert.equal(catalog.inserts[0]?.suffix, "~~");
+});
+
+test("editor accepts resource-backed completion provider metadata", () => {
+  const catalog = parseEditorCatalog({
+    pages: [],
+    aliases: {},
+    completions: [],
+    completion_providers: [
+      {
+        plugin_id: "me.kumbuka.variables",
+        module_id: "completion",
+        resource_id: "variables",
+        resource_name: "Variables",
+        trigger: "{{",
+        replacement: "{{var:${name}}}",
+        label_field: "name",
+        detail_field: "description",
+        fields: [
+          {
+            id: "name",
+            name: "Name",
+            type: "text",
+            required: true,
+            key: true,
+            max_bytes: 128,
+          },
+        ],
+        can_create: true,
+      },
+    ],
+    inserts: [
+      {
+        plugin_id: "me.kumbuka.variables",
+        module_id: "variable",
+        name: "Variable",
+        markdown: "{{",
+        mode: "insert",
+        group: "insert",
+        completion_module_id: "completion",
+        inline: true,
+      },
+    ],
+    widgets: [],
+    widget_problems: [],
+  });
+
+  assert.equal(catalog.completion_providers[0]?.resource_id, "variables");
+  assert.equal(catalog.completion_providers[0]?.fields[0]?.key, true);
+  assert.equal(catalog.completion_providers[0]?.can_create, true);
+  assert.equal(catalog.inserts[0]?.completion_module_id, "completion");
 });

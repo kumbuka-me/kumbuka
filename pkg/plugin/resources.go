@@ -48,6 +48,50 @@ type ResourceRecord struct {
 	SecretFields map[string]bool
 }
 
+// EditorCompletionField describes one resource field that can be created from editor completion UI.
+type EditorCompletionField struct {
+	// ID identifies the backing resource field.
+	ID string `json:"id"`
+	// Name is the human-readable form label.
+	Name string `json:"name"`
+	// Type selects the generic editor control used for the field.
+	Type string `json:"type"`
+	// Required reports whether the field must contain a value.
+	Required bool `json:"required"`
+	// Key reports whether this field identifies the resource record.
+	Key bool `json:"key"`
+	// MaxBytes is the configured UTF-8 byte limit, when one is declared.
+	MaxBytes int `json:"max_bytes,omitempty"`
+	// Options contains the allowed values for select fields.
+	Options []string `json:"options,omitempty"`
+	// Default contains the manifest-provided initial value.
+	Default string `json:"default,omitempty"`
+}
+
+// EditorCompletionProvider describes one resource-backed completion source.
+type EditorCompletionProvider struct {
+	// PluginID identifies the plugin that owns the completion provider.
+	PluginID string `json:"plugin_id"`
+	// ModuleID identifies the editor-completion module.
+	ModuleID string `json:"module_id"`
+	// ResourceID identifies the backing admin-resource module.
+	ResourceID string `json:"resource_id"`
+	// ResourceName is the human-readable resource collection name.
+	ResourceName string `json:"resource_name"`
+	// Trigger opens this completion provider.
+	Trigger string `json:"trigger"`
+	// Replacement formats a newly created resource record into Markdown.
+	Replacement string `json:"replacement"`
+	// LabelField selects the resource field displayed as the completion label.
+	LabelField string `json:"label_field"`
+	// DetailField selects the optional resource field displayed below the label.
+	DetailField string `json:"detail_field,omitempty"`
+	// Fields describes controls available for direct record creation.
+	Fields []EditorCompletionField `json:"fields"`
+	// CanCreate reports whether direct creation is supported before request authorization is applied.
+	CanCreate bool `json:"can_create"`
+}
+
 // EditorCompletionItem is one concrete resource-backed editor completion.
 type EditorCompletionItem struct {
 	// PluginID and ModuleID identify the owning completion contribution.
@@ -86,6 +130,8 @@ type EditorInsertContribution struct {
 	Group string `json:"group"`
 	// Icon is the optional host icon shown for the action.
 	Icon string `json:"icon,omitempty"`
+	// CompletionModuleID identifies the matching resource-backed completion provider, when one is unambiguous.
+	CompletionModuleID string `json:"completion_module_id,omitempty"`
 	// Inline reports whether plain insertion should avoid block line breaks.
 	Inline bool `json:"inline"`
 }
@@ -277,6 +323,80 @@ func (m *Manager) DeleteResourceRecord(ctx context.Context, pluginID, moduleID, 
 	return m.values.DeletePluginValue(ctx, pluginID, resourceNamespace, resourceStorageKey(module.ID, key))
 }
 
+// EditorCompletionProviders returns active resource-backed completion definitions.
+func (m *Manager) EditorCompletionProviders() []EditorCompletionProvider {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	var result []EditorCompletionProvider
+	for _, id := range m.order {
+		item, ok := m.loaded[id]
+		if !ok || !item.metadata.Enabled {
+			continue
+		}
+
+		for _, module := range item.metadata.Manifest.Modules {
+			if module.Type != "editor-completion" {
+				continue
+			}
+
+			resource, ok := manifestResourceModule(item.metadata.Manifest, module.Resource)
+			if !ok {
+				continue
+			}
+
+			fields, supported := directEditorCompletionFields(resource.Fields)
+			result = append(result, EditorCompletionProvider{
+				PluginID:     id,
+				ModuleID:     module.ID,
+				ResourceID:   resource.ID,
+				ResourceName: resource.Name,
+				Trigger:      module.Trigger,
+				Replacement:  module.Replacement,
+				LabelField:   module.LabelField,
+				DetailField:  module.DetailField,
+				Fields:       fields,
+				CanCreate:    supported,
+			})
+		}
+	}
+	return result
+}
+
+// manifestResourceModule finds one admin-resource declaration by ID.
+func manifestResourceModule(manifest pluginpackage.Manifest, resourceID string) (pluginpackage.Module, bool) {
+	for _, module := range manifest.Modules {
+		if module.Type == "admin-resource" && module.ID == resourceID {
+			return module, true
+		}
+	}
+	return pluginpackage.Module{}, false
+}
+
+// directEditorCompletionFields converts resource fields supported by the inline editor form.
+func directEditorCompletionFields(fields []pluginpackage.ConfigurationField) ([]EditorCompletionField, bool) {
+	result := make([]EditorCompletionField, 0, len(fields))
+	for _, field := range fields {
+		switch field.Type {
+		case "text", "textarea", "url", "boolean", "select", "color":
+		default:
+			return nil, false
+		}
+
+		result = append(result, EditorCompletionField{
+			ID:       field.ID,
+			Name:     field.Name,
+			Type:     field.Type,
+			Required: field.Required,
+			Key:      field.Key,
+			MaxBytes: field.MaxBytes,
+			Options:  append([]string(nil), field.Options...),
+			Default:  field.Default,
+		})
+	}
+	return result, len(result) > 0
+}
+
 // EditorCompletions expands active resource-backed completion declarations into concrete items.
 func (m *Manager) EditorCompletions(ctx context.Context) ([]EditorCompletionItem, error) {
 	m.mu.Lock()
@@ -338,21 +458,41 @@ func (m *Manager) EditorInserts() []EditorInsertContribution {
 				group = "insert"
 			}
 			result = append(result, EditorInsertContribution{
-				PluginID:    id,
-				ModuleID:    module.ID,
-				Name:        module.Name,
-				Description: module.Description,
-				Markdown:    module.Markdown,
-				Suffix:      module.Suffix,
-				Placeholder: module.Placeholder,
-				Mode:        mode,
-				Group:       group,
-				Icon:        module.Icon,
-				Inline:      module.Inline,
+				PluginID:           id,
+				ModuleID:           module.ID,
+				Name:               module.Name,
+				Description:        module.Description,
+				Markdown:           module.Markdown,
+				Suffix:             module.Suffix,
+				Placeholder:        module.Placeholder,
+				Mode:               mode,
+				Group:              group,
+				Icon:               module.Icon,
+				CompletionModuleID: editorInsertCompletionModuleID(item.metadata.Manifest.Modules, module, mode),
+				Inline:             module.Inline,
 			})
 		}
 	}
 	return result
+}
+
+// editorInsertCompletionModuleID returns the sole completion provider whose trigger exactly matches one plain insert action.
+func editorInsertCompletionModuleID(modules []pluginpackage.Module, insert pluginpackage.Module, mode string) string {
+	if mode != "insert" || insert.Suffix != "" || insert.Markdown == "" {
+		return ""
+	}
+
+	matched := ""
+	for _, module := range modules {
+		if module.Type != "editor-completion" || module.Trigger != insert.Markdown {
+			continue
+		}
+		if matched != "" {
+			return ""
+		}
+		matched = module.ID
+	}
+	return matched
 }
 
 // resourceModule returns one declared admin resource from a loaded plugin.

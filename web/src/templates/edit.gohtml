@@ -345,6 +345,10 @@
       {{ range .EditorInserts }}
         {{ if eq .Group "text" }}
           <button type="button"
+                  data-plugin-insert-plugin-id="{{ .PluginID }}"
+                  data-plugin-insert-name="{{ .Name }}"
+                  {{ if .CompletionModuleID }}data-plugin-insert-completion-module-id="{{ .CompletionModuleID }}"
+                  {{ end }}
                   data-plugin-insert-markdown="{{ .Markdown }}"
                   data-plugin-insert-suffix="{{ .Suffix }}"
                   data-plugin-insert-placeholder="{{ .Placeholder }}"
@@ -390,6 +394,10 @@
       {{ range .EditorInserts }}
         {{ if eq .Group "blocks" }}
           <button type="button"
+                  data-plugin-insert-plugin-id="{{ .PluginID }}"
+                  data-plugin-insert-name="{{ .Name }}"
+                  {{ if .CompletionModuleID }}data-plugin-insert-completion-module-id="{{ .CompletionModuleID }}"
+                  {{ end }}
                   data-plugin-insert-markdown="{{ .Markdown }}"
                   data-plugin-insert-suffix="{{ .Suffix }}"
                   data-plugin-insert-placeholder="{{ .Placeholder }}"
@@ -412,6 +420,10 @@
           {{ range .EditorInserts }}
             {{ if eq .Group "insert" }}
               <button type="button"
+                      data-plugin-insert-plugin-id="{{ .PluginID }}"
+                      data-plugin-insert-name="{{ .Name }}"
+                      {{ if .CompletionModuleID }}data-plugin-insert-completion-module-id="{{ .CompletionModuleID }}"
+                      {{ end }}
                       data-plugin-insert-markdown="{{ .Markdown }}"
                       data-plugin-insert-suffix="{{ .Suffix }}"
                       data-plugin-insert-placeholder="{{ .Placeholder }}"

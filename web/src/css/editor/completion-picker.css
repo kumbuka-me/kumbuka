@@ -1,0 +1,125 @@
+/* Resource-backed completion picker used by visual-editor insert actions. */
+
+.editor-completion-dialog {
+  --dialog-width: 600px;
+  overflow: hidden;
+}
+
+.editor-completion-dialog [hidden] {
+  display: none;
+}
+
+.editor-completion-search {
+  border-bottom: 1px solid var(--border-subtle);
+  padding: 12px 14px;
+}
+
+.editor-completion-search input {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 9px 11px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
+
+.editor-completion-search input:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.editor-completion-body {
+  min-height: 104px;
+  max-height: min(430px, calc(100dvh - 250px));
+  overflow: auto;
+  padding: 6px;
+}
+
+.editor-completion-options {
+  display: grid;
+  gap: 2px;
+}
+
+.editor-completion-option {
+  display: block;
+  width: 100%;
+  border: 0;
+  border-radius: 7px;
+  padding: 9px 10px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.editor-completion-option strong,
+.editor-completion-option small {
+  display: block;
+}
+
+.editor-completion-option small {
+  margin-top: 2px;
+  color: var(--text-tertiary);
+}
+
+.editor-completion-option:hover,
+.editor-completion-option:focus-visible {
+  background: var(--surface-hover);
+  outline: none;
+}
+
+.editor-completion-empty {
+  padding: 26px 14px;
+  text-align: center;
+}
+
+.editor-completion-dialog .app-dialog-actions {
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 14px;
+}
+
+.editor-completion-create {
+  padding: 18px 20px;
+}
+
+.editor-completion-create-heading {
+  display: grid;
+  gap: 2px;
+}
+
+.editor-completion-create-heading small {
+  color: var(--text-tertiary);
+  font-weight: 400;
+}
+
+.editor-completion-create-error {
+  margin: 0;
+  color: var(--danger);
+  white-space: pre-line;
+}
+
+.editor-completion-create-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+}
+
+@media (max-width: 800px) {
+  .editor-completion-search {
+    padding: 12px;
+  }
+
+  .editor-completion-search input {
+    font-size: 16px;
+  }
+
+  .editor-completion-body {
+    max-height: calc(100dvh - 220px);
+  }
+
+  .editor-completion-create {
+    padding: 16px;
+  }
+}

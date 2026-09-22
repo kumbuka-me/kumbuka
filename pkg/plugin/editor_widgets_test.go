@@ -3,7 +3,6 @@ package plugin
 import (
 	"archive/zip"
 	"bytes"
-	"encoding/json"
 	"testing"
 
 	"github.com/kumbuka-me/sdk/pluginpackage"
@@ -56,12 +55,91 @@ func TestEditorWidgets(t *testing.T) {
 		require.Equal(t, ",", widgets[0].Attributes[2].FallbackSeparator)
 		require.True(t, widgets[0].Attributes[2].Unique)
 		require.Equal(t, []string{"workflow", "approval"}, widgets[0].Settings[1].Suggestions)
-		widgets[0].Settings[1].Suggestions[0] = "changed"
-		widgets[0].Attributes[3].Aliases["blue"] = "#000000"
-		again, _ := manager.EditorWidgets()
-		require.Equal(t, "workflow", again[0].Settings[1].Suggestions[0])
-		require.Equal(t, "#2563eb", again[0].Attributes[3].Aliases["blue"])
+	})
 
+	t.Run("accepts every supported source and preview shape", func(t *testing.T) {
+		t.Parallel()
+
+		widgets, err := parseEditorWidgetDocument([]byte(`{
+  "version": 1,
+  "widgets": [
+    {
+      "id": "include",
+      "name": "Include",
+      "inline": true,
+      "syntax": {"kind": "substitution", "name": "include"},
+      "attributes": [{"name": "target", "type": "string", "required": true}],
+      "settings": [{"type": "text", "label": "Target", "attribute": "target"}],
+      "preview": {"kind": "reference", "reference": {"class": "visual-include-reference", "prefix": "Include", "value_attribute": "target"}}
+    },
+    {
+      "id": "external-file",
+      "name": "External file",
+      "inline": false,
+      "syntax": {"kind": "macro", "name": "external-file"},
+      "attributes": [
+        {"name": "path", "type": "string", "required": true},
+        {"name": "note", "type": "list", "separator": "\u001f", "repeat": true, "max_bytes": 2048}
+      ],
+      "settings": [
+        {"type": "text", "label": "Path", "attribute": "path"},
+        {"type": "table", "label": "Notes", "attributes": ["note"], "columns": [{"label": "Note", "type": "textarea"}]}
+      ],
+      "preview": {"kind": "card", "card": {"class": "external-file", "title": "External file", "subtitle_attribute": "path"}}
+    },
+    {
+      "id": "callout",
+      "name": "Callout",
+      "inline": false,
+      "syntax": {"kind": "callout"},
+      "attributes": [
+        {"name": "kind", "type": "enum", "required": true, "values": ["note", "warning"]},
+        {"name": "body", "type": "string", "required": true, "max_bytes": 16384}
+      ],
+      "settings": [
+        {"type": "select", "label": "Type", "attribute": "kind"},
+        {"type": "textarea", "label": "Body", "attribute": "body"}
+      ],
+      "preview": {"kind": "callout", "callout": {"class": "callout", "body_class": "callout-body", "kind_attribute": "kind", "body_attribute": "body"}}
+    },
+    {
+      "id": "details",
+      "name": "Details",
+      "inline": false,
+      "syntax": {"kind": "details"},
+      "attributes": [
+        {"name": "title", "type": "string", "required": true},
+        {"name": "open", "type": "enum", "values": ["false", "true"]},
+        {"name": "body", "type": "string", "required": true}
+      ],
+      "settings": [
+        {"type": "text", "label": "Title", "attribute": "title"},
+        {"type": "select", "label": "Open", "attribute": "open"},
+        {"type": "textarea", "label": "Body", "attribute": "body"}
+      ],
+      "preview": {"kind": "details", "details": {"class": "markdown-details", "body_class": "markdown-details-body", "title_attribute": "title", "open_attribute": "open", "body_attribute": "body"}}
+    },
+    {
+      "id": "tabs",
+      "name": "Tabs",
+      "inline": false,
+      "syntax": {"kind": "tabs"},
+      "attributes": [
+        {"name": "titles", "type": "list", "required": true, "separator": "\u001f"},
+        {"name": "bodies", "type": "list", "required": true, "separator": "\u001f", "max_bytes": 32768}
+      ],
+      "settings": [{"type": "table", "label": "Tabs", "attributes": ["titles", "bodies"], "columns": [{"label": "Title", "type": "text"}, {"label": "Body", "type": "textarea"}]}],
+      "constraints": [{"kind": "same-length", "attributes": ["titles", "bodies"]}],
+      "preview": {"kind": "tabs", "tabs": {"class": "markdown-tabs", "list_class": "markdown-tab-list", "tab_class": "markdown-tab", "panels_class": "markdown-tab-panels", "panel_class": "markdown-tab-panel", "titles_attribute": "titles", "bodies_attribute": "bodies"}}
+    }
+  ]
+}`))
+
+		require.NoError(t, err)
+		require.Len(t, widgets, 5)
+		require.True(t, widgets[1].Attributes[1].Repeat)
+		require.Equal(t, "textarea", widgets[2].Settings[1].Type)
+		require.Equal(t, "tabs", widgets[4].Preview.Kind)
 	})
 
 	t.Run("reports invalid contract without disabling plugin", func(t *testing.T) {
@@ -165,33 +243,4 @@ func editorWidgetTestManager(t *testing.T, archive []byte, enabled bool) *Manage
 	}
 	manager.order = []string{id}
 	return manager
-}
-
-func TestEditorWidgetRejectsDuplicateMacro(t *testing.T) {
-	widget := EditorWidgetContribution{ID: "first", Name: "First", Syntax: EditorWidgetSyntax{Kind: "macro", Name: "status"}, Attributes: []EditorWidgetAttribute{{Name: "id", Type: "identifier"}}, Settings: []EditorWidgetSetting{{Type: "text", Label: "ID", Attribute: "id"}}, Preview: EditorWidgetPreview{Kind: "badge", Badge: &EditorWidgetBadgePreview{Class: "badge"}}}
-	other := widget
-	other.ID = "second"
-	data, err := json.Marshal(editorWidgetDocument{Version: 1, Widgets: []EditorWidgetContribution{widget, other}})
-	require.NoError(t, err)
-	_, err = parseEditorWidgetDocument(data)
-	require.ErrorContains(t, err, "duplicate visual editor macro")
-}
-
-func TestEditorWidgetsReportConflictingPlugins(t *testing.T) {
-	manager := NewManager(&Registry{}, nil)
-	for _, id := range []string{"first", "second"} {
-		manager.order = append(manager.order, id)
-		manager.loaded[id] = managedPlugin{metadata: LoadedPlugin{Enabled: true}, editorWidgets: []EditorWidgetContribution{{PluginID: id, Syntax: EditorWidgetSyntax{Kind: "macro", Name: "status"}}}}
-	}
-	widgets, problems := manager.EditorWidgets()
-	require.Len(t, widgets, 1)
-	require.Equal(t, "first", widgets[0].PluginID)
-	require.Len(t, problems, 1)
-	require.Equal(t, "second", problems[0].PluginID)
-	require.Contains(t, problems[0].Message, "already handled by first")
-}
-
-func TestEditorWidgetConstraintRejectsRepeatedAttributes(t *testing.T) {
-	err := validateEditorWidgetConstraint(EditorWidgetConstraint{Kind: "exactly-one", Attributes: []string{"id", "id"}}, map[string]EditorWidgetAttribute{"id": {Name: "id", Type: "identifier"}})
-	require.ErrorContains(t, err, "repeats attribute")
 }

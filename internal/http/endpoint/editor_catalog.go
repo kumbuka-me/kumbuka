@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
+	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/kumbuka-me/kumbuka/pkg/plugin"
 )
 
@@ -36,6 +37,7 @@ func EditorCatalog(
 		}
 
 		var completions []plugin.EditorCompletionItem
+		var completionProviders []plugin.EditorCompletionProvider
 		var inserts []plugin.EditorInsertContribution
 		var widgets []plugin.EditorWidgetContribution
 		var widgetProblems []plugin.EditorWidgetProblem
@@ -44,6 +46,19 @@ func EditorCatalog(
 			if err != nil {
 				httpresponse.InternalServerError(logger, w, err)
 				return
+			}
+
+			completionProviders = plugins.EditorCompletionProviders()
+			canCreateResources := currentUser(r).Role == domain.UserRoleAdmin
+			for index := range completionProviders {
+				completionProviders[index].CanCreate = completionProviders[index].CanCreate && canCreateResources
+				if !completionProviders[index].CanCreate {
+					completionProviders[index].ResourceID = ""
+					completionProviders[index].Replacement = ""
+					completionProviders[index].LabelField = ""
+					completionProviders[index].DetailField = ""
+					completionProviders[index].Fields = []plugin.EditorCompletionField{}
+				}
 			}
 			inserts = plugins.EditorInserts()
 			widgets, widgetProblems = plugins.EditorWidgets()
@@ -59,12 +74,13 @@ func EditorCatalog(
 		}
 
 		httpresponse.Respond(w, http.StatusOK, map[string]any{
-			"pages":           items,
-			"completions":     jsonSlice(completions),
-			"inserts":         jsonSlice(inserts),
-			"widgets":         jsonSlice(widgets),
-			"widget_problems": jsonSlice(widgetProblems),
-			"aliases":         aliases,
+			"pages":                items,
+			"completions":          jsonSlice(completions),
+			"completion_providers": jsonSlice(completionProviders),
+			"inserts":              jsonSlice(inserts),
+			"widgets":              jsonSlice(widgets),
+			"widget_problems":      jsonSlice(widgetProblems),
+			"aliases":              aliases,
 		})
 	}
 }

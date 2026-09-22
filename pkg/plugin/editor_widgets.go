@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"maps"
 	"regexp"
 	"strings"
 
@@ -27,10 +26,10 @@ var editorWidgetClass = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_-]{0,127}$`)
 
 // EditorWidgetSyntax declares the Markdown construct recognized by one visual-editor widget.
 type EditorWidgetSyntax struct {
-	// Kind selects the supported Markdown mapping. Version 1 supports macro syntax.
+	// Kind selects macro, substitution, callout, details, or tabs source mapping.
 	Kind string `json:"kind"`
-	// Name is the macro name without surrounding braces.
-	Name string `json:"name"`
+	// Name identifies a macro name or substitution prefix when the syntax kind uses one.
+	Name string `json:"name,omitempty"`
 	// Multiline allows a macro invocation to span multiple source lines.
 	Multiline bool `json:"multiline,omitempty"`
 }
@@ -57,6 +56,10 @@ type EditorWidgetAttribute struct {
 	FallbackSeparator string `json:"fallback_separator,omitempty"`
 	// Unique reports whether list values must be distinct.
 	Unique bool `json:"unique,omitempty"`
+	// Repeat serializes list values as repeated macro attributes instead of one joined value.
+	Repeat bool `json:"repeat,omitempty"`
+	// EmitEmpty preserves an explicit empty scalar value instead of omitting its source attribute.
+	EmitEmpty bool `json:"emit_empty,omitempty"`
 	// Aliases maps plugin-specific color names to canonical hexadecimal colors.
 	Aliases map[string]string `json:"aliases,omitempty"`
 }
@@ -65,13 +68,13 @@ type EditorWidgetAttribute struct {
 type EditorWidgetSettingColumn struct {
 	// Label is the human-readable column heading.
 	Label string `json:"label"`
-	// Type selects a text or color input.
+	// Type selects a text, textarea, or color input.
 	Type string `json:"type"`
 }
 
 // EditorWidgetSetting declares one generic control rendered by the visual editor.
 type EditorWidgetSetting struct {
-	// Type selects text, select, or table behavior.
+	// Type selects text, textarea, select, or table behavior.
 	Type string `json:"type"`
 	// Label is the human-readable setting label.
 	Label string `json:"label"`
@@ -129,12 +132,102 @@ type EditorWidgetBadgePreview struct {
 	ToneClasses map[string]string `json:"tone_classes,omitempty"`
 }
 
+// EditorWidgetReferencePreview describes an inline reference chip for substitutions and resource-backed content.
+type EditorWidgetReferencePreview struct {
+	// Class is the plugin-owned presentation class applied to the reference.
+	Class string `json:"class"`
+	// Prefix is the short visible kind label, such as Variable or Include.
+	Prefix string `json:"prefix"`
+	// ValueAttribute selects the source attribute displayed after Prefix.
+	ValueAttribute string `json:"value_attribute"`
+	// DefaultValue is used when the selected attribute is empty.
+	DefaultValue string `json:"default_value,omitempty"`
+}
+
+// EditorWidgetCardPreview describes a bounded block card for dynamic plugin content.
+type EditorWidgetCardPreview struct {
+	// Class is the base class used by the published component when available.
+	Class string `json:"class"`
+	// Title is the fixed heading shown by the card.
+	Title string `json:"title"`
+	// TitleClass optionally applies a published title class.
+	TitleClass string `json:"title_class,omitempty"`
+	// SubtitleAttribute selects the main source value shown below the title.
+	SubtitleAttribute string `json:"subtitle_attribute,omitempty"`
+	// SubtitleClass optionally applies a published subtitle class.
+	SubtitleClass string `json:"subtitle_class,omitempty"`
+	// MetadataAttributes selects additional non-empty source values shown compactly.
+	MetadataAttributes []string `json:"metadata_attributes,omitempty"`
+	// MetadataClass optionally applies a published metadata class.
+	MetadataClass string `json:"metadata_class,omitempty"`
+	// BodyText is optional static helper text for dynamic content unavailable in the editor.
+	BodyText string `json:"body_text,omitempty"`
+}
+
+// EditorWidgetCalloutPreview describes the published callout panel shape.
+type EditorWidgetCalloutPreview struct {
+	// Class is the base callout class.
+	Class string `json:"class"`
+	// BodyClass is the class applied to callout body text.
+	BodyClass string `json:"body_class,omitempty"`
+	// KindAttribute selects the callout kind and additional tone class.
+	KindAttribute string `json:"kind_attribute"`
+	// BodyAttribute selects callout body text.
+	BodyAttribute string `json:"body_attribute"`
+}
+
+// EditorWidgetDetailsPreview describes a native details preview.
+type EditorWidgetDetailsPreview struct {
+	// Class is the published details class.
+	Class string `json:"class"`
+	// BodyClass is the published details-body class.
+	BodyClass string `json:"body_class,omitempty"`
+	// TitleAttribute selects summary text.
+	TitleAttribute string `json:"title_attribute"`
+	// OpenAttribute selects the true/false initial-open value.
+	OpenAttribute string `json:"open_attribute"`
+	// BodyAttribute selects details body text.
+	BodyAttribute string `json:"body_attribute"`
+}
+
+// EditorWidgetTabsPreview describes the published tabs component shape.
+type EditorWidgetTabsPreview struct {
+	// Class is the outer tabs class.
+	Class string `json:"class"`
+	// ListClass is the tab-list class.
+	ListClass string `json:"list_class"`
+	// TabClass is the tab-button class.
+	TabClass string `json:"tab_class"`
+	// ActiveClass marks the first visible tab.
+	ActiveClass string `json:"active_class,omitempty"`
+	// PanelsClass is the tab-panels wrapper class.
+	PanelsClass string `json:"panels_class"`
+	// PanelClass is the visible panel class.
+	PanelClass string `json:"panel_class"`
+	// HiddenClass marks inactive panels.
+	HiddenClass string `json:"hidden_class,omitempty"`
+	// TitlesAttribute selects the list of tab titles.
+	TitlesAttribute string `json:"titles_attribute"`
+	// BodiesAttribute selects the parallel list of tab bodies.
+	BodiesAttribute string `json:"bodies_attribute"`
+}
+
 // EditorWidgetPreview declares the host-rendered visual representation used while editing.
 type EditorWidgetPreview struct {
 	// Kind selects a bounded host-owned preview renderer.
 	Kind string `json:"kind"`
 	// Badge contains badge-specific presentation metadata.
 	Badge *EditorWidgetBadgePreview `json:"badge,omitempty"`
+	// Reference contains resource-reference chip metadata.
+	Reference *EditorWidgetReferencePreview `json:"reference,omitempty"`
+	// Card contains dynamic block-card metadata.
+	Card *EditorWidgetCardPreview `json:"card,omitempty"`
+	// Callout contains callout-panel metadata.
+	Callout *EditorWidgetCalloutPreview `json:"callout,omitempty"`
+	// Details contains collapsible-details metadata.
+	Details *EditorWidgetDetailsPreview `json:"details,omitempty"`
+	// Tabs contains tab-group metadata.
+	Tabs *EditorWidgetTabsPreview `json:"tabs,omitempty"`
 }
 
 // EditorWidgetContribution is one validated optional plugin visual-editor contract.
@@ -182,7 +275,6 @@ func (m *Manager) EditorWidgets() ([]EditorWidgetContribution, []EditorWidgetPro
 
 	var widgets []EditorWidgetContribution
 	var problems []EditorWidgetProblem
-	owners := make(map[string]string)
 	for _, id := range m.order {
 		item, ok := m.loaded[id]
 		if !ok || !item.metadata.Enabled {
@@ -194,11 +286,6 @@ func (m *Manager) EditorWidgets() ([]EditorWidgetContribution, []EditorWidgetPro
 			continue
 		}
 		for _, widget := range item.editorWidgets {
-			if owner, exists := owners[widget.Syntax.Name]; exists {
-				problems = append(problems, editorWidgetProblem(id, fmt.Sprintf("macro %q is already handled by %s", widget.Syntax.Name, owner)))
-				continue
-			}
-			owners[widget.Syntax.Name] = id
 			widgets = append(widgets, cloneEditorWidget(widget))
 		}
 	}
@@ -232,7 +319,7 @@ func cloneEditorWidget(widget EditorWidgetContribution) EditorWidgetContribution
 	clone.Attributes = append([]EditorWidgetAttribute(nil), widget.Attributes...)
 	for index := range clone.Attributes {
 		clone.Attributes[index].Values = append([]string(nil), widget.Attributes[index].Values...)
-		clone.Attributes[index].Aliases = maps.Clone(widget.Attributes[index].Aliases)
+		clone.Attributes[index].Aliases = cloneStringMap(widget.Attributes[index].Aliases)
 	}
 	clone.Settings = append([]EditorWidgetSetting(nil), widget.Settings...)
 	for index := range clone.Settings {
@@ -247,8 +334,41 @@ func cloneEditorWidget(widget EditorWidgetContribution) EditorWidgetContribution
 	if widget.Preview.Badge != nil {
 		badge := *widget.Preview.Badge
 		badge.DefaultColors = append([]string(nil), widget.Preview.Badge.DefaultColors...)
-		badge.ToneClasses = maps.Clone(widget.Preview.Badge.ToneClasses)
+		badge.ToneClasses = cloneStringMap(widget.Preview.Badge.ToneClasses)
 		clone.Preview.Badge = &badge
+	}
+	if widget.Preview.Reference != nil {
+		reference := *widget.Preview.Reference
+		clone.Preview.Reference = &reference
+	}
+	if widget.Preview.Card != nil {
+		card := *widget.Preview.Card
+		card.MetadataAttributes = append([]string(nil), widget.Preview.Card.MetadataAttributes...)
+		clone.Preview.Card = &card
+	}
+	if widget.Preview.Callout != nil {
+		callout := *widget.Preview.Callout
+		clone.Preview.Callout = &callout
+	}
+	if widget.Preview.Details != nil {
+		details := *widget.Preview.Details
+		clone.Preview.Details = &details
+	}
+	if widget.Preview.Tabs != nil {
+		tabs := *widget.Preview.Tabs
+		clone.Preview.Tabs = &tabs
+	}
+	return clone
+}
+
+// cloneStringMap copies a string map while preserving nil.
+func cloneStringMap(source map[string]string) map[string]string {
+	if source == nil {
+		return nil
+	}
+	clone := make(map[string]string, len(source))
+	for key, value := range source {
+		clone[key] = value
 	}
 	return clone
 }
@@ -285,16 +405,11 @@ func parseEditorWidgetDocument(data []byte) ([]EditorWidgetContribution, error) 
 	}
 
 	seen := make(map[string]bool, len(document.Widgets))
-	macros := make(map[string]bool, len(document.Widgets))
 	for index := range document.Widgets {
 		widget := &document.Widgets[index]
 		if !validID.MatchString(widget.ID) || seen[widget.ID] {
 			return nil, fmt.Errorf("invalid or duplicate visual editor widget ID %q", widget.ID)
 		}
-		if macros[widget.Syntax.Name] {
-			return nil, fmt.Errorf("duplicate visual editor macro %q", widget.Syntax.Name)
-		}
-		macros[widget.Syntax.Name] = true
 		seen[widget.ID] = true
 		if err := validateEditorWidget(widget); err != nil {
 			return nil, fmt.Errorf("visual editor widget %q: %w", widget.ID, err)
@@ -320,8 +435,17 @@ func validateEditorWidget(widget *EditorWidgetContribution) error {
 	if strings.TrimSpace(widget.Name) == "" || len(widget.Name) > 128 {
 		return errors.New("name is empty or too long")
 	}
-	if widget.Syntax.Kind != "macro" || !validID.MatchString(widget.Syntax.Name) {
-		return errors.New("syntax must declare a valid macro name")
+	switch widget.Syntax.Kind {
+	case "macro", "substitution":
+		if !validID.MatchString(widget.Syntax.Name) {
+			return errors.New("syntax must declare a valid macro name or substitution prefix")
+		}
+	case "callout", "details", "tabs":
+		if widget.Syntax.Name != "" || widget.Inline {
+			return errors.New("block syntax cannot declare a name or be inline")
+		}
+	default:
+		return fmt.Errorf("unsupported visual editor syntax kind %q", widget.Syntax.Kind)
 	}
 	if len(widget.Attributes) == 0 || len(widget.Attributes) > maxEditorWidgetAttributes {
 		return fmt.Errorf("must declare between 1 and %d attributes", maxEditorWidgetAttributes)
@@ -361,24 +485,24 @@ func validateEditorWidgetAttribute(attribute EditorWidgetAttribute) error {
 	if !validID.MatchString(attribute.Name) {
 		return errors.New("name is invalid")
 	}
-	if attribute.MaxBytes < 0 || attribute.MaxBytes > 4096 || attribute.MaxItems < 0 || attribute.MaxItems > 128 {
+	if attribute.MaxBytes < 0 || attribute.MaxBytes > 65536 || attribute.MaxItems < 0 || attribute.MaxItems > 128 {
 		return errors.New("limits are invalid")
 	}
-	if attribute.Separator != "" && attribute.Separator != ";" && attribute.Separator != "," {
-		return errors.New("separator must be comma or semicolon")
+	validSeparator := func(value string) bool { return value == "" || value == ";" || value == "," || value == "\x1f" }
+	if !validSeparator(attribute.Separator) {
+		return errors.New("separator must be comma, semicolon, or unit separator")
 	}
-	if attribute.FallbackSeparator != "" &&
-		(attribute.FallbackSeparator != ";" && attribute.FallbackSeparator != "," || attribute.FallbackSeparator == attribute.Separator) {
-		return errors.New("fallback separator must be the other supported list separator")
+	if !validSeparator(attribute.FallbackSeparator) || attribute.FallbackSeparator != "" && attribute.FallbackSeparator == attribute.Separator {
+		return errors.New("fallback separator is invalid")
 	}
 
 	switch attribute.Type {
 	case "string", "identifier":
-		if len(attribute.Values) != 0 || attribute.MaxItems != 0 || attribute.Separator != "" || attribute.FallbackSeparator != "" || attribute.Unique || len(attribute.Aliases) != 0 {
+		if len(attribute.Values) != 0 || attribute.MaxItems != 0 || attribute.Separator != "" || attribute.FallbackSeparator != "" || attribute.Unique || attribute.Repeat || len(attribute.Aliases) != 0 {
 			return errors.New("scalar attribute declares list, enum, or color options")
 		}
 	case "enum":
-		if len(attribute.Values) == 0 || len(attribute.Values) > 32 || attribute.MaxItems != 0 || attribute.Separator != "" || attribute.FallbackSeparator != "" || attribute.Unique || len(attribute.Aliases) != 0 {
+		if len(attribute.Values) == 0 || len(attribute.Values) > 32 || attribute.MaxItems != 0 || attribute.Separator != "" || attribute.FallbackSeparator != "" || attribute.Unique || attribute.Repeat || attribute.EmitEmpty || len(attribute.Aliases) != 0 {
 			return errors.New("enum attribute has invalid values")
 		}
 		seen := make(map[string]bool, len(attribute.Values))
@@ -392,8 +516,8 @@ func validateEditorWidgetAttribute(attribute EditorWidgetAttribute) error {
 			return errors.New("default is not an allowed enum value")
 		}
 	case "list", "color-list":
-		if len(attribute.Values) != 0 {
-			return errors.New("list attribute cannot declare enum values")
+		if len(attribute.Values) != 0 || attribute.EmitEmpty {
+			return errors.New("list attribute cannot declare enum values or emit-empty behavior")
 		}
 		if attribute.Separator == "" {
 			return errors.New("list attribute requires a separator")
@@ -426,10 +550,10 @@ func validateEditorWidgetSetting(setting EditorWidgetSetting, attributes map[str
 		}
 	}
 	switch setting.Type {
-	case "text":
+	case "text", "textarea":
 		attribute, ok := attributes[setting.Attribute]
 		if !ok || (attribute.Type != "string" && attribute.Type != "identifier") || len(setting.Attributes) != 0 || len(setting.Columns) != 0 {
-			return fmt.Errorf("text setting %q references an invalid attribute", setting.Label)
+			return fmt.Errorf("%s setting %q references an invalid attribute", setting.Type, setting.Label)
 		}
 	case "select":
 		attribute, ok := attributes[setting.Attribute]
@@ -441,8 +565,8 @@ func validateEditorWidgetSetting(setting EditorWidgetSetting, attributes map[str
 			return fmt.Errorf("table setting %q has invalid columns", setting.Label)
 		}
 		first := attributes[setting.Attributes[0]]
-		if first.Type != "list" || setting.Columns[0].Type != "text" {
-			return fmt.Errorf("table setting %q must start with a text list column", setting.Label)
+		if first.Type != "list" || (setting.Columns[0].Type != "text" && setting.Columns[0].Type != "textarea") {
+			return fmt.Errorf("table setting %q must start with a text or textarea list column", setting.Label)
 		}
 		seen := make(map[string]bool, len(setting.Attributes))
 		for index, name := range setting.Attributes {
@@ -452,7 +576,7 @@ func validateEditorWidgetSetting(setting EditorWidgetSetting, attributes map[str
 			}
 			seen[name] = true
 			column := setting.Columns[index]
-			if strings.TrimSpace(column.Label) == "" || len(column.Label) > 128 || (column.Type != "text" && column.Type != "color") {
+			if strings.TrimSpace(column.Label) == "" || len(column.Label) > 128 || (column.Type != "text" && column.Type != "textarea" && column.Type != "color") {
 				return fmt.Errorf("table setting %q has invalid column", setting.Label)
 			}
 			if column.Type == "color" && attribute.Type != "color-list" {
@@ -470,12 +594,7 @@ func validateEditorWidgetConstraint(constraint EditorWidgetConstraint, attribute
 	if len(constraint.Attributes) < 2 || len(constraint.Attributes) > 8 {
 		return errors.New("visual editor constraint must reference between 2 and 8 attributes")
 	}
-	seen := make(map[string]bool, len(constraint.Attributes))
 	for _, name := range constraint.Attributes {
-		if seen[name] {
-			return fmt.Errorf("visual editor constraint repeats attribute %q", name)
-		}
-		seen[name] = true
 		if _, ok := attributes[name]; !ok {
 			return fmt.Errorf("visual editor constraint references unknown attribute %q", name)
 		}
@@ -486,12 +605,7 @@ func validateEditorWidgetConstraint(constraint EditorWidgetConstraint, attribute
 			return errors.New("exactly-one constraint cannot be optional")
 		}
 	case "same-length":
-		seen := make(map[string]bool, len(constraint.Attributes))
 		for _, name := range constraint.Attributes {
-			if seen[name] {
-				return fmt.Errorf("visual editor constraint repeats attribute %q", name)
-			}
-			seen[name] = true
 			attribute := attributes[name]
 			if attribute.Type != "list" && attribute.Type != "color-list" {
 				return errors.New("same-length constraint requires list attributes")
@@ -514,36 +628,148 @@ func validateEditorWidgetConstraint(constraint EditorWidgetConstraint, attribute
 
 // validateEditorWidgetPreview validates safe class names and attribute references for one preview.
 func validateEditorWidgetPreview(preview EditorWidgetPreview, attributes map[string]EditorWidgetAttribute) error {
-	if preview.Kind != "badge" || preview.Badge == nil {
-		return errors.New("preview must declare a badge renderer")
-	}
-	badge := preview.Badge
-	for _, className := range []string{badge.Class, badge.SolidClass, badge.OutlineClass, badge.PrefixClass, badge.ValueClass} {
-		if className != "" && !editorWidgetClass.MatchString(className) {
-			return fmt.Errorf("preview class %q is invalid", className)
+	class := func(value string) error {
+		if value != "" && !editorWidgetClass.MatchString(value) {
+			return fmt.Errorf("preview class %q is invalid", value)
 		}
+		return nil
 	}
-	if badge.Class == "" || len(badge.DefaultLabel) > 128 || len(badge.DefaultColors) > 32 || len(badge.ToneClasses) > 32 {
-		return errors.New("badge preview metadata is invalid")
+	attribute := func(name string) error {
+		if name == "" {
+			return nil
+		}
+		if _, ok := attributes[name]; !ok {
+			return fmt.Errorf("preview references unknown attribute %q", name)
+		}
+		return nil
 	}
-	for _, name := range []string{badge.PrefixAttribute, badge.LabelAttribute, badge.LabelsAttribute, badge.FallbackAttribute, badge.ColorsAttribute, badge.StyleAttribute} {
-		if name != "" {
-			if _, ok := attributes[name]; !ok {
-				return fmt.Errorf("preview references unknown attribute %q", name)
+
+	switch preview.Kind {
+	case "badge":
+		if preview.Badge == nil || preview.Reference != nil || preview.Card != nil || preview.Callout != nil || preview.Details != nil || preview.Tabs != nil {
+			return errors.New("badge preview metadata is invalid")
+		}
+		badge := preview.Badge
+		for _, className := range []string{badge.Class, badge.SolidClass, badge.OutlineClass, badge.PrefixClass, badge.ValueClass} {
+			if err := class(className); err != nil {
+				return err
 			}
 		}
-	}
-	for _, color := range badge.DefaultColors {
-		if !validEditorWidgetColor(color) {
-			return fmt.Errorf("preview color %q is invalid", color)
+		if badge.Class == "" || len(badge.DefaultLabel) > 128 || len(badge.DefaultColors) > 32 || len(badge.ToneClasses) > 32 {
+			return errors.New("badge preview metadata is invalid")
 		}
-	}
-	for color, className := range badge.ToneClasses {
-		if !validEditorWidgetColor(color) || !editorWidgetClass.MatchString(className) {
-			return errors.New("preview tone class mapping is invalid")
+		for _, name := range []string{badge.PrefixAttribute, badge.LabelAttribute, badge.LabelsAttribute, badge.FallbackAttribute, badge.ColorsAttribute, badge.StyleAttribute} {
+			if err := attribute(name); err != nil {
+				return err
+			}
 		}
+		for _, color := range badge.DefaultColors {
+			if !validEditorWidgetColor(color) {
+				return fmt.Errorf("preview color %q is invalid", color)
+			}
+		}
+		for color, className := range badge.ToneClasses {
+			if !validEditorWidgetColor(color) || !editorWidgetClass.MatchString(className) {
+				return errors.New("preview tone class mapping is invalid")
+			}
+		}
+		return nil
+	case "reference":
+		if preview.Reference == nil || preview.Badge != nil || preview.Card != nil || preview.Callout != nil || preview.Details != nil || preview.Tabs != nil {
+			return errors.New("reference preview metadata is invalid")
+		}
+		reference := preview.Reference
+		if reference.Class == "" || strings.TrimSpace(reference.Prefix) == "" || len(reference.Prefix) > 64 || len(reference.DefaultValue) > 128 {
+			return errors.New("reference preview metadata is invalid")
+		}
+		if err := class(reference.Class); err != nil {
+			return err
+		}
+		return attribute(reference.ValueAttribute)
+	case "card":
+		if preview.Card == nil || preview.Badge != nil || preview.Reference != nil || preview.Callout != nil || preview.Details != nil || preview.Tabs != nil {
+			return errors.New("card preview metadata is invalid")
+		}
+		card := preview.Card
+		if card.Class == "" || strings.TrimSpace(card.Title) == "" || len(card.Title) > 128 || len(card.BodyText) > 512 || len(card.MetadataAttributes) > 8 {
+			return errors.New("card preview metadata is invalid")
+		}
+		for _, className := range []string{card.Class, card.TitleClass, card.SubtitleClass, card.MetadataClass} {
+			if err := class(className); err != nil {
+				return err
+			}
+		}
+		if err := attribute(card.SubtitleAttribute); err != nil {
+			return err
+		}
+		for _, name := range card.MetadataAttributes {
+			if err := attribute(name); err != nil {
+				return err
+			}
+		}
+		return nil
+	case "callout":
+		if preview.Callout == nil || preview.Badge != nil || preview.Reference != nil || preview.Card != nil || preview.Details != nil || preview.Tabs != nil {
+			return errors.New("callout preview metadata is invalid")
+		}
+		callout := preview.Callout
+		if callout.Class == "" {
+			return errors.New("callout preview class is required")
+		}
+		for _, className := range []string{callout.Class, callout.BodyClass} {
+			if err := class(className); err != nil {
+				return err
+			}
+		}
+		if err := attribute(callout.KindAttribute); err != nil {
+			return err
+		}
+		return attribute(callout.BodyAttribute)
+	case "details":
+		if preview.Details == nil || preview.Badge != nil || preview.Reference != nil || preview.Card != nil || preview.Callout != nil || preview.Tabs != nil {
+			return errors.New("details preview metadata is invalid")
+		}
+		details := preview.Details
+		if details.Class == "" {
+			return errors.New("details preview class is required")
+		}
+		for _, className := range []string{details.Class, details.BodyClass} {
+			if err := class(className); err != nil {
+				return err
+			}
+		}
+		for _, name := range []string{details.TitleAttribute, details.OpenAttribute, details.BodyAttribute} {
+			if err := attribute(name); err != nil {
+				return err
+			}
+		}
+		return nil
+	case "tabs":
+		if preview.Tabs == nil || preview.Badge != nil || preview.Reference != nil || preview.Card != nil || preview.Callout != nil || preview.Details != nil {
+			return errors.New("tabs preview metadata is invalid")
+		}
+		tabs := preview.Tabs
+		for _, className := range []string{tabs.Class, tabs.ListClass, tabs.TabClass, tabs.ActiveClass, tabs.PanelsClass, tabs.PanelClass, tabs.HiddenClass} {
+			if err := class(className); err != nil {
+				return err
+			}
+		}
+		if tabs.Class == "" || tabs.ListClass == "" || tabs.TabClass == "" || tabs.PanelsClass == "" || tabs.PanelClass == "" {
+			return errors.New("tabs preview classes are required")
+		}
+		for _, name := range []string{tabs.TitlesAttribute, tabs.BodiesAttribute} {
+			if err := attribute(name); err != nil {
+				return err
+			}
+			decl := attributes[name]
+			if decl.Type != "list" {
+				return errors.New("tabs preview attributes must be lists")
+			}
+		}
+		return nil
+	default:
+		return fmt.Errorf("unsupported visual editor preview kind %q", preview.Kind)
 	}
-	return nil
 }
 
 // validEditorWidgetColor validates one canonical six-digit hexadecimal color.

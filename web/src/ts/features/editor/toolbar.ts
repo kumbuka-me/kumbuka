@@ -108,6 +108,9 @@ function prefixMarkdownLines(
 }
 
 export interface EditorInsertAction {
+  pluginID?: string;
+  name?: string;
+  completionModuleID?: string;
   markdown: string;
   suffix?: string;
   placeholder?: string;
@@ -149,6 +152,20 @@ export function applyEditorInsertAction(
 function closeToolbarMenus(toolbar: HTMLElement): void {
   for (const menu of toolbar.querySelectorAll(".markdown-toolbar-menu[open]")) {
     menu.removeAttribute("open");
+  }
+}
+
+// Opens a resource-backed completion picker without coupling it to the visual editor bundle.
+async function chooseVisualCompletion(
+  insert: EditorInsertAction,
+  onChoose: (replacement: string) => void,
+): Promise<boolean> {
+  try {
+    const { openCompletionPicker } = await import("./completion-picker.ts");
+    return await openCompletionPicker(insert, onChoose);
+  } catch (error) {
+    console.error("Could not open editor completion picker", error);
+    return false;
   }
 }
 
@@ -290,15 +307,30 @@ function setupMarkdownToolbar(toolbar: HTMLElement): void {
     );
     if (pluginInsert) {
       const insert: EditorInsertAction = {
+        pluginID: pluginInsert.dataset.pluginInsertPluginId,
+        name: pluginInsert.dataset.pluginInsertName,
+        completionModuleID: pluginInsert.dataset.pluginInsertCompletionModuleId,
         markdown: pluginInsert.dataset.pluginInsertMarkdown ?? "",
         suffix: pluginInsert.dataset.pluginInsertSuffix,
         placeholder: pluginInsert.dataset.pluginInsertPlaceholder,
         mode: pluginInsert.dataset.pluginInsertMode,
         inline: pluginInsert.dataset.pluginInsertInline === "true",
       };
+
+      closeToolbarMenus(toolbar);
+      if (form?.dataset.editorMode === "visual" && insert.completionModuleID) {
+        void chooseVisualCompletion(insert, (replacement) => {
+          visualCommand("plugin-insert", {
+            insert: { ...insert, markdown: replacement },
+          });
+        }).then((opened) => {
+          if (!opened) visualCommand("plugin-insert", { insert });
+        });
+        return;
+      }
+
       if (!visualCommand("plugin-insert", { insert }))
         applyEditorInsertAction(editor, insert);
-      closeToolbarMenus(toolbar);
       return;
     }
 

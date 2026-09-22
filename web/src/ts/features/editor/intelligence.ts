@@ -318,6 +318,7 @@ function setupIntelligence(form: HTMLFormElement): void {
     pages: [],
     aliases: {},
     completions: [],
+    completion_providers: [],
     inserts: [],
     widgets: [],
     widget_problems: [],

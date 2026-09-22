@@ -93,6 +93,8 @@
 
 @import "./editor/toolbar.css";
 
+@import "./editor/completion-picker.css";
+
 @import "./editor/media.css";
 
 @import "./editor/table-format.css";

@@ -55,5 +55,19 @@ export function initLazyVisualEditor(): void {
     }
     form.addEventListener("editor:visual-activate", () => void activate());
     form.addEventListener("editor:mode-change", syncToolbar);
+
+    const visualButton = form.querySelector<HTMLButtonElement>(
+      'button[data-editor-mode="visual"]',
+    );
+    visualButton?.addEventListener("click", () => {
+      queueMicrotask(() => {
+        if (form.dataset.editorMode === "visual") return;
+        form.dataset.editorMode = "visual";
+        workspace.dataset.editorMode = "visual";
+        pane.hidden = false;
+        form.dispatchEvent(new CustomEvent("editor:mode-change"));
+        form.dispatchEvent(new CustomEvent("editor:visual-activate"));
+      });
+    });
   }
 }

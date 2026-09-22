@@ -1,5 +1,5 @@
 import { visualPane } from "./visual-pane.ts";
-import type { EditorCatalog } from "./catalog.ts";
+import { loadEditorCatalog } from "./catalog.ts";
 // Confluence-style visual editing backed by the canonical Markdown textarea.
 
 import {
@@ -15,6 +15,8 @@ import { Image } from "./visual-deps/image.ts";
 import { TableKit } from "./visual-deps/table.ts";
 import { Markdown } from "./visual-deps/markdown.ts";
 import { StarterKit } from "./visual-deps/starter.ts";
+import { openSourceDialog } from "./source-dialog.ts";
+import { visualCodeLanguages } from "./visual-code-languages.ts";
 
 import type { EditorInsertAction } from "./toolbar.ts";
 import {
@@ -28,11 +30,7 @@ import {
   matchKumbukaInlineSyntax,
   visualSyntaxLabel,
 } from "./visual-syntax.ts";
-import {
-  parseMacro,
-  widgetForMacro,
-  type CatalogWidget,
-} from "./widget-contract.ts";
+import { matchWidgetSource, type CatalogWidget } from "./widget-contract.ts";
 import { visualWidgetNodes } from "./visual-widget-node.ts";
 
 export {
@@ -80,8 +78,8 @@ function firstFallbackInlineIndex(
       continue;
     }
     if (raw.startsWith("{{")) {
-      const parsed = parseMacro(raw);
-      if (parsed && widgetForMacro(parsed, widgets)) {
+      const matched = matchWidgetSource(raw, widgets, true);
+      if (matched?.raw === raw) {
         offset = index + raw.length;
         continue;
       }
@@ -118,23 +116,25 @@ function fallbackInlineNodeView(context: any): any {
     event.preventDefault();
     event.stopPropagation();
     const raw = String(node.attrs?.raw || "");
-    const source = window.prompt("Edit source", raw);
-    if (source === null || source === raw) return;
-    const parsed = matchKumbukaInlineSyntax(source);
-    if (parsed !== source) {
-      window.alert(
-        "The edited source must remain one complete inline Kumbuka construct.",
+    void openSourceDialog({
+      title: "Edit source",
+      source: raw,
+      validate(source) {
+        return matchKumbukaInlineSyntax(source) === source
+          ? ""
+          : "The edited source must remain one complete inline Kumbuka construct.";
+      },
+    }).then((source) => {
+      if (source === null || source === raw) return;
+      const position = context.getPos();
+      if (typeof position !== "number") return;
+      context.editor.view.dispatch(
+        context.editor.state.tr.setNodeMarkup(position, undefined, {
+          ...node.attrs,
+          raw: source,
+        }),
       );
-      return;
-    }
-    const position = context.getPos();
-    if (typeof position !== "number") return;
-    context.editor.view.dispatch(
-      context.editor.state.tr.setNodeMarkup(position, undefined, {
-        ...node.attrs,
-        raw: source,
-      }),
-    );
+    });
   });
   render();
 
@@ -209,8 +209,8 @@ function kumbukaInlineNode(widgets: CatalogWidget[]): AnyExtension {
         const raw = matchKumbukaInlineSyntax(source);
         if (!raw) return undefined;
         if (raw.startsWith("{{")) {
-          const macro = parseMacro(raw);
-          if (macro && widgetForMacro(macro, widgets)) return undefined;
+          const matched = matchWidgetSource(raw, widgets, true);
+          if (matched?.raw === raw) return undefined;
         }
         return { type: "kumbuka_inline", raw, text: raw };
       },
@@ -604,11 +604,7 @@ function slashCommands(): SlashCommand[] {
   ];
 }
 
-// The lazy bundle receives the host catalog loader so it cannot create a second cache.
-export function setupVisualEditor(
-  form: HTMLFormElement,
-  loadCatalog: () => Promise<EditorCatalog>,
-): void {
+export function setupVisualEditor(form: HTMLFormElement): void {
   const source = form.querySelector<HTMLTextAreaElement>(
     "[data-markdown-editor]",
   );
@@ -645,7 +641,7 @@ export function setupVisualEditor(
   async function loadWidgetContracts(): Promise<CatalogWidget[]> {
     if (widgetContracts) return widgetContracts;
     try {
-      const catalog = await loadCatalog();
+      const catalog = await loadEditorCatalog();
       widgetContracts = catalog.widgets;
       if (catalog.widget_problems.length)
         widgetContractProblem = catalog.widget_problems
@@ -1043,6 +1039,7 @@ export function setupVisualEditor(
             }),
             Image.configure({ allowBase64: false }),
             visualTableStyles(() => markdownSource.value),
+            visualCodeLanguages(),
             ...visualWidgetNodes(widgets),
             kumbukaInlineNode(widgets),
             kumbukaBlockNode(),
@@ -1167,9 +1164,7 @@ export function setupVisualEditor(
     void ensureEditor()
       .then(() => {
         if (!editor || !visualMode()) return;
-        // This is a DOM editor: focus immediately so a deferred focus cannot
-        // overwrite a selection the user makes just after activation.
-        editor.view.focus();
+        editor.chain().focus().run();
         syncToolbar();
       })
       .catch(() => undefined);
@@ -1185,4 +1180,12 @@ export function setupVisualEditor(
   });
 
   window.addEventListener("pagehide", () => editor?.destroy(), { once: true });
+}
+
+// Initializes the visual editor beside the canonical Markdown source.
+export function initVisualEditor(): void {
+  for (const form of document.querySelectorAll<HTMLFormElement>(
+    "[data-editor-form]",
+  ))
+    setupVisualEditor(form);
 }
