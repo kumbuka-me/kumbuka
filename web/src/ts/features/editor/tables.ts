@@ -523,9 +523,13 @@ function setupTablePalette(toolbar: HTMLElement): void {
     tableDialog,
     "[data-table-format-existing]",
   );
-  const insertControls = requiredElement<HTMLElement>(
-    tableDialog,
-    "[data-table-format-insert]",
+  const insertOwner = requiredElement<HTMLElement>(
+    toolbar,
+    "[data-table-insert-owner]",
+  );
+  const insertPopover = requiredElement<HTMLElement>(
+    insertOwner,
+    "[data-table-insert-popover]",
   );
   const tableContext = requiredElement<HTMLElement>(
     tableDialog,
@@ -552,11 +556,11 @@ function setupTablePalette(toolbar: HTMLElement): void {
     "[data-table-format-clear]",
   );
   const insertGrid = requiredElement<HTMLElement>(
-    tableDialog,
+    insertPopover,
     "[data-table-insert-grid]",
   );
   const insertSize = requiredElement<HTMLElement>(
-    tableDialog,
+    insertPopover,
     "[data-table-insert-size]",
   );
   const closeButtons = requiredElements<HTMLButtonElement>(
@@ -608,7 +612,7 @@ function setupTablePalette(toolbar: HTMLElement): void {
         );
         cell.addEventListener("focus", () => syncInsertGrid(rows, columns));
         cell.addEventListener("click", () => {
-          tableDialog.close();
+          closeInsertPopover();
           insertTable(editor, rows, columns);
         });
         fragment.append(cell);
@@ -655,12 +659,7 @@ function setupTablePalette(toolbar: HTMLElement): void {
   function refresh(preferredTarget = ""): void {
     currentTable = findMarkdownTable(editor.value, editor.selectionStart ?? 0);
     existing.hidden = !currentTable;
-    insertControls.hidden = Boolean(currentTable);
-    tableDialog.classList.toggle("table-insert-dialog", !currentTable);
-    if (!currentTable) {
-      syncInsertGrid(selectedRows, selectedColumns);
-      return;
-    }
+    if (!currentTable) return;
 
     const { kind, row, column } = currentTable.context;
 
@@ -718,9 +717,42 @@ function setupTablePalette(toolbar: HTMLElement): void {
     refresh(selectedTarget());
   }
 
+  function closeInsertPopover(): void {
+    insertPopover.hidden = true;
+    open.setAttribute("aria-expanded", "false");
+  }
+
+  function openInsertPopover(): void {
+    syncInsertGrid(selectedRows, selectedColumns);
+    insertPopover.hidden = false;
+    open.setAttribute("aria-expanded", "true");
+  }
+
   open.addEventListener("click", () => {
     refresh();
-    tableDialog.showModal();
+    if (currentTable) {
+      closeInsertPopover();
+      tableDialog.showModal();
+      return;
+    }
+
+    if (insertPopover.hidden) openInsertPopover();
+    else closeInsertPopover();
+  });
+
+  document.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof Node) || insertOwner.contains(target)) return;
+
+    closeInsertPopover();
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape" || insertPopover.hidden) return;
+
+    event.preventDefault();
+    closeInsertPopover();
+    open.focus();
   });
 
   for (const button of closeButtons)

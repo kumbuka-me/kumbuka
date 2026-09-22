@@ -427,10 +427,28 @@
               title="Link (⌘/Ctrl+Shift+K)"
               aria-label="Link">{{ icon "link-lucide" 16 }}</button>
       {{ if index .PluginFeatures "markdown-syntax.tables" }}
-        <button type="button"
-                data-table-format-open
-                title="Insert or format table"
-                aria-label="Insert or format table">{{ icon "table-properties-lucide" 16 }}</button>
+        <span class="markdown-toolbar-menu table-insert-menu"
+              data-table-insert-owner>
+          <button type="button"
+                  data-table-format-open
+                  aria-expanded="false"
+                  aria-controls="table-insert-popover"
+                  title="Insert or format table"
+                  aria-label="Insert or format table">{{ icon "table-properties-lucide" 16 }}</button>
+          <span class="markdown-toolbar-popover table-insert-popover"
+                id="table-insert-popover"
+                data-table-insert-popover
+                hidden>
+            <span class="table-insert-heading">
+              <strong>Insert table</strong>
+              <strong class="table-insert-size" data-table-insert-size aria-live="polite">3 × 3</strong>
+            </span>
+            <span class="table-size-grid"
+                  data-table-insert-grid
+                  role="grid"
+                  aria-label="Choose table size"></span>
+          </span>
+        </span>
       {{ else }}
         <button type="button"
                 disabled
@@ -650,28 +668,48 @@
          role="radiogroup"
          aria-label="Table color">
       <label class="table-color-choice table-color-default" title="Default">
-        <input type="radio" name="table-format-tone" value="" /><span>Default</span>
+        <input type="radio" name="table-format-tone" value="" aria-label="Default" />
+        <span></span>
       </label>
       <label class="table-color-choice table-color-gray" title="Gray">
-        <input type="radio" name="table-format-tone" value="gray" /><span>Gray</span>
+        <input type="radio" name="table-format-tone" value="gray" aria-label="Gray" />
+        <span></span>
       </label>
       <label class="table-color-choice table-color-blue" title="Blue">
-        <input type="radio" name="table-format-tone" value="blue" /><span>Blue</span>
+        <input type="radio" name="table-format-tone" value="blue" aria-label="Blue" />
+        <span></span>
       </label>
       <label class="table-color-choice table-color-purple" title="Purple">
-        <input type="radio" name="table-format-tone" value="purple" /><span>Purple</span>
+        <input type="radio"
+               name="table-format-tone"
+               value="purple"
+               aria-label="Purple" />
+        <span></span>
       </label>
       <label class="table-color-choice table-color-green" title="Green">
-        <input type="radio" name="table-format-tone" value="green" /><span>Green</span>
+        <input type="radio"
+               name="table-format-tone"
+               value="green"
+               aria-label="Green" />
+        <span></span>
       </label>
       <label class="table-color-choice table-color-yellow" title="Yellow">
-        <input type="radio" name="table-format-tone" value="yellow" /><span>Yellow</span>
+        <input type="radio"
+               name="table-format-tone"
+               value="yellow"
+               aria-label="Yellow" />
+        <span></span>
       </label>
       <label class="table-color-choice table-color-orange" title="Orange">
-        <input type="radio" name="table-format-tone" value="orange" /><span>Orange</span>
+        <input type="radio"
+               name="table-format-tone"
+               value="orange"
+               aria-label="Orange" />
+        <span></span>
       </label>
       <label class="table-color-choice table-color-red" title="Red">
-        <input type="radio" name="table-format-tone" value="red" /><span>Red</span>
+        <input type="radio" name="table-format-tone" value="red" aria-label="Red" />
+        <span></span>
       </label>
     </div>
     {{ if index .PluginFeatures "markdown-syntax.tables.styles" }}
@@ -684,23 +722,6 @@
         {{ icon "eraser-lucide" 16 }}<span>Clear table options</span>
       </button>
       <button class="button primary" type="button" data-table-format-close>Done</button>
-    </div>
-  </div>
-  <div class="table-format-body table-insert-body" data-table-format-insert>
-    <div class="table-insert-heading">
-      <div>
-        <strong>Insert table</strong>
-        <span class="muted">Choose the size, then click to insert.</span>
-      </div>
-      <strong class="table-insert-size" data-table-insert-size aria-live="polite">3 × 3</strong>
-    </div>
-    <div class="table-size-grid"
-         data-table-insert-grid
-         role="grid"
-         aria-label="Choose table size"></div>
-    <p class="muted table-insert-hint">The first row is the Markdown header. The grid size counts body rows and columns.</p>
-    <div class="app-dialog-actions">
-      <button class="button" type="button" data-table-format-close>Cancel</button>
     </div>
   </div>
 </dialog>
