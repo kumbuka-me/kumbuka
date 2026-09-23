@@ -49,7 +49,7 @@ Environment variables use the `KUMBUKA__` prefix.
 | `KUMBUKA__LISTEN_ADDRESS` | `127.0.0.1:8080` | Address and port Kumbuka listens on. |
 | `KUMBUKA__PUBLIC_URL` | `http://localhost:8080` | Externally visible URL of the Kumbuka installation. |
 | `KUMBUKA__DATABASE_URL` | — | PostgreSQL connection URL. |
-| `KUMBUKA__PLUGIN_UPDATE_CHECK_INTERVAL` | `15m` | Checks the first-party plugin catalog on this interval; `0` disables scheduled checks while manual checks remain available. |
+| `KUMBUKA__PLUGIN_UPDATE_CHECK_INTERVAL` | `1h` | Checks the first-party plugin catalog on this interval; `0` disables scheduled checks while manual checks remain available. |
 | `KUMBUKA__READ_ONLY` | `false` | Blocks state-changing application requests while keeping reads and authentication available. |
 | `KUMBUKA__ALLOW_USER_REGISTRATION` | — | Overrides whether unknown OIDC or trusted-proxy identities may create accounts. |
 | `KUMBUKA__LOCAL_LOGIN` | `false` | Enables the local recovery login alongside the configured authentication mode. |
@@ -73,3 +73,5 @@ kumbuka-cli plugins --help
 ## License
 
 Licensed under the [Apache License, Version 2.0](LICENSE).
+
+

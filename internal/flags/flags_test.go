@@ -108,8 +108,7 @@ func TestUserRegistrationCanBeDisabledByFlag(t *testing.T) {
 	assert.False(t, *cfg.AllowUserRegistrationOverride)
 }
 
-// TestPluginUpdateCheckIntervalDefaultsToFifteenMinutes verifies the corresponding flag configuration behavior.
-func TestPluginUpdateCheckIntervalDefaultsToFifteenMinutes(t *testing.T) {
+func TestPluginUpdateCheckIntervalDefaultsToOneHour(t *testing.T) {
 	t.Setenv("KUMBUKA__PLUGIN_UPDATE_CHECK_INTERVAL", "")
 
 	cfg, err := parseTestConfig([]string{"--database-url", "postgres://example/kumbuka"})
