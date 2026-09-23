@@ -26,6 +26,11 @@
   display: none;
 }
 
+.visual-mention-menu {
+  position: fixed;
+  z-index: 120;
+}
+
 .visual-toolbar {
   position: relative;
   z-index: 8;

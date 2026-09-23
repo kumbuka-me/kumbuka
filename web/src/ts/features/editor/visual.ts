@@ -31,6 +31,13 @@ import {
 } from "./visual-syntax.ts";
 import { matchWidgetSource, type CatalogWidget } from "./widget-contract.ts";
 import { visualWidgetNodes } from "./visual-widget-node.ts";
+import {
+  mentionReplacement,
+  mentionTrigger,
+  renderMentionSuggestions,
+  searchMentionUsers,
+  type MentionUser,
+} from "../mentions.ts";
 
 export {
   matchKumbukaBlockSyntax,
@@ -625,12 +632,25 @@ export function setupVisualEditor(form: HTMLFormElement): void {
   const visualSurface = surface;
   const visualStatus = status;
   const visualSlashMenu = slashMenu;
+  const mentionMenu = document.createElement("div");
+
+  mentionMenu.className = "mention-suggestion-menu visual-mention-menu";
+  mentionMenu.id = "visual-mention-suggestions";
+  mentionMenu.hidden = true;
+  mentionMenu.setAttribute("role", "listbox");
+  mentionMenu.setAttribute("aria-label", "Mention a user");
+  pane.append(mentionMenu);
 
   let editor: VisualEditor | null = null;
   let loading: Promise<void> | null = null;
   let syncingFromVisual = false;
   let slashFrom = -1;
   let slashSelection = 0;
+  let mentionFrom = -1;
+  let mentionQuery = "";
+  let mentionResults: MentionUser[] = [];
+  let mentionSelection = 0;
+  let mentionRequest = 0;
   const commands = slashCommands();
   let widgetContracts: CatalogWidget[] | null = null;
   let widgetContractProblem = "";
@@ -662,6 +682,105 @@ export function setupVisualEditor(form: HTMLFormElement): void {
     visualSlashMenu.replaceChildren();
     slashFrom = -1;
     slashSelection = 0;
+  }
+
+  function hideMentionMenu(): void {
+    mentionRequest += 1;
+    mentionFrom = -1;
+    mentionQuery = "";
+    mentionResults = [];
+    mentionSelection = 0;
+    mentionMenu.hidden = true;
+    mentionMenu.replaceChildren();
+    editor?.view.dom.removeAttribute("aria-controls");
+    editor?.view.dom.setAttribute("aria-expanded", "false");
+  }
+
+  function renderVisualMentions(): void {
+    if (!editor || mentionFrom < 0) return;
+    renderMentionSuggestions(
+      mentionMenu,
+      mentionResults,
+      mentionQuery,
+      mentionSelection,
+    );
+    mentionMenu.hidden = false;
+    editor.view.dom.setAttribute("aria-controls", mentionMenu.id);
+    editor.view.dom.setAttribute("aria-expanded", "true");
+    const coords = editor.view.coordsAtPos(editor.state.selection.from);
+    const width = Math.min(390, Math.max(180, window.innerWidth - 16));
+    const top =
+      coords.bottom + 336 <= window.innerHeight
+        ? coords.bottom + 6
+        : Math.max(8, coords.top - 336);
+    mentionMenu.style.width = `${width}px`;
+    mentionMenu.style.left = `${Math.max(8, Math.min(coords.left, window.innerWidth - width - 8))}px`;
+    mentionMenu.style.top = `${top}px`;
+  }
+
+  async function refreshMentionMenu(): Promise<void> {
+    if (!editor || !visualMode()) {
+      hideMentionMenu();
+      return;
+    }
+    const selection = editor.state.selection;
+    const $from = selection?.$from;
+    if (
+      !selection?.empty ||
+      !$from?.parent ||
+      editor.isActive("codeBlock") ||
+      editor.isActive("code")
+    ) {
+      hideMentionMenu();
+      return;
+    }
+    const before = String(
+      $from.parent.textBetween(0, $from.parentOffset, "\n", "\n") || "",
+    );
+    const trigger = mentionTrigger(before, before.length);
+    if (!trigger) {
+      hideMentionMenu();
+      return;
+    }
+
+    mentionFrom = selection.from - (before.length - trigger.start);
+    mentionQuery = trigger.query;
+    mentionSelection = 0;
+    hideSlashMenu();
+    const currentRequest = ++mentionRequest;
+    try {
+      const results = await searchMentionUsers(trigger.query);
+      if (currentRequest !== mentionRequest) return;
+      mentionResults = results;
+      renderVisualMentions();
+    } catch (error) {
+      console.error("mention search failed", error);
+      if (currentRequest === mentionRequest) hideMentionMenu();
+    }
+  }
+
+  function chooseMention(index: number): void {
+    const user = mentionResults[index];
+    if (!editor || !user || mentionFrom < 0) return;
+    const to = editor.state.selection.from;
+    editor
+      .chain()
+      .focus()
+      .deleteRange({ from: mentionFrom, to })
+      .insertContent(mentionReplacement(user.username))
+      .run();
+    hideMentionMenu();
+  }
+
+  function moveMentionSelection(direction: number): void {
+    if (!mentionResults.length) return;
+    mentionSelection =
+      (mentionSelection + direction + mentionResults.length) %
+      mentionResults.length;
+    renderVisualMentions();
+    mentionMenu
+      .querySelector<HTMLElement>('[aria-selected="true"]')
+      ?.scrollIntoView({ block: "nearest" });
   }
 
   function clearToolbarState(): void {
@@ -1076,10 +1195,12 @@ export function setupVisualEditor(form: HTMLFormElement): void {
             syncMarkdown();
             syncToolbar();
             refreshSlashMenu();
+            void refreshMentionMenu();
           },
           onSelectionUpdate: () => {
             syncToolbar();
             refreshSlashMenu();
+            void refreshMentionMenu();
           },
         });
         restoreTableDimensions();
@@ -1109,6 +1230,33 @@ export function setupVisualEditor(form: HTMLFormElement): void {
   visualSurface.addEventListener(
     "keydown",
     (event) => {
+      if (!mentionMenu.hidden) {
+        switch (event.key) {
+          case "ArrowDown":
+            event.preventDefault();
+            event.stopPropagation();
+            moveMentionSelection(1);
+            return;
+          case "ArrowUp":
+            event.preventDefault();
+            event.stopPropagation();
+            moveMentionSelection(-1);
+            return;
+          case "Enter":
+          case "Tab":
+            if (mentionResults.length) {
+              event.preventDefault();
+              event.stopPropagation();
+              chooseMention(mentionSelection);
+            }
+            return;
+          case "Escape":
+            event.preventDefault();
+            event.stopPropagation();
+            hideMentionMenu();
+            return;
+        }
+      }
       if (visualSlashMenu.hidden) return;
       switch (event.key) {
         case "ArrowDown":
@@ -1142,6 +1290,14 @@ export function setupVisualEditor(form: HTMLFormElement): void {
     },
     true,
   );
+
+  mentionMenu.addEventListener("mousedown", (event) => event.preventDefault());
+  mentionMenu.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    const option = target.closest<HTMLElement>("[data-mention-index]");
+    if (option) chooseMention(Number(option.dataset.mentionIndex));
+  });
 
   form.addEventListener("editor:visual-command", (event) => {
     if (!(event instanceof CustomEvent)) return;
@@ -1193,6 +1349,7 @@ export function setupVisualEditor(form: HTMLFormElement): void {
     if (visualMode()) syncToolbar();
     else {
       hideSlashMenu();
+      hideMentionMenu();
       clearToolbarState();
       syncTableContext();
     }

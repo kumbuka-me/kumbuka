@@ -9,7 +9,7 @@ let mentionMenuSequence = 0;
 
 type Fence = { character: string; length: number };
 export type MentionTrigger = { start: number; query: string };
-type MentionUser = {
+export type MentionUser = {
   username: string;
   display_name?: string;
   role?: string;
@@ -143,6 +143,63 @@ function mentionUsers(value: unknown): MentionUser[] {
   return requireArrayOf(value, isMentionUser, "mention user response");
 }
 
+// Searches the users available to mention.
+export async function searchMentionUsers(
+  query: string,
+): Promise<MentionUser[]> {
+  const payload = await requestJSON(
+    `/api/mentions/users?q=${encodeURIComponent(query)}`,
+  );
+
+  return mentionUsers(payload);
+}
+
+// Renders mention results into a listbox shared by source and visual editors.
+export function renderMentionSuggestions(
+  menu: HTMLElement,
+  results: MentionUser[],
+  query: string,
+  active: number,
+): void {
+  menu.replaceChildren();
+
+  if (!results.length) {
+    const empty = document.createElement("div");
+
+    empty.className = "mention-suggestion-empty";
+    empty.textContent = query ? "No matching people." : "No users available.";
+    menu.append(empty);
+  } else {
+    for (const [index, user] of results.entries()) {
+      const option = document.createElement("button");
+
+      option.type = "button";
+      option.className = "mention-suggestion-option";
+      option.dataset.mentionIndex = String(index);
+      option.setAttribute("role", "option");
+      option.setAttribute("aria-selected", String(index === active));
+
+      const avatar = document.createElement("span");
+
+      avatar.className = "mention-suggestion-avatar";
+      avatar.textContent = initials(user);
+
+      const text = document.createElement("span");
+      const name = document.createElement("strong");
+      const meta = document.createElement("small");
+
+      text.className = "mention-suggestion-text";
+      appendHighlighted(name, user.display_name || user.username, query);
+      appendHighlighted(meta, `@${user.username}`, query);
+      if (user.role) meta.append(document.createTextNode(` · ${user.role}`));
+      if (user.self) meta.append(document.createTextNode(" · you"));
+      text.append(name, meta);
+      option.append(avatar, text);
+      menu.append(option);
+    }
+  }
+}
+
 // Returns an optional role allow-list configured on a mention field.
 function mentionRoles(source: HTMLTextAreaElement): Set<string> | null {
   const value = source.dataset.mentionRoles?.trim();
@@ -213,56 +270,7 @@ function setupMentionAutocomplete(source: HTMLTextAreaElement): void {
   }
 
   function render(): void {
-    menu.replaceChildren();
-
-    if (!results.length) {
-      const empty = document.createElement("div");
-
-      empty.className = "mention-suggestion-empty";
-      empty.textContent = trigger?.query
-        ? "No matching people."
-        : "No users available.";
-      menu.append(empty);
-    } else {
-      for (const [index, user] of results.entries()) {
-        const option = document.createElement("button");
-
-        option.type = "button";
-        option.className = "mention-suggestion-option";
-        option.dataset.mentionIndex = String(index);
-        option.setAttribute("role", "option");
-        option.setAttribute("aria-selected", String(index === active));
-
-        const avatar = document.createElement("span");
-
-        avatar.className = "mention-suggestion-avatar";
-        avatar.textContent = initials(user);
-
-        const text = document.createElement("span");
-
-        text.className = "mention-suggestion-text";
-
-        const name = document.createElement("strong");
-
-        appendHighlighted(
-          name,
-          user.display_name || user.username,
-          trigger?.query || "",
-        );
-
-        const meta = document.createElement("small");
-
-        appendHighlighted(meta, `@${user.username}`, trigger?.query || "");
-
-        if (user.role) meta.append(document.createTextNode(` · ${user.role}`));
-        if (user.self) meta.append(document.createTextNode(" · you"));
-
-        text.append(name, meta);
-
-        option.append(avatar, text);
-        menu.append(option);
-      }
-    }
+    renderMentionSuggestions(menu, results, trigger?.query || "", active);
 
     menu.hidden = false;
     source.setAttribute("aria-controls", menu.id);
@@ -299,14 +307,12 @@ function setupMentionAutocomplete(source: HTMLTextAreaElement): void {
     const currentRequest = ++request;
 
     try {
-      const payload = await requestJSON(
-        `/api/mentions/users?q=${encodeURIComponent(next.query)}`,
-      );
       if (currentRequest !== request) return;
 
-      results = mentionUsers(payload)
+      results = (await searchMentionUsers(next.query))
         .filter((user) => !allowedRoles || allowedRoles.has(user.role ?? ""))
         .slice(0, resultLimit);
+      if (currentRequest !== request) return;
       active = results.length ? 0 : -1;
       render();
     } catch (error) {
