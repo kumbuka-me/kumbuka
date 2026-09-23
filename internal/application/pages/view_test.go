@@ -39,10 +39,16 @@ type viewAccessFake struct {
 	calls     int
 	bulkCalls int
 	err       error
+	denied    map[string]bool
+	paths     []string
 }
 
-func (f *viewAccessFake) CanView(context.Context, domain.User, string) (bool, error) {
+func (f *viewAccessFake) CanView(_ context.Context, _ domain.User, path string) (bool, error) {
 	f.calls++
+	f.paths = append(f.paths, path)
+	if f.denied[path] {
+		return false, f.err
+	}
 	return f.allowed, f.err
 }
 func (f *viewAccessFake) CanEdit(context.Context, domain.User, string) (bool, error) {
@@ -90,10 +96,26 @@ func TestViewAliasAndFailure(t *testing.T) {
 	result, err := NewView(aliasReadFake{alias: "current"}, policy, nil, nil).Execute(context.Background(), domain.User{ID: 5}, "old")
 	require.NoError(t, err)
 	assert.Equal(t, "current", result.Alias)
-	assert.Equal(t, 1, policy.calls)
+	assert.Equal(t, 2, policy.calls)
+	assert.Equal(t, []string{"old", "current"}, policy.paths)
 	failure := errors.New("lookup failed")
 	_, err = NewView(aliasReadFake{err: failure}, policy, nil, nil).Execute(context.Background(), domain.User{}, "old")
 	require.ErrorIs(t, err, failure)
+}
+
+func TestViewAliasTargetRequiresAccess(t *testing.T) {
+	t.Parallel()
+
+	policy := &viewAccessFake{allowed: true, denied: map[string]bool{"current": true}}
+	result, err := NewView(aliasReadFake{alias: "current"}, policy, nil, nil).Execute(
+		context.Background(),
+		domain.User{ID: 5},
+		"old",
+	)
+
+	require.ErrorIs(t, err, domain.ErrNotFound)
+	assert.Equal(t, ViewResult{}, result)
+	assert.Equal(t, []string{"old", "current"}, policy.paths)
 }
 
 func TestCollectionAccessIsBulk(t *testing.T) {

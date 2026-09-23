@@ -68,6 +68,10 @@ func (q *View) Execute(ctx context.Context, actor domain.User, slug string) (Vie
 		return ViewResult{}, err
 	}
 	if alias != "" {
+		if err := appaccess.RequireView(ctx, q.access, actor, alias); err != nil {
+			return ViewResult{}, err
+		}
+
 		return ViewResult{Alias: alias}, nil
 	}
 	state, err := loadPageViewState(ctx, slug, actor, q.repository, q.access, q.reviews)
@@ -182,7 +186,7 @@ func loadPageViewState(
 	state.CanEdit = canEdit
 	state.CanManageReview = canEdit && approvals.CanManageReview(reviewRequest, user)
 
-	if canEdit && (reviewRequest.ID == 0 || state.CanManageReview) {
+	if shouldLoadReviewGroups(canEdit, reviewRequest, state.CanManageReview) {
 		stop = measurePageStage(ctx, "review_groups")
 		state.ReviewGroups, err = approvals.ReviewGroups(ctx)
 		stop()
@@ -192,6 +196,11 @@ func loadPageViewState(
 	}
 
 	return state, nil
+}
+
+// shouldLoadReviewGroups reports whether the actor can choose or change review assignees.
+func shouldLoadReviewGroups(canEdit bool, reviewRequest domain.PageReviewRequest, canManageReview bool) bool {
+	return canEdit && (reviewRequest.ID == 0 || canManageReview)
 }
 
 // loadPageComments loads page discussions only when the application feature is enabled.
