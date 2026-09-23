@@ -54,7 +54,12 @@ func CreateAdminPageTemplate(templateUseCases templateService, logger *slog.Logg
 			httpresponse.Problem(w, http.StatusBadRequest, "Invalid template form.")
 			return
 		}
-		if _, err := templateUseCases.CreatePageTemplate(r.Context(), pageTemplateInputFromForm(r)); err != nil {
+		input, err := pageTemplateInputFromForm(r)
+		if err != nil {
+			httpresponse.Problem(w, http.StatusBadRequest, "Invalid template form.")
+			return
+		}
+		if _, err := templateUseCases.CreatePageTemplate(r.Context(), input); err != nil {
 			writeAdminProblem(logger, w, err, "Page template")
 			return
 		}
@@ -75,7 +80,12 @@ func UpdateAdminPageTemplate(templateUseCases templateService, logger *slog.Logg
 			httpresponse.Problem(w, http.StatusBadRequest, "Invalid template form.")
 			return
 		}
-		if err := templateUseCases.UpdatePageTemplate(r.Context(), id, pageTemplateInputFromForm(r)); err != nil {
+		input, err := pageTemplateInputFromForm(r)
+		if err != nil {
+			httpresponse.Problem(w, http.StatusBadRequest, "Invalid template form.")
+			return
+		}
+		if err := templateUseCases.UpdatePageTemplate(r.Context(), id, input); err != nil {
 			writeAdminProblem(logger, w, err, "Page template")
 			return
 		}
@@ -84,10 +94,17 @@ func UpdateAdminPageTemplate(templateUseCases templateService, logger *slog.Logg
 	}
 }
 
-// pageTemplateInputFromForm translates the blueprint form into a service input.
-func pageTemplateInputFromForm(r *http.Request) apptemplates.PageTemplateInput {
-	ownerGroupID, _ := strconv.ParseInt(strings.TrimSpace(r.FormValue("owner_group_id")), 10, 64)
-	reviewIntervalDays, _ := strconv.Atoi(strings.TrimSpace(r.FormValue("review_interval_days")))
+// pageTemplateInputFromForm translates the blueprint form into a service input without coercing malformed numbers.
+func pageTemplateInputFromForm(r *http.Request) (apptemplates.PageTemplateInput, error) {
+	ownerGroupID, err := parseOptionalFormInt64(r.FormValue("owner_group_id"))
+	if err != nil {
+		return apptemplates.PageTemplateInput{}, err
+	}
+
+	reviewIntervalDays, err := parseOptionalFormInt(r.FormValue("review_interval_days"))
+	if err != nil {
+		return apptemplates.PageTemplateInput{}, err
+	}
 
 	return apptemplates.PageTemplateInput{
 		Name:               r.FormValue("name"),
@@ -101,7 +118,7 @@ func pageTemplateInputFromForm(r *http.Request) apptemplates.PageTemplateInput {
 		ReviewIntervalDays: reviewIntervalDays,
 		Properties:         parseBlueprintProperties(r.FormValue("properties")),
 		Fields:             parseBlueprintFields(r.FormValue("fields")),
-	}
+	}, nil
 }
 
 // parseBlueprintProperties parses one key=value blueprint property per line.

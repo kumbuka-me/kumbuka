@@ -132,8 +132,9 @@ func TestAuthenticationSettingsFromForm(t *testing.T) {
 	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	require.NoError(t, request.ParseForm())
 
-	settings := authenticationSettingsFromForm(request)
+	settings, err := authenticationSettingsFromForm(request)
 
+	require.NoError(t, err)
 	assert.Equal(t, "trusted-proxy", settings.Mode)
 	assert.Equal(t, "https://identity.example.com", settings.OIDCIssuer)
 	assert.Equal(t, "kumbuka", settings.OIDCClientID)
@@ -150,6 +151,22 @@ func TestAuthenticationSettingsFromForm(t *testing.T) {
 	assert.Equal(t, []string{"X-Name"}, settings.TrustedDisplayNameHeaders)
 	assert.Equal(t, []string{"X-Groups", "X-Backup-Groups"}, settings.TrustedGroupHeaders)
 	assert.Equal(t, "kumbuka-admins", settings.TrustedAdminGroup)
+}
+
+func TestAuthenticationSettingsFromFormRejectsMalformedGroupID(t *testing.T) {
+	t.Parallel()
+
+	form := url.Values{
+		"oidc_group_source": {"/admins"},
+		"oidc_group_id":     {"not-a-number"},
+	}
+	request := httptest.NewRequest("POST", "/admin/authentication", strings.NewReader(form.Encode()))
+	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	require.NoError(t, request.ParseForm())
+
+	_, err := authenticationSettingsFromForm(request)
+
+	require.Error(t, err)
 }
 
 func TestPreserveRuntimeManagedAuthenticationSettings(t *testing.T) {

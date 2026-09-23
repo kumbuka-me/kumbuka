@@ -4,7 +4,6 @@ import (
 	"log/slog"
 	"net/http"
 	"slices"
-	"strconv"
 	"strings"
 
 	"github.com/kumbuka-me/kumbuka/internal/http/auth"
@@ -90,7 +89,11 @@ func SaveAdminAuthentication(
 			return
 		}
 
-		settings := authenticationSettingsFromForm(r)
+		settings, err := authenticationSettingsFromForm(r)
+		if err != nil {
+			httpresponse.Problem(w, http.StatusBadRequest, "Invalid authentication form.")
+			return
+		}
 		if views.Runtime().AuthModeOverride != "" {
 			current, err := settingsUseCases.ApplicationSettings(r.Context())
 			if err != nil {
@@ -193,8 +196,8 @@ func effectiveAuthenticationSettings(settings domain.AuthenticationSettings, run
 	return settings
 }
 
-// authenticationSettingsFromForm parses non-secret browser authentication settings.
-func authenticationSettingsFromForm(r *http.Request) domain.AuthenticationSettings {
+// authenticationSettingsFromForm parses non-secret browser authentication settings without coercing malformed group identifiers.
+func authenticationSettingsFromForm(r *http.Request) (domain.AuthenticationSettings, error) {
 	mappings := make([]domain.OIDCGroupMapping, 0, len(r.Form["oidc_group_source"]))
 
 	for index, source := range r.Form["oidc_group_source"] {
@@ -203,7 +206,11 @@ func authenticationSettingsFromForm(r *http.Request) domain.AuthenticationSettin
 			continue
 		}
 
-		groupID, _ := strconv.ParseInt(strings.TrimSpace(r.Form["oidc_group_id"][index]), 10, 64)
+		groupID, err := parseRequiredPositiveFormInt64(r.Form["oidc_group_id"][index])
+		if err != nil {
+			return domain.AuthenticationSettings{}, err
+		}
+
 		mappings = append(mappings, domain.OIDCGroupMapping{OIDCGroup: source, GroupID: groupID})
 	}
 
@@ -221,7 +228,7 @@ func authenticationSettingsFromForm(r *http.Request) domain.AuthenticationSettin
 		TrustedDisplayNameHeaders: splitHeaderNames(r.FormValue("trusted_display_name_headers")),
 		TrustedGroupHeaders:       splitHeaderNames(r.FormValue("trusted_group_headers")),
 		TrustedAdminGroup:         strings.TrimSpace(r.FormValue("trusted_admin_group")),
-	}
+	}, nil
 }
 
 // splitHeaderNames normalizes a comma-separated ordered header list.
