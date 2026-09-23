@@ -15,9 +15,13 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// editorToolbarSettingsStub provides controllable editor toolbar settings behavior for tests.
 type editorToolbarSettingsStub struct {
+	// current configures or records the current value used by the fixture.
 	current domain.ApplicationSettings
-	saved   []domain.EditorToolbarOverride
+	// saved configures or records the saved value used by the fixture.
+	saved []domain.EditorToolbarOverride
+	// actorID records the actor ID observed by the test double.
 	actorID int64
 }
 

@@ -88,12 +88,18 @@ func TestNormalizeReviewerUsernames(t *testing.T) {
 	assert.Equal(t, []string{"alice", "bob", "carol"}, result)
 }
 
+// reviewTargetRepositoryStub provides controllable review target repository behavior for tests.
 type reviewTargetRepositoryStub struct {
 	pageReviewRepository
+	// active configures or records the active value used by the fixture.
 	active domain.PageReviewRequest
-	page   domain.Page
-	users  []domain.User
-	group  domain.Group
+	// page records the page observed by the test double.
+	page domain.Page
+	// users configures or records the users value used by the fixture.
+	users []domain.User
+	// group records the group observed by the test double.
+	group domain.Group
+	// groups records the groups observed by the test double.
 	groups []domain.Group
 }
 

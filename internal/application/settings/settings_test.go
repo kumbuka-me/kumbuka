@@ -13,10 +13,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// pdfSettingsRepositoryStub provides controllable PDF settings repository behavior for tests.
 type pdfSettingsRepositoryStub struct {
 	settingsRepository
-	headers      []domain.PDFHeader
-	savedURL     string
+	// headers configures the headers used by the fixture.
+	headers []domain.PDFHeader
+	// savedURL records the URL passed to save operations.
+	savedURL string
+	// savedHeaders records the headers passed to save operations.
 	savedHeaders []domain.PDFHeader
 }
 
@@ -38,9 +42,12 @@ func (*pdfSettingsRepositoryStub) LogAudit(context.Context, int64, string, strin
 	return nil
 }
 
+// applicationSettingsRepositoryStub provides controllable application settings repository behavior for tests.
 type applicationSettingsRepositoryStub struct {
 	settingsRepository
-	saved                 domain.ApplicationSettings
+	// saved configures or records the saved value used by the fixture.
+	saved domain.ApplicationSettings
+	// savedToolbarOverrides records the toolbar overrides passed to save operations.
 	savedToolbarOverrides []domain.EditorToolbarOverride
 }
 

@@ -174,9 +174,11 @@ func TestExtractedTranslatorsPreserveResponsesAndLogOnlyInternalFailures(t *test
 	})
 }
 
+// mediaReadFailureStub provides controllable media read failure behavior for tests.
 type mediaReadFailureStub struct {
 	imageService
 	attachmentService
+	// err configures the error returned by the test double.
 	err error
 }
 

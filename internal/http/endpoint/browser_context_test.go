@@ -226,9 +226,12 @@ func TestActiveNavigationSlug(t *testing.T) {
 	})
 }
 
+// browserContextPreferenceStub provides controllable browser context preference behavior for tests.
 type browserContextPreferenceStub struct {
+	// preferences configures or records the preferences value used by the fixture.
 	preferences domain.UserPreferences
-	err         error
+	// err configures the error returned by the test double.
+	err error
 }
 
 func (s browserContextPreferenceStub) Preferences(context.Context, int64) (domain.UserPreferences, error) {
@@ -251,10 +254,14 @@ func (browserContextPreferenceStub) SetSidebarWidth(context.Context, int64, int)
 	return nil
 }
 
+// browserContextNavigationStub provides controllable browser context navigation behavior for tests.
 type browserContextNavigationStub struct {
+	// pages records the pages observed by the test double.
 	pages []domain.Page
+	// icons configures the icons used by the fixture.
 	icons map[string]string
-	err   error
+	// err configures the error returned by the test double.
+	err error
 }
 
 func (s browserContextNavigationStub) NavigationPages(context.Context) ([]domain.Page, error) {
@@ -273,9 +280,12 @@ func (browserContextNavigationStub) SetNavigationIcon(context.Context, string, s
 	return nil
 }
 
+// browserContextCatalogStub provides controllable browser context catalog behavior for tests.
 type browserContextCatalogStub struct {
+	// favorites configures or records the favorites value used by the fixture.
 	favorites []domain.Page
-	recent    []domain.Page
+	// recent configures or records the recent value used by the fixture.
+	recent []domain.Page
 }
 
 func (s browserContextCatalogStub) Favorites(context.Context, int64) ([]domain.Page, error) {
@@ -286,37 +296,50 @@ func (s browserContextCatalogStub) RecentViewed(context.Context, int64, int) ([]
 	return s.recent, nil
 }
 
+// browserContextSettingsStub provides controllable browser context settings behavior for tests.
 type browserContextSettingsStub struct {
+	// settings records the tings passed to set operations.
 	settings domain.ApplicationSettings
-	err      error
+	// err configures the error returned by the test double.
+	err error
 }
 
 func (s browserContextSettingsStub) ApplicationSettings(context.Context) (domain.ApplicationSettings, error) {
 	return s.settings, s.err
 }
 
+// browserContextSavedSearchStub provides controllable browser context saved search behavior for tests.
 type browserContextSavedSearchStub struct {
+	// searches configures or records the searches value used by the fixture.
 	searches []domain.SavedSearch
-	err      error
+	// err configures the error returned by the test double.
+	err error
 }
 
 func (s browserContextSavedSearchStub) SavedSearches(context.Context, int64) ([]domain.SavedSearch, error) {
 	return s.searches, s.err
 }
 
+// browserContextNotificationStub provides controllable browser context notification behavior for tests.
 type browserContextNotificationStub struct {
+	// notifications configures or records the notifications value used by the fixture.
 	notifications []domain.Notification
-	unread        int
-	err           error
+	// unread configures or records the unread value used by the fixture.
+	unread int
+	// err configures the error returned by the test double.
+	err error
 }
 
 func (s browserContextNotificationStub) Notifications(context.Context, int64, int) ([]domain.Notification, int, error) {
 	return s.notifications, s.unread, s.err
 }
 
+// browserContextAccessStub provides controllable browser context access behavior for tests.
 type browserContextAccessStub struct {
+	// filter provides the callback invoked by the test double.
 	filter func([]domain.Page) []domain.Page
-	err    error
+	// err configures the error returned by the test double.
+	err error
 }
 
 func (browserContextAccessStub) CanView(context.Context, domain.User, string) (bool, error) {

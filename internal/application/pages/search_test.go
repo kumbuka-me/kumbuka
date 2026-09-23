@@ -9,8 +9,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// searchRepositoryStub provides controllable search repository behavior for tests.
 type searchRepositoryStub struct {
-	pages       []domain.Page
+	// pages records the pages observed by the test double.
+	pages []domain.Page
+	// taggedPages configures or records the tagged pages value used by the fixture.
 	taggedPages []domain.Page
 }
 
@@ -35,7 +38,9 @@ func (s searchRepositoryStub) TaggedPages(context.Context) ([]domain.Page, error
 	return s.taggedPages, nil
 }
 
+// searchAccessStub provides controllable search access behavior for tests.
 type searchAccessStub struct {
+	// visible configures or records the visible value used by the fixture.
 	visible []domain.Page
 }
 
@@ -91,7 +96,9 @@ func TestSearchForFillsLimitAfterAccessFiltering(t *testing.T) {
 	assert.Equal(t, 2, access.calls)
 }
 
+// filteringSearchAccessStub provides controllable filtering search access behavior for tests.
 type filteringSearchAccessStub struct {
+	// calls counts calls observed by the test double.
 	calls int
 }
 

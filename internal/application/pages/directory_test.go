@@ -9,7 +9,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// directoryRepositoryStub provides controllable directory repository behavior for tests.
 type directoryRepositoryStub struct {
+	// aliases configures or records the aliases value used by the fixture.
 	aliases map[string]string
 }
 
@@ -21,10 +23,14 @@ func (directoryRepositoryStub) PageInventory(context.Context) ([]domain.Page, er
 	return nil, nil
 }
 
+// directoryAccessStub provides controllable directory access behavior for tests.
 type directoryAccessStub struct {
+	// visible configures or records the visible value used by the fixture.
 	visible []domain.Page
-	pages   []domain.Page
-	actor   domain.User
+	// pages records the pages observed by the test double.
+	pages []domain.Page
+	// actor records the actor observed by the test double.
+	actor domain.User
 }
 
 func (*directoryAccessStub) CanView(context.Context, domain.User, string) (bool, error) {

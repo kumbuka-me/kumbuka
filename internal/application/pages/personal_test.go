@@ -10,11 +10,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// personalRepositoryStub provides controllable personal repository behavior for tests.
 type personalRepositoryStub struct {
 	personalRepository
-	slug   string
+	// slug records the slug observed by the test double.
+	slug string
+	// userID records the user ID observed by the test double.
 	userID int64
-	scope  string
+	// scope configures or records the scope value used by the fixture.
+	scope string
 }
 
 func (s *personalRepositoryStub) GetPage(_ context.Context, slug string) (domain.Page, error) {

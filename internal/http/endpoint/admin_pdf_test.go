@@ -18,14 +18,21 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// pdfSettingsStub provides controllable PDF settings behavior for tests.
 type pdfSettingsStub struct {
 	settingsService
-	url             string
-	actorID         int64
-	savedHeaders    []appsettings.PDFHeaderInput
+	// url configures or records the URL value used by the fixture.
+	url string
+	// actorID records the actor ID observed by the test double.
+	actorID int64
+	// savedHeaders records the headers passed to save operations.
+	savedHeaders []appsettings.PDFHeaderInput
+	// resolvedHeaders configures or records the resolved headers value used by the fixture.
 	resolvedHeaders []domain.PDFHeader
-	resolvedInputs  []appsettings.PDFHeaderInput
-	revealedValue   string
+	// resolvedInputs configures or records the resolved inputs value used by the fixture.
+	resolvedInputs []appsettings.PDFHeaderInput
+	// revealedValue configures or records the revealed value value used by the fixture.
+	revealedValue string
 }
 
 func (s *pdfSettingsStub) SavePDFSettings(

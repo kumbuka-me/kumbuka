@@ -15,11 +15,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// sharedRendererEntry provides test state for shared renderer entry behavior.
 type sharedRendererEntry struct {
-	ready    chan struct{}
+	// ready configures or records the ready value used by the fixture.
+	ready chan struct{}
+	// renderer configures or records the renderer value used by the fixture.
 	renderer *Renderer
-	manager  *plugin.Manager
-	err      error
+	// manager provides the manager dependency used by the fixture.
+	manager *plugin.Manager
+	// err configures the error returned by the test double.
+	err error
 }
 
 var sharedTestRenderers = struct {

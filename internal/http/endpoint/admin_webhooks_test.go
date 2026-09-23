@@ -17,9 +17,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// webhookAdminSaveStub provides controllable webhook admin save behavior for tests.
 type webhookAdminSaveStub struct {
 	webhookAdminService
-	id    int64
+	// id records the ID observed by the test double.
+	id int64
+	// input records the input observed by the test double.
 	input appwebhooks.WebhookInput
 }
 

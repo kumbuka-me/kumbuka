@@ -10,12 +10,19 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// pagePresenceRepositoryStub provides controllable page presence repository behavior for tests.
 type pagePresenceRepositoryStub struct {
-	editors        []domain.PageEditorPresence
-	slug           string
-	excludeUserID  int64
-	activeWithin   time.Duration
-	touchedUserID  int64
+	// editors configures or records the editors value used by the fixture.
+	editors []domain.PageEditorPresence
+	// slug records the slug observed by the test double.
+	slug string
+	// excludeUserID records the exclude user ID observed by the test double.
+	excludeUserID int64
+	// activeWithin configures or records the active within value used by the fixture.
+	activeWithin time.Duration
+	// touchedUserID records the user ID passed to touch operations.
+	touchedUserID int64
+	// departedUserID records the user ID passed to leave operations.
 	departedUserID int64
 }
 

@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// testExporter provides test state for test exporter behavior.
 type testExporter struct{}
 
 func (testExporter) Export(_ Context, request ExportRequest) (sdk.ExportFile, error) {

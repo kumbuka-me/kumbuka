@@ -19,19 +19,28 @@ import (
 	"golang.org/x/oauth2"
 )
 
+// restartOIDCRepository provides test state for restart OIDC repository behavior.
 type restartOIDCRepository struct {
 	setupBrowserRepository
 	oidcRepositoryStub
 }
 
+// restartOIDCFixture groups the state required by restart OIDC tests.
 type restartOIDCFixture struct {
-	t          *testing.T
-	issuer     string
-	nonce      string
-	challenge  string
-	provider   *httptest.Server
+	// t holds the testing handle used by the fixture.
+	t *testing.T
+	// issuer configures or records the issuer value used by the fixture.
+	issuer string
+	// nonce configures or records the nonce value used by the fixture.
+	nonce string
+	// challenge configures or records the challenge value used by the fixture.
+	challenge string
+	// provider provides the provider dependency used by the fixture.
+	provider *httptest.Server
+	// repository provides the repository dependency used by the fixture.
 	repository *restartOIDCRepository
-	config     BrowserConfig
+	// config configures the config used by the fixture.
+	config BrowserConfig
 }
 
 func newRestartOIDCFixture(t *testing.T) *restartOIDCFixture {

@@ -10,9 +10,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// mediaRepositoryStub provides controllable media repository behavior for tests.
 type mediaRepositoryStub struct {
-	image          domain.Image
-	imageErr       error
+	// image configures or records the image value used by the fixture.
+	image domain.Image
+	// imageErr configures the error returned by the test double.
+	imageErr error
+	// deletedImageID records the image ID passed to delete operations.
 	deletedImageID int64
 }
 

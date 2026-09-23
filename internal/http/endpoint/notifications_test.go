@@ -15,13 +15,20 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// notificationServiceStub provides controllable notification service behavior for tests.
 type notificationServiceStub struct {
-	list       func(context.Context, int64, int) ([]domain.Notification, int, error)
-	open       func(context.Context, int64, int64) (string, error)
-	mark       func(context.Context, int64, int64) error
+	// list provides the callback invoked by the test double.
+	list func(context.Context, int64, int) ([]domain.Notification, int, error)
+	// open provides the callback invoked by the test double.
+	open func(context.Context, int64, int64) (string, error)
+	// mark provides the callback invoked by the test double.
+	mark func(context.Context, int64, int64) error
+	// markUnread provides the callback invoked by the test double.
 	markUnread func(context.Context, int64, int64) error
-	markAll    func(context.Context, int64) error
-	deleteOne  func(context.Context, int64, int64) error
+	// markAll provides the callback invoked by the test double.
+	markAll func(context.Context, int64) error
+	// deleteOne provides the callback invoked by the test double.
+	deleteOne func(context.Context, int64, int64) error
 }
 
 // Notifications delegates inbox reads to the configured test function.

@@ -8,9 +8,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// systemRepositoryStub provides controllable system repository behavior for tests.
 type systemRepositoryStub struct {
+	// databaseSize configures or records the database size value used by the fixture.
 	databaseSize int64
-	databaseErr  error
+	// databaseErr configures the error returned by the test double.
+	databaseErr error
 }
 
 func (s systemRepositoryStub) DatabaseSize(context.Context) (int64, error) {

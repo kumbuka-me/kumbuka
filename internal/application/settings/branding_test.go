@@ -10,12 +10,17 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// brandLogoRepositoryStub provides controllable brand logo repository behavior for tests.
 type brandLogoRepositoryStub struct {
 	settingsRepository
+	// contentType configures or records the content type value used by the fixture.
 	contentType string
-	data        []byte
-	cleared     bool
-	action      string
+	// data configures or records the data value used by the fixture.
+	data []byte
+	// cleared controls or records whether cleared is active in the test.
+	cleared bool
+	// action configures or records the action value used by the fixture.
+	action string
 }
 
 func (s *brandLogoRepositoryStub) BrandLogo(context.Context) (string, []byte, error) {

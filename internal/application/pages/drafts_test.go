@@ -9,14 +9,22 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// draftRepositoryStub provides controllable draft repository behavior for tests.
 type draftRepositoryStub struct {
+	// savedUserID records the user ID passed to save operations.
 	savedUserID int64
-	savedKey    string
+	// savedKey records the key passed to save operations.
+	savedKey string
+	// savedPageID records the page ID passed to save operations.
 	savedPageID int64
-	savedTitle  string
-	savedSlug   string
+	// savedTitle records the title passed to save operations.
+	savedTitle string
+	// savedSlug records the slug passed to save operations.
+	savedSlug string
+	// savedValues records the values passed to save operations.
 	savedValues map[string][]string
-	deletedKey  string
+	// deletedKey records the key passed to delete operations.
+	deletedKey string
 }
 
 func (r *draftRepositoryStub) PageDraft(context.Context, int64, string) (domain.PageDraft, error) {

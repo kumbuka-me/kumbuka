@@ -16,10 +16,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// applicationSettingsStub provides controllable application settings behavior for tests.
 type applicationSettingsStub struct {
 	settingsService
+	// current configures or records the current value used by the fixture.
 	current domain.ApplicationSettings
-	saved   domain.ApplicationSettings
+	// saved configures or records the saved value used by the fixture.
+	saved domain.ApplicationSettings
+	// actorID records the actor ID observed by the test double.
 	actorID int64
 }
 

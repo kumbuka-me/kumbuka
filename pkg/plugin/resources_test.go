@@ -15,7 +15,9 @@ import (
 
 // resourceStorage provides isolated plugin-value persistence for resource tests.
 type resourceStorage struct {
-	mu     sync.Mutex
+	// mu configures or records the mu value used by the fixture.
+	mu sync.Mutex
+	// values records the values observed by the test double.
 	values map[string][]byte
 }
 
@@ -76,7 +78,10 @@ func (s *resourceStorage) DeletePluginValue(_ context.Context, id, namespace, ke
 }
 
 // resourceSecretCodec provides deterministic reversible test encryption.
-type resourceSecretCodec struct{ configured bool }
+type resourceSecretCodec struct {
+	// configured controls whether test encryption is available.
+	configured bool
+}
 
 // Configured reports whether test encryption is enabled.
 func (c resourceSecretCodec) Configured() bool { return c.configured }

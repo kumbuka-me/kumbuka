@@ -12,7 +12,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type oidcRepositoryStub struct{ user domain.User }
+// oidcRepositoryStub provides controllable OIDC repository behavior for tests.
+type oidcRepositoryStub struct {
+	// user records the user observed by the test double.
+	user domain.User
+}
 
 func (r *oidcRepositoryStub) LoginOIDCUser(context.Context, string, string, string, string, string) (domain.User, error) {
 	return r.user, nil

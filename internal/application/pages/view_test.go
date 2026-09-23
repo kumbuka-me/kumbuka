@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// failingPageViewRecorder records failing page view interactions for assertions.
 type failingPageViewRecorder struct{}
 
 func (failingPageViewRecorder) RecordView(context.Context, string, int64) error {
@@ -35,12 +36,18 @@ func TestRecordPageViewReportsPersistenceFailure(t *testing.T) {
 
 // viewAccessFake counts resource checks without HTTP or persistence.
 type viewAccessFake struct {
-	allowed   bool
-	calls     int
+	// allowed controls or records whether allowed is active in the test.
+	allowed bool
+	// calls counts calls observed by the test double.
+	calls int
+	// bulkCalls counts bulk calls observed by the test double.
 	bulkCalls int
-	err       error
-	denied    map[string]bool
-	paths     []string
+	// err configures the error returned by the test double.
+	err error
+	// denied controls or records whether denied is active in the test.
+	denied map[string]bool
+	// paths records the paths observed by the test double.
+	paths []string
 }
 
 func (f *viewAccessFake) CanView(_ context.Context, _ domain.User, path string) (bool, error) {
@@ -71,8 +78,10 @@ func (f *viewAccessFake) FilterPages(_ context.Context, _ domain.User, pages []d
 // aliasReadFake supplies only the two reads an alias resolution needs.
 type aliasReadFake struct {
 	viewRepository
+	// alias configures or records the alias value used by the fixture.
 	alias string
-	err   error
+	// err configures the error returned by the test double.
+	err error
 }
 
 func (f aliasReadFake) GetPage(context.Context, string) (domain.Page, error) {

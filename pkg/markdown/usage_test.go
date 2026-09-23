@@ -10,14 +10,22 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type usagePreprocessor struct{ usage plugin.SourceUsage }
+// usagePreprocessor provides test state for usage preprocessor behavior.
+type usagePreprocessor struct {
+	// usage configures the usage used by the fixture.
+	usage plugin.SourceUsage
+}
 
 func (m usagePreprocessor) SourceUsage() plugin.SourceUsage { return m.usage }
 func (usagePreprocessor) Preprocess(_ plugin.Context, source string) (string, error) {
 	return source, nil
 }
 
-type usageMacro struct{ usage plugin.SourceUsage }
+// usageMacro provides test state for usage macro behavior.
+type usageMacro struct {
+	// usage configures the usage used by the fixture.
+	usage plugin.SourceUsage
+}
 
 func (m usageMacro) SourceUsage() plugin.SourceUsage                        { return m.usage }
 func (usageMacro) Name() string                                             { return "pages" }
@@ -52,9 +60,13 @@ func TestAnalyzeUsageDetectsFenceLanguage(t *testing.T) {
 	assert.Equal(t, []string{"mermaid"}, index.Modules[0].Values)
 }
 
+// countingUsagePreprocessor provides test state for counting usage preprocessor behavior.
 type countingUsagePreprocessor struct {
-	usage     plugin.SourceUsage
-	calls     *int
+	// usage configures the usage used by the fixture.
+	usage plugin.SourceUsage
+	// calls counts calls observed by the test double.
+	calls *int
+	// transform provides the callback invoked by the test double.
 	transform func(string) string
 }
 
@@ -67,7 +79,11 @@ func (m countingUsagePreprocessor) Preprocess(_ plugin.Context, source string) (
 	return source, nil
 }
 
-type countingUsageMacro struct{ calls *int }
+// countingUsageMacro provides test state for counting usage macro behavior.
+type countingUsageMacro struct {
+	// calls counts calls observed by the test double.
+	calls *int
+}
 
 func (m countingUsageMacro) SourceUsage() plugin.SourceUsage {
 	return plugin.SourceUsage{ModuleID: "pages", Rules: []plugin.SourceUsageRule{{Macro: "pages"}}}
@@ -84,10 +100,15 @@ func (countingUsageMacro) Render(plugin.Context, plugin.Invocation) (string, err
 	return "<p>pages</p>", nil
 }
 
+// usageContentPreprocessor provides test state for usage content preprocessor behavior.
 type usageContentPreprocessor struct {
-	usage     plugin.SourceUsage
-	priority  int
-	calls     *int
+	// usage configures the usage used by the fixture.
+	usage plugin.SourceUsage
+	// priority configures or records the priority value used by the fixture.
+	priority int
+	// calls counts calls observed by the test double.
+	calls *int
+	// transform provides the callback invoked by the test double.
 	transform func(string) string
 }
 
@@ -150,8 +171,11 @@ func TestPreprocessorReanalyzesTransformedMarkdown(t *testing.T) {
 	assert.Equal(t, 1, secondCalls)
 }
 
+// countingUsagePostprocessor provides test state for counting usage postprocessor behavior.
 type countingUsagePostprocessor struct {
+	// usage configures the usage used by the fixture.
 	usage plugin.SourceUsage
+	// calls counts calls observed by the test double.
 	calls *int
 }
 

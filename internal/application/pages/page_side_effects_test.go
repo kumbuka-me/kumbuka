@@ -12,11 +12,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// failingPageSideEffects provides test state for failing page side effects behavior.
 type failingPageSideEffects struct {
 	pageSaveRepositoryStub
-	auditCalls   int
+	// auditCalls counts audit calls observed by the test double.
+	auditCalls int
+	// mentionCalls counts mention calls observed by the test double.
 	mentionCalls int
-	watchCalls   int
+	// watchCalls counts watch calls observed by the test double.
+	watchCalls int
 }
 
 func (s *failingPageSideEffects) LogAudit(context.Context, int64, string, string, string, string) error {

@@ -10,10 +10,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// trustedProxyRepositoryStub provides controllable trusted proxy repository behavior for tests.
 type trustedProxyRepositoryStub struct {
-	user   domain.User
+	// user records the user observed by the test double.
+	user domain.User
+	// method configures or records the method value used by the fixture.
 	method string
-	admin  bool
+	// admin controls or records whether admin is active in the test.
+	admin bool
 }
 
 func (r *trustedProxyRepositoryStub) TrustedProxyUser(context.Context, string, string, string) (domain.User, error) {

@@ -20,7 +20,9 @@ import (
 
 // A narrow row fake checks the projection order without a running database.
 type pageContractRow struct {
-	status      string
+	// status configures or records the status value used by the fixture.
+	status string
+	// pluginUsage configures or records the plugin usage value used by the fixture.
 	pluginUsage json.RawMessage
 }
 
@@ -92,8 +94,10 @@ func TestScanPagePreservesPluginUsage(t *testing.T) {
 	assert.Equal(t, []string{"value"}, page.PluginUsage.Modules[0].Values)
 }
 
+// propertyContractTx provides test state for property contract tx behavior.
 type propertyContractTx struct {
 	pgx.Tx
+	// inserted configures or records the inserted value used by the fixture.
 	inserted [][]any
 }
 

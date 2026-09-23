@@ -24,18 +24,30 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// pluginUpdateServiceStub provides controllable plugin update service behavior for tests.
 type pluginUpdateServiceStub struct {
-	updates       map[string]domain.PluginRelease
-	archive       []byte
-	archives      map[string][]byte
-	updatesErr    error
-	refreshErr    error
-	downloadErr   error
-	refreshes     int
-	downloadedID  string
+	// updates configures or records the updates value used by the fixture.
+	updates map[string]domain.PluginRelease
+	// archive configures or records the archive value used by the fixture.
+	archive []byte
+	// archives configures or records the archives value used by the fixture.
+	archives map[string][]byte
+	// updatesErr configures the error returned by the test double.
+	updatesErr error
+	// refreshErr configures the error returned by the test double.
+	refreshErr error
+	// downloadErr configures the error returned by the test double.
+	downloadErr error
+	// refreshes configures or records the refreshes value used by the fixture.
+	refreshes int
+	// downloadedID records the downloaded ID observed by the test double.
+	downloadedID string
+	// downloadedVer configures or records the downloaded ver value used by the fixture.
 	downloadedVer string
-	downloads     []string
-	status        appplugins.PluginUpdateStatus
+	// downloads configures or records the downloads value used by the fixture.
+	downloads []string
+	// status configures or records the status value used by the fixture.
+	status appplugins.PluginUpdateStatus
 }
 
 // Refresh supports plugin administration regression coverage.

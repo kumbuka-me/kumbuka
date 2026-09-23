@@ -20,10 +20,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// webhookRepositoryStub provides controllable webhook repository behavior for tests.
 type webhookRepositoryStub struct {
-	items       []domain.Webhook
-	deliveries  []domain.WebhookDelivery
-	saved       domain.Webhook
+	// items configures the items used by the fixture.
+	items []domain.Webhook
+	// deliveries configures or records the deliveries value used by the fixture.
+	deliveries []domain.WebhookDelivery
+	// saved configures or records the saved value used by the fixture.
+	saved domain.Webhook
+	// deliveryErr configures the error returned by the test double.
 	deliveryErr error
 }
 

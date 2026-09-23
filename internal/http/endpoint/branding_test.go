@@ -13,9 +13,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// brandLogoServiceStub provides controllable brand logo service behavior for tests.
 type brandLogoServiceStub struct {
+	// logo configures or records the logo value used by the fixture.
 	logo appsettings.BrandLogo
-	err  error
+	// err configures the error returned by the test double.
+	err error
 }
 
 func (s *brandLogoServiceStub) BrandLogo(context.Context) (appsettings.BrandLogo, error) {

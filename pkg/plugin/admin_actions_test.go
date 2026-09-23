@@ -10,8 +10,10 @@ import (
 
 // recordingAdminAction records invocation and optional failure for manager tests.
 type recordingAdminAction struct {
+	// called controls or records whether called is active in the test.
 	called bool
-	err    error
+	// err configures the error returned by the test double.
+	err error
 }
 
 // Run records one administrator invocation.

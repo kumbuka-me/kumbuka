@@ -10,8 +10,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// requiredPolicyStub provides controllable required policy behavior for tests.
 type requiredPolicyStub struct {
+	// view provides the callback invoked by the test double.
 	view func(context.Context, domain.User, string) (bool, error)
+	// edit provides the callback invoked by the test double.
 	edit func(context.Context, domain.User, string) (bool, error)
 }
 

@@ -17,12 +17,18 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// pluginUpdateClientStub provides controllable plugin update client behavior for tests.
 type pluginUpdateClientStub struct {
-	refreshes  atomic.Int32
+	// refreshes configures or records the refreshes value used by the fixture.
+	refreshes atomic.Int32
+	// refreshErr configures the error returned by the test double.
 	refreshErr error
-	updates    map[string]domain.PluginRelease
+	// updates configures or records the updates value used by the fixture.
+	updates map[string]domain.PluginRelease
+	// updatesErr configures the error returned by the test double.
 	updatesErr error
-	archive    []byte
+	// archive configures or records the archive value used by the fixture.
+	archive []byte
 }
 
 // Refresh records one catalog refresh and returns the configured error.
@@ -41,7 +47,9 @@ func (s *pluginUpdateClientStub) Download(context.Context, string, string) ([]by
 	return s.archive, nil
 }
 
+// pluginUpdateCatalogStub provides controllable plugin update catalog behavior for tests.
 type pluginUpdateCatalogStub struct {
+	// plugins configures or records the plugins value used by the fixture.
 	plugins []plugin.LoadedPlugin
 }
 
@@ -50,10 +58,14 @@ func (s pluginUpdateCatalogStub) Plugins() []plugin.LoadedPlugin {
 	return append([]plugin.LoadedPlugin(nil), s.plugins...)
 }
 
+// pluginUpdateNotifierStub provides controllable plugin update notifier behavior for tests.
 type pluginUpdateNotifierStub struct {
-	mu      sync.Mutex
+	// mu configures or records the mu value used by the fixture.
+	mu sync.Mutex
+	// notices configures or records the notices value used by the fixture.
 	notices [][]domain.PluginUpdateNotice
-	err     error
+	// err configures the error returned by the test double.
+	err error
 }
 
 // NotifyPluginUpdates records one notification batch.

@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// testWidget provides test state for test widget behavior.
 type testWidget struct{}
 
 func (testWidget) Render(_ plugin.Context, request plugin.WidgetRequest) (plugin.WidgetResult, error) {

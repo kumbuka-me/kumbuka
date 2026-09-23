@@ -12,16 +12,25 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// setupBrowserRepository provides test state for setup browser repository behavior.
 type setupBrowserRepository struct {
 	browserRepository
-	settings               domain.ApplicationSettings
-	setupRequired          bool
-	localAdminCredential   bool
+	// settings records the tings passed to set operations.
+	settings domain.ApplicationSettings
+	// setupRequired records the up required passed to set operations.
+	setupRequired bool
+	// localAdminCredential controls or records whether local admin credential is active in the test.
+	localAdminCredential bool
+	// localCredentialChecked controls or records whether local credential checked is active in the test.
 	localCredentialChecked bool
-	oidcMappingsChecked    bool
-	oidcMappingsErr        error
-	sessionUser            domain.User
-	sessionHash            string
+	// oidcMappingsChecked controls or records whether OIDC mappings checked is active in the test.
+	oidcMappingsChecked bool
+	// oidcMappingsErr configures the error returned by the test double.
+	oidcMappingsErr error
+	// sessionUser configures or records the session user value used by the fixture.
+	sessionUser domain.User
+	// sessionHash configures or records the session hash value used by the fixture.
+	sessionHash string
 }
 
 // ApplicationSettings returns configured application settings for browser-auth tests.

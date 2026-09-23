@@ -44,10 +44,15 @@ func TestPendingOIDCIdentityID(t *testing.T) {
 	})
 }
 
+// pendingIdentityStatusStub provides controllable pending identity status behavior for tests.
 type pendingIdentityStatusStub struct {
 	oidcIdentityService
-	id, actor int64
-	rejected  bool
+	// id records the ID observed by the test double.
+	id int64
+	// actor records the actor observed by the test double.
+	actor int64
+	// rejected controls or records whether rejected is active in the test.
+	rejected bool
 }
 
 func (s *pendingIdentityStatusStub) SetPendingOIDCIdentityRejected(_ context.Context, id int64, rejected bool, actor int64) error {
@@ -72,7 +77,11 @@ func TestReopenPendingOIDCIdentity(t *testing.T) {
 	assert.False(t, users.rejected)
 }
 
-type passwordUserStub struct{ input appusers.UserUpdateInput }
+// passwordUserStub provides controllable password user behavior for tests.
+type passwordUserStub struct {
+	// input records the input observed by the test double.
+	input appusers.UserUpdateInput
+}
 
 func (s *passwordUserStub) UpdateAccount(_ context.Context, input appusers.UserUpdateInput) error {
 	s.input = input

@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// listSource provides test state for list source behavior.
 type listSource struct{}
 
 func (listSource) Recent(context.Context, int) ([]domain.Page, error) {
@@ -31,6 +32,7 @@ func (listSource) RecentEdited(context.Context, int) ([]domain.RecentEdit, error
 	return []domain.RecentEdit{{Page: domain.Page{Slug: "edited", Title: "Edited"}, RevisionMessage: "Clarify"}}, nil
 }
 
+// draftSource provides test state for draft source behavior.
 type draftSource struct{}
 
 func (draftSource) Drafts(context.Context, int) ([]domain.PageDraft, error) {

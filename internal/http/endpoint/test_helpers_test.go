@@ -71,7 +71,9 @@ func testHandlerViewsWithOverrides(
 	return views
 }
 
+// browserContextLoaderStub provides controllable browser context loader behavior for tests.
 type browserContextLoaderStub struct {
+	// load provides the callback invoked by the test double.
 	load func(*http.Request, *webview.Views, string) (webview.Layout, error)
 }
 

@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// navigationIconProvider supplies controlled navigation icon data for tests.
 type navigationIconProvider struct{}
 
 func (navigationIconProvider) IconResourceVersion() string { return "test" }
@@ -22,8 +23,11 @@ func (navigationIconProvider) IconResources() ([]icons.Resource, error) {
 	}}, nil
 }
 
+// navigationPageRepositoryStub provides controllable navigation page repository behavior for tests.
 type navigationPageRepositoryStub struct {
+	// pages records the pages observed by the test double.
 	pages []domain.Page
+	// calls counts calls observed by the test double.
 	calls int
 	navigationRepository
 }
@@ -33,10 +37,15 @@ func (s *navigationPageRepositoryStub) NavigationPages(context.Context) ([]domai
 	return s.pages, nil
 }
 
+// navigationPageFilterStub provides controllable navigation page filter behavior for tests.
 type navigationPageFilterStub struct {
-	calls  int
-	actor  domain.User
-	pages  []domain.Page
+	// calls counts calls observed by the test double.
+	calls int
+	// actor records the actor observed by the test double.
+	actor domain.User
+	// pages records the pages observed by the test double.
+	pages []domain.Page
+	// result configures the result returned by the test double.
 	result []domain.Page
 }
 
@@ -47,11 +56,16 @@ func (s *navigationPageFilterStub) FilterPages(_ context.Context, actor domain.U
 	return append([]domain.Page(nil), s.result...), nil
 }
 
+// navigationRepositoryStub provides controllable navigation repository behavior for tests.
 type navigationRepositoryStub struct {
-	icons     map[string]string
+	// icons configures the icons used by the fixture.
+	icons map[string]string
+	// iconCalls counts icon calls observed by the test double.
 	iconCalls int
-	setPath   string
-	setIcon   string
+	// setPath records the path passed to set operations.
+	setPath string
+	// setIcon records the icon passed to set operations.
+	setIcon string
 	navigationRepository
 }
 

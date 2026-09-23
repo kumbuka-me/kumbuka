@@ -13,8 +13,11 @@ import (
 // pageConcurrencyRepositoryStub records whether a page save used the guarded persistence path.
 type pageConcurrencyRepositoryStub struct {
 	pageContentRepository
-	guarded           bool
-	unguarded         bool
+	// guarded controls or records whether guarded is active in the test.
+	guarded bool
+	// unguarded controls or records whether unguarded is active in the test.
+	unguarded bool
+	// expectedUpdatedAt holds the updated at expected by the test.
 	expectedUpdatedAt time.Time
 }
 

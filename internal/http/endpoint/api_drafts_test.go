@@ -18,8 +18,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// draftContractService provides test state for draft contract service behavior.
 type draftContractService struct {
 	editorDraftService
+	// draft configures or records the draft value used by the fixture.
 	draft domain.PageDraft
 }
 

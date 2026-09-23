@@ -16,11 +16,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// pagePresenceStub provides controllable page presence behavior for tests.
 type pagePresenceStub struct {
+	// editors configures or records the editors value used by the fixture.
 	editors []domain.PageEditorPresence
-	slug    string
-	userID  int64
-	left    bool
+	// slug records the slug observed by the test double.
+	slug string
+	// userID records the user ID observed by the test double.
+	userID int64
+	// left controls or records whether left is active in the test.
+	left bool
 }
 
 func (s *pagePresenceStub) PageEditors(_ context.Context, slug string, user domain.User) ([]domain.PageEditorPresence, error) {

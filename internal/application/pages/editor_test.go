@@ -9,25 +9,36 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// editorCatalogStub provides controllable editor catalog behavior for tests.
 type editorCatalogStub struct {
+	// page records the page observed by the test double.
 	page domain.Page
-	err  error
+	// err configures the error returned by the test double.
+	err error
 }
 
 func (s editorCatalogStub) GetPageForEdit(context.Context, domain.User, string) (domain.Page, error) {
 	return s.page, s.err
 }
 
-type editorGroupStub struct{ groups []domain.Group }
+// editorGroupStub provides controllable editor group behavior for tests.
+type editorGroupStub struct {
+	// groups records the groups observed by the test double.
+	groups []domain.Group
+}
 
 func (s editorGroupStub) AssignableGroups(context.Context, domain.User) ([]domain.Group, error) {
 	return s.groups, nil
 }
 
+// editorTemplateStub provides controllable editor template behavior for tests.
 type editorTemplateStub struct {
+	// templates configures or records the templates value used by the fixture.
 	templates []domain.PageTemplate
-	selected  domain.PageTemplate
-	err       error
+	// selected configures or records the selected value used by the fixture.
+	selected domain.PageTemplate
+	// err configures the error returned by the test double.
+	err error
 }
 
 func (s editorTemplateStub) PageTemplates(context.Context) ([]domain.PageTemplate, error) {
@@ -69,9 +80,12 @@ func TestEditorLoadsExistingOrNewWorkflowData(t *testing.T) {
 	assert.Equal(t, int64(2), created.SelectedTemplate.ID)
 }
 
+// editorPageSaverStub provides controllable editor page saver behavior for tests.
 type editorPageSaverStub struct {
+	// input records the input observed by the test double.
 	input PageSaveInput
-	page  domain.Page
+	// page records the page observed by the test double.
+	page domain.Page
 }
 
 func (s *editorPageSaverStub) Save(_ context.Context, input PageSaveInput) (domain.Page, error) {
@@ -79,9 +93,12 @@ func (s *editorPageSaverStub) Save(_ context.Context, input PageSaveInput) (doma
 	return s.page, nil
 }
 
+// editorDraftDiscarderStub provides controllable editor draft discarder behavior for tests.
 type editorDraftDiscarderStub struct {
+	// userID records the user ID observed by the test double.
 	userID int64
-	key    string
+	// key configures or records the key value used by the fixture.
+	key string
 }
 
 func (s *editorDraftDiscarderStub) Delete(_ context.Context, userID int64, key string) error {

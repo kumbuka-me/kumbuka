@@ -42,16 +42,25 @@ func TestSanitizeImageFilename(t *testing.T) {
 	})
 }
 
+// imageListHandlerStub provides controllable image list handler behavior for tests.
 type imageListHandlerStub struct {
 	imageService
-	images       []domain.Image
+	// images configures or records the images value used by the fixture.
+	images []domain.Image
+	// searchResult configures the search result returned by the test double.
 	searchResult []domain.Image
-	query        string
-	limit        int
-	offset       int
-	userID       int64
-	usedSearch   bool
-	usedMine     bool
+	// query records the query observed by the test double.
+	query string
+	// limit records the limit observed by the test double.
+	limit int
+	// offset records the offset observed by the test double.
+	offset int
+	// userID records the user ID observed by the test double.
+	userID int64
+	// usedSearch controls or records whether used search is active in the test.
+	usedSearch bool
+	// usedMine controls or records whether used mine is active in the test.
+	usedMine bool
 }
 
 // Images returns all uploaded images with usage metadata.

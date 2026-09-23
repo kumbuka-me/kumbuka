@@ -10,7 +10,9 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// auditRepositoryStub provides controllable audit repository behavior for tests.
 type auditRepositoryStub struct {
+	// err configures the error returned by the test double.
 	err error
 }
 

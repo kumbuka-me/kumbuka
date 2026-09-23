@@ -9,9 +9,12 @@ import (
 	"testing"
 )
 
+// viewDataPreferenceStub provides controllable view data preference behavior for tests.
 type viewDataPreferenceStub struct {
+	// preferences configures or records the preferences value used by the fixture.
 	preferences domain.UserPreferences
-	err         error
+	// err configures the error returned by the test double.
+	err error
 }
 
 func (s viewDataPreferenceStub) Preferences(context.Context, int64) (domain.UserPreferences, error) {
@@ -34,10 +37,14 @@ func (viewDataPreferenceStub) SetSidebarWidth(context.Context, int64, int) error
 	return nil
 }
 
+// viewDataNavigationStub provides controllable view data navigation behavior for tests.
 type viewDataNavigationStub struct {
+	// pages records the pages observed by the test double.
 	pages []domain.Page
+	// icons configures the icons used by the fixture.
 	icons map[string]string
-	err   error
+	// err configures the error returned by the test double.
+	err error
 }
 
 func (s viewDataNavigationStub) NavigationPages(context.Context) ([]domain.Page, error) {
@@ -56,9 +63,12 @@ func (viewDataNavigationStub) SetNavigationIcon(context.Context, string, string)
 	return nil
 }
 
+// viewDataCatalogStub provides controllable view data catalog behavior for tests.
 type viewDataCatalogStub struct {
+	// favorites configures or records the favorites value used by the fixture.
 	favorites []domain.Page
-	recent    []domain.Page
+	// recent configures or records the recent value used by the fixture.
+	recent []domain.Page
 }
 
 func (s viewDataCatalogStub) Favorites(context.Context, int64) ([]domain.Page, error) {
@@ -69,37 +79,50 @@ func (s viewDataCatalogStub) RecentViewed(context.Context, int64, int) ([]domain
 	return s.recent, nil
 }
 
+// viewDataSettingsStub provides controllable view data settings behavior for tests.
 type viewDataSettingsStub struct {
+	// settings records the tings passed to set operations.
 	settings domain.ApplicationSettings
-	err      error
+	// err configures the error returned by the test double.
+	err error
 }
 
 func (s viewDataSettingsStub) ApplicationSettings(context.Context) (domain.ApplicationSettings, error) {
 	return s.settings, s.err
 }
 
+// viewDataSavedSearchStub provides controllable view data saved search behavior for tests.
 type viewDataSavedSearchStub struct {
+	// searches configures or records the searches value used by the fixture.
 	searches []domain.SavedSearch
-	err      error
+	// err configures the error returned by the test double.
+	err error
 }
 
 func (s viewDataSavedSearchStub) SavedSearches(context.Context, int64) ([]domain.SavedSearch, error) {
 	return s.searches, s.err
 }
 
+// viewDataNotificationStub provides controllable view data notification behavior for tests.
 type viewDataNotificationStub struct {
+	// notifications configures or records the notifications value used by the fixture.
 	notifications []domain.Notification
-	unread        int
-	err           error
+	// unread configures or records the unread value used by the fixture.
+	unread int
+	// err configures the error returned by the test double.
+	err error
 }
 
 func (s viewDataNotificationStub) Notifications(context.Context, int64, int) ([]domain.Notification, int, error) {
 	return s.notifications, s.unread, s.err
 }
 
+// viewDataAccessStub provides controllable view data access behavior for tests.
 type viewDataAccessStub struct {
+	// filter provides the callback invoked by the test double.
 	filter func([]domain.Page) []domain.Page
-	err    error
+	// err configures the error returned by the test double.
+	err error
 }
 
 func (viewDataAccessStub) CanView(context.Context, domain.User, string) (bool, error) {

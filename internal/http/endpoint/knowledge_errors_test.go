@@ -19,7 +19,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type moveErrorStub struct{ err error }
+// moveErrorStub provides controllable move error behavior for tests.
+type moveErrorStub struct {
+	// err configures the error returned by the test double.
+	err error
+}
 
 func (s moveErrorStub) Move(context.Context, string, string, domain.MovePageOptions, domain.User) error {
 	return s.err
@@ -45,7 +49,11 @@ func TestMovePageFormValidationProblem(t *testing.T) {
 	assert.Empty(t, logs.String())
 }
 
-type graphErrorStub struct{ err error }
+// graphErrorStub provides controllable graph error behavior for tests.
+type graphErrorStub struct {
+	// err configures the error returned by the test double.
+	err error
+}
 
 func (s graphErrorStub) KnowledgeGraph(context.Context, int) (domain.KnowledgeGraph, error) {
 	return domain.KnowledgeGraph{}, s.err
@@ -88,7 +96,9 @@ func TestKnowledgeGraphFailureIsUnexpected(t *testing.T) {
 	assert.Contains(t, logs.String(), err.Error())
 }
 
+// savedSearchErrorStub provides controllable saved search error behavior for tests.
 type savedSearchErrorStub struct {
+	// err configures the error returned by the test double.
 	err error
 }
 
@@ -98,8 +108,10 @@ func (s savedSearchErrorStub) SaveSavedSearch(context.Context, int64, int64, str
 
 func (s savedSearchErrorStub) DeleteSavedSearch(context.Context, int64, int64) error { return s.err }
 
+// membershipErrorStub provides controllable membership error behavior for tests.
 type membershipErrorStub struct {
 	groupWriter
+	// err configures the error returned by the test double.
 	err error
 }
 
@@ -197,8 +209,10 @@ func TestKnownServiceErrorsReachHTTPTranslators(t *testing.T) {
 	})
 }
 
+// aliasFailureStub provides controllable alias failure behavior for tests.
 type aliasFailureStub struct {
 	pageReportService
+	// err configures the error returned by the test double.
 	err error
 }
 

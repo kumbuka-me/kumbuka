@@ -9,13 +9,20 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// notificationRepositoryStub provides controllable notification repository behavior for tests.
 type notificationRepositoryStub struct {
-	limit       int
-	markedID    int64
-	unreadID    int64
+	// limit records the limit observed by the test double.
+	limit int
+	// markedID records the ID passed to mark operations.
+	markedID int64
+	// unreadID records the unread ID observed by the test double.
+	unreadID int64
+	// markedAllID records the all ID passed to mark operations.
 	markedAllID int64
-	deletedID   int64
-	openedID    int64
+	// deletedID records the ID passed to delete operations.
+	deletedID int64
+	// openedID records the ID passed to open operations.
+	openedID int64
 }
 
 // Notifications records the requested limit and returns an empty inbox.

@@ -8,10 +8,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// testResourceProvider supplies controlled test resource data for tests.
 type testResourceProvider struct {
-	version   string
+	// version configures or records the version value used by the fixture.
+	version string
+	// resources configures or records the resources value used by the fixture.
 	resources []Resource
-	err       error
+	// err configures the error returned by the test double.
+	err error
 }
 
 func (p *testResourceProvider) IconResourceVersion() string { return p.version }

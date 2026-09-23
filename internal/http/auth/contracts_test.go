@@ -22,9 +22,11 @@ var (
 	_ Authenticator = (*browserAuthenticator)(nil)
 )
 
+// authenticationContractRepository provides test state for authentication contract repository behavior.
 type authenticationContractRepository struct {
 	localRepository
 	oidcRepository
+	// user records the user observed by the test double.
 	user domain.User
 }
 

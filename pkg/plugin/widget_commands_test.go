@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// commandWidget provides test state for command widget behavior.
 type commandWidget struct{}
 
 func (commandWidget) Render(Context, WidgetRequest) (WidgetResult, error) {
@@ -46,7 +47,11 @@ func TestWidgetCommandRejectsUnsafeRedirect(t *testing.T) {
 	require.Error(t, err)
 }
 
-type redirectWidget struct{ redirect string }
+// redirectWidget provides test state for redirect widget behavior.
+type redirectWidget struct {
+	// redirect configures or records the redirect value used by the fixture.
+	redirect string
+}
 
 func (redirectWidget) Render(Context, WidgetRequest) (WidgetResult, error) {
 	return WidgetResult{}, nil

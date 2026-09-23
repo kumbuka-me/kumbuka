@@ -14,9 +14,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// exportMediaStub provides controllable export media behavior for tests.
 type exportMediaStub struct {
+	// calls counts calls observed by the test double.
 	calls []int64
-	err   error
+	// err configures the error returned by the test double.
+	err error
 }
 
 func (s *exportMediaStub) ImageContent(_ context.Context, id int64) (domain.ImageData, error) {

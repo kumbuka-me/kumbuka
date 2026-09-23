@@ -10,8 +10,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// preferenceRepositoryStub provides controllable preference repository behavior for tests.
 type preferenceRepositoryStub struct {
 	preferenceRepository
+	// saved configures or records the saved value used by the fixture.
 	saved domain.UserPreferences
 }
 

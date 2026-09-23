@@ -12,8 +12,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// adminOverviewStub provides controllable admin overview behavior for tests.
 type adminOverviewStub struct {
-	stats       domain.AdminStats
+	// stats configures or records the stats value used by the fixture.
+	stats domain.AdminStats
+	// attachments configures or records the attachments value used by the fixture.
 	attachments int64
 }
 
@@ -25,7 +28,9 @@ func (s adminOverviewStub) AttachmentCount(context.Context) (int64, error) {
 	return s.attachments, nil
 }
 
+// adminDatabaseInfoStub provides controllable admin database info behavior for tests.
 type adminDatabaseInfoStub struct {
+	// size configures or records the size value used by the fixture.
 	size int64
 }
 

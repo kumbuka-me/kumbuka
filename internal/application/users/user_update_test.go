@@ -10,18 +10,27 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// accountRepositoryStub provides controllable account repository behavior for tests.
 type accountRepositoryStub struct {
 	userRepository
-	update  domain.UserAccountUpdate
-	calls   int
-	mode    string
+	// update configures or records the update value used by the fixture.
+	update domain.UserAccountUpdate
+	// calls counts calls observed by the test double.
+	calls int
+	// mode configures or records the mode value used by the fixture.
+	mode string
+	// failure configures or records the failure value used by the fixture.
 	failure error
 }
 
+// passwordServiceStub provides controllable password service behavior for tests.
 type passwordServiceStub struct {
+	// problem configures or records the problem value used by the fixture.
 	problem string
-	hash    string
-	err     error
+	// hash configures or records the hash value used by the fixture.
+	hash string
+	// err configures the error returned by the test double.
+	err error
 }
 
 func (s passwordServiceStub) Problem(string) string       { return s.problem }

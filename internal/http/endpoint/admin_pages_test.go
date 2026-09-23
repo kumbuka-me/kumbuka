@@ -16,8 +16,11 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// pageBulkServiceStub provides controllable page bulk service behavior for tests.
 type pageBulkServiceStub struct {
+	// calls counts calls observed by the test double.
 	calls int
+	// input records the input observed by the test double.
 	input apppages.BulkPageInput
 }
 

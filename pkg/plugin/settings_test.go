@@ -13,9 +13,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// settingsStorage provides test state for settings storage behavior.
 type settingsStorage struct {
-	mu       sync.Mutex
-	values   map[string][]byte
+	// mu configures or records the mu value used by the fixture.
+	mu sync.Mutex
+	// values records the values observed by the test double.
+	values map[string][]byte
+	// writeErr configures the error returned by the test double.
 	writeErr error
 }
 

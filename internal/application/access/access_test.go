@@ -10,17 +10,28 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// accessRepositoryStub provides controllable access repository behavior for tests.
 type accessRepositoryStub struct {
-	batch       map[string]domain.PageAccess
-	batchCalls  int
+	// batch configures the batch returned by the test double.
+	batch map[string]domain.PageAccess
+	// batchCalls counts batch calls observed by the test double.
+	batchCalls int
+	// singleCalls counts single calls observed by the test double.
 	singleCalls int
-	batchErr    error
-	paths       []string
-	userID      int64
-	access      domain.PageAccess
-	path        string
-	group       int64
-	level       string
+	// batchErr configures the error returned by the test double.
+	batchErr error
+	// paths records the paths observed by the test double.
+	paths []string
+	// userID records the user ID observed by the test double.
+	userID int64
+	// access configures the access returned by the test double.
+	access domain.PageAccess
+	// path records the path observed by the test double.
+	path string
+	// group records the group observed by the test double.
+	group int64
+	// level records the level observed by the test double.
+	level string
 }
 
 func (r *accessRepositoryStub) PageAccess(_ context.Context, path string, _ int64) (domain.PageAccess, error) {

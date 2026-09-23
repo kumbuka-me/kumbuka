@@ -110,6 +110,7 @@ func TestRequiredPluginsAreOperatorPolicy(t *testing.T) {
 	require.NoError(t, manager.Close(ctx))
 }
 
+// disabledPolicyStore provides test state for disabled policy store behavior.
 type disabledPolicyStore struct{}
 
 func (disabledPolicyStore) ListPlugins(context.Context) ([]plugin.Record, error) {

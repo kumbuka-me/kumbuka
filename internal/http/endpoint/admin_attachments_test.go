@@ -14,9 +14,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// adminAttachmentServiceStub provides controllable admin attachment service behavior for tests.
 type adminAttachmentServiceStub struct {
+	// attachments configures or records the attachments value used by the fixture.
 	attachments []domain.Attachment
-	deletedID   int64
+	// deletedID records the ID passed to delete operations.
+	deletedID int64
 }
 
 func (s *adminAttachmentServiceStub) Attachments(context.Context) ([]domain.Attachment, error) {

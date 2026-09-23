@@ -70,6 +70,7 @@ func TestRegistryConcurrentSnapshotsAndRemoval(t *testing.T) {
 	wg.Wait()
 }
 
+// testCodeHighlighter provides test state for test code highlighter behavior.
 type testCodeHighlighter struct{}
 
 // Highlight implements CodeHighlighter for registry validation tests.
@@ -91,9 +92,12 @@ func TestRegistryAllowsOnlyOneActiveCodeHighlighter(t *testing.T) {
 	require.NoError(t, r.Register(Descriptor{ID: "two", Name: "Two"}, second))
 }
 
+// plannedContentPreprocessor provides test state for planned content preprocessor behavior.
 type plannedContentPreprocessor struct {
+	// priority configures or records the priority value used by the fixture.
 	priority int
-	usage    SourceUsage
+	// usage configures the usage used by the fixture.
+	usage SourceUsage
 }
 
 func (m plannedContentPreprocessor) Priority() int            { return m.priority }

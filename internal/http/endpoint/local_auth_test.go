@@ -16,8 +16,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// localAuthSettingsStub provides controllable local auth settings behavior for tests.
 type localAuthSettingsStub struct {
 	settingsService
+	// settings records the tings passed to set operations.
 	settings domain.ApplicationSettings
 }
 
@@ -26,9 +28,12 @@ func (s *localAuthSettingsStub) ApplicationSettings(context.Context) (domain.App
 	return s.settings, nil
 }
 
+// localAuthSystemStub provides controllable local auth system behavior for tests.
 type localAuthSystemStub struct {
 	systemService
+	// setupRequired records the up required passed to set operations.
 	setupRequired bool
+	// completedUser configures or records the completed user value used by the fixture.
 	completedUser domain.User
 }
 
@@ -42,8 +47,11 @@ func (s *localAuthSystemStub) RecordSetupCompleted(_ context.Context, user domai
 	s.completedUser = user
 }
 
+// localAuthRepositoryStub provides controllable local auth repository behavior for tests.
 type localAuthRepositoryStub struct {
+	// createdUser records the user passed to create operations.
 	createdUser domain.User
+	// sessionHash configures or records the session hash value used by the fixture.
 	sessionHash string
 }
 

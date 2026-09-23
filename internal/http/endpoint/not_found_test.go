@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// notFoundBrowserContext provides test state for not found browser context behavior.
 type notFoundBrowserContext struct{}
 
 func (notFoundBrowserContext) Load(_ *http.Request, _ *webview.Views, title string) (webview.Layout, error) {

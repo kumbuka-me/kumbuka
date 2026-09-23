@@ -9,7 +9,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// fakeHealthStore provides test state for fake health store behavior.
 type fakeHealthStore struct {
+	// pingFn provides the callback invoked by the test double.
 	pingFn func(context.Context) error
 }
 

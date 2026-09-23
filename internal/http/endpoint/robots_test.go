@@ -17,18 +17,24 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// robotsSettingsStub provides controllable robots settings behavior for tests.
 type robotsSettingsStub struct {
+	// settings records the tings passed to set operations.
 	settings domain.ApplicationSettings
-	err      error
+	// err configures the error returned by the test double.
+	err error
 }
 
 func (s robotsSettingsStub) ApplicationSettings(context.Context) (domain.ApplicationSettings, error) {
 	return s.settings, s.err
 }
 
+// sitemapCatalogStub provides controllable sitemap catalog behavior for tests.
 type sitemapCatalogStub struct {
+	// pages records the pages observed by the test double.
 	pages []domain.Page
-	err   error
+	// err configures the error returned by the test double.
+	err error
 }
 
 func (s sitemapCatalogStub) PageInventory(context.Context) ([]domain.Page, error) {

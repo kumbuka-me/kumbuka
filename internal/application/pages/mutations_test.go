@@ -12,11 +12,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// pageSaveRepositoryStub provides controllable page save repository behavior for tests.
 type pageSaveRepositoryStub struct {
 	pageContentRepository
-	slug     string
+	// slug records the slug observed by the test double.
+	slug string
+	// metadata configures the metadata used by the fixture.
 	metadata domain.PageMetadata
-	render   domain.PageRender
+	// render configures the render used by the fixture.
+	render domain.PageRender
 }
 
 func (r *pageSaveRepositoryStub) SavePage(
@@ -40,8 +44,11 @@ func (r *pageSaveRepositoryStub) ApplicationSettings(context.Context) (domain.Ap
 	return domain.ApplicationSettings{}, nil
 }
 
+// pageContentPreparerStub provides controllable page content preparer behavior for tests.
 type pageContentPreparerStub struct {
-	usage  pluginusage.Index
+	// usage configures the usage used by the fixture.
+	usage pluginusage.Index
+	// render configures the render used by the fixture.
 	render domain.PageRender
 }
 
@@ -50,6 +57,7 @@ func (s pageContentPreparerStub) Prepare(context.Context, string) (*pluginusage.
 	return &usage, s.render, nil
 }
 
+// denyingPageAccess provides test state for denying page access behavior.
 type denyingPageAccess struct{}
 
 func (denyingPageAccess) CanView(context.Context, domain.User, string) (bool, error) {
@@ -299,10 +307,14 @@ func TestBulkValidatesInputsBeforePersistence(t *testing.T) {
 	})
 }
 
+// bulkMoveRepositoryStub provides controllable bulk move repository behavior for tests.
 type bulkMoveRepositoryStub struct {
 	bulkRepository
-	calls  int
-	slugs  []string
+	// calls counts calls observed by the test double.
+	calls int
+	// slugs records the slugs observed by the test double.
+	slugs []string
+	// target configures or records the target value used by the fixture.
 	target string
 }
 
