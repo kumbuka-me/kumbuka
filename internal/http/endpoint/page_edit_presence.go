@@ -20,7 +20,7 @@ func PageEditors(presence pagePresenceService, logger *slog.Logger) http.Handler
 	}
 }
 
-// TouchPageEditor refreshes the current user's active editor presence.
+// TouchPageEditor refreshes the current user's presence and returns other editors.
 func TouchPageEditor(presence pagePresenceService, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if err := presence.TouchPageEditor(r.Context(), r.PathValue("slug"), currentUser(r)); err != nil {
@@ -28,7 +28,7 @@ func TouchPageEditor(presence pagePresenceService, logger *slog.Logger) http.Han
 			return
 		}
 
-		w.WriteHeader(http.StatusNoContent)
+		PageEditors(presence, logger)(w, r)
 	}
 }
 

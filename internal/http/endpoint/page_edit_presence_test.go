@@ -72,7 +72,8 @@ func TestTouchAndLeavePageEditorUseAuthenticatedUser(t *testing.T) {
 	touch.SetPathValue("slug", "guide")
 	touchResponse := httptest.NewRecorder()
 	TouchPageEditor(presence, logger)(touchResponse, touch)
-	require.Equal(t, http.StatusNoContent, touchResponse.Code)
+	require.Equal(t, http.StatusOK, touchResponse.Code)
+	assert.JSONEq(t, `{"editors":[]}`, touchResponse.Body.String())
 	assert.Equal(t, int64(11), presence.userID)
 	assert.Equal(t, "guide", presence.slug)
 
@@ -82,4 +83,20 @@ func TestTouchAndLeavePageEditorUseAuthenticatedUser(t *testing.T) {
 	LeavePageEditor(presence, logger)(leaveResponse, leave)
 	require.Equal(t, http.StatusNoContent, leaveResponse.Code)
 	assert.True(t, presence.left)
+}
+
+func TestTouchPageEditorReturnsOtherEditors(t *testing.T) {
+	t.Parallel()
+	presence := &pagePresenceStub{editors: []domain.PageEditorPresence{{UserID: 8, Name: "Anna"}}}
+	request := auth.WithUser(httptest.NewRequest(http.MethodPut, "/api/page-presence/guide", nil), domain.User{ID: 7})
+	request.SetPathValue("slug", "guide")
+	response := httptest.NewRecorder()
+	TouchPageEditor(presence, slog.New(slog.NewTextHandler(io.Discard, nil)))(response, request)
+	require.Equal(t, http.StatusOK, response.Code)
+	var payload struct {
+		Editors []domain.PageEditorPresence `json:"editors"`
+	}
+	require.NoError(t, json.Unmarshal(response.Body.Bytes(), &payload))
+	require.Len(t, payload.Editors, 1)
+	assert.Equal(t, "Anna", payload.Editors[0].Name)
 }

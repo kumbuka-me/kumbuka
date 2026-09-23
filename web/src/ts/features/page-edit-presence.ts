@@ -127,9 +127,13 @@ function renderPresence(
   banner.hidden = false;
 }
 
-async function fetchEditors(url: string): Promise<PageEditorPresence[] | null> {
+async function fetchEditors(
+  url: string,
+  editing: boolean,
+): Promise<PageEditorPresence[] | null> {
   try {
     const response = await fetch(url, {
+      method: editing ? "PUT" : "GET",
       credentials: "same-origin",
       headers: { Accept: "application/json" },
     });
@@ -137,18 +141,6 @@ async function fetchEditors(url: string): Promise<PageEditorPresence[] | null> {
     return parseEditors(await response.json());
   } catch {
     return null;
-  }
-}
-
-async function touchEditor(url: string): Promise<void> {
-  try {
-    await fetch(url, {
-      method: "PUT",
-      credentials: "same-origin",
-      headers: { Accept: "application/json" },
-    });
-  } catch {
-    // Presence is advisory; editing must keep working while it is unavailable.
   }
 }
 
@@ -174,9 +166,7 @@ export function initPageEditPresence(): void {
 
   const refresh = async (): Promise<void> => {
     if (!active) return;
-    if (page.editing) await touchEditor(url);
-    if (!active) return;
-    const editors = await fetchEditors(url);
+    const editors = await fetchEditors(url, page.editing);
     if (editors) renderPresence(banner, editors, page.editing);
   };
 
