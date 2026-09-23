@@ -74,7 +74,7 @@ type EditorWidgetSettingColumn struct {
 
 // EditorWidgetSetting declares one generic control rendered by the visual editor.
 type EditorWidgetSetting struct {
-	// Type selects text, textarea, select, or table behavior.
+	// Type selects text, textarea, select, resource, or table behavior.
 	Type string `json:"type"`
 	// Label is the human-readable setting label.
 	Label string `json:"label"`
@@ -88,6 +88,8 @@ type EditorWidgetSetting struct {
 	Placeholder string `json:"placeholder,omitempty"`
 	// Suggestions supplies optional text-input choices without restricting custom values.
 	Suggestions []string `json:"suggestions,omitempty"`
+	// CompletionModuleID identifies the owning plugin's editor-completion module for a resource control.
+	CompletionModuleID string `json:"completion_module_id,omitempty"`
 }
 
 // EditorWidgetConstraint declares a cross-attribute validation rule.
@@ -306,11 +308,33 @@ func editorWidgetsFromPackage(pkg *pluginpackage.Package) ([]EditorWidgetContrib
 	if err != nil {
 		return nil, err.Error()
 	}
+	if err := validateEditorWidgetCompletionReferences(parsed, pkg.Manifest()); err != nil {
+		return nil, err.Error()
+	}
 	id := pkg.Manifest().ID
 	for index := range parsed {
 		parsed[index].PluginID = id
 	}
 	return parsed, ""
+}
+
+// validateEditorWidgetCompletionReferences verifies resource controls reference editor-completion modules owned by the same plugin.
+func validateEditorWidgetCompletionReferences(widgets []EditorWidgetContribution, manifest pluginpackage.Manifest) error {
+	completionModules := make(map[string]bool)
+	for _, module := range manifest.Modules {
+		if module.Type == "editor-completion" {
+			completionModules[module.ID] = true
+		}
+	}
+
+	for _, widget := range widgets {
+		for _, setting := range widget.Settings {
+			if setting.Type == "resource" && !completionModules[setting.CompletionModuleID] {
+				return fmt.Errorf("visual editor widget %q references unknown editor-completion module %q", widget.ID, setting.CompletionModuleID)
+			}
+		}
+	}
+	return nil
 }
 
 // cloneEditorWidget copies mutable contract fields before they leave the manager.
@@ -631,11 +655,22 @@ func validateEditorWidgetSetting(setting EditorWidgetSetting, attributes map[str
 		return validateEditorWidgetTextSettingDeclaration(setting, attributes)
 	case "select":
 		return validateEditorWidgetSelectSettingDeclaration(setting, attributes)
+	case "resource":
+		return validateEditorWidgetResourceSettingDeclaration(setting, attributes)
 	case "table":
 		return validateEditorWidgetTableSettingDeclaration(setting, attributes)
 	default:
 		return fmt.Errorf("unsupported visual editor setting type %q", setting.Type)
 	}
+}
+
+// validateEditorWidgetResourceSettingDeclaration validates a resource picker and its completion-module reference.
+func validateEditorWidgetResourceSettingDeclaration(setting EditorWidgetSetting, attributes map[string]EditorWidgetAttribute) error {
+	attribute, ok := attributes[setting.Attribute]
+	if !validID.MatchString(setting.CompletionModuleID) || !validEditorWidgetResourceSetting(setting, attribute, ok) {
+		return fmt.Errorf("resource setting %q references an invalid attribute or completion module", setting.Label)
+	}
+	return nil
 }
 
 // validateEditorWidgetSettingMetadata validates common control labels, placeholders, and suggestions.
@@ -983,18 +1018,23 @@ func validEditorWidgetSettingMetadata(setting EditorWidgetSetting) bool {
 
 // validEditorWidgetTextSetting reports whether a text control targets one scalar attribute.
 func validEditorWidgetTextSetting(setting EditorWidgetSetting, attribute EditorWidgetAttribute, found bool) bool {
-	return found && (attribute.Type == "string" || attribute.Type == "identifier") && len(setting.Attributes) == 0 && len(setting.Columns) == 0
+	return found && (attribute.Type == "string" || attribute.Type == "identifier") && len(setting.Attributes) == 0 && len(setting.Columns) == 0 && setting.CompletionModuleID == ""
 }
 
 // validEditorWidgetSelectSetting reports whether a select control targets one enum attribute without extra control data.
 func validEditorWidgetSelectSetting(setting EditorWidgetSetting, attribute EditorWidgetAttribute, found bool) bool {
-	return found && attribute.Type == "enum" && len(setting.Attributes) == 0 && len(setting.Columns) == 0 && len(setting.Suggestions) == 0
+	return found && attribute.Type == "enum" && len(setting.Attributes) == 0 && len(setting.Columns) == 0 && len(setting.Suggestions) == 0 && setting.CompletionModuleID == ""
+}
+
+// validEditorWidgetResourceSetting reports whether a resource control targets one scalar attribute without unrelated control data.
+func validEditorWidgetResourceSetting(setting EditorWidgetSetting, attribute EditorWidgetAttribute, found bool) bool {
+	return found && (attribute.Type == "string" || attribute.Type == "identifier") && len(setting.Attributes) == 0 && len(setting.Columns) == 0 && len(setting.Suggestions) == 0
 }
 
 // validEditorWidgetTableShape reports whether a table control has a bounded one-to-one attribute and column layout.
 func validEditorWidgetTableShape(setting EditorWidgetSetting) bool {
 	return setting.Attribute == "" && len(setting.Attributes) > 0 && len(setting.Attributes) == len(setting.Columns) &&
-		len(setting.Attributes) <= 4 && len(setting.Suggestions) == 0
+		len(setting.Attributes) <= 4 && len(setting.Suggestions) == 0 && setting.CompletionModuleID == ""
 }
 
 // validEditorWidgetFirstTableColumn reports whether the first table column is textual and backed by a list.

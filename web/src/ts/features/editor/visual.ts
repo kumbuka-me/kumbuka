@@ -1,5 +1,5 @@
 import { visualPane } from "./visual-pane.ts";
-import { loadEditorCatalog } from "./catalog.ts";
+import { loadEditorCatalog, type CatalogCompletion } from "./catalog.ts";
 import { openCompletionPicker } from "./completion-picker.ts";
 // Confluence-style visual editing backed by the canonical Markdown textarea.
 
@@ -31,6 +31,7 @@ import {
 } from "./visual-syntax.ts";
 import { matchWidgetSource, type CatalogWidget } from "./widget-contract.ts";
 import { visualWidgetNodes } from "./visual-widget-node.ts";
+import { visualCodeLanguages } from "./visual-code-languages.ts";
 import {
   mentionReplacement,
   mentionRanges,
@@ -696,6 +697,7 @@ export function setupVisualEditor(form: HTMLFormElement): void {
   let mentionRequest = 0;
   const commands = slashCommands();
   let widgetContracts: CatalogWidget[] | null = null;
+  let widgetCompletions: CatalogCompletion[] = [];
   let widgetContractProblem = "";
 
   async function loadWidgetContracts(): Promise<CatalogWidget[]> {
@@ -703,6 +705,7 @@ export function setupVisualEditor(form: HTMLFormElement): void {
     try {
       const catalog = await loadEditorCatalog();
       widgetContracts = catalog.widgets;
+      widgetCompletions = catalog.completions;
       if (catalog.widget_problems.length)
         widgetContractProblem = catalog.widget_problems
           .map((problem) => `${problem.plugin_id}: ${problem.message}`)
@@ -1221,8 +1224,9 @@ export function setupVisualEditor(form: HTMLFormElement): void {
               table: { resizable: true, cellMinWidth: 40 },
             }),
             Image.configure({ allowBase64: false }),
+            visualCodeLanguages(),
             visualTableStyles(() => markdownSource.value),
-            ...visualWidgetNodes(widgets),
+            ...visualWidgetNodes(widgets, widgetCompletions),
             kumbukaInlineNode(widgets),
             kumbukaBlockNode(),
             Markdown.configure({ markedOptions: { gfm: true, breaks: false } }),

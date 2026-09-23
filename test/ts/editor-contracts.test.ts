@@ -155,3 +155,83 @@ test("editor accepts resource-backed completion provider metadata", () => {
   assert.equal(catalog.completion_providers[0]?.fields[0]?.key, true);
   assert.equal(catalog.completion_providers[0]?.can_create, true);
 });
+
+test("editor accepts a visual widget resource setting", () => {
+  const catalog = parseEditorCatalog({
+    pages: [],
+    aliases: {},
+    completions: [],
+    completion_providers: [],
+    inserts: [],
+    widgets: [
+      {
+        plugin_id: "me.kumbuka.variables",
+        id: "variable",
+        name: "Variable",
+        inline: true,
+        syntax: { kind: "substitution", name: "var" },
+        attributes: [{ name: "name", type: "identifier", required: true }],
+        settings: [
+          {
+            type: "resource",
+            label: "Variable",
+            attribute: "name",
+            completion_module_id: "completion",
+          },
+        ],
+        preview: {
+          kind: "reference",
+          reference: {
+            class: "visual-variable-reference",
+            prefix: "Variable",
+            value_attribute: "name",
+          },
+        },
+      },
+    ],
+    widget_problems: [],
+  });
+
+  assert.equal(
+    catalog.widgets[0]?.settings[0]?.completion_module_id,
+    "completion",
+  );
+});
+
+test("editor rejects a visual widget resource setting without a completion module", () => {
+  let caught: unknown;
+  try {
+    parseEditorCatalog({
+      pages: [],
+      aliases: {},
+      completions: [],
+      completion_providers: [],
+      inserts: [],
+      widgets: [
+        {
+          plugin_id: "me.kumbuka.variables",
+          id: "variable",
+          name: "Variable",
+          inline: true,
+          syntax: { kind: "substitution", name: "var" },
+          attributes: [{ name: "name", type: "identifier" }],
+          settings: [
+            { type: "resource", label: "Variable", attribute: "name" },
+          ],
+          preview: {
+            kind: "reference",
+            reference: {
+              class: "visual-variable-reference",
+              prefix: "Variable",
+              value_attribute: "name",
+            },
+          },
+        },
+      ],
+      widget_problems: [],
+    });
+  } catch (error) {
+    caught = error;
+  }
+  assert.ok(caught instanceof Error);
+});

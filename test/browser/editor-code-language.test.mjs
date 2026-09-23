@@ -33,6 +33,7 @@ test("visual code blocks choose a supported fenced language", async () => {
             pages: [],
             aliases: {},
             completions: [],
+            completion_providers: [],
             inserts: [],
             widgets: [],
             widget_problems: [],
@@ -74,16 +75,17 @@ test("visual code blocks choose a supported fenced language", async () => {
 
     await page.goto("http://code-language.test/");
     await page.getByRole("button", { name: "Visual", exact: true }).click();
-    await page
-      .getByRole("button", { name: "Code block", exact: true })
-      .click();
+    await page.getByRole("button", { name: "Code block", exact: true }).click();
 
     const language = page.locator("button.visual-code-language");
     await language.click();
 
     const dialog = page.getByRole("dialog", { name: "Code block language" });
     await dialog.getByLabel("Search code languages").fill("python");
-    await dialog.getByRole("option", { name: /Python/ }).first().click();
+    await dialog
+      .getByRole("option", { name: /Python/ })
+      .first()
+      .click();
 
     assert.equal(await language.textContent(), "Python");
     assert.match(

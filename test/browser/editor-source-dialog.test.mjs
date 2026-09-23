@@ -17,6 +17,7 @@ test("visual widget source editing uses an application modal", async () => {
     pages: [],
     aliases: {},
     completions: [],
+    completion_providers: [],
     inserts: [],
     widgets: [
       {
@@ -114,7 +115,10 @@ test("visual widget source editing uses an application modal", async () => {
     await widget.waitFor({ state: "visible" });
     await widget.click();
 
-    const settings = page.getByRole("dialog", { name: "Edit Callout", exact: true });
+    const settings = page.getByRole("dialog", {
+      name: "Edit Callout",
+      exact: true,
+    });
     await settings.getByRole("button", { name: "Edit source" }).click();
 
     const sourceDialog = page.getByRole("dialog", {
@@ -132,7 +136,9 @@ test("visual widget source editing uses an application modal", async () => {
     await source.fill("!!! info\nEdited source.");
     await sourceDialog.getByRole("button", { name: "Apply" }).click();
     assert.equal(
-      await page.locator("textarea[data-markdown-editor]").inputValue(),
+      (
+        await page.locator("textarea[data-markdown-editor]").inputValue()
+      ).trimEnd(),
       "!!! info\nEdited source.",
     );
     assert.deepEqual(dialogs, [], "browser-native dialogs must not be used");

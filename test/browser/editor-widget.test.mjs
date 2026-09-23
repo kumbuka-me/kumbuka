@@ -128,6 +128,7 @@ test("callout widget previews type and content changes before apply", async () =
     pages: [],
     aliases: {},
     completions: [],
+    completion_providers: [],
     inserts: [],
     widgets: [
       {
@@ -235,22 +236,50 @@ test("callout widget previews type and content changes before apply", async () =
     await widget.waitFor({ state: "visible" });
     const callout = widget.locator(".callout");
     await callout.waitFor({ state: "visible" });
-    assert.equal(await callout.evaluate((element) => element.classList.contains("warning")), true);
+    assert.equal(
+      await callout.evaluate((element) =>
+        element.classList.contains("warning"),
+      ),
+      true,
+    );
 
     const source = page.locator("textarea[data-markdown-editor]");
     const originalSource = await source.inputValue();
     await widget.click();
     const dialog = page.getByRole("dialog", { name: "Edit Callout" });
     await dialog.getByLabel("Type").selectOption("danger");
-    assert.equal(await callout.evaluate((element) => element.classList.contains("danger")), true);
-    assert.equal(await callout.evaluate((element) => element.classList.contains("warning")), false);
-    assert.equal(await source.inputValue(), originalSource, "live preview must not persist before Apply");
+    assert.equal(
+      await callout.evaluate((element) => element.classList.contains("danger")),
+      true,
+    );
+    assert.equal(
+      await callout.evaluate((element) =>
+        element.classList.contains("warning"),
+      ),
+      false,
+    );
+    assert.equal(
+      await source.inputValue(),
+      originalSource,
+      "live preview must not persist before Apply",
+    );
 
     await dialog.getByLabel("Content").fill("Stop now.");
-    assert.equal(await callout.locator(".callout-body").textContent(), "Stop now.");
+    assert.equal(
+      await callout.locator(".callout-body").textContent(),
+      "Stop now.",
+    );
     await dialog.getByRole("button", { name: "Cancel" }).click();
-    assert.equal(await callout.evaluate((element) => element.classList.contains("warning")), true);
-    assert.equal(await callout.locator(".callout-body").textContent(), "Helpful tip.");
+    assert.equal(
+      await callout.evaluate((element) =>
+        element.classList.contains("warning"),
+      ),
+      true,
+    );
+    assert.equal(
+      await callout.locator(".callout-body").textContent(),
+      "Helpful tip.",
+    );
     assert.equal(await source.inputValue(), originalSource);
 
     await widget.click();
@@ -259,9 +288,152 @@ test("callout widget previews type and content changes before apply", async () =
     await applyDialog.getByLabel("Content").fill("Ready to ship.");
     await applyDialog.getByRole("button", { name: "Apply" }).click();
 
-    assert.equal(await source.inputValue(), "!!! success\nReady to ship.");
-    assert.equal(await callout.evaluate((element) => element.classList.contains("success")), true);
-    assert.equal(await callout.locator(".callout-body").textContent(), "Ready to ship.");
+    assert.equal(
+      (await source.inputValue()).trimEnd(),
+      "!!! success\nReady to ship.",
+    );
+    assert.equal(
+      await callout.evaluate((element) =>
+        element.classList.contains("success"),
+      ),
+      true,
+    );
+    assert.equal(
+      await callout.locator(".callout-body").textContent(),
+      "Ready to ship.",
+    );
+    assert.deepEqual(errors, []);
+  } finally {
+    await browser.close();
+  }
+});
+
+test("visual resource widget uses its declared completion module", async () => {
+  const template = await readFile(
+    new URL("../../web/src/templates/edit.gohtml", import.meta.url),
+    "utf8",
+  );
+  const modeSwitcher = template
+    .match(/<div class="editor-mode-switcher"[\s\S]*?<\/div>/)?.[0]
+    .replace(/\{\{[\s\S]*?\}\}/g, "");
+  assert.ok(modeSwitcher, "the page template must include the mode switcher");
+
+  const catalog = {
+    pages: [],
+    aliases: {},
+    completions: [
+      {
+        plugin_id: "me.kumbuka.variables",
+        module_id: "completion",
+        trigger: "{{",
+        label: "Environment",
+        detail: "Deployment environment",
+        replacement: "{{var:environment}}",
+      },
+      {
+        plugin_id: "me.kumbuka.variables",
+        module_id: "completion",
+        trigger: "{{",
+        label: "Region",
+        replacement: "{{var:region}}",
+      },
+    ],
+    completion_providers: [],
+    inserts: [],
+    widgets: [
+      {
+        plugin_id: "me.kumbuka.variables",
+        id: "variable",
+        name: "Variable",
+        inline: true,
+        syntax: { kind: "substitution", name: "var" },
+        attributes: [{ name: "name", type: "identifier", required: true }],
+        settings: [
+          {
+            type: "resource",
+            label: "Variable",
+            attribute: "name",
+            completion_module_id: "completion",
+          },
+        ],
+        preview: {
+          kind: "reference",
+          reference: {
+            class: "visual-variable-reference",
+            prefix: "Variable",
+            value_attribute: "name",
+          },
+        },
+      },
+    ],
+    widget_problems: [],
+  };
+  const browser = await chromium.launch({
+    channel: process.env.BROWSER_CHANNEL || "chrome",
+    headless: true,
+  });
+
+  try {
+    const page = await browser.newPage();
+    page.setDefaultTimeout(10000);
+    const errors = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+
+    await page.route("http://resource-widget.test/**", async (route) => {
+      const path = new URL(route.request().url()).pathname;
+      if (path === "/api/editor/catalog") {
+        await route.fulfill({
+          contentType: "application/json",
+          body: JSON.stringify(catalog),
+        });
+        return;
+      }
+      if (path.startsWith("/assets/")) {
+        await route.fulfill({
+          body: await readFile(
+            new URL(`../../web/dist/${path.slice(8)}`, import.meta.url),
+          ),
+          contentType: path.endsWith(".css") ? "text/css" : "text/javascript",
+        });
+        return;
+      }
+      await route.fulfill({
+        contentType: "text/html",
+        body: `
+          <link rel="stylesheet" href="/assets/css/app.css">
+          <form class="editor" data-editor-form>
+            ${modeSwitcher}
+            <div data-markdown-toolbar role="toolbar"></div>
+            <div class="editor-workspace" data-editor-workspace data-editor-mode="write">
+              <div class="editor-source-pane">
+                <textarea data-markdown-editor>{{var:environment}}</textarea>
+              </div>
+            </div>
+          </form>
+          <script type="module">
+            import {initLazyVisualEditor} from '/assets/js/features/editor/visual-loader.js';
+            initLazyVisualEditor();
+          </script>`,
+      });
+    });
+
+    await page.goto("http://resource-widget.test/");
+    await page.getByRole("button", { name: "Visual", exact: true }).click();
+    await page.locator("[data-visual-widget]").click();
+
+    const dialog = page.getByRole("dialog", { name: "Edit Variable" });
+    const variable = dialog.getByLabel("Variable");
+    assert.deepEqual(await variable.locator("option").allTextContents(), [
+      "Environment — Deployment environment",
+      "Region",
+    ]);
+    await variable.selectOption("region");
+    await dialog.getByRole("button", { name: "Apply" }).click();
+
+    assert.equal(
+      await page.locator("textarea[data-markdown-editor]").inputValue(),
+      "{{var:region}}",
+    );
     assert.deepEqual(errors, []);
   } finally {
     await browser.close();

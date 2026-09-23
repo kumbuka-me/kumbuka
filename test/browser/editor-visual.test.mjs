@@ -175,7 +175,8 @@ for (const failFirst of [false, true])
       await page.getByRole("button", { name: "Markdown", exact: true }).click();
       await source.fill("Text");
       await page.getByRole("button", { name: "Visual", exact: true }).click();
-      await visual.press("ControlOrMeta+End");
+      await visual.locator("p").click();
+      await page.keyboard.press("End");
       page.once("dialog", (dialog) => dialog.accept("https://example.com"));
       await page.getByRole("button", { name: "Link", exact: true }).click();
       assert.equal(

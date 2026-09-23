@@ -142,6 +142,54 @@ func TestEditorWidgets(t *testing.T) {
 		require.Equal(t, "tabs", widgets[4].Preview.Kind)
 	})
 
+	t.Run("accepts resource setting with owned completion module", func(t *testing.T) {
+		t.Parallel()
+
+		archive := editorWidgetTestArchive(t, `{
+  "version": 1,
+  "widgets": [{
+    "id": "variable",
+    "name": "Variable",
+    "inline": true,
+    "syntax": {"kind": "substitution", "name": "var"},
+    "attributes": [{"name": "name", "type": "identifier", "required": true}],
+    "settings": [{"type": "resource", "label": "Variable", "attribute": "name", "completion_module_id": "completion"}],
+    "preview": {"kind": "reference", "reference": {"class": "variable", "prefix": "Variable", "value_attribute": "name"}}
+  }]
+}`)
+		manager := editorWidgetTestManager(t, archive, true)
+
+		widgets, problems := manager.EditorWidgets()
+
+		require.Empty(t, problems)
+		require.Len(t, widgets, 1)
+		require.Equal(t, "completion", widgets[0].Settings[0].CompletionModuleID)
+	})
+
+	t.Run("rejects resource setting with unknown completion module", func(t *testing.T) {
+		t.Parallel()
+
+		archive := editorWidgetTestArchive(t, `{
+  "version": 1,
+  "widgets": [{
+    "id": "variable",
+    "name": "Variable",
+    "inline": true,
+    "syntax": {"kind": "substitution", "name": "var"},
+    "attributes": [{"name": "name", "type": "identifier", "required": true}],
+    "settings": [{"type": "resource", "label": "Variable", "attribute": "name", "completion_module_id": "missing"}],
+    "preview": {"kind": "reference", "reference": {"class": "variable", "prefix": "Variable", "value_attribute": "name"}}
+  }]
+}`)
+		manager := editorWidgetTestManager(t, archive, true)
+
+		widgets, problems := manager.EditorWidgets()
+
+		require.Empty(t, widgets)
+		require.Len(t, problems, 1)
+		require.Contains(t, problems[0].Message, `unknown editor-completion module "missing"`)
+	})
+
 	t.Run("reports invalid contract without disabling plugin", func(t *testing.T) {
 		t.Parallel()
 
@@ -205,7 +253,7 @@ func editorWidgetTestArchive(t *testing.T, contract string) []byte {
 	writer := zip.NewWriter(&buffer)
 	entries := map[string]string{
 		"README.md":                 "# Editor widget fixture\n",
-		"plugin.yaml":               "api_version: 1\nid: me.kumbuka.editor-widget-fixture\nname: Editor widget fixture\nversion: 1.0.0\ndefault_enabled: true\nmodules:\n  - type: markdown-syntax\n    id: syntax\n    syntax: strikethrough\npermissions: []\n",
+		"plugin.yaml":               "api_version: 1\nid: me.kumbuka.editor-widget-fixture\nname: Editor widget fixture\nversion: 1.0.0\ndefault_enabled: true\nmodules:\n  - type: markdown-syntax\n    id: syntax\n    syntax: strikethrough\n  - type: admin-resource\n    id: variables\n    name: Variables\n    fields:\n      - id: name\n        name: Name\n        type: text\n        required: true\n        key: true\n  - type: editor-completion\n    id: completion\n    resource: variables\n    trigger: '{{'\n    replacement: '{{var:${name}}}'\n    label_field: name\npermissions: []\n",
 		"assets/visual-editor.json": contract,
 	}
 	for name, data := range entries {

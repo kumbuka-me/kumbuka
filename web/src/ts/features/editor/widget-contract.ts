@@ -30,13 +30,14 @@ export interface CatalogWidgetSettingColumn {
 }
 
 export interface CatalogWidgetSetting {
-  type: "text" | "textarea" | "select" | "table";
+  type: "text" | "textarea" | "select" | "resource" | "table";
   label: string;
   attribute?: string;
   attributes?: string[];
   columns?: CatalogWidgetSettingColumn[];
   placeholder?: string;
   suggestions?: string[];
+  completion_module_id?: string;
 }
 
 export interface CatalogWidgetConstraint {
@@ -204,11 +205,19 @@ function isWidgetColumn(value: unknown): value is CatalogWidgetSettingColumn {
 }
 
 function isWidgetSetting(value: unknown): value is CatalogWidgetSetting {
+  const resourceSetting =
+    isRecord(value) &&
+    (value.type === "resource"
+      ? typeof value.completion_module_id === "string" &&
+        identifier.test(value.completion_module_id)
+      : value.completion_module_id === undefined);
   return (
     isRecord(value) &&
+    resourceSetting &&
     (value.type === "text" ||
       value.type === "textarea" ||
       value.type === "select" ||
+      value.type === "resource" ||
       value.type === "table") &&
     typeof value.label === "string" &&
     optionalString(value.attribute) &&

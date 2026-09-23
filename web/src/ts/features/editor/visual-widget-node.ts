@@ -1,6 +1,7 @@
 // Generic Tiptap NodeViews for plugin-provided declarative visual-editor widgets.
 
 import { Node as TiptapNode, type AnyExtension } from "./visual-deps/core.ts";
+import type { CatalogCompletion } from "./catalog.ts";
 import { openSourceDialog } from "./source-dialog.ts";
 import {
   matchWidgetSource,
@@ -389,25 +390,59 @@ function createScalarSetting(
   setting: CatalogWidgetSetting,
   widget: CatalogWidget,
   values: Record<string, string>,
+  completions: CatalogCompletion[],
 ): HTMLElement {
   const wrapper = createLabel(setting.label);
   const attribute = widgetAttribute(widget, setting.attribute || "");
   if (!attribute) return wrapper;
 
   let control: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
-  if (setting.type === "select") {
+  if (setting.type === "select" || setting.type === "resource") {
     const select = document.createElement("select");
-    if (!attribute.required && attribute.default === undefined) {
-      const option = document.createElement("option");
-      option.value = "";
-      option.textContent = "Default";
-      select.append(option);
-    }
-    for (const value of attribute.values || []) {
-      const option = document.createElement("option");
-      option.value = value;
-      option.textContent = value;
-      select.append(option);
+    if (setting.type === "resource") {
+      const current = values[attribute.name] || "";
+      const options = completions.filter(
+        (item) =>
+          item.plugin_id === widget.plugin_id &&
+          item.module_id === setting.completion_module_id,
+      );
+      const seen = new Set<string>();
+      if (!attribute.required || !current) {
+        const option = document.createElement("option");
+        option.value = "";
+        option.textContent = setting.placeholder || "Choose…";
+        select.append(option);
+      }
+      for (const item of options) {
+        const value = widgetValues(item.replacement, widget)[attribute.name];
+        if (!value || seen.has(value)) continue;
+        seen.add(value);
+        const option = document.createElement("option");
+        option.value = value;
+        option.textContent = item.detail
+          ? `${item.label} — ${item.detail}`
+          : item.label;
+        select.append(option);
+      }
+      if (current && !seen.has(current)) {
+        const option = document.createElement("option");
+        option.value = current;
+        option.textContent = current;
+        select.append(option);
+      }
+    } else {
+      if (!attribute.required && attribute.default === undefined) {
+        const option = document.createElement("option");
+        option.value = "";
+        option.textContent = "Default";
+        select.append(option);
+      }
+      for (const value of attribute.values || []) {
+        const option = document.createElement("option");
+        option.value = value;
+        option.textContent = value;
+        select.append(option);
+      }
     }
     control = select;
   } else if (setting.type === "textarea") {
@@ -746,6 +781,7 @@ function createSettingsPopover(
   apply: (raw: string) => void,
   preview: (raw: string) => void,
   close: (restorePreview: boolean) => void,
+  completions: CatalogCompletion[],
 ): HTMLElement {
   const popover = document.createElement("div");
   popover.className = "visual-widget-popover";
@@ -765,7 +801,7 @@ function createSettingsPopover(
     form.append(
       setting.type === "table"
         ? createTableSetting(setting, widget, values, activate)
-        : createScalarSetting(setting, widget, values),
+        : createScalarSetting(setting, widget, values, completions),
     );
   }
 
@@ -853,6 +889,7 @@ function createSettingsPopover(
 
 function widgetNodeView(
   widgets: CatalogWidget[],
+  completions: CatalogCompletion[],
   context: WidgetNodeViewContext,
   inline: boolean,
 ): any {
@@ -911,6 +948,7 @@ function widgetNodeView(
       apply,
       (previewRaw) => renderWidget(preview, previewRaw, widget),
       close,
+      completions,
     );
   };
 
@@ -959,7 +997,11 @@ function widgetNodeView(
   };
 }
 
-function widgetNode(widgets: CatalogWidget[], inline: boolean): AnyExtension {
+function widgetNode(
+  widgets: CatalogWidget[],
+  completions: CatalogCompletion[],
+  inline: boolean,
+): AnyExtension {
   const nodeName = inline ? "kumbukaWidgetInline" : "kumbukaWidgetBlock";
   const tokenName = inline ? "kumbuka_widget_inline" : "kumbuka_widget_block";
   return TiptapNode.create({
@@ -997,7 +1039,7 @@ function widgetNode(widgets: CatalogWidget[], inline: boolean): AnyExtension {
     },
     addNodeView() {
       return (context: WidgetNodeViewContext) =>
-        widgetNodeView(widgets, context, inline);
+        widgetNodeView(widgets, completions, context, inline);
     },
     markdownTokenName: tokenName,
     markdownTokenizer: {
@@ -1032,11 +1074,14 @@ function widgetNode(widgets: CatalogWidget[], inline: boolean): AnyExtension {
 }
 
 // visualWidgetNodes creates the inline and block NodeViews backed by active plugin contracts.
-export function visualWidgetNodes(widgets: CatalogWidget[]): AnyExtension[] {
+export function visualWidgetNodes(
+  widgets: CatalogWidget[],
+  completions: CatalogCompletion[] = [],
+): AnyExtension[] {
   const extensions: AnyExtension[] = [];
   if (widgets.some((widget) => widget.inline))
-    extensions.push(widgetNode(widgets, true));
+    extensions.push(widgetNode(widgets, completions, true));
   if (widgets.some((widget) => !widget.inline))
-    extensions.push(widgetNode(widgets, false));
+    extensions.push(widgetNode(widgets, completions, false));
   return extensions;
 }
