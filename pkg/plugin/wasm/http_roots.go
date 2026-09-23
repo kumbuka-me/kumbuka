@@ -14,7 +14,9 @@ func usableCertificateRootFile(info os.FileInfo, budget int64) bool {
 
 // certificateRootLoader loads deployment CA overrides within strict file and byte bounds.
 type certificateRootLoader struct {
-	roots  *x509.CertPool
+	// roots receives every accepted certificate from configured files and directories.
+	roots *x509.CertPool
+	// budget is the number of certificate bytes that may still be read.
 	budget int64
 }
 

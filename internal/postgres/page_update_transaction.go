@@ -10,14 +10,22 @@ import (
 
 // pageUpdateTransaction contains the shared ordered steps for applying a prepared page source update.
 type pageUpdateTransaction struct {
-	pageID           int64
-	actorID          int64
-	markdown         string
-	message          string
-	links            []string
-	pluginUsage      any
+	// pageID identifies the page being updated.
+	pageID int64
+	// actorID identifies the user responsible for the revision.
+	actorID int64
+	// markdown is the canonical source stored for the page and revision.
+	markdown string
+	// message describes the revision in page history.
+	message string
+	// links contains normalized outgoing page links discovered from the source.
+	links []string
+	// pluginUsage contains the serialized plugin usage snapshot for the source.
+	pluginUsage any
+	// renderedContents contains structured rendered-content metadata as JSON.
 	renderedContents json.RawMessage
-	render           domain.PageRender
+	// render contains the prepared HTML and render fingerprint.
+	render domain.PageRender
 }
 
 // applyPreparedPageUpdate writes one page update, revision, review state, caller-specific state, and links in that order.
