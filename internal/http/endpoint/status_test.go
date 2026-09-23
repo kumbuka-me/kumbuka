@@ -65,6 +65,84 @@ func TestHTMLProblemsLeavesOtherRoutesUntouched(t *testing.T) {
 	assert.Contains(t, response.Body.String(), `"error":"Forbidden."`)
 }
 
+// TestHTMLProblemsRendersDocumentNavigationFailures verifies browser page errors never expose raw JSON.
+func TestHTMLProblemsRendersDocumentNavigationFailures(t *testing.T) {
+	t.Parallel()
+
+	views := testHandlerViewsWithOverrides(
+		t,
+		testViewsLogger(),
+		webview.RuntimeInfo{},
+		map[string]string{
+			"templates/public_layout.gohtml": `{{ define "public-layout" }}{{ .StatusCode }}|{{ .Title }}|{{ .StatusMessage }}{{ end }}`,
+		},
+	)
+	next := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		httpresponse.Problem(
+			w,
+			http.StatusInternalServerError,
+			"The request could not be processed. Reference: test-reference",
+		)
+	})
+	request := httptest.NewRequest(http.MethodGet, "/pages/example", nil)
+	request.Header.Set("Accept", "text/html,application/xhtml+xml")
+	response := httptest.NewRecorder()
+
+	HTMLProblems(next, views).ServeHTTP(response, request)
+
+	require.Equal(t, http.StatusInternalServerError, response.Code)
+	assert.Equal(t, "text/html; charset=utf-8", response.Header().Get("Content-Type"))
+	assert.Contains(t, response.Body.String(), "500|Something went wrong|")
+	assert.Contains(t, response.Body.String(), "Reference: test-reference")
+	assert.NotContains(t, response.Body.String(), `"error"`)
+}
+
+// TestHTMLProblemsLeavesJSONRequestsUntouched verifies API clients retain structured errors on browser paths.
+func TestHTMLProblemsLeavesJSONRequestsUntouched(t *testing.T) {
+	t.Parallel()
+
+	views := testHandlerViews(t, webview.RuntimeInfo{})
+	next := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		httpresponse.Problem(w, http.StatusInternalServerError, "The request could not be processed.")
+	})
+	request := httptest.NewRequest(http.MethodGet, "/pages/example", nil)
+	request.Header.Set("Accept", "application/json")
+	response := httptest.NewRecorder()
+
+	HTMLProblems(next, views).ServeHTTP(response, request)
+
+	assert.Equal(t, http.StatusInternalServerError, response.Code)
+	assert.Equal(t, "application/json; charset=utf-8", response.Header().Get("Content-Type"))
+	assert.Contains(t, response.Body.String(), `"error":"The request could not be processed."`)
+}
+
+// TestHTMLProblemsRendersPlainNavigationFailures verifies standard-library errors use the themed surface too.
+func TestHTMLProblemsRendersPlainNavigationFailures(t *testing.T) {
+	t.Parallel()
+
+	views := testHandlerViewsWithOverrides(
+		t,
+		testViewsLogger(),
+		webview.RuntimeInfo{},
+		map[string]string{
+			"templates/public_layout.gohtml": `{{ define "public-layout" }}{{ .StatusCode }}|{{ .Title }}|{{ .StatusMessage }}{{ end }}`,
+		},
+	)
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.NotFound(w, r)
+	})
+	request := httptest.NewRequest(http.MethodGet, "/missing", nil)
+	request.Header.Set("Sec-Fetch-Mode", "navigate")
+	response := httptest.NewRecorder()
+
+	HTMLProblems(next, views).ServeHTTP(response, request)
+
+	require.Equal(t, http.StatusNotFound, response.Code)
+	assert.Equal(t, "text/html; charset=utf-8", response.Header().Get("Content-Type"))
+	assert.Contains(t, response.Body.String(), "404|Page not found|")
+	assert.NotContains(t, response.Body.String(), "404 page not found")
+}
+
 // TestHTMLProblemsRendersThemedNotFound verifies hidden browser auth routes use the shared 404 page.
 func TestHTMLProblemsRendersThemedNotFound(t *testing.T) {
 	t.Parallel()

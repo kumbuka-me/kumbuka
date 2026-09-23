@@ -69,7 +69,7 @@ func (r *capturedResponse) Write(data []byte) (int, error) {
 	return r.body.Write(data)
 }
 
-// HTMLProblems converts JSON problem responses into themed HTML pages for selected browser routes.
+// HTMLProblems converts error responses into themed pages for browser navigations and selected routes.
 func HTMLProblems(next http.Handler, views *webview.Views, paths ...string) http.Handler {
 	selected := make(map[string]bool, len(paths))
 	for _, path := range paths {
@@ -77,7 +77,7 @@ func HTMLProblems(next http.Handler, views *webview.Views, paths ...string) http
 	}
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if views == nil || !selected[r.URL.Path] {
+		if !shouldCaptureHTMLProblem(views, selected, r) {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -89,7 +89,7 @@ func HTMLProblems(next http.Handler, views *webview.Views, paths ...string) http
 		if status == 0 {
 			status = http.StatusOK
 		}
-		if status < http.StatusBadRequest || !strings.HasPrefix(captured.header.Get("Content-Type"), "application/json") {
+		if !shouldRenderHTMLProblem(status, captured.header.Get("Content-Type")) {
 			writeCapturedResponse(w, captured, status)
 			return
 		}
@@ -98,9 +98,8 @@ func HTMLProblems(next http.Handler, views *webview.Views, paths ...string) http
 			// Error is the safe problem message displayed on the browser error page.
 			Error string `json:"error"`
 		}
-		if err := json.Unmarshal(captured.body.Bytes(), &problem); err != nil || strings.TrimSpace(problem.Error) == "" {
-			writeCapturedResponse(w, captured, status)
-			return
+		if strings.HasPrefix(captured.header.Get("Content-Type"), "application/json") {
+			_ = json.Unmarshal(captured.body.Bytes(), &problem)
 		}
 
 		presentation := browserProblemPresentation(status, problem.Error)
@@ -114,6 +113,31 @@ func HTMLProblems(next http.Handler, views *webview.Views, paths ...string) http
 		w.Header().Set("Cache-Control", "no-store")
 		renderStatusPage(views, w, status, "public-layout", data, presentation)
 	})
+}
+
+// shouldCaptureHTMLProblem reports whether a response may need conversion to a themed error page.
+func shouldCaptureHTMLProblem(views *webview.Views, selected map[string]bool, r *http.Request) bool {
+	return views != nil && (selected[r.URL.Path] || requestWantsHTML(r))
+}
+
+// shouldRenderHTMLProblem reports whether an error response still needs a themed HTML representation.
+func shouldRenderHTMLProblem(status int, contentType string) bool {
+	return status >= http.StatusBadRequest && !strings.HasPrefix(contentType, "text/html")
+}
+
+// requestWantsHTML reports whether a request represents a browser document navigation.
+func requestWantsHTML(r *http.Request) bool {
+	if strings.EqualFold(strings.TrimSpace(r.Header.Get("Sec-Fetch-Mode")), "navigate") {
+		return true
+	}
+
+	for value := range strings.SplitSeq(r.Header.Get("Accept"), ",") {
+		mediaType, _, _ := strings.Cut(strings.TrimSpace(value), ";")
+		if strings.EqualFold(mediaType, "text/html") || strings.EqualFold(mediaType, "application/xhtml+xml") {
+			return true
+		}
+	}
+	return false
 }
 
 // renderStatusPage renders the shared status surface with either the application or public layout.
@@ -262,15 +286,17 @@ func genericStatusPresentation(status int, message string) statusPagePresentatio
 		PrimaryIcon:  "house-lucide",
 	}
 
+	if status >= http.StatusInternalServerError {
+		presentation.Title = "Something went wrong"
+		if presentation.Message == "" {
+			presentation.Message = "The request could not be processed. Please try again."
+		}
+	}
 	if presentation.Title == "" {
 		presentation.Title = "Request failed"
 	}
 	if presentation.Message == "" {
 		presentation.Message = "The request could not be completed."
-	}
-	if status >= http.StatusInternalServerError {
-		presentation.Title = "Something went wrong"
-		presentation.Message = "The request could not be processed. Please try again."
 	}
 
 	return presentation

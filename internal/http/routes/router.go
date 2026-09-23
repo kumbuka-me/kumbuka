@@ -119,13 +119,13 @@ func (r *Router) Handler() http.Handler {
 		middlewares = append(middlewares, middleware.ReadOnly())
 	}
 
-	root := endpoint.HTMLProblems(
-		r.mux,
+	root := middleware.Chain(r.mux, middlewares...)
+	return endpoint.HTMLProblems(
+		root,
 		r.config.Views,
 		"/auth/login",
 		"/auth/local",
 		"/auth/callback",
 		"/setup",
 	)
-	return middleware.Chain(root, middlewares...)
 }

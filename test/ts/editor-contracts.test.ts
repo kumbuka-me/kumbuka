@@ -94,6 +94,7 @@ test("editor accepts declarative plugin action metadata", () => {
     pages: [],
     aliases: {},
     completions: [],
+    completion_providers: [],
     inserts: [
       {
         plugin_id: "me.kumbuka.strikethrough",

@@ -60,6 +60,7 @@ test("editorDiagnostics reports broken links, heading jumps, and link suggestion
         replacement: "{{snippet:warning}}",
       },
     ],
+    completion_providers: [],
     inserts: [],
   };
   const source = [
