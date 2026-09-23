@@ -15,7 +15,7 @@
     "@tiptap/starter-kit": "3.30.3"
   },
   "devDependencies": {
-    "esbuild": "0.25.10",
+    "esbuild": "0.28.2",
     "playwright": "^1.63.0",
     "typescript": "7.0.2"
   }
