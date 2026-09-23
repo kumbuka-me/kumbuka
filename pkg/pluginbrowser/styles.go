@@ -8,6 +8,7 @@ import (
 
 	"github.com/aymerick/douceur/css"
 	"github.com/aymerick/douceur/parser"
+	"github.com/kumbuka-me/kumbuka/pkg/ascii"
 	"github.com/kumbuka-me/kumbuka/pkg/plugin"
 )
 
@@ -67,40 +68,53 @@ var contentValueValidators = map[string]func(string) bool{
 	"user-select":            exactCSSValues("none", "text"),
 }
 
-// PresentationStylesVersion fingerprints the ordered active stylesheet contributions. Package digests already cover the referenced CSS bytes, so this stays cheap enough to compute while rendering each page without reparsing stylesheet contents.
+type (
+	selectorSanitizer    func(string) (string, bool)
+	declarationSanitizer func(string, string) (string, string, bool)
+)
+
+// PresentationStylesVersion fingerprints the ordered active stylesheet contributions.
 func PresentationStylesVersion(manager *plugin.Manager) string {
 	var identity strings.Builder
-	appendContribution := func(kind, pluginID, moduleID, digest, css string) {
-		if css == "" {
-			return
-		}
-		for _, value := range []string{kind, pluginID, moduleID, digest, css} {
-			identity.WriteString(value)
-			identity.WriteByte(0)
-		}
-	}
-
 	if manager != nil {
-		for _, module := range manager.BrowserModules() {
-			appendContribution("browser", module.PluginID, module.ModuleID, module.Digest, module.CSS)
-		}
-		for _, module := range manager.CodeHighlighters() {
-			appendContribution("highlighter", module.PluginID, module.ModuleID, module.Digest, module.CSS)
-		}
-		for _, module := range manager.ContentStyles() {
-			appendContribution("content", module.PluginID, module.ModuleID, module.Digest, module.CSS)
-		}
+		appendPresentationIdentity(&identity, manager)
 	}
 
 	digest := sha256.Sum256([]byte(identity.String()))
 	return hex.EncodeToString(digest[:8])
 }
 
-// PresentationStyles publishes only scoped presentation declarations from active package stylesheets. Arbitrary CSS stays in the sandbox: positioning, URLs, generated content, imports, escapes and selector functions are not admitted.
+// appendPresentationIdentity appends the ordered stylesheet contribution identity used for versioning.
+func appendPresentationIdentity(identity *strings.Builder, manager *plugin.Manager) {
+	for _, module := range manager.BrowserModules() {
+		appendStyleContribution(identity, "browser", module.PluginID, module.ModuleID, module.Digest, module.CSS)
+	}
+	for _, module := range manager.CodeHighlighters() {
+		appendStyleContribution(identity, "highlighter", module.PluginID, module.ModuleID, module.Digest, module.CSS)
+	}
+	for _, module := range manager.ContentStyles() {
+		appendStyleContribution(identity, "content", module.PluginID, module.ModuleID, module.Digest, module.CSS)
+	}
+}
+
+// appendStyleContribution appends one non-empty stylesheet contribution to the version identity.
+func appendStyleContribution(identity *strings.Builder, kind, pluginID, moduleID, digest, path string) {
+	if path == "" {
+		return
+	}
+
+	for _, value := range []string{kind, pluginID, moduleID, digest, path} {
+		identity.WriteString(value)
+		identity.WriteByte(0)
+	}
+}
+
+// PresentationStyles publishes only validated presentation declarations from active package stylesheets.
 func PresentationStyles(manager *plugin.Manager) string {
 	if manager == nil {
 		return ""
 	}
+
 	var output strings.Builder
 	appendBrowserModuleStyles(&output, manager)
 	appendCodeHighlighterStyles(&output, manager)
@@ -114,9 +128,11 @@ func appendBrowserModuleStyles(output *strings.Builder, manager *plugin.Manager)
 		data, ok := loadPresentationAsset(module.CSS, func() ([]byte, error) {
 			return manager.BrowserAsset(module.PluginID, module.Digest, module.CSS)
 		})
-		if ok {
-			output.WriteString(scopedColors(module.PluginID, string(data)))
+		if !ok {
+			continue
 		}
+
+		output.WriteString(scopedColors(module.PluginID, string(data)))
 	}
 }
 
@@ -126,9 +142,11 @@ func appendCodeHighlighterStyles(output *strings.Builder, manager *plugin.Manage
 		data, ok := loadPresentationAsset(module.CSS, func() ([]byte, error) {
 			return manager.CodeHighlighterAsset(module.PluginID, module.Digest, module.CSS)
 		})
-		if ok {
-			output.WriteString(scopedCodeStyles(module.PluginID, string(data)))
+		if !ok {
+			continue
 		}
+
+		output.WriteString(scopedCodeStyles(module.PluginID, string(data)))
 	}
 }
 
@@ -138,9 +156,11 @@ func appendContentModuleStyles(output *strings.Builder, manager *plugin.Manager)
 		data, ok := loadPresentationAsset(module.CSS, func() ([]byte, error) {
 			return manager.ContentStyleAsset(module.PluginID, module.Digest, module.CSS)
 		})
-		if ok {
-			output.WriteString(scopedContentStyles(string(data)))
+		if !ok {
+			continue
 		}
+
+		output.WriteString(scopedContentStyles(string(data)))
 	}
 }
 
@@ -149,55 +169,44 @@ func loadPresentationAsset(path string, load func() ([]byte, error)) ([]byte, bo
 	if path == "" {
 		return nil, false
 	}
+
 	data, err := load()
 	return data, err == nil && len(data) <= 256<<10
 }
 
 // scopedColors returns only safe, plugin-scoped color declarations from source.
 func scopedColors(id, source string) string {
-	sheet, err := parser.Parse(source)
-	if err != nil {
-		return ""
-	}
-	var output strings.Builder
-	for _, rule := range sheet.Rules {
-		if rule.Kind != css.QualifiedRule {
-			continue
-		}
-		var selectors []string
-		for _, selector := range rule.Selectors {
-			selector = strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(selector), ".prose "))
-			if !presentationSelector.MatchString(selector) {
-				continue
-			}
-			selectors = append(selectors, `[data-kumbuka-plugin="`+id+`"] `+selector)
-		}
-		if len(selectors) == 0 {
-			continue
-		}
-		var declarations []string
-		for _, declaration := range rule.Declarations {
-			property := declaration.Property
-			if property == "background" {
-				property = "background-color"
-			}
-			if !presentationProperty(property) {
-				continue
-			}
-			if !safeColor(declaration.Value) {
-				continue
-			}
-			declarations = append(declarations, property+":"+declaration.Value+";")
-		}
-		if len(declarations) > 0 {
-			output.WriteString(strings.Join(selectors, ",") + "{" + strings.Join(declarations, "") + "}\n")
-		}
-	}
-	return output.String()
+	return sanitizeStylesheet(
+		source,
+		func(selector string) (string, bool) {
+			return scopedPresentationSelector(id, selector)
+		},
+		safePresentationDeclaration,
+	)
 }
 
 // scopedCodeStyles returns safe highlighter presentation rules scoped to one plugin wrapper.
 func scopedCodeStyles(id, source string) string {
+	return sanitizeStylesheet(
+		source,
+		func(selector string) (string, bool) {
+			return scopedPresentationSelector(id, selector)
+		},
+		safeCodeDeclaration,
+	)
+}
+
+// scopedContentStyles returns safe presentation rules rooted in rendered page content.
+func scopedContentStyles(source string) string {
+	return sanitizeStylesheet(source, safeContentStyleSelector, safeContentDeclaration)
+}
+
+// sanitizeStylesheet parses source and renders only rules accepted by the supplied sanitizers.
+func sanitizeStylesheet(
+	source string,
+	sanitizeSelector selectorSanitizer,
+	sanitizeDeclaration declarationSanitizer,
+) string {
 	sheet, err := parser.Parse(source)
 	if err != nil {
 		return ""
@@ -205,65 +214,144 @@ func scopedCodeStyles(id, source string) string {
 
 	var output strings.Builder
 	for _, rule := range sheet.Rules {
-		if rule.Kind != css.QualifiedRule {
-			continue
-		}
+		output.WriteString(sanitizeQualifiedRule(rule, sanitizeSelector, sanitizeDeclaration))
+	}
+	return output.String()
+}
 
-		selectors := make([]string, 0, len(rule.Selectors))
-		for _, selector := range rule.Selectors {
-			selector = strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(selector), ".prose "))
-			if !presentationSelector.MatchString(selector) {
-				continue
-			}
-			selectors = append(selectors, `[data-kumbuka-plugin="`+id+`"] `+selector)
-		}
-		if len(selectors) == 0 {
-			continue
-		}
-
-		declarations := make([]string, 0, len(rule.Declarations))
-		for _, declaration := range rule.Declarations {
-			property, value, ok := safeCodeDeclaration(declaration.Property, declaration.Value)
-			if ok {
-				declarations = append(declarations, property+":"+value+";")
-			}
-		}
-		if len(declarations) != 0 {
-			output.WriteString(strings.Join(selectors, ",") + "{" + strings.Join(declarations, "") + "}\n")
-		}
+// sanitizeQualifiedRule renders one qualified rule after filtering its selectors and declarations.
+func sanitizeQualifiedRule(
+	rule *css.Rule,
+	sanitizeSelector selectorSanitizer,
+	sanitizeDeclaration declarationSanitizer,
+) string {
+	if rule.Kind != css.QualifiedRule {
+		return ""
 	}
 
-	return output.String()
+	selectors := sanitizeSelectors(rule.Selectors, sanitizeSelector)
+	if len(selectors) == 0 {
+		return ""
+	}
+
+	declarations := sanitizeDeclarations(rule.Declarations, sanitizeDeclaration)
+	if len(declarations) == 0 {
+		return ""
+	}
+
+	return strings.Join(selectors, ",") +
+		"{" +
+		strings.Join(declarations, "") +
+		"}\n"
+}
+
+// sanitizeSelectors returns the selectors accepted and normalized by sanitize.
+func sanitizeSelectors(selectors []string, sanitize selectorSanitizer) []string {
+	result := make([]string, 0, len(selectors))
+
+	for _, selector := range selectors {
+		normalized, ok := sanitize(selector)
+		if !ok {
+			continue
+		}
+
+		result = append(result, normalized)
+	}
+
+	return result
+}
+
+// sanitizeDeclarations returns the declarations accepted and normalized by sanitize.
+func sanitizeDeclarations(
+	declarations []*css.Declaration,
+	sanitize declarationSanitizer,
+) []string {
+	result := make([]string, 0, len(declarations))
+
+	for _, declaration := range declarations {
+		property, value, ok := sanitize(declaration.Property, declaration.Value)
+		if !ok {
+			continue
+		}
+
+		result = append(result, property+":"+value+";")
+	}
+
+	return result
+}
+
+// scopedPresentationSelector validates a presentation selector and scopes it to one plugin wrapper.
+func scopedPresentationSelector(id, selector string) (string, bool) {
+	selector = strings.TrimSpace(selector)
+	selector = strings.TrimSpace(strings.TrimPrefix(selector, ".prose "))
+	if !presentationSelector.MatchString(selector) {
+		return "", false
+	}
+
+	return `[data-kumbuka-plugin="` + id + `"] ` + selector, true
+}
+
+// safeContentStyleSelector validates a content selector while preserving its rendered-content scope.
+func safeContentStyleSelector(selector string) (string, bool) {
+	selector = strings.TrimSpace(selector)
+	return selector, safeContentSelector(selector)
+}
+
+// safePresentationDeclaration validates the color-only presentation subset exposed to browser modules.
+func safePresentationDeclaration(property, value string) (string, string, bool) {
+	property = normalizeBackgroundProperty(property)
+
+	if !presentationProperty(property) {
+		return "", "", false
+	}
+	if !safeColor(value) {
+		return "", "", false
+	}
+
+	return property, value, true
 }
 
 // safeCodeDeclaration validates the small presentation subset exposed to highlighters.
 func safeCodeDeclaration(property, value string) (string, string, bool) {
+	property = normalizeBackgroundProperty(property)
+
 	switch property {
-	case "background":
-		property = "background-color"
-		fallthrough
 	case "background-color", "color", "border-color":
 		return property, value, safeColor(value)
 	case "font-style":
-		return property, value, value == "normal" || value == "italic" || value == "oblique"
+		return property, value, oneOf(value, "normal", "italic", "oblique")
 	case "font-weight":
-		switch value {
-		case "normal", "bold", "100", "200", "300", "400", "500", "600", "700", "800", "900":
-			return property, value, true
-		}
+		return property, value, oneOf(
+			value,
+			"normal",
+			"bold",
+			"100",
+			"200",
+			"300",
+			"400",
+			"500",
+			"600",
+			"700",
+			"800",
+			"900",
+		)
+	default:
+		return "", "", false
+	}
+}
+
+// normalizeBackgroundProperty maps the supported background shorthand to background-color.
+func normalizeBackgroundProperty(property string) string {
+	if property == "background" {
+		return "background-color"
 	}
 
-	return "", "", false
+	return property
 }
 
 // presentationProperty reports whether property is allowed in parent-document presentation CSS.
 func presentationProperty(property string) bool {
-	switch property {
-	case "background-color", "color", "border-color":
-		return true
-	default:
-		return false
-	}
+	return oneOf(property, "background-color", "color", "border-color")
 }
 
 // safeColor reports whether value uses only the supported color syntax.
@@ -271,116 +359,107 @@ func safeColor(value string) bool {
 	if !presentationValue.MatchString(value) {
 		return false
 	}
+
 	for _, match := range presentationFunction.FindAllStringSubmatch(value, -1) {
-		switch match[1] {
-		case "var", "color-mix", "rgb", "rgba", "hsl", "hsla":
-		default:
+		if !safeColorFunction(match[1]) {
 			return false
 		}
 	}
+
 	return true
 }
 
-// scopedContentStyles returns safe presentation rules rooted in rendered page content.
-func scopedContentStyles(source string) string {
-	sheet, err := parser.Parse(source)
-	if err != nil {
-		return ""
-	}
-
-	var output strings.Builder
-	for _, rule := range sheet.Rules {
-		if rule.Kind != css.QualifiedRule {
-			continue
-		}
-
-		selectors := make([]string, 0, len(rule.Selectors))
-		for _, selector := range rule.Selectors {
-			selector = strings.TrimSpace(selector)
-			if safeContentSelector(selector) {
-				selectors = append(selectors, selector)
-			}
-		}
-		if len(selectors) == 0 {
-			continue
-		}
-
-		declarations := make([]string, 0, len(rule.Declarations))
-		for _, declaration := range rule.Declarations {
-			property, value, ok := safeContentDeclaration(declaration.Property, declaration.Value)
-			if !ok {
-				continue
-			}
-			declarations = append(declarations, property+":"+value+";")
-		}
-		if len(declarations) != 0 {
-			output.WriteString(strings.Join(selectors, ",") + "{" + strings.Join(declarations, "") + "}\n")
-		}
-	}
-
-	return output.String()
+// safeColorFunction reports whether name is an allowed CSS color function.
+func safeColorFunction(name string) bool {
+	return oneOf(name, "var", "color-mix", "rgb", "rgba", "hsl", "hsla")
 }
 
-// safeContentSelector limits parent-document plugin CSS to rendered prose and plugin-owned class hooks. Complex selectors, pseudo classes, IDs and attributes stay unavailable so a content plugin cannot reach application chrome.
+// safeContentSelector limits parent-document plugin CSS to rendered prose and plugin-owned class hooks.
 func safeContentSelector(selector string) bool {
 	selector = strings.TrimSpace(selector)
-	switch selector {
-	case ".prose", ".prose code", ".prose pre":
+
+	if oneOf(selector, ".prose", ".prose code", ".prose pre") {
 		return true
 	}
-	if !strings.HasPrefix(selector, ".prose .") || len(selector) > 256 {
+	if !pluginContentSelector(selector) {
 		return false
 	}
-	for _, part := range strings.Fields(strings.TrimPrefix(selector, ".prose ")) {
-		if !safeClassSelector(part) {
+
+	parts := strings.Fields(strings.TrimPrefix(selector, ".prose "))
+	return safeClassSelectors(parts)
+}
+
+// pluginContentSelector reports whether selector has the bounded plugin class-selector shape.
+func pluginContentSelector(selector string) bool {
+	return len(selector) <= 256 && strings.HasPrefix(selector, ".prose .")
+}
+
+// safeClassSelectors reports whether every selector part is a safe class selector.
+func safeClassSelectors(selectors []string) bool {
+	for _, selector := range selectors {
+		if !safeClassSelector(selector) {
 			return false
 		}
 	}
+
 	return true
 }
 
 // safeClassSelector reports whether a CSS class selector is safe for parent-document publication.
 func safeClassSelector(selector string) bool {
-	if len(selector) < 2 || selector[0] != '.' {
+	if !strings.HasPrefix(selector, ".") {
 		return false
 	}
-	segmentStart := true
-	for index := 1; index < len(selector); index++ {
-		char := selector[index]
-		if char == '.' {
-			if segmentStart {
-				return false
-			}
-			segmentStart = true
-			continue
+
+	for _, className := range strings.Split(selector[1:], ".") {
+		if !safeClassName(className) {
+			return false
 		}
-		if safeClassCharacter(char) {
-			segmentStart = false
-			continue
-		}
+	}
+
+	return true
+}
+
+// safeClassName reports whether a class name contains only the supported characters.
+func safeClassName(name string) bool {
+	if name == "" {
 		return false
 	}
-	return !segmentStart
+
+	for index := 0; index < len(name); index++ {
+		if !safeClassCharacter(name[index]) {
+			return false
+		}
+	}
+
+	return true
 }
 
 // safeClassCharacter reports whether char may appear in a plugin-safe CSS class segment.
-func safeClassCharacter(char byte) bool {
-	return char >= 'a' && char <= 'z' || char >= 'A' && char <= 'Z' ||
-		char >= '0' && char <= '9' || char == '_' || char == '-'
+func safeClassCharacter(character byte) bool {
+	return ascii.IsAlphanumeric(rune(character)) ||
+		character == '_' ||
+		character == '-'
 }
 
 // safeContentDeclaration validates presentation and local layout properties available to rendered-content plugins.
 func safeContentDeclaration(property, value string) (string, string, bool) {
 	validate := contentValueValidators[property]
-	if validate == nil || !validate(value) {
+	if validate == nil {
 		return "", "", false
 	}
+	if !validate(value) {
+		return "", "", false
+	}
+
 	return property, value, true
 }
 
 // exactCSSValues returns a validator for a small exact CSS value allowlist.
 func exactCSSValues(allowed ...string) func(string) bool {
-	return func(value string) bool { return oneOf(value, allowed...) }
+	return func(value string) bool {
+		return oneOf(value, allowed...)
+	}
 }
 
 // oneOf reports whether value is one exact member of the allowlist.
@@ -390,6 +469,7 @@ func oneOf(value string, allowed ...string) bool {
 			return true
 		}
 	}
+
 	return false
 }
 
@@ -414,24 +494,27 @@ func splitContentLength(value string) (string, bool) {
 			return number, number != ""
 		}
 	}
+
 	return "", false
 }
 
 // validContentLengthNumber validates a non-negative decimal number without exponent or sign syntax.
 func validContentLengthNumber(value string) bool {
-	dot := false
-	digit := false
+	dotSeen := false
+	digitSeen := false
+
 	for _, char := range value {
-		if char >= '0' && char <= '9' {
-			digit = true
-			continue
-		}
-		if char != '.' || dot {
+		switch {
+		case ascii.IsDigit(char):
+			digitSeen = true
+		case char == '.' && !dotSeen:
+			dotSeen = true
+		default:
 			return false
 		}
-		dot = true
 	}
-	return digit
+
+	return digitSeen
 }
 
 // safeTypographyValue rejects CSS constructs that can load resources or escape a declaration.
@@ -439,11 +522,23 @@ func safeTypographyValue(value string) bool {
 	if len(value) == 0 || len(value) > 512 {
 		return false
 	}
+
 	lower := strings.ToLower(value)
-	for _, forbidden := range []string{"url(", "expression(", "@", "{", "}", ";", "<", ">", "\\"} {
+	for _, forbidden := range []string{
+		"url(",
+		"expression(",
+		"@",
+		"{",
+		"}",
+		";",
+		"<",
+		">",
+		"\\",
+	} {
 		if strings.Contains(lower, forbidden) {
 			return false
 		}
 	}
+
 	return true
 }

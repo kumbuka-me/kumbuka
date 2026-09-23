@@ -1,8 +1,9 @@
 package pluginbrowser
 
 import (
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 // TestPresentationStylesVersionIsStableWithoutContributions verifies empty presentation catalogs have a stable fingerprint.
@@ -25,12 +26,20 @@ func TestPresentationStylesAreScopedColorsOnly(t *testing.T) {
  .escape:has(*) { color:red; }
  .generated::before { content:'secret'; color:blue; }
  `)
+
+	assert.Contains(t, result, `[data-kumbuka-plugin="io.example.test"] body`)
 	assert.Contains(t, result, `[data-kumbuka-plugin="io.example.test"] .tone`)
 	assert.Contains(t, result, "background-color:color-mix")
 	assert.Contains(t, result, "border-color:red")
-	for _, forbidden := range []string{"@import", "@media", "position", "inset", "display", "url(", "expression", "content:", ":has"} {
-		assert.NotContains(t, result, forbidden)
-	}
+	assert.NotContains(t, result, "@import")
+	assert.NotContains(t, result, "@media")
+	assert.NotContains(t, result, "position")
+	assert.NotContains(t, result, "inset")
+	assert.NotContains(t, result, "display")
+	assert.NotContains(t, result, "url(")
+	assert.NotContains(t, result, "expression")
+	assert.NotContains(t, result, "content:")
+	assert.NotContains(t, result, ":has")
 }
 
 // TestContentStylesAllowSafeRenderedPresentation verifies content plugins can use the bounded local-layout presentation subset.
@@ -56,14 +65,24 @@ func TestContentStylesAllowSafeRenderedPresentation(t *testing.T) {
 	assert.Contains(t, result, `.prose .task-list-item{list-style:none;}`)
 	assert.Contains(t, result, `.prose .task-list-checkbox{margin-right:0.45em;}`)
 	assert.Contains(t, result, `.prose .task-list-checkbox.checked{color:var(--accent);}`)
-	assert.Contains(t, result, `.prose .plugin-card{display:flex;gap:0.5rem;padding-left:0.75rem;border-width:1px;border-style:solid;border-color:var(--border);border-radius:0.5rem;background-color:var(--surface);overflow:hidden;}`)
-	assert.Contains(t, result, `.prose .plugin-card .body{flex:1 1 auto;min-width:0;white-space:pre;overflow-wrap:anywhere;font-weight:600;}`)
+	assert.Contains(
+		t,
+		result,
+		`.prose .plugin-card{display:flex;gap:0.5rem;padding-left:0.75rem;border-width:1px;border-style:solid;border-color:var(--border);border-radius:0.5rem;background-color:var(--surface);overflow:hidden;}`,
+	)
+	assert.Contains(
+		t,
+		result,
+		`.prose .plugin-card .body{flex:1 1 auto;min-width:0;white-space:pre;overflow-wrap:anywhere;font-weight:600;}`,
+	)
 	assert.Contains(t, result, `font-family:`)
 	assert.Contains(t, result, `font-variant-ligatures:contextual;`)
 	assert.Contains(t, result, `font-feature-settings:`)
-	for _, forbidden := range []string{".admin-page", ":hover", "background:url", "position", "url("} {
-		assert.NotContains(t, result, forbidden)
-	}
+	assert.NotContains(t, result, ".admin-page")
+	assert.NotContains(t, result, ":hover")
+	assert.NotContains(t, result, "background:url")
+	assert.NotContains(t, result, "position")
+	assert.NotContains(t, result, "url(")
 }
 
 // TestCodeStylesAreScopedAndPresentationOnly verifies code-highlighter styles remain scoped and presentation-only.
@@ -78,7 +97,23 @@ func TestCodeStylesAreScopedAndPresentationOnly(t *testing.T) {
 	assert.Contains(t, result, "background-color:var(--surface-hover);")
 	assert.Contains(t, result, "font-weight:600;")
 	assert.Contains(t, result, "font-style:italic;")
-	for _, forbidden := range []string{"position", "url(", "display"} {
-		assert.NotContains(t, result, forbidden)
-	}
+	assert.NotContains(t, result, "position")
+	assert.NotContains(t, result, "url(")
+	assert.NotContains(t, result, "display")
+}
+
+// TestSafeContentSelectorAllowsOnlyProseClassHooks verifies class-chain validation remains strict after selector sanitization is shared.
+func TestSafeContentSelectorAllowsOnlyProseClassHooks(t *testing.T) {
+	assert.True(t, safeContentSelector(".prose"))
+	assert.True(t, safeContentSelector(".prose code"))
+	assert.True(t, safeContentSelector(".prose pre"))
+	assert.True(t, safeContentSelector(".prose .plugin-card"))
+	assert.True(t, safeContentSelector(".prose .plugin-card.checked .body"))
+
+	assert.False(t, safeContentSelector(".admin-page"))
+	assert.False(t, safeContentSelector(".prose .bad:hover"))
+	assert.False(t, safeContentSelector(".prose #bad"))
+	assert.False(t, safeContentSelector(".prose [data-bad]"))
+	assert.False(t, safeContentSelector(".prose .bad > .child"))
+	assert.False(t, safeContentSelector(".prose ..bad"))
 }
