@@ -64,7 +64,7 @@ func EditorCatalog(
 			widgets, widgetProblems = plugins.EditorWidgets()
 		}
 
-		aliases, err := catalogUseCases.PageAliases(r.Context())
+		aliases, err := catalogUseCases.PageAliasesFor(r.Context(), currentUser(r))
 		if err != nil {
 			httpresponse.InternalServerError(logger, w, err)
 			return
