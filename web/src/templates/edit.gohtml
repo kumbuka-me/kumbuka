@@ -379,14 +379,14 @@
               data-markdown-action="italic"
               title="Italic (⌘/Ctrl+I)"
               aria-label="Italic">{{ icon "italic-lucide" 16 }}</button>
-      <details class="markdown-toolbar-menu">
+      <details class="markdown-toolbar-menu markdown-toolbar-heading-menu">
         <summary title="Heading"
                  aria-label="Heading">{{ icon "heading-lucide" 16 }}{{ icon "chevron-down-lucide" 12 }}</summary>
         <div class="markdown-toolbar-popover">
-          <button type="button" data-markdown-action="heading-1">Heading 1</button>
-          <button type="button" data-markdown-action="heading-2">Heading 2</button>
-          <button type="button" data-markdown-action="heading-3">Heading 3</button>
-          <button type="button" data-markdown-action="heading-4">Heading 4</button>
+          <button type="button" data-markdown-action="heading-1"><span>Heading 1</span></button>
+          <button type="button" data-markdown-action="heading-2"><span>Heading 2</span></button>
+          <button type="button" data-markdown-action="heading-3"><span>Heading 3</span></button>
+          <button type="button" data-markdown-action="heading-4"><span>Heading 4</span></button>
         </div>
       </details>
       {{ range .EditorToolbar }}

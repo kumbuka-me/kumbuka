@@ -1137,7 +1137,9 @@ export function setupVisualEditor(form: HTMLFormElement): void {
         chain.toggleBlockquote().run();
         break;
       case "code-block":
-        chain.toggleCodeBlock().run();
+        chain
+          .setCodeBlock({ language: String(detail.language || "") || null })
+          .run();
         break;
       case "bold":
         chain.toggleBold().run();

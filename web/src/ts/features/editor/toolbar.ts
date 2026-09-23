@@ -2,6 +2,7 @@
 
 import { formatMarkdownDocument } from "./formatter.ts";
 import { dispatchEditorEvent } from "./events.ts";
+import { openCodeLanguagePicker } from "./code-language-picker.ts";
 
 function insertIntoVisualEditor(
   textarea: HTMLTextAreaElement,
@@ -187,9 +188,30 @@ function setupMarkdownToolbar(toolbar: HTMLElement): void {
     );
   }
 
+  // insertCodeBlock chooses a fenced-code language before creating or updating a block.
+  async function insertCodeBlock(): Promise<void> {
+    const language = await openCodeLanguagePicker("");
+    if (language === null) return;
+    if (visualCommand("code-block", { language })) return;
+
+    const content = selectedText("command");
+    const opening = `\`\`\`${language}\n`;
+    const replacement = `${opening}${content}\n\`\`\``;
+    replaceMarkdownSelection(
+      editor,
+      replacement,
+      opening.length,
+      opening.length + content.length,
+    );
+  }
+
   // Applies action.
   function applyAction(action: string | undefined): void {
     if (!action) return;
+    if (action === "code-block") {
+      void insertCodeBlock();
+      return;
+    }
     if (
       action !== "find" &&
       action !== "format-document" &&
@@ -235,13 +257,6 @@ function setupMarkdownToolbar(toolbar: HTMLElement): void {
       case "inline-code":
         wrapMarkdownSelection(editor, "`", "`", "code");
         break;
-      case "code-block": {
-        const content = selectedText("command");
-        const replacement = `\`\`\`\n${content}\n\`\`\``;
-
-        replaceMarkdownSelection(editor, replacement, 4, 4 + content.length);
-        break;
-      }
       case "bullet-list":
         prefixMarkdownLines(editor, () => "- ", "item");
         break;

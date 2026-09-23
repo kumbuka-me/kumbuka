@@ -80,9 +80,11 @@ export function setupMarkdownEnhancements(root: MarkdownRoot = document): void {
 function setupCodeCopyButtons(root: MarkdownRoot = document): void {
   for (const pre of root.querySelectorAll<HTMLPreElement>(".prose pre")) {
     const code = pre.querySelector<HTMLElement>(":scope > code");
+    const pluginContainer = pre.closest<HTMLElement>("[data-kumbuka-plugin]");
     if (
       !code ||
-      Boolean(pre.closest("[data-kumbuka-plugin]")) ||
+      (pluginContainer &&
+        !pluginContainer.hasAttribute("data-kumbuka-code-block")) ||
       pre.parentElement?.classList.contains("code-block")
     )
       continue;

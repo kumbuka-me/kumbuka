@@ -62,7 +62,7 @@ func (r codeHighlighterRenderer) render(
 	}
 
 	w := writer.(util.BufWriter)
-	if _, err := w.WriteString(`<div data-kumbuka-plugin="` + r.owner + `" data-kumbuka-module="` + r.module.ID + `">`); err != nil {
+	if _, err := w.WriteString(`<div data-kumbuka-plugin="` + r.owner + `" data-kumbuka-module="` + r.module.ID + `" data-kumbuka-code-block>`); err != nil {
 		return ast.WalkStop, err
 	}
 	if _, err := w.WriteString(result.HTML); err != nil {

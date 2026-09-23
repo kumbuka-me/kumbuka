@@ -171,6 +171,10 @@ for (const failFirst of [false, true])
       await page
         .getByRole("button", { name: "Code block", exact: true })
         .click();
+      await page
+        .getByRole("dialog", { name: "Code block language" })
+        .getByRole("option", { name: /Plain text/ })
+        .click();
       assert.ok(await visual.locator("pre").count());
       await page.getByRole("button", { name: "Markdown", exact: true }).click();
       await source.fill("Text");

@@ -10,6 +10,7 @@ import {
   type EditorView,
   type ProseMirrorNode,
 } from "./visual-deps/core.ts";
+import { setupCopyButton } from "../../core/clipboard.ts";
 import { codeLanguageLabel } from "./code-languages.ts";
 import { openCodeLanguagePicker } from "./code-language-picker.ts";
 
@@ -76,6 +77,29 @@ export function visualCodeLanguages(): AnyExtension {
                         key: `code-language-${position}-${language}`,
                         ignoreSelection: true,
                         side: -1,
+                      },
+                    ),
+                  );
+                  decorations.push(
+                    Decoration.widget(
+                      position + 1,
+                      (view: EditorView) => {
+                        const button = document.createElement("button");
+                        button.type = "button";
+                        button.className = "code-copy-button";
+                        button.contentEditable = "false";
+                        setupCopyButton(
+                          button,
+                          () =>
+                            view.state.doc.nodeAt(position)?.textContent ?? "",
+                          "Copy code to clipboard",
+                        );
+                        return button;
+                      },
+                      {
+                        key: `code-copy-${position}`,
+                        ignoreSelection: true,
+                        side: 1,
                       },
                     ),
                   );

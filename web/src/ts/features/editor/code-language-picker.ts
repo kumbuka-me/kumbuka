@@ -81,9 +81,7 @@ export function openCodeLanguagePicker(
 
         const label = document.createElement("strong");
         label.textContent = language.label;
-        const value = document.createElement("code");
-        value.textContent = language.value || "plain";
-        option.append(label, value);
+        option.append(label);
         option.addEventListener("click", () => finish(language.value));
         list.append(option);
       }

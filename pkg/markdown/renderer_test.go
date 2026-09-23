@@ -504,6 +504,7 @@ func TestSyntaxHighlightingEmitsChromaClasses(t *testing.T) {
 	got, err := renderer.Render("```go\nfunc main() { println(\"Kumbuka\") }\n```\n")
 
 	require.NoError(t, err)
+	assert.Contains(t, got, `data-kumbuka-code-block`)
 	assert.Contains(t, got, `class="chroma"`)
 	assert.Contains(t, got, `class="kd"`)
 }

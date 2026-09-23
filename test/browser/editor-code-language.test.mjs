@@ -74,11 +74,20 @@ test("visual code blocks choose a supported fenced language", async () => {
     });
 
     await page.goto("http://code-language.test/");
+    const source = page.locator("textarea[data-markdown-editor]");
+    await source.fill("fmt.Println()\n");
+    await source.selectText();
+    await page.getByRole("button", { name: "Code block", exact: true }).click();
+    const sourceDialog = page.getByRole("dialog", {
+      name: "Code block language",
+    });
+    await sourceDialog.getByLabel("Search code languages").fill("golang");
+    await sourceDialog.getByRole("option", { name: /^Go\b/ }).first().click();
+    assert.match(await source.inputValue(), /^```go\nfmt\.Println\(\)\n\n```$/);
+
+    await source.fill("Text");
     await page.getByRole("button", { name: "Visual", exact: true }).click();
     await page.getByRole("button", { name: "Code block", exact: true }).click();
-
-    const language = page.locator("button.visual-code-language");
-    await language.click();
 
     const dialog = page.getByRole("dialog", { name: "Code block language" });
     await dialog.getByLabel("Search code languages").fill("python");
@@ -87,11 +96,24 @@ test("visual code blocks choose a supported fenced language", async () => {
       .first()
       .click();
 
+    const language = page.locator("button.visual-code-language");
     assert.equal(await language.textContent(), "Python");
-    assert.match(
-      await page.locator("textarea[data-markdown-editor]").inputValue(),
-      /```python/,
+    const block = page.locator("pre.visual-code-block");
+    const copy = block.getByRole("button", { name: "Copy code to clipboard" });
+    const languageBox = await language.boundingBox();
+    const blockBox = await block.boundingBox();
+    assert.ok(languageBox.x < blockBox.x + blockBox.width / 2);
+    assert.equal(
+      await copy.evaluate((element) => getComputedStyle(element).opacity),
+      "0",
     );
+    await block.hover();
+    await page.waitForFunction(
+      (element) => getComputedStyle(element).opacity === "1",
+      await copy.elementHandle(),
+    );
+    assert.ok((await copy.boundingBox()).x > languageBox.x);
+    assert.match(await source.inputValue(), /```python/);
     assert.deepEqual(errors, []);
   } finally {
     await browser.close();

@@ -928,9 +928,9 @@
 .visual-code-language {
   position: absolute;
   top: 8px;
-  right: 8px;
+  left: 8px;
   z-index: 1;
-  max-width: calc(100% - 16px);
+  max-width: calc(100% - 92px);
   overflow: hidden;
   padding: 4px 8px;
   border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
@@ -950,6 +950,13 @@
 .visual-code-language:focus-visible {
   border-color: var(--accent);
   color: var(--text);
+}
+
+.visual-code-block:hover .code-copy-button,
+.visual-code-block:focus-within .code-copy-button {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
 }
 
 .code-language-dialog {
@@ -981,8 +988,7 @@
 .code-language-option {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
+  justify-content: flex-start;
   width: 100%;
   padding: 9px 11px;
   border: 0;
@@ -1001,11 +1007,6 @@
 .code-language-option:focus-visible,
 .code-language-option[aria-selected="true"] {
   background: var(--surface-hover);
-}
-
-.code-language-option code {
-  color: var(--text-tertiary);
-  font-size: 0.78rem;
 }
 
 .code-language-empty {

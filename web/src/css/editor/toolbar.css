@@ -119,6 +119,30 @@
   text-align: left;
 }
 
+.markdown-toolbar-heading-menu .markdown-toolbar-popover {
+  min-width: 190px;
+}
+
+.markdown-toolbar-heading-menu [data-markdown-action="heading-1"] span {
+  font-size: 24px;
+  line-height: 1.2;
+}
+
+.markdown-toolbar-heading-menu [data-markdown-action="heading-2"] span {
+  font-size: 20px;
+  line-height: 1.25;
+}
+
+.markdown-toolbar-heading-menu [data-markdown-action="heading-3"] span {
+  font-size: 17px;
+  line-height: 1.3;
+}
+
+.markdown-toolbar-heading-menu [data-markdown-action="heading-4"] span {
+  font-size: 14px;
+  line-height: 1.35;
+}
+
 .editor.focus-mode .markdown-toolbar {
   top: 66px;
 }
