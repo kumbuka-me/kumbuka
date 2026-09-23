@@ -156,10 +156,15 @@ func indexablePageStatus(status string) bool {
 	return status == "verified" || status == "deprecated"
 }
 
+// validPublicResourceBaseURL reports whether parsed can serve as an absolute HTTP or HTTPS public base URL.
+func validPublicResourceBaseURL(parsed *url.URL) bool {
+	return parsed.Host != "" && (parsed.Scheme == "http" || parsed.Scheme == "https")
+}
+
 // publicResourceURL resolves an application route against the configured public URL.
 func publicResourceURL(publicURL string, segments ...string) (string, error) {
 	parsed, err := url.Parse(strings.TrimSpace(publicURL))
-	if err != nil || parsed.Host == "" || (parsed.Scheme != "http" && parsed.Scheme != "https") {
+	if err != nil || !validPublicResourceBaseURL(parsed) {
 		return "", errors.New("invalid public URL")
 	}
 

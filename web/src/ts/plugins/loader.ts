@@ -130,6 +130,50 @@ function remove(block: HTMLElement): void {
   state.finish();
   active.delete(block);
 }
+
+function isPluginFrameMessage(
+  event: MessageEvent<unknown>,
+  frame: HTMLIFrameElement,
+): boolean {
+  return (
+    event.source === frame.contentWindow &&
+    typeof event.data === "object" &&
+    event.data !== null
+  );
+}
+
+function isPluginLinkMessage(
+  data: Record<string, unknown>,
+): data is Record<string, unknown> & { href: string } {
+  return (
+    data.type === "kumbuka-plugin-link" &&
+    typeof data.href === "string" &&
+    navigator.userActivation.isActive
+  );
+}
+
+function isPluginCommandMessage(
+  data: Record<string, unknown>,
+): data is Record<string, unknown> & { module: string; action: string } {
+  return (
+    data.type === "kumbuka-plugin-command" &&
+    typeof data.module === "string" &&
+    identifier.test(data.module) &&
+    typeof data.action === "string" &&
+    identifier.test(data.action)
+  );
+}
+
+function isPluginReadyMessage(
+  data: Record<string, unknown>,
+): data is Record<string, unknown> & { height: number; width?: number } {
+  return (
+    data.type === "kumbuka-plugin-ready" &&
+    typeof data.height === "number" &&
+    Number.isFinite(data.height)
+  );
+}
+
 function mount(block: HTMLElement, module: Module): Promise<void> {
   const htmlInput = block.dataset.kumbukaInput === "html";
   const source = block.querySelector<HTMLElement>(
@@ -167,12 +211,7 @@ function mount(block: HTMLElement, module: Module): Promise<void> {
   });
   const timeout = window.setTimeout(() => remove(block), 15000);
   const message = async (event: MessageEvent<unknown>) => {
-    if (
-      event.source !== frame.contentWindow ||
-      typeof event.data !== "object" ||
-      event.data === null
-    )
-      return;
+    if (!isPluginFrameMessage(event, frame)) return;
     const data = event.data as Record<string, unknown>;
     if (data.type === "kumbuka-plugin-listening") {
       const content = await html;
@@ -195,11 +234,7 @@ function mount(block: HTMLElement, module: Module): Promise<void> {
       return;
     }
     if (data.token !== token) return;
-    if (
-      data.type === "kumbuka-plugin-link" &&
-      typeof data.href === "string" &&
-      navigator.userActivation.isActive
-    ) {
+    if (isPluginLinkMessage(data)) {
       const links = [...source.querySelectorAll<HTMLAnchorElement>("a[href]")];
       const link = links.find((link) => link.href === data.href);
       if (link && /^https?:$/.test(new URL(link.href).protocol)) {
@@ -209,13 +244,7 @@ function mount(block: HTMLElement, module: Module): Promise<void> {
       }
       return;
     }
-    if (
-      data.type === "kumbuka-plugin-command" &&
-      typeof data.module === "string" &&
-      identifier.test(data.module) &&
-      typeof data.action === "string" &&
-      identifier.test(data.action)
-    ) {
+    if (isPluginCommandMessage(data)) {
       const target = module.commands?.find(
         (candidate) => candidate.module_id === data.module,
       );
@@ -223,11 +252,7 @@ function mount(block: HTMLElement, module: Module): Promise<void> {
         submitPluginCommand(module.plugin_id, target, data.action);
       return;
     }
-    if (
-      data.type === "kumbuka-plugin-ready" &&
-      typeof data.height === "number" &&
-      Number.isFinite(data.height)
-    ) {
+    if (isPluginReadyMessage(data)) {
       frame.style.height = `${Math.min(10000, Math.max(24, data.height))}px`;
       if (
         inline &&

@@ -25,7 +25,7 @@ func validateWebhookInput(input WebhookInput, events []string) error {
 	}
 
 	parsed, err := url.ParseRequestURI(input.URL)
-	if err != nil || parsed.Host == "" || (parsed.Scheme != "http" && parsed.Scheme != "https") {
+	if err != nil || !validWebhookURL(parsed) {
 		validation.Fields = append(validation.Fields, domain.FieldError{Field: "url", Message: "Enter an absolute HTTP or HTTPS URL."})
 	}
 
@@ -47,7 +47,7 @@ func validateWebhookInput(input WebhookInput, events []string) error {
 		if input.RetryBackoff <= 0 || input.RetryBackoff > maxWebhookRetryBackoff {
 			validation.Fields = append(validation.Fields, domain.FieldError{Field: "retry_backoff", Message: "Initial backoff must be greater than zero and at most 1h."})
 		}
-		if input.RetryMaxBackoff < input.RetryBackoff || input.RetryMaxBackoff > maxWebhookRetryBackoff {
+		if !validWebhookMaximumBackoff(input) {
 			validation.Fields = append(validation.Fields, domain.FieldError{Field: "retry_max_backoff", Message: "Maximum backoff must be at least the initial backoff and at most 1h."})
 		}
 	}
@@ -57,6 +57,21 @@ func validateWebhookInput(input WebhookInput, events []string) error {
 	}
 
 	return validation
+}
+
+// validWebhookMaximumBackoff reports whether the maximum retry delay is ordered and within the configured cap.
+func validWebhookMaximumBackoff(input WebhookInput) bool {
+	return input.RetryMaxBackoff >= input.RetryBackoff && input.RetryMaxBackoff <= maxWebhookRetryBackoff
+}
+
+// validWebhookURL reports whether parsed is an absolute HTTP or HTTPS webhook destination.
+func validWebhookURL(parsed *url.URL) bool {
+	return parsed.Host != "" && (parsed.Scheme == "http" || parsed.Scheme == "https")
+}
+
+// preserveWebhookHeaderValue reports whether an unchanged sensitive header may keep its encrypted value.
+func preserveWebhookHeaderValue(previous domain.WebhookHeader, input WebhookHeaderInput) bool {
+	return previous.ID != 0 && previous.Sensitive && input.Sensitive
 }
 
 // validateWebhookBodyTemplate parses and renders one template against the documented webhook context.
@@ -120,7 +135,7 @@ func (s *Webhooks) prepareWebhookHeaders(ctx context.Context, webhookID int64, i
 
 		value := input.Value
 		if strings.TrimSpace(value) == "" {
-			if previous.ID != 0 && previous.Sensitive && input.Sensitive {
+			if preserveWebhookHeaderValue(previous, input) {
 				value = previous.Value
 			} else {
 				return nil, domain.NewValidationError("headers", "Enter a value for every webhook request header.")

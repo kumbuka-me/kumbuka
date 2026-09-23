@@ -55,7 +55,9 @@ test("visual code blocks choose a supported fenced language", async () => {
           <link rel="stylesheet" href="/assets/css/app.css">
           <form class="editor" data-editor-form>
             ${modeSwitcher}
-            <div data-markdown-toolbar role="toolbar"></div>
+            <div data-markdown-toolbar role="toolbar">
+              <button type="button" data-markdown-action="code-block">Code block</button>
+            </div>
             <div class="editor-workspace" data-editor-workspace data-editor-mode="write">
               <div class="editor-source-pane">
                 <textarea data-markdown-editor>Text</textarea>
@@ -63,8 +65,9 @@ test("visual code blocks choose a supported fenced language", async () => {
             </div>
           </form>
           <script type="module">
+            import {initMarkdownToolbar} from '/assets/js/features/editor/toolbar.js';
             import {initLazyVisualEditor} from '/assets/js/features/editor/visual-loader.js';
-            initLazyVisualEditor();
+            initMarkdownToolbar(); initLazyVisualEditor();
           </script>`,
       });
     });
@@ -75,9 +78,7 @@ test("visual code blocks choose a supported fenced language", async () => {
       .getByRole("button", { name: "Code block", exact: true })
       .click();
 
-    const language = page.getByRole("button", {
-      name: "Code language: Plain text. Change language",
-    });
+    const language = page.locator("button.visual-code-language");
     await language.click();
 
     const dialog = page.getByRole("dialog", { name: "Code block language" });

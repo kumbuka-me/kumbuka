@@ -250,10 +250,7 @@ func pluginSettingsLinks(items []plugin.LoadedPlugin, icons pluginSettingsIconVa
 			continue
 		}
 
-		icon := defaultPluginSettingsIcon
-		if item.Manifest.Icon != "" && icons != nil && icons.IsIcon(item.Manifest.Icon) {
-			icon = item.Manifest.Icon
-		}
+		icon := pluginSettingsIcon(item, icons)
 
 		links = append(links, webview.PluginSettingsLink{
 			ID:      item.Manifest.ID,
@@ -268,10 +265,18 @@ func pluginSettingsLinks(items []plugin.LoadedPlugin, icons pluginSettingsIconVa
 	return links
 }
 
+// pluginSettingsIcon returns a declared plugin icon only when it exists in the active icon catalog.
+func pluginSettingsIcon(item plugin.LoadedPlugin, icons pluginSettingsIconValidator) string {
+	if item.Manifest.Icon != "" && icons != nil && icons.IsIcon(item.Manifest.Icon) {
+		return item.Manifest.Icon
+	}
+	return defaultPluginSettingsIcon
+}
+
 // pluginExposesSettings reports whether a plugin contributes administrator-managed configuration.
 func pluginExposesSettings(item plugin.LoadedPlugin) bool {
 	for _, module := range item.Manifest.Modules {
-		if module.Type == "settings" || module.Type == "admin-resource" || module.Type == "admin-action" {
+		if isPluginAdminModule(module) {
 			return true
 		}
 	}

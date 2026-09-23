@@ -285,7 +285,7 @@ FOR UPDATE`, commentID, pageID).Scan(
 	if suggestion.AppliedAt != nil {
 		return domain.Page{}, domain.NewValidationError("suggestion", "This suggestion has already been applied.")
 	}
-	if currentRevision != suggestion.RevisionNumber || !suggestionMatchesSource(currentMarkdown, suggestion) {
+	if !currentSuggestionSource(currentRevision, currentMarkdown, suggestion) {
 		return domain.Page{}, domain.ErrStaleSuggestion
 	}
 
@@ -324,9 +324,19 @@ WHERE id=$1`, commentID, actorID); err != nil {
 	return s.GetPage(ctx, slug)
 }
 
+// currentSuggestionSource reports whether a stored suggestion still matches the current revision and source bytes.
+func currentSuggestionSource(currentRevision int, markdown string, suggestion domain.PageCommentSuggestion) bool {
+	return currentRevision == suggestion.RevisionNumber && suggestionMatchesSource(markdown, suggestion)
+}
+
+// validStoredSuggestionRange reports whether a persisted suggestion range is non-empty and inside the current source.
+func validStoredSuggestionRange(suggestion domain.PageCommentSuggestion, sourceLength int) bool {
+	return suggestion.StartByte >= 0 && suggestion.EndByte > suggestion.StartByte && suggestion.EndByte <= sourceLength
+}
+
 // suggestionMatchesSource reports whether a stored inline suggestion still targets its exact source range.
 func suggestionMatchesSource(markdown string, suggestion domain.PageCommentSuggestion) bool {
-	if suggestion.StartByte < 0 || suggestion.EndByte <= suggestion.StartByte || suggestion.EndByte > len(markdown) {
+	if !validStoredSuggestionRange(suggestion, len(markdown)) {
 		return false
 	}
 

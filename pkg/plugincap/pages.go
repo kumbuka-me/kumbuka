@@ -228,7 +228,7 @@ func Capabilities(source Source, nodes []sdk.NavigationNode, catalogs ...*icons.
 		} else if _, ok := source.(LatestRevisionSource); ok {
 			result["pages.revisions"] = func(ctx context.Context, data json.RawMessage) (any, error) {
 				var request sdk.RevisionQuery
-				if err := json.Unmarshal(data, &request); err != nil || !validRevisionQuery(request) || request.Limit != 1 {
+				if err := json.Unmarshal(data, &request); err != nil || !validLatestRevisionQuery(request) {
 					return nil, errors.New("invalid revision query")
 				}
 				return pages.Revisions(ctx, request)
@@ -252,6 +252,11 @@ func validPageRef(request sdk.PageRef) bool {
 // validPageQuery reports whether a page search request stays within supported bounds.
 func validPageQuery(request sdk.PageQuery) bool {
 	return len(request.Query) <= 4096 && request.Limit >= 1 && request.Limit <= 100
+}
+
+// validLatestRevisionQuery reports whether a revision query requests exactly the newest revision.
+func validLatestRevisionQuery(request sdk.RevisionQuery) bool {
+	return validRevisionQuery(request) && request.Limit == 1
 }
 
 // validRevisionQuery reports whether a revision capability query is supported.

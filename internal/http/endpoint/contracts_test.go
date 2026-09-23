@@ -55,6 +55,10 @@ func (emptyContractServices) SearchUsers(context.Context, string, int) ([]domain
 
 func (emptyContractServices) NavigationPages(context.Context) ([]domain.Page, error) { return nil, nil }
 
+func (emptyContractServices) VisiblePages(context.Context, domain.User) ([]domain.Page, error) {
+	return nil, nil
+}
+
 func (emptyContractServices) PageAliasesFor(context.Context, domain.User) (map[string]string, error) {
 	return nil, nil
 }

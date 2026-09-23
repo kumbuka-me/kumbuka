@@ -152,11 +152,16 @@ func validatePageTemplateSettings(input PageTemplateInput, icons iconValidator) 
 	if !domain.ValidPageStatus(input.Status) {
 		validation.Fields = append(validation.Fields, domain.FieldError{Field: "status", Message: "Choose a valid default page status."})
 	}
-	if input.OwnerGroupID < 0 || !domain.ValidReviewIntervalDays(input.ReviewIntervalDays) {
+	if !validTemplateReviewDefaults(input) {
 		validation.Fields = append(validation.Fields, domain.FieldError{Field: "review_interval_days", Message: "Choose valid review defaults."})
 	}
 
 	return validation
+}
+
+// validTemplateReviewDefaults reports whether default ownership and review interval values are valid.
+func validTemplateReviewDefaults(input PageTemplateInput) bool {
+	return input.OwnerGroupID >= 0 && domain.ValidReviewIntervalDays(input.ReviewIntervalDays)
 }
 
 // normalizeTemplateFields normalizes prompted fields and returns field-specific problems.
@@ -217,15 +222,18 @@ func validTemplateFieldName(value string) bool {
 		return false
 	}
 	for _, character := range value {
-		if character >= 'a' && character <= 'z' ||
-			character >= 'A' && character <= 'Z' ||
-			character >= '0' && character <= '9' ||
-			character == '_' || character == '-' {
+		if validTemplateFieldCharacter(character) {
 			continue
 		}
 		return false
 	}
 	return true
+}
+
+// validTemplateFieldCharacter reports whether character belongs to the portable blueprint field alphabet.
+func validTemplateFieldCharacter(character rune) bool {
+	return character >= 'a' && character <= 'z' || character >= 'A' && character <= 'Z' ||
+		character >= '0' && character <= '9' || character == '_' || character == '-'
 }
 
 // normalizeTags canonicalizes and deduplicates blueprint tags.

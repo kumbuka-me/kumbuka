@@ -70,7 +70,7 @@ func imageListRange(w http.ResponseWriter, rawLimit, rawOffset string) (limit, o
 	limit = managedImagePageSize
 	if rawLimit != "" {
 		parsed, err := strconv.Atoi(rawLimit)
-		if err != nil || parsed < 1 || parsed > maxImageAPILimit {
+		if err != nil || !validImageListLimit(parsed) {
 			httpresponse.Problem(w, http.StatusBadRequest, "Invalid image limit.")
 			return 0, 0, false
 		}
@@ -177,6 +177,11 @@ func managedImageItems(images []domain.Image) (items []webview.MediaItem, hasMor
 	}
 
 	return mediaItems(images), hasMore
+}
+
+// validImageListLimit reports whether a requested image page size is within API bounds.
+func validImageListLimit(limit int) bool {
+	return limit >= 1 && limit <= maxImageAPILimit
 }
 
 // mediaItems converts store image metadata into browser-facing media items.

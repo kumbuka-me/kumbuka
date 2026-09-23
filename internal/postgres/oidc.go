@@ -349,6 +349,11 @@ func (s *Store) LoginOIDCUser(
 	return completeOIDCLogin(ctx, tx, user, identity)
 }
 
+// completeOIDCIdentity reports whether the provider supplied every required stable identity field.
+func completeOIDCIdentity(identity oidcIdentityProfile) bool {
+	return identity.issuer != "" && identity.subject != "" && identity.username != ""
+}
+
 // normalizeOIDCIdentityProfile trims provider attributes and validates required identity fields.
 func normalizeOIDCIdentityProfile(
 	issuer, subject, username, email, displayName string,
@@ -360,7 +365,7 @@ func normalizeOIDCIdentityProfile(
 		email:       strings.TrimSpace(email),
 		displayName: strings.TrimSpace(displayName),
 	}
-	if identity.issuer == "" || identity.subject == "" || identity.username == "" {
+	if !completeOIDCIdentity(identity) {
 		return oidcIdentityProfile{}, domain.NewValidationError(
 			"identity",
 			"The identity provider must supply issuer, subject, and username.",

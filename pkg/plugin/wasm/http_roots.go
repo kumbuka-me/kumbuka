@@ -7,6 +7,11 @@ import (
 	"path/filepath"
 )
 
+// usableCertificateRootFile reports whether a certificate-root file is regular and fits the remaining byte budget.
+func usableCertificateRootFile(info os.FileInfo, budget int64) bool {
+	return info.Mode().IsRegular() && info.Size() <= budget
+}
+
 // pluginCertificateRoots honors conventional CA environment variables for plugin HTTP.
 func pluginCertificateRoots() (*x509.CertPool, error) {
 	file, dirs := os.Getenv("SSL_CERT_FILE"), os.Getenv("SSL_CERT_DIR")
@@ -25,7 +30,7 @@ func pluginCertificateRoots() (*x509.CertPool, error) {
 		}
 		defer func() { _ = input.Close() }()
 		info, err := input.Stat()
-		if err != nil || !info.Mode().IsRegular() || info.Size() > budget {
+		if err != nil || !usableCertificateRootFile(info, budget) {
 			return false, errHTTPUnavailable
 		}
 		data, err := io.ReadAll(io.LimitReader(input, budget+1))

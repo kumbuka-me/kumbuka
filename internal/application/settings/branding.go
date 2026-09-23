@@ -159,6 +159,11 @@ func forbiddenBrandLogoSVGElement(name string) bool {
 	}
 }
 
+// safeBrandLogoReference reports whether an SVG href is empty, fragment-local, or an embedded image.
+func safeBrandLogoReference(value string) bool {
+	return value == "" || strings.HasPrefix(value, "#") || strings.HasPrefix(strings.ToLower(value), "data:image/")
+}
+
 // unsafeBrandLogoSVGAttributes rejects event handlers and external references.
 func unsafeBrandLogoSVGAttributes(attributes []xml.Attr) bool {
 	for _, attribute := range attributes {
@@ -171,7 +176,7 @@ func unsafeBrandLogoSVGAttributes(attributes []xml.Attr) bool {
 		}
 
 		value := strings.TrimSpace(attribute.Value)
-		if value == "" || strings.HasPrefix(value, "#") || strings.HasPrefix(strings.ToLower(value), "data:image/") {
+		if safeBrandLogoReference(value) {
 			continue
 		}
 

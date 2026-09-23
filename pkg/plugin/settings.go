@@ -344,11 +344,11 @@ func normalizeSettingGroup(module pluginpackage.Module, values, previous map[str
 // declaredSettingField resolves a logical <module>.<field> key to its manifest declaration.
 func declaredSettingField(manifest pluginpackage.Manifest, key string) (pluginpackage.Module, pluginpackage.ConfigurationField, bool) {
 	moduleID, fieldID, ok := strings.Cut(key, ".")
-	if !ok || moduleID == "" || fieldID == "" {
+	if !validDeclaredSettingKey(moduleID, fieldID, ok) {
 		return pluginpackage.Module{}, pluginpackage.ConfigurationField{}, false
 	}
 	for _, module := range manifest.Modules {
-		if module.Type != "settings" || len(module.Fields) == 0 || module.ID != moduleID {
+		if !matchingSettingsModule(module, moduleID) {
 			continue
 		}
 		for _, field := range module.Fields {
@@ -358,6 +358,16 @@ func declaredSettingField(manifest pluginpackage.Manifest, key string) (pluginpa
 		}
 	}
 	return pluginpackage.Module{}, pluginpackage.ConfigurationField{}, false
+}
+
+// validDeclaredSettingKey reports whether a logical setting key contains non-empty module and field identifiers.
+func validDeclaredSettingKey(moduleID, fieldID string, separated bool) bool {
+	return separated && moduleID != "" && fieldID != ""
+}
+
+// matchingSettingsModule reports whether module is the requested non-empty settings group.
+func matchingSettingsModule(module pluginpackage.Module, moduleID string) bool {
+	return module.Type == "settings" && len(module.Fields) != 0 && module.ID == moduleID
 }
 
 // featureSettingStorageKey isolates host-managed feature toggles from plugin-owned settings and resources.

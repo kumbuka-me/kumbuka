@@ -326,7 +326,7 @@ func applyLockedReviewSuggestions(markdown string, suggestions []domain.PageRevi
 
 	previousEnd := 0
 	for _, suggestion := range ordered {
-		if suggestion.Side != domain.PageReviewCommentSideNew || suggestion.StartLine <= previousEnd {
+		if !orderedPersistedReviewSuggestion(suggestion, previousEnd) {
 			return "", domain.ErrReviewSuggestionConflict
 		}
 
@@ -352,6 +352,11 @@ func applyLockedReviewSuggestions(markdown string, suggestions []domain.PageRevi
 	}
 
 	return strings.Join(lines, "\n"), nil
+}
+
+// orderedPersistedReviewSuggestion reports whether a persisted suggestion targets the new side without overlap.
+func orderedPersistedReviewSuggestion(suggestion domain.PageReviewComment, previousEnd int) bool {
+	return suggestion.Side == domain.PageReviewCommentSideNew && suggestion.StartLine > previousEnd
 }
 
 // reviewMarkdownLineRange returns a one-based inclusive source range without trailing separators.

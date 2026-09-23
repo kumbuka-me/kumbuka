@@ -32,11 +32,16 @@ func (a *Bearer) Authenticate(r *http.Request) (domain.User, error) {
 	}
 
 	user, err := a.repository.UserByToken(r.Context(), token)
-	if errors.Is(err, domain.ErrNotFound) || (err == nil && !user.Enabled) {
+	if unavailableAuthenticatedUser(user, err) {
 		return domain.User{}, ErrInvalidCredentials
 	}
 
 	return user, err
+}
+
+// unavailableAuthenticatedUser reports whether an authentication lookup found no usable enabled user.
+func unavailableAuthenticatedUser(user domain.User, err error) bool {
+	return errors.Is(err, domain.ErrNotFound) || err == nil && !user.Enabled
 }
 
 // parseBearerValue validates an explicit Authorization header and returns its bearer token.

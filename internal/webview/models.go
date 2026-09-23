@@ -774,6 +774,11 @@ type PagePathOption struct {
 	Label string
 }
 
+// excludedPagePath reports whether slug is the excluded page or one of its descendants.
+func excludedPagePath(slug, excludedSlug string) bool {
+	return excludedSlug != "" && (slug == excludedSlug || strings.HasPrefix(slug, excludedSlug+"/"))
+}
+
 // PagePathOptions flattens the navigation tree into selectable parent paths.
 func PagePathOptions(tree []navigation.Node, excludedSlug string) []PagePathOption {
 	var options []PagePathOption
@@ -781,8 +786,7 @@ func PagePathOptions(tree []navigation.Node, excludedSlug string) []PagePathOpti
 
 	appendNodes = func(nodes []navigation.Node, ancestors []string) {
 		for _, node := range nodes {
-			if excludedSlug != "" &&
-				(node.Slug == excludedSlug || strings.HasPrefix(node.Slug, excludedSlug+"/")) {
+			if excludedPagePath(node.Slug, excludedSlug) {
 				continue
 			}
 

@@ -788,7 +788,7 @@ export function setupVisualEditor(form: HTMLFormElement): void {
 
   function syncMarkdown(): void {
     if (!editor) return;
-    let markdown = editor.getMarkdown();
+    let markdown = editor.getMarkdown().replace(/\n+$/, "");
     let tableIndex = 0;
     editor.state.doc.descendants((table: any) => {
       if (table.type.name !== "table") return true;

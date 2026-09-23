@@ -150,7 +150,7 @@ func (s *Discussions) AddSuggestion(
 	if err != nil {
 		return domain.PageComment{}, err
 	}
-	if count == 0 || latest.Number <= 0 || latest.Markdown != page.Markdown {
+	if !revisionMatchesPage(latest, count, page.Markdown) {
 		return domain.PageComment{}, domain.ErrStaleSuggestion
 	}
 
@@ -225,7 +225,7 @@ func (s *Discussions) ApplyCommentSuggestion(
 	if err != nil {
 		return domain.Page{}, err
 	}
-	if count == 0 || latest.Number != comment.Suggestion.RevisionNumber || latest.Markdown != page.Markdown {
+	if !suggestionMatchesRevision(*comment.Suggestion, latest, count, page.Markdown) {
 		return domain.Page{}, domain.ErrStaleSuggestion
 	}
 
@@ -339,7 +339,7 @@ func locateInlineSuggestionSource(markdown, anchor string) (start, end int, err 
 
 // applyInlineSuggestion replaces one exact byte range after verifying its original Markdown source.
 func applyInlineSuggestion(markdown string, suggestion domain.PageCommentSuggestion) (string, error) {
-	if suggestion.StartByte < 0 || suggestion.EndByte <= suggestion.StartByte || suggestion.EndByte > len(markdown) {
+	if !validSuggestionRange(suggestion, len(markdown)) {
 		return "", domain.ErrStaleSuggestion
 	}
 	if markdown[suggestion.StartByte:suggestion.EndByte] != suggestion.Original {
@@ -347,6 +347,21 @@ func applyInlineSuggestion(markdown string, suggestion domain.PageCommentSuggest
 	}
 
 	return markdown[:suggestion.StartByte] + suggestion.Replacement + markdown[suggestion.EndByte:], nil
+}
+
+// revisionMatchesPage reports whether the latest persisted revision matches the current page Markdown.
+func revisionMatchesPage(latest revision.Revision, count int, markdown string) bool {
+	return count > 0 && latest.Number > 0 && latest.Markdown == markdown
+}
+
+// suggestionMatchesRevision reports whether a suggestion still targets the current page revision.
+func suggestionMatchesRevision(suggestion domain.PageCommentSuggestion, latest revision.Revision, count int, markdown string) bool {
+	return count > 0 && latest.Number == suggestion.RevisionNumber && latest.Markdown == markdown
+}
+
+// validSuggestionRange reports whether a suggestion selects a non-empty byte range inside the source.
+func validSuggestionRange(suggestion domain.PageCommentSuggestion, sourceLength int) bool {
+	return suggestion.StartByte >= 0 && suggestion.EndByte > suggestion.StartByte && suggestion.EndByte <= sourceLength
 }
 
 // canApplyInlineSuggestion reports whether the actor may mutate page content after route-level access checks.

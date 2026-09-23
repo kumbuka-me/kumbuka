@@ -94,10 +94,15 @@ func normalizeImageWidth(value string) string {
 		}
 	}
 	width, err := strconv.Atoi(value)
-	if err != nil || width < 1 || width > maximum {
+	if err != nil || !validImageWidth(width, maximum) {
 		return ""
 	}
 	return strconv.Itoa(width) + unit
+}
+
+// validImageWidth reports whether width is a positive value within the configured maximum.
+func validImageWidth(width, maximum int) bool {
+	return width >= 1 && width <= maximum
 }
 
 // validImageWidthStyle restricts the sanitizer to canonical, unit-bearing widths.

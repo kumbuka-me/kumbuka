@@ -19,6 +19,11 @@ import (
 	"github.com/kumbuka-me/sdk/pluginpackage"
 )
 
+// validPluginUploadPart reports whether a multipart part is the required named plugin package file.
+func validPluginUploadPart(formName, filename string) bool {
+	return formName == "package" && filename != ""
+}
+
 // pluginUpdateService is the first-party catalog boundary used by plugin administration.
 type pluginUpdateService interface {
 	// Refresh checks the first-party catalog immediately.
@@ -375,7 +380,10 @@ func readPluginUpload(w http.ResponseWriter, r *http.Request) ([]byte, int, erro
 		return nil, http.StatusBadRequest, errors.New("choose a .kumbukaplugin package to upload")
 	}
 	part, err := reader.NextPart()
-	if err != nil || part.FormName() != "package" || part.FileName() == "" {
+	if err != nil {
+		return nil, http.StatusBadRequest, errors.New("upload exactly one plugin package")
+	}
+	if !validPluginUploadPart(part.FormName(), part.FileName()) {
 		return nil, http.StatusBadRequest, errors.New("upload exactly one plugin package")
 	}
 	content, err := io.ReadAll(io.LimitReader(part, pluginpackage.MaxArchiveBytes+1))

@@ -1,3 +1,14 @@
+// Reports whether an icon option request may start for the current picker state.
+function canLoadIconOptions(
+  append: boolean,
+  loading: boolean,
+  hasMore: boolean,
+  query: string,
+  currentQuery: string,
+): boolean {
+  return !append || (!loading && hasMore && query === currentQuery);
+}
+
 // Reusable icon picker behavior.
 
 import { createDebouncer, createLatestRequest, isAbortError } from "./async.ts";
@@ -153,7 +164,8 @@ export function setupIconPicker(dialog: HTMLDialogElement): void {
     { append = false }: { append?: boolean } = {},
   ): Promise<void> {
     query = query.trim();
-    if (append && (loading || !hasMore || query !== currentQuery)) return;
+    if (!canLoadIconOptions(append, loading, hasMore, query, currentQuery))
+      return;
 
     if (!append) {
       currentQuery = query;

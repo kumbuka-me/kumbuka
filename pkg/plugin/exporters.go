@@ -79,8 +79,7 @@ func (m *Manager) Export(ctx context.Context, pluginID, moduleID string, scope C
 
 // validExportFile validates host-facing filename, media type, and payload bounds.
 func validExportFile(file sdk.ExportFile) bool {
-	if len(file.Filename) == 0 || len(file.Filename) > 255 || !utf8.ValidString(file.Filename) ||
-		strings.ContainsAny(file.Filename, "/\\\x00\r\n") || file.Filename == "." || file.Filename == ".." {
+	if !validExportFilename(file.Filename) {
 		return false
 	}
 	if len(file.Data) > 4<<20 {
@@ -88,6 +87,14 @@ func validExportFile(file sdk.ExportFile) bool {
 	}
 	mediaType, _, err := mime.ParseMediaType(file.MediaType)
 	return err == nil && mediaType != ""
+}
+
+// validExportFilename reports whether a plugin export filename is a safe single path component.
+func validExportFilename(filename string) bool {
+	if filename == "." || filename == ".." {
+		return false
+	}
+	return len(filename) > 0 && len(filename) <= 255 && utf8.ValidString(filename) && !strings.ContainsAny(filename, "/\\\x00\r\n")
 }
 
 // exporterURL builds the host-owned invocation path for one exporter and page slug.

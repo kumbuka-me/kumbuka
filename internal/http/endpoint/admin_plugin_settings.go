@@ -300,17 +300,32 @@ func loadedPlugin(manager *plugin.Manager, pluginID string) (plugin.LoadedPlugin
 // pluginHasAdminSettings reports whether a plugin exposes settings, structured resources, or administrator actions.
 func pluginHasAdminSettings(item plugin.LoadedPlugin) bool {
 	for _, module := range item.Manifest.Modules {
-		if module.Type == "settings" || module.Type == "admin-resource" || module.Type == "admin-action" {
+		if isPluginAdminModule(module) {
 			return true
 		}
 	}
 	return false
 }
 
+// isPluginAdminModule reports whether a plugin module contributes administrator-managed functionality.
+func isPluginAdminModule(module pluginpackage.Module) bool {
+	switch module.Type {
+	case "settings", "admin-resource", "admin-action":
+		return true
+	default:
+		return false
+	}
+}
+
+// isPluginSettingsGroup reports whether module is the requested non-empty typed settings group.
+func isPluginSettingsGroup(module pluginpackage.Module, moduleID string) bool {
+	return module.Type == "settings" && len(module.Fields) != 0 && module.ID == moduleID
+}
+
 // pluginSettingsGroupModule returns one declared typed settings group from a loaded plugin.
 func pluginSettingsGroupModule(item plugin.LoadedPlugin, moduleID string) (pluginpackage.Module, bool) {
 	for _, module := range item.Manifest.Modules {
-		if module.Type == "settings" && len(module.Fields) != 0 && module.ID == moduleID {
+		if isPluginSettingsGroup(module, moduleID) {
 			return module, true
 		}
 	}

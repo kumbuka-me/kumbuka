@@ -73,7 +73,7 @@ func (m *Manager) IconResourceVersion() string {
 	var version strings.Builder
 	for _, id := range m.order {
 		item, ok := m.loaded[id]
-		if !ok || !item.metadata.Enabled || !hasModuleType(item.metadata.Manifest, "icon-resource") {
+		if !activePluginWithModule(item, ok, "icon-resource") {
 			continue
 		}
 		version.WriteString(id)
@@ -92,7 +92,7 @@ func (m *Manager) IconResources() ([]icons.Resource, error) {
 	resources := make([]icons.Resource, 0)
 	for _, id := range m.order {
 		item, ok := m.loaded[id]
-		if !ok || !item.metadata.Enabled || !hasModuleType(item.metadata.Manifest, "icon-resource") {
+		if !activePluginWithModule(item, ok, "icon-resource") {
 			continue
 		}
 
@@ -270,12 +270,27 @@ func validPluginPreview(data []byte) bool {
 		config.Height <= maxPluginPreviewHeight
 }
 
+// activePluginWithModule reports whether a loaded plugin is enabled and declares the requested module type.
+func activePluginWithModule(item managedPlugin, found bool, moduleType string) bool {
+	return found && item.metadata.Enabled && hasModuleType(item.metadata.Manifest, moduleType)
+}
+
+// activePluginVersion reports whether a loaded plugin is enabled and matches the requested content digest.
+func activePluginVersion(item managedPlugin, found bool, digest string) bool {
+	return found && item.metadata.Enabled && fmt.Sprintf("%x", item.metadata.Digest) == digest
+}
+
+// moduleDeclaresAsset reports whether a module of the requested type owns the named browser asset.
+func moduleDeclaresAsset(module pluginpackage.Module, moduleType, name string) bool {
+	return module.Type == moduleType && (module.JavaScript == name || module.CSS == name)
+}
+
 // BrowserAsset serves bytes from an enabled, exact-version package only. There is no filesystem extraction, and lifecycle changes invalidate old URLs.
 func (m *Manager) BrowserAsset(id, digest, name string) ([]byte, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	item, ok := m.loaded[id]
-	if !ok || !item.metadata.Enabled || fmt.Sprintf("%x", item.metadata.Digest) != digest {
+	if !activePluginVersion(item, ok, digest) {
 		return nil, fs.ErrNotExist
 	}
 	hasBrowser := false
@@ -312,12 +327,12 @@ func (m *Manager) ContentStyleAsset(id, digest, name string) ([]byte, error) {
 // declaredAsset returns one exact-version asset declared by moduleType.
 func (m *Manager) declaredAsset(id, digest, name, moduleType string) ([]byte, error) {
 	item, ok := m.loaded[id]
-	if !ok || !item.metadata.Enabled || fmt.Sprintf("%x", item.metadata.Digest) != digest {
+	if !activePluginVersion(item, ok, digest) {
 		return nil, fs.ErrNotExist
 	}
 	declared := false
 	for _, module := range item.metadata.Manifest.Modules {
-		if module.Type == moduleType && (module.JavaScript == name || module.CSS == name) {
+		if moduleDeclaresAsset(module, moduleType, name) {
 			declared = true
 			break
 		}
@@ -337,7 +352,7 @@ func (m *Manager) BrowserAssetNames(id, digest string) ([]string, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	item, ok := m.loaded[id]
-	if !ok || !item.metadata.Enabled || fmt.Sprintf("%x", item.metadata.Digest) != digest {
+	if !activePluginVersion(item, ok, digest) {
 		return nil, fs.ErrNotExist
 	}
 	pkg, err := pluginpackage.Read(item.archive)

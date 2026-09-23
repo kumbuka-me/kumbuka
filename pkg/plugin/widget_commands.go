@@ -16,7 +16,7 @@ func (m *Manager) WidgetCommand(
 	scope Context,
 	request WidgetCommandRequest,
 ) (sdk.WidgetCommandResult, error) {
-	if !sdk.ValidWidgetSurface(request.Surface) || !validID.MatchString(request.Action) {
+	if !validWidgetCommandRequest(request) {
 		return sdk.WidgetCommandResult{}, fmt.Errorf("invalid widget command")
 	}
 
@@ -50,12 +50,22 @@ func (m *Manager) WidgetCommand(
 	return sdk.WidgetCommandResult{}, fmt.Errorf("widget %s is not active in plugin %s", moduleID, pluginID)
 }
 
+// validWidgetCommandRequest reports whether a widget command names a supported surface and action identifier.
+func validWidgetCommandRequest(request WidgetCommandRequest) bool {
+	return sdk.ValidWidgetSurface(request.Surface) && validID.MatchString(request.Action)
+}
+
 // validWidgetCommandRedirect accepts bounded local application paths only.
 func validWidgetCommandRedirect(value string) bool {
-	if len(value) == 0 || len(value) > 4096 || !strings.HasPrefix(value, "/") ||
-		strings.HasPrefix(value, "//") || strings.ContainsAny(value, "\\\r\n\t") {
+	if !validWidgetCommandRedirectShape(value) {
 		return false
 	}
 	parsed, err := url.ParseRequestURI(value)
 	return err == nil && parsed.Host == "" && !parsed.IsAbs()
+}
+
+// validWidgetCommandRedirectShape reports whether a redirect has the bounded local-path shape required before URL parsing.
+func validWidgetCommandRedirectShape(value string) bool {
+	return len(value) > 0 && len(value) <= 4096 && strings.HasPrefix(value, "/") &&
+		!strings.HasPrefix(value, "//") && !strings.ContainsAny(value, "\\\r\n\t")
 }

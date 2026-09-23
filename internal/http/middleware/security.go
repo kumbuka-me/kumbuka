@@ -85,11 +85,16 @@ func isCrossOriginWrite(r *http.Request) bool {
 	}
 
 	parsed, err := url.Parse(origin)
-	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+	if err != nil || !validRequestOrigin(parsed) {
 		return true
 	}
 
 	return !strings.EqualFold(parsed.Host, r.Host)
+}
+
+// validRequestOrigin reports whether a parsed Origin value contains both scheme and authority.
+func validRequestOrigin(parsed *url.URL) bool {
+	return parsed.Scheme != "" && parsed.Host != ""
 }
 
 // isSafeMethod reports whether an HTTP method is defined as safe for cross-site requests.

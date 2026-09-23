@@ -402,7 +402,7 @@ func findPortableResourceReference(source, prefix string) (portableResourceRefer
 		for digitsEnd < len(source) && source[digitsEnd] >= '0' && source[digitsEnd] <= '9' {
 			digitsEnd++
 		}
-		if digitsEnd == digitsStart || digitsEnd >= len(source) || source[digitsEnd] != '/' {
+		if !hasPortableResourceIDTerminator(source, digitsStart, digitsEnd) {
 			continue
 		}
 
@@ -411,13 +411,23 @@ func findPortableResourceReference(source, prefix string) (portableResourceRefer
 			end++
 		}
 		id, err := strconv.ParseInt(source[digitsStart:digitsEnd], 10, 64)
-		if err != nil || id <= 0 || end == digitsEnd+1 {
+		if err != nil || !validPortableResourceReference(id, digitsEnd, end) {
 			continue
 		}
 
 		return portableResourceReference{Start: start, End: end, ID: id}, true
 	}
 	return portableResourceReference{}, false
+}
+
+// hasPortableResourceIDTerminator reports whether a resource reference contains digits followed by a path separator.
+func hasPortableResourceIDTerminator(source string, digitsStart, digitsEnd int) bool {
+	return digitsEnd > digitsStart && digitsEnd < len(source) && source[digitsEnd] == '/'
+}
+
+// validPortableResourceReference reports whether a parsed resource ID is positive and has a non-empty filename suffix.
+func validPortableResourceReference(id int64, digitsEnd, end int) bool {
+	return id > 0 && end > digitsEnd+1
 }
 
 // exportAttachmentError retains the origin of an attachment failure in a portable export.

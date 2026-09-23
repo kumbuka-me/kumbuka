@@ -32,10 +32,15 @@ func assetPath(requestPath string) (string, bool) {
 		return "", false
 	}
 	version, remainder, ok := strings.Cut(requestPath, "/")
-	if !ok || !strings.HasPrefix(version, "v-") || len(version) <= 2 || remainder == "" {
+	if !validVersionedAssetPath(version, remainder, ok) {
 		return "", false
 	}
 	return remainder, true
+}
+
+// validVersionedAssetPath reports whether an asset path contains a non-empty content-version segment and resource path.
+func validVersionedAssetPath(version, remainder string, separated bool) bool {
+	return separated && strings.HasPrefix(version, "v-") && len(version) > 2 && remainder != ""
 }
 
 // ServiceWorker serves the root-scoped progressive-web-app worker without long-lived caching.

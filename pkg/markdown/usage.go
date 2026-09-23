@@ -57,10 +57,15 @@ func usageSetFromIndex(index pluginusage.Index) usageSet {
 
 // currentUsageIndex returns a reusable source-usage index when its source hash is current.
 func currentUsageIndex(index *pluginusage.Index, plan *plugin.RenderPlan, source string) bool {
-	if index == nil || index.Version != pluginusage.Version || index.SourceHash != usageSourceHash(source) {
+	if !matchesUsageSource(index, source) {
 		return false
 	}
 	return index.Fingerprint == plan.UsageFingerprint
+}
+
+// matchesUsageSource reports whether an index was built by the current format for the current Markdown source.
+func matchesUsageSource(index *pluginusage.Index, source string) bool {
+	return index != nil && index.Version == pluginusage.Version && index.SourceHash == usageSourceHash(source)
 }
 
 // usageSourceHash returns the stable hash used to identify indexed Markdown source.

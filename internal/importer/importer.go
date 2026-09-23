@@ -69,12 +69,17 @@ func (b *Budget) Remaining() int64 {
 
 // consume subtracts bytes from the budget or returns a safe validation error.
 func (b *Budget) consume(size int64, message string) error {
-	if b == nil || size < 0 || size > b.remaining {
+	if !b.canConsume(size) {
 		return newValidationError(message, errors.New(strings.ToLower(message)))
 	}
 
 	b.remaining -= size
 	return nil
+}
+
+// canConsume reports whether the budget exists and contains at least size non-negative bytes.
+func (b *Budget) canConsume(size int64) bool {
+	return b != nil && size >= 0 && size <= b.remaining
 }
 
 // Error returns the internal diagnostic text for a validation failure.

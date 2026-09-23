@@ -478,7 +478,7 @@ func (m *Manager) EditorInserts() []EditorInsertContribution {
 
 // editorInsertCompletionModuleID returns the sole completion provider whose trigger exactly matches one plain insert action.
 func editorInsertCompletionModuleID(modules []pluginpackage.Module, insert pluginpackage.Module, mode string) string {
-	if mode != "insert" || insert.Suffix != "" || insert.Markdown == "" {
+	if !supportsEditorInsertCompletion(insert, mode) {
 		return ""
 	}
 
@@ -537,7 +537,7 @@ func normalizeResourceRecord(module pluginpackage.Module, values, previous map[s
 	key := ""
 	for _, field := range module.Fields {
 		value := values[field.ID]
-		if creating && value == "" && field.Default != "" {
+		if useResourceFieldDefault(creating, value, field) {
 			value = field.Default
 		}
 		normalized, err := normalizeConfigurationValue(field, value)
@@ -560,11 +560,22 @@ func normalizeResourceRecord(module pluginpackage.Module, values, previous map[s
 
 // validResourceKey reports whether key can be used in a macro and plugin storage key.
 func validResourceKey(key string) bool {
-	if key == "" || len(key) > maxResourceKeyBytes || !utf8.ValidString(key) {
-		return false
-	}
+	return validResourceKeyShape(key) && strings.TrimSpace(key) == key && !strings.ContainsAny(key, "\x00\r\n{}")
+}
 
-	return strings.TrimSpace(key) == key && !strings.ContainsAny(key, "\x00\r\n{}")
+// supportsEditorInsertCompletion reports whether an insert action can map directly to a completion trigger.
+func supportsEditorInsertCompletion(insert pluginpackage.Module, mode string) bool {
+	return mode == "insert" && insert.Suffix == "" && insert.Markdown != ""
+}
+
+// useResourceFieldDefault reports whether a new record should fill an omitted field from its declaration.
+func useResourceFieldDefault(creating bool, value string, field pluginpackage.ConfigurationField) bool {
+	return creating && value == "" && field.Default != ""
+}
+
+// validResourceKeyShape reports whether a resource key is non-empty, bounded, and valid UTF-8.
+func validResourceKeyShape(key string) bool {
+	return key != "" && len(key) <= maxResourceKeyBytes && utf8.ValidString(key)
 }
 
 // resourcePrefix returns the storage prefix for one resource module.

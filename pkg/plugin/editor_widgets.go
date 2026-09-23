@@ -10,7 +10,6 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/kumbuka-me/kumbuka/pkg/ascii"
 	"github.com/kumbuka-me/sdk/pluginpackage"
 )
 
@@ -486,29 +485,29 @@ func validateEditorWidgetAttribute(attribute EditorWidgetAttribute) error {
 	if !validID.MatchString(attribute.Name) {
 		return errors.New("name is invalid")
 	}
-	if attribute.MaxBytes < 0 || attribute.MaxBytes > 65536 || attribute.MaxItems < 0 || attribute.MaxItems > 128 {
+	if !validEditorWidgetAttributeLimits(attribute) {
 		return errors.New("limits are invalid")
 	}
 	validSeparator := func(value string) bool { return value == "" || value == ";" || value == "," || value == "\x1f" }
 	if !validSeparator(attribute.Separator) {
 		return errors.New("separator must be comma, semicolon, or unit separator")
 	}
-	if !validSeparator(attribute.FallbackSeparator) || attribute.FallbackSeparator != "" && attribute.FallbackSeparator == attribute.Separator {
+	if !validEditorWidgetFallbackSeparator(attribute.FallbackSeparator, attribute.Separator, validSeparator) {
 		return errors.New("fallback separator is invalid")
 	}
 
 	switch attribute.Type {
 	case "string", "identifier":
-		if len(attribute.Values) != 0 || attribute.MaxItems != 0 || attribute.Separator != "" || attribute.FallbackSeparator != "" || attribute.Unique || attribute.Repeat || len(attribute.Aliases) != 0 {
+		if !validEditorWidgetScalarAttribute(attribute) {
 			return errors.New("scalar attribute declares list, enum, or color options")
 		}
 	case "enum":
-		if len(attribute.Values) == 0 || len(attribute.Values) > 32 || attribute.MaxItems != 0 || attribute.Separator != "" || attribute.FallbackSeparator != "" || attribute.Unique || attribute.Repeat || attribute.EmitEmpty || len(attribute.Aliases) != 0 {
+		if !validEditorWidgetEnumAttribute(attribute) {
 			return errors.New("enum attribute has invalid values")
 		}
 		seen := make(map[string]bool, len(attribute.Values))
 		for _, value := range attribute.Values {
-			if value == "" || len(value) > 128 || seen[value] {
+			if !validEditorWidgetEnumValue(value, seen) {
 				return errors.New("enum values are empty, too long, or duplicated")
 			}
 			seen[value] = true
@@ -540,9 +539,24 @@ func validateEditorWidgetAttribute(attribute EditorWidgetAttribute) error {
 	return nil
 }
 
+// validEditorWidgetFallbackSeparator reports whether a fallback separator is supported and differs from the primary separator when set.
+func validEditorWidgetFallbackSeparator(fallback, primary string, valid func(string) bool) bool {
+	return valid(fallback) && (fallback == "" || fallback != primary)
+}
+
+// validEditorWidgetEnumValue reports whether an enum value is non-empty, bounded, and unique.
+func validEditorWidgetEnumValue(value string, seen map[string]bool) bool {
+	return value != "" && len(value) <= 128 && !seen[value]
+}
+
+// validEditorWidgetMemberOfConstraint reports whether a member-of rule maps a scalar attribute to a list attribute.
+func validEditorWidgetMemberOfConstraint(value, set EditorWidgetAttribute) bool {
+	return (value.Type == "string" || value.Type == "identifier") && set.Type == "list"
+}
+
 // validateEditorWidgetSetting validates a generated control and its referenced attributes.
 func validateEditorWidgetSetting(setting EditorWidgetSetting, attributes map[string]EditorWidgetAttribute) error {
-	if strings.TrimSpace(setting.Label) == "" || len(setting.Label) > 128 || len(setting.Placeholder) > 256 || len(setting.Suggestions) > 16 {
+	if !validEditorWidgetSettingMetadata(setting) {
 		return errors.New("visual editor setting has an invalid label, placeholder, or suggestions")
 	}
 	for _, suggestion := range setting.Suggestions {
@@ -553,31 +567,31 @@ func validateEditorWidgetSetting(setting EditorWidgetSetting, attributes map[str
 	switch setting.Type {
 	case "text", "textarea":
 		attribute, ok := attributes[setting.Attribute]
-		if !ok || (attribute.Type != "string" && attribute.Type != "identifier") || len(setting.Attributes) != 0 || len(setting.Columns) != 0 {
+		if !validEditorWidgetTextSetting(setting, attribute, ok) {
 			return fmt.Errorf("%s setting %q references an invalid attribute", setting.Type, setting.Label)
 		}
 	case "select":
 		attribute, ok := attributes[setting.Attribute]
-		if !ok || attribute.Type != "enum" || len(setting.Attributes) != 0 || len(setting.Columns) != 0 || len(setting.Suggestions) != 0 {
+		if !validEditorWidgetSelectSetting(setting, attribute, ok) {
 			return fmt.Errorf("select setting %q references an invalid attribute", setting.Label)
 		}
 	case "table":
-		if setting.Attribute != "" || len(setting.Attributes) == 0 || len(setting.Attributes) != len(setting.Columns) || len(setting.Attributes) > 4 || len(setting.Suggestions) != 0 {
+		if !validEditorWidgetTableShape(setting) {
 			return fmt.Errorf("table setting %q has invalid columns", setting.Label)
 		}
 		first := attributes[setting.Attributes[0]]
-		if first.Type != "list" || (setting.Columns[0].Type != "text" && setting.Columns[0].Type != "textarea") {
+		if !validEditorWidgetFirstTableColumn(first, setting.Columns[0]) {
 			return fmt.Errorf("table setting %q must start with a text or textarea list column", setting.Label)
 		}
 		seen := make(map[string]bool, len(setting.Attributes))
 		for index, name := range setting.Attributes {
 			attribute, ok := attributes[name]
-			if !ok || (attribute.Type != "list" && attribute.Type != "color-list") || seen[name] {
+			if !validEditorWidgetTableAttribute(attribute, ok, seen[name]) {
 				return fmt.Errorf("table setting %q references invalid list attribute %q", setting.Label, name)
 			}
 			seen[name] = true
 			column := setting.Columns[index]
-			if strings.TrimSpace(column.Label) == "" || len(column.Label) > 128 || (column.Type != "text" && column.Type != "textarea" && column.Type != "color") {
+			if !validEditorWidgetTableColumn(column) {
 				return fmt.Errorf("table setting %q has invalid column", setting.Label)
 			}
 			if column.Type == "color" && attribute.Type != "color-list" {
@@ -618,7 +632,7 @@ func validateEditorWidgetConstraint(constraint EditorWidgetConstraint, attribute
 		}
 		value := attributes[constraint.Attributes[0]]
 		set := attributes[constraint.Attributes[1]]
-		if (value.Type != "string" && value.Type != "identifier") || set.Type != "list" {
+		if !validEditorWidgetMemberOfConstraint(value, set) {
 			return errors.New("member-of constraint requires a scalar followed by a list attribute")
 		}
 	default:
@@ -657,18 +671,10 @@ func validateEditorWidgetBadgePreview(preview EditorWidgetPreview, attributes ma
 	if err := validateEditorWidgetClasses(badge.Class, badge.SolidClass, badge.OutlineClass, badge.PrefixClass, badge.ValueClass); err != nil {
 		return err
 	}
-	if badge.Class == "" || len(badge.DefaultLabel) > 128 || len(badge.DefaultColors) > 32 || len(badge.ToneClasses) > 32 {
+	if !validEditorWidgetBadgeMetadata(badge) {
 		return errors.New("badge preview metadata is invalid")
 	}
-	if err := validateEditorWidgetAttributeReferences(
-		attributes,
-		badge.PrefixAttribute,
-		badge.LabelAttribute,
-		badge.LabelsAttribute,
-		badge.FallbackAttribute,
-		badge.ColorsAttribute,
-		badge.StyleAttribute,
-	); err != nil {
+	if err := validateEditorWidgetAttributeReferences(attributes, badge.PrefixAttribute, badge.LabelAttribute, badge.LabelsAttribute, badge.FallbackAttribute, badge.ColorsAttribute, badge.StyleAttribute); err != nil {
 		return err
 	}
 	for _, color := range badge.DefaultColors {
@@ -691,7 +697,7 @@ func validateEditorWidgetReferencePreview(preview EditorWidgetPreview, attribute
 	}
 
 	reference := preview.Reference
-	if reference.Class == "" || strings.TrimSpace(reference.Prefix) == "" || len(reference.Prefix) > 64 || len(reference.DefaultValue) > 128 {
+	if !validEditorWidgetReferenceMetadata(reference) {
 		return errors.New("reference preview metadata is invalid")
 	}
 	if err := validateEditorWidgetClasses(reference.Class); err != nil {
@@ -707,7 +713,7 @@ func validateEditorWidgetCardPreview(preview EditorWidgetPreview, attributes map
 	}
 
 	card := preview.Card
-	if card.Class == "" || strings.TrimSpace(card.Title) == "" || len(card.Title) > 128 || len(card.BodyText) > 512 || len(card.MetadataAttributes) > 8 {
+	if !validEditorWidgetCardMetadata(card) {
 		return errors.New("card preview metadata is invalid")
 	}
 	if err := validateEditorWidgetClasses(card.Class, card.TitleClass, card.SubtitleClass, card.MetadataClass); err != nil {
@@ -758,7 +764,7 @@ func validateEditorWidgetTabsPreview(preview EditorWidgetPreview, attributes map
 	if err := validateEditorWidgetClasses(tabs.Class, tabs.ListClass, tabs.TabClass, tabs.ActiveClass, tabs.PanelsClass, tabs.PanelClass, tabs.HiddenClass); err != nil {
 		return err
 	}
-	if tabs.Class == "" || tabs.ListClass == "" || tabs.TabClass == "" || tabs.PanelsClass == "" || tabs.PanelClass == "" {
+	if !validEditorWidgetTabsClasses(tabs) {
 		return errors.New("tabs preview classes are required")
 	}
 	for _, name := range []string{tabs.TitlesAttribute, tabs.BodiesAttribute} {
@@ -817,14 +823,99 @@ func validateEditorWidgetAttributeReferences(attributes map[string]EditorWidgetA
 
 // validEditorWidgetColor validates one canonical six-digit hexadecimal color.
 func validEditorWidgetColor(value string) bool {
-	if len(value) != 7 || value[0] != '#' {
+	if !hasHexColorShape(value) {
 		return false
 	}
 	for _, char := range value[1:] {
-		if ascii.IsAlphanumeric(char) {
+		if isHexadecimalDigit(char) {
 			continue
 		}
 		return false
 	}
 	return true
+}
+
+// validEditorWidgetAttributeLimits reports whether list and byte limits are within contract bounds.
+func validEditorWidgetAttributeLimits(attribute EditorWidgetAttribute) bool {
+	return attribute.MaxBytes >= 0 && attribute.MaxBytes <= 65536 && attribute.MaxItems >= 0 && attribute.MaxItems <= 128
+}
+
+// validEditorWidgetScalarAttribute reports whether a scalar attribute avoids list, enum, and color-only options.
+func validEditorWidgetScalarAttribute(attribute EditorWidgetAttribute) bool {
+	return len(attribute.Values) == 0 && attribute.MaxItems == 0 && attribute.Separator == "" &&
+		attribute.FallbackSeparator == "" && !attribute.Unique && !attribute.Repeat && len(attribute.Aliases) == 0
+}
+
+// validEditorWidgetEnumAttribute reports whether an enum attribute uses only enum-compatible options.
+func validEditorWidgetEnumAttribute(attribute EditorWidgetAttribute) bool {
+	return len(attribute.Values) > 0 && len(attribute.Values) <= 32 && attribute.MaxItems == 0 &&
+		attribute.Separator == "" && attribute.FallbackSeparator == "" && !attribute.Unique && !attribute.Repeat &&
+		!attribute.EmitEmpty && len(attribute.Aliases) == 0
+}
+
+// validEditorWidgetSettingMetadata reports whether common setting presentation fields stay within contract limits.
+func validEditorWidgetSettingMetadata(setting EditorWidgetSetting) bool {
+	return strings.TrimSpace(setting.Label) != "" && len(setting.Label) <= 128 && len(setting.Placeholder) <= 256 && len(setting.Suggestions) <= 16
+}
+
+// validEditorWidgetTextSetting reports whether a text control targets one scalar attribute.
+func validEditorWidgetTextSetting(setting EditorWidgetSetting, attribute EditorWidgetAttribute, found bool) bool {
+	return found && (attribute.Type == "string" || attribute.Type == "identifier") && len(setting.Attributes) == 0 && len(setting.Columns) == 0
+}
+
+// validEditorWidgetSelectSetting reports whether a select control targets one enum attribute without extra control data.
+func validEditorWidgetSelectSetting(setting EditorWidgetSetting, attribute EditorWidgetAttribute, found bool) bool {
+	return found && attribute.Type == "enum" && len(setting.Attributes) == 0 && len(setting.Columns) == 0 && len(setting.Suggestions) == 0
+}
+
+// validEditorWidgetTableShape reports whether a table control has a bounded one-to-one attribute and column layout.
+func validEditorWidgetTableShape(setting EditorWidgetSetting) bool {
+	return setting.Attribute == "" && len(setting.Attributes) > 0 && len(setting.Attributes) == len(setting.Columns) &&
+		len(setting.Attributes) <= 4 && len(setting.Suggestions) == 0
+}
+
+// validEditorWidgetFirstTableColumn reports whether the first table column is textual and backed by a list.
+func validEditorWidgetFirstTableColumn(attribute EditorWidgetAttribute, column EditorWidgetSettingColumn) bool {
+	return attribute.Type == "list" && (column.Type == "text" || column.Type == "textarea")
+}
+
+// validEditorWidgetTableAttribute reports whether a table attribute exists, is list-like, and is not duplicated.
+func validEditorWidgetTableAttribute(attribute EditorWidgetAttribute, found, duplicate bool) bool {
+	return found && (attribute.Type == "list" || attribute.Type == "color-list") && !duplicate
+}
+
+// validEditorWidgetTableColumn reports whether a table column has a bounded label and supported control type.
+func validEditorWidgetTableColumn(column EditorWidgetSettingColumn) bool {
+	return strings.TrimSpace(column.Label) != "" && len(column.Label) <= 128 &&
+		(column.Type == "text" || column.Type == "textarea" || column.Type == "color")
+}
+
+// validEditorWidgetBadgeMetadata reports whether badge preview metadata stays within contract limits.
+func validEditorWidgetBadgeMetadata(badge *EditorWidgetBadgePreview) bool {
+	return badge.Class != "" && len(badge.DefaultLabel) <= 128 && len(badge.DefaultColors) <= 32 && len(badge.ToneClasses) <= 32
+}
+
+// validEditorWidgetReferenceMetadata reports whether reference preview metadata has a usable prefix and bounded values.
+func validEditorWidgetReferenceMetadata(reference *EditorWidgetReferencePreview) bool {
+	return reference.Class != "" && strings.TrimSpace(reference.Prefix) != "" && len(reference.Prefix) <= 64 && len(reference.DefaultValue) <= 128
+}
+
+// validEditorWidgetCardMetadata reports whether card preview metadata has required text and bounded optional content.
+func validEditorWidgetCardMetadata(card *EditorWidgetCardPreview) bool {
+	return card.Class != "" && strings.TrimSpace(card.Title) != "" && len(card.Title) <= 128 && len(card.BodyText) <= 512 && len(card.MetadataAttributes) <= 8
+}
+
+// validEditorWidgetTabsClasses reports whether every structural tabs preview class is configured.
+func validEditorWidgetTabsClasses(tabs *EditorWidgetTabsPreview) bool {
+	return tabs.Class != "" && tabs.ListClass != "" && tabs.TabClass != "" && tabs.PanelsClass != "" && tabs.PanelClass != ""
+}
+
+// hasHexColorShape reports whether value uses the hash-prefixed six-digit hexadecimal color shape.
+func hasHexColorShape(value string) bool {
+	return len(value) == 7 && value[0] == '#'
+}
+
+// isHexadecimalDigit reports whether character is an ASCII hexadecimal digit.
+func isHexadecimalDigit(character rune) bool {
+	return character >= '0' && character <= '9' || character >= 'a' && character <= 'f' || character >= 'A' && character <= 'F'
 }

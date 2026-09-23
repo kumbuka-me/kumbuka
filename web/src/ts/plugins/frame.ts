@@ -2,25 +2,65 @@
 // document. Outgoing messages report readiness, errors, bounded height, and
 // trusted user interactions; core validates links and same-plugin command targets.
 (() => {
+  const commandIdentifier = /^[a-z0-9][a-z0-9._-]{0,127}$/;
+
+  const isInitialPluginRenderEvent = (
+    event: MessageEvent<unknown>,
+    started: boolean,
+  ): boolean =>
+    !started &&
+    event.source === parent &&
+    typeof event.data === "object" &&
+    event.data !== null;
+
+  const isPluginRenderInput = (
+    input: Record<string, unknown>,
+  ): input is Record<string, unknown> & {
+    type: "kumbuka-plugin-render";
+    token: string;
+    source: string;
+    html?: string;
+  } =>
+    input.type === "kumbuka-plugin-render" &&
+    typeof input.token === "string" &&
+    typeof input.source === "string" &&
+    input.source.length <= 1_000_000 &&
+    (input.html === undefined ||
+      (typeof input.html === "string" && input.html.length <= 1_000_000));
+
+  const isTrustedPluginCommandClick = (
+    event: MouseEvent,
+    command: HTMLElement | null,
+  ): command is HTMLElement =>
+    event.isTrusted &&
+    command !== null &&
+    commandIdentifier.test(command.dataset.kumbukaCommandModule || "") &&
+    commandIdentifier.test(command.dataset.kumbukaCommandAction || "");
+
+  const isTrustedPluginCommandChange = (
+    event: Event,
+    target: EventTarget | null,
+  ): target is HTMLSelectElement =>
+    event.isTrusted &&
+    target instanceof HTMLSelectElement &&
+    commandIdentifier.test(target.dataset.kumbukaCommandModule || "") &&
+    commandIdentifier.test(target.value);
+
+  const isRenderablePluginModule = (
+    module: unknown,
+  ): module is {
+    render: (root: HTMLElement, options: Record<string, string>) => unknown;
+  } =>
+    typeof module === "object" &&
+    module !== null &&
+    "render" in module &&
+    typeof module.render === "function";
+
   let started = false;
   window.addEventListener("message", async (event: MessageEvent<unknown>) => {
-    if (
-      started ||
-      event.source !== parent ||
-      typeof event.data !== "object" ||
-      event.data === null
-    )
-      return;
+    if (!isInitialPluginRenderEvent(event, started)) return;
     const input = event.data as Record<string, unknown>;
-    if (
-      input.type !== "kumbuka-plugin-render" ||
-      typeof input.token !== "string" ||
-      typeof input.source !== "string" ||
-      input.source.length > 1_000_000 ||
-      (input.html !== undefined &&
-        (typeof input.html !== "string" || input.html.length > 1_000_000))
-    )
-      return;
+    if (!isPluginRenderInput(input)) return;
     // Keep the capability token private to the core harness. Browser-module
     // JavaScript is loaded only after this event has been consumed and cannot
     // observe or replay the token itself.
@@ -70,16 +110,7 @@
                 "[data-kumbuka-command-module][data-kumbuka-command-action]",
               )
             : null;
-        if (
-          event.isTrusted &&
-          command &&
-          /^[a-z0-9][a-z0-9._-]{0,127}$/.test(
-            command.dataset.kumbukaCommandModule || "",
-          ) &&
-          /^[a-z0-9][a-z0-9._-]{0,127}$/.test(
-            command.dataset.kumbukaCommandAction || "",
-          )
-        )
+        if (isTrustedPluginCommandClick(event, command))
           sendCommand(
             command.dataset.kumbukaCommandModule || "",
             command.dataset.kumbukaCommandAction || "",
@@ -87,15 +118,7 @@
       });
       root.addEventListener("change", (event) => {
         const target = event.target;
-        if (
-          !event.isTrusted ||
-          !(target instanceof HTMLSelectElement) ||
-          !/^[a-z0-9][a-z0-9._-]{0,127}$/.test(
-            target.dataset.kumbukaCommandModule || "",
-          ) ||
-          !/^[a-z0-9][a-z0-9._-]{0,127}$/.test(target.value)
-        )
-          return;
+        if (!isTrustedPluginCommandChange(event, target)) return;
 
         sendCommand(target.dataset.kumbukaCommandModule || "", target.value);
       });
@@ -109,13 +132,7 @@
       const module: unknown = (
         globalThis as unknown as { kumbukaPlugin?: unknown }
       ).kumbukaPlugin;
-      if (
-        typeof module !== "object" ||
-        module === null ||
-        !("render" in module) ||
-        typeof module.render !== "function"
-      )
-        throw new Error("Invalid module");
+      if (!isRenderablePluginModule(module)) throw new Error("Invalid module");
       document.documentElement.style.colorScheme =
         input.theme === "dark" ? "dark" : "light";
       if (typeof input.colors === "object" && input.colors !== null) {

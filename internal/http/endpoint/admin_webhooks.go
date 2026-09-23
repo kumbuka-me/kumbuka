@@ -166,15 +166,18 @@ func validWebhookHeaderRow(value string) bool {
 		return false
 	}
 	for _, character := range value {
-		if character >= 'a' && character <= 'z' ||
-			character >= 'A' && character <= 'Z' ||
-			character >= '0' && character <= '9' ||
-			character == '-' || character == '_' {
+		if validWebhookHeaderRowCharacter(character) {
 			continue
 		}
 		return false
 	}
 	return true
+}
+
+// validWebhookHeaderRowCharacter reports whether character belongs to the dynamic webhook-row identifier alphabet.
+func validWebhookHeaderRowCharacter(character rune) bool {
+	return character >= 'a' && character <= 'z' || character >= 'A' && character <= 'Z' ||
+		character >= '0' && character <= '9' || character == '-' || character == '_'
 }
 
 // DeleteAdminWebhook removes one configured outgoing webhook.

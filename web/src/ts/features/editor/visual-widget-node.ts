@@ -16,6 +16,21 @@ import {
   type CatalogWidgetSetting,
 } from "./widget-contract.ts";
 
+// Reports whether a source position starts a widget valid for the requested inline mode.
+function isWidgetSourceCandidate(
+  source: string,
+  index: number,
+  widgets: CatalogWidget[],
+  inline: boolean,
+): boolean {
+  const startsAtBlockBoundary =
+    inline || index === 0 || source[index - 1] === "\n";
+  return (
+    startsAtBlockBoundary &&
+    Boolean(matchWidgetSource(source.slice(index), widgets, inline))
+  );
+}
+
 interface WidgetNodeViewContext {
   editor: any;
   getPos: () => number | undefined;
@@ -38,10 +53,7 @@ function firstWidgetSourceIndex(
       if (candidate >= 0 && (index < 0 || candidate < index)) index = candidate;
     }
     if (index < 0) return -1;
-    if (
-      (!inline && index > 0 && source[index - 1] !== "\n") ||
-      !matchWidgetSource(source.slice(index), widgets, inline)
-    ) {
+    if (!isWidgetSourceCandidate(source, index, widgets, inline)) {
       offset = index + 1;
       continue;
     }
@@ -902,12 +914,20 @@ function widgetNodeView(
     );
   };
 
-  shell.addEventListener("click", (event) => {
+  shell.addEventListener("mousedown", (event) => {
+    if (!(event instanceof MouseEvent) || event.button !== 0) return;
     event.preventDefault();
     const position = context.getPos();
-    if (typeof position === "number")
+    const selection = context.editor.state.selection;
+    if (
+      typeof position === "number" &&
+      (selection.from !== position || selection.to !== position + node.nodeSize)
+    )
       context.editor.chain().focus().setNodeSelection(position).run();
-    open();
+    // A selected block widget is draggable, so browsers may suppress its click
+    // event. Open from the primary-button press after ProseMirror has applied
+    // the node selection instead.
+    queueMicrotask(open);
   });
   render();
 
@@ -1006,7 +1026,7 @@ function widgetNode(widgets: CatalogWidget[], inline: boolean): AnyExtension {
     },
     renderMarkdown(node: any) {
       const raw = String(node.attrs?.raw || "");
-      return inline ? raw : raw ? raw + "\n\n" : "";
+      return raw;
     },
   });
 }

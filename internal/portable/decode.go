@@ -233,7 +233,7 @@ func readArchivePage(
 			fmt.Errorf("metadata for %q has slug %q or empty title", slug, metadata.Slug),
 		)
 	}
-	if !domain.ValidPageStatus(metadata.Status) || !domain.ValidReviewIntervalDays(metadata.ReviewIntervalDays) {
+	if !validPortableWorkflowMetadata(metadata) {
 		return Page{}, validationError(
 			"The Kumbuka archive contains invalid page workflow metadata.",
 			fmt.Errorf("invalid workflow metadata for %q", slug),
@@ -345,22 +345,37 @@ func readZipFile(entry *zip.File, remaining *int64) ([]byte, error) {
 	return data, nil
 }
 
+// validPortableWorkflowMetadata reports whether imported page workflow metadata uses supported values.
+func validPortableWorkflowMetadata(metadata PageMetadata) bool {
+	return domain.ValidPageStatus(metadata.Status) && domain.ValidReviewIntervalDays(metadata.ReviewIntervalDays)
+}
+
 // validArchivePath normalizes one ZIP path and rejects traversal or platform-specific separators.
 func validArchivePath(name string) (string, error) {
-	if name == "" || strings.Contains(name, "\\") || path.IsAbs(name) {
+	if invalidArchivePathShape(name) {
 		return "", validationError(
 			"The Kumbuka archive contains an invalid file path.",
 			fmt.Errorf("invalid archive path %q", name),
 		)
 	}
 	clean := path.Clean(name)
-	if clean != name || clean == "." || clean == ".." || strings.HasPrefix(clean, "../") {
+	if unsafeArchivePath(name, clean) {
 		return "", validationError(
 			"The Kumbuka archive contains an unsafe file path.",
 			fmt.Errorf("unsafe archive path %q", name),
 		)
 	}
 	return clean, nil
+}
+
+// invalidArchivePathShape reports whether a ZIP path is empty, platform-specific, or absolute.
+func invalidArchivePathShape(name string) bool {
+	return name == "" || strings.Contains(name, "\\") || path.IsAbs(name)
+}
+
+// unsafeArchivePath reports whether normalization changes a ZIP path or reveals traversal.
+func unsafeArchivePath(name, clean string) bool {
+	return clean != name || clean == "." || clean == ".." || strings.HasPrefix(clean, "../")
 }
 
 // validSlug reports whether slug is already a canonical relative page path.

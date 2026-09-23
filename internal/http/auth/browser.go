@@ -263,7 +263,7 @@ func (b *browserAuthenticator) currentSettings(ctx context.Context) (domain.Auth
 		return domain.AuthenticationSettings{}, fmt.Errorf("unsupported auth mode %q", b.modeOverride)
 	}
 
-	if domain.AuthMode(authentication.Mode) == domain.AuthModeOIDC && authentication.OIDCGroupSync {
+	if oidcGroupMappingsEnabled(authentication) {
 		authentication.OIDCGroupMappings, err = b.repository.OIDCGroupMappings(ctx)
 		if err != nil {
 			return domain.AuthenticationSettings{}, err
@@ -324,12 +324,22 @@ func (b *browserAuthenticator) validateSettings(settings domain.AuthenticationSe
 	return validation
 }
 
+// oidcGroupMappingsEnabled reports whether persisted authentication settings require OIDC group mappings.
+func oidcGroupMappingsEnabled(settings domain.AuthenticationSettings) bool {
+	return domain.AuthMode(settings.Mode) == domain.AuthModeOIDC && settings.OIDCGroupSync
+}
+
+// trustedAdminGroupMissingHeaders reports whether administrator elevation is configured without any trusted group source.
+func trustedAdminGroupMissingHeaders(settings domain.AuthenticationSettings) bool {
+	return strings.TrimSpace(settings.TrustedAdminGroup) != "" && len(settings.TrustedGroupHeaders) == 0
+}
+
 // validateTrustedProxySettings appends all static trusted-proxy configuration failures.
 func validateTrustedProxySettings(settings domain.AuthenticationSettings, validation *domain.ValidationError) {
 	if len(settings.TrustedUsernameHeaders) == 0 {
 		appendAuthenticationProblem(validation, "trusted_username_headers", "Configure at least one username header.")
 	}
-	if strings.TrimSpace(settings.TrustedAdminGroup) != "" && len(settings.TrustedGroupHeaders) == 0 {
+	if trustedAdminGroupMissingHeaders(settings) {
 		appendAuthenticationProblem(
 			validation,
 			"trusted_group_headers",

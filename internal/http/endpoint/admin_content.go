@@ -189,12 +189,17 @@ func filterAdminAttachments(items []domain.Attachment, query string) []domain.At
 
 	filtered := make([]domain.Attachment, 0, len(items))
 	for _, item := range items {
-		if strings.Contains(strings.ToLower(item.Filename), query) ||
-			strings.Contains(strings.ToLower(item.Uploader), query) ||
-			strings.Contains(strings.ToLower(item.ContentType), query) {
+		if attachmentMatchesAdminQuery(item, query) {
 			filtered = append(filtered, item)
 		}
 	}
 
 	return filtered
+}
+
+// attachmentMatchesAdminQuery reports whether searchable attachment metadata contains the normalized query.
+func attachmentMatchesAdminQuery(item domain.Attachment, query string) bool {
+	return strings.Contains(strings.ToLower(item.Filename), query) ||
+		strings.Contains(strings.ToLower(item.Uploader), query) ||
+		strings.Contains(strings.ToLower(item.ContentType), query)
 }

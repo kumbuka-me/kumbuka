@@ -80,16 +80,19 @@ function fencedCodeAt(value: string, caret: number): boolean {
 }
 
 function taskContentStart(line: string, start: number): number | null {
-  if (
-    line[start] !== "[" ||
-    (line[start + 1] !== " " &&
-      line[start + 1] !== "x" &&
-      line[start + 1] !== "X") ||
-    line[start + 2] !== "]"
-  )
-    return null;
+  if (!isTaskListMarker(line, start)) return null;
 
   return skipListWhitespace(line, start + 3);
+}
+
+// Reports whether line contains a Markdown task-list marker at start.
+function isTaskListMarker(line: string, start: number): boolean {
+  const state = line[start + 1];
+  return (
+    line[start] === "[" &&
+    (state === " " || state === "x" || state === "X") &&
+    line[start + 2] === "]"
+  );
 }
 
 function unorderedListMarker(
@@ -297,19 +300,26 @@ export function markdownListEnterEdit(
   };
 }
 
+// Reports whether an Enter keypress is an unmodified collapsed-caret list continuation request.
+function shouldContinueMarkdownList(
+  event: KeyboardEvent,
+  source: HTMLTextAreaElement,
+): boolean {
+  return (
+    !event.defaultPrevented &&
+    event.key === "Enter" &&
+    !event.shiftKey &&
+    !event.ctrlKey &&
+    !event.metaKey &&
+    !event.altKey &&
+    !event.isComposing &&
+    source.selectionStart === source.selectionEnd
+  );
+}
+
 function setupMarkdownListContinuation(source: HTMLTextAreaElement): void {
   source.addEventListener("keydown", (event: KeyboardEvent) => {
-    if (
-      event.defaultPrevented ||
-      event.key !== "Enter" ||
-      event.shiftKey ||
-      event.ctrlKey ||
-      event.metaKey ||
-      event.altKey ||
-      event.isComposing ||
-      source.selectionStart !== source.selectionEnd
-    )
-      return;
+    if (!shouldContinueMarkdownList(event, source)) return;
 
     const caret = source.selectionStart ?? source.value.length;
     const edit = markdownListEnterEdit(source.value, caret);

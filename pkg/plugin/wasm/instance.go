@@ -437,7 +437,7 @@ func validAdminActionResult(result sdk.RenderResult) bool {
 
 // validWidgetCommandResult reports whether a widget command returned only a valid command response.
 func validWidgetCommandResult(result sdk.RenderResult) bool {
-	if len(result.Parts) != 0 || len(result.Actions) != 0 || result.File != nil || result.WidgetCommand == nil {
+	if !hasOnlyWidgetCommandResult(result) {
 		return false
 	}
 
@@ -468,7 +468,7 @@ func validWidgetAction(action sdk.WidgetAction, stage string) bool {
 	if stage != "widget" {
 		return false
 	}
-	if !validWidgetIdentifier(action.ID) || len(action.Label) == 0 || len(action.Label) > 256 {
+	if !validWidgetActionIdentity(action) {
 		return false
 	}
 	if action.Icon != "" && !validWidgetIdentifier(action.Icon) {
@@ -494,11 +494,11 @@ func validWidgetActionURL(value string) bool {
 
 // validWidgetIdentifier reports whether a widget identifier uses the supported ASCII syntax.
 func validWidgetIdentifier(value string) bool {
-	if len(value) == 0 || len(value) > 128 || !asciiAlphanumeric(value[0]) {
+	if !validWidgetIdentifierBoundary(value) {
 		return false
 	}
 	for index := 1; index < len(value); index++ {
-		if asciiAlphanumeric(value[index]) || value[index] == '-' || value[index] == '_' || value[index] == '.' {
+		if validWidgetIdentifierCharacter(value[index]) {
 			continue
 		}
 		return false
@@ -509,6 +509,26 @@ func validWidgetIdentifier(value string) bool {
 // asciiAlphanumeric reports whether a byte is an ASCII letter or digit.
 func asciiAlphanumeric(value byte) bool {
 	return value >= 'a' && value <= 'z' || value >= 'A' && value <= 'Z' || value >= '0' && value <= '9'
+}
+
+// hasOnlyWidgetCommandResult reports whether a render result contains exactly one widget command response.
+func hasOnlyWidgetCommandResult(result sdk.RenderResult) bool {
+	return len(result.Parts) == 0 && len(result.Actions) == 0 && result.File == nil && result.WidgetCommand != nil
+}
+
+// validWidgetActionIdentity reports whether action has a valid identifier and bounded non-empty label.
+func validWidgetActionIdentity(action sdk.WidgetAction) bool {
+	return validWidgetIdentifier(action.ID) && len(action.Label) > 0 && len(action.Label) <= 256
+}
+
+// validWidgetIdentifierBoundary reports whether a widget identifier has a valid length and first character.
+func validWidgetIdentifierBoundary(value string) bool {
+	return len(value) > 0 && len(value) <= 128 && asciiAlphanumeric(value[0])
+}
+
+// validWidgetIdentifierCharacter reports whether a non-leading widget identifier byte is supported.
+func validWidgetIdentifierCharacter(value byte) bool {
+	return asciiAlphanumeric(value) || value == '-' || value == '_' || value == '.'
 }
 
 // rendererModule adapts one WASM renderer declaration to a pipeline stage.

@@ -245,7 +245,7 @@ func (c *Catalog) ensure() {
 
 // validResourceText reports whether a picker source is safe and bounded.
 func validResourceText(value string, limit int) bool {
-	if value == "" || len(value) > limit || !utf8.ValidString(value) {
+	if !validResourceTextShape(value, limit) {
 		return false
 	}
 	for _, character := range value {
@@ -256,18 +256,32 @@ func validResourceText(value string, limit int) bool {
 	return true
 }
 
+// validResourceTextShape reports whether resource text is non-empty, bounded, and valid UTF-8.
+func validResourceTextShape(value string, limit int) bool {
+	return value != "" && len(value) <= limit && utf8.ValidString(value)
+}
+
+// validIconNameBoundary reports whether an icon name has a valid length and first character.
+func validIconNameBoundary(name string) bool {
+	return len(name) > 0 && len(name) <= 128 && isIdentifierStart(name[0])
+}
+
 // validIconName reports whether an icon name uses the supported identifier syntax.
 func validIconName(name string) bool {
-	if len(name) == 0 || len(name) > 128 || !isIdentifierStart(name[0]) {
+	if !validIconNameBoundary(name) {
 		return false
 	}
 	for index := 1; index < len(name); index++ {
-		character := name[index]
-		if !isIdentifierStart(character) && character != '.' && character != '_' && character != '-' {
+		if !isIdentifierCharacter(name[index]) {
 			return false
 		}
 	}
 	return true
+}
+
+// isIdentifierCharacter reports whether a byte may appear after the first icon identifier character.
+func isIdentifierCharacter(character byte) bool {
+	return isIdentifierStart(character) || character == '.' || character == '_' || character == '-'
 }
 
 // isIdentifierStart reports whether a rune may start an icon identifier.

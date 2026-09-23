@@ -286,13 +286,19 @@ func safeClassSelector(selector string) bool {
 			segmentStart = true
 			continue
 		}
-		if char >= 'a' && char <= 'z' || char >= 'A' && char <= 'Z' || char >= '0' && char <= '9' || char == '_' || char == '-' {
+		if safeClassCharacter(char) {
 			segmentStart = false
 			continue
 		}
 		return false
 	}
 	return !segmentStart
+}
+
+// safeClassCharacter reports whether char may appear in a plugin-safe CSS class segment.
+func safeClassCharacter(char byte) bool {
+	return char >= 'a' && char <= 'z' || char >= 'A' && char <= 'Z' ||
+		char >= '0' && char <= '9' || char == '_' || char == '-'
 }
 
 // safeContentDeclaration validates presentation and local layout properties available to rendered-content plugins.

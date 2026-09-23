@@ -74,12 +74,17 @@ func nextReplacementToken(source string, offset int, replacements map[string]plu
 			continue
 		}
 		index += offset
-		if best < 0 || index < best || (index == best && len(token) > len(bestToken)) {
+		if preferReplacementToken(index, token, best, bestToken) {
 			best = index
 			bestToken = token
 		}
 	}
 	return best, bestToken
+}
+
+// preferReplacementToken reports whether a candidate starts earlier or wins the equal-position longest-token tie.
+func preferReplacementToken(index int, token string, best int, bestToken string) bool {
+	return best < 0 || index < best || index == best && len(token) > len(bestToken)
 }
 
 var kindPluginAnnotation = ast.NewNodeKind("KumbukaPluginAnnotation")

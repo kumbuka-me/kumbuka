@@ -228,10 +228,15 @@ type webhookTemplatePayload struct {
 
 // webhookObjectURL returns a public page URL when the event identifies a page.
 func webhookObjectURL(publicURL string, event OutgoingEvent) string {
-	if publicURL == "" || event.ObjectType != "page" || event.ObjectKey == "" {
+	if !hasWebhookPageDestination(publicURL, event) {
 		return ""
 	}
 	return publicURL + "/pages/" + strings.TrimLeft(event.ObjectKey, "/")
+}
+
+// hasWebhookPageDestination reports whether an event identifies a page under a configured public URL.
+func hasWebhookPageDestination(publicURL string, event OutgoingEvent) bool {
+	return publicURL != "" && event.ObjectType == "page" && event.ObjectKey != ""
 }
 
 // webhookDeliveryTarget captures the final Notifykit target result and attempt count.

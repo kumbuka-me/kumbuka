@@ -267,12 +267,17 @@ func (s *Reviews) CancelReview(ctx context.Context, id int64, slug string, actor
 	return nil
 }
 
+// validReviewDecision reports whether decision is one of the two reviewer outcomes.
+func validReviewDecision(decision string) bool {
+	return decision == domain.PageReviewStatusApproved || decision == domain.PageReviewStatusChangesRequested
+}
+
 // DecideReview approves the requested revision or asks the author for changes.
 func (s *Reviews) DecideReview(ctx context.Context, input PageReviewDecisionInput) error {
 	if input.ID <= 0 {
 		return domain.NewValidationError("review", "Choose a valid review request.")
 	}
-	if input.Decision != domain.PageReviewStatusApproved && input.Decision != domain.PageReviewStatusChangesRequested {
+	if !validReviewDecision(input.Decision) {
 		return domain.NewValidationError("decision", "Choose approve or request changes.")
 	}
 	if err := s.authorization.requireView(ctx, input.Actor, input.Slug); err != nil {

@@ -63,7 +63,7 @@ func (l *Local) authenticateSession(
 		r.Context(),
 		hashToken(cookie.Value),
 	)
-	if errors.Is(err, domain.ErrNotFound) || (err == nil && !user.Enabled) {
+	if unavailableAuthenticatedUser(user, err) {
 		return domain.User{}, ErrUnauthenticated
 	}
 
@@ -79,7 +79,7 @@ func (l *Local) SignIn(
 		ctx,
 		strings.TrimSpace(username),
 	)
-	if errors.Is(err, domain.ErrNotFound) || (err == nil && !user.Enabled) {
+	if unavailableAuthenticatedUser(user, err) {
 		return domain.User{}, "", ErrInvalidCredentials
 	}
 	if err != nil {

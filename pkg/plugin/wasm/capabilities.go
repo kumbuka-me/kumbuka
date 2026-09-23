@@ -12,6 +12,7 @@ import (
 
 	"github.com/kumbuka-me/kumbuka/pkg/plugin"
 	"github.com/kumbuka-me/sdk"
+	"github.com/kumbuka-me/sdk/pluginpackage"
 	"github.com/tetratelabs/wazero/api"
 )
 
@@ -236,7 +237,7 @@ func (r *Runtime) storageCall(ctx context.Context, caller *Instance, request sdk
 			return sdk.StoredValue{Value: data, Found: err == nil}, err
 		}
 	}
-	if settingsCall && (plugin.DeclaredSetting(caller.manifest, value.Key) || plugin.ReservedSettingStorageKey(value.Key)) {
+	if administratorManagedSetting(settingsCall, caller.manifest, value.Key) {
 		return nil, errors.New("manifest-declared settings are administrator managed")
 	}
 
@@ -253,6 +254,11 @@ func (r *Runtime) storageCall(ctx context.Context, caller *Instance, request sdk
 	}
 
 	return nil, r.storage.WritePluginValue(ctx, id, namespace, value.Key, value.Value)
+}
+
+// administratorManagedSetting reports whether a settings capability targets host-managed plugin configuration.
+func administratorManagedSetting(settingsCall bool, manifest pluginpackage.Manifest, key string) bool {
+	return settingsCall && (plugin.DeclaredSetting(manifest, key) || plugin.ReservedSettingStorageKey(key))
 }
 
 // validStorageValue reports whether a plugin storage request uses bounded key and value data.

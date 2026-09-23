@@ -84,7 +84,7 @@ func parsePluginHTTPDestination(raw string) (*url.URL, bool) {
 	if parsed.Scheme != "http" && parsed.Scheme != "https" {
 		return nil, false
 	}
-	if parsed.Hostname() == "" || parsed.User != nil || strings.ContainsAny(parsed.Host, "%\\") {
+	if !validPluginHTTPAuthority(parsed) {
 		return nil, false
 	}
 
@@ -93,7 +93,7 @@ func parsePluginHTTPDestination(raw string) (*url.URL, bool) {
 
 // validPluginHTTPHeader accepts application headers while rejecting transport-controlled fields.
 func validPluginHTTPHeader(name, value string) bool {
-	if !httpguts.ValidHeaderFieldName(name) || !httpguts.ValidHeaderFieldValue(value) || len(value) > maxHTTPHeaderValue {
+	if !validPluginHTTPHeaderSyntax(name, value) {
 		return false
 	}
 	switch strings.ToLower(name) {
@@ -102,6 +102,21 @@ func validPluginHTTPHeader(name, value string) bool {
 	default:
 		return true
 	}
+}
+
+// validPluginHTTPAuthority reports whether a parsed plugin destination has a host and no authority tricks or credentials.
+func validPluginHTTPAuthority(parsed *url.URL) bool {
+	return parsed.Hostname() != "" && parsed.User == nil && !strings.ContainsAny(parsed.Host, "%\\")
+}
+
+// validPluginHTTPHeaderSyntax reports whether a plugin header has valid syntax and a bounded value.
+func validPluginHTTPHeaderSyntax(name, value string) bool {
+	return httpguts.ValidHeaderFieldName(name) && httpguts.ValidHeaderFieldValue(value) && len(value) <= maxHTTPHeaderValue
+}
+
+// isPublicUnicastHTTPAddress reports whether an address passes the basic public-unicast network checks.
+func isPublicUnicastHTTPAddress(address netip.Addr) bool {
+	return address.IsGlobalUnicast() && !address.IsLoopback() && !address.IsLinkLocalUnicast()
 }
 
 // validHTTPPrivateIP reports whether raw is one exact RFC1918 or IPv6 ULA address.
@@ -124,7 +139,7 @@ func allowedHTTPIP(address netip.Addr, private []string) bool {
 		}
 		return false
 	}
-	if !address.IsGlobalUnicast() || address.IsLoopback() || address.IsLinkLocalUnicast() {
+	if !isPublicUnicastHTTPAddress(address) {
 		return false
 	}
 	if address.Is6() && !netip.MustParsePrefix("2000::/3").Contains(address) {

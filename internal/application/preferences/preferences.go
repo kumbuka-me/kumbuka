@@ -43,13 +43,18 @@ func (s *Preferences) SavePreferences(
 	if !domain.ValidNavigationDensity(preferences.NavigationDensity) {
 		return domain.NewValidationError("navigation_density", "Choose a valid navigation density.")
 	}
-	if preferences.TypographySize != "" && !domain.ValidTypographySize(preferences.TypographySize) {
+	if !validOptionalTypographySize(preferences.TypographySize) {
 		return domain.NewValidationError("typography_size", "Choose a valid typography size.")
 	}
 	if !domain.ValidSidebarWidth(preferences.SidebarWidth) {
 		return domain.NewValidationError("sidebar_width", "Sidebar width is out of range.")
 	}
 	return s.repository.SavePreferences(ctx, userID, preferences)
+}
+
+// validOptionalTypographySize reports whether an optional typography override is empty or valid.
+func validOptionalTypographySize(value string) bool {
+	return value == "" || domain.ValidTypographySize(value)
 }
 
 // SetShowPageContents updates a user's page-contents visibility preference.

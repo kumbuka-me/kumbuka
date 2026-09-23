@@ -114,11 +114,16 @@ func movePage(ctx context.Context, tx pgx.Tx, oldSlug, newSlug string, options d
 	return nil
 }
 
+// validMoveSlugPair reports whether source and destination are distinct non-empty page paths.
+func validMoveSlugPair(oldSlug, newSlug string) bool {
+	return oldSlug != "" && newSlug != "" && oldSlug != newSlug
+}
+
 // normalizeMoveSlugs normalizes and validates the source and destination paths for a move.
 func normalizeMoveSlugs(oldSlug, newSlug string, options domain.MovePageOptions) (string, string, error) {
 	oldSlug = strings.Trim(strings.TrimSpace(oldSlug), "/")
 	newSlug = strings.Trim(strings.TrimSpace(newSlug), "/")
-	if oldSlug == "" || newSlug == "" || oldSlug == newSlug {
+	if !validMoveSlugPair(oldSlug, newSlug) {
 		return "", "", domain.NewValidationError("slug", "Choose a different, non-empty destination path.")
 	}
 	if options.MoveChildren && strings.HasPrefix(newSlug, oldSlug+"/") {

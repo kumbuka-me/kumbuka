@@ -46,11 +46,39 @@ func normalizeConfigurationValue(field pluginpackage.ConfigurationField, value s
 
 // normalizeConfigurationWhitespace trims field types whose surrounding whitespace is never meaningful.
 func normalizeConfigurationWhitespace(field pluginpackage.ConfigurationField, value string) string {
-	if field.Key || field.Type == "text" || field.Type == "url" || field.Type == "select" || field.Type == "boolean" || field.Type == "color" {
+	if configurationWhitespaceIsInsignificant(field) {
 		return strings.TrimSpace(value)
 	}
 
 	return value
+}
+
+// configurationWhitespaceIsInsignificant reports whether surrounding whitespace is not part of a field value.
+func configurationWhitespaceIsInsignificant(field pluginpackage.ConfigurationField) bool {
+	switch field.Type {
+	case "text", "url", "select", "boolean", "color":
+		return true
+	default:
+		return field.Key
+	}
+}
+
+// validConfigurationColor reports whether value is a canonical six-digit CSS hexadecimal color.
+func validConfigurationColor(value string) bool {
+	if !hasHexColorShape(value) {
+		return false
+	}
+	for _, character := range value[1:] {
+		if !isHexadecimalDigit(character) {
+			return false
+		}
+	}
+	return true
+}
+
+// validConfigurationURL reports whether parsed is an absolute credential-free HTTP or HTTPS URL.
+func validConfigurationURL(parsed *url.URL) bool {
+	return parsed.Host != "" && parsed.User == nil && (parsed.Scheme == "http" || parsed.Scheme == "https")
 }
 
 // validateConfigurationText enforces the shared UTF-8 and control-character policy.
@@ -105,13 +133,7 @@ func validateColorConfiguration(field pluginpackage.ConfigurationField, value st
 	if value == "" && !field.Required {
 		return "", nil
 	}
-	if len(value) != 7 || value[0] != '#' {
-		return "", configurationFieldError(field, field.Name+" must be a six-digit hex color.")
-	}
-	for _, char := range value[1:] {
-		if char >= '0' && char <= '9' || char >= 'a' && char <= 'f' || char >= 'A' && char <= 'F' {
-			continue
-		}
+	if !validConfigurationColor(value) {
 		return "", configurationFieldError(field, field.Name+" must be a six-digit hex color.")
 	}
 	return strings.ToLower(value), nil
@@ -213,7 +235,7 @@ func validateURLConfiguration(field pluginpackage.ConfigurationField, value stri
 	}
 
 	parsed, err := url.ParseRequestURI(value)
-	if err != nil || parsed.Host == "" || parsed.User != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") {
+	if err != nil || !validConfigurationURL(parsed) {
 		return "", configurationFieldError(field, field.Name+" must be an absolute HTTP or HTTPS URL.")
 	}
 

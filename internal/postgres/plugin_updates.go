@@ -38,7 +38,7 @@ SELECT EXISTS(
 
 	pending := make([]domain.PluginUpdateNotice, 0, len(updates))
 	for _, update := range updates {
-		if strings.TrimSpace(update.ID) == "" || strings.TrimSpace(update.AvailableVersion) == "" {
+		if !validPluginUpdateNotice(update) {
 			continue
 		}
 
@@ -102,4 +102,9 @@ func pluginUpdateNotification(updates []domain.PluginUpdateNotice) (string, stri
 	}
 
 	return fmt.Sprintf("%d plugin updates available", len(updates)), strings.Join(entries, "; ")
+}
+
+// validPluginUpdateNotice reports whether an update contains both a plugin identifier and available version.
+func validPluginUpdateNotice(update domain.PluginUpdateNotice) bool {
+	return strings.TrimSpace(update.ID) != "" && strings.TrimSpace(update.AvailableVersion) != ""
 }

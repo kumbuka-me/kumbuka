@@ -605,22 +605,28 @@ function pluginRowAction(
   );
 }
 
+// Reports whether a click should open plugin details rather than perform another row action.
+function pluginDetailClickAllowed(
+  opener: HTMLElement,
+  event: MouseEvent,
+): boolean {
+  return (
+    event.button === 0 &&
+    !event.metaKey &&
+    !event.ctrlKey &&
+    !event.shiftKey &&
+    !event.altKey &&
+    !pluginRowAction(opener, event.target)
+  );
+}
+
 // setupPluginDialogs wires plugin rows and links, close controls, and server-requested modal state.
 function setupPluginDialogs(): void {
   for (const opener of document.querySelectorAll<HTMLElement>(
     "[data-plugin-detail-open]",
   )) {
     opener.addEventListener("click", (event: MouseEvent) => {
-      if (
-        event.button !== 0 ||
-        event.metaKey ||
-        event.ctrlKey ||
-        event.shiftKey ||
-        event.altKey ||
-        pluginRowAction(opener, event.target)
-      ) {
-        return;
-      }
+      if (!pluginDetailClickAllowed(opener, event)) return;
 
       if (!openPluginFromElement(opener)) return;
       event.preventDefault();

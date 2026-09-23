@@ -80,7 +80,7 @@ test("visual widget exactly-one fields switch modes and focus added rows", async
 
     await dialog.getByRole("button", { name: "Add row" }).click();
     assert.equal(await reusableSet.inputValue(), "");
-    const statuses = dialog.getByLabel("Status");
+    const statuses = dialog.getByLabel("Status", { exact: true });
     assert.equal(await statuses.count(), 4);
     assert.equal(
       await statuses
@@ -100,7 +100,7 @@ test("visual widget exactly-one fields switch modes and focus added rows", async
     const nextDialog = page.getByRole("dialog", { name: "Edit Status" });
     const nextSet = nextDialog.getByLabel("Reusable set");
     await nextSet.fill("custom1");
-    const nextStatuses = nextDialog.getByLabel("Status");
+    const nextStatuses = nextDialog.getByLabel("Status", { exact: true });
     assert.equal(await nextStatuses.count(), 1);
     assert.equal(await nextStatuses.first().inputValue(), "");
     await nextDialog.getByRole("button", { name: "Apply" }).click();

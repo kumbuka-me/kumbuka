@@ -341,7 +341,7 @@ func releaseProblem(release release) string {
 
 // allowedCatalogURL reports whether a catalog URL is HTTPS or a loopback test endpoint.
 func allowedCatalogURL(value *url.URL) bool {
-	if value == nil || value.Host == "" || value.User != nil {
+	if !validUpdateURLAuthority(value) {
 		return false
 	}
 	if value.Scheme == "https" {
@@ -352,7 +352,7 @@ func allowedCatalogURL(value *url.URL) bool {
 
 // allowedPackageURL reports whether a package URL points at the first-party GitHub releases or loopback tests.
 func allowedPackageURL(value *url.URL) bool {
-	if value == nil || value.Host == "" || value.User != nil {
+	if !validUpdateURLAuthority(value) {
 		return false
 	}
 	if value.Scheme == "http" && loopbackHost(value.Hostname()) {
@@ -362,6 +362,16 @@ func allowedPackageURL(value *url.URL) bool {
 		return false
 	}
 	return strings.HasPrefix(value.EscapedPath(), "/kumbuka-me/plugins/releases/download/")
+}
+
+// validUpdateURLAuthority reports whether an update URL has a host and contains no user credentials.
+func validUpdateURLAuthority(value *url.URL) bool {
+	return value != nil && value.Host != "" && value.User == nil
+}
+
+// validSemanticVersionPart reports whether a numeric version component is non-empty and has no leading zeroes.
+func validSemanticVersionPart(part string) bool {
+	return part != "" && (len(part) == 1 || part[0] != '0')
 }
 
 // loopbackHost reports whether host resolves syntactically to a loopback-only test target.
@@ -381,7 +391,7 @@ func parseVersion(value string) (semanticVersion, bool) {
 	}
 	values := make([]uint64, 3)
 	for index, part := range parts {
-		if part == "" || (len(part) > 1 && part[0] == '0') {
+		if !validSemanticVersionPart(part) {
 			return semanticVersion{}, false
 		}
 		parsed, err := strconv.ParseUint(part, 10, 64)

@@ -325,10 +325,10 @@ func validateReviewCommentInput(input PageReviewCommentInput) error {
 	if input.Slug == "" {
 		validation.Fields = append(validation.Fields, domain.FieldError{Field: "slug", Message: "A page path is required."})
 	}
-	if input.Side != domain.PageReviewCommentSideOld && input.Side != domain.PageReviewCommentSideNew {
+	if !validReviewCommentSide(input.Side) {
 		validation.Fields = append(validation.Fields, domain.FieldError{Field: "side", Message: "Choose a valid side of the review diff."})
 	}
-	if input.StartLine <= 0 || input.EndLine < input.StartLine || input.EndLine-input.StartLine+1 > maxReviewAnchorLines {
+	if !validReviewCommentLineRange(input.StartLine, input.EndLine) {
 		validation.Fields = append(validation.Fields, domain.FieldError{Field: "line", Message: "Choose a valid review line range."})
 	}
 	if len(input.Body) > maxReviewCommentBytes {
@@ -421,7 +421,7 @@ func applyMarkdownSuggestions(markdown string, suggestions []domain.PageReviewCo
 
 	previousEnd := 0
 	for _, suggestion := range ordered {
-		if suggestion.Side != domain.PageReviewCommentSideNew || suggestion.StartLine <= previousEnd {
+		if !orderedReviewSuggestion(suggestion, previousEnd) {
 			return "", domain.ErrReviewSuggestionConflict
 		}
 		original, ok := markdownLineRange(markdown, suggestion.StartLine, suggestion.EndLine)
@@ -474,4 +474,19 @@ func suggestionLines(replacement string) []string {
 // reviewURL returns the local review page URL for notifications.
 func reviewURL(reviewID int64, slug string) string {
 	return fmt.Sprintf("/reviews/%d/%s", reviewID, strings.TrimSpace(slug))
+}
+
+// validReviewCommentSide reports whether side identifies one side of a review diff.
+func validReviewCommentSide(side string) bool {
+	return side == domain.PageReviewCommentSideOld || side == domain.PageReviewCommentSideNew
+}
+
+// orderedReviewSuggestion reports whether a suggestion targets the new side without overlapping the previous suggestion.
+func orderedReviewSuggestion(suggestion domain.PageReviewComment, previousEnd int) bool {
+	return suggestion.Side == domain.PageReviewCommentSideNew && suggestion.StartLine > previousEnd
+}
+
+// validReviewCommentLineRange reports whether a review anchor is ordered, positive, and within the configured span.
+func validReviewCommentLineRange(startLine, endLine int) bool {
+	return startLine > 0 && endLine >= startLine && endLine-startLine+1 <= maxReviewAnchorLines
 }
