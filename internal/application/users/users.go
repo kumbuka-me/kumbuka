@@ -133,7 +133,9 @@ func (s *Users) ApprovePendingOIDCIdentity(
 	}
 
 	audit.Record(
-		ctx, s.logger, s.repository,
+		ctx,
+		s.logger,
+		s.repository,
 		actorID,
 		"identity.oidc_approved",
 		"user",
@@ -156,7 +158,9 @@ func (s *Users) LinkPendingOIDCIdentity(
 	}
 
 	audit.Record(
-		ctx, s.logger, s.repository,
+		ctx,
+		s.logger,
+		s.repository,
 		actorID,
 		"identity.oidc_linked",
 		"user",
@@ -203,7 +207,9 @@ func (s *Users) RemoveOIDCIdentity(
 	}
 
 	audit.Record(
-		ctx, s.logger, s.repository,
+		ctx,
+		s.logger,
+		s.repository,
 		actorID,
 		"identity.oidc_removed",
 		"user",

@@ -35,7 +35,12 @@ func (s *Users) UpdateAccount(ctx context.Context, input UserUpdateInput) error 
 		return err
 	}
 
-	update := domain.UserAccountUpdate{UserID: input.UserID, Role: input.Role, Enabled: input.Enabled, GroupIDs: input.GroupIDs}
+	update := domain.UserAccountUpdate{
+		UserID:   input.UserID,
+		Role:     input.Role,
+		Enabled:  input.Enabled,
+		GroupIDs: input.GroupIDs,
+	}
 	if err := s.prepareLocalCredentialUpdate(ctx, input, &update); err != nil {
 		return err
 	}
@@ -85,7 +90,9 @@ func (s *Users) prepareLocalCredentialUpdate(ctx context.Context, input UserUpda
 		return err
 	}
 	if !domain.IsExternalAuthMode(domain.AuthMode(mode)) {
-		return domain.NewValidationError("local_credential_enabled", "Local recovery credentials can only be enabled or disabled while external authentication is active.")
+		return domain.NewValidationError(
+			"local_credential_enabled",
+			"Local recovery credentials can only be enabled or disabled while external authentication is active.")
 	}
 	enabled := input.Password != "" || input.LocalCredentialEnabled
 	update.LocalCredentialEnabled = &enabled

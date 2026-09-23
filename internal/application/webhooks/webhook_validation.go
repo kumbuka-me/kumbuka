@@ -31,14 +31,23 @@ func validateWebhookInput(input WebhookInput, events []string) error {
 // validateWebhookIdentity validates the name, destination URL, and selected events.
 func validateWebhookIdentity(input WebhookInput, events []string, validation *domain.ValidationError) {
 	if input.Name == "" {
-		validation.Fields = append(validation.Fields, domain.FieldError{Field: "name", Message: "A webhook name is required."})
+		validation.Fields = append(validation.Fields, domain.FieldError{
+			Field:   "name",
+			Message: "A webhook name is required.",
+		})
 	}
 	parsed, err := url.ParseRequestURI(input.URL)
 	if err != nil || !validWebhookURL(parsed) {
-		validation.Fields = append(validation.Fields, domain.FieldError{Field: "url", Message: "Enter an absolute HTTP or HTTPS URL."})
+		validation.Fields = append(validation.Fields, domain.FieldError{
+			Field:   "url",
+			Message: "Enter an absolute HTTP or HTTPS URL.",
+		})
 	}
 	if len(events) == 0 {
-		validation.Fields = append(validation.Fields, domain.FieldError{Field: "events", Message: "Choose at least one event."})
+		validation.Fields = append(validation.Fields, domain.FieldError{
+			Field:   "events",
+			Message: "Choose at least one event.",
+		})
 	}
 }
 
@@ -58,13 +67,24 @@ func validateWebhookRetry(input WebhookInput, validation *domain.ValidationError
 		return
 	}
 	if input.RetryCount < 1 || input.RetryCount > maxWebhookRetryCount {
-		validation.Fields = append(validation.Fields, domain.FieldError{Field: "retry_count", Message: "Retries must be between 1 and 10."})
+		validation.Fields = append(validation.Fields, domain.FieldError{
+			Field:   "retry_count",
+			Message: "Retries must be between 1 and 10.",
+		})
 	}
 	if input.RetryBackoff <= 0 || input.RetryBackoff > maxWebhookRetryBackoff {
-		validation.Fields = append(validation.Fields, domain.FieldError{Field: "retry_backoff", Message: "Initial backoff must be greater than zero and at most 1h."})
+		validation.Fields = append(
+			validation.Fields,
+			domain.FieldError{
+				Field: "retry_backoff", Message: "Initial backoff must be greater than zero and at most 1h.",
+			},
+		)
 	}
 	if !validWebhookMaximumBackoff(input) {
-		validation.Fields = append(validation.Fields, domain.FieldError{Field: "retry_max_backoff", Message: "Maximum backoff must be at least the initial backoff and at most 1h."})
+		validation.Fields = append(validation.Fields, domain.FieldError{
+			Field:   "retry_max_backoff",
+			Message: "Maximum backoff must be at least the initial backoff and at most 1h.",
+		})
 	}
 }
 
@@ -98,7 +118,10 @@ func validateWebhookBodyTemplate(value string) error {
 		Detail:     `Example "page" updated`,
 		OccurredAt: time.Date(2026, 9, 11, 8, 0, 0, 0, time.UTC),
 	}
-	body, err := tmpl.Render(webhookNotification{event: event, publicURL: "https://kumbuka.example"}.Data("Example", nil, event.Event))
+	body, err := tmpl.Render(webhookNotification{
+		event:     event,
+		publicURL: "https://kumbuka.example",
+	}.Data("Example", nil, event.Event))
 	if err != nil {
 		return fmt.Errorf("render template: %w", err)
 	}
@@ -145,7 +168,12 @@ func (s *Webhooks) webhookHeadersByID(ctx context.Context, webhookID int64) (map
 }
 
 // prepareWebhookHeader validates and encrypts one submitted request header.
-func (s *Webhooks) prepareWebhookHeader(input WebhookHeaderInput, existing map[int64]domain.WebhookHeader, seenNames map[string]struct{}, seenIDs map[int64]struct{}) (domain.WebhookHeader, error) {
+func (s *Webhooks) prepareWebhookHeader(
+	input WebhookHeaderInput,
+	existing map[int64]domain.WebhookHeader,
+	seenNames map[string]struct{},
+	seenIDs map[int64]struct{},
+) (domain.WebhookHeader, error) {
 	name, err := normalizeWebhookHeaderName(input.Name)
 	if err != nil {
 		return domain.WebhookHeader{}, err
@@ -164,7 +192,12 @@ func (s *Webhooks) prepareWebhookHeader(input WebhookHeaderInput, existing map[i
 	if err != nil {
 		return domain.WebhookHeader{}, err
 	}
-	return domain.WebhookHeader{ID: previous.ID, Name: name, Value: value, Sensitive: input.Sensitive}, nil
+	return domain.WebhookHeader{
+		ID:        previous.ID,
+		Name:      name,
+		Value:     value,
+		Sensitive: input.Sensitive,
+	}, nil
 }
 
 // prepareWebhookHeaderValue preserves unchanged secrets or validates and encrypts a replacement value.

@@ -139,7 +139,12 @@ type Webhooks struct {
 }
 
 // NewWebhooks constructs outgoing webhook use cases.
-func NewWebhooks(repository webhookRepository, secretCodec secretCodec, logger *slog.Logger, publicURL string) *Webhooks {
+func NewWebhooks(
+	repository webhookRepository,
+	secretCodec secretCodec,
+	logger *slog.Logger,
+	publicURL string,
+) *Webhooks {
 	return &Webhooks{
 		repository: repository,
 		secrets:    secretCodec,

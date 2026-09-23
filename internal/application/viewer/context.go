@@ -83,9 +83,24 @@ type Query struct {
 }
 
 // New constructs the shared browser query.
-func New(preferences preferenceReader, navigation navigationReader, catalog sidebarCatalogReader,
-	settings settingsReader, savedSearches savedSearchReader, notifications notificationReader, access accessReader) *Query {
-	return &Query{preferences, navigation, catalog, settings, savedSearches, notifications, access}
+func New(
+	preferences preferenceReader,
+	navigation navigationReader,
+	catalog sidebarCatalogReader,
+	settings settingsReader,
+	savedSearches savedSearchReader,
+	notifications notificationReader,
+	access accessReader,
+) *Query {
+	return &Query{
+		preferences,
+		navigation,
+		catalog,
+		settings,
+		savedSearches,
+		notifications,
+		access,
+	}
 }
 
 // Load reads shared data for one actor; administration screens omit the page tree.
