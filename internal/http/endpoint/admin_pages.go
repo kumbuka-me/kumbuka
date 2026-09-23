@@ -3,7 +3,6 @@ package endpoint
 import (
 	"log/slog"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
@@ -79,7 +78,16 @@ func BulkAdminPages(
 			return
 		}
 
-		groupID, _ := strconv.ParseInt(r.FormValue("group_id"), 10, 64)
+		groupID := int64(0)
+		var err error
+		if action == "group" {
+			groupID, err = parseRequiredPositiveFormInt64(r.FormValue("group_id"))
+			if err != nil {
+				httpresponse.Problem(w, http.StatusBadRequest, "Choose a valid group.")
+				return
+			}
+		}
+
 		if err := pageUseCases.Bulk(r.Context(), apppages.BulkPageInput{
 			Action:  action,
 			Slugs:   slugs,
