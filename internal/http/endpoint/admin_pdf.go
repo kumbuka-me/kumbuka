@@ -176,7 +176,7 @@ func pdfHeadersFromForm(r *http.Request) ([]appsettings.PDFHeaderInput, error) {
 	seen := make(map[string]struct{}, len(rows))
 	headers := make([]appsettings.PDFHeaderInput, 0, len(rows))
 	for _, row := range rows {
-		if !validPDFHeaderRow(row) {
+		if !validDynamicFormRow(row) {
 			return nil, newRequestError("pdf_headers", "The PDF header form is invalid.", nil)
 		}
 		if _, exists := seen[row]; exists {
@@ -206,35 +206,6 @@ func pdfHeadersFromForm(r *http.Request) ([]appsettings.PDFHeaderInput, error) {
 	}
 
 	return headers, nil
-}
-
-// validPDFHeaderRow restricts dynamic form keys to a small identifier alphabet.
-func validPDFHeaderRow(value string) bool {
-	if value == "" {
-		return false
-	}
-	if len(value) > 64 {
-		return false
-	}
-
-	for _, character := range value {
-		if character >= 'a' && character <= 'z' {
-			continue
-		}
-		if character >= 'A' && character <= 'Z' {
-			continue
-		}
-		if character >= '0' && character <= '9' {
-			continue
-		}
-		if character == '-' || character == '_' {
-			continue
-		}
-
-		return false
-	}
-
-	return true
 }
 
 // pdfRequestHeaders converts resolved application settings into net/http request headers.

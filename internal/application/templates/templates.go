@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 
+	"github.com/kumbuka-me/kumbuka/pkg/ascii"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	md "github.com/kumbuka-me/kumbuka/pkg/markdown"
 )
@@ -232,8 +233,7 @@ func validTemplateFieldName(value string) bool {
 
 // validTemplateFieldCharacter reports whether character belongs to the portable blueprint field alphabet.
 func validTemplateFieldCharacter(character rune) bool {
-	return character >= 'a' && character <= 'z' || character >= 'A' && character <= 'Z' ||
-		character >= '0' && character <= '9' || character == '_' || character == '-'
+	return ascii.IsAlphanumeric(character) || character == '_' || character == '-'
 }
 
 // normalizeTags canonicalizes and deduplicates blueprint tags.

@@ -4,6 +4,8 @@ import (
 	"errors"
 	"strconv"
 	"strings"
+
+	"github.com/kumbuka-me/kumbuka/pkg/ascii"
 )
 
 var errMissingFormInteger = errors.New("integer form value is required")
@@ -44,4 +46,21 @@ func parseOptionalFormInt(value string) (int, error) {
 	}
 
 	return strconv.Atoi(value)
+}
+
+// validDynamicFormRow reports whether a dynamic form row identifier uses the bounded portable alphabet.
+func validDynamicFormRow(value string) bool {
+	if value == "" || len(value) > 64 {
+		return false
+	}
+
+	for _, character := range value {
+		if ascii.IsAlphanumeric(character) || character == '-' || character == '_' {
+			continue
+		}
+
+		return false
+	}
+
+	return true
 }

@@ -131,7 +131,7 @@ func webhookHeadersFromForm(r *http.Request) ([]appwebhooks.WebhookHeaderInput, 
 	seen := make(map[string]struct{}, len(rows))
 	headers := make([]appwebhooks.WebhookHeaderInput, 0, len(rows))
 	for _, row := range rows {
-		if !validWebhookHeaderRow(row) {
+		if !validDynamicFormRow(row) {
 			return nil, newRequestError("headers", "The webhook header form is invalid.", nil)
 		}
 		if _, exists := seen[row]; exists {
@@ -158,26 +158,6 @@ func webhookHeadersFromForm(r *http.Request) ([]appwebhooks.WebhookHeaderInput, 
 	}
 
 	return headers, nil
-}
-
-// validWebhookHeaderRow restricts dynamic form keys to a small identifier alphabet.
-func validWebhookHeaderRow(value string) bool {
-	if value == "" || len(value) > 64 {
-		return false
-	}
-	for _, character := range value {
-		if validWebhookHeaderRowCharacter(character) {
-			continue
-		}
-		return false
-	}
-	return true
-}
-
-// validWebhookHeaderRowCharacter reports whether character belongs to the dynamic webhook-row identifier alphabet.
-func validWebhookHeaderRowCharacter(character rune) bool {
-	return character >= 'a' && character <= 'z' || character >= 'A' && character <= 'Z' ||
-		character >= '0' && character <= '9' || character == '-' || character == '_'
 }
 
 // DeleteAdminWebhook removes one configured outgoing webhook.
