@@ -47,13 +47,18 @@
   ],
   "packageRules": [
     {
-      "matchDatasources": ["docker"],
-      "matchPackageNames": ["docker/dockerfile"],
+      "matchPackageNames": ["/^(?:github\\.com\\/)?kumbuka-me\\//"],
+      "matchUpdateTypes": ["minor", "patch"],
       "automerge": true
     },
     {
-      "matchManagers": ["github-actions"],
-      "matchPackageNames": ["golangci/golangci-lint"],
+      "matchPackageNames": ["prettier", "golangci/golangci-lint"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "automerge": true
+    },
+    {
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["docker/dockerfile"],
       "automerge": true
     },
     {
