@@ -1,6 +1,7 @@
 package endpoint
 
 import (
+	"context"
 	"log/slog"
 	"net/http"
 
@@ -8,6 +9,30 @@ import (
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/kumbuka-me/kumbuka/pkg/plugin"
 )
+
+// editorCatalogPage supplies a visible page link target and label for editor completion.
+type editorCatalogPage struct {
+	// Slug is the canonical page path inserted into a link.
+	Slug string `json:"slug"`
+	// Title labels the completion in the editor.
+	Title string `json:"title"`
+}
+
+// editorCatalogPluginData contains plugin-owned metadata exposed to one editor actor.
+type editorCatalogPluginData struct {
+	// completions contains concrete plugin completion values.
+	completions []plugin.EditorCompletionItem
+	// completionProviders describes resource-backed completion providers allowed for the actor.
+	completionProviders []plugin.EditorCompletionProvider
+	// inserts contains plugin-contributed editor insertion commands.
+	inserts []plugin.EditorInsertContribution
+	// toolbar contains the resolved editor toolbar groups.
+	toolbar []plugin.ToolbarGroup
+	// widgets contains plugin-contributed editor widgets.
+	widgets []plugin.EditorWidgetContribution
+	// widgetProblems contains validation problems for plugin-contributed widgets.
+	widgetProblems []plugin.EditorWidgetProblem
+}
 
 // EditorCatalog returns page and plugin-owned editor metadata used by editor intelligence.
 func EditorCatalog(
@@ -17,14 +42,6 @@ func EditorCatalog(
 	plugins *plugin.Manager,
 	logger *slog.Logger,
 ) http.HandlerFunc {
-	// pageItem supplies a link target and label for editor completion.
-	type pageItem struct {
-		// Slug is the canonical page path inserted into a link.
-		Slug string `json:"slug"`
-		// Title labels the completion in the editor.
-		Title string `json:"title"`
-	}
-
 	return func(w http.ResponseWriter, r *http.Request) {
 		user := currentUser(r)
 		pages, err := navigationUseCases.VisiblePages(r.Context(), user)
@@ -33,44 +50,10 @@ func EditorCatalog(
 			return
 		}
 
-		items := make([]pageItem, 0, len(pages))
-		for _, page := range pages {
-			items = append(items, pageItem{Slug: page.Slug, Title: page.Title})
-		}
-
-		var completions []plugin.EditorCompletionItem
-		var completionProviders []plugin.EditorCompletionProvider
-		var inserts []plugin.EditorInsertContribution
-		var toolbar []plugin.ToolbarGroup
-		var widgets []plugin.EditorWidgetContribution
-		var widgetProblems []plugin.EditorWidgetProblem
-		if plugins != nil {
-			completions, err = plugins.EditorCompletions(r.Context())
-			if err != nil {
-				httpresponse.InternalServerError(logger, w, err)
-				return
-			}
-
-			completionProviders = plugins.EditorCompletionProviders()
-			canCreateResources := user.Role == domain.UserRoleAdmin
-			for index := range completionProviders {
-				completionProviders[index].CanCreate = completionProviders[index].CanCreate && canCreateResources
-				if !completionProviders[index].CanCreate {
-					completionProviders[index].ResourceID = ""
-					completionProviders[index].Replacement = ""
-					completionProviders[index].LabelField = ""
-					completionProviders[index].DetailField = ""
-					completionProviders[index].Fields = []plugin.EditorCompletionField{}
-				}
-			}
-			inserts = plugins.EditorInserts()
-			settings, settingsErr := settingsUseCases.ApplicationSettings(r.Context())
-			if settingsErr != nil {
-				httpresponse.InternalServerError(logger, w, settingsErr)
-				return
-			}
-			toolbar = plugins.ResolveEditorToolbar(settings.EditorToolbarOverrides)
-			widgets, widgetProblems = plugins.EditorWidgets()
+		pluginData, err := loadEditorCatalogPluginData(r.Context(), user, settingsUseCases, plugins)
+		if err != nil {
+			httpresponse.InternalServerError(logger, w, err)
+			return
 		}
 
 		aliases, err := catalogUseCases.PageAliasesFor(r.Context(), user)
@@ -83,14 +66,76 @@ func EditorCatalog(
 		}
 
 		httpresponse.Respond(w, http.StatusOK, map[string]any{
-			"pages":                items,
-			"completions":          jsonSlice(completions),
-			"completion_providers": jsonSlice(completionProviders),
-			"inserts":              jsonSlice(inserts),
-			"toolbar":              jsonSlice(toolbar),
-			"widgets":              jsonSlice(widgets),
-			"widget_problems":      jsonSlice(widgetProblems),
+			"pages":                editorCatalogPages(pages),
+			"completions":          jsonSlice(pluginData.completions),
+			"completion_providers": jsonSlice(pluginData.completionProviders),
+			"inserts":              jsonSlice(pluginData.inserts),
+			"toolbar":              jsonSlice(pluginData.toolbar),
+			"widgets":              jsonSlice(pluginData.widgets),
+			"widget_problems":      jsonSlice(pluginData.widgetProblems),
 			"aliases":              aliases,
 		})
 	}
+}
+
+// editorCatalogPages projects visible domain pages into the minimal editor completion shape.
+func editorCatalogPages(pages []domain.Page) []editorCatalogPage {
+	items := make([]editorCatalogPage, 0, len(pages))
+	for _, page := range pages {
+		items = append(items, editorCatalogPage{Slug: page.Slug, Title: page.Title})
+	}
+	return items
+}
+
+// loadEditorCatalogPluginData resolves plugin metadata and applies actor-specific creation capabilities.
+func loadEditorCatalogPluginData(
+	ctx context.Context,
+	user domain.User,
+	settingsUseCases settingsService,
+	plugins *plugin.Manager,
+) (editorCatalogPluginData, error) {
+	if plugins == nil {
+		return editorCatalogPluginData{}, nil
+	}
+
+	completions, err := plugins.EditorCompletions(ctx)
+	if err != nil {
+		return editorCatalogPluginData{}, err
+	}
+
+	settings, err := settingsUseCases.ApplicationSettings(ctx)
+	if err != nil {
+		return editorCatalogPluginData{}, err
+	}
+
+	widgets, widgetProblems := plugins.EditorWidgets()
+
+	return editorCatalogPluginData{
+		completions:         completions,
+		completionProviders: scopeEditorCompletionProviders(plugins.EditorCompletionProviders(), user.IsAdministrator()),
+		inserts:             plugins.EditorInserts(),
+		toolbar:             plugins.ResolveEditorToolbar(settings.EditorToolbarOverrides),
+		widgets:             widgets,
+		widgetProblems:      widgetProblems,
+	}, nil
+}
+
+// scopeEditorCompletionProviders removes resource-creation details unavailable to the current actor.
+func scopeEditorCompletionProviders(
+	providers []plugin.EditorCompletionProvider,
+	canCreateResources bool,
+) []plugin.EditorCompletionProvider {
+	for index := range providers {
+		providers[index].CanCreate = providers[index].CanCreate && canCreateResources
+		if providers[index].CanCreate {
+			continue
+		}
+
+		providers[index].ResourceID = ""
+		providers[index].Replacement = ""
+		providers[index].LabelField = ""
+		providers[index].DetailField = ""
+		providers[index].Fields = []plugin.EditorCompletionField{}
+	}
+	return providers
 }
