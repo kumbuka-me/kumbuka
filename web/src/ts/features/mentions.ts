@@ -9,6 +9,7 @@ let mentionMenuSequence = 0;
 
 type Fence = { character: string; length: number };
 export type MentionTrigger = { start: number; query: string };
+export type MentionRange = { start: number; end: number; username: string };
 export type MentionUser = {
   username: string;
   display_name?: string;
@@ -87,6 +88,24 @@ export function mentionTrigger(
 // Builds the canonical mention text for a username.
 export function mentionReplacement(username: string): string {
   return `@${username}`;
+}
+
+// Finds complete mentions in plain text for visual presentation.
+export function mentionRanges(value: string): MentionRange[] {
+  const ranges: MentionRange[] = [];
+  const pattern = /(^|[^A-Za-z0-9_])@([A-Za-z0-9_.-]+)/gu;
+
+  for (const match of value.matchAll(pattern)) {
+    if (match.index === undefined) continue;
+    const start = match.index + match[1].length;
+    ranges.push({
+      start,
+      end: start + match[2].length + 1,
+      username: match[2],
+    });
+  }
+
+  return ranges;
 }
 
 // Builds compact initials for a person label.

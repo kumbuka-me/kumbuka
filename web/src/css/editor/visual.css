@@ -31,6 +31,22 @@
   z-index: 120;
 }
 
+.visual-mention {
+  box-decoration-break: clone;
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--border));
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--accent) 11%, var(--surface));
+  padding: 1px 4px;
+  color: var(--accent);
+  font-weight: 600;
+  -webkit-box-decoration-break: clone;
+}
+
+.visual-mention:hover {
+  border-color: color-mix(in srgb, var(--accent) 38%, var(--border));
+  background: color-mix(in srgb, var(--accent) 17%, var(--surface));
+}
+
 .visual-toolbar {
   position: relative;
   z-index: 8;

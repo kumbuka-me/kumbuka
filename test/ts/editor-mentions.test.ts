@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   mentionReplacement,
+  mentionRanges,
   mentionTrigger,
 } from "../../web/src/ts/features/mentions.ts";
 
@@ -32,4 +33,11 @@ test("mentionTrigger ignores fenced and inline code", () => {
 
 test("mentionReplacement inserts the canonical username", () => {
   assert.equal(mentionReplacement("daniel"), "@daniel");
+});
+
+test("mentionRanges finds visual mentions without matching email addresses", () => {
+  assert.deepEqual(mentionRanges("Hi @daniel and (@a.b-c), not mail@example"), [
+    { start: 3, end: 10, username: "daniel" },
+    { start: 16, end: 22, username: "a.b-c" },
+  ]);
 });

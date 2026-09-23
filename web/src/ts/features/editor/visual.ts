@@ -33,6 +33,7 @@ import { matchWidgetSource, type CatalogWidget } from "./widget-contract.ts";
 import { visualWidgetNodes } from "./visual-widget-node.ts";
 import {
   mentionReplacement,
+  mentionRanges,
   mentionTrigger,
   renderMentionSuggestions,
   searchMentionUsers,
@@ -524,6 +525,48 @@ function visualTableStyles(source: () => string): AnyExtension {
                 });
                 return false;
               });
+              return DecorationSet.create(state.doc, decorations);
+            },
+          },
+        }),
+      ];
+    },
+  });
+}
+
+// Styles Markdown mentions like Confluence person lozenges without changing source.
+function visualMentions(): AnyExtension {
+  return Extension.create({
+    name: "visualMentions",
+    addProseMirrorPlugins() {
+      return [
+        new Plugin({
+          props: {
+            decorations(state) {
+              const decorations: Decoration[] = [];
+
+              state.doc.descendants((node, position, parent) => {
+                if (!node.isText || !node.text) return true;
+                if (parent?.type?.name === "codeBlock") return false;
+                if (node.marks?.some((mark: any) => mark.type.name === "code"))
+                  return true;
+
+                for (const mention of mentionRanges(node.text)) {
+                  decorations.push(
+                    Decoration.inline(
+                      position + mention.start,
+                      position + mention.end,
+                      {
+                        class: "visual-mention",
+                        "data-visual-mention": mention.username,
+                        title: `Mention @${mention.username}`,
+                      },
+                    ),
+                  );
+                }
+                return true;
+              });
+
               return DecorationSet.create(state.doc, decorations);
             },
           },
@@ -1173,6 +1216,7 @@ export function setupVisualEditor(form: HTMLFormElement): void {
           element: visualSurface,
           extensions: [
             StarterKit.configure({ link: { openOnClick: false } }),
+            visualMentions(),
             TableKit.configure({
               table: { resizable: true, cellMinWidth: 40 },
             }),
