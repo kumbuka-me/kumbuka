@@ -902,22 +902,23 @@ func validateEditorWidgetTabsPreview(preview EditorWidgetPreview, attributes map
 
 // previewHasOtherKind reports whether preview contains metadata for a different preview renderer.
 func previewHasOtherKind(preview EditorWidgetPreview, allowed string) bool {
-	if allowed != "badge" && preview.Badge != nil {
-		return true
+	kinds := []struct {
+		name    string
+		present bool
+	}{
+		{name: "badge", present: preview.Badge != nil},
+		{name: "reference", present: preview.Reference != nil},
+		{name: "card", present: preview.Card != nil},
+		{name: "callout", present: preview.Callout != nil},
+		{name: "details", present: preview.Details != nil},
+		{name: "tabs", present: preview.Tabs != nil},
 	}
-	if allowed != "reference" && preview.Reference != nil {
-		return true
+	for _, kind := range kinds {
+		if kind.name != allowed && kind.present {
+			return true
+		}
 	}
-	if allowed != "card" && preview.Card != nil {
-		return true
-	}
-	if allowed != "callout" && preview.Callout != nil {
-		return true
-	}
-	if allowed != "details" && preview.Details != nil {
-		return true
-	}
-	return allowed != "tabs" && preview.Tabs != nil
+	return false
 }
 
 // validateEditorWidgetClasses rejects unsafe non-empty presentation class names.

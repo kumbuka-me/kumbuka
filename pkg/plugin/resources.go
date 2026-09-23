@@ -260,19 +260,13 @@ func (m *Manager) SaveResourceRecord(ctx context.Context, pluginID, moduleID, or
 		return errors.New("plugin resource storage is unavailable")
 	}
 
-	var previous ResourceRecord
-	if strings.TrimSpace(originalKey) != "" {
-		var found bool
-		previous, found, err = ReadResourceRecord(ctx, m.values, pluginID, module, originalKey)
-		if err != nil {
-			return err
-		}
-		if !found {
-			return errors.New("plugin resource record no longer exists")
-		}
+	originalKey = strings.TrimSpace(originalKey)
+	previous, err := readPreviousResourceRecord(ctx, m.values, pluginID, module, originalKey)
+	if err != nil {
+		return err
 	}
 
-	validated, key, err := normalizeResourceRecord(module, values, previous.Values, strings.TrimSpace(originalKey) == "")
+	validated, key, err := normalizeResourceRecord(module, values, previous.Values, originalKey == "")
 	if err != nil {
 		return err
 	}
@@ -287,22 +281,42 @@ func (m *Manager) SaveResourceRecord(ctx context.Context, pluginID, moduleID, or
 		return errors.New("plugin resource record is too large")
 	}
 
+	return m.persistResourceRecord(ctx, pluginID, module, originalKey, key, encoded)
+}
+
+// readPreviousResourceRecord loads the existing record for an edit.
+func readPreviousResourceRecord(ctx context.Context, storage Storage, pluginID string, module pluginpackage.Module, key string) (ResourceRecord, error) {
+	if key == "" {
+		return ResourceRecord{}, nil
+	}
+	record, found, err := ReadResourceRecord(ctx, storage, pluginID, module, key)
+	if err != nil {
+		return ResourceRecord{}, err
+	}
+	if !found {
+		return ResourceRecord{}, errors.New("plugin resource record no longer exists")
+	}
+	return record, nil
+}
+
+// persistResourceRecord writes a record in place or atomically renames its storage key.
+func (m *Manager) persistResourceRecord(ctx context.Context, pluginID string, module pluginpackage.Module, originalKey, key string, encoded []byte) error {
 	newStorageKey := resourceStorageKey(module.ID, key)
 	oldStorageKey := resourceStorageKey(module.ID, originalKey)
-	if originalKey != "" && oldStorageKey != newStorageKey {
-		err := m.values.ReplacePluginValue(ctx, pluginID, resourceNamespace, oldStorageKey, newStorageKey, encoded)
-		switch {
-		case errors.Is(err, ErrPluginValueAlreadyExists):
-			keyField := resourceKeyField(module)
-			return configurationFieldError(keyField, keyField.Name+" is already in use.")
-		case errors.Is(err, ErrPluginValueNotFound):
-			return errors.New("plugin resource record no longer exists")
-		default:
-			return err
-		}
+	if originalKey == "" || oldStorageKey == newStorageKey {
+		return m.values.WritePluginValue(ctx, pluginID, resourceNamespace, newStorageKey, encoded)
 	}
 
-	return m.values.WritePluginValue(ctx, pluginID, resourceNamespace, newStorageKey, encoded)
+	err := m.values.ReplacePluginValue(ctx, pluginID, resourceNamespace, oldStorageKey, newStorageKey, encoded)
+	switch {
+	case errors.Is(err, ErrPluginValueAlreadyExists):
+		keyField := resourceKeyField(module)
+		return configurationFieldError(keyField, keyField.Name+" is already in use.")
+	case errors.Is(err, ErrPluginValueNotFound):
+		return errors.New("plugin resource record no longer exists")
+	default:
+		return err
+	}
 }
 
 // DeleteResourceRecord deletes one plugin-owned resource record.
@@ -501,29 +515,16 @@ func resourceKeyField(module pluginpackage.Module) pluginpackage.ConfigurationFi
 
 // normalizeResourceRecord validates and normalizes one record against its manifest schema.
 func normalizeResourceRecord(module pluginpackage.Module, values, previous map[string]string, creating bool) (map[string]string, string, error) {
-	declared := make(map[string]pluginpackage.ConfigurationField, len(module.Fields))
-	for _, field := range module.Fields {
-		declared[field.ID] = field
-	}
-	for field := range values {
-		if _, ok := declared[field]; !ok {
-			return nil, "", fmt.Errorf("unknown resource field %q", field)
-		}
+	if err := validateResourceFieldNames(module, values); err != nil {
+		return nil, "", err
 	}
 
 	result := make(map[string]string, len(module.Fields))
 	key := ""
 	for _, field := range module.Fields {
-		value := values[field.ID]
-		if creating && value == "" && field.Default != "" {
-			value = field.Default
-		}
-		normalized, err := normalizeConfigurationValue(field, value)
+		normalized, err := normalizeResourceField(field, values[field.ID], previous, creating)
 		if err != nil {
 			return nil, "", err
-		}
-		if requiredConfigurationValueMissing(field, normalized, previous) {
-			return nil, "", configurationFieldError(field, field.Name+" is required.")
 		}
 		if field.Key {
 			if !validResourceKey(normalized) {
@@ -534,6 +535,35 @@ func normalizeResourceRecord(module pluginpackage.Module, values, previous map[s
 		result[field.ID] = normalized
 	}
 	return result, key, nil
+}
+
+// validateResourceFieldNames rejects values not declared by the resource module.
+func validateResourceFieldNames(module pluginpackage.Module, values map[string]string) error {
+	declared := make(map[string]struct{}, len(module.Fields))
+	for _, field := range module.Fields {
+		declared[field.ID] = struct{}{}
+	}
+	for field := range values {
+		if _, ok := declared[field]; !ok {
+			return fmt.Errorf("unknown resource field %q", field)
+		}
+	}
+	return nil
+}
+
+// normalizeResourceField applies defaults and manifest validation to one field.
+func normalizeResourceField(field pluginpackage.ConfigurationField, value string, previous map[string]string, creating bool) (string, error) {
+	if creating && value == "" && field.Default != "" {
+		value = field.Default
+	}
+	normalized, err := normalizeConfigurationValue(field, value)
+	if err != nil {
+		return "", err
+	}
+	if requiredConfigurationValueMissing(field, normalized, previous) {
+		return "", configurationFieldError(field, field.Name+" is required.")
+	}
+	return normalized, nil
 }
 
 // validResourceKey reports whether key can be used in a macro and plugin storage key.

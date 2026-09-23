@@ -249,6 +249,37 @@ func TestPluginResourceRenamePreservesSourceOnCollision(t *testing.T) {
 	assert.Equal(t, "two", target.Values["content"])
 }
 
+// TestPluginResourceEditNormalizesOriginalKey verifies surrounding form whitespace does not break record lookup or persistence.
+func TestPluginResourceEditNormalizesOriginalKey(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	storage := &resourceStorage{values: make(map[string][]byte)}
+	manifest := pluginpackage.Manifest{ID: "io.example.edit", Modules: []pluginpackage.Module{{
+		Type: "admin-resource", ID: "values", Name: "Values", Fields: []pluginpackage.ConfigurationField{
+			{ID: "name", Name: "Name", Type: "text", Required: true, Key: true},
+			{ID: "content", Name: "Content", Type: "text", Required: true},
+		},
+	}}}
+	manager := NewManager(&Registry{}, nil, WithStorage(storage))
+	manager.loaded[manifest.ID] = managedPlugin{metadata: LoadedPlugin{Manifest: manifest, Enabled: true}}
+
+	require.NoError(t, manager.SaveResourceRecord(ctx, manifest.ID, "values", "", map[string]string{
+		"name": "source", "content": "one",
+	}))
+	require.NoError(t, manager.SaveResourceRecord(ctx, manifest.ID, "values", " source ", map[string]string{
+		"name": "target", "content": "two",
+	}))
+
+	_, found, err := ReadResourceRecord(ctx, storage, manifest.ID, manifest.Modules[0], "source")
+	require.NoError(t, err)
+	assert.False(t, found)
+	target, found, err := ReadResourceRecord(ctx, storage, manifest.ID, manifest.Modules[0], "target")
+	require.NoError(t, err)
+	require.True(t, found)
+	assert.Equal(t, "two", target.Values["content"])
+}
+
 // TestPluginResourceValidationErrorsExposeFieldIDs verifies handlers can map resource validation back to manifest fields.
 func TestPluginResourceValidationErrorsExposeFieldIDs(t *testing.T) {
 	t.Parallel()
