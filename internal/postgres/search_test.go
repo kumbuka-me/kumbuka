@@ -6,13 +6,32 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestSearchTokensPreserveQuotedFilterValues(t *testing.T) {
+func TestSearchTokensPreserveQuotedSegments(t *testing.T) {
 	t.Parallel()
 
-	got := searchTokens(`group:"Platform Team" tag:kubernetes postgres restore`)
-	want := []string{"group:Platform Team", "tag:kubernetes", "postgres", "restore"}
+	got := searchTokens(`group:"Platform Team" tag:kubernetes "postgres restore"`)
+	want := []string{`group:"Platform Team"`, "tag:kubernetes", `"postgres restore"`}
 
 	assert.Equal(t, want, got)
+}
+
+func TestParseSearchQueryPreservesQuotedFreeText(t *testing.T) {
+	t.Parallel()
+
+	parsed := parseSearchQuery(`"postgres restore" group:"Platform Team"`)
+
+	assert.Equal(t, `"postgres restore"`, parsed.text)
+	assert.Equal(t, map[string][]string{"group": {"Platform Team"}}, parsed.filters)
+}
+
+func TestSplitSearchFilterDecodesEscapedQuotedValue(t *testing.T) {
+	t.Parallel()
+
+	key, value, ok := splitSearchFilter(`group:"Platform \"Blue\" Team"`)
+
+	assert.True(t, ok)
+	assert.Equal(t, "group", key)
+	assert.Equal(t, `Platform "Blue" Team`, value)
 }
 
 func TestSearchQueryBuilderAppliesFiltersInStableOrder(t *testing.T) {

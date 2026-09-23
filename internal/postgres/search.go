@@ -42,7 +42,9 @@ func (s *Store) SearchPage(ctx context.Context, query string, limit, offset int)
 
 // parsedSearchQuery separates free-text terms from supported field filters.
 type parsedSearchQuery struct {
-	text    string
+	// text preserves free-text websearch syntax after supported filters are removed.
+	text string
+	// filters groups supported filter values by their normalized filter name.
 	filters map[string][]string
 }
 
@@ -51,22 +53,73 @@ func parseSearchQuery(query string) parsedSearchQuery {
 	var textTerms []string
 	filters := make(map[string][]string)
 	for _, token := range searchTokens(query) {
-		key, value, found := strings.Cut(token, ":")
-		key = strings.ToLower(key)
-		if found && value != "" && isSearchFilter(key) {
+		key, value, ok := splitSearchFilter(token)
+		if ok {
 			filters[key] = append(filters[key], value)
 			continue
 		}
+
 		textTerms = append(textTerms, token)
 	}
 	return parsedSearchQuery{text: strings.Join(textTerms, " "), filters: filters}
 }
 
+// splitSearchFilter recognizes supported field filters and decodes a quoted filter value.
+func splitSearchFilter(token string) (string, string, bool) {
+	key, value, found := strings.Cut(token, ":")
+	key = strings.ToLower(key)
+	if !found || value == "" || !isSearchFilter(key) {
+		return "", "", false
+	}
+
+	return key, unquoteSearchValue(value), true
+}
+
+// unquoteSearchValue removes matching filter-value quotes while preserving escaped characters.
+func unquoteSearchValue(value string) string {
+	if !hasMatchingSearchValueQuotes(value) {
+		return value
+	}
+
+	var decoded strings.Builder
+	escaped := false
+	for _, character := range value[1 : len(value)-1] {
+		if escaped {
+			decoded.WriteRune(character)
+			escaped = false
+			continue
+		}
+		if character == '\\' {
+			escaped = true
+			continue
+		}
+		decoded.WriteRune(character)
+	}
+	if escaped {
+		decoded.WriteRune('\\')
+	}
+
+	return decoded.String()
+}
+
+// hasMatchingSearchValueQuotes reports whether a filter value is enclosed by the same supported quote character.
+func hasMatchingSearchValueQuotes(value string) bool {
+	if len(value) < 2 {
+		return false
+	}
+
+	quote := value[0]
+	return (quote == '\'' || quote == '"') && value[len(value)-1] == quote
+}
+
 // searchQueryBuilder owns SQL predicates, ranking, and positional arguments for page search.
 type searchQueryBuilder struct {
-	args  queryArgs
+	// args owns positional SQL arguments in append order.
+	args queryArgs
+	// where contains predicates joined into the final WHERE clause.
 	where []string
-	rank  string
+	// rank is the SQL ranking expression used for selection and ordering.
+	rank string
 }
 
 // newSearchQueryBuilder creates a page-search builder with optional full-text ranking.
@@ -201,7 +254,7 @@ LIMIT $1`,
 	return collectPages(rows)
 }
 
-// searchTokens splits a search query while preserving whitespace inside quoted filter values.
+// searchTokens splits a search query while preserving quoted segments and their delimiters.
 func searchTokens(query string) []string {
 	var tokens []string
 	var current strings.Builder
@@ -211,24 +264,23 @@ func searchTokens(query string) []string {
 	for _, r := range query {
 		if escaped {
 			current.WriteRune(r)
-
 			escaped = false
 			continue
 		}
-		if r == '\\' && quote != 0 {
-			escaped = true
-			continue
-		}
 		if quote != 0 {
+			current.WriteRune(r)
+			if r == '\\' {
+				escaped = true
+				continue
+			}
 			if r == quote {
 				quote = 0
-			} else {
-				current.WriteRune(r)
 			}
 			continue
 		}
 		if r == '"' || r == '\'' {
 			quote = r
+			current.WriteRune(r)
 			continue
 		}
 		if unicode.IsSpace(r) {
