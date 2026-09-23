@@ -195,8 +195,8 @@ type Layout struct {
 	// ApplicationSettings contains mutable application-wide settings for administrators.
 	ApplicationSettings domain.ApplicationSettings
 
-	// EditorInserts contains active plugin-owned editor actions.
-	EditorInserts []plugin.EditorInsertContribution
+	// EditorToolbar contains the resolved host-owned groups shared by both editor modes.
+	EditorToolbar []plugin.ToolbarGroup
 
 	// PagePathOptions contains existing page and folder locations available as parents.
 	PagePathOptions []PagePathOption

@@ -13,6 +13,7 @@ import (
 func EditorCatalog(
 	navigationUseCases navigationService,
 	catalogUseCases pageAliasService,
+	settingsUseCases settingsService,
 	plugins *plugin.Manager,
 	logger *slog.Logger,
 ) http.HandlerFunc {
@@ -39,6 +40,7 @@ func EditorCatalog(
 		var completions []plugin.EditorCompletionItem
 		var completionProviders []plugin.EditorCompletionProvider
 		var inserts []plugin.EditorInsertContribution
+		var toolbar []plugin.ToolbarGroup
 		var widgets []plugin.EditorWidgetContribution
 		var widgetProblems []plugin.EditorWidgetProblem
 		if plugins != nil {
@@ -61,6 +63,12 @@ func EditorCatalog(
 				}
 			}
 			inserts = plugins.EditorInserts()
+			settings, settingsErr := settingsUseCases.ApplicationSettings(r.Context())
+			if settingsErr != nil {
+				httpresponse.InternalServerError(logger, w, settingsErr)
+				return
+			}
+			toolbar = plugins.ResolveEditorToolbar(settings.EditorToolbarOverrides)
 			widgets, widgetProblems = plugins.EditorWidgets()
 		}
 
@@ -78,6 +86,7 @@ func EditorCatalog(
 			"completions":          jsonSlice(completions),
 			"completion_providers": jsonSlice(completionProviders),
 			"inserts":              jsonSlice(inserts),
+			"toolbar":              jsonSlice(toolbar),
 			"widgets":              jsonSlice(widgets),
 			"widget_problems":      jsonSlice(widgetProblems),
 			"aliases":              aliases,

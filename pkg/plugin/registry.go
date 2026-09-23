@@ -111,11 +111,19 @@ func cloneEntry(entry Entry) Entry {
 	c.AdminResources = slices.Clone(c.AdminResources)
 	c.EditorCompletions = slices.Clone(c.EditorCompletions)
 	c.EditorInserts = slices.Clone(c.EditorInserts)
+	c.EditorMenus = slices.Clone(c.EditorMenus)
 	c.SettingsModules = slices.Clone(c.SettingsModules)
 	c.ContentStyles = slices.Clone(c.ContentStyles)
 	c.RenderPolicies = slices.Clone(c.RenderPolicies)
 	for i := range c.SettingsModules {
 		c.SettingsModules[i].Requires = slices.Clone(c.SettingsModules[i].Requires)
+	}
+	for i := range c.EditorInserts {
+		c.EditorInserts[i].AllowedGroups = slices.Clone(c.EditorInserts[i].AllowedGroups)
+	}
+	for i := range c.EditorMenus {
+		c.EditorMenus[i].AllowedGroups = slices.Clone(c.EditorMenus[i].AllowedGroups)
+		c.EditorMenus[i].Children = slices.Clone(c.EditorMenus[i].Children)
 	}
 
 	return entry

@@ -791,29 +791,96 @@
   </section>
   </div>
   </section>
-  <dialog class="icon-picker-dialog"
-          data-icon-picker-dialog
-          data-icons-url="/api/icons"
-          aria-labelledby="external-link-icon-picker-title">
-    <div class="app-dialog-header">
-      <div>
-        <p class="eyebrow">Icons</p>
-        <h2 id="external-link-icon-picker-title">Choose external link icon</h2>
-      </div>
-      <button class="icon-button app-dialog-close"
-              type="button"
-              data-icon-picker-close
-              aria-label="Close icon picker">{{ icon "x-lucide" 20 }}</button>
+  <section class="admin-page" id="editor-toolbar">
+    <div class="settings-heading">
+      <h2>Editor toolbar</h2>
+      <p class="muted">Customize plugin actions globally. Plugin-owned submenu items keep their declared order.</p>
     </div>
-    <div class="icon-picker-search">
-      {{ icon "search-lucide" 17 }}
-      <input type="search"
-             placeholder="Search icons…"
-             autocomplete="off"
-             data-icon-picker-search
-             aria-label="Search icons" />
+    <form class="panel settings-panel settings-wide settings-form"
+          action="/admin/settings/editor-toolbar"
+          method="post">
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>Contribution</th>
+              <th>Group</th>
+              <th>Visible</th>
+              <th>Order</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {{ range .EditorToolbar }}
+              {{ range .Contributions }}
+                <tr>
+                  <td>
+                    <strong>{{ .Name }}</strong><small class="muted">{{ .PluginName }}</small><input type="hidden"
+       name="toolbar_id"
+       value="{{ .ID }}" />
+                  </td>
+                  <td>
+                    <select name="toolbar_group" aria-label="Toolbar group for {{ .Name }}">
+                      {{ $current := .Group }}{{ range .AllowedGroups }}<option value="{{ . }}"
+        {{ if eq . $current }}selected{{ end }}>{{ . }}</option>
+              {{ end }}
+              </select>
+              </td>
+              <td>
+                <input type="checkbox"
+                       name="toolbar_visible_{{ .ID }}"
+                       aria-label="Show {{ .Name }}"
+                       {{ if not .Hidden }}checked{{ end }} />
+              </td>
+              <td>
+                <input type="number"
+                       name="toolbar_order"
+                       value="{{ .Order }}"
+                       min="-1000"
+                       max="1000"
+                       aria-label="Order for {{ .Name }}" />
+              </td>
+              <td>
+                <button class="button"
+                        type="submit"
+                        name="toolbar_reset"
+                        value="{{ .ID }}"
+                        {{ if not .Overridden }}disabled{{ end }}>Reset</button>
+              </td>
+              </tr>
+            {{ end }}
+{{ end }}
+</tbody>
+</table>
+</div>
+<div class="settings-actions">
+  <button class="button primary" type="submit">Save toolbar</button>
+</div>
+</form>
+</section>
+<dialog class="icon-picker-dialog"
+        data-icon-picker-dialog
+        data-icons-url="/api/icons"
+        aria-labelledby="external-link-icon-picker-title">
+  <div class="app-dialog-header">
+    <div>
+      <p class="eyebrow">Icons</p>
+      <h2 id="external-link-icon-picker-title">Choose external link icon</h2>
     </div>
-    <div class="icon-picker-grid" data-icon-picker-grid></div>
-    <p class="icon-picker-empty-state muted" data-icon-picker-empty hidden>No matching icons.</p>
-  </dialog>
+    <button class="icon-button app-dialog-close"
+            type="button"
+            data-icon-picker-close
+            aria-label="Close icon picker">{{ icon "x-lucide" 20 }}</button>
+  </div>
+  <div class="icon-picker-search">
+    {{ icon "search-lucide" 17 }}
+    <input type="search"
+           placeholder="Search icons…"
+           autocomplete="off"
+           data-icon-picker-search
+           aria-label="Search icons" />
+  </div>
+  <div class="icon-picker-grid" data-icon-picker-grid></div>
+  <p class="icon-picker-empty-state muted" data-icon-picker-empty hidden>No matching icons.</p>
+</dialog>
 {{ end }}

@@ -199,12 +199,36 @@ type EditorInsert struct {
 	Markdown, Suffix string
 	// Placeholder supplies default selected text for wrap and prefix actions.
 	Placeholder string
-	// Mode and Group select generic editor behavior and toolbar placement.
-	Mode, Group string
+	// Mode selects generic editor behavior.
+	Mode string
+	// Group is the preferred host toolbar group.
+	Group string
+	// AllowedGroups bounds administrator placement choices.
+	AllowedGroups []string
+	// Order is the plugin's default placement hint.
+	Order int
 	// Icon is the optional host icon shown for the action.
 	Icon string
 	// Inline reports whether plain insertion should avoid surrounding line breaks.
 	Inline bool
+}
+
+// EditorMenu describes one plugin-owned host-rendered submenu.
+type EditorMenu struct {
+	// ID identifies the submenu within its plugin.
+	ID string
+	// Name and Description are shown in the toolbar and administration.
+	Name, Description string
+	// Group is the preferred host toolbar group.
+	Group string
+	// AllowedGroups bounds administrator placement choices.
+	AllowedGroups []string
+	// Icon names an optional validated host icon.
+	Icon string
+	// Order is the plugin's default placement hint.
+	Order int
+	// Children lists editor action module IDs in plugin-owned order.
+	Children []string
 }
 
 // Invocation is a serializable macro argument value carried by the WASM ABI.
@@ -436,6 +460,8 @@ type Contributions struct {
 	EditorCompletions []EditorCompletion
 	// EditorInserts declares plugin-owned editor actions.
 	EditorInserts []EditorInsert
+	// EditorMenus declares plugin-owned toolbar submenus.
+	EditorMenus []EditorMenu
 	// SettingsModules declares settings integrations owned by the plugin.
 	SettingsModules []SettingsModule
 	// ContentStyles declares safe parent-document styles owned by the plugin.

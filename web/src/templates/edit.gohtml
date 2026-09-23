@@ -342,20 +342,6 @@
               data-markdown-action="italic"
               title="Italic (⌘/Ctrl+I)"
               aria-label="Italic">{{ icon "italic-lucide" 16 }}</button>
-      {{ range .EditorInserts }}
-        {{ if eq .Group "text" }}
-          <button type="button"
-                  data-plugin-insert-plugin-id="{{ .PluginID }}"
-                  data-plugin-insert-name="{{ .Name }}"
-                  data-plugin-insert-markdown="{{ .Markdown }}"
-                  data-plugin-insert-suffix="{{ .Suffix }}"
-                  data-plugin-insert-placeholder="{{ .Placeholder }}"
-                  data-plugin-insert-mode="{{ .Mode }}"
-                  data-plugin-insert-inline="{{ .Inline }}"
-                  title="{{ if .Description }}{{ .Description }}{{ else }}{{ .Name }}{{ end }}"
-                  aria-label="{{ .Name }}">{{ if .Icon }}{{ icon .Icon 16 }}{{ else }}{{ icon "braces-lucide" 16 }}{{ end }}</button>
-        {{ end }}
-      {{ end }}
       <details class="markdown-toolbar-menu">
         <summary title="Heading"
                  aria-label="Heading">{{ icon "heading-lucide" 16 }}{{ icon "chevron-down-lucide" 12 }}</summary>
@@ -389,20 +375,6 @@
               data-markdown-action="ordered-list"
               title="Numbered list"
               aria-label="Numbered list">{{ icon "list-ordered-lucide" 16 }}</button>
-      {{ range .EditorInserts }}
-        {{ if eq .Group "blocks" }}
-          <button type="button"
-                  data-plugin-insert-plugin-id="{{ .PluginID }}"
-                  data-plugin-insert-name="{{ .Name }}"
-                  data-plugin-insert-markdown="{{ .Markdown }}"
-                  data-plugin-insert-suffix="{{ .Suffix }}"
-                  data-plugin-insert-placeholder="{{ .Placeholder }}"
-                  data-plugin-insert-mode="{{ .Mode }}"
-                  data-plugin-insert-inline="{{ .Inline }}"
-                  title="{{ if .Description }}{{ .Description }}{{ else }}{{ .Name }}{{ end }}"
-                  aria-label="{{ .Name }}">{{ if .Icon }}{{ icon .Icon 16 }}{{ else }}{{ icon "braces-lucide" 16 }}{{ end }}</button>
-        {{ end }}
-      {{ end }}
     </div>
     <div class="markdown-toolbar-group" aria-label="Insert">
       <span class="markdown-toolbar-group-label"></span>
@@ -413,19 +385,6 @@
         <div class="markdown-toolbar-popover">
           <button type="button"
                   data-markdown-action="mention">{{ icon "at-sign-lucide" 15 }}<span>Mention</span></button>
-          {{ range .EditorInserts }}
-            {{ if eq .Group "insert" }}
-              <button type="button"
-                      data-plugin-insert-plugin-id="{{ .PluginID }}"
-                      data-plugin-insert-name="{{ .Name }}"
-                      data-plugin-insert-markdown="{{ .Markdown }}"
-                      data-plugin-insert-suffix="{{ .Suffix }}"
-                      data-plugin-insert-placeholder="{{ .Placeholder }}"
-                      data-plugin-insert-mode="{{ .Mode }}"
-                      data-plugin-insert-inline="{{ .Inline }}"
-                      title="{{ if .Description }}{{ .Description }}{{ else }}{{ .Name }}{{ end }}">{{ if .Icon }}{{ icon .Icon 15 }}{{ else }}{{ icon "braces-lucide" 15 }}{{ end }}<span>{{ .Name }}</span></button>
-            {{ end }}
-          {{ end }}
         </div>
       </details>
       <button type="button"
@@ -494,6 +453,50 @@
               title="Format complete document"
               aria-label="Format complete document">{{ icon "wand-sparkles-lucide" 16 }}</button>
     </div>
+    {{ range .EditorToolbar }}
+      {{ if .Contributions }}
+        <div class="markdown-toolbar-group markdown-toolbar-plugin-group"
+             aria-label="{{ .Label }}"
+             data-toolbar-group="{{ .ID }}">
+          <span class="markdown-toolbar-group-label"></span>
+          {{ range .Contributions }}
+            {{ if not .Hidden }}
+              {{ if .Action }}
+                <button type="button"
+                        data-toolbar-contribution="{{ .ID }}"
+                        data-plugin-insert-plugin-id="{{ .Action.PluginID }}"
+                        data-plugin-insert-name="{{ .Action.Name }}"
+                        data-plugin-insert-markdown="{{ .Action.Markdown }}"
+                        data-plugin-insert-suffix="{{ .Action.Suffix }}"
+                        data-plugin-insert-placeholder="{{ .Action.Placeholder }}"
+                        data-plugin-insert-mode="{{ .Action.Mode }}"
+                        data-plugin-insert-inline="{{ .Action.Inline }}"
+                        title="{{ if .Description }}{{ .Description }}{{ else }}{{ .Name }}{{ end }}"
+                        aria-label="{{ .Name }}">{{ icon .Icon 16 }}</button>
+              {{ else }}
+                <details class="markdown-toolbar-menu" data-toolbar-contribution="{{ .ID }}">
+                  <summary title="{{ .Name }}"
+                           aria-label="{{ .Name }}">{{ icon .Icon 16 }}{{ icon "chevron-down-lucide" 12 }}</summary>
+                  <div class="markdown-toolbar-popover">
+                    {{ range .Children }}
+                      <button type="button"
+                              data-plugin-insert-plugin-id="{{ .PluginID }}"
+                              data-plugin-insert-name="{{ .Name }}"
+                              data-plugin-insert-markdown="{{ .Markdown }}"
+                              data-plugin-insert-suffix="{{ .Suffix }}"
+                              data-plugin-insert-placeholder="{{ .Placeholder }}"
+                              data-plugin-insert-mode="{{ .Mode }}"
+                              data-plugin-insert-inline="{{ .Inline }}"
+                              title="{{ if .Description }}{{ .Description }}{{ else }}{{ .Name }}{{ end }}">{{ if .Icon }}{{ icon .Icon 15 }}{{ else }}{{ icon "braces-lucide" 15 }}{{ end }}<span>{{ .Name }}</span></button>
+                    {{ end }}
+                  </div>
+                </details>
+              {{ end }}
+            {{ end }}
+          {{ end }}
+        </div>
+      {{ end }}
+    {{ end }}
   </div>
   {{ if index .PluginFeatures "markdown-syntax.tables" }}
     <div class="table-context-toolbar"

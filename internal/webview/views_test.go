@@ -2,10 +2,10 @@ package webview
 
 import (
 	"html/template"
-	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 	"testing/fstest"
 
@@ -302,5 +302,5 @@ func testRenderErrorHandler(_ *slog.Logger, w http.ResponseWriter, _ error) {
 }
 
 func testViewsLogger() *slog.Logger {
-	return slog.New(slog.NewTextHandler(io.Discard, nil))
+	return slog.New(slog.NewTextHandler(os.Stderr, nil))
 }

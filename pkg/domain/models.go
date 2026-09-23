@@ -321,6 +321,20 @@ type ApplicationSettings struct {
 	Authentication AuthenticationSettings
 	// Rendering contains application-wide content presentation defaults.
 	Rendering RenderingSettings
+	// EditorToolbarOverrides contains global administrator overrides keyed by stable contribution ID.
+	EditorToolbarOverrides []EditorToolbarOverride
+}
+
+// EditorToolbarOverride customizes one plugin toolbar contribution without changing its manifest default.
+type EditorToolbarOverride struct {
+	// ID is the stable plugin ID and contribution ID pair.
+	ID string `json:"id"`
+	// Group moves the contribution to one plugin-allowed host group; empty preserves the default.
+	Group string `json:"group,omitempty"`
+	// Hidden removes the contribution from both editor modes.
+	Hidden bool `json:"hidden,omitempty"`
+	// Order overrides the plugin's default ordering hint.
+	Order int `json:"order,omitempty"`
 }
 
 // Attachment contains metadata for a stored non-image file.

@@ -12,6 +12,7 @@ import (
 func (s *Store) ApplicationSettings(ctx context.Context) (domain.ApplicationSettings, error) {
 	var settings domain.ApplicationSettings
 	var externalLinks json.RawMessage
+	var editorToolbarOverrides json.RawMessage
 	err := s.pool.QueryRow(ctx, `
 SELECT
   allow_user_registration,
@@ -32,7 +33,8 @@ SELECT
   trusted_email_headers,
   trusted_display_name_headers,
 	trusted_group_headers,
-	trusted_admin_group
+	trusted_admin_group,
+	editor_toolbar_overrides
 FROM application_settings
 WHERE singleton=true`).Scan(
 		&settings.AllowUserRegistration,
@@ -54,11 +56,15 @@ WHERE singleton=true`).Scan(
 		&settings.Authentication.TrustedDisplayNameHeaders,
 		&settings.Authentication.TrustedGroupHeaders,
 		&settings.Authentication.TrustedAdminGroup,
+		&editorToolbarOverrides,
 	)
 	if err != nil {
 		return domain.ApplicationSettings{}, err
 	}
 	if err := json.Unmarshal(externalLinks, &settings.ExternalLinks); err != nil {
+		return domain.ApplicationSettings{}, err
+	}
+	if err := json.Unmarshal(editorToolbarOverrides, &settings.EditorToolbarOverrides); err != nil {
 		return domain.ApplicationSettings{}, err
 	}
 
@@ -71,10 +77,14 @@ func (s *Store) SaveApplicationSettings(ctx context.Context, settings domain.App
 	if err != nil {
 		return err
 	}
+	editorToolbarOverrides, err := json.Marshal(settings.EditorToolbarOverrides)
+	if err != nil {
+		return err
+	}
 
 	_, err = s.pool.Exec(ctx, `
-INSERT INTO application_settings(singleton,allow_user_registration,discussions_enabled,external_links,default_typography_size,content_language,robots_policy,updated_at)
-VALUES(true,$1,$2,$3::jsonb,$4,$5,$6,now())
+INSERT INTO application_settings(singleton,allow_user_registration,discussions_enabled,external_links,default_typography_size,content_language,robots_policy,editor_toolbar_overrides,updated_at)
+VALUES(true,$1,$2,$3::jsonb,$4,$5,$6,$7::jsonb,now())
 ON CONFLICT(singleton) DO UPDATE
 SET allow_user_registration=EXCLUDED.allow_user_registration,
     discussions_enabled=EXCLUDED.discussions_enabled,
@@ -82,7 +92,8 @@ SET allow_user_registration=EXCLUDED.allow_user_registration,
     default_typography_size=EXCLUDED.default_typography_size,
     content_language=EXCLUDED.content_language,
     robots_policy=EXCLUDED.robots_policy,
-    updated_at=now()`, settings.AllowUserRegistration, settings.DiscussionsEnabled, string(externalLinks), settings.Rendering.DefaultTypographySize, settings.ContentLanguage, settings.RobotsPolicy)
+    editor_toolbar_overrides=EXCLUDED.editor_toolbar_overrides,
+    updated_at=now()`, settings.AllowUserRegistration, settings.DiscussionsEnabled, string(externalLinks), settings.Rendering.DefaultTypographySize, settings.ContentLanguage, settings.RobotsPolicy, string(editorToolbarOverrides))
 	return err
 }
 

@@ -179,6 +179,7 @@ func validateContributionIDs(contributions Contributions) error {
 		{kind: "admin-resource", ids: contributionIDs(contributions.AdminResources, func(module AdminResource) string { return module.ID })},
 		{kind: "editor-completion", ids: contributionIDs(contributions.EditorCompletions, func(module EditorCompletion) string { return module.ID })},
 		{kind: "editor-insert", ids: contributionIDs(contributions.EditorInserts, func(module EditorInsert) string { return module.ID })},
+		{kind: "editor-menu", ids: contributionIDs(contributions.EditorMenus, func(module EditorMenu) string { return module.ID })},
 		{kind: "settings", ids: contributionIDs(contributions.SettingsModules, func(module SettingsModule) string { return module.ID })},
 		{kind: "content-style", ids: contributionIDs(contributions.ContentStyles, func(module ContentStyle) string { return module.ID })},
 		{kind: "render-policy", ids: contributionIDs(contributions.RenderPolicies, func(module RenderPolicy) string { return module.ID })},

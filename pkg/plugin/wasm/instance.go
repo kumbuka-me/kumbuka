@@ -58,14 +58,40 @@ func (i *Instance) appendAdministrationContribution(result *plugin.Contributions
 	case "admin-action":
 		result.AdminActions = append(result.AdminActions, i.adminActionContribution(module))
 	case "admin-resource":
-		result.AdminResources = append(result.AdminResources, plugin.AdminResource{ID: module.ID, Name: module.Name, Description: module.Description})
+		result.AdminResources = append(result.AdminResources, plugin.AdminResource{
+			ID:          module.ID,
+			Name:        module.Name,
+			Description: module.Description,
+		})
 	case "editor-completion":
-		result.EditorCompletions = append(result.EditorCompletions, plugin.EditorCompletion{ID: module.ID, Resource: module.Resource, Trigger: module.Trigger, Replacement: module.Replacement, LabelField: module.LabelField, DetailField: module.DetailField})
+		result.EditorCompletions = append(result.EditorCompletions, plugin.EditorCompletion{
+			ID:          module.ID,
+			Resource:    module.Resource,
+			Trigger:     module.Trigger,
+			Replacement: module.Replacement,
+			LabelField:  module.LabelField,
+			DetailField: module.DetailField,
+		})
 	case "editor-insert":
 		result.EditorInserts = append(result.EditorInserts, editorInsertContribution(module))
+	case "editor-menu":
+		result.EditorMenus = append(result.EditorMenus, plugin.EditorMenu{
+			ID:            module.ID,
+			Name:          module.Name,
+			Description:   module.Description,
+			Group:         module.Group,
+			AllowedGroups: module.AllowedGroups,
+			Icon:          module.Icon,
+			Order:         module.Order,
+			Children:      module.Children,
+		})
 	case "settings":
 		if len(module.Fields) == 0 {
-			result.SettingsModules = append(result.SettingsModules, plugin.SettingsModule{ID: module.ID, Name: module.Name, Requires: module.Requires})
+			result.SettingsModules = append(result.SettingsModules, plugin.SettingsModule{
+				ID:       module.ID,
+				Name:     module.Name,
+				Requires: module.Requires,
+			})
 		}
 	default:
 		return false
@@ -78,13 +104,28 @@ func (i *Instance) appendAdministrationContribution(result *plugin.Contributions
 func (i *Instance) appendPresentationContribution(result *plugin.Contributions, module pluginpackage.Module) bool {
 	switch module.Type {
 	case "markdown-syntax":
-		result.MarkdownExtensions = append(result.MarkdownExtensions, syntaxModule{owner: i.manifest.ID, id: module.ID, syntax: module.Syntax, usage: sourceUsageRules(module.Usage)})
+		result.MarkdownExtensions = append(result.MarkdownExtensions, syntaxModule{
+			owner:  i.manifest.ID,
+			id:     module.ID,
+			syntax: module.Syntax,
+			usage:  sourceUsageRules(module.Usage),
+		})
 	case "content-style":
-		result.ContentStyles = append(result.ContentStyles, plugin.ContentStyle{ID: module.ID, CSS: module.CSS})
+		result.ContentStyles = append(result.ContentStyles, plugin.ContentStyle{
+			ID:  module.ID,
+			CSS: module.CSS,
+		})
 	case "render-policy":
-		result.RenderPolicies = append(result.RenderPolicies, plugin.RenderPolicy{ID: module.ID, Policy: module.Policy})
+		result.RenderPolicies = append(result.RenderPolicies, plugin.RenderPolicy{
+			ID:     module.ID,
+			Policy: module.Policy,
+		})
 	case "browser-module":
-		result.BrowserModules = append(result.BrowserModules, plugin.BrowserModule{ID: module.ID, JavaScript: module.JavaScript, CSS: module.CSS})
+		result.BrowserModules = append(result.BrowserModules, plugin.BrowserModule{
+			ID:         module.ID,
+			JavaScript: module.JavaScript,
+			CSS:        module.CSS,
+		})
 	default:
 		return false
 	}
@@ -97,12 +138,27 @@ func (i *Instance) appendExecutableContribution(result *plugin.Contributions, mo
 	switch module.Type {
 	case "content-substitution":
 		resource := manifestModule(i.manifest, module.Resource)
-		result.ContentPreprocessors = append(result.ContentPreprocessors, resourceSubstitutionModule{owner: i.manifest.ID, module: module, resource: resource, storage: i.runtime.storage})
+		result.ContentPreprocessors = append(result.ContentPreprocessors, resourceSubstitutionModule{
+			owner:    i.manifest.ID,
+			module:   module,
+			resource: resource,
+			storage:  i.runtime.storage,
+		})
 	case "code-highlighter":
 		adapter := codeHighlighterModule{rendererModule{instance: i, module: module}}
-		result.CodeHighlighters = append(result.CodeHighlighters, plugin.CodeHighlighterModule{ID: module.ID, CSS: module.CSS, Highlighter: adapter})
+		result.CodeHighlighters = append(result.CodeHighlighters, plugin.CodeHighlighterModule{
+			ID:          module.ID,
+			CSS:         module.CSS,
+			Highlighter: adapter,
+		})
 	case "widget":
-		result.Widgets = append(result.Widgets, plugin.WidgetModule{ID: module.ID, Surface: module.Surface, Width: module.Width, Order: module.Order, Widget: widgetModule{rendererModule{instance: i, module: module}}})
+		result.Widgets = append(result.Widgets, plugin.WidgetModule{
+			ID:      module.ID,
+			Surface: module.Surface,
+			Width:   module.Width,
+			Order:   module.Order,
+			Widget:  widgetModule{rendererModule{instance: i, module: module}},
+		})
 	case "exporter":
 		result.Exporters = append(result.Exporters, i.exporterContribution(module))
 	case "macro":
@@ -123,9 +179,18 @@ func (i *Instance) adminActionContribution(module pluginpackage.Module) plugin.A
 // editorInsertContribution constructs one editor insertion contribution from manifest metadata.
 func editorInsertContribution(module pluginpackage.Module) plugin.EditorInsert {
 	return plugin.EditorInsert{
-		ID: module.ID, Name: module.Name, Description: module.Description,
-		Markdown: module.Markdown, Suffix: module.Suffix, Placeholder: module.Placeholder,
-		Mode: module.Mode, Group: module.Group, Icon: module.Icon, Inline: module.Inline,
+		ID:            module.ID,
+		Name:          module.Name,
+		Description:   module.Description,
+		Markdown:      module.Markdown,
+		Suffix:        module.Suffix,
+		Placeholder:   module.Placeholder,
+		Mode:          module.Mode,
+		Group:         module.Group,
+		AllowedGroups: module.AllowedGroups,
+		Order:         module.Order,
+		Icon:          module.Icon,
+		Inline:        module.Inline,
 	}
 }
 

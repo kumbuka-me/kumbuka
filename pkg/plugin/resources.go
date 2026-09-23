@@ -128,10 +128,27 @@ type EditorInsertContribution struct {
 	Mode string `json:"mode"`
 	// Group stores the group value used by editor insert contribution.
 	Group string `json:"group"`
+	// AllowedGroups contains valid administrator placement choices.
+	AllowedGroups []string `json:"allowed_groups"`
+	// Order is the plugin's default ordering hint.
+	Order int `json:"order"`
 	// Icon is the optional host icon shown for the action.
 	Icon string `json:"icon,omitempty"`
 	// Inline reports whether plain insertion should avoid block line breaks.
 	Inline bool `json:"inline"`
+}
+
+// editorInsertView normalizes one validated manifest action for browser use.
+func editorInsertView(pluginID string, module pluginpackage.Module) EditorInsertContribution {
+	mode := module.Mode
+	if mode == "" {
+		mode = "insert"
+	}
+	group := module.Group
+	if group == "" {
+		group = "insert"
+	}
+	return EditorInsertContribution{PluginID: pluginID, ModuleID: module.ID, Name: module.Name, Description: module.Description, Markdown: module.Markdown, Suffix: module.Suffix, Placeholder: module.Placeholder, Mode: mode, Group: group, AllowedGroups: module.AllowedGroups, Order: module.Order, Icon: module.Icon, Inline: module.Inline}
 }
 
 // ResourceRecords returns administrator-safe records for one declared admin resource.
@@ -461,27 +478,7 @@ func (m *Manager) EditorInserts() []EditorInsertContribution {
 			if module.Type != "editor-insert" {
 				continue
 			}
-			mode := module.Mode
-			if mode == "" {
-				mode = "insert"
-			}
-			group := module.Group
-			if group == "" {
-				group = "insert"
-			}
-			result = append(result, EditorInsertContribution{
-				PluginID:    id,
-				ModuleID:    module.ID,
-				Name:        module.Name,
-				Description: module.Description,
-				Markdown:    module.Markdown,
-				Suffix:      module.Suffix,
-				Placeholder: module.Placeholder,
-				Mode:        mode,
-				Group:       group,
-				Icon:        module.Icon,
-				Inline:      module.Inline,
-			})
+			result = append(result, editorInsertView(id, module))
 		}
 	}
 	return result

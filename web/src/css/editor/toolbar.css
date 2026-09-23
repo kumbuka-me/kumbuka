@@ -84,6 +84,10 @@
   position: relative;
 }
 
+.markdown-toolbar-menu:not([open]) > .markdown-toolbar-popover {
+  display: none;
+}
+
 .markdown-toolbar-menu > summary {
   list-style: none;
 }

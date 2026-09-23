@@ -49,8 +49,8 @@ type pluginData struct {
 	modules template.JS
 	// stylesVersion fingerprints active plugin presentation styles.
 	stylesVersion string
-	// editorInserts contains active editor actions.
-	editorInserts []plugin.EditorInsertContribution
+	// editorToolbar contains resolved active editor groups and contributions.
+	editorToolbar []plugin.ToolbarGroup
 	// sidebarWidgets contains rendered sidebar widget models.
 	sidebarWidgets []webview.Widget
 	// settingsLinks contains installed plugins with administrator configuration.
@@ -79,7 +79,7 @@ func (l *BrowserContext) Load(r *http.Request, views *webview.Views, title strin
 		return webview.Layout{}, err
 	}
 
-	plugins, err := l.loadPluginData(r, user, preferences)
+	plugins, err := l.loadPluginData(r, user, preferences, applicationSettings)
 	if err != nil {
 		return webview.Layout{}, err
 	}
@@ -108,7 +108,7 @@ func (l *BrowserContext) Load(r *http.Request, views *webview.Views, title strin
 		PluginWidgetPreferences: plugins.widgetPreferences,
 		PluginModules:           plugins.modules,
 		PluginStylesVersion:     plugins.stylesVersion,
-		EditorInserts:           plugins.editorInserts,
+		EditorToolbar:           plugins.editorToolbar,
 		PluginSettingsLinks:     plugins.settingsLinks,
 		CanEdit:                 user.CanEditContent(),
 	}, nil
@@ -174,13 +174,14 @@ func (l *BrowserContext) loadPluginData(
 	r *http.Request,
 	user domain.User,
 	preferences domain.UserPreferences,
+	applicationSettings domain.ApplicationSettings,
 ) (pluginData, error) {
 	stop := measurePageStage(r.Context(), "view_plugin_features")
 	features := make(map[string]bool)
-	var editorInserts []plugin.EditorInsertContribution
+	var editorToolbar []plugin.ToolbarGroup
 	var loadedPlugins []plugin.LoadedPlugin
 	if l.pluginManager != nil {
-		editorInserts = l.pluginManager.EditorInserts()
+		editorToolbar = l.pluginManager.ResolveEditorToolbar(applicationSettings.EditorToolbarOverrides)
 		loadedPlugins = l.pluginManager.Plugins()
 		for _, item := range loadedPlugins {
 			addPluginFeatures(features, item)
@@ -221,7 +222,7 @@ func (l *BrowserContext) loadPluginData(
 		widgetPreferences: webview.PluginWidgetPreferences(loadedPlugins, preferences.HiddenPluginWidgets),
 		modules:           modules,
 		stylesVersion:     pluginbrowser.PresentationStylesVersion(l.pluginManager),
-		editorInserts:     editorInserts,
+		editorToolbar:     editorToolbar,
 		sidebarWidgets:    sidebarWidgets,
 		settingsLinks:     pluginSettingsLinks(loadedPlugins, pluginSettingsIconCatalog(l.renderer)),
 	}, nil

@@ -175,6 +175,7 @@ func (r routeRegistrar) addAdminRoutes() {
 	r.router.Handle("GET /admin/attachments", browserAuthn(adminAuthz(endpoint.AdminAttachments(config.BrowserContext, config.Media, config.Views))))
 	r.router.Handle("POST /admin/attachments/{id}/delete", browserAuthn(adminAuthz(endpoint.DeleteAdminAttachment(config.Media, config.Views))))
 	r.router.Handle("POST /admin/settings", browserAuthn(adminAuthz(endpoint.SaveAdminSettings(config.Settings, config.Views, config.Logger))))
+	r.router.Handle("POST /admin/settings/editor-toolbar", browserAuthn(adminAuthz(endpoint.SaveAdminEditorToolbar(config.Settings, pluginManager, config.Views))))
 	r.router.Handle(
 		"POST /admin/branding/logo",
 		browserAuthn(adminAuthz(endpoint.SaveAdminBrandLogo(config.Settings, config.Logger))),
@@ -350,7 +351,7 @@ func (r routeRegistrar) addAPIRoutes() {
 	r.router.Handle("GET /api/graph", apiAuthn(endpoint.KnowledgeGraphAPI(config.Knowledge, config.Logger)))
 	r.router.Handle(
 		"GET /api/editor/catalog",
-		apiAuthn(editorAuthz(endpoint.EditorCatalog(config.Navigation, config.PageDirectory, config.Renderer.PluginManager(), config.Logger))),
+		apiAuthn(editorAuthz(endpoint.EditorCatalog(config.Navigation, config.PageDirectory, config.Settings, config.Renderer.PluginManager(), config.Logger))),
 	)
 	r.router.Handle("GET /api/mentions/users", apiAuthn(endpoint.MentionUsers(config.Users, config.Logger)))
 	r.router.Handle("GET /api/notifications", apiAuthn(endpoint.NotificationsAPI(config.Notifications, config.Logger)))

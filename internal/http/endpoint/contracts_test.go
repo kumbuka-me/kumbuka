@@ -225,7 +225,7 @@ func TestEmptyAPICollectionContracts(t *testing.T) {
 		request := auth.WithUser(httptest.NewRequest(http.MethodGet, "/?q=nobody", nil), domain.User{ID: 1, Role: "admin", Enabled: true})
 		request.SetPathValue("id", "1")
 		response := httptest.NewRecorder()
-		EditorCatalog(services, services, nil, logger)(response, request)
+		EditorCatalog(services, services, nil, nil, logger)(response, request)
 		require.Equal(t, http.StatusOK, response.Code, response.Body.String())
 		assert.JSONEq(t, string(fixtures["empty_catalog"]), response.Body.String())
 	})
