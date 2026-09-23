@@ -1,3 +1,40 @@
+{{ define "editor-toolbar-contributions" }}
+  {{ range . }}
+    {{ if not .Hidden }}
+      {{ if .Action }}
+        <button type="button"
+                data-toolbar-contribution="{{ .ID }}"
+                data-plugin-insert-plugin-id="{{ .Action.PluginID }}"
+                data-plugin-insert-name="{{ .Action.Name }}"
+                data-plugin-insert-markdown="{{ .Action.Markdown }}"
+                data-plugin-insert-suffix="{{ .Action.Suffix }}"
+                data-plugin-insert-placeholder="{{ .Action.Placeholder }}"
+                data-plugin-insert-mode="{{ .Action.Mode }}"
+                data-plugin-insert-inline="{{ .Action.Inline }}"
+                title="{{ if .Description }}{{ .Description }}{{ else }}{{ .Name }}{{ end }}"
+                aria-label="{{ .Name }}">{{ icon .Icon 16 }}</button>
+      {{ else }}
+        <details class="markdown-toolbar-menu" data-toolbar-contribution="{{ .ID }}">
+          <summary title="{{ .Name }}"
+                   aria-label="{{ .Name }}">{{ icon .Icon 16 }}{{ icon "chevron-down-lucide" 12 }}</summary>
+          <div class="markdown-toolbar-popover">
+            {{ range .Children }}
+              <button type="button"
+                      data-plugin-insert-plugin-id="{{ .PluginID }}"
+                      data-plugin-insert-name="{{ .Name }}"
+                      data-plugin-insert-markdown="{{ .Markdown }}"
+                      data-plugin-insert-suffix="{{ .Suffix }}"
+                      data-plugin-insert-placeholder="{{ .Placeholder }}"
+                      data-plugin-insert-mode="{{ .Mode }}"
+                      data-plugin-insert-inline="{{ .Inline }}"
+                      title="{{ if .Description }}{{ .Description }}{{ else }}{{ .Name }}{{ end }}">{{ if .Icon }}{{ icon .Icon 15 }}{{ else }}{{ icon "braces-lucide" 15 }}{{ end }}<span>{{ .Name }}</span></button>
+            {{ end }}
+          </div>
+        </details>
+      {{ end }}
+    {{ end }}
+  {{ end }}
+{{ end }}
 {{ define "content" }}
 <form class="editor"
       action="/pages"
@@ -352,6 +389,9 @@
           <button type="button" data-markdown-action="heading-4">Heading 4</button>
         </div>
       </details>
+      {{ range .EditorToolbar }}
+        {{ if eq .ID "text" }}{{ template "editor-toolbar-contributions" .Contributions }}{{ end }}
+      {{ end }}
     </div>
     <div class="markdown-toolbar-group" aria-label="Blocks">
       <span class="markdown-toolbar-group-label"></span>
@@ -375,6 +415,9 @@
               data-markdown-action="ordered-list"
               title="Numbered list"
               aria-label="Numbered list">{{ icon "list-ordered-lucide" 16 }}</button>
+      {{ range .EditorToolbar }}
+        {{ if eq .ID "blocks" }}{{ template "editor-toolbar-contributions" .Contributions }}{{ end }}
+      {{ end }}
     </div>
     <div class="markdown-toolbar-group" aria-label="Insert">
       <span class="markdown-toolbar-group-label"></span>
@@ -432,6 +475,9 @@
               data-markdown-action="horizontal-rule"
               title="Horizontal rule"
               aria-label="Horizontal rule">{{ icon "minus-lucide" 16 }}</button>
+      {{ range .EditorToolbar }}
+        {{ if eq .ID "insert" }}{{ template "editor-toolbar-contributions" .Contributions }}{{ end }}
+      {{ end }}
     </div>
     <div class="markdown-toolbar-group markdown-toolbar-tools"
          aria-label="Tools">
@@ -452,48 +498,17 @@
               data-markdown-action="format-document"
               title="Format complete document"
               aria-label="Format complete document">{{ icon "wand-sparkles-lucide" 16 }}</button>
+      {{ range .EditorToolbar }}
+        {{ if eq .ID "tools" }}{{ template "editor-toolbar-contributions" .Contributions }}{{ end }}
+      {{ end }}
     </div>
     {{ range .EditorToolbar }}
-      {{ if .Contributions }}
+      {{ if and (eq .ID "plugins") .Contributions }}
         <div class="markdown-toolbar-group markdown-toolbar-plugin-group"
              aria-label="{{ .Label }}"
              data-toolbar-group="{{ .ID }}">
           <span class="markdown-toolbar-group-label"></span>
-          {{ range .Contributions }}
-            {{ if not .Hidden }}
-              {{ if .Action }}
-                <button type="button"
-                        data-toolbar-contribution="{{ .ID }}"
-                        data-plugin-insert-plugin-id="{{ .Action.PluginID }}"
-                        data-plugin-insert-name="{{ .Action.Name }}"
-                        data-plugin-insert-markdown="{{ .Action.Markdown }}"
-                        data-plugin-insert-suffix="{{ .Action.Suffix }}"
-                        data-plugin-insert-placeholder="{{ .Action.Placeholder }}"
-                        data-plugin-insert-mode="{{ .Action.Mode }}"
-                        data-plugin-insert-inline="{{ .Action.Inline }}"
-                        title="{{ if .Description }}{{ .Description }}{{ else }}{{ .Name }}{{ end }}"
-                        aria-label="{{ .Name }}">{{ icon .Icon 16 }}</button>
-              {{ else }}
-                <details class="markdown-toolbar-menu" data-toolbar-contribution="{{ .ID }}">
-                  <summary title="{{ .Name }}"
-                           aria-label="{{ .Name }}">{{ icon .Icon 16 }}{{ icon "chevron-down-lucide" 12 }}</summary>
-                  <div class="markdown-toolbar-popover">
-                    {{ range .Children }}
-                      <button type="button"
-                              data-plugin-insert-plugin-id="{{ .PluginID }}"
-                              data-plugin-insert-name="{{ .Name }}"
-                              data-plugin-insert-markdown="{{ .Markdown }}"
-                              data-plugin-insert-suffix="{{ .Suffix }}"
-                              data-plugin-insert-placeholder="{{ .Placeholder }}"
-                              data-plugin-insert-mode="{{ .Mode }}"
-                              data-plugin-insert-inline="{{ .Inline }}"
-                              title="{{ if .Description }}{{ .Description }}{{ else }}{{ .Name }}{{ end }}">{{ if .Icon }}{{ icon .Icon 15 }}{{ else }}{{ icon "braces-lucide" 15 }}{{ end }}<span>{{ .Name }}</span></button>
-                    {{ end }}
-                  </div>
-                </details>
-              {{ end }}
-            {{ end }}
-          {{ end }}
+          {{ template "editor-toolbar-contributions" .Contributions }}
         </div>
       {{ end }}
     {{ end }}

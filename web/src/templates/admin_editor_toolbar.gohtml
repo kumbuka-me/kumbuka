@@ -1,0 +1,71 @@
+{{ define "content" }}
+  <section class="admin-page">
+    <div class="settings-heading">
+      <p class="eyebrow">Administration</p>
+      <h1>Editor toolbar</h1>
+      <p class="muted">Customize plugin actions globally. Plugin-owned submenu items keep their declared order.</p>
+    </div>
+    <form class="panel settings-panel settings-wide settings-form"
+          action="/admin/editor-toolbar"
+          method="post">
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>Contribution</th>
+              <th>Group</th>
+              <th>Visible</th>
+              <th>Order</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {{ range .EditorToolbar }}
+              {{ range .Contributions }}
+                <tr>
+                  <td>
+                    <strong>{{ .Name }}</strong>
+                    <small class="muted">{{ .PluginName }}</small>
+                    <input type="hidden" name="toolbar_id" value="{{ .ID }}" />
+                  </td>
+                  <td>
+                    <select name="toolbar_group" aria-label="Toolbar group for {{ .Name }}">
+                      {{ $current := .Group }}
+                      {{ range .AllowedGroups }}
+                        <option value="{{ . }}" {{ if eq . $current }}selected{{ end }}>{{ . }}</option>
+                      {{ end }}
+                    </select>
+                  </td>
+                  <td>
+                    <input type="checkbox"
+                           name="toolbar_visible_{{ .ID }}"
+                           aria-label="Show {{ .Name }}"
+                           {{ if not .Hidden }}checked{{ end }} />
+                  </td>
+                  <td>
+                    <input type="number"
+                           name="toolbar_order"
+                           value="{{ .Order }}"
+                           min="-1000"
+                           max="1000"
+                           aria-label="Order for {{ .Name }}" />
+                  </td>
+                  <td>
+                    <button class="button"
+                            type="submit"
+                            name="toolbar_reset"
+                            value="{{ .ID }}"
+                            {{ if not .Overridden }}disabled{{ end }}>Reset</button>
+                  </td>
+                </tr>
+              {{ end }}
+            {{ end }}
+          </tbody>
+        </table>
+      </div>
+      <div class="settings-actions">
+        <button class="button primary" type="submit">Save toolbar</button>
+      </div>
+    </form>
+  </section>
+{{ end }}

@@ -43,6 +43,7 @@ func TestTypedScreensRenderProductionTemplates(t *testing.T) {
 	}{
 		{"admin_templates", AdminTemplatesView{Layout: layout}},
 		{"admin_configuration", AdminConfigurationView{Layout: layout}},
+		{"admin_editor_toolbar", AdminEditorToolbarView{Layout: layout}},
 		{"admin_health", AdminHealthView{Layout: layout}},
 		{"admin_audit", AdminAuditView{Layout: layout}},
 		{"admin_tokens", AdminTokensView{Layout: layout}},

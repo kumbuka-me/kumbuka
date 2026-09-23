@@ -48,6 +48,7 @@ type settingsRepository interface {
 	ClearBrandLogo(context.Context) error
 	PDFHeaders(context.Context) ([]domain.PDFHeader, error)
 	SaveApplicationSettings(context.Context, domain.ApplicationSettings) error
+	SaveEditorToolbarOverrides(context.Context, []domain.EditorToolbarOverride) error
 	SaveAuthenticationSettings(context.Context, domain.AuthenticationSettings) error
 	SaveBrandLogo(context.Context, string, []byte) error
 	SavePDFSettings(context.Context, string, []domain.PDFHeader) error
@@ -218,6 +219,28 @@ func (s *Settings) SaveApplicationSettings(
 		"settings",
 		"application",
 		"Updated application settings",
+	)
+
+	return nil
+}
+
+// SaveEditorToolbarOverrides persists editor-toolbar placement overrides and records the change.
+func (s *Settings) SaveEditorToolbarOverrides(
+	ctx context.Context,
+	overrides []domain.EditorToolbarOverride,
+	actorID int64,
+) error {
+	if err := s.repository.SaveEditorToolbarOverrides(ctx, overrides); err != nil {
+		return err
+	}
+
+	audit.Record(
+		ctx, s.logger, s.repository,
+		actorID,
+		"settings.editor_toolbar_updated",
+		"settings",
+		"editor-toolbar",
+		"Updated editor toolbar",
 	)
 
 	return nil

@@ -77,14 +77,10 @@ func (s *Store) SaveApplicationSettings(ctx context.Context, settings domain.App
 	if err != nil {
 		return err
 	}
-	editorToolbarOverrides, err := json.Marshal(settings.EditorToolbarOverrides)
-	if err != nil {
-		return err
-	}
 
 	_, err = s.pool.Exec(ctx, `
-INSERT INTO application_settings(singleton,allow_user_registration,discussions_enabled,external_links,default_typography_size,content_language,robots_policy,editor_toolbar_overrides,updated_at)
-VALUES(true,$1,$2,$3::jsonb,$4,$5,$6,$7::jsonb,now())
+INSERT INTO application_settings(singleton,allow_user_registration,discussions_enabled,external_links,default_typography_size,content_language,robots_policy,updated_at)
+VALUES(true,$1,$2,$3::jsonb,$4,$5,$6,now())
 ON CONFLICT(singleton) DO UPDATE
 SET allow_user_registration=EXCLUDED.allow_user_registration,
     discussions_enabled=EXCLUDED.discussions_enabled,
@@ -92,8 +88,22 @@ SET allow_user_registration=EXCLUDED.allow_user_registration,
     default_typography_size=EXCLUDED.default_typography_size,
     content_language=EXCLUDED.content_language,
     robots_policy=EXCLUDED.robots_policy,
-    editor_toolbar_overrides=EXCLUDED.editor_toolbar_overrides,
-    updated_at=now()`, settings.AllowUserRegistration, settings.DiscussionsEnabled, string(externalLinks), settings.Rendering.DefaultTypographySize, settings.ContentLanguage, settings.RobotsPolicy, string(editorToolbarOverrides))
+    updated_at=now()`, settings.AllowUserRegistration, settings.DiscussionsEnabled, string(externalLinks), settings.Rendering.DefaultTypographySize, settings.ContentLanguage, settings.RobotsPolicy)
+	return err
+}
+
+// SaveEditorToolbarOverrides updates only global editor-toolbar placement overrides.
+func (s *Store) SaveEditorToolbarOverrides(ctx context.Context, overrides []domain.EditorToolbarOverride) error {
+	value, err := json.Marshal(overrides)
+	if err != nil {
+		return err
+	}
+
+	_, err = s.pool.Exec(ctx, `
+UPDATE application_settings
+SET editor_toolbar_overrides=$1::jsonb,
+    updated_at=now()
+WHERE singleton=true`, string(value))
 	return err
 }
 

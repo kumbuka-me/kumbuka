@@ -10,6 +10,10 @@
          {{ if eq .AdminSection "configuration" }}class="active"
          aria-current="page"
          {{ end }}>{{ icon "settings-2-lucide" 17 }}<span>Configuration</span></a>
+      <a href="/admin/editor-toolbar"
+         {{ if eq .AdminSection "editor-toolbar" }}class="active"
+         aria-current="page"
+         {{ end }}>{{ icon "panel-top-lucide" 17 }}<span>Editor toolbar</span></a>
       <a href="/admin/branding"
          {{ if eq .AdminSection "branding" }}class="active"
          aria-current="page"

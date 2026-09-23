@@ -40,7 +40,8 @@ func (*pdfSettingsRepositoryStub) LogAudit(context.Context, int64, string, strin
 
 type applicationSettingsRepositoryStub struct {
 	settingsRepository
-	saved domain.ApplicationSettings
+	saved                 domain.ApplicationSettings
+	savedToolbarOverrides []domain.EditorToolbarOverride
 }
 
 func (s *applicationSettingsRepositoryStub) SaveApplicationSettings(
@@ -51,8 +52,29 @@ func (s *applicationSettingsRepositoryStub) SaveApplicationSettings(
 	return nil
 }
 
+func (s *applicationSettingsRepositoryStub) SaveEditorToolbarOverrides(
+	_ context.Context,
+	overrides []domain.EditorToolbarOverride,
+) error {
+	s.savedToolbarOverrides = append([]domain.EditorToolbarOverride(nil), overrides...)
+	return nil
+}
+
 func (*applicationSettingsRepositoryStub) LogAudit(context.Context, int64, string, string, string, string) error {
 	return nil
+}
+
+func TestSaveEditorToolbarOverrides(t *testing.T) {
+	t.Parallel()
+
+	repository := &applicationSettingsRepositoryStub{}
+	settings := NewSettings(repository, nil)
+	overrides := []domain.EditorToolbarOverride{{ID: "io.example.editor:action", Group: "tools", Hidden: true, Order: -4}}
+
+	err := settings.SaveEditorToolbarOverrides(context.Background(), overrides, 7)
+
+	require.NoError(t, err)
+	assert.Equal(t, overrides, repository.savedToolbarOverrides)
 }
 
 func TestSaveApplicationSettingsValidatesExternalLinks(t *testing.T) {

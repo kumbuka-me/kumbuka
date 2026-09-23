@@ -312,6 +312,12 @@ type AdminConfigurationView struct {
 	Groups []domain.Group
 }
 
+// AdminEditorToolbarView contains presentation data for editor-toolbar administration.
+type AdminEditorToolbarView struct {
+	// Layout contains shared browser presentation.
+	Layout
+}
+
 // AdminExportsView contains presentation data for admin exports view.
 type AdminExportsView struct {
 	// Layout contains shared browser presentation.
