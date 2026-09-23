@@ -58,7 +58,6 @@ export interface CatalogInsert {
   mode: string;
   group: string;
   icon?: string;
-  completion_module_id?: string;
   inline: boolean;
 }
 
@@ -145,8 +144,6 @@ function isCatalogInsert(value: unknown): value is CatalogInsert {
     typeof value.mode === "string" &&
     typeof value.group === "string" &&
     (value.icon === undefined || typeof value.icon === "string") &&
-    (value.completion_module_id === undefined ||
-      typeof value.completion_module_id === "string") &&
     typeof value.inline === "boolean"
   );
 }
@@ -162,14 +159,11 @@ export function parseEditorCatalog(value: unknown): EditorCatalog {
       isCatalogCompletion,
       "editor catalog completions",
     ),
-    completion_providers:
-      value.completion_providers === undefined
-        ? []
-        : requireArrayOf(
-            value.completion_providers,
-            isCatalogCompletionProvider,
-            "editor catalog completion providers",
-          ),
+    completion_providers: requireArrayOf(
+      value.completion_providers,
+      isCatalogCompletionProvider,
+      "editor catalog completion providers",
+    ),
     inserts: requireArrayOf(
       value.inserts,
       isCatalogInsert,

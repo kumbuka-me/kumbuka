@@ -1,5 +1,6 @@
 import { visualPane } from "./visual-pane.ts";
 import { loadEditorCatalog } from "./catalog.ts";
+import { openCompletionPicker } from "./completion-picker.ts";
 // Confluence-style visual editing backed by the canonical Markdown textarea.
 
 import {
@@ -15,8 +16,6 @@ import { Image } from "./visual-deps/image.ts";
 import { TableKit } from "./visual-deps/table.ts";
 import { Markdown } from "./visual-deps/markdown.ts";
 import { StarterKit } from "./visual-deps/starter.ts";
-import { openSourceDialog } from "./source-dialog.ts";
-import { visualCodeLanguages } from "./visual-code-languages.ts";
 
 import type { EditorInsertAction } from "./toolbar.ts";
 import {
@@ -116,25 +115,23 @@ function fallbackInlineNodeView(context: any): any {
     event.preventDefault();
     event.stopPropagation();
     const raw = String(node.attrs?.raw || "");
-    void openSourceDialog({
-      title: "Edit source",
-      source: raw,
-      validate(source) {
-        return matchKumbukaInlineSyntax(source) === source
-          ? ""
-          : "The edited source must remain one complete inline Kumbuka construct.";
-      },
-    }).then((source) => {
-      if (source === null || source === raw) return;
-      const position = context.getPos();
-      if (typeof position !== "number") return;
-      context.editor.view.dispatch(
-        context.editor.state.tr.setNodeMarkup(position, undefined, {
-          ...node.attrs,
-          raw: source,
-        }),
+    const source = window.prompt("Edit source", raw);
+    if (source === null || source === raw) return;
+    const parsed = matchKumbukaInlineSyntax(source);
+    if (parsed !== source) {
+      window.alert(
+        "The edited source must remain one complete inline Kumbuka construct.",
       );
-    });
+      return;
+    }
+    const position = context.getPos();
+    if (typeof position !== "number") return;
+    context.editor.view.dispatch(
+      context.editor.state.tr.setNodeMarkup(position, undefined, {
+        ...node.attrs,
+        raw: source,
+      }),
+    );
   });
   render();
 
@@ -788,7 +785,7 @@ export function setupVisualEditor(form: HTMLFormElement): void {
 
   function syncMarkdown(): void {
     if (!editor) return;
-    let markdown = editor.getMarkdown().replace(/\n+$/, "");
+    let markdown = editor.getMarkdown();
     let tableIndex = 0;
     editor.state.doc.descendants((table: any) => {
       if (table.type.name !== "table") return true;
@@ -933,6 +930,31 @@ export function setupVisualEditor(form: HTMLFormElement): void {
     syncToolbar();
   }
 
+  // runPluginInsert opens a resource picker when available, then inserts the selected Markdown.
+  async function runPluginInsert(insert: EditorInsertAction): Promise<void> {
+    if (!editor) return;
+
+    const opened = await openCompletionPicker(insert, (replacement) => {
+      if (!editor) return;
+      editor
+        .chain()
+        .focus()
+        .insertContent(replacement, { contentType: "markdown" })
+        .run();
+      syncToolbar();
+    });
+    if (opened || !editor) return;
+
+    const markdown = pluginMarkdown(insert, editor);
+    if (markdown)
+      editor
+        .chain()
+        .focus()
+        .insertContent(markdown, { contentType: "markdown" })
+        .run();
+    syncToolbar();
+  }
+
   function runToolbarCommand(
     action: string,
     detail: Record<string, unknown>,
@@ -1007,10 +1029,8 @@ export function setupVisualEditor(form: HTMLFormElement): void {
       case "plugin-insert": {
         const insert = detail.insert as EditorInsertAction | undefined;
         if (!insert?.markdown) return;
-        const markdown = pluginMarkdown(insert, editor);
-        if (markdown)
-          chain.insertContent(markdown, { contentType: "markdown" }).run();
-        break;
+        void runPluginInsert(insert);
+        return;
       }
       default:
         return;
@@ -1039,7 +1059,6 @@ export function setupVisualEditor(form: HTMLFormElement): void {
             }),
             Image.configure({ allowBase64: false }),
             visualTableStyles(() => markdownSource.value),
-            visualCodeLanguages(),
             ...visualWidgetNodes(widgets),
             kumbukaInlineNode(widgets),
             kumbukaBlockNode(),

@@ -152,12 +152,10 @@ func TestPluginResourcesAndEditorContributions(t *testing.T) {
 	assert.Equal(t, "Variable", inserts[0].Name)
 	assert.Equal(t, "insert", inserts[0].Mode)
 	assert.Equal(t, "insert", inserts[0].Group)
-	assert.Equal(t, "values", inserts[0].CompletionModuleID)
 	assert.Equal(t, "wrap", inserts[1].Mode)
 	assert.Equal(t, "text", inserts[1].Group)
 	assert.Equal(t, "~~", inserts[1].Suffix)
 	assert.Equal(t, "strikethrough-lucide", inserts[1].Icon)
-	assert.Empty(t, inserts[1].CompletionModuleID)
 
 	require.NoError(t, manager.SaveResourceRecord(ctx, manifest.ID, "values", "Environment", map[string]string{"name": "Stage", "content": "staging"}))
 	require.NoError(t, manager.DeleteResourceRecord(ctx, manifest.ID, "values", "Stage"))

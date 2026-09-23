@@ -130,8 +130,6 @@ type EditorInsertContribution struct {
 	Group string `json:"group"`
 	// Icon is the optional host icon shown for the action.
 	Icon string `json:"icon,omitempty"`
-	// CompletionModuleID identifies the matching resource-backed completion provider, when one is unambiguous.
-	CompletionModuleID string `json:"completion_module_id,omitempty"`
 	// Inline reports whether plain insertion should avoid block line breaks.
 	Inline bool `json:"inline"`
 }
@@ -262,74 +260,49 @@ func (m *Manager) SaveResourceRecord(ctx context.Context, pluginID, moduleID, or
 		return errors.New("plugin resource storage is unavailable")
 	}
 
-	originalKey = strings.TrimSpace(originalKey)
-	previous, err := loadExistingResourceRecord(ctx, m.values, pluginID, module, originalKey)
-	if err != nil {
-		return err
+	var previous ResourceRecord
+	if strings.TrimSpace(originalKey) != "" {
+		var found bool
+		previous, found, err = ReadResourceRecord(ctx, m.values, pluginID, module, originalKey)
+		if err != nil {
+			return err
+		}
+		if !found {
+			return errors.New("plugin resource record no longer exists")
+		}
 	}
-	validated, key, err := normalizeResourceRecord(module, values, previous.Values, originalKey == "")
+
+	validated, key, err := normalizeResourceRecord(module, values, previous.Values, strings.TrimSpace(originalKey) == "")
 	if err != nil {
 		return err
 	}
 	if err := m.encryptConfigurationSecrets(module, validated, previous.Values); err != nil {
 		return err
 	}
-	encoded, err := encodeResourceRecord(validated)
+	encoded, err := json.Marshal(validated)
 	if err != nil {
 		return err
-	}
-	return m.persistResourceRecord(ctx, pluginID, module, originalKey, key, encoded)
-}
-
-// loadExistingResourceRecord loads a record only when this is an update.
-func loadExistingResourceRecord(ctx context.Context, values Storage, pluginID string, module pluginpackage.Module, originalKey string) (ResourceRecord, error) {
-	if originalKey == "" {
-		return ResourceRecord{}, nil
-	}
-	record, found, err := ReadResourceRecord(ctx, values, pluginID, module, originalKey)
-	if err != nil {
-		return ResourceRecord{}, err
-	}
-	if !found {
-		return ResourceRecord{}, errors.New("plugin resource record no longer exists")
-	}
-	return record, nil
-}
-
-// encodeResourceRecord serializes one validated record within the storage size limit.
-func encodeResourceRecord(values map[string]string) ([]byte, error) {
-	encoded, err := json.Marshal(values)
-	if err != nil {
-		return nil, err
 	}
 	if len(encoded) > maxResourceRecordBytes {
-		return nil, errors.New("plugin resource record is too large")
+		return errors.New("plugin resource record is too large")
 	}
-	return encoded, nil
-}
 
-// persistResourceRecord writes a resource record or atomically renames its storage key.
-func (m *Manager) persistResourceRecord(ctx context.Context, pluginID string, module pluginpackage.Module, originalKey, key string, encoded []byte) error {
 	newStorageKey := resourceStorageKey(module.ID, key)
 	oldStorageKey := resourceStorageKey(module.ID, originalKey)
-	if originalKey == "" || oldStorageKey == newStorageKey {
-		return m.values.WritePluginValue(ctx, pluginID, resourceNamespace, newStorageKey, encoded)
+	if originalKey != "" && oldStorageKey != newStorageKey {
+		err := m.values.ReplacePluginValue(ctx, pluginID, resourceNamespace, oldStorageKey, newStorageKey, encoded)
+		switch {
+		case errors.Is(err, ErrPluginValueAlreadyExists):
+			keyField := resourceKeyField(module)
+			return configurationFieldError(keyField, keyField.Name+" is already in use.")
+		case errors.Is(err, ErrPluginValueNotFound):
+			return errors.New("plugin resource record no longer exists")
+		default:
+			return err
+		}
 	}
-	err := m.values.ReplacePluginValue(ctx, pluginID, resourceNamespace, oldStorageKey, newStorageKey, encoded)
-	return resourceRenameError(module, err)
-}
 
-// resourceRenameError translates storage rename conflicts into resource validation errors.
-func resourceRenameError(module pluginpackage.Module, err error) error {
-	switch {
-	case errors.Is(err, ErrPluginValueAlreadyExists):
-		keyField := resourceKeyField(module)
-		return configurationFieldError(keyField, keyField.Name+" is already in use.")
-	case errors.Is(err, ErrPluginValueNotFound):
-		return errors.New("plugin resource record no longer exists")
-	default:
-		return err
-	}
+	return m.values.WritePluginValue(ctx, pluginID, resourceNamespace, newStorageKey, encoded)
 }
 
 // DeleteResourceRecord deletes one plugin-owned resource record.
@@ -483,41 +456,21 @@ func (m *Manager) EditorInserts() []EditorInsertContribution {
 				group = "insert"
 			}
 			result = append(result, EditorInsertContribution{
-				PluginID:           id,
-				ModuleID:           module.ID,
-				Name:               module.Name,
-				Description:        module.Description,
-				Markdown:           module.Markdown,
-				Suffix:             module.Suffix,
-				Placeholder:        module.Placeholder,
-				Mode:               mode,
-				Group:              group,
-				Icon:               module.Icon,
-				CompletionModuleID: editorInsertCompletionModuleID(item.metadata.Manifest.Modules, module, mode),
-				Inline:             module.Inline,
+				PluginID:    id,
+				ModuleID:    module.ID,
+				Name:        module.Name,
+				Description: module.Description,
+				Markdown:    module.Markdown,
+				Suffix:      module.Suffix,
+				Placeholder: module.Placeholder,
+				Mode:        mode,
+				Group:       group,
+				Icon:        module.Icon,
+				Inline:      module.Inline,
 			})
 		}
 	}
 	return result
-}
-
-// editorInsertCompletionModuleID returns the sole completion provider whose trigger exactly matches one plain insert action.
-func editorInsertCompletionModuleID(modules []pluginpackage.Module, insert pluginpackage.Module, mode string) string {
-	if !supportsEditorInsertCompletion(insert, mode) {
-		return ""
-	}
-
-	matched := ""
-	for _, module := range modules {
-		if module.Type != "editor-completion" || module.Trigger != insert.Markdown {
-			continue
-		}
-		if matched != "" {
-			return ""
-		}
-		matched = module.ID
-	}
-	return matched
 }
 
 // resourceModule returns one declared admin resource from a loaded plugin.
@@ -562,7 +515,7 @@ func normalizeResourceRecord(module pluginpackage.Module, values, previous map[s
 	key := ""
 	for _, field := range module.Fields {
 		value := values[field.ID]
-		if useResourceFieldDefault(creating, value, field) {
+		if creating && value == "" && field.Default != "" {
 			value = field.Default
 		}
 		normalized, err := normalizeConfigurationValue(field, value)
@@ -585,22 +538,11 @@ func normalizeResourceRecord(module pluginpackage.Module, values, previous map[s
 
 // validResourceKey reports whether key can be used in a macro and plugin storage key.
 func validResourceKey(key string) bool {
-	return validResourceKeyShape(key) && strings.TrimSpace(key) == key && !strings.ContainsAny(key, "\x00\r\n{}")
-}
+	if key == "" || len(key) > maxResourceKeyBytes || !utf8.ValidString(key) {
+		return false
+	}
 
-// supportsEditorInsertCompletion reports whether an insert action can map directly to a completion trigger.
-func supportsEditorInsertCompletion(insert pluginpackage.Module, mode string) bool {
-	return mode == "insert" && insert.Suffix == "" && insert.Markdown != ""
-}
-
-// useResourceFieldDefault reports whether a new record should fill an omitted field from its declaration.
-func useResourceFieldDefault(creating bool, value string, field pluginpackage.ConfigurationField) bool {
-	return creating && value == "" && field.Default != ""
-}
-
-// validResourceKeyShape reports whether a resource key is non-empty, bounded, and valid UTF-8.
-func validResourceKeyShape(key string) bool {
-	return key != "" && len(key) <= maxResourceKeyBytes && utf8.ValidString(key)
+	return strings.TrimSpace(key) == key && !strings.ContainsAny(key, "\x00\r\n{}")
 }
 
 // resourcePrefix returns the storage prefix for one resource module.

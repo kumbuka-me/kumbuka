@@ -18,12 +18,17 @@ export function completionProviderForInsert(
   catalog: EditorCatalog,
   insert: EditorInsertAction,
 ): CatalogCompletionProvider | undefined {
-  if (!insert.pluginID || !insert.completionModuleID) return undefined;
+  if (
+    !insert.pluginID ||
+    (insert.mode && insert.mode !== "insert") ||
+    insert.suffix
+  )
+    return undefined;
 
   const matches = catalog.completion_providers.filter(
     (provider) =>
       provider.plugin_id === insert.pluginID &&
-      provider.module_id === insert.completionModuleID,
+      provider.trigger === insert.markdown,
   );
   return matches.length === 1 ? matches[0] : undefined;
 }

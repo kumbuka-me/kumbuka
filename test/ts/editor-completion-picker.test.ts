@@ -57,12 +57,11 @@ const catalog: EditorCatalog = {
   widget_problems: [],
 };
 
-test("completion picker resolves only inserts linked to a provider module", () => {
+test("completion picker resolves the variables insert through its trigger", () => {
   assert.equal(
     completionProviderForInsert(catalog, {
       pluginID: "me.kumbuka.variables",
       name: "Variable",
-      completionModuleID: "completion",
       markdown: "{{",
       inline: true,
     }),
@@ -70,7 +69,7 @@ test("completion picker resolves only inserts linked to a provider module", () =
   );
   assert.equal(
     completionProviderForInsert(catalog, {
-      pluginID: "me.kumbuka.variables",
+      pluginID: "io.example.other",
       markdown: "{{",
     }),
     undefined,

@@ -89,19 +89,6 @@ test("editor rejects malformed draft fields rather than coercing them", () => {
   }
 });
 
-test("editor treats omitted completion providers as an empty optional extension", () => {
-  const catalog = parseEditorCatalog({
-    pages: [],
-    aliases: {},
-    completions: [],
-    inserts: [],
-    widgets: [],
-    widget_problems: [],
-  });
-
-  assert.deepEqual(catalog.completion_providers, []);
-});
-
 test("editor accepts declarative plugin action metadata", () => {
   const catalog = parseEditorCatalog({
     pages: [],
@@ -158,18 +145,7 @@ test("editor accepts resource-backed completion provider metadata", () => {
         can_create: true,
       },
     ],
-    inserts: [
-      {
-        plugin_id: "me.kumbuka.variables",
-        module_id: "variable",
-        name: "Variable",
-        markdown: "{{",
-        mode: "insert",
-        group: "insert",
-        completion_module_id: "completion",
-        inline: true,
-      },
-    ],
+    inserts: [],
     widgets: [],
     widget_problems: [],
   });
@@ -177,5 +153,4 @@ test("editor accepts resource-backed completion provider metadata", () => {
   assert.equal(catalog.completion_providers[0]?.resource_id, "variables");
   assert.equal(catalog.completion_providers[0]?.fields[0]?.key, true);
   assert.equal(catalog.completion_providers[0]?.can_create, true);
-  assert.equal(catalog.inserts[0]?.completion_module_id, "completion");
 });
