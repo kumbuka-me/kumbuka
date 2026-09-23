@@ -113,46 +113,72 @@ func newUsageScanner(source string) usageScanner {
 	return scanner
 }
 
-// match reports whether the scanner matches a literal at the current position.
+// match reports whether the scanner matches any usage rule and returns unique selectors.
 func (s usageScanner) match(rules []plugin.SourceUsageRule) (bool, []string) {
 	matched := false
 	var values []string
 	seen := map[string]bool{}
-	add := func(value string) {
-		if value == "" || seen[value] {
-			return
-		}
-		seen[value] = true
-		values = append(values, value)
-	}
 	for _, rule := range rules {
-		switch {
-		case rule.Contains != "":
-			matched = matched || strings.Contains(s.source, rule.Contains)
-		case rule.Fence != "":
-			for _, language := range s.languages {
-				if rule.Fence == "*" || strings.EqualFold(language, rule.Fence) {
-					matched = true
-					add(language)
-				}
+		ruleMatched, ruleValues := s.matchRule(rule)
+		matched = matched || ruleMatched
+		for _, value := range ruleValues {
+			if value == "" || seen[value] {
+				continue
 			}
-		case rule.Macro != "":
-			for _, line := range s.outside {
-				if value, ok := macroUsage(line, rule.Macro); ok {
-					matched = true
-					add(value)
-				}
-			}
-		case rule.Substitution != "":
-			for _, line := range s.outside {
-				for _, value := range substitutionUsage(line, rule.Substitution) {
-					matched = true
-					add(value)
-				}
-			}
+			seen[value] = true
+			values = append(values, value)
 		}
 	}
 	return matched, values
+}
+
+// matchRule evaluates one source-usage rule against the pre-scanned source.
+func (s usageScanner) matchRule(rule plugin.SourceUsageRule) (bool, []string) {
+	switch {
+	case rule.Contains != "":
+		return strings.Contains(s.source, rule.Contains), nil
+	case rule.Fence != "":
+		return s.matchFenceRule(rule.Fence)
+	case rule.Macro != "":
+		return s.matchMacroRule(rule.Macro)
+	case rule.Substitution != "":
+		return s.matchSubstitutionRule(rule.Substitution)
+	default:
+		return false, nil
+	}
+}
+
+// matchFenceRule returns languages matched by one fenced-code selector.
+func (s usageScanner) matchFenceRule(fence string) (bool, []string) {
+	var values []string
+	for _, language := range s.languages {
+		if fence == "*" || strings.EqualFold(language, fence) {
+			values = append(values, language)
+		}
+	}
+	return len(values) != 0, values
+}
+
+// matchMacroRule returns selectors from matching macro invocations outside fenced code.
+func (s usageScanner) matchMacroRule(name string) (bool, []string) {
+	var values []string
+	matched := false
+	for _, line := range s.outside {
+		if value, ok := macroUsage(line, name); ok {
+			matched = true
+			values = append(values, value)
+		}
+	}
+	return matched, values
+}
+
+// matchSubstitutionRule returns selectors from matching substitutions outside fenced code.
+func (s usageScanner) matchSubstitutionRule(prefix string) (bool, []string) {
+	var values []string
+	for _, line := range s.outside {
+		values = append(values, substitutionUsage(line, prefix)...)
+	}
+	return len(values) != 0, values
 }
 
 // macroUsage detects macro invocations and records matching usage selectors.

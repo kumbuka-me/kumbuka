@@ -193,42 +193,14 @@ func (s *Discussions) ApplyCommentSuggestion(
 	actor domain.User,
 ) (domain.Page, error) {
 	slug = strings.TrimSpace(slug)
-	if err := s.authorization.requireEdit(ctx, actor, slug); err != nil {
-		return domain.Page{}, err
-	}
-	if slug == "" || commentID <= 0 {
-		return domain.Page{}, domain.NewValidationError("suggestion", "Choose a valid inline suggestion.")
-	}
-	if !canApplyInlineSuggestion(actor) {
-		return domain.Page{}, domain.ErrForbidden
-	}
-	if err := s.requireDiscussions(ctx); err != nil {
+	if err := s.authorizeCommentSuggestion(ctx, slug, commentID, actor); err != nil {
 		return domain.Page{}, err
 	}
 
-	comment, err := s.repository.PageComment(ctx, slug, commentID)
+	comment, page, err := s.loadApplicableCommentSuggestion(ctx, slug, commentID)
 	if err != nil {
 		return domain.Page{}, err
 	}
-	if comment.Suggestion == nil {
-		return domain.Page{}, domain.NewValidationError("suggestion", "This comment does not contain an applicable suggestion.")
-	}
-	if comment.Suggestion.AppliedAt != nil {
-		return domain.Page{}, domain.NewValidationError("suggestion", "This suggestion has already been applied.")
-	}
-
-	page, err := s.repository.GetPage(ctx, slug)
-	if err != nil {
-		return domain.Page{}, err
-	}
-	latest, count, err := s.repository.LatestRevision(ctx, slug)
-	if err != nil {
-		return domain.Page{}, err
-	}
-	if !suggestionMatchesRevision(*comment.Suggestion, latest, count, page.Markdown) {
-		return domain.Page{}, domain.ErrStaleSuggestion
-	}
-
 	updatedMarkdown, err := applyInlineSuggestion(page.Markdown, *comment.Suggestion)
 	if err != nil {
 		return domain.Page{}, err
@@ -240,24 +212,60 @@ func (s *Discussions) ApplyCommentSuggestion(
 
 	message := fmt.Sprintf("Apply inline suggestion from comment #%d", comment.ID)
 	updated, err := s.repository.ApplyPageCommentSuggestion(
-		ctx,
-		slug,
-		comment.ID,
-		actor.ID,
-		updatedMarkdown,
-		message,
-		md.Links(updatedMarkdown),
-		usage,
-		render,
+		ctx, slug, comment.ID, actor.ID, updatedMarkdown, message, md.Links(updatedMarkdown), usage, render,
 	)
 	if err != nil {
 		return domain.Page{}, err
 	}
-
-	s.effects.recordAudit(ctx, actor.ID, "comment.suggestion_applied", "page", updated.Slug, message)
-	s.effects.notifyWatchers(ctx, actor.ID, updated.Slug, "Inline suggestion applied: "+updated.Title, message+" and created a new revision.", pageCommentURL(updated.Slug, comment.ID))
-
+	s.recordAppliedCommentSuggestion(ctx, actor, updated, comment.ID, message)
 	return updated, nil
+}
+
+// authorizeCommentSuggestion validates access, identifiers, actor role, and discussion availability.
+func (s *Discussions) authorizeCommentSuggestion(ctx context.Context, slug string, commentID int64, actor domain.User) error {
+	if err := s.authorization.requireEdit(ctx, actor, slug); err != nil {
+		return err
+	}
+	if slug == "" || commentID <= 0 {
+		return domain.NewValidationError("suggestion", "Choose a valid inline suggestion.")
+	}
+	if !canApplyInlineSuggestion(actor) {
+		return domain.ErrForbidden
+	}
+	return s.requireDiscussions(ctx)
+}
+
+// loadApplicableCommentSuggestion loads and validates a still-current inline suggestion.
+func (s *Discussions) loadApplicableCommentSuggestion(ctx context.Context, slug string, commentID int64) (domain.PageComment, domain.Page, error) {
+	comment, err := s.repository.PageComment(ctx, slug, commentID)
+	if err != nil {
+		return domain.PageComment{}, domain.Page{}, err
+	}
+	if comment.Suggestion == nil {
+		return domain.PageComment{}, domain.Page{}, domain.NewValidationError("suggestion", "This comment does not contain an applicable suggestion.")
+	}
+	if comment.Suggestion.AppliedAt != nil {
+		return domain.PageComment{}, domain.Page{}, domain.NewValidationError("suggestion", "This suggestion has already been applied.")
+	}
+
+	page, err := s.repository.GetPage(ctx, slug)
+	if err != nil {
+		return domain.PageComment{}, domain.Page{}, err
+	}
+	latest, count, err := s.repository.LatestRevision(ctx, slug)
+	if err != nil {
+		return domain.PageComment{}, domain.Page{}, err
+	}
+	if !suggestionMatchesRevision(*comment.Suggestion, latest, count, page.Markdown) {
+		return domain.PageComment{}, domain.Page{}, domain.ErrStaleSuggestion
+	}
+	return comment, page, nil
+}
+
+// recordAppliedCommentSuggestion emits audit and watcher side effects after persistence succeeds.
+func (s *Discussions) recordAppliedCommentSuggestion(ctx context.Context, actor domain.User, updated domain.Page, commentID int64, message string) {
+	s.effects.recordAudit(ctx, actor.ID, "comment.suggestion_applied", "page", updated.Slug, message)
+	s.effects.notifyWatchers(ctx, actor.ID, updated.Slug, "Inline suggestion applied: "+updated.Title, message+" and created a new revision.", pageCommentURL(updated.Slug, commentID))
 }
 
 // ResolveComment changes one page-bound discussion's resolution state.

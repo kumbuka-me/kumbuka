@@ -68,13 +68,35 @@ func (m *Manager) UpdateSettings(ctx context.Context, id string, settings map[st
 	if err != nil {
 		return err
 	}
+	declared := declaredFeatureSettings(item.metadata.Manifest)
+	if err := validateFeatureSettings(declared, settings); err != nil {
+		return err
+	}
+	if err := validateFeatureSettingDependencies(declared, settings); err != nil {
+		return err
+	}
+	if err := m.persistFeatureSettings(ctx, id, settings); err != nil {
+		return err
+	}
 
+	item.metadata.Settings = maps.Clone(settings)
+	m.loaded[id] = item
+	return nil
+}
+
+// declaredFeatureSettings returns untyped settings modules keyed by their manifest identifier.
+func declaredFeatureSettings(manifest pluginpackage.Manifest) map[string]pluginpackage.Module {
 	declared := make(map[string]pluginpackage.Module)
-	for _, module := range item.metadata.Manifest.Modules {
+	for _, module := range manifest.Modules {
 		if module.Type == "settings" && len(module.Fields) == 0 {
 			declared[module.ID] = module
 		}
 	}
+	return declared
+}
+
+// validateFeatureSettings requires a complete state containing only declared settings.
+func validateFeatureSettings(declared map[string]pluginpackage.Module, settings map[string]bool) error {
 	if len(declared) == 0 {
 		return errors.New("plugin does not expose feature settings")
 	}
@@ -86,32 +108,39 @@ func (m *Manager) UpdateSettings(ctx context.Context, id string, settings map[st
 			return fmt.Errorf("unknown plugin setting %q", key)
 		}
 	}
+	return nil
+}
 
+// validateFeatureSettingDependencies rejects enabled settings whose declared feature dependencies are disabled.
+func validateFeatureSettingDependencies(declared map[string]pluginpackage.Module, settings map[string]bool) error {
 	for id, module := range declared {
 		if !settings[id] {
 			continue
 		}
 		for _, dependency := range module.Requires {
-			if required, ok := declared[dependency]; ok && !settings[required.ID] {
+			required, ok := declared[dependency]
+			if ok && !settings[required.ID] {
 				return fmt.Errorf("%s requires %s to be enabled", module.Name, required.Name)
 			}
 		}
 	}
+	return nil
+}
 
-	if m.values != nil {
-		for key, enabled := range settings {
-			value, err := json.Marshal(enabled)
-			if err != nil {
-				return err
-			}
-			if err := m.values.WritePluginValue(ctx, id, pluginSettingsNamespace, featureSettingStorageKey(key), value); err != nil {
-				return fmt.Errorf("save plugin setting %s.%s: %w", id, key, err)
-			}
+// persistFeatureSettings stores every feature value while the manager lock keeps the operation atomic to callers.
+func (m *Manager) persistFeatureSettings(ctx context.Context, pluginID string, settings map[string]bool) error {
+	if m.values == nil {
+		return nil
+	}
+	for key, enabled := range settings {
+		value, err := json.Marshal(enabled)
+		if err != nil {
+			return err
+		}
+		if err := m.values.WritePluginValue(ctx, pluginID, pluginSettingsNamespace, featureSettingStorageKey(key), value); err != nil {
+			return fmt.Errorf("save plugin setting %s.%s: %w", pluginID, key, err)
 		}
 	}
-
-	item.metadata.Settings = maps.Clone(settings)
-	m.loaded[id] = item
 	return nil
 }
 

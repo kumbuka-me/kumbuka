@@ -31,6 +31,25 @@ type UserUpdateInput struct {
 
 // UpdateAccount validates the complete operation before submitting one atomic mutation.
 func (s *Users) UpdateAccount(ctx context.Context, input UserUpdateInput) error {
+	if err := validateAccountUpdate(input); err != nil {
+		return err
+	}
+
+	update := domain.UserAccountUpdate{UserID: input.UserID, Role: input.Role, Enabled: input.Enabled, GroupIDs: input.GroupIDs}
+	if err := s.prepareLocalCredentialUpdate(ctx, input, &update); err != nil {
+		return err
+	}
+	if err := s.preparePasswordUpdate(input.Password, &update); err != nil {
+		return err
+	}
+	if err := s.repository.UpdateUserAccount(ctx, update); err != nil {
+		return fmt.Errorf("update account: %w", err)
+	}
+	return nil
+}
+
+// validateAccountUpdate validates authorization, identity, role, self-protection, and group membership inputs.
+func validateAccountUpdate(input UserUpdateInput) error {
 	if !input.Actor.IsAdministrator() {
 		return domain.ErrForbidden
 	}
@@ -53,37 +72,53 @@ func (s *Users) UpdateAccount(ctx context.Context, input UserUpdateInput) error 
 			return domain.NewValidationError("group_id", "Choose a valid group.")
 		}
 	}
-	update := domain.UserAccountUpdate{UserID: input.UserID, Role: input.Role, Enabled: input.Enabled, GroupIDs: input.GroupIDs}
-	if input.UpdateLocalCredential {
-		mode := input.AuthModeOverride
-		if mode == "" {
-			settings, err := s.repository.ApplicationSettings(ctx)
-			if err != nil {
-				return fmt.Errorf("load authentication settings for account update: %w", err)
-			}
-			mode = settings.Authentication.Mode
-		}
-		if !domain.IsExternalAuthMode(domain.AuthMode(mode)) {
-			return domain.NewValidationError("local_credential_enabled", "Local recovery credentials can only be enabled or disabled while external authentication is active.")
-		}
-		enabled := input.Password != "" || input.LocalCredentialEnabled
-		update.LocalCredentialEnabled = &enabled
+	return nil
+}
+
+// prepareLocalCredentialUpdate resolves authentication mode and applies the requested recovery-credential state.
+func (s *Users) prepareLocalCredentialUpdate(ctx context.Context, input UserUpdateInput, update *domain.UserAccountUpdate) error {
+	if !input.UpdateLocalCredential {
+		return nil
 	}
-	if input.Password != "" {
-		if s.passwords == nil {
-			return fmt.Errorf("hash account password: password service is not configured")
-		}
-		if problem := s.passwords.Problem(input.Password); problem != "" {
-			return domain.NewValidationError("local_password", problem)
-		}
-		hash, err := s.passwords.Hash(input.Password)
-		if err != nil {
-			return fmt.Errorf("hash account password: %w", err)
-		}
-		update.PasswordHash = hash
+	mode, err := s.accountAuthenticationMode(ctx, input.AuthModeOverride)
+	if err != nil {
+		return err
 	}
-	if err := s.repository.UpdateUserAccount(ctx, update); err != nil {
-		return fmt.Errorf("update account: %w", err)
+	if !domain.IsExternalAuthMode(domain.AuthMode(mode)) {
+		return domain.NewValidationError("local_credential_enabled", "Local recovery credentials can only be enabled or disabled while external authentication is active.")
 	}
+	enabled := input.Password != "" || input.LocalCredentialEnabled
+	update.LocalCredentialEnabled = &enabled
+	return nil
+}
+
+// accountAuthenticationMode returns the deployment override or the persisted authentication mode.
+func (s *Users) accountAuthenticationMode(ctx context.Context, override string) (string, error) {
+	if override != "" {
+		return override, nil
+	}
+	settings, err := s.repository.ApplicationSettings(ctx)
+	if err != nil {
+		return "", fmt.Errorf("load authentication settings for account update: %w", err)
+	}
+	return settings.Authentication.Mode, nil
+}
+
+// preparePasswordUpdate validates and hashes an optional local recovery password.
+func (s *Users) preparePasswordUpdate(password string, update *domain.UserAccountUpdate) error {
+	if password == "" {
+		return nil
+	}
+	if s.passwords == nil {
+		return fmt.Errorf("hash account password: password service is not configured")
+	}
+	if problem := s.passwords.Problem(password); problem != "" {
+		return domain.NewValidationError("local_password", problem)
+	}
+	hash, err := s.passwords.Hash(password)
+	if err != nil {
+		return fmt.Errorf("hash account password: %w", err)
+	}
+	update.PasswordHash = hash
 	return nil
 }

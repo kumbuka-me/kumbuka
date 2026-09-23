@@ -262,49 +262,74 @@ func (m *Manager) SaveResourceRecord(ctx context.Context, pluginID, moduleID, or
 		return errors.New("plugin resource storage is unavailable")
 	}
 
-	var previous ResourceRecord
-	if strings.TrimSpace(originalKey) != "" {
-		var found bool
-		previous, found, err = ReadResourceRecord(ctx, m.values, pluginID, module, originalKey)
-		if err != nil {
-			return err
-		}
-		if !found {
-			return errors.New("plugin resource record no longer exists")
-		}
+	originalKey = strings.TrimSpace(originalKey)
+	previous, err := loadExistingResourceRecord(ctx, m.values, pluginID, module, originalKey)
+	if err != nil {
+		return err
 	}
-
-	validated, key, err := normalizeResourceRecord(module, values, previous.Values, strings.TrimSpace(originalKey) == "")
+	validated, key, err := normalizeResourceRecord(module, values, previous.Values, originalKey == "")
 	if err != nil {
 		return err
 	}
 	if err := m.encryptConfigurationSecrets(module, validated, previous.Values); err != nil {
 		return err
 	}
-	encoded, err := json.Marshal(validated)
+	encoded, err := encodeResourceRecord(validated)
 	if err != nil {
 		return err
 	}
-	if len(encoded) > maxResourceRecordBytes {
-		return errors.New("plugin resource record is too large")
-	}
+	return m.persistResourceRecord(ctx, pluginID, module, originalKey, key, encoded)
+}
 
+// loadExistingResourceRecord loads a record only when this is an update.
+func loadExistingResourceRecord(ctx context.Context, values Storage, pluginID string, module pluginpackage.Module, originalKey string) (ResourceRecord, error) {
+	if originalKey == "" {
+		return ResourceRecord{}, nil
+	}
+	record, found, err := ReadResourceRecord(ctx, values, pluginID, module, originalKey)
+	if err != nil {
+		return ResourceRecord{}, err
+	}
+	if !found {
+		return ResourceRecord{}, errors.New("plugin resource record no longer exists")
+	}
+	return record, nil
+}
+
+// encodeResourceRecord serializes one validated record within the storage size limit.
+func encodeResourceRecord(values map[string]string) ([]byte, error) {
+	encoded, err := json.Marshal(values)
+	if err != nil {
+		return nil, err
+	}
+	if len(encoded) > maxResourceRecordBytes {
+		return nil, errors.New("plugin resource record is too large")
+	}
+	return encoded, nil
+}
+
+// persistResourceRecord writes a resource record or atomically renames its storage key.
+func (m *Manager) persistResourceRecord(ctx context.Context, pluginID string, module pluginpackage.Module, originalKey, key string, encoded []byte) error {
 	newStorageKey := resourceStorageKey(module.ID, key)
 	oldStorageKey := resourceStorageKey(module.ID, originalKey)
-	if originalKey != "" && oldStorageKey != newStorageKey {
-		err := m.values.ReplacePluginValue(ctx, pluginID, resourceNamespace, oldStorageKey, newStorageKey, encoded)
-		switch {
-		case errors.Is(err, ErrPluginValueAlreadyExists):
-			keyField := resourceKeyField(module)
-			return configurationFieldError(keyField, keyField.Name+" is already in use.")
-		case errors.Is(err, ErrPluginValueNotFound):
-			return errors.New("plugin resource record no longer exists")
-		default:
-			return err
-		}
+	if originalKey == "" || oldStorageKey == newStorageKey {
+		return m.values.WritePluginValue(ctx, pluginID, resourceNamespace, newStorageKey, encoded)
 	}
+	err := m.values.ReplacePluginValue(ctx, pluginID, resourceNamespace, oldStorageKey, newStorageKey, encoded)
+	return resourceRenameError(module, err)
+}
 
-	return m.values.WritePluginValue(ctx, pluginID, resourceNamespace, newStorageKey, encoded)
+// resourceRenameError translates storage rename conflicts into resource validation errors.
+func resourceRenameError(module pluginpackage.Module, err error) error {
+	switch {
+	case errors.Is(err, ErrPluginValueAlreadyExists):
+		keyField := resourceKeyField(module)
+		return configurationFieldError(keyField, keyField.Name+" is already in use.")
+	case errors.Is(err, ErrPluginValueNotFound):
+		return errors.New("plugin resource record no longer exists")
+	default:
+		return err
+	}
 }
 
 // DeleteResourceRecord deletes one plugin-owned resource record.

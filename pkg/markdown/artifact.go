@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/kumbuka-me/kumbuka/pkg/plugin"
 	"github.com/kumbuka-me/kumbuka/pkg/pluginusage"
 	"github.com/kumbuka-me/sdk"
 )
@@ -62,44 +63,72 @@ func (r *Renderer) RenderFingerprint(options Options) string {
 
 // CanPersist reports whether a page can be rendered once without capturing request-local authorization or mutable plugin resource data.
 func (r *Renderer) CanPersist(source string, usage *pluginusage.Index) bool {
-	scanner := newUsageScanner(source)
-	for _, line := range scanner.outside {
-		// Macros, variables, snippets and includes are intentionally dynamic.
-		// Keeping them out of persisted HTML also prevents saving output rendered
-		// with the editor's page permissions and serving it to another reader.
-		if strings.Contains(line, "{{") {
-			return false
-		}
+	if sourceHasDynamicMarkdown(source) {
+		return false
 	}
 	if r.manager == nil {
 		return true
 	}
 	plan, release := r.registry.AcquireRenderPlan()
 	defer release()
-	if !currentUsageIndex(usage, plan, source) {
-		index := analyzeUsage(source, plan)
-		usage = &index
+	usage = currentOrAnalyzedUsage(source, usage, plan)
+	selected := selectedUsageModules(usage)
+	return !r.hasSelectedDynamicPluginModule(selected)
+}
+
+// sourceHasDynamicMarkdown reports whether source contains request-time Markdown constructs outside code fences.
+func sourceHasDynamicMarkdown(source string) bool {
+	scanner := newUsageScanner(source)
+	for _, line := range scanner.outside {
+		if strings.Contains(line, "{{") {
+			return true
+		}
 	}
+	return false
+}
+
+// currentOrAnalyzedUsage returns a source-current usage index.
+func currentOrAnalyzedUsage(source string, usage *pluginusage.Index, plan *plugin.RenderPlan) *pluginusage.Index {
+	if currentUsageIndex(usage, plan, source) {
+		return usage
+	}
+	index := analyzeUsage(source, plan)
+	return &index
+}
+
+// selectedUsageModules indexes source-selected plugin modules by plugin and module ID.
+func selectedUsageModules(usage *pluginusage.Index) map[string]bool {
 	selected := make(map[string]bool, len(usage.Modules))
 	for _, module := range usage.Modules {
 		selected[module.PluginID+"\x00"+module.ModuleID] = true
 	}
+	return selected
+}
+
+// hasSelectedDynamicPluginModule reports whether a dynamic-read plugin can affect this page.
+func (r *Renderer) hasSelectedDynamicPluginModule(selected map[string]bool) bool {
 	for _, item := range r.manager.Plugins() {
 		if !item.Enabled || !hasDynamicReadPermission(item.Manifest.Permissions) {
 			continue
 		}
-		for _, module := range item.Manifest.Modules {
-			if !renderExecutableModule(module.Type) {
-				continue
-			}
-			// A dynamic render module without declarative usage cannot be proven
-			// irrelevant to this page, so keep the page on the live path.
-			if len(module.Usage) == 0 || selected[item.Manifest.ID+"\x00"+module.ID] {
-				return false
-			}
+		if manifestHasSelectedDynamicModule(item, selected) {
+			return true
 		}
 	}
-	return true
+	return false
+}
+
+// manifestHasSelectedDynamicModule reports whether one plugin has an executable dynamic module relevant to the page.
+func manifestHasSelectedDynamicModule(item plugin.LoadedPlugin, selected map[string]bool) bool {
+	for _, module := range item.Manifest.Modules {
+		if !renderExecutableModule(module.Type) {
+			continue
+		}
+		if len(module.Usage) == 0 || selected[item.Manifest.ID+"\x00"+module.ID] {
+			return true
+		}
+	}
+	return false
 }
 
 // hasDynamicReadPermission reports whether a plugin manifest grants a dynamic read capability.

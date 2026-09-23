@@ -25,8 +25,9 @@ func (s *Store) SavePageIfUnchanged(
 	if expectedUpdatedAt.IsZero() || strings.TrimSpace(previousSlug) == "" {
 		return domain.Page{}, domain.NewValidationError("expected_updated_at", "Reload the page before saving it.")
 	}
-
-	metadata, pluginUsage, renderedContents, render, err := preparePageSave(metadata, render)
+	mutation, err := preparePageSaveTransaction(
+		previousSlug, slug, title, icon, language, markdown, message, tags, links, groupIDs, metadata, properties, render, user,
+	)
 	if err != nil {
 		return domain.Page{}, err
 	}
@@ -36,56 +37,18 @@ func (s *Store) SavePageIfUnchanged(
 		return domain.Page{}, mutationError(err)
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
-
-	if err := validateAssignableGroup(ctx, tx, metadata.OwnerGroupID, user); err != nil {
+	if err := validateAssignableGroup(ctx, tx, mutation.record.metadata.OwnerGroupID, mutation.user); err != nil {
 		return domain.Page{}, mutationError(err)
 	}
-
 	if err := ensurePageUnchanged(ctx, tx, previousSlug, expectedUpdatedAt); err != nil {
 		return domain.Page{}, mutationError(err)
 	}
-
-	id, err := savePageRecord(ctx, tx, pageSaveRecord{
-		previousSlug:     previousSlug,
-		slug:             slug,
-		title:            title,
-		language:         language,
-		markdown:         markdown,
-		metadata:         metadata,
-		render:           render,
-		pluginUsage:      pluginUsage,
-		renderedContents: renderedContents,
-		userID:           user.ID,
-	})
-	if err != nil {
-		return domain.Page{}, mutationError(err)
-	}
-
-	if err := savePageIcon(ctx, tx, slug, icon); err != nil {
-		return domain.Page{}, mutationError(err)
-	}
-	if err := appendPageRevision(ctx, tx, id, markdown, message, user.ID); err != nil {
-		return domain.Page{}, mutationError(err)
-	}
-	if err := supersedePageReviews(ctx, tx, id); err != nil {
-		return domain.Page{}, mutationError(err)
-	}
-	if err := replacePageTags(ctx, tx, id, tags); err != nil {
-		return domain.Page{}, mutationError(err)
-	}
-	if err := replacePageGroups(ctx, tx, id, groupIDs, user); err != nil {
-		return domain.Page{}, mutationError(err)
-	}
-	if err := replacePageProperties(ctx, tx, id, properties); err != nil {
-		return domain.Page{}, mutationError(err)
-	}
-	if err := replacePageLinks(ctx, tx, id, links); err != nil {
+	if err := executePageSaveTransaction(ctx, tx, mutation); err != nil {
 		return domain.Page{}, mutationError(err)
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return domain.Page{}, mutationError(err)
 	}
-
 	return s.GetPage(ctx, slug)
 }
 

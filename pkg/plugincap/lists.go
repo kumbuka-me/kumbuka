@@ -47,69 +47,62 @@ func PageListCapabilities(source any) map[string]plugin.Capability {
 		return result
 	}
 
-	decode := func(data json.RawMessage) (sdk.PageListQuery, error) {
-		var request sdk.PageListQuery
-		if err := json.Unmarshal(data, &request); err != nil || !validPageListQuery(request) {
-			return sdk.PageListQuery{}, errors.New("invalid page list query")
-		}
-		return request, nil
-	}
-
 	if pages, ok := source.(RecentPagesSource); ok {
-		result["pages.recent"] = func(ctx context.Context, data json.RawMessage) (any, error) {
-			request, err := decode(data)
-			if err != nil {
-				return nil, err
-			}
-			return pageValues(pages.Recent(ctx, request.Limit))
-		}
+		result["pages.recent"] = pageListCapability(pages.Recent)
 	}
 	if pages, ok := source.(RecentViewedSource); ok {
-		result["pages.recent-viewed"] = func(ctx context.Context, data json.RawMessage) (any, error) {
-			request, err := decode(data)
-			if err != nil {
-				return nil, err
-			}
-			return pageValues(pages.RecentViewed(ctx, request.Limit))
-		}
+		result["pages.recent-viewed"] = pageListCapability(pages.RecentViewed)
 	}
 	if pages, ok := source.(FavoritePagesSource); ok {
-		result["pages.favorites"] = func(ctx context.Context, data json.RawMessage) (any, error) {
-			request, err := decode(data)
-			if err != nil {
-				return nil, err
-			}
-			return pageValues(pages.Favorites(ctx, request.Limit))
-		}
+		result["pages.favorites"] = pageListCapability(pages.Favorites)
 	}
 	if pages, ok := source.(PopularPagesSource); ok {
-		result["pages.popular"] = func(ctx context.Context, data json.RawMessage) (any, error) {
-			request, err := decode(data)
-			if err != nil {
-				return nil, err
-			}
-			return pageValues(pages.Popular(ctx, request.Limit))
-		}
+		result["pages.popular"] = pageListCapability(pages.Popular)
 	}
 	if edits, ok := source.(RecentEditsSource); ok {
-		result["pages.recent-edits"] = func(ctx context.Context, data json.RawMessage) (any, error) {
-			request, err := decode(data)
-			if err != nil {
-				return nil, err
-			}
-			records, err := edits.RecentEdited(ctx, request.Limit)
-			if err != nil {
-				return nil, err
-			}
-			values := make([]sdk.RecentEdit, 0, len(records))
-			for _, record := range records {
-				values = append(values, sdk.RecentEdit{Page: PageValue(record.Page), RevisionMessage: record.RevisionMessage})
-			}
-			return values, nil
-		}
+		result["pages.recent-edits"] = recentEditsCapability(edits.RecentEdited)
 	}
 
 	return result
+}
+
+// pageListCapability adapts one bounded page query to the plugin capability contract.
+func pageListCapability(load func(context.Context, int) ([]domain.Page, error)) plugin.Capability {
+	return func(ctx context.Context, data json.RawMessage) (any, error) {
+		request, err := decodePageListQuery(data)
+		if err != nil {
+			return nil, err
+		}
+		return pageValues(load(ctx, request.Limit))
+	}
+}
+
+// recentEditsCapability adapts the recent-edit query and projection to the plugin capability contract.
+func recentEditsCapability(load func(context.Context, int) ([]domain.RecentEdit, error)) plugin.Capability {
+	return func(ctx context.Context, data json.RawMessage) (any, error) {
+		request, err := decodePageListQuery(data)
+		if err != nil {
+			return nil, err
+		}
+		records, err := load(ctx, request.Limit)
+		if err != nil {
+			return nil, err
+		}
+		values := make([]sdk.RecentEdit, 0, len(records))
+		for _, record := range records {
+			values = append(values, sdk.RecentEdit{Page: PageValue(record.Page), RevisionMessage: record.RevisionMessage})
+		}
+		return values, nil
+	}
+}
+
+// decodePageListQuery decodes and validates one bounded page-list request.
+func decodePageListQuery(data json.RawMessage) (sdk.PageListQuery, error) {
+	var request sdk.PageListQuery
+	if err := json.Unmarshal(data, &request); err != nil || !validPageListQuery(request) {
+		return sdk.PageListQuery{}, errors.New("invalid page list query")
+	}
+	return request, nil
 }
 
 // DraftCapabilities exposes bounded private draft metadata without editor values.

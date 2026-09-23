@@ -172,6 +172,21 @@ func validPageWorkflowSettings(input PageSaveInput) bool {
 
 // save validates and persists a page without emitting side effects.
 func (s *Mutations) save(ctx context.Context, input PageSaveInput) (domain.Page, error) {
+	input = normalizePageSaveInput(input)
+	if err := s.validatePageSaveInput(input); err != nil {
+		return domain.Page{}, err
+	}
+
+	pluginUsage, render, err := preparePageContent(ctx, s.content, input.Markdown)
+	if err != nil {
+		return domain.Page{}, err
+	}
+	metadata := pageMetadataFromSaveInput(input, pluginUsage)
+	return s.persistPageSave(ctx, input, metadata, render)
+}
+
+// normalizePageSaveInput canonicalizes user-controlled page metadata before validation.
+func normalizePageSaveInput(input PageSaveInput) PageSaveInput {
 	input.PreviousSlug = strings.TrimSpace(input.PreviousSlug)
 	input.Slug = md.Slug(input.Slug)
 	input.Title = strings.TrimSpace(input.Title)
@@ -181,96 +196,69 @@ func (s *Mutations) save(ctx context.Context, input PageSaveInput) (domain.Page,
 	input.Icon = strings.TrimSpace(input.Icon)
 	input.Language = strings.TrimSpace(input.Language)
 	input.DeprecatedTarget = md.Slug(input.DeprecatedTarget)
-	validation := &domain.ValidationError{}
+	return input
+}
 
-	if input.Slug == "" {
+// validatePageSaveInput returns all user-correctable page metadata failures.
+func (s *Mutations) validatePageSaveInput(input PageSaveInput) error {
+	validation := &domain.ValidationError{}
+	validatePageSlug(input.Slug, validation)
+	if input.Title == "" {
+		validation.Fields = append(validation.Fields, domain.FieldError{Field: "title", Message: "Title is required."})
+	}
+	if input.Icon != "" && (s.icons == nil || !s.icons.IsIcon(input.Icon)) {
+		validation.Fields = append(validation.Fields, domain.FieldError{Field: "icon", Message: "Choose an icon from the available icon catalog."})
+	}
+	if input.Language != "" && !validContentLanguage(input.Language) {
+		validation.Fields = append(validation.Fields, domain.FieldError{Field: "language", Message: "Choose a supported content language."})
+	}
+	if !validPageWorkflowSettings(input) {
+		validation.Fields = append(validation.Fields, domain.FieldError{Field: "status", Message: "Choose valid page workflow settings."})
+	}
+	if len(validation.Fields) == 0 {
+		return nil
+	}
+	return validation
+}
+
+// validatePageSlug appends page-path validation failures.
+func validatePageSlug(slug string, validation *domain.ValidationError) {
+	if slug == "" {
 		validation.Fields = append(validation.Fields, domain.FieldError{Field: "slug", Message: "A page path is required."})
-	} else if strings.HasPrefix(input.Slug, "/") ||
-		strings.HasSuffix(input.Slug, "/") ||
-		strings.Contains(input.Slug, "//") {
+		return
+	}
+	if strings.HasPrefix(slug, "/") || strings.HasSuffix(slug, "/") || strings.Contains(slug, "//") {
 		validation.Fields = append(validation.Fields, domain.FieldError{
 			Field:   "slug",
 			Message: "Use a page path without leading, trailing, or repeated slashes.",
 		})
 	}
-	if input.Title == "" {
-		validation.Fields = append(validation.Fields, domain.FieldError{Field: "title", Message: "Title is required."})
-	}
-	if input.Icon != "" && (s.icons == nil || !s.icons.IsIcon(input.Icon)) {
-		validation.Fields = append(validation.Fields, domain.FieldError{
-			Field:   "icon",
-			Message: "Choose an icon from the available icon catalog.",
-		})
-	}
-	if input.Language != "" && !validContentLanguage(input.Language) {
-		validation.Fields = append(validation.Fields, domain.FieldError{
-			Field:   "language",
-			Message: "Choose a supported content language.",
-		})
-	}
-	if !validPageWorkflowSettings(input) {
-		validation.Fields = append(validation.Fields, domain.FieldError{
-			Field:   "status",
-			Message: "Choose valid page workflow settings.",
-		})
-	}
+}
 
-	if len(validation.Fields) > 0 {
-		return domain.Page{}, validation
-	}
-
-	pluginUsage, render, err := preparePageContent(ctx, s.content, input.Markdown)
-	if err != nil {
-		return domain.Page{}, err
-	}
-
-	metadata := domain.PageMetadata{
+// pageMetadataFromSaveInput maps validated workflow fields onto persistence metadata.
+func pageMetadataFromSaveInput(input PageSaveInput, usage *pluginusage.Index) domain.PageMetadata {
+	return domain.PageMetadata{
 		Status:             input.Status,
 		OwnerGroupID:       input.OwnerGroupID,
 		ReviewIntervalDays: input.ReviewIntervalDays,
 		MarkReviewed:       input.MarkReviewed,
 		DeprecatedTarget:   input.DeprecatedTarget,
-		PluginUsage:        pluginUsage,
+		PluginUsage:        usage,
 	}
-	links := md.Links(input.Markdown)
+}
 
+// persistPageSave selects optimistic concurrency for edits and a normal save otherwise.
+func (s *Mutations) persistPageSave(ctx context.Context, input PageSaveInput, metadata domain.PageMetadata, render domain.PageRender) (domain.Page, error) {
+	links := md.Links(input.Markdown)
 	if input.PreviousSlug != "" && !input.ExpectedUpdatedAt.IsZero() {
 		return s.repository.SavePageIfUnchanged(
-			ctx,
-			input.ExpectedUpdatedAt,
-			input.PreviousSlug,
-			input.Slug,
-			input.Title,
-			input.Icon,
-			input.Language,
-			input.Markdown,
-			input.Message,
-			input.Tags,
-			links,
-			input.GroupIDs,
-			metadata,
-			input.Properties,
-			render,
-			input.Actor,
+			ctx, input.ExpectedUpdatedAt, input.PreviousSlug, input.Slug, input.Title, input.Icon, input.Language,
+			input.Markdown, input.Message, input.Tags, links, input.GroupIDs, metadata, input.Properties, render, input.Actor,
 		)
 	}
-
 	return s.repository.SavePage(
-		ctx,
-		input.PreviousSlug,
-		input.Slug,
-		input.Title,
-		input.Icon,
-		input.Language,
-		input.Markdown,
-		input.Message,
-		input.Tags,
-		links,
-		input.GroupIDs,
-		metadata,
-		input.Properties,
-		render,
-		input.Actor,
+		ctx, input.PreviousSlug, input.Slug, input.Title, input.Icon, input.Language, input.Markdown, input.Message,
+		input.Tags, links, input.GroupIDs, metadata, input.Properties, render, input.Actor,
 	)
 }
 

@@ -80,42 +80,70 @@ func (s *Store) ReplacePluginValue(ctx context.Context, id, namespace, oldKey, n
 		return err
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
-
-	if _, err = tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1, 92731))`, id); err != nil {
+	if err := lockPluginValues(ctx, tx, id); err != nil {
 		return err
 	}
+	if err := validatePluginValueMove(ctx, tx, id, namespace, oldKey, newKey, value); err != nil {
+		return err
+	}
+	if err := movePluginValue(ctx, tx, id, namespace, oldKey, newKey, value); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
 
-	var oldExists, newExists bool
-	if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM plugin_values WHERE plugin_id=$1 AND namespace=$2 AND key=$3)`, id, namespace, oldKey).Scan(&oldExists); err != nil {
+// lockPluginValues serializes quota-sensitive writes for one plugin.
+func lockPluginValues(ctx context.Context, tx pgx.Tx, pluginID string) error {
+	_, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1, 92731))`, pluginID)
+	return err
+}
+
+// validatePluginValueMove validates source existence, target uniqueness, and resulting quota usage.
+func validatePluginValueMove(ctx context.Context, tx pgx.Tx, id, namespace, oldKey, newKey string, value []byte) error {
+	oldExists, err := pluginValueExists(ctx, tx, id, namespace, oldKey)
+	if err != nil {
 		return err
 	}
 	if !oldExists {
 		return plugin.ErrPluginValueNotFound
 	}
-	if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM plugin_values WHERE plugin_id=$1 AND namespace=$2 AND key=$3)`, id, namespace, newKey).Scan(&newExists); err != nil {
+	newExists, err := pluginValueExists(ctx, tx, id, namespace, newKey)
+	if err != nil {
 		return err
 	}
 	if newExists {
 		return plugin.ErrPluginValueAlreadyExists
 	}
+	return validatePluginValueQuota(ctx, tx, id, namespace, oldKey, len(value))
+}
 
+// pluginValueExists reports whether one namespaced value exists.
+func pluginValueExists(ctx context.Context, tx pgx.Tx, id, namespace, key string) (bool, error) {
+	var exists bool
+	err := tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM plugin_values WHERE plugin_id=$1 AND namespace=$2 AND key=$3)`, id, namespace, key).Scan(&exists)
+	return exists, err
+}
+
+// validatePluginValueQuota checks quota after excluding the value being replaced.
+func validatePluginValueQuota(ctx context.Context, tx pgx.Tx, id, namespace, excludedKey string, valueSize int) error {
 	var count, size int64
-	err = tx.QueryRow(ctx, `SELECT count(*), COALESCE(sum(octet_length(value)),0) FROM plugin_values WHERE plugin_id=$1 AND NOT (namespace=$2 AND key=$3)`, id, namespace, oldKey).Scan(&count, &size)
+	err := tx.QueryRow(ctx, `SELECT count(*), COALESCE(sum(octet_length(value)),0) FROM plugin_values WHERE plugin_id=$1 AND NOT (namespace=$2 AND key=$3)`, id, namespace, excludedKey).Scan(&count, &size)
 	if err != nil {
 		return err
 	}
-	if count >= 1024 || size+int64(len(value)) > 16<<20 {
+	if count >= 1024 || size+int64(valueSize) > 16<<20 {
 		return errors.New("plugin storage quota exceeded")
 	}
+	return nil
+}
 
-	if _, err = tx.Exec(ctx, `DELETE FROM plugin_values WHERE plugin_id=$1 AND namespace=$2 AND key=$3`, id, namespace, oldKey); err != nil {
+// movePluginValue deletes the old key and inserts the replacement inside one transaction.
+func movePluginValue(ctx context.Context, tx pgx.Tx, id, namespace, oldKey, newKey string, value []byte) error {
+	if _, err := tx.Exec(ctx, `DELETE FROM plugin_values WHERE plugin_id=$1 AND namespace=$2 AND key=$3`, id, namespace, oldKey); err != nil {
 		return err
 	}
-	if _, err = tx.Exec(ctx, `INSERT INTO plugin_values(plugin_id,namespace,key,value) VALUES($1,$2,$3,$4)`, id, namespace, newKey, value); err != nil {
-		return err
-	}
-
-	return tx.Commit(ctx)
+	_, err := tx.Exec(ctx, `INSERT INTO plugin_values(plugin_id,namespace,key,value) VALUES($1,$2,$3,$4)`, id, namespace, newKey, value)
+	return err
 }
 
 // DeletePluginValue deletes one plugin value. Missing keys are ignored.

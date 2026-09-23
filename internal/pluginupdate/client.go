@@ -128,58 +128,71 @@ func (c *Client) Refresh(ctx context.Context) error {
 
 // Updates returns the newest compatible release newer than each installed plugin version from the cached catalog.
 func (c *Client) Updates(installed map[string]string) (map[string]domain.PluginRelease, error) {
-	updates := make(map[string]domain.PluginRelease)
-	if c == nil {
-		return nil, ErrCatalogUnavailable
+	available, err := c.cachedCatalog()
+	if err != nil {
+		return nil, err
 	}
 
+	updates := make(map[string]domain.PluginRelease)
+	for _, item := range available.Plugins {
+		currentText, installed := installed[item.ID]
+		if !installed {
+			continue
+		}
+		selected, found := newestCompatibleRelease(item.Versions, currentText)
+		if found {
+			updates[item.ID] = domain.PluginRelease{Version: selected.Version, ReleasedAt: selected.ReleasedAt}
+		}
+	}
+	return updates, nil
+}
+
+// cachedCatalog returns the last successfully refreshed catalog.
+func (c *Client) cachedCatalog() (catalog, error) {
+	if c == nil {
+		return catalog{}, ErrCatalogUnavailable
+	}
 	c.mu.RLock()
 	available := c.cached
 	ready := c.ready
 	c.mu.RUnlock()
 	if !ready {
-		return nil, ErrCatalogUnavailable
+		return catalog{}, ErrCatalogUnavailable
 	}
-	if len(installed) == 0 {
-		return updates, nil
+	return available, nil
+}
+
+// newestCompatibleRelease selects the newest valid release newer than currentText.
+func newestCompatibleRelease(releases []release, currentText string) (release, bool) {
+	current, ok := parseVersion(currentText)
+	if !ok {
+		return release{}, false
 	}
 
-	for _, item := range available.Plugins {
-		currentText, ok := installed[item.ID]
-		if !ok {
+	var selected release
+	var selectedVersion semanticVersion
+	found := false
+	for _, candidateRelease := range releases {
+		candidate, valid := eligibleUpdateVersion(candidateRelease, current)
+		if !valid {
 			continue
 		}
-		current, ok := parseVersion(currentText)
-		if !ok {
-			continue
-		}
-
-		var selected release
-		var selectedVersion semanticVersion
-		found := false
-		for _, release := range item.Versions {
-			if int64(release.APIVersion) != int64(sdk.Version) {
-				continue
-			}
-			candidate, valid := parseVersion(release.Version)
-			if !valid || compareVersion(candidate, current) <= 0 {
-				continue
-			}
-			if problem := releaseProblem(release); problem != "" {
-				continue
-			}
-			if !found || compareVersion(candidate, selectedVersion) > 0 {
-				selected = release
-				selectedVersion = candidate
-				found = true
-			}
-		}
-		if found {
-			updates[item.ID] = domain.PluginRelease{Version: selected.Version, ReleasedAt: selected.ReleasedAt}
+		if !found || compareVersion(candidate, selectedVersion) > 0 {
+			selected = candidateRelease
+			selectedVersion = candidate
+			found = true
 		}
 	}
+	return selected, found
+}
 
-	return updates, nil
+// eligibleUpdateVersion validates compatibility, version ordering, and release metadata.
+func eligibleUpdateVersion(candidateRelease release, current semanticVersion) (semanticVersion, bool) {
+	if int64(candidateRelease.APIVersion) != int64(sdk.Version) || releaseProblem(candidateRelease) != "" {
+		return semanticVersion{}, false
+	}
+	candidate, valid := parseVersion(candidateRelease.Version)
+	return candidate, valid && compareVersion(candidate, current) > 0
 }
 
 // Download retrieves one bounded package in memory, verifies it, and returns validated package bytes.
@@ -191,12 +204,38 @@ func (c *Client) Download(ctx context.Context, pluginID, version string) ([]byte
 	if err != nil {
 		return nil, err
 	}
+	packageURL, err := validatedPackageURL(release.PackageURL)
+	if err != nil {
+		return nil, err
+	}
 
-	packageURL, err := url.Parse(release.PackageURL)
+	response, err := c.downloadPackageResponse(ctx, packageURL)
+	if err != nil {
+		return nil, err
+	}
+	defer response.Body.Close() // nolint:errcheck
+
+	data, err := readVerifiedPackage(response, release.SHA256)
+	if err != nil {
+		return nil, err
+	}
+	if err := validateDownloadedPackage(data, pluginID, release.Version); err != nil {
+		return nil, err
+	}
+	return bytes.Clone(data), nil
+}
+
+// validatedPackageURL parses and enforces the first-party package URL policy.
+func validatedPackageURL(value string) (*url.URL, error) {
+	packageURL, err := url.Parse(value)
 	if err != nil || !allowedPackageURL(packageURL) {
 		return nil, errors.New("plugin package URL is not an allowed first-party release URL")
 	}
+	return packageURL, nil
+}
 
+// downloadPackageResponse performs the package request and validates response metadata.
+func (c *Client) downloadPackageResponse(ctx context.Context, packageURL *url.URL) (*http.Response, error) {
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, packageURL.String(), nil)
 	if err != nil {
 		return nil, fmt.Errorf("create plugin package request: %w", err)
@@ -205,45 +244,47 @@ func (c *Client) Download(ctx context.Context, pluginID, version string) ([]byte
 	if err != nil {
 		return nil, fmt.Errorf("download plugin package: %w", err)
 	}
-	defer response.Body.Close() // nolint:errcheck
 	if response.StatusCode != http.StatusOK {
+		response.Body.Close() // nolint:errcheck
 		return nil, fmt.Errorf("download plugin package: unexpected HTTP status %d", response.StatusCode)
 	}
 	if response.ContentLength > pluginpackage.MaxArchiveBytes {
+		response.Body.Close() // nolint:errcheck
 		return nil, errors.New("downloaded plugin package exceeds the 16 MiB limit")
 	}
+	return response, nil
+}
 
+// readVerifiedPackage reads the bounded response and verifies its catalog checksum.
+func readVerifiedPackage(response *http.Response, expectedHash string) ([]byte, error) {
 	var archive bytes.Buffer
 	hash := sha256.New()
-	written, err := io.Copy(
-		io.MultiWriter(&archive, hash),
-		io.LimitReader(response.Body, pluginpackage.MaxArchiveBytes+1),
-	)
+	written, err := io.Copy(io.MultiWriter(&archive, hash), io.LimitReader(response.Body, pluginpackage.MaxArchiveBytes+1))
 	if err != nil {
 		return nil, fmt.Errorf("download plugin package: %w", err)
 	}
 	if written > pluginpackage.MaxArchiveBytes {
 		return nil, errors.New("downloaded plugin package exceeds the 16 MiB limit")
 	}
-
-	actualHash := hex.EncodeToString(hash.Sum(nil))
-	if !strings.EqualFold(actualHash, release.SHA256) {
+	if !strings.EqualFold(hex.EncodeToString(hash.Sum(nil)), expectedHash) {
 		return nil, errors.New("downloaded plugin package checksum does not match the catalog")
 	}
+	return archive.Bytes(), nil
+}
 
-	data := archive.Bytes()
+// validateDownloadedPackage verifies the package manifest identity and version.
+func validateDownloadedPackage(data []byte, pluginID, version string) error {
 	pkg, err := pluginpackage.Read(data)
 	if err != nil {
-		return nil, fmt.Errorf("validate downloaded plugin package: %w", err)
+		return fmt.Errorf("validate downloaded plugin package: %w", err)
 	}
 	if pkg.Manifest().ID != pluginID {
-		return nil, errors.New("downloaded plugin package ID does not match the requested plugin")
+		return errors.New("downloaded plugin package ID does not match the requested plugin")
 	}
-	if pkg.Manifest().Version != release.Version {
-		return nil, errors.New("downloaded plugin package version does not match the catalog")
+	if pkg.Manifest().Version != version {
+		return errors.New("downloaded plugin package version does not match the catalog")
 	}
-
-	return bytes.Clone(data), nil
+	return nil
 }
 
 // fetchCatalog downloads and decodes one bounded catalog response.

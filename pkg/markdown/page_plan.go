@@ -24,42 +24,47 @@ func newPageRenderPlan(
 	usage usageSet,
 	exportParameters map[string]map[string]map[string]string,
 ) pageRenderPlan {
-	result := pageRenderPlan{}
 	if plan == nil {
-		return result
+		return pageRenderPlan{}
 	}
 
-	for _, binding := range plan.ContentPreprocessors {
-		if selectorSelected(binding.Selector, usage) || selectorHasExportParameters(binding.Selector, exportParameters) {
-			result.contentPreprocessors = append(result.contentPreprocessors, binding)
-		}
-	}
-	for _, binding := range plan.Preprocessors {
-		if selectorSelected(binding.Selector, usage) {
-			result.preprocessors = append(result.preprocessors, binding)
-		}
-	}
-	for _, binding := range plan.MarkdownExtensions {
-		if selectorSelected(binding.Selector, usage) {
-			result.markdownExtensions = append(result.markdownExtensions, binding)
-		}
+	result := pageRenderPlan{
+		contentPreprocessors: selectedRenderBindings(plan.ContentPreprocessors, usage, func(binding plugin.ContentPreprocessorBinding) plugin.RenderSelector { return binding.Selector }, func(binding plugin.ContentPreprocessorBinding) bool {
+			return selectorHasExportParameters(binding.Selector, exportParameters)
+		}),
+		preprocessors:      selectedRenderBindings(plan.Preprocessors, usage, func(binding plugin.PreprocessorBinding) plugin.RenderSelector { return binding.Selector }, nil),
+		markdownExtensions: selectedRenderBindings(plan.MarkdownExtensions, usage, func(binding plugin.MarkdownExtensionBinding) plugin.RenderSelector { return binding.Selector }, nil),
+		postprocessors:     selectedRenderBindings(plan.Postprocessors, usage, func(binding plugin.PostprocessorBinding) plugin.RenderSelector { return binding.Selector }, nil),
+		macros:             selectedMacros(plan.Macros, usage),
 	}
 	if plan.CodeHighlighter != nil && selectorSelected(plan.CodeHighlighter.Selector, usage) {
 		result.codeHighlighter = plan.CodeHighlighter
 	}
-	for name, binding := range plan.Macros {
+	return result
+}
+
+// selectedRenderBindings filters one binding collection by source usage and an optional extra selector.
+func selectedRenderBindings[T any](bindings []T, usage usageSet, selector func(T) plugin.RenderSelector, extra func(T) bool) []T {
+	result := make([]T, 0, len(bindings))
+	for _, binding := range bindings {
+		if selectorSelected(selector(binding), usage) || (extra != nil && extra(binding)) {
+			result = append(result, binding)
+		}
+	}
+	return result
+}
+
+// selectedMacros filters named macro bindings by source usage.
+func selectedMacros(bindings map[string]plugin.MacroBinding, usage usageSet) map[string]plugin.MacroBinding {
+	var result map[string]plugin.MacroBinding
+	for name, binding := range bindings {
 		if !selectorSelected(binding.Selector, usage) {
 			continue
 		}
-		if result.macros == nil {
-			result.macros = make(map[string]plugin.MacroBinding)
+		if result == nil {
+			result = make(map[string]plugin.MacroBinding)
 		}
-		result.macros[name] = binding
-	}
-	for _, binding := range plan.Postprocessors {
-		if selectorSelected(binding.Selector, usage) {
-			result.postprocessors = append(result.postprocessors, binding)
-		}
+		result[name] = binding
 	}
 	return result
 }

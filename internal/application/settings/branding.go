@@ -105,48 +105,61 @@ func brandLogoContentType(filename string, data []byte) (string, bool) {
 	return "image/svg+xml", true
 }
 
+// brandLogoSVGState tracks the structural invariants of one passive SVG document.
+type brandLogoSVGState struct {
+	// depth is the current XML element nesting depth.
+	depth int
+	// seenRoot reports whether the single root SVG element has been observed.
+	seenRoot bool
+}
+
 // validBrandLogoSVG accepts passive SVG documents suitable for image embedding.
 func validBrandLogoSVG(data []byte) bool {
 	decoder := xml.NewDecoder(bytes.NewReader(data))
-	depth := 0
-	seenRoot := false
-
+	state := brandLogoSVGState{}
 	for {
 		token, err := decoder.Token()
 		if errors.Is(err, io.EOF) {
-			return seenRoot && depth == 0
+			return state.seenRoot && state.depth == 0
 		}
-		if err != nil {
+		if err != nil || !state.accept(token) {
 			return false
-		}
-
-		switch value := token.(type) {
-		case xml.Directive:
-			return false
-		case xml.StartElement:
-			if seenRoot && depth == 0 {
-				return false
-			}
-
-			name := strings.ToLower(value.Name.Local)
-			if !seenRoot {
-				if name != "svg" {
-					return false
-				}
-				seenRoot = true
-			}
-			if forbiddenBrandLogoSVGElement(name) || unsafeBrandLogoSVGAttributes(value.Attr) {
-				return false
-			}
-
-			depth++
-		case xml.EndElement:
-			depth--
-			if depth < 0 {
-				return false
-			}
 		}
 	}
+}
+
+// accept validates one XML token and advances SVG structural state.
+func (s *brandLogoSVGState) accept(token xml.Token) bool {
+	switch value := token.(type) {
+	case xml.Directive:
+		return false
+	case xml.StartElement:
+		return s.acceptStart(value)
+	case xml.EndElement:
+		s.depth--
+		return s.depth >= 0
+	default:
+		return true
+	}
+}
+
+// acceptStart validates one element name and its attributes.
+func (s *brandLogoSVGState) acceptStart(element xml.StartElement) bool {
+	if s.seenRoot && s.depth == 0 {
+		return false
+	}
+	name := strings.ToLower(element.Name.Local)
+	if !s.seenRoot {
+		if name != "svg" {
+			return false
+		}
+		s.seenRoot = true
+	}
+	if forbiddenBrandLogoSVGElement(name) || unsafeBrandLogoSVGAttributes(element.Attr) {
+		return false
+	}
+	s.depth++
+	return true
 }
 
 // forbiddenBrandLogoSVGElement reports whether an SVG element can execute or embed active content.

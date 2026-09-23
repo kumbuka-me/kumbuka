@@ -107,37 +107,16 @@ func (r *Registry) AcquireEntry(id string) (Entry, func(), bool) {
 func (r *Registry) transition(id string, replacement *Entry, replace bool, commit func() error) (*lifetime, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	index := slices.IndexFunc(r.entries, func(e Entry) bool { return e.Descriptor.ID == id })
-	if replacement != nil && (index >= 0) != replace {
-		if index >= 0 {
-			return nil, fmt.Errorf("plugin %s is already registered", id)
-		}
-		return nil, fmt.Errorf("plugin %s is no longer registered", id)
+
+	index := slices.IndexFunc(r.entries, func(entry Entry) bool { return entry.Descriptor.ID == id })
+	if err := validateTransitionPresence(id, replacement, replace, index); err != nil {
+		return nil, err
 	}
-	candidate := &Registry{entries: slices.Clone(r.entries), renderGeneration: r.renderGeneration}
-	if replacement == nil {
-		if err := candidate.Unregister(id); err != nil {
-			return nil, err
-		}
-	} else {
-		if index >= 0 {
-			candidate.entries = slices.Delete(candidate.entries, index, index+1)
-		}
-		if err := candidate.Register(replacement.Descriptor, replacement.Contributions); err != nil {
-			return nil, err
-		}
-		if index >= 0 {
-			added := candidate.entries[len(candidate.entries)-1]
-			candidate.entries = candidate.entries[:len(candidate.entries)-1]
-			candidate.entries = slices.Insert(candidate.entries, index, added)
-			candidate.renderPlan = buildRenderPlan(candidate.entries, candidate.renderGeneration)
-		}
+	candidate, err := r.transitionCandidate(id, replacement, index)
+	if err != nil {
+		return nil, err
 	}
-	catalog := make(map[string]managedPlugin, len(candidate.entries))
-	for _, entry := range candidate.entries {
-		catalog[entry.Descriptor.ID] = managedPlugin{metadata: LoadedPlugin{Enabled: true, Manifest: pluginpackage.Manifest{Requires: entry.Descriptor.Requires}}}
-	}
-	if _, err := dependencyOrder(catalog); err != nil {
+	if err := validateTransitionDependencies(candidate.entries); err != nil {
 		return nil, err
 	}
 	if commit != nil {
@@ -145,14 +124,71 @@ func (r *Registry) transition(id string, replacement *Entry, replace bool, commi
 			return nil, err
 		}
 	}
-	var old *lifetime
-	if index >= 0 {
-		old = r.entries[index].lifetime
-	}
+
+	old := transitionLifetime(r.entries, index)
 	r.entries = candidate.entries
 	r.renderGeneration = candidate.renderGeneration
 	r.renderPlan = candidate.renderPlan
 	return old, nil
+}
+
+// validateTransitionPresence verifies create-versus-replace expectations against the active registry.
+func validateTransitionPresence(id string, replacement *Entry, replace bool, index int) error {
+	if replacement == nil || (index >= 0) == replace {
+		return nil
+	}
+	if index >= 0 {
+		return fmt.Errorf("plugin %s is already registered", id)
+	}
+	return fmt.Errorf("plugin %s is no longer registered", id)
+}
+
+// transitionCandidate applies one registry mutation to an isolated candidate snapshot.
+func (r *Registry) transitionCandidate(id string, replacement *Entry, index int) (*Registry, error) {
+	candidate := &Registry{entries: slices.Clone(r.entries), renderGeneration: r.renderGeneration}
+	if replacement == nil {
+		if err := candidate.Unregister(id); err != nil {
+			return nil, err
+		}
+		return candidate, nil
+	}
+
+	if index >= 0 {
+		candidate.entries = slices.Delete(candidate.entries, index, index+1)
+	}
+	if err := candidate.Register(replacement.Descriptor, replacement.Contributions); err != nil {
+		return nil, err
+	}
+	if index >= 0 {
+		moveNewestEntry(candidate, index)
+	}
+	return candidate, nil
+}
+
+// moveNewestEntry restores the replaced plugin's contribution position.
+func moveNewestEntry(candidate *Registry, index int) {
+	added := candidate.entries[len(candidate.entries)-1]
+	candidate.entries = candidate.entries[:len(candidate.entries)-1]
+	candidate.entries = slices.Insert(candidate.entries, index, added)
+	candidate.renderPlan = buildRenderPlan(candidate.entries, candidate.renderGeneration)
+}
+
+// validateTransitionDependencies verifies the candidate registry's dependency graph.
+func validateTransitionDependencies(entries []Entry) error {
+	catalog := make(map[string]managedPlugin, len(entries))
+	for _, entry := range entries {
+		catalog[entry.Descriptor.ID] = managedPlugin{metadata: LoadedPlugin{Enabled: true, Manifest: pluginpackage.Manifest{Requires: entry.Descriptor.Requires}}}
+	}
+	_, err := dependencyOrder(catalog)
+	return err
+}
+
+// transitionLifetime returns the lifetime replaced or removed at index.
+func transitionLifetime(entries []Entry, index int) *lifetime {
+	if index < 0 {
+		return nil
+	}
+	return entries[index].lifetime
 }
 
 // initialize replaces the registry contents during atomic startup publication.

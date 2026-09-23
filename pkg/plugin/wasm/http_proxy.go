@@ -6,10 +6,10 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
+	"io"
 	"net"
 	"net/http"
 	"net/url"
-	"strings"
 	"time"
 
 	"golang.org/x/net/http/httpproxy"
@@ -37,18 +37,9 @@ func validPluginProxyURL(proxyURL *url.URL) bool {
 
 // pluginProxyTunnel connects through a deployment-trusted proxy to a validated numeric destination.
 func pluginProxyTunnel(ctx context.Context, proxyURL *url.URL, target string, roots *x509.CertPool) (net.Conn, error) {
-	port := proxyURL.Port()
-	if port == "" {
-		port = "80"
-		if proxyURL.Scheme == "https" {
-			port = "443"
-		}
-	}
-
-	dialer := net.Dialer{Timeout: 3 * time.Second}
-	connection, err := dialer.DialContext(ctx, "tcp", net.JoinHostPort(proxyURL.Hostname(), port))
+	connection, err := connectPluginProxy(ctx, proxyURL, roots)
 	if err != nil {
-		return nil, errHTTPUnavailable
+		return nil, err
 	}
 	success := false
 	defer func() {
@@ -57,55 +48,92 @@ func pluginProxyTunnel(ctx context.Context, proxyURL *url.URL, target string, ro
 		}
 	}()
 
-	rawConnection := connection
-	stop := context.AfterFunc(ctx, func() { _ = rawConnection.Close() })
+	stop, err := armPluginProxyConnection(ctx, connection)
+	if err != nil {
+		return nil, err
+	}
 	defer stop()
-	deadline := time.Now().Add(5 * time.Second)
-	if contextDeadline, ok := ctx.Deadline(); ok && contextDeadline.Before(deadline) {
-		deadline = contextDeadline
-	}
-	_ = connection.SetDeadline(deadline)
 
-	if proxyURL.Scheme == "https" {
-		tlsConnection := tls.Client(connection, &tls.Config{ServerName: proxyURL.Hostname(), MinVersion: tls.VersionTLS12, RootCAs: roots})
-		if err := tlsConnection.HandshakeContext(ctx); err != nil {
-			return nil, errHTTPUnavailable
-		}
-		connection = tlsConnection
-	}
-
-	request := &http.Request{Method: http.MethodConnect, URL: &url.URL{Opaque: target}, Host: target, Header: make(http.Header)}
-	if proxyURL.User != nil {
-		password, _ := proxyURL.User.Password()
-		request.Header.Set("Proxy-Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte(proxyURL.User.Username()+":"+password)))
-	}
+	request := pluginConnectRequest(proxyURL, target)
 	if err := request.Write(connection); err != nil {
 		return nil, errHTTPUnavailable
 	}
-
-	reader := bufio.NewReaderSize(connection, 16<<10)
-	total := 0
-	for {
-		lineBytes, err := reader.ReadSlice('\n')
-		line := string(lineBytes)
-		total += len(line)
-		if err != nil || total > 16<<10 {
-			return nil, errHTTPUnavailable
-		}
-		if total == len(line) {
-			response, parseErr := http.ReadResponse(bufio.NewReader(strings.NewReader(line+"\r\n")), request)
-			if parseErr != nil || response.StatusCode != http.StatusOK {
-				return nil, errHTTPUnavailable
-			}
-		}
-		if line == "\r\n" {
-			break
-		}
+	if err := validatePluginConnectResponse(connection, request); err != nil {
+		return nil, err
 	}
-	if reader.Buffered() != 0 || !stop() {
+	if !stop() {
 		return nil, errHTTPUnavailable
 	}
 	_ = connection.SetDeadline(time.Time{})
 	success = true
 	return connection, nil
+}
+
+// connectPluginProxy dials the proxy endpoint and performs TLS when the proxy uses HTTPS.
+func connectPluginProxy(ctx context.Context, proxyURL *url.URL, roots *x509.CertPool) (net.Conn, error) {
+	port := proxyURL.Port()
+	if port == "" {
+		port = "80"
+		if proxyURL.Scheme == "https" {
+			port = "443"
+		}
+	}
+	connection, err := (&net.Dialer{Timeout: 3 * time.Second}).DialContext(ctx, "tcp", net.JoinHostPort(proxyURL.Hostname(), port))
+	if err != nil {
+		return nil, errHTTPUnavailable
+	}
+	if proxyURL.Scheme != "https" {
+		return connection, nil
+	}
+
+	tlsConnection := tls.Client(connection, &tls.Config{ServerName: proxyURL.Hostname(), MinVersion: tls.VersionTLS12, RootCAs: roots})
+	if err := tlsConnection.HandshakeContext(ctx); err != nil {
+		_ = connection.Close()
+		return nil, errHTTPUnavailable
+	}
+	return tlsConnection, nil
+}
+
+// armPluginProxyConnection binds the tunnel setup to the request context and a short I/O deadline.
+func armPluginProxyConnection(ctx context.Context, connection net.Conn) (func() bool, error) {
+	stop := context.AfterFunc(ctx, func() { _ = connection.Close() })
+	deadline := time.Now().Add(5 * time.Second)
+	if contextDeadline, ok := ctx.Deadline(); ok && contextDeadline.Before(deadline) {
+		deadline = contextDeadline
+	}
+	if err := connection.SetDeadline(deadline); err != nil {
+		stop()
+		return nil, errHTTPUnavailable
+	}
+	return stop, nil
+}
+
+// pluginConnectRequest creates an authenticated CONNECT request for the validated target.
+func pluginConnectRequest(proxyURL *url.URL, target string) *http.Request {
+	request := &http.Request{Method: http.MethodConnect, URL: &url.URL{Opaque: target}, Host: target, Header: make(http.Header)}
+	if proxyURL.User == nil {
+		return request
+	}
+	password, _ := proxyURL.User.Password()
+	request.Header.Set("Proxy-Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte(proxyURL.User.Username()+":"+password)))
+	return request
+}
+
+const maxPluginConnectResponseBytes = 16 << 10
+
+// validatePluginConnectResponse reads a bounded proxy response and requires an empty buffered tail.
+func validatePluginConnectResponse(connection net.Conn, request *http.Request) error {
+	limited := io.LimitReader(connection, maxPluginConnectResponseBytes+1)
+	reader := bufio.NewReaderSize(limited, maxPluginConnectResponseBytes)
+	response, err := http.ReadResponse(reader, request)
+	if err != nil || response.StatusCode != http.StatusOK {
+		return errHTTPUnavailable
+	}
+	if response.Body != nil {
+		_ = response.Body.Close()
+	}
+	if reader.Buffered() != 0 {
+		return errHTTPUnavailable
+	}
+	return nil
 }

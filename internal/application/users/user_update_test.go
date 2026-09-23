@@ -117,3 +117,31 @@ func TestUpdateUserUsesAccountMutationBoundary(t *testing.T) {
 		LocalCredentialEnabled: &enabled,
 	}, repo.update)
 }
+
+func TestAccountUpdatePreservesAuthenticationSettingsFailure(t *testing.T) {
+	t.Parallel()
+
+	failure := errors.New("settings unavailable")
+	repo := &accountRepositoryStub{failure: failure}
+	input := accountInput()
+	input.UpdateLocalCredential = true
+
+	err := NewUsers(repo, passwordServiceStub{}).UpdateAccount(context.Background(), input)
+
+	require.ErrorIs(t, err, failure)
+	assert.Zero(t, repo.calls)
+}
+
+func TestAccountUpdatePreservesPasswordHashFailure(t *testing.T) {
+	t.Parallel()
+
+	failure := errors.New("hash unavailable")
+	repo := &accountRepositoryStub{}
+	input := accountInput()
+	input.Password = "a-long-password-123"
+
+	err := NewUsers(repo, passwordServiceStub{err: failure}).UpdateAccount(context.Background(), input)
+
+	require.ErrorIs(t, err, failure)
+	assert.Zero(t, repo.calls)
+}

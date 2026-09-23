@@ -324,6 +324,18 @@ SELECT EXISTS(
 	return allowed, err
 }
 
+// reviewDecisionState contains the locked review row fields needed to authorize a decision.
+type reviewDecisionState struct {
+	// requesterID identifies the user who requested the review.
+	requesterID int64
+	// requestedRevision is the revision captured when the review was opened.
+	requestedRevision int
+	// status is the current review-request status.
+	status string
+	// assigned reports whether the reviewer is authorized for this request.
+	assigned bool
+}
+
 // DecidePageReview approves a pending request or asks for changes.
 func (s *Store) DecidePageReview(
 	ctx context.Context,
@@ -344,12 +356,33 @@ func (s *Store) DecidePageReview(
 	if err != nil {
 		return "", err
 	}
+	state, err := lockReviewDecision(ctx, tx, id, reviewerID, administrator)
+	if err != nil {
+		return "", err
+	}
+	if err := validateReviewDecisionState(state, currentRevision); err != nil {
+		return "", err
+	}
+	if err := persistReviewDecision(ctx, tx, id, pageID, reviewerID, decision, note); err != nil {
+		return "", err
+	}
+	title, err := reviewPageTitle(ctx, tx, pageID)
+	if err != nil {
+		return "", err
+	}
+	if err := notifyReviewRequester(ctx, tx, state.requesterID, reviewerID, title, expectedSlug, decision, note); err != nil {
+		return "", err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return "", err
+	}
+	return expectedSlug, nil
+}
 
-	var requesterID int64
-	var status string
-	var requestedRevision int
-	var assigned bool
-	err = tx.QueryRow(ctx, `
+// lockReviewDecision locks the review request and resolves reviewer assignment.
+func lockReviewDecision(ctx context.Context, tx pgx.Tx, id, reviewerID int64, administrator bool) (reviewDecisionState, error) {
+	var state reviewDecisionState
+	err := tx.QueryRow(ctx, `
 SELECT rr.requested_by,rr.revision_number,rr.status,
        $2 OR EXISTS(
          SELECT 1 FROM page_review_request_reviewers rru
@@ -362,46 +395,34 @@ SELECT rr.requested_by,rr.revision_number,rr.status,
 FROM page_review_requests rr
 WHERE rr.id=$1
 FOR UPDATE OF rr`, id, administrator, reviewerID).Scan(
-		&requesterID,
-		&requestedRevision,
-		&status,
-		&assigned,
+		&state.requesterID, &state.requestedRevision, &state.status, &state.assigned,
 	)
-	if err != nil {
-		return "", err
-	}
-	if status == domain.PageReviewStatusSuperseded || requestedRevision != currentRevision {
-		return "", domain.ErrStaleReview
-	}
-	if status != domain.PageReviewStatusPending {
-		return "", domain.ErrReviewClosed
-	}
-	if !assigned {
-		return "", domain.ErrForbidden
-	}
+	return state, err
+}
 
+// validateReviewDecisionState verifies freshness, openness, and reviewer assignment.
+func validateReviewDecisionState(state reviewDecisionState, currentRevision int) error {
+	if state.status == domain.PageReviewStatusSuperseded || state.requestedRevision != currentRevision {
+		return domain.ErrStaleReview
+	}
+	if state.status != domain.PageReviewStatusPending {
+		return domain.ErrReviewClosed
+	}
+	if !state.assigned {
+		return domain.ErrForbidden
+	}
+	return nil
+}
+
+// persistReviewDecision updates the review request and page-level approval metadata.
+func persistReviewDecision(ctx context.Context, tx pgx.Tx, id, pageID, reviewerID int64, decision, note string) error {
 	if _, err := tx.Exec(ctx, `
 UPDATE page_review_requests
 SET status=$2,decision_note=$3,reviewed_by=$4,updated_at=now()
 WHERE id=$1`, id, decision, note, reviewerID); err != nil {
-		return "", mutationError(err)
+		return mutationError(err)
 	}
-	if err := markPageReviewApproved(ctx, tx, pageID, decision); err != nil {
-		return "", err
-	}
-
-	title, err := reviewPageTitle(ctx, tx, pageID)
-	if err != nil {
-		return "", err
-	}
-	if err := notifyReviewRequester(ctx, tx, requesterID, reviewerID, title, expectedSlug, decision, note); err != nil {
-		return "", err
-	}
-	if err := tx.Commit(ctx); err != nil {
-		return "", err
-	}
-
-	return expectedSlug, nil
+	return markPageReviewApproved(ctx, tx, pageID, decision)
 }
 
 // lockReviewPage locks the page before its review row and returns the current revision.

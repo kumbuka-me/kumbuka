@@ -175,68 +175,84 @@ func Capabilities(source Source, nodes []sdk.NavigationNode, catalogs ...*icons.
 		catalog = catalogs[0]
 	}
 	result := map[string]plugin.Capability{
-		"pages.navigation": func(context.Context, json.RawMessage) (any, error) { return nodes, nil },
-		"icons.render": func(_ context.Context, data json.RawMessage) (any, error) {
-			var request sdk.IconRequest
-			if err := json.Unmarshal(data, &request); err != nil || !validIconRequest(request) {
-				return nil, errors.New("invalid icon request")
-			}
-			return string(catalog.SVG(request.Name, request.Size)), nil
-		},
+		"pages.navigation": navigationCapability(nodes),
+		"icons.render":     iconRenderCapability(catalog),
 	}
-
 	if source != nil {
-		pages := Pages{source}
-		result["pages.get"] = func(ctx context.Context, data json.RawMessage) (any, error) {
-			var request sdk.PageRef
-			if err := json.Unmarshal(data, &request); err != nil || !validPageRef(request) {
-				return nil, errors.New("invalid page reference")
-			}
-			return pages.GetPage(ctx, request.Slug)
-		}
-		result["pages.content"] = func(ctx context.Context, data json.RawMessage) (any, error) {
-			var request sdk.PageRef
-			if err := json.Unmarshal(data, &request); err != nil || !validPageRef(request) {
-				return nil, errors.New("invalid page reference")
-			}
-			return pages.Content(ctx, request.Slug)
-		}
-		result["pages.search"] = func(ctx context.Context, data json.RawMessage) (any, error) {
-			var request sdk.PageQuery
-			if err := json.Unmarshal(data, &request); err != nil || !validPageQuery(request) {
-				return nil, errors.New("invalid page query")
-			}
-			return pages.Search(ctx, request.Query, request.Limit)
-		}
-		if links, ok := source.(LinkSource); ok {
-			result["pages.links"] = func(ctx context.Context, data json.RawMessage) (any, error) {
-				var request sdk.PageRef
-				if err := json.Unmarshal(data, &request); err != nil || !validPageRef(request) {
-					return nil, errors.New("invalid page reference")
-				}
-				return pages.Links(ctx, links, request.Slug)
-			}
-		}
-		if _, ok := source.(RevisionSource); ok {
-			result["pages.revisions"] = func(ctx context.Context, data json.RawMessage) (any, error) {
-				var request sdk.RevisionQuery
-				if err := json.Unmarshal(data, &request); err != nil || !validRevisionQuery(request) {
-					return nil, errors.New("invalid revision query")
-				}
-				return pages.Revisions(ctx, request)
-			}
-		} else if _, ok := source.(LatestRevisionSource); ok {
-			result["pages.revisions"] = func(ctx context.Context, data json.RawMessage) (any, error) {
-				var request sdk.RevisionQuery
-				if err := json.Unmarshal(data, &request); err != nil || !validLatestRevisionQuery(request) {
-					return nil, errors.New("invalid revision query")
-				}
-				return pages.Revisions(ctx, request)
-			}
-		}
+		addPageCapabilities(result, source)
 	}
-
 	return result
+}
+
+// navigationCapability returns the immutable render-scoped navigation payload.
+func navigationCapability(nodes []sdk.NavigationNode) plugin.Capability {
+	return func(context.Context, json.RawMessage) (any, error) { return nodes, nil }
+}
+
+// iconRenderCapability validates and renders one icon request against the active catalog.
+func iconRenderCapability(catalog *icons.Catalog) plugin.Capability {
+	return func(_ context.Context, data json.RawMessage) (any, error) {
+		var request sdk.IconRequest
+		if err := json.Unmarshal(data, &request); err != nil || !validIconRequest(request) {
+			return nil, errors.New("invalid icon request")
+		}
+		return string(catalog.SVG(request.Name, request.Size)), nil
+	}
+}
+
+// addPageCapabilities adds source-backed page capabilities supported by the concrete source.
+func addPageCapabilities(result map[string]plugin.Capability, source Source) {
+	pages := Pages{source}
+	result["pages.get"] = pageRefCapability(func(ctx context.Context, slug string) (any, error) {
+		return pages.GetPage(ctx, slug)
+	})
+	result["pages.content"] = pageRefCapability(func(ctx context.Context, slug string) (any, error) {
+		return pages.Content(ctx, slug)
+	})
+	result["pages.search"] = pageSearchCapability(pages)
+	if links, ok := source.(LinkSource); ok {
+		result["pages.links"] = pageRefCapability(func(ctx context.Context, slug string) (any, error) {
+			return pages.Links(ctx, links, slug)
+		})
+	}
+	if _, ok := source.(RevisionSource); ok {
+		result["pages.revisions"] = revisionCapability(pages, validRevisionQuery)
+	} else if _, ok := source.(LatestRevisionSource); ok {
+		result["pages.revisions"] = revisionCapability(pages, validLatestRevisionQuery)
+	}
+}
+
+// pageRefCapability decodes and validates a page reference before invoking the supplied operation.
+func pageRefCapability(operation func(context.Context, string) (any, error)) plugin.Capability {
+	return func(ctx context.Context, data json.RawMessage) (any, error) {
+		var request sdk.PageRef
+		if err := json.Unmarshal(data, &request); err != nil || !validPageRef(request) {
+			return nil, errors.New("invalid page reference")
+		}
+		return operation(ctx, request.Slug)
+	}
+}
+
+// pageSearchCapability decodes and validates one page search request.
+func pageSearchCapability(pages Pages) plugin.Capability {
+	return func(ctx context.Context, data json.RawMessage) (any, error) {
+		var request sdk.PageQuery
+		if err := json.Unmarshal(data, &request); err != nil || !validPageQuery(request) {
+			return nil, errors.New("invalid page query")
+		}
+		return pages.Search(ctx, request.Query, request.Limit)
+	}
+}
+
+// revisionCapability decodes a revision query using the capability-specific validation rule.
+func revisionCapability(pages Pages, valid func(sdk.RevisionQuery) bool) plugin.Capability {
+	return func(ctx context.Context, data json.RawMessage) (any, error) {
+		var request sdk.RevisionQuery
+		if err := json.Unmarshal(data, &request); err != nil || !valid(request) {
+			return nil, errors.New("invalid revision query")
+		}
+		return pages.Revisions(ctx, request)
+	}
 }
 
 // validIconRequest reports whether an icon capability request stays within supported bounds.

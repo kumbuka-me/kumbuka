@@ -74,6 +74,14 @@ func (a *AdminPlugins) CheckUpdates(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/admin/plugins", http.StatusSeeOther)
 }
 
+// pendingPluginUpdate contains one downloaded and validated catalog package ready for upgrade.
+type pendingPluginUpdate struct {
+	// id identifies the installed plugin to upgrade.
+	id string
+	// archive contains the validated plugin package bytes.
+	archive []byte
+}
+
 // render renders the plugin administration page.
 func (a *AdminPlugins) render(w http.ResponseWriter, r *http.Request, id string, status int, message string) {
 	w.Header().Set("Cache-Control", "private, no-store")
@@ -82,57 +90,17 @@ func (a *AdminPlugins) render(w http.ResponseWriter, r *http.Request, id string,
 		return
 	}
 	layout, err := administrationData(r, a.data, a.views, "Plugins", "plugins")
-	data := webview.AdminPluginsView{Layout: layout}
 	if err != nil {
 		httpresponse.InternalServerError(a.views.Logger(), w, err)
 		return
 	}
-	data.AdminPlugins = a.manager.Plugins()
-	data.PluginRequiredIDs = make(map[string]bool, len(data.AdminPlugins))
-	data.PluginUpdates = make(map[string]*webview.PluginUpdate)
-	if a.updates == nil {
-		data.PluginCatalogUnavailable = true
-	} else {
-		status := a.updates.Status()
-		data.PluginUpdateStatus = webview.PluginUpdateStatus{
-			Available:   true,
-			Automatic:   status.Automatic,
-			LastAttempt: status.LastAttempt,
-			LastSuccess: status.LastSuccess,
-			LastError:   status.LastError,
-		}
-		updates, updateErr := a.updates.Available()
-		if updateErr != nil {
-			data.PluginCatalogUnavailable = true
-		} else {
-			for pluginID, release := range updates {
-				data.PluginUpdates[pluginID] = &webview.PluginUpdate{Version: release.Version, ReleasedAt: release.ReleasedAt}
-			}
-		}
+	data := webview.AdminPluginsView{Layout: layout, AdminPlugins: a.manager.Plugins()}
+	a.populatePluginUpdateView(&data)
+	if err := a.populatePluginDetails(&data, id); err != nil {
+		httpresponse.InternalServerError(a.views.Logger(), w, err)
+		return
 	}
-	data.PluginHasSettings = make(map[string]bool, len(data.AdminPlugins))
-	data.PluginREADMEs = make(map[string]template.HTML, len(data.AdminPlugins))
-	foundOpenPlugin := id == ""
-	for _, item := range data.AdminPlugins {
-		pluginID := item.Manifest.ID
-		data.PluginRequiredIDs[pluginID] = a.manager.IsRequired(pluginID)
-		for _, module := range item.Manifest.Modules {
-			if module.Type == "settings" || module.Type == "admin-resource" {
-				data.PluginHasSettings[pluginID] = true
-				break
-			}
-		}
-		readme, renderErr := renderPluginREADME(item.README)
-		if renderErr != nil {
-			httpresponse.InternalServerError(a.views.Logger(), w, renderErr)
-			return
-		}
-		data.PluginREADMEs[pluginID] = readme
-		if pluginID == id {
-			foundOpenPlugin = true
-		}
-	}
-	if !foundOpenPlugin {
+	if id != "" && !pluginInstalled(data.AdminPlugins, id) {
 		http.NotFound(w, r)
 		return
 	}
@@ -140,6 +108,55 @@ func (a *AdminPlugins) render(w http.ResponseWriter, r *http.Request, id string,
 	data.OpenPluginID = id
 	data.PluginMessage = message
 	a.views.RenderStatus(w, status, "admin_plugins", data)
+}
+
+// populatePluginUpdateView adds catalog status and available updates to the view model.
+func (a *AdminPlugins) populatePluginUpdateView(data *webview.AdminPluginsView) {
+	data.PluginUpdates = make(map[string]*webview.PluginUpdate)
+	if a.updates == nil {
+		data.PluginCatalogUnavailable = true
+		return
+	}
+	status := a.updates.Status()
+	data.PluginUpdateStatus = webview.PluginUpdateStatus{
+		Available: true, Automatic: status.Automatic, LastAttempt: status.LastAttempt, LastSuccess: status.LastSuccess, LastError: status.LastError,
+	}
+	updates, err := a.updates.Available()
+	if err != nil {
+		data.PluginCatalogUnavailable = true
+		return
+	}
+	for pluginID, release := range updates {
+		data.PluginUpdates[pluginID] = &webview.PluginUpdate{Version: release.Version, ReleasedAt: release.ReleasedAt}
+	}
+}
+
+// populatePluginDetails adds required-state, settings presence, and rendered README content.
+func (a *AdminPlugins) populatePluginDetails(data *webview.AdminPluginsView, _ string) error {
+	data.PluginRequiredIDs = make(map[string]bool, len(data.AdminPlugins))
+	data.PluginHasSettings = make(map[string]bool, len(data.AdminPlugins))
+	data.PluginREADMEs = make(map[string]template.HTML, len(data.AdminPlugins))
+	for _, item := range data.AdminPlugins {
+		pluginID := item.Manifest.ID
+		data.PluginRequiredIDs[pluginID] = a.manager.IsRequired(pluginID)
+		data.PluginHasSettings[pluginID] = manifestHasPluginSettings(item.Manifest)
+		readme, err := renderPluginREADME(item.README)
+		if err != nil {
+			return err
+		}
+		data.PluginREADMEs[pluginID] = readme
+	}
+	return nil
+}
+
+// manifestHasPluginSettings reports whether a manifest exposes settings or administration resources.
+func manifestHasPluginSettings(manifest pluginpackage.Manifest) bool {
+	for _, module := range manifest.Modules {
+		if module.Type == "settings" || module.Type == "admin-resource" {
+			return true
+		}
+	}
+	return false
 }
 
 // Install installs a plugin package from an administration request.
@@ -174,61 +191,82 @@ func (a *AdminPlugins) Action(w http.ResponseWriter, r *http.Request) {
 	}
 	id, action := r.PathValue("pluginID"), r.PathValue("action")
 	if id == "all" && action == "update" {
-		updated, err := a.updateAllFromCatalog(r.Context())
-		if err != nil {
-			a.views.Logger().Error("bulk plugin update failed", "event", "plugin.update_all_failed", "error", err, "actor_id", currentUser(r).ID)
-			a.render(w, r, "", http.StatusUnprocessableEntity, "Could not update all plugins from the Kumbuka catalog. Plugins updated before the failure remain on their new versions; the remaining plugins were left unchanged.")
-			return
-		}
-		for _, pluginID := range updated {
-			a.audit(r, "update", pluginID)
-		}
-		http.Redirect(w, r, "/admin/plugins", http.StatusSeeOther)
+		a.handleBulkUpdate(w, r)
 		return
 	}
-
-	var err error
-	switch action {
-	case "enable":
-		err = a.manager.Enable(r.Context(), id)
-	case "disable":
-		err = a.manager.Disable(r.Context(), id)
-	case "uninstall":
-		err = a.manager.Uninstall(r.Context(), id)
-	case "update":
-		err = a.updateFromCatalog(r.Context(), id)
-	case "upgrade":
-		var archive []byte
-		var status int
-		archive, status, err = readPluginUpload(w, r)
-		if err != nil {
-			a.render(w, r, pluginDetailID(r, id), status, "Upload failed: "+err.Error()+".")
+	if err := a.runPluginAction(w, r, id, action); err != nil {
+		if errors.Is(err, errPluginActionHandled) {
 			return
 		}
-		pkg, parseErr := pluginpackage.Read(archive)
-		if parseErr != nil {
-			a.render(w, r, pluginDetailID(r, id), http.StatusUnprocessableEntity, "Invalid plugin package: "+parseErr.Error())
-			return
-		}
-		if pkg.Manifest().ID != id {
-			a.render(w, r, pluginDetailID(r, id), http.StatusUnprocessableEntity, "The uploaded package must have the same plugin ID.")
-			return
-		}
-		_, err = a.manager.Upgrade(r.Context(), id, archive)
-	default:
-		http.NotFound(w, r)
-		return
-	}
-	if err != nil {
 		a.failure(w, r, id, action, err)
 		return
 	}
+
 	a.audit(r, action, id)
-	destination := "/admin/plugins"
-	if action != "uninstall" && pluginDetailID(r, id) != "" {
-		destination += "?plugin=" + id
+	http.Redirect(w, r, pluginActionDestination(r, id, action), http.StatusSeeOther)
+}
+
+var errPluginActionHandled = errors.New("plugin action response already written")
+
+// handleBulkUpdate applies all catalog updates and renders the partial-success failure contract.
+func (a *AdminPlugins) handleBulkUpdate(w http.ResponseWriter, r *http.Request) {
+	updated, err := a.updateAllFromCatalog(r.Context())
+	if err != nil {
+		a.views.Logger().Error("bulk plugin update failed", "event", "plugin.update_all_failed", "error", err, "actor_id", currentUser(r).ID)
+		a.render(w, r, "", http.StatusUnprocessableEntity, "Could not update all plugins from the Kumbuka catalog. Plugins updated before the failure remain on their new versions; the remaining plugins were left unchanged.")
+		return
 	}
-	http.Redirect(w, r, destination, http.StatusSeeOther)
+	for _, pluginID := range updated {
+		a.audit(r, "update", pluginID)
+	}
+	http.Redirect(w, r, "/admin/plugins", http.StatusSeeOther)
+}
+
+// runPluginAction executes one lifecycle action and reports responses written during upload validation.
+func (a *AdminPlugins) runPluginAction(w http.ResponseWriter, r *http.Request, id, action string) error {
+	switch action {
+	case "enable":
+		return a.manager.Enable(r.Context(), id)
+	case "disable":
+		return a.manager.Disable(r.Context(), id)
+	case "uninstall":
+		return a.manager.Uninstall(r.Context(), id)
+	case "update":
+		return a.updateFromCatalog(r.Context(), id)
+	case "upgrade":
+		return a.upgradeFromUpload(w, r, id)
+	default:
+		http.NotFound(w, r)
+		return errPluginActionHandled
+	}
+}
+
+// upgradeFromUpload validates an uploaded package identity before replacing the installed plugin.
+func (a *AdminPlugins) upgradeFromUpload(w http.ResponseWriter, r *http.Request, id string) error {
+	archive, status, err := readPluginUpload(w, r)
+	if err != nil {
+		a.render(w, r, pluginDetailID(r, id), status, "Upload failed: "+err.Error()+".")
+		return errPluginActionHandled
+	}
+	pkg, err := pluginpackage.Read(archive)
+	if err != nil {
+		a.render(w, r, pluginDetailID(r, id), http.StatusUnprocessableEntity, "Invalid plugin package: "+err.Error())
+		return errPluginActionHandled
+	}
+	if pkg.Manifest().ID != id {
+		a.render(w, r, pluginDetailID(r, id), http.StatusUnprocessableEntity, "The uploaded package must have the same plugin ID.")
+		return errPluginActionHandled
+	}
+	_, err = a.manager.Upgrade(r.Context(), id, archive)
+	return err
+}
+
+// pluginActionDestination returns the post-action administration destination.
+func pluginActionDestination(r *http.Request, id, action string) string {
+	if action != "uninstall" && pluginDetailID(r, id) != "" {
+		return "/admin/plugins?plugin=" + id
+	}
+	return "/admin/plugins"
 }
 
 // updateFromCatalog downloads and applies the newest compatible catalog release for id.
@@ -263,36 +301,37 @@ func (a *AdminPlugins) updateAllFromCatalog(ctx context.Context) ([]string, erro
 	if a.updates == nil {
 		return nil, errors.New("plugin update catalog is unavailable")
 	}
-
 	updates, err := a.updates.Available()
 	if err != nil {
 		return nil, fmt.Errorf("check plugin update catalog: %w", err)
 	}
-	if len(updates) == 0 {
-		return nil, nil
+	ids := installedUpdateIDs(a.manager.Plugins(), updates)
+	pending, err := a.downloadPendingUpdates(ctx, ids, updates)
+	if err != nil {
+		return nil, err
 	}
+	return a.applyPendingUpdates(ctx, pending)
+}
 
-	installed := make(map[string]bool, len(a.manager.Plugins()))
-	for _, item := range a.manager.Plugins() {
-		installed[item.Manifest.ID] = true
+// installedUpdateIDs returns sorted catalog update IDs that are currently installed.
+func installedUpdateIDs(installed []plugin.LoadedPlugin, updates map[string]domain.PluginRelease) []string {
+	installedIDs := make(map[string]bool, len(installed))
+	for _, item := range installed {
+		installedIDs[item.Manifest.ID] = true
 	}
-
 	ids := make([]string, 0, len(updates))
 	for id := range updates {
-		if installed[id] {
+		if installedIDs[id] {
 			ids = append(ids, id)
 		}
 	}
 	sort.Strings(ids)
+	return ids
+}
 
-	// pendingUpdate keeps one validated catalog package ready for installation.
-	type pendingUpdate struct {
-		// id identifies the installed plugin to upgrade.
-		id string
-		// archive contains the validated plugin package bytes.
-		archive []byte
-	}
-	pending := make([]pendingUpdate, 0, len(ids))
+// downloadPendingUpdates downloads and validates every package before any upgrade is applied.
+func (a *AdminPlugins) downloadPendingUpdates(ctx context.Context, ids []string, updates map[string]domain.PluginRelease) ([]pendingPluginUpdate, error) {
+	pending := make([]pendingPluginUpdate, 0, len(ids))
 	for _, id := range ids {
 		release := updates[id]
 		archive, err := a.updates.Download(ctx, id, release.Version)
@@ -306,9 +345,13 @@ func (a *AdminPlugins) updateAllFromCatalog(ctx context.Context) ([]string, erro
 		if pkg.Manifest().ID != id {
 			return nil, fmt.Errorf("validate %s update: package identity mismatch", id)
 		}
-		pending = append(pending, pendingUpdate{id: id, archive: archive})
+		pending = append(pending, pendingPluginUpdate{id: id, archive: archive})
 	}
+	return pending, nil
+}
 
+// applyPendingUpdates upgrades validated packages in deterministic order and reports partial progress.
+func (a *AdminPlugins) applyPendingUpdates(ctx context.Context, pending []pendingPluginUpdate) ([]string, error) {
 	updated := make([]string, 0, len(pending))
 	for _, item := range pending {
 		if _, err := a.manager.Upgrade(ctx, item.id, item.archive); err != nil {
@@ -316,7 +359,6 @@ func (a *AdminPlugins) updateAllFromCatalog(ctx context.Context) ([]string, erro
 		}
 		updated = append(updated, item.id)
 	}
-
 	return updated, nil
 }
 

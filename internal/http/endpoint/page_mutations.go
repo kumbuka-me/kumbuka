@@ -323,95 +323,81 @@ func pagePropertiesFromForm(r *http.Request) map[string]string {
 	return properties
 }
 
+// pageProblem describes one expected sentinel page failure.
+type pageProblem struct {
+	// err is the domain sentinel matched with errors.Is.
+	err error
+	// status is the HTTP status returned to the client.
+	status int
+	// message is the user-facing problem detail.
+	message string
+	// field optionally identifies a form field associated with the failure.
+	field string
+	// fieldMessage optionally explains how to correct the field.
+	fieldMessage string
+}
+
+var pageProblems = []pageProblem{
+	{err: domain.ErrRevisionNotFound, status: http.StatusNotFound, message: "Revision not found."},
+	{err: domain.ErrCommentNotFound, status: http.StatusNotFound, message: "Comment not found."},
+	{err: domain.ErrNotFound, status: http.StatusNotFound, message: "Page not found."},
+	{err: domain.ErrAlreadyExists, status: http.StatusConflict, message: "Page path already exists.", field: "slug", fieldMessage: "Choose a different page path."},
+	{err: domain.ErrForbidden, status: http.StatusForbidden, message: "The page operation is not permitted."},
+	{err: domain.ErrPageInBin, status: http.StatusConflict, message: "This page path is currently in the recycle bin.", field: "slug", fieldMessage: "Restore the deleted page or choose a different path."},
+	{err: apppages.ErrDiscussionsDisabled, status: http.StatusForbidden, message: "Page discussions are disabled."},
+	{err: domain.ErrStaleSuggestion, status: http.StatusConflict, message: "This suggestion can no longer be applied because the page changed after it was created."},
+}
+
 // writePageProblem translates page-domain errors into HTTP problems.
-func writePageProblem(
-	logger *slog.Logger,
-	w http.ResponseWriter,
-	err error,
-) {
-	if assignment, ok := errors.AsType[*domain.GroupAssignmentError](err); ok {
-		httpresponse.Problem(w,
-			http.StatusForbidden,
-			"The selected page groups are not assignable.",
-			httpresponse.NewFieldProblem(
-				assignment.Field,
-				"Choose groups you are allowed to assign.",
-			),
-		)
+func writePageProblem(logger *slog.Logger, w http.ResponseWriter, err error) {
+	if writePageTypedProblem(w, err) {
 		return
 	}
-
-	if conflict, ok := errors.AsType[*domain.PageEditConflictError](err); ok {
-		message := "This page changed while you were editing it. Your changes are still in the editor. Open the latest page in another tab to compare, then reload before saving."
-		if conflict.CurrentRevision > 0 {
-			message = "This page changed while you were editing it. Revision " + strconv.Itoa(conflict.CurrentRevision) + " is now current. Your changes are still in the editor. Open the latest page in another tab to compare, then reload before saving."
-		}
-		httpresponse.Problem(w, http.StatusConflict, message)
-		return
-	}
-
 	if tryWriteValidationProblem(w, err, "Page validation failed.") {
 		return
 	}
-
-	switch {
-	case errors.Is(err, domain.ErrRevisionNotFound):
-		httpresponse.Problem(w,
-			http.StatusNotFound,
-			"Revision not found.",
-		)
-
-	case errors.Is(err, domain.ErrCommentNotFound):
-		httpresponse.Problem(w,
-			http.StatusNotFound,
-			"Comment not found.",
-		)
-
-	case errors.Is(err, domain.ErrNotFound):
-		httpresponse.Problem(w,
-			http.StatusNotFound,
-			"Page not found.",
-		)
-
-	case errors.Is(err, domain.ErrAlreadyExists):
-		httpresponse.Problem(w,
-			http.StatusConflict,
-			"Page path already exists.",
-			httpresponse.NewFieldProblem(
-				"slug",
-				"Choose a different page path.",
-			),
-		)
-
-	case errors.Is(err, domain.ErrForbidden):
-		httpresponse.Problem(w,
-			http.StatusForbidden,
-			"The page operation is not permitted.",
-		)
-
-	case errors.Is(err, domain.ErrPageInBin):
-		httpresponse.Problem(w,
-			http.StatusConflict,
-			"This page path is currently in the recycle bin.",
-			httpresponse.NewFieldProblem(
-				"slug",
-				"Restore the deleted page or choose a different path.",
-			),
-		)
-
-	case errors.Is(err, apppages.ErrDiscussionsDisabled):
-		httpresponse.Problem(w,
-			http.StatusForbidden,
-			"Page discussions are disabled.",
-		)
-
-	case errors.Is(err, domain.ErrStaleSuggestion):
-		httpresponse.Problem(w,
-			http.StatusConflict,
-			"This suggestion can no longer be applied because the page changed after it was created.",
-		)
-
-	default:
-		httpresponse.InternalServerError(logger, w, err)
+	if writeKnownPageProblem(w, err) {
+		return
 	}
+	httpresponse.InternalServerError(logger, w, err)
+}
+
+// writePageTypedProblem handles page failures carrying structured context.
+func writePageTypedProblem(w http.ResponseWriter, err error) bool {
+	if assignment, ok := errors.AsType[*domain.GroupAssignmentError](err); ok {
+		httpresponse.Problem(
+			w, http.StatusForbidden, "The selected page groups are not assignable.",
+			httpresponse.NewFieldProblem(assignment.Field, "Choose groups you are allowed to assign."),
+		)
+		return true
+	}
+	if conflict, ok := errors.AsType[*domain.PageEditConflictError](err); ok {
+		httpresponse.Problem(w, http.StatusConflict, pageEditConflictMessage(conflict))
+		return true
+	}
+	return false
+}
+
+// pageEditConflictMessage formats the optimistic-concurrency conflict detail.
+func pageEditConflictMessage(conflict *domain.PageEditConflictError) string {
+	if conflict.CurrentRevision > 0 {
+		return "This page changed while you were editing it. Revision " + strconv.Itoa(conflict.CurrentRevision) + " is now current. Your changes are still in the editor. Open the latest page in another tab to compare, then reload before saving."
+	}
+	return "This page changed while you were editing it. Your changes are still in the editor. Open the latest page in another tab to compare, then reload before saving."
+}
+
+// writeKnownPageProblem translates expected sentinel failures through the shared table.
+func writeKnownPageProblem(w http.ResponseWriter, err error) bool {
+	for _, problem := range pageProblems {
+		if !errors.Is(err, problem.err) {
+			continue
+		}
+		if problem.field != "" {
+			httpresponse.Problem(w, problem.status, problem.message, httpresponse.NewFieldProblem(problem.field, problem.fieldMessage))
+		} else {
+			httpresponse.Problem(w, problem.status, problem.message)
+		}
+		return true
+	}
+	return false
 }

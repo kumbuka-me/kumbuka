@@ -6,6 +6,7 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
 
@@ -26,110 +27,136 @@ func (s *Store) Search(ctx context.Context, query string, limit int) ([]domain.P
 
 // SearchPage returns one deterministic window of filtered search results.
 func (s *Store) SearchPage(ctx context.Context, query string, limit, offset int) ([]domain.Page, error) {
-	var textTerms []string
-	filters := map[string][]string{}
+	parsed := parseSearchQuery(query)
+	builder := newSearchQueryBuilder(parsed.text)
+	builder.applyFilters(parsed.filters)
 
+	rows, err := s.pool.Query(ctx, builder.sql(limit, offset), builder.args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	return scanSearchPages(rows)
+}
+
+// parsedSearchQuery separates free-text terms from supported field filters.
+type parsedSearchQuery struct {
+	text    string
+	filters map[string][]string
+}
+
+// parseSearchQuery classifies search tokens without changing their original value semantics.
+func parseSearchQuery(query string) parsedSearchQuery {
+	var textTerms []string
+	filters := make(map[string][]string)
 	for _, token := range searchTokens(query) {
 		key, value, found := strings.Cut(token, ":")
 		key = strings.ToLower(key)
-
 		if found && value != "" && isSearchFilter(key) {
 			filters[key] = append(filters[key], value)
-		} else {
-			textTerms = append(textTerms, token)
-		}
-	}
-
-	args := queryArgs{}
-	where := []string{"p.deleted_at IS NULL"}
-
-	text := strings.Join(textTerms, " ")
-	rank := "0::real"
-
-	if text != "" {
-		p := args.add(text)
-		where = append(where, "p.search_vector @@ websearch_to_tsquery('english', "+p+")")
-		rank = "ts_rank(p.search_vector, websearch_to_tsquery('english', " + p + "))"
-	}
-
-	for _, v := range filters["tag"] {
-		p := args.add(strings.ToLower(v))
-		where = append(
-			where,
-			"EXISTS (SELECT 1 FROM page_tags x JOIN tags xt ON xt.id=x.tag_id WHERE x.page_id=p.id AND xt.name="+p+")",
-		)
-	}
-	for _, v := range filters["group"] {
-		p := args.add(strings.ToLower(v))
-		where = append(
-			where,
-			"EXISTS (SELECT 1 FROM page_groups pg JOIN wiki_groups g ON g.id=pg.group_id WHERE pg.page_id=p.id AND lower(g.name)="+p+")",
-		)
-	}
-	for _, v := range filters["title"] {
-		p := args.add("%" + v + "%")
-		where = append(where, "p.title ILIKE "+p)
-	}
-	for _, v := range filters["namespace"] {
-		p := args.add(v + "/%")
-		where = append(where, "p.slug ILIKE "+p)
-	}
-	for _, v := range filters["author"] {
-		p := args.add("%" + v + "%")
-		where = append(where, "(u.username ILIKE "+p+" OR u.display_name ILIKE "+p+")")
-	}
-
-	for _, v := range filters["status"] {
-		p := args.add(strings.ToLower(v))
-		where = append(where, "lower(p.status)="+p)
-	}
-	for _, v := range filters["owner"] {
-		p := args.add(strings.ToLower(v))
-		where = append(where, "EXISTS (SELECT 1 FROM wiki_groups og WHERE og.id=p.owner_group_id AND lower(og.name)="+p+")")
-	}
-	for _, v := range filters["property"] {
-		key, value, ok := strings.Cut(v, "=")
-		if !ok || strings.TrimSpace(key) == "" {
 			continue
 		}
-
-		keyParam := args.add(strings.ToLower(strings.TrimSpace(key)))
-		valueParam := args.add("%" + strings.TrimSpace(value) + "%")
-		where = append(where, "EXISTS (SELECT 1 FROM page_properties pp WHERE pp.page_id=p.id AND lower(pp.key)="+keyParam+" AND pp.value ILIKE "+valueParam+")")
+		textTerms = append(textTerms, token)
 	}
+	return parsedSearchQuery{text: strings.Join(textTerms, " "), filters: filters}
+}
 
-	limitParam := args.add(limit)
-	offsetParam := args.add(offset)
-	sql := `
-SELECT p.id,p.slug,p.title,coalesce(max(ni.icon),''),p.markdown_content,coalesce(p.created_by,0),coalesce(p.updated_by,0),coalesce(u.display_name,u.username,''),p.created_at,p.updated_at,p.view_count,coalesce(array_agg(t.name ORDER BY t.name) FILTER (WHERE t.name IS NOT NULL),'{}'),p.status,` + rank + `
+// searchQueryBuilder owns SQL predicates, ranking, and positional arguments for page search.
+type searchQueryBuilder struct {
+	args  queryArgs
+	where []string
+	rank  string
+}
+
+// newSearchQueryBuilder creates a page-search builder with optional full-text ranking.
+func newSearchQueryBuilder(text string) *searchQueryBuilder {
+	builder := &searchQueryBuilder{where: []string{"p.deleted_at IS NULL"}, rank: "0::real"}
+	if text == "" {
+		return builder
+	}
+	parameter := builder.args.add(text)
+	builder.where = append(builder.where, "p.search_vector @@ websearch_to_tsquery('english', "+parameter+")")
+	builder.rank = "ts_rank(p.search_vector, websearch_to_tsquery('english', " + parameter + "))"
+	return builder
+}
+
+// applyFilters appends all supported field filters to the query in stable filter-kind order.
+func (b *searchQueryBuilder) applyFilters(filters map[string][]string) {
+	for _, value := range filters["tag"] {
+		p := b.args.add(strings.ToLower(value))
+		b.where = append(b.where, "EXISTS (SELECT 1 FROM page_tags x JOIN tags xt ON xt.id=x.tag_id WHERE x.page_id=p.id AND xt.name="+p+")")
+	}
+	for _, value := range filters["group"] {
+		p := b.args.add(strings.ToLower(value))
+		b.where = append(b.where, "EXISTS (SELECT 1 FROM page_groups pg JOIN wiki_groups g ON g.id=pg.group_id WHERE pg.page_id=p.id AND lower(g.name)="+p+")")
+	}
+	b.applyLikeFilters(filters["title"], "p.title ILIKE ", "%", "%")
+	b.applyLikeFilters(filters["namespace"], "p.slug ILIKE ", "", "/%")
+	for _, value := range filters["author"] {
+		p := b.args.add("%" + value + "%")
+		b.where = append(b.where, "(u.username ILIKE "+p+" OR u.display_name ILIKE "+p+")")
+	}
+	for _, value := range filters["status"] {
+		p := b.args.add(strings.ToLower(value))
+		b.where = append(b.where, "lower(p.status)="+p)
+	}
+	for _, value := range filters["owner"] {
+		p := b.args.add(strings.ToLower(value))
+		b.where = append(b.where, "EXISTS (SELECT 1 FROM wiki_groups og WHERE og.id=p.owner_group_id AND lower(og.name)="+p+")")
+	}
+	for _, value := range filters["property"] {
+		b.applyPropertyFilter(value)
+	}
+}
+
+// applyLikeFilters appends simple ILIKE filters using a caller-provided value shape.
+func (b *searchQueryBuilder) applyLikeFilters(values []string, expression, prefix, suffix string) {
+	for _, value := range values {
+		b.where = append(b.where, expression+b.args.add(prefix+value+suffix))
+	}
+}
+
+// applyPropertyFilter appends one structured property key/value predicate when syntactically valid.
+func (b *searchQueryBuilder) applyPropertyFilter(value string) {
+	key, propertyValue, ok := strings.Cut(value, "=")
+	key = strings.TrimSpace(key)
+	if !ok || key == "" {
+		return
+	}
+	keyParam := b.args.add(strings.ToLower(key))
+	valueParam := b.args.add("%" + strings.TrimSpace(propertyValue) + "%")
+	b.where = append(b.where, "EXISTS (SELECT 1 FROM page_properties pp WHERE pp.page_id=p.id AND lower(pp.key)="+keyParam+" AND pp.value ILIKE "+valueParam+")")
+}
+
+// sql renders the final search statement and appends pagination arguments.
+func (b *searchQueryBuilder) sql(limit, offset int) string {
+	limitParam := b.args.add(limit)
+	offsetParam := b.args.add(offset)
+	return `
+SELECT p.id,p.slug,p.title,coalesce(max(ni.icon),''),p.markdown_content,coalesce(p.created_by,0),coalesce(p.updated_by,0),coalesce(u.display_name,u.username,''),p.created_at,p.updated_at,p.view_count,coalesce(array_agg(t.name ORDER BY t.name) FILTER (WHERE t.name IS NOT NULL),'{}'),p.status,` + b.rank + `
 FROM pages p
 LEFT JOIN navigation_icons ni ON ni.path=p.slug
 LEFT JOIN users u ON u.id=p.updated_by
 LEFT JOIN page_tags pt ON pt.page_id=p.id
 LEFT JOIN tags t ON t.id=pt.tag_id
-WHERE ` + strings.Join(where, " AND ") + `
+WHERE ` + strings.Join(b.where, " AND ") + `
 GROUP BY p.id,u.id
-ORDER BY ` + rank + ` DESC,p.updated_at DESC,p.id DESC
+ORDER BY ` + b.rank + ` DESC,p.updated_at DESC,p.id DESC
 LIMIT ` + limitParam + ` OFFSET ` + offsetParam
-	rows, err := s.pool.Query(ctx, sql, args...)
-	if err != nil {
-		return nil, err
-	}
+}
 
-	defer rows.Close()
-
-	var out []domain.Page
-
+// scanSearchPages decodes page-search rows into domain pages.
+func scanSearchPages(rows pgx.Rows) ([]domain.Page, error) {
+	var pages []domain.Page
 	for rows.Next() {
-		var p domain.Page
-		if err := rows.Scan(&p.ID, &p.Slug, &p.Title, &p.Icon, &p.Markdown, &p.CreatedBy, &p.UpdatedBy, &p.Author, &p.CreatedAt, &p.UpdatedAt, &p.ViewCount, &p.Tags, &p.Status, &p.Rank); err != nil {
+		var page domain.Page
+		if err := rows.Scan(&page.ID, &page.Slug, &page.Title, &page.Icon, &page.Markdown, &page.CreatedBy, &page.UpdatedBy, &page.Author, &page.CreatedAt, &page.UpdatedAt, &page.ViewCount, &page.Tags, &page.Status, &page.Rank); err != nil {
 			return nil, err
 		}
-
-		out = append(out, p)
+		pages = append(pages, page)
 	}
-
-	return out, rows.Err()
+	return pages, rows.Err()
 }
 
 // RecentViewed returns a user's recently viewed pages.

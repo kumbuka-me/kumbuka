@@ -19,44 +19,53 @@ import (
 // validateWebhookInput returns all user-correctable webhook configuration failures.
 func validateWebhookInput(input WebhookInput, events []string) error {
 	validation := &domain.ValidationError{}
+	validateWebhookIdentity(input, events, validation)
+	validateWebhookTemplate(input.BodyTemplate, validation)
+	validateWebhookRetry(input, validation)
+	if len(validation.Fields) == 0 {
+		return nil
+	}
+	return validation
+}
 
+// validateWebhookIdentity validates the name, destination URL, and selected events.
+func validateWebhookIdentity(input WebhookInput, events []string, validation *domain.ValidationError) {
 	if input.Name == "" {
 		validation.Fields = append(validation.Fields, domain.FieldError{Field: "name", Message: "A webhook name is required."})
 	}
-
 	parsed, err := url.ParseRequestURI(input.URL)
 	if err != nil || !validWebhookURL(parsed) {
 		validation.Fields = append(validation.Fields, domain.FieldError{Field: "url", Message: "Enter an absolute HTTP or HTTPS URL."})
 	}
-
 	if len(events) == 0 {
 		validation.Fields = append(validation.Fields, domain.FieldError{Field: "events", Message: "Choose at least one event."})
 	}
+}
 
-	if err := validateWebhookBodyTemplate(input.BodyTemplate); err != nil {
+// validateWebhookTemplate validates the optional request body template.
+func validateWebhookTemplate(value string, validation *domain.ValidationError) {
+	if err := validateWebhookBodyTemplate(value); err != nil {
 		validation.Fields = append(validation.Fields, domain.FieldError{
 			Field:   "body_template",
 			Message: "Payload template is invalid: " + err.Error(),
 		})
 	}
+}
 
-	if input.RetryEnabled {
-		if input.RetryCount < 1 || input.RetryCount > maxWebhookRetryCount {
-			validation.Fields = append(validation.Fields, domain.FieldError{Field: "retry_count", Message: "Retries must be between 1 and 10."})
-		}
-		if input.RetryBackoff <= 0 || input.RetryBackoff > maxWebhookRetryBackoff {
-			validation.Fields = append(validation.Fields, domain.FieldError{Field: "retry_backoff", Message: "Initial backoff must be greater than zero and at most 1h."})
-		}
-		if !validWebhookMaximumBackoff(input) {
-			validation.Fields = append(validation.Fields, domain.FieldError{Field: "retry_max_backoff", Message: "Maximum backoff must be at least the initial backoff and at most 1h."})
-		}
+// validateWebhookRetry validates retry count and backoff settings when retries are enabled.
+func validateWebhookRetry(input WebhookInput, validation *domain.ValidationError) {
+	if !input.RetryEnabled {
+		return
 	}
-
-	if len(validation.Fields) == 0 {
-		return nil
+	if input.RetryCount < 1 || input.RetryCount > maxWebhookRetryCount {
+		validation.Fields = append(validation.Fields, domain.FieldError{Field: "retry_count", Message: "Retries must be between 1 and 10."})
 	}
-
-	return validation
+	if input.RetryBackoff <= 0 || input.RetryBackoff > maxWebhookRetryBackoff {
+		validation.Fields = append(validation.Fields, domain.FieldError{Field: "retry_backoff", Message: "Initial backoff must be greater than zero and at most 1h."})
+	}
+	if !validWebhookMaximumBackoff(input) {
+		validation.Fields = append(validation.Fields, domain.FieldError{Field: "retry_max_backoff", Message: "Maximum backoff must be at least the initial backoff and at most 1h."})
+	}
 }
 
 // validWebhookMaximumBackoff reports whether the maximum retry delay is ordered and within the configured cap.
@@ -102,68 +111,81 @@ func validateWebhookBodyTemplate(value string) error {
 
 // prepareWebhookHeaders validates headers and encrypts changed sensitive values.
 func (s *Webhooks) prepareWebhookHeaders(ctx context.Context, webhookID int64, inputs []WebhookHeaderInput) ([]domain.WebhookHeader, error) {
-	existingByID := map[int64]domain.WebhookHeader{}
-	if webhookID != 0 {
-		existing, err := s.repository.Webhook(ctx, webhookID)
-		if err != nil {
-			return nil, err
-		}
-		for _, header := range existing.Headers {
-			existingByID[header.ID] = header
-		}
+	existing, err := s.webhookHeadersByID(ctx, webhookID)
+	if err != nil {
+		return nil, err
 	}
-
 	seenNames := make(map[string]struct{}, len(inputs))
 	seenIDs := make(map[int64]struct{}, len(inputs))
 	headers := make([]domain.WebhookHeader, 0, len(inputs))
-
 	for _, input := range inputs {
-		name, err := normalizeWebhookHeaderName(input.Name)
+		header, err := s.prepareWebhookHeader(input, existing, seenNames, seenIDs)
 		if err != nil {
 			return nil, err
 		}
-		key := strings.ToLower(name)
-		if _, exists := seenNames[key]; exists {
-			return nil, domain.NewValidationError("headers", "Webhook header names must be unique.")
-		}
-		seenNames[key] = struct{}{}
-
-		previous, err := existingWebhookHeader(input.ID, existingByID, seenIDs)
-		if err != nil {
-			return nil, err
-		}
-
-		value := input.Value
-		if strings.TrimSpace(value) == "" {
-			if preserveWebhookHeaderValue(previous, input) {
-				value = previous.Value
-			} else {
-				return nil, domain.NewValidationError("headers", "Enter a value for every webhook request header.")
-			}
-		} else {
-			if !httpguts.ValidHeaderFieldValue(value) {
-				return nil, domain.NewValidationError("headers", "Webhook header values must be valid HTTP header values.")
-			}
-			if input.Sensitive {
-				if s.secrets == nil || !s.secrets.Configured() {
-					return nil, domain.NewValidationError("headers", "Configure KUMBUKA__ENCRYPTION_KEY before saving sensitive webhook headers.")
-				}
-				value, err = s.secrets.Encrypt(value)
-				if err != nil {
-					return nil, err
-				}
-			}
-		}
-
-		headers = append(headers, domain.WebhookHeader{
-			ID:        previous.ID,
-			Name:      name,
-			Value:     value,
-			Sensitive: input.Sensitive,
-		})
+		headers = append(headers, header)
 	}
-
 	return headers, nil
+}
+
+// webhookHeadersByID loads persisted headers for edit validation.
+func (s *Webhooks) webhookHeadersByID(ctx context.Context, webhookID int64) (map[int64]domain.WebhookHeader, error) {
+	result := map[int64]domain.WebhookHeader{}
+	if webhookID == 0 {
+		return result, nil
+	}
+	existing, err := s.repository.Webhook(ctx, webhookID)
+	if err != nil {
+		return nil, err
+	}
+	for _, header := range existing.Headers {
+		result[header.ID] = header
+	}
+	return result, nil
+}
+
+// prepareWebhookHeader validates and encrypts one submitted request header.
+func (s *Webhooks) prepareWebhookHeader(input WebhookHeaderInput, existing map[int64]domain.WebhookHeader, seenNames map[string]struct{}, seenIDs map[int64]struct{}) (domain.WebhookHeader, error) {
+	name, err := normalizeWebhookHeaderName(input.Name)
+	if err != nil {
+		return domain.WebhookHeader{}, err
+	}
+	key := strings.ToLower(name)
+	if _, duplicate := seenNames[key]; duplicate {
+		return domain.WebhookHeader{}, domain.NewValidationError("headers", "Webhook header names must be unique.")
+	}
+	seenNames[key] = struct{}{}
+
+	previous, err := existingWebhookHeader(input.ID, existing, seenIDs)
+	if err != nil {
+		return domain.WebhookHeader{}, err
+	}
+	value, err := s.prepareWebhookHeaderValue(previous, input)
+	if err != nil {
+		return domain.WebhookHeader{}, err
+	}
+	return domain.WebhookHeader{ID: previous.ID, Name: name, Value: value, Sensitive: input.Sensitive}, nil
+}
+
+// prepareWebhookHeaderValue preserves unchanged secrets or validates and encrypts a replacement value.
+func (s *Webhooks) prepareWebhookHeaderValue(previous domain.WebhookHeader, input WebhookHeaderInput) (string, error) {
+	value := input.Value
+	if strings.TrimSpace(value) == "" {
+		if preserveWebhookHeaderValue(previous, input) {
+			return previous.Value, nil
+		}
+		return "", domain.NewValidationError("headers", "Enter a value for every webhook request header.")
+	}
+	if !httpguts.ValidHeaderFieldValue(value) {
+		return "", domain.NewValidationError("headers", "Webhook header values must be valid HTTP header values.")
+	}
+	if !input.Sensitive {
+		return value, nil
+	}
+	if s.secrets == nil || !s.secrets.Configured() {
+		return "", domain.NewValidationError("headers", "Configure KUMBUKA__ENCRYPTION_KEY before saving sensitive webhook headers.")
+	}
+	return s.secrets.Encrypt(value)
 }
 
 // existingWebhookHeader resolves a persisted header and rejects duplicate submitted identifiers.

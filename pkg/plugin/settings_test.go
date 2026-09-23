@@ -3,6 +3,7 @@ package plugin
 import (
 	"bytes"
 	"context"
+	"errors"
 	"strings"
 	"sync"
 	"testing"
@@ -13,8 +14,9 @@ import (
 )
 
 type settingsStorage struct {
-	mu     sync.Mutex
-	values map[string][]byte
+	mu       sync.Mutex
+	values   map[string][]byte
+	writeErr error
 }
 
 // ReadPluginValue reads one stored test value.
@@ -43,6 +45,9 @@ func (s *settingsStorage) ListPluginValues(_ context.Context, id, namespace, pre
 func (s *settingsStorage) WritePluginValue(_ context.Context, id, namespace, key string, value []byte) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.writeErr != nil {
+		return s.writeErr
+	}
 	s.values[id+"/"+namespace+"/"+key] = bytes.Clone(value)
 	return nil
 }
@@ -169,4 +174,30 @@ func TestTypedPluginSettingsDefaultsPersistenceAndSecrets(t *testing.T) {
 	var fieldErr *ConfigurationFieldError
 	require.ErrorAs(t, err, &fieldErr)
 	assert.Equal(t, "position", fieldErr.Field)
+}
+
+func TestUpdateSettingsKeepsMemoryUnchangedWhenPersistenceFails(t *testing.T) {
+	t.Parallel()
+
+	failure := errors.New("settings unavailable")
+	storage := &settingsStorage{values: make(map[string][]byte), writeErr: failure}
+	manifest := pluginpackage.Manifest{
+		ID: "io.example.settings",
+		Modules: []pluginpackage.Module{
+			{Type: "settings", ID: "colors", Name: "Colors"},
+		},
+	}
+	manager := NewManager(&Registry{}, nil, WithStorage(storage))
+	manager.loaded[manifest.ID] = managedPlugin{metadata: LoadedPlugin{
+		Manifest: manifest,
+		Enabled:  true,
+		Settings: map[string]bool{"colors": true},
+	}}
+	manager.order = []string{manifest.ID}
+
+	err := manager.UpdateSettings(context.Background(), manifest.ID, map[string]bool{"colors": false})
+
+	require.ErrorIs(t, err, failure)
+	assert.Equal(t, map[string]bool{"colors": true}, manager.loaded[manifest.ID].metadata.Settings)
+	assert.Empty(t, storage.values)
 }

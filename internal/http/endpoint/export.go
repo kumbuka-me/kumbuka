@@ -450,7 +450,7 @@ func isRenderedMediaAttribute(element, attribute string) bool {
 }
 
 // inlineRenderedMedia replaces authenticated media URLs with data URLs for standalone PDF rendering.
-func inlineRenderedMedia(ctx context.Context, mediaUseCases imageContentService, rendered string) (html string, err error) {
+func inlineRenderedMedia(ctx context.Context, mediaUseCases imageContentService, rendered string) (string, error) {
 	cache := map[int64]string{}
 	var result strings.Builder
 	tokens := xhtml.NewTokenizer(strings.NewReader(rendered))
@@ -463,47 +463,74 @@ func inlineRenderedMedia(ctx context.Context, mediaUseCases imageContentService,
 			return result.String(), nil
 		}
 		raw := string(tokens.Raw())
-		if kind != xhtml.StartTagToken && kind != xhtml.SelfClosingTagToken {
-			result.WriteString(raw)
-			continue
-		}
-		token := tokens.Token()
-		changed := false
-		for index := range token.Attr {
-			attribute := &token.Attr[index]
-			if !isRenderedMediaAttribute(token.Data, attribute.Key) {
-				continue
-			}
-
-			location, err := url.Parse(attribute.Val)
-			if err != nil {
-				continue
-			}
-			if location.IsAbs() || location.Host != "" {
-				continue
-			}
-			id, ok := mediaImageID(location.Path)
-			if !ok {
-				continue
-			}
-			dataURL, ok := cache[id]
-			if !ok {
-				image, err := mediaUseCases.ImageContent(ctx, id)
-				if err != nil {
-					return "", &exportMediaError{cause: err}
-				}
-				dataURL = "data:" + image.ContentType + ";base64," + base64.StdEncoding.EncodeToString(image.Data)
-				cache[id] = dataURL
-			}
-			attribute.Val = dataURL
-			changed = true
+		rewritten, changed, err := inlineRenderedMediaToken(ctx, mediaUseCases, kind, tokens, raw, cache)
+		if err != nil {
+			return "", err
 		}
 		if changed {
-			result.WriteString(token.String())
+			result.WriteString(rewritten)
 		} else {
 			result.WriteString(raw)
 		}
 	}
+}
+
+// inlineRenderedMediaToken rewrites media-bearing attributes on one HTML start token.
+func inlineRenderedMediaToken(ctx context.Context, mediaUseCases imageContentService, kind xhtml.TokenType, tokens *xhtml.Tokenizer, raw string, cache map[int64]string) (string, bool, error) {
+	if kind != xhtml.StartTagToken && kind != xhtml.SelfClosingTagToken {
+		return raw, false, nil
+	}
+	token := tokens.Token()
+	changed := false
+	for index := range token.Attr {
+		rewritten, ok, err := inlineRenderedMediaAttribute(ctx, mediaUseCases, token.Data, token.Attr[index], cache)
+		if err != nil {
+			return "", false, err
+		}
+		if ok {
+			token.Attr[index] = rewritten
+			changed = true
+		}
+	}
+	if !changed {
+		return raw, false, nil
+	}
+	return token.String(), true, nil
+}
+
+// inlineRenderedMediaAttribute resolves one local Kumbuka media URL to a data URL.
+func inlineRenderedMediaAttribute(ctx context.Context, mediaUseCases imageContentService, element string, attribute xhtml.Attribute, cache map[int64]string) (xhtml.Attribute, bool, error) {
+	if !isRenderedMediaAttribute(element, attribute.Key) {
+		return attribute, false, nil
+	}
+	location, err := url.Parse(attribute.Val)
+	if err != nil || location.IsAbs() || location.Host != "" {
+		return attribute, false, nil
+	}
+	id, ok := mediaImageID(location.Path)
+	if !ok {
+		return attribute, false, nil
+	}
+	dataURL, err := renderedImageDataURL(ctx, mediaUseCases, id, cache)
+	if err != nil {
+		return attribute, false, err
+	}
+	attribute.Val = dataURL
+	return attribute, true, nil
+}
+
+// renderedImageDataURL returns a cached or freshly loaded image data URL.
+func renderedImageDataURL(ctx context.Context, mediaUseCases imageContentService, id int64, cache map[int64]string) (string, error) {
+	if value, ok := cache[id]; ok {
+		return value, nil
+	}
+	image, err := mediaUseCases.ImageContent(ctx, id)
+	if err != nil {
+		return "", &exportMediaError{cause: err}
+	}
+	value := "data:" + image.ContentType + ";base64," + base64.StdEncoding.EncodeToString(image.Data)
+	cache[id] = value
+	return value, nil
 }
 
 // exportMediaError retains the origin of a media failure in a multi-resource export.

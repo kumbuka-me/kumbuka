@@ -92,70 +92,17 @@ func Parse(data []byte, maxUncompressedBytes int64) (Archive, error) {
 	if err != nil {
 		return Archive{}, validationError("The Kumbuka ZIP archive is invalid.", err)
 	}
-
-	entries := make(map[string]*zip.File, len(reader.File))
-	for _, entry := range reader.File {
-		if entry.FileInfo().IsDir() {
-			continue
-		}
-		name, err := validArchivePath(entry.Name)
-		if err != nil {
-			return Archive{}, err
-		}
-		if _, exists := entries[name]; exists {
-			return Archive{}, validationError(
-				"The Kumbuka archive contains duplicate paths.",
-				fmt.Errorf("duplicate archive path %q", name),
-			)
-		}
-		entries[name] = entry
-	}
-
-	manifestEntry, ok := entries[ManifestPath]
-	if !ok {
-		return Archive{}, validationError(
-			"The Kumbuka archive is missing manifest.json.",
-			errors.New("portable archive manifest is missing"),
-		)
-	}
-
-	remaining := maxUncompressedBytes
-	manifestData, err := readZipFile(manifestEntry, &remaining)
+	entries, err := indexArchiveEntries(reader.File)
 	if err != nil {
 		return Archive{}, err
 	}
 
-	var manifest Manifest
-	if err := json.Unmarshal(manifestData, &manifest); err != nil {
-		return Archive{}, validationError(
-			"The Kumbuka archive manifest contains invalid JSON.",
-			fmt.Errorf("decode portable manifest: %w", err),
-		)
+	remaining := maxUncompressedBytes
+	manifest, err := readPortableManifest(entries, &remaining)
+	if err != nil {
+		return Archive{}, err
 	}
-	if manifest.Format != Format {
-		return Archive{}, validationError(
-			"The ZIP is not a Kumbuka portable archive.",
-			fmt.Errorf("unexpected portable archive format %q", manifest.Format),
-		)
-	}
-	if manifest.Version != Version {
-		return Archive{}, validationError(
-			fmt.Sprintf("Kumbuka archive version %d is not supported by this build.", manifest.Version),
-			fmt.Errorf("unsupported portable archive version %d", manifest.Version),
-		)
-	}
-	if len(manifest.Pages) == 0 {
-		return Archive{}, validationError(
-			"The Kumbuka archive contains no pages.",
-			errors.New("portable archive contains no pages"),
-		)
-	}
-
-	contents := Archive{
-		Manifest:  manifest,
-		Pages:     make([]Page, 0, len(manifest.Pages)),
-		Resources: map[string][]byte{},
-	}
+	contents := Archive{Manifest: manifest, Pages: make([]Page, 0, len(manifest.Pages)), Resources: map[string][]byte{}}
 	used := map[string]bool{ManifestPath: true}
 
 	for _, pageEntry := range manifest.Pages {
@@ -165,26 +112,100 @@ func Parse(data []byte, maxUncompressedBytes int64) (Archive, error) {
 		}
 		contents.Pages = append(contents.Pages, pageData)
 	}
-
-	for _, resource := range manifest.Media {
-		if err := readArchiveResource(entries, resource, "media/", used, &remaining, contents.Resources); err != nil {
-			return Archive{}, err
-		}
+	if err := readArchiveResources(entries, manifest.Media, "media/", used, &remaining, contents.Resources); err != nil {
+		return Archive{}, err
 	}
-	for _, resource := range manifest.Attachments {
-		if err := readArchiveResource(entries, resource, "attachments/", used, &remaining, contents.Resources); err != nil {
-			return Archive{}, err
-		}
+	if err := readArchiveResources(entries, manifest.Attachments, "attachments/", used, &remaining, contents.Resources); err != nil {
+		return Archive{}, err
 	}
-
 	if len(used) != len(entries) {
 		return Archive{}, validationError(
 			"The Kumbuka archive contains files that are not listed in its manifest.",
 			errors.New("portable archive contains unlisted files"),
 		)
 	}
-
 	return contents, nil
+}
+
+// indexArchiveEntries validates archive paths and rejects duplicate file entries.
+func indexArchiveEntries(files []*zip.File) (map[string]*zip.File, error) {
+	entries := make(map[string]*zip.File, len(files))
+	for _, entry := range files {
+		if entry.FileInfo().IsDir() {
+			continue
+		}
+		name, err := validArchivePath(entry.Name)
+		if err != nil {
+			return nil, err
+		}
+		if _, exists := entries[name]; exists {
+			return nil, validationError(
+				"The Kumbuka archive contains duplicate paths.",
+				fmt.Errorf("duplicate archive path %q", name),
+			)
+		}
+		entries[name] = entry
+	}
+	return entries, nil
+}
+
+// readPortableManifest loads and validates the required portable archive manifest.
+func readPortableManifest(entries map[string]*zip.File, remaining *int64) (Manifest, error) {
+	manifestEntry, ok := entries[ManifestPath]
+	if !ok {
+		return Manifest{}, validationError(
+			"The Kumbuka archive is missing manifest.json.",
+			errors.New("portable archive manifest is missing"),
+		)
+	}
+	manifestData, err := readZipFile(manifestEntry, remaining)
+	if err != nil {
+		return Manifest{}, err
+	}
+	var manifest Manifest
+	if err := json.Unmarshal(manifestData, &manifest); err != nil {
+		return Manifest{}, validationError(
+			"The Kumbuka archive manifest contains invalid JSON.",
+			fmt.Errorf("decode portable manifest: %w", err),
+		)
+	}
+	if err := validatePortableManifest(manifest); err != nil {
+		return Manifest{}, err
+	}
+	return manifest, nil
+}
+
+// validatePortableManifest validates format, version, and required page inventory.
+func validatePortableManifest(manifest Manifest) error {
+	if manifest.Format != Format {
+		return validationError(
+			"The ZIP is not a Kumbuka portable archive.",
+			fmt.Errorf("unexpected portable archive format %q", manifest.Format),
+		)
+	}
+	if manifest.Version != Version {
+		return validationError(
+			fmt.Sprintf("Kumbuka archive version %d is not supported by this build.", manifest.Version),
+			fmt.Errorf("unsupported portable archive version %d", manifest.Version),
+		)
+	}
+	if len(manifest.Pages) == 0 {
+		return validationError(
+			"The Kumbuka archive contains no pages.",
+			errors.New("portable archive contains no pages"),
+		)
+	}
+	return nil
+}
+
+// readArchiveResources loads one manifest resource collection into the archive result.
+func readArchiveResources(entries map[string]*zip.File, resources []ResourceEntry, prefix string, used map[string]bool, remaining *int64, contents map[string][]byte) error {
+	for _, resource := range resources {
+		if err := readArchiveResource(entries, resource, prefix, used, remaining, contents); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // readArchivePage validates and reads one page and its metadata sidecar.

@@ -163,7 +163,6 @@ func (s *Store) ApplyPageReviewSuggestions(
 	if len(suggestionIDs) == 0 {
 		return domain.Page{}, domain.NewValidationError("suggestion", "Choose at least one review suggestion.")
 	}
-
 	pluginUsage, renderedContents, render, err := preparePageDerivedData(usage, render)
 	if err != nil {
 		return domain.Page{}, err
@@ -175,83 +174,114 @@ func (s *Store) ApplyPageReviewSuggestions(
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
-	pageID, currentRevision, err := lockReviewPage(ctx, tx, requestID, slug)
+	pageID, err := prepareReviewSuggestionApplication(ctx, tx, requestID, slug, expectedRevision, suggestionIDs, applyAll, markdown)
 	if err != nil {
 		return domain.Page{}, err
 	}
+	update := pageUpdateTransaction{
+		pageID: pageID, actorID: actorID, markdown: markdown, message: message, links: links,
+		pluginUsage: pluginUsage, renderedContents: renderedContents, render: render,
+	}
+	if err := applyPreparedPageUpdate(ctx, tx, update, markReviewSuggestionsApplied(requestID, actorID, suggestionIDs)); err != nil {
+		return domain.Page{}, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return domain.Page{}, mutationError(err)
+	}
+	return s.GetPage(ctx, slug)
+}
 
+// prepareReviewSuggestionApplication locks and validates the review, selected suggestions, and expected resulting source.
+func prepareReviewSuggestionApplication(
+	ctx context.Context,
+	tx pgx.Tx,
+	requestID int64,
+	slug string,
+	expectedRevision int,
+	suggestionIDs []int64,
+	applyAll bool,
+	markdown string,
+) (int64, error) {
+	pageID, currentRevision, currentMarkdown, err := lockReviewSuggestionPage(ctx, tx, requestID, slug)
+	if err != nil {
+		return 0, err
+	}
+	if err := validateReviewRevision(ctx, tx, requestID, currentRevision, expectedRevision); err != nil {
+		return 0, err
+	}
+	suggestions, err := lockOpenReviewSuggestions(ctx, tx, requestID, suggestionIDs, applyAll)
+	if err != nil {
+		return 0, err
+	}
+	if err := validateSelectedReviewSuggestions(suggestionIDs, suggestions, applyAll); err != nil {
+		return 0, err
+	}
+	expectedMarkdown, err := applyLockedReviewSuggestions(currentMarkdown, suggestions)
+	if err != nil {
+		return 0, err
+	}
+	if markdown != expectedMarkdown {
+		return 0, domain.ErrStaleReview
+	}
+	return pageID, nil
+}
+
+// lockReviewSuggestionPage locks the review page and loads its current source.
+func lockReviewSuggestionPage(ctx context.Context, tx pgx.Tx, requestID int64, slug string) (int64, int, string, error) {
+	pageID, currentRevision, err := lockReviewPage(ctx, tx, requestID, slug)
+	if err != nil {
+		return 0, 0, "", err
+	}
 	var currentMarkdown string
 	if err := tx.QueryRow(ctx, `
 SELECT markdown_content
 FROM pages
 WHERE id=$1`, pageID).Scan(&currentMarkdown); err != nil {
-		return domain.Page{}, err
+		return 0, 0, "", err
 	}
+	return pageID, currentRevision, currentMarkdown, nil
+}
 
+// validateReviewRevision locks the review request and requires the pending request and page to share the expected revision.
+func validateReviewRevision(ctx context.Context, tx pgx.Tx, requestID int64, currentRevision, expectedRevision int) error {
 	var status string
 	var requestedRevision int
-	err = tx.QueryRow(ctx, `
+	if err := tx.QueryRow(ctx, `
 SELECT status,revision_number
 FROM page_review_requests
 WHERE id=$1
-FOR UPDATE`, requestID).Scan(&status, &requestedRevision)
-	if err != nil {
-		return domain.Page{}, err
+FOR UPDATE`, requestID).Scan(&status, &requestedRevision); err != nil {
+		return err
 	}
 	if status != domain.PageReviewStatusPending {
-		return domain.Page{}, domain.ErrReviewClosed
+		return domain.ErrReviewClosed
 	}
 	if requestedRevision != expectedRevision || currentRevision != expectedRevision {
-		return domain.Page{}, domain.ErrStaleReview
+		return domain.ErrStaleReview
 	}
+	return nil
+}
 
-	suggestions, err := lockOpenReviewSuggestions(ctx, tx, requestID, suggestionIDs, applyAll)
-	if err != nil {
-		return domain.Page{}, err
+// validateSelectedReviewSuggestions requires the locked suggestion set to match the caller's requested selection.
+func validateSelectedReviewSuggestions(requested []int64, suggestions []domain.PageReviewComment, applyAll bool) error {
+	if sameReviewSuggestionIDs(requested, reviewSuggestionIDs(suggestions)) {
+		return nil
 	}
-	if !sameReviewSuggestionIDs(suggestionIDs, reviewSuggestionIDs(suggestions)) {
-		if applyAll {
-			return domain.Page{}, domain.ErrStaleReview
-		}
-		return domain.Page{}, domain.ErrNotFound
+	if applyAll {
+		return domain.ErrStaleReview
 	}
+	return domain.ErrNotFound
+}
 
-	expectedMarkdown, err := applyLockedReviewSuggestions(currentMarkdown, suggestions)
-	if err != nil {
-		return domain.Page{}, err
-	}
-	if markdown != expectedMarkdown {
-		return domain.Page{}, domain.ErrStaleReview
-	}
-
-	if _, err := tx.Exec(ctx, `
-UPDATE pages
-SET markdown_content=$2,updated_by=$3,updated_at=now(),plugin_usage=$4::jsonb,
-    rendered_html=$5,rendered_contents=$6::jsonb,render_fingerprint=$7,
-    rendered_at=CASE WHEN $7<>'' THEN now() ELSE NULL END
-WHERE id=$1`, pageID, markdown, actorID, pluginUsage, render.HTML, renderedContents, render.Fingerprint); err != nil {
-		return domain.Page{}, mutationError(err)
-	}
-	if err := appendPageRevision(ctx, tx, pageID, markdown, message, actorID); err != nil {
-		return domain.Page{}, mutationError(err)
-	}
-	if err := supersedePageReviews(ctx, tx, pageID); err != nil {
-		return domain.Page{}, mutationError(err)
-	}
-	if _, err := tx.Exec(ctx, `
+// markReviewSuggestionsApplied returns the transaction callback that records selected review suggestions as applied.
+func markReviewSuggestionsApplied(requestID, actorID int64, suggestionIDs []int64) func(context.Context, pgx.Tx) error {
+	return func(ctx context.Context, tx pgx.Tx) error {
+		_, err := tx.Exec(ctx, `
 UPDATE page_review_comments
 SET applied_by=$2,applied_at=now(),updated_at=now()
-WHERE request_id=$1 AND id=ANY($3)`, requestID, actorID, suggestionIDs); err != nil {
-		return domain.Page{}, mutationError(err)
+WHERE request_id=$1 AND id=ANY($3)`, requestID, actorID, suggestionIDs)
+		return err
 	}
-	if err := replacePageLinks(ctx, tx, pageID, links); err != nil {
-		return domain.Page{}, mutationError(err)
-	}
-	if err := tx.Commit(ctx); err != nil {
-		return domain.Page{}, mutationError(err)
-	}
-
-	return s.GetPage(ctx, slug)
 }
 
 // lockOpenReviewSuggestions locks selected or all unapplied suggestions and returns their persisted source edits.

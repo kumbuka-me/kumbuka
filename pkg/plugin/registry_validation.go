@@ -161,75 +161,68 @@ func validateCodeHighlighter(pluginID string, highlighters []CodeHighlighterModu
 
 // validateContributionIDs validates unique IDs and required callbacks for metadata contributions.
 func validateContributionIDs(contributions Contributions) error {
-	validator := contributionIDValidator{seen: make(map[string]struct{})}
+	if err := validateContributionCallbacks(contributions); err != nil {
+		return err
+	}
 
-	for _, module := range contributions.CodeHighlighters {
-		if err := validator.check("code-highlighter", module.ID); err != nil {
+	validator := contributionIDValidator{seen: make(map[string]struct{})}
+	groups := []struct {
+		kind string
+		ids  []string
+	}{
+		{kind: "code-highlighter", ids: contributionIDs(contributions.CodeHighlighters, func(module CodeHighlighterModule) string { return module.ID })},
+		{kind: "widget", ids: contributionIDs(contributions.Widgets, func(module WidgetModule) string { return module.ID })},
+		{kind: "exporter", ids: contributionIDs(contributions.Exporters, func(module ExporterModule) string { return module.ID })},
+		{kind: "browser", ids: contributionIDs(contributions.BrowserModules, func(module BrowserModule) string { return module.ID })},
+		{kind: "editor", ids: contributionIDs(contributions.EditorExtensions, func(module EditorExtension) string { return module.ID })},
+		{kind: "admin-action", ids: contributionIDs(contributions.AdminActions, func(module AdminActionModule) string { return module.ID })},
+		{kind: "admin-resource", ids: contributionIDs(contributions.AdminResources, func(module AdminResource) string { return module.ID })},
+		{kind: "editor-completion", ids: contributionIDs(contributions.EditorCompletions, func(module EditorCompletion) string { return module.ID })},
+		{kind: "editor-insert", ids: contributionIDs(contributions.EditorInserts, func(module EditorInsert) string { return module.ID })},
+		{kind: "settings", ids: contributionIDs(contributions.SettingsModules, func(module SettingsModule) string { return module.ID })},
+		{kind: "content-style", ids: contributionIDs(contributions.ContentStyles, func(module ContentStyle) string { return module.ID })},
+		{kind: "render-policy", ids: contributionIDs(contributions.RenderPolicies, func(module RenderPolicy) string { return module.ID })},
+	}
+
+	for _, group := range groups {
+		if err := validator.checkAll(group.kind, group.ids); err != nil {
 			return err
 		}
 	}
-	for _, module := range contributions.Widgets {
-		if err := validator.check("widget", module.ID); err != nil {
-			return err
-		}
+	return nil
+}
+
+// contributionIDs projects contribution records onto their identifiers.
+func contributionIDs[T any](modules []T, id func(T) string) []string {
+	ids := make([]string, len(modules))
+	for index, module := range modules {
+		ids[index] = id(module)
 	}
+	return ids
+}
+
+// validateContributionCallbacks checks required executable callbacks before validating contribution identifiers.
+func validateContributionCallbacks(contributions Contributions) error {
 	for _, module := range contributions.Exporters {
 		if module.Exporter == nil {
 			return fmt.Errorf("nil exporter %q", module.ID)
-		}
-		if err := validator.check("exporter", module.ID); err != nil {
-			return err
-		}
-	}
-	for _, module := range contributions.BrowserModules {
-		if err := validator.check("browser", module.ID); err != nil {
-			return err
-		}
-	}
-	for _, module := range contributions.EditorExtensions {
-		if err := validator.check("editor", module.ID); err != nil {
-			return err
 		}
 	}
 	for _, module := range contributions.AdminActions {
 		if module.Action == nil {
 			return fmt.Errorf("nil admin action %q", module.ID)
 		}
-		if err := validator.check("admin-action", module.ID); err != nil {
-			return err
-		}
 	}
-	for _, module := range contributions.AdminResources {
-		if err := validator.check("admin-resource", module.ID); err != nil {
-			return err
-		}
-	}
-	for _, module := range contributions.EditorCompletions {
-		if err := validator.check("editor-completion", module.ID); err != nil {
-			return err
-		}
-	}
-	for _, module := range contributions.EditorInserts {
-		if err := validator.check("editor-insert", module.ID); err != nil {
-			return err
-		}
-	}
-	for _, module := range contributions.SettingsModules {
-		if err := validator.check("settings", module.ID); err != nil {
-			return err
-		}
-	}
-	for _, module := range contributions.ContentStyles {
-		if err := validator.check("content-style", module.ID); err != nil {
-			return err
-		}
-	}
-	for _, module := range contributions.RenderPolicies {
-		if err := validator.check("render-policy", module.ID); err != nil {
-			return err
-		}
-	}
+	return nil
+}
 
+// checkAll validates one contribution kind without duplicating collection loops.
+func (v *contributionIDValidator) checkAll(kind string, ids []string) error {
+	for _, id := range ids {
+		if err := v.check(kind, id); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 

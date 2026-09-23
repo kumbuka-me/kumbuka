@@ -8,11 +8,28 @@ import (
 
 // KnowledgeGraph returns pages and current wiki-link relationships.
 func (s *Store) KnowledgeGraph(ctx context.Context, limit int) (domain.KnowledgeGraph, error) {
-	if limit <= 0 || limit > 500 {
-		limit = 250
+	limit = normalizedKnowledgeGraphLimit(limit)
+	nodes, allowed, err := s.knowledgeGraphNodes(ctx, limit)
+	if err != nil {
+		return domain.KnowledgeGraph{}, err
 	}
+	edges, err := s.knowledgeGraphEdges(ctx, allowed)
+	if err != nil {
+		return domain.KnowledgeGraph{}, err
+	}
+	return domain.KnowledgeGraph{Nodes: nodes, Edges: edges}, nil
+}
 
-	graph := domain.KnowledgeGraph{}
+// normalizedKnowledgeGraphLimit returns the bounded graph node limit.
+func normalizedKnowledgeGraphLimit(limit int) int {
+	if limit <= 0 || limit > 500 {
+		return 250
+	}
+	return limit
+}
+
+// knowledgeGraphNodes loads graph nodes and the set of slugs allowed in edges.
+func (s *Store) knowledgeGraphNodes(ctx context.Context, limit int) ([]domain.GraphNode, map[string]bool, error) {
 	rows, err := s.pool.Query(ctx, `
 SELECT slug,title,status
 FROM pages
@@ -20,30 +37,29 @@ WHERE deleted_at IS NULL
 ORDER BY updated_at DESC
 LIMIT $1`, limit)
 	if err != nil {
-		return graph, err
+		return nil, nil, err
 	}
+	defer rows.Close()
 
-	allowed := map[string]bool{}
-
+	nodes := make([]domain.GraphNode, 0, limit)
+	allowed := make(map[string]bool, limit)
 	for rows.Next() {
 		var node domain.GraphNode
 		if err := rows.Scan(&node.Slug, &node.Title, &node.Status); err != nil {
-			rows.Close()
-			return graph, err
+			return nil, nil, err
 		}
-
-		graph.Nodes = append(graph.Nodes, node)
+		nodes = append(nodes, node)
 		allowed[node.Slug] = true
 	}
-
 	if err := rows.Err(); err != nil {
-		rows.Close()
-		return graph, err
+		return nil, nil, err
 	}
+	return nodes, allowed, nil
+}
 
-	rows.Close()
-
-	rows, err = s.pool.Query(ctx, `
+// knowledgeGraphEdges loads existing link edges whose endpoints are both selected nodes.
+func (s *Store) knowledgeGraphEdges(ctx context.Context, allowed map[string]bool) ([]domain.GraphEdge, error) {
+	rows, err := s.pool.Query(ctx, `
 SELECT source.slug,coalesce(target.slug,alias_target.slug,'')
 FROM page_links l
 JOIN pages source ON source.id=l.source_page_id AND source.deleted_at IS NULL
@@ -52,23 +68,21 @@ LEFT JOIN page_aliases a ON a.alias=l.target_slug
 LEFT JOIN pages alias_target ON alias_target.id=a.page_id AND alias_target.deleted_at IS NULL
 WHERE target.id IS NOT NULL OR alias_target.id IS NOT NULL`)
 	if err != nil {
-		return graph, err
+		return nil, err
 	}
-
 	defer rows.Close()
 
+	var edges []domain.GraphEdge
 	for rows.Next() {
 		var edge domain.GraphEdge
 		if err := rows.Scan(&edge.Source, &edge.Target); err != nil {
-			return graph, err
+			return nil, err
 		}
-
 		if allowed[edge.Source] && allowed[edge.Target] && edge.Source != edge.Target {
-			graph.Edges = append(graph.Edges, edge)
+			edges = append(edges, edge)
 		}
 	}
-
-	return graph, rows.Err()
+	return edges, rows.Err()
 }
 
 // RecentEdited returns pages most recently revised by one user.

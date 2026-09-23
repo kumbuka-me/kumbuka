@@ -97,7 +97,24 @@ func (r *Runtime) dispatch(ctx context.Context, module api.Module, request sdk.C
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
+	caller, err := r.authorizeCapabilityCall(ctx, module, request.Method)
+	if err != nil {
+		return nil, err
+	}
+	if value, handled, err := r.dispatchBuiltinCapability(ctx, caller, request); handled {
+		return value, err
+	}
 
+	capabilities, _ := ctx.Value(capabilitiesKey{}).(map[string]plugin.Capability)
+	capability := capabilities[request.Method]
+	if capability == nil {
+		return nil, errors.New("capability unavailable in this context")
+	}
+	return capability(ctx, request.Params)
+}
+
+// authorizeCapabilityCall validates invocation ownership, quota, and manifest permissions.
+func (r *Runtime) authorizeCapabilityCall(ctx context.Context, module api.Module, method string) (*Instance, error) {
 	state, ok := ctx.Value(callerKey{}).(*invocationState)
 	if !ok || state.instance.module != module {
 		return nil, errors.New("capabilities unavailable outside invocation")
@@ -105,37 +122,41 @@ func (r *Runtime) dispatch(ctx context.Context, module api.Module, request sdk.C
 	if state.remaining <= 0 {
 		return nil, errors.New("host call quota exceeded")
 	}
-
 	state.remaining--
-	caller := state.instance
-	if !r.capabilityAllowed(caller, request.Method) {
+	if !r.capabilityAllowed(state.instance, method) {
 		return nil, errors.New("capability denied")
 	}
+	return state.instance, nil
+}
 
-	if request.Method == "http.do" {
-		return r.httpCall(ctx, caller, request.Params)
+// dispatchBuiltinCapability handles capabilities implemented directly by the WASM runtime.
+func (r *Runtime) dispatchBuiltinCapability(ctx context.Context, caller *Instance, request sdk.CapabilityRequest) (any, bool, error) {
+	switch {
+	case request.Method == "http.do":
+		value, err := r.httpCall(ctx, caller, request.Params)
+		return value, true, err
+	case request.Method == "plugin.resources.get" || request.Method == "plugin.resources.list":
+		value, err := r.resourceCall(ctx, caller, request)
+		return value, true, err
+	case strings.HasPrefix(request.Method, "plugin."):
+		value, err := r.storageCall(ctx, caller, request)
+		return value, true, err
+	case request.Method == "log":
+		err := logCapabilityMessage(ctx, caller, request.Params)
+		return nil, true, err
+	default:
+		return nil, false, nil
 	}
-	if request.Method == "plugin.resources.get" || request.Method == "plugin.resources.list" {
-		return r.resourceCall(ctx, caller, request)
-	}
-	if strings.HasPrefix(request.Method, "plugin.") {
-		return r.storageCall(ctx, caller, request)
-	}
-	if request.Method == "log" {
-		var message sdk.LogMessage
-		if err := decode(request.Params, &message); err != nil || !validLogMessage(message) {
-			return nil, errors.New("invalid log message")
-		}
-		slog.InfoContext(ctx, "plugin message", "plugin_id", caller.manifest.ID, "message", message.Message)
-		return nil, nil
-	}
-	capabilities, _ := ctx.Value(capabilitiesKey{}).(map[string]plugin.Capability)
-	capability := capabilities[request.Method]
-	if capability == nil {
-		return nil, errors.New("capability unavailable in this context")
-	}
+}
 
-	return capability(ctx, request.Params)
+// logCapabilityMessage validates and records one guest log request.
+func logCapabilityMessage(ctx context.Context, caller *Instance, data json.RawMessage) error {
+	var message sdk.LogMessage
+	if err := decode(data, &message); err != nil || !validLogMessage(message) {
+		return errors.New("invalid log message")
+	}
+	slog.InfoContext(ctx, "plugin message", "plugin_id", caller.manifest.ID, "message", message.Message)
+	return nil
 }
 
 // validHostCallBuffers reports whether guest request and response buffers stay within wire limits.
@@ -166,32 +187,40 @@ func (r *Runtime) resourceCall(ctx context.Context, caller *Instance, request sd
 	if r.storage == nil {
 		return nil, errors.New("plugin storage unavailable")
 	}
-
 	if request.Method == "plugin.resources.get" {
-		var query sdk.PluginResourceRequest
-		if err := decode(request.Params, &query); err != nil {
-			return nil, errors.New("invalid plugin resource request")
-		}
-		resource := manifestModule(caller.manifest, query.Resource)
-		if resource.Type != "admin-resource" {
-			return nil, errors.New("plugin resource is not declared")
-		}
-		record, found, err := plugin.ReadResourceRecord(ctx, r.storage, caller.manifest.ID, resource, query.Key)
-		if err != nil {
-			return nil, err
-		}
-		if !found {
-			return nil, errors.New("plugin resource record not found")
-		}
-		record, err = plugin.RevealResourceSecrets(record, resource, r.secrets)
-		if err != nil {
-			return nil, err
-		}
-		return sdk.PluginResourceRecord{Key: record.Key, Values: record.Values}, nil
+		return r.getResourceRecord(ctx, caller, request.Params)
 	}
+	return r.listResourceRecords(ctx, caller, request.Params)
+}
 
+// getResourceRecord reads and reveals one declared resource record.
+func (r *Runtime) getResourceRecord(ctx context.Context, caller *Instance, data json.RawMessage) (sdk.PluginResourceRecord, error) {
+	var query sdk.PluginResourceRequest
+	if err := decode(data, &query); err != nil {
+		return sdk.PluginResourceRecord{}, errors.New("invalid plugin resource request")
+	}
+	resource := manifestModule(caller.manifest, query.Resource)
+	if resource.Type != "admin-resource" {
+		return sdk.PluginResourceRecord{}, errors.New("plugin resource is not declared")
+	}
+	record, found, err := plugin.ReadResourceRecord(ctx, r.storage, caller.manifest.ID, resource, query.Key)
+	if err != nil {
+		return sdk.PluginResourceRecord{}, err
+	}
+	if !found {
+		return sdk.PluginResourceRecord{}, errors.New("plugin resource record not found")
+	}
+	record, err = plugin.RevealResourceSecrets(record, resource, r.secrets)
+	if err != nil {
+		return sdk.PluginResourceRecord{}, err
+	}
+	return sdk.PluginResourceRecord{Key: record.Key, Values: record.Values}, nil
+}
+
+// listResourceRecords reads and reveals all records for one declared resource.
+func (r *Runtime) listResourceRecords(ctx context.Context, caller *Instance, data json.RawMessage) ([]sdk.PluginResourceRecord, error) {
 	var query sdk.PluginResourceListRequest
-	if err := decode(request.Params, &query); err != nil {
+	if err := decode(data, &query); err != nil {
 		return nil, errors.New("invalid plugin resource request")
 	}
 	resource := manifestModule(caller.manifest, query.Resource)
@@ -204,9 +233,9 @@ func (r *Runtime) resourceCall(ctx context.Context, caller *Instance, request sd
 	}
 	result := make([]sdk.PluginResourceRecord, 0, len(records))
 	for _, record := range records {
-		revealed, revealErr := plugin.RevealResourceSecrets(record, resource, r.secrets)
-		if revealErr != nil {
-			return nil, revealErr
+		revealed, err := plugin.RevealResourceSecrets(record, resource, r.secrets)
+		if err != nil {
+			return nil, err
 		}
 		result = append(result, sdk.PluginResourceRecord{Key: revealed.Key, Values: revealed.Values})
 	}

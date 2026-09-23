@@ -144,38 +144,9 @@ func SavePreferences(preferenceUseCases preferenceService, pluginManager *plugin
 			httpresponse.Problem(w, http.StatusBadRequest, "Invalid form.")
 			return
 		}
-
-		selectedTheme, ok := themes.Find(views.Themes(), r.FormValue("theme"))
-		if !ok {
-			httpresponse.Problem(w, http.StatusBadRequest, "Unknown theme.")
-			return
-		}
-
-		navigationStyle := r.FormValue("navigation_style")
-		if !domain.ValidNavigationStyle(navigationStyle) {
-			httpresponse.Problem(w, http.StatusBadRequest, "Unknown navigation style.")
-			return
-		}
-
-		density := r.FormValue("navigation_density")
-		if !domain.ValidNavigationDensity(density) {
-			httpresponse.Problem(w, http.StatusBadRequest, "Unknown navigation density.")
-			return
-		}
-
-		typographySize := r.FormValue("typography_size")
-		if typographySize != "" && !domain.ValidTypographySize(typographySize) {
-			httpresponse.Problem(w, http.StatusBadRequest, "Unknown typography size.")
-			return
-		}
-
-		sidebarWidth, err := strconv.Atoi(r.FormValue("sidebar_width"))
-		if err != nil {
-			httpresponse.Problem(w, http.StatusBadRequest, "Sidebar width is out of range.")
-			return
-		}
-		if !domain.ValidSidebarWidth(sidebarWidth) {
-			httpresponse.Problem(w, http.StatusBadRequest, "Sidebar width is out of range.")
+		preferences, problem := preferencesFromForm(r, views)
+		if problem != "" {
+			httpresponse.Problem(w, http.StatusBadRequest, problem)
 			return
 		}
 
@@ -184,37 +155,56 @@ func SavePreferences(preferenceUseCases preferenceService, pluginManager *plugin
 			httpresponse.InternalServerError(views.Logger(), w, err)
 			return
 		}
-
-		var loadedPlugins []plugin.LoadedPlugin
-		if pluginManager != nil {
-			loadedPlugins = pluginManager.Plugins()
-		}
-
-		preferences := domain.UserPreferences{
-			Theme:                    selectedTheme.Title,
-			ShowPageContents:         r.FormValue("show_page_contents") == "on",
-			NavigationStyle:          navigationStyle,
-			NavigationDensity:        density,
-			TypographySize:           typographySize,
-			SidebarWidth:             sidebarWidth,
-			ShowNavigationGuides:     r.FormValue("show_navigation_guides") == "on",
-			RememberNavigationState:  r.FormValue("remember_navigation_state") == "on",
-			ShowNavigationPageCounts: r.FormValue("show_navigation_page_counts") == "on",
-			ExpandedNavigation:       current.ExpandedNavigation,
-			HiddenPluginWidgets: hiddenPluginWidgets(
-				loadedPlugins,
-				current.HiddenPluginWidgets,
-				r.Form["plugin_widget"],
-				r.Form["visible_plugin_widget"],
-			),
-		}
+		preferences.ExpandedNavigation = current.ExpandedNavigation
+		preferences.HiddenPluginWidgets = hiddenPluginWidgets(
+			loadedPluginSnapshot(pluginManager), current.HiddenPluginWidgets, r.Form["plugin_widget"], r.Form["visible_plugin_widget"],
+		)
 		if err := preferenceUseCases.SavePreferences(r.Context(), user.ID, preferences); err != nil {
 			writePreferencesProblem(views.Logger(), w, err)
 			return
 		}
-
 		http.Redirect(w, r, "/settings#preferences", http.StatusSeeOther)
 	}
+}
+
+// preferencesFromForm validates scalar presentation preferences and returns their normalized value.
+func preferencesFromForm(r *http.Request, views *webview.Views) (domain.UserPreferences, string) {
+	selectedTheme, ok := themes.Find(views.Themes(), r.FormValue("theme"))
+	if !ok {
+		return domain.UserPreferences{}, "Unknown theme."
+	}
+	navigationStyle := r.FormValue("navigation_style")
+	if !domain.ValidNavigationStyle(navigationStyle) {
+		return domain.UserPreferences{}, "Unknown navigation style."
+	}
+	density := r.FormValue("navigation_density")
+	if !domain.ValidNavigationDensity(density) {
+		return domain.UserPreferences{}, "Unknown navigation density."
+	}
+	typographySize := r.FormValue("typography_size")
+	if typographySize != "" && !domain.ValidTypographySize(typographySize) {
+		return domain.UserPreferences{}, "Unknown typography size."
+	}
+	sidebarWidth, err := strconv.Atoi(r.FormValue("sidebar_width"))
+	if err != nil || !domain.ValidSidebarWidth(sidebarWidth) {
+		return domain.UserPreferences{}, "Sidebar width is out of range."
+	}
+
+	return domain.UserPreferences{
+		Theme: selectedTheme.Title, ShowPageContents: r.FormValue("show_page_contents") == "on",
+		NavigationStyle: navigationStyle, NavigationDensity: density, TypographySize: typographySize, SidebarWidth: sidebarWidth,
+		ShowNavigationGuides:     r.FormValue("show_navigation_guides") == "on",
+		RememberNavigationState:  r.FormValue("remember_navigation_state") == "on",
+		ShowNavigationPageCounts: r.FormValue("show_navigation_page_counts") == "on",
+	}, ""
+}
+
+// loadedPluginSnapshot returns the current plugin metadata used by preference validation.
+func loadedPluginSnapshot(manager *plugin.Manager) []plugin.LoadedPlugin {
+	if manager == nil {
+		return nil
+	}
+	return manager.Plugins()
 }
 
 // SavePageContentsPreference stores the floating page-contents toggle without changing other preferences.

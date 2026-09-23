@@ -432,20 +432,30 @@ func ensureJSONEOF(decoder *json.Decoder) error {
 
 // validateEditorWidget validates one visual-editor contribution and all referenced attributes.
 func validateEditorWidget(widget *EditorWidgetContribution) error {
+	if err := validateEditorWidgetDeclaration(widget); err != nil {
+		return err
+	}
+
+	attributes, err := validateEditorWidgetAttributes(widget.Attributes)
+	if err != nil {
+		return err
+	}
+	if err := validateEditorWidgetSettings(widget.Settings, attributes); err != nil {
+		return err
+	}
+	if err := validateEditorWidgetConstraints(widget.Constraints, attributes); err != nil {
+		return err
+	}
+	return validateEditorWidgetPreview(widget.Preview, attributes)
+}
+
+// validateEditorWidgetDeclaration validates widget metadata, syntax, and collection bounds.
+func validateEditorWidgetDeclaration(widget *EditorWidgetContribution) error {
 	if strings.TrimSpace(widget.Name) == "" || len(widget.Name) > 128 {
 		return errors.New("name is empty or too long")
 	}
-	switch widget.Syntax.Kind {
-	case "macro", "substitution":
-		if !validID.MatchString(widget.Syntax.Name) {
-			return errors.New("syntax must declare a valid macro name or substitution prefix")
-		}
-	case "callout", "details", "tabs":
-		if widget.Syntax.Name != "" || widget.Inline {
-			return errors.New("block syntax cannot declare a name or be inline")
-		}
-	default:
-		return fmt.Errorf("unsupported visual editor syntax kind %q", widget.Syntax.Kind)
+	if err := validateEditorWidgetSyntax(widget.Syntax, widget.Inline); err != nil {
+		return err
 	}
 	if len(widget.Attributes) == 0 || len(widget.Attributes) > maxEditorWidgetAttributes {
 		return fmt.Errorf("must declare between 1 and %d attributes", maxEditorWidgetAttributes)
@@ -456,28 +466,59 @@ func validateEditorWidget(widget *EditorWidgetContribution) error {
 	if len(widget.Constraints) > maxEditorWidgetConstraints {
 		return fmt.Errorf("declares more than %d constraints", maxEditorWidgetConstraints)
 	}
+	return nil
+}
 
-	attributes := make(map[string]EditorWidgetAttribute, len(widget.Attributes))
-	for _, attribute := range widget.Attributes {
+// validateEditorWidgetSyntax validates the source syntax declaration for one widget.
+func validateEditorWidgetSyntax(syntax EditorWidgetSyntax, inline bool) error {
+	switch syntax.Kind {
+	case "macro", "substitution":
+		if !validID.MatchString(syntax.Name) {
+			return errors.New("syntax must declare a valid macro name or substitution prefix")
+		}
+	case "callout", "details", "tabs":
+		if syntax.Name != "" || inline {
+			return errors.New("block syntax cannot declare a name or be inline")
+		}
+	default:
+		return fmt.Errorf("unsupported visual editor syntax kind %q", syntax.Kind)
+	}
+	return nil
+}
+
+// validateEditorWidgetAttributes validates attributes and returns them indexed by name.
+func validateEditorWidgetAttributes(declarations []EditorWidgetAttribute) (map[string]EditorWidgetAttribute, error) {
+	attributes := make(map[string]EditorWidgetAttribute, len(declarations))
+	for _, attribute := range declarations {
 		if err := validateEditorWidgetAttribute(attribute); err != nil {
-			return fmt.Errorf("attribute %q: %w", attribute.Name, err)
+			return nil, fmt.Errorf("attribute %q: %w", attribute.Name, err)
 		}
 		if _, exists := attributes[attribute.Name]; exists {
-			return fmt.Errorf("duplicate attribute %q", attribute.Name)
+			return nil, fmt.Errorf("duplicate attribute %q", attribute.Name)
 		}
 		attributes[attribute.Name] = attribute
 	}
-	for _, setting := range widget.Settings {
+	return attributes, nil
+}
+
+// validateEditorWidgetSettings validates all generated controls against declared attributes.
+func validateEditorWidgetSettings(settings []EditorWidgetSetting, attributes map[string]EditorWidgetAttribute) error {
+	for _, setting := range settings {
 		if err := validateEditorWidgetSetting(setting, attributes); err != nil {
 			return err
 		}
 	}
-	for _, constraint := range widget.Constraints {
+	return nil
+}
+
+// validateEditorWidgetConstraints validates all cross-attribute constraints.
+func validateEditorWidgetConstraints(constraints []EditorWidgetConstraint, attributes map[string]EditorWidgetAttribute) error {
+	for _, constraint := range constraints {
 		if err := validateEditorWidgetConstraint(constraint, attributes); err != nil {
 			return err
 		}
 	}
-	return validateEditorWidgetPreview(widget.Preview, attributes)
+	return nil
 }
 
 // validateEditorWidgetAttribute validates one structured source attribute declaration.
@@ -488,6 +529,24 @@ func validateEditorWidgetAttribute(attribute EditorWidgetAttribute) error {
 	if !validEditorWidgetAttributeLimits(attribute) {
 		return errors.New("limits are invalid")
 	}
+	if err := validateEditorWidgetAttributeSeparators(attribute); err != nil {
+		return err
+	}
+
+	switch attribute.Type {
+	case "string", "identifier":
+		return validateEditorWidgetScalarAttributeDeclaration(attribute)
+	case "enum":
+		return validateEditorWidgetEnumAttributeDeclaration(attribute)
+	case "list", "color-list":
+		return validateEditorWidgetListAttributeDeclaration(attribute)
+	default:
+		return fmt.Errorf("unsupported type %q", attribute.Type)
+	}
+}
+
+// validateEditorWidgetAttributeSeparators validates primary and fallback separator declarations.
+func validateEditorWidgetAttributeSeparators(attribute EditorWidgetAttribute) error {
 	validSeparator := func(value string) bool { return value == "" || value == ";" || value == "," || value == "\x1f" }
 	if !validSeparator(attribute.Separator) {
 		return errors.New("separator must be comma, semicolon, or unit separator")
@@ -495,46 +554,53 @@ func validateEditorWidgetAttribute(attribute EditorWidgetAttribute) error {
 	if !validEditorWidgetFallbackSeparator(attribute.FallbackSeparator, attribute.Separator, validSeparator) {
 		return errors.New("fallback separator is invalid")
 	}
+	return nil
+}
 
-	switch attribute.Type {
-	case "string", "identifier":
-		if !validEditorWidgetScalarAttribute(attribute) {
-			return errors.New("scalar attribute declares list, enum, or color options")
+// validateEditorWidgetScalarAttributeDeclaration rejects list, enum, and color options on scalar attributes.
+func validateEditorWidgetScalarAttributeDeclaration(attribute EditorWidgetAttribute) error {
+	if !validEditorWidgetScalarAttribute(attribute) {
+		return errors.New("scalar attribute declares list, enum, or color options")
+	}
+	return nil
+}
+
+// validateEditorWidgetEnumAttributeDeclaration validates enum shape, values, uniqueness, and default membership.
+func validateEditorWidgetEnumAttributeDeclaration(attribute EditorWidgetAttribute) error {
+	if !validEditorWidgetEnumAttribute(attribute) {
+		return errors.New("enum attribute has invalid values")
+	}
+	seen := make(map[string]bool, len(attribute.Values))
+	for _, value := range attribute.Values {
+		if !validEditorWidgetEnumValue(value, seen) {
+			return errors.New("enum values are empty, too long, or duplicated")
 		}
-	case "enum":
-		if !validEditorWidgetEnumAttribute(attribute) {
-			return errors.New("enum attribute has invalid values")
+		seen[value] = true
+	}
+	if attribute.Default != "" && !seen[attribute.Default] {
+		return errors.New("default is not an allowed enum value")
+	}
+	return nil
+}
+
+// validateEditorWidgetListAttributeDeclaration validates list separators and color-list aliases.
+func validateEditorWidgetListAttributeDeclaration(attribute EditorWidgetAttribute) error {
+	if len(attribute.Values) != 0 || attribute.EmitEmpty {
+		return errors.New("list attribute cannot declare enum values or emit-empty behavior")
+	}
+	if attribute.Separator == "" {
+		return errors.New("list attribute requires a separator")
+	}
+	if attribute.Type == "list" && len(attribute.Aliases) != 0 {
+		return errors.New("plain list attribute cannot declare color aliases")
+	}
+	if len(attribute.Aliases) > 32 {
+		return errors.New("color attribute declares too many aliases")
+	}
+	for name, color := range attribute.Aliases {
+		if !validID.MatchString(name) || !validEditorWidgetColor(color) {
+			return errors.New("color attribute alias is invalid")
 		}
-		seen := make(map[string]bool, len(attribute.Values))
-		for _, value := range attribute.Values {
-			if !validEditorWidgetEnumValue(value, seen) {
-				return errors.New("enum values are empty, too long, or duplicated")
-			}
-			seen[value] = true
-		}
-		if attribute.Default != "" && !seen[attribute.Default] {
-			return errors.New("default is not an allowed enum value")
-		}
-	case "list", "color-list":
-		if len(attribute.Values) != 0 || attribute.EmitEmpty {
-			return errors.New("list attribute cannot declare enum values or emit-empty behavior")
-		}
-		if attribute.Separator == "" {
-			return errors.New("list attribute requires a separator")
-		}
-		if attribute.Type == "list" && len(attribute.Aliases) != 0 {
-			return errors.New("plain list attribute cannot declare color aliases")
-		}
-		if len(attribute.Aliases) > 32 {
-			return errors.New("color attribute declares too many aliases")
-		}
-		for name, color := range attribute.Aliases {
-			if !validID.MatchString(name) || !validEditorWidgetColor(color) {
-				return errors.New("color attribute alias is invalid")
-			}
-		}
-	default:
-		return fmt.Errorf("unsupported type %q", attribute.Type)
 	}
 	return nil
 }
@@ -556,6 +622,24 @@ func validEditorWidgetMemberOfConstraint(value, set EditorWidgetAttribute) bool 
 
 // validateEditorWidgetSetting validates a generated control and its referenced attributes.
 func validateEditorWidgetSetting(setting EditorWidgetSetting, attributes map[string]EditorWidgetAttribute) error {
+	if err := validateEditorWidgetSettingMetadata(setting); err != nil {
+		return err
+	}
+
+	switch setting.Type {
+	case "text", "textarea":
+		return validateEditorWidgetTextSettingDeclaration(setting, attributes)
+	case "select":
+		return validateEditorWidgetSelectSettingDeclaration(setting, attributes)
+	case "table":
+		return validateEditorWidgetTableSettingDeclaration(setting, attributes)
+	default:
+		return fmt.Errorf("unsupported visual editor setting type %q", setting.Type)
+	}
+}
+
+// validateEditorWidgetSettingMetadata validates common control labels, placeholders, and suggestions.
+func validateEditorWidgetSettingMetadata(setting EditorWidgetSetting) error {
 	if !validEditorWidgetSettingMetadata(setting) {
 		return errors.New("visual editor setting has an invalid label, placeholder, or suggestions")
 	}
@@ -564,48 +648,86 @@ func validateEditorWidgetSetting(setting EditorWidgetSetting, attributes map[str
 			return errors.New("visual editor setting has an invalid suggestion")
 		}
 	}
-	switch setting.Type {
-	case "text", "textarea":
-		attribute, ok := attributes[setting.Attribute]
-		if !validEditorWidgetTextSetting(setting, attribute, ok) {
-			return fmt.Errorf("%s setting %q references an invalid attribute", setting.Type, setting.Label)
+	return nil
+}
+
+// validateEditorWidgetTextSettingDeclaration validates text and textarea controls.
+func validateEditorWidgetTextSettingDeclaration(setting EditorWidgetSetting, attributes map[string]EditorWidgetAttribute) error {
+	attribute, ok := attributes[setting.Attribute]
+	if !validEditorWidgetTextSetting(setting, attribute, ok) {
+		return fmt.Errorf("%s setting %q references an invalid attribute", setting.Type, setting.Label)
+	}
+	return nil
+}
+
+// validateEditorWidgetSelectSettingDeclaration validates select controls.
+func validateEditorWidgetSelectSettingDeclaration(setting EditorWidgetSetting, attributes map[string]EditorWidgetAttribute) error {
+	attribute, ok := attributes[setting.Attribute]
+	if !validEditorWidgetSelectSetting(setting, attribute, ok) {
+		return fmt.Errorf("select setting %q references an invalid attribute", setting.Label)
+	}
+	return nil
+}
+
+// validateEditorWidgetTableSettingDeclaration validates table shape and each bound list column.
+func validateEditorWidgetTableSettingDeclaration(setting EditorWidgetSetting, attributes map[string]EditorWidgetAttribute) error {
+	if !validEditorWidgetTableShape(setting) {
+		return fmt.Errorf("table setting %q has invalid columns", setting.Label)
+	}
+	first := attributes[setting.Attributes[0]]
+	if !validEditorWidgetFirstTableColumn(first, setting.Columns[0]) {
+		return fmt.Errorf("table setting %q must start with a text or textarea list column", setting.Label)
+	}
+
+	seen := make(map[string]bool, len(setting.Attributes))
+	for index, name := range setting.Attributes {
+		if err := validateEditorWidgetTableColumnBinding(setting, index, name, attributes, seen[name]); err != nil {
+			return err
 		}
-	case "select":
-		attribute, ok := attributes[setting.Attribute]
-		if !validEditorWidgetSelectSetting(setting, attribute, ok) {
-			return fmt.Errorf("select setting %q references an invalid attribute", setting.Label)
-		}
-	case "table":
-		if !validEditorWidgetTableShape(setting) {
-			return fmt.Errorf("table setting %q has invalid columns", setting.Label)
-		}
-		first := attributes[setting.Attributes[0]]
-		if !validEditorWidgetFirstTableColumn(first, setting.Columns[0]) {
-			return fmt.Errorf("table setting %q must start with a text or textarea list column", setting.Label)
-		}
-		seen := make(map[string]bool, len(setting.Attributes))
-		for index, name := range setting.Attributes {
-			attribute, ok := attributes[name]
-			if !validEditorWidgetTableAttribute(attribute, ok, seen[name]) {
-				return fmt.Errorf("table setting %q references invalid list attribute %q", setting.Label, name)
-			}
-			seen[name] = true
-			column := setting.Columns[index]
-			if !validEditorWidgetTableColumn(column) {
-				return fmt.Errorf("table setting %q has invalid column", setting.Label)
-			}
-			if column.Type == "color" && attribute.Type != "color-list" {
-				return fmt.Errorf("table color column %q must target a color-list", column.Label)
-			}
-		}
-	default:
-		return fmt.Errorf("unsupported visual editor setting type %q", setting.Type)
+		seen[name] = true
+	}
+	return nil
+}
+
+// validateEditorWidgetTableColumnBinding validates one table column and its target attribute.
+func validateEditorWidgetTableColumnBinding(setting EditorWidgetSetting, index int, name string, attributes map[string]EditorWidgetAttribute, duplicate bool) error {
+	attribute, ok := attributes[name]
+	if !validEditorWidgetTableAttribute(attribute, ok, duplicate) {
+		return fmt.Errorf("table setting %q references invalid list attribute %q", setting.Label, name)
+	}
+	column := setting.Columns[index]
+	if !validEditorWidgetTableColumn(column) {
+		return fmt.Errorf("table setting %q has invalid column", setting.Label)
+	}
+	if column.Type == "color" && attribute.Type != "color-list" {
+		return fmt.Errorf("table color column %q must target a color-list", column.Label)
 	}
 	return nil
 }
 
 // validateEditorWidgetConstraint validates a cross-attribute rule.
 func validateEditorWidgetConstraint(constraint EditorWidgetConstraint, attributes map[string]EditorWidgetAttribute) error {
+	if err := validateEditorWidgetConstraintReferences(constraint, attributes); err != nil {
+		return err
+	}
+
+	switch constraint.Kind {
+	case "exactly-one":
+		if constraint.Optional {
+			return errors.New("exactly-one constraint cannot be optional")
+		}
+	case "same-length":
+		return validateEditorWidgetSameLengthConstraint(constraint, attributes)
+	case "member-of":
+		return validateEditorWidgetMemberOfConstraintDeclaration(constraint, attributes)
+	default:
+		return fmt.Errorf("unsupported visual editor constraint %q", constraint.Kind)
+	}
+	return nil
+}
+
+// validateEditorWidgetConstraintReferences validates the number and existence of referenced attributes.
+func validateEditorWidgetConstraintReferences(constraint EditorWidgetConstraint, attributes map[string]EditorWidgetAttribute) error {
 	if len(constraint.Attributes) < 2 || len(constraint.Attributes) > 8 {
 		return errors.New("visual editor constraint must reference between 2 and 8 attributes")
 	}
@@ -614,29 +736,29 @@ func validateEditorWidgetConstraint(constraint EditorWidgetConstraint, attribute
 			return fmt.Errorf("visual editor constraint references unknown attribute %q", name)
 		}
 	}
-	switch constraint.Kind {
-	case "exactly-one":
-		if constraint.Optional {
-			return errors.New("exactly-one constraint cannot be optional")
+	return nil
+}
+
+// validateEditorWidgetSameLengthConstraint requires all referenced attributes to be list-shaped.
+func validateEditorWidgetSameLengthConstraint(constraint EditorWidgetConstraint, attributes map[string]EditorWidgetAttribute) error {
+	for _, name := range constraint.Attributes {
+		attribute := attributes[name]
+		if attribute.Type != "list" && attribute.Type != "color-list" {
+			return errors.New("same-length constraint requires list attributes")
 		}
-	case "same-length":
-		for _, name := range constraint.Attributes {
-			attribute := attributes[name]
-			if attribute.Type != "list" && attribute.Type != "color-list" {
-				return errors.New("same-length constraint requires list attributes")
-			}
-		}
-	case "member-of":
-		if len(constraint.Attributes) != 2 {
-			return errors.New("member-of constraint requires a scalar and a list attribute")
-		}
-		value := attributes[constraint.Attributes[0]]
-		set := attributes[constraint.Attributes[1]]
-		if !validEditorWidgetMemberOfConstraint(value, set) {
-			return errors.New("member-of constraint requires a scalar followed by a list attribute")
-		}
-	default:
-		return fmt.Errorf("unsupported visual editor constraint %q", constraint.Kind)
+	}
+	return nil
+}
+
+// validateEditorWidgetMemberOfConstraintDeclaration validates the scalar-to-list member relationship.
+func validateEditorWidgetMemberOfConstraintDeclaration(constraint EditorWidgetConstraint, attributes map[string]EditorWidgetAttribute) error {
+	if len(constraint.Attributes) != 2 {
+		return errors.New("member-of constraint requires a scalar and a list attribute")
+	}
+	value := attributes[constraint.Attributes[0]]
+	set := attributes[constraint.Attributes[1]]
+	if !validEditorWidgetMemberOfConstraint(value, set) {
+		return errors.New("member-of constraint requires a scalar followed by a list attribute")
 	}
 	return nil
 }

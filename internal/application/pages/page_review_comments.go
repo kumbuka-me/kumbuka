@@ -131,7 +131,15 @@ func (s *ReviewDiscussions) ReviewDetail(ctx context.Context, reviewID int64, sl
 	if err := s.authorization.requireView(ctx, actor, slug); err != nil {
 		return PageReviewDetail{}, err
 	}
+	detail, err := s.loadReviewDetail(ctx, reviewID, slug)
+	if err != nil {
+		return PageReviewDetail{}, err
+	}
+	return s.withReviewPermissions(ctx, detail, slug, actor)
+}
 
+// loadReviewDetail loads the review request, page, immutable revision, and feedback.
+func (s *ReviewDiscussions) loadReviewDetail(ctx context.Context, reviewID int64, slug string) (PageReviewDetail, error) {
 	request, err := s.repository.PageReviewRequestByID(ctx, reviewID, slug)
 	if err != nil {
 		return PageReviewDetail{}, err
@@ -148,82 +156,95 @@ func (s *ReviewDiscussions) ReviewDetail(ctx context.Context, reviewID int64, sl
 	if err != nil {
 		return PageReviewDetail{}, err
 	}
+	return PageReviewDetail{Page: page, Request: request, Revision: record, Comments: comments}, nil
+}
 
-	pending := request.Status == domain.PageReviewStatusPending
-	canManage := pending && s.reviews.CanManageReview(request, actor)
+// withReviewPermissions derives actor permissions for one loaded review detail.
+func (s *ReviewDiscussions) withReviewPermissions(ctx context.Context, detail PageReviewDetail, slug string, actor domain.User) (PageReviewDetail, error) {
+	pending := detail.Request.Status == domain.PageReviewStatusPending
+	canManage := pending && s.reviews.CanManageReview(detail.Request, actor)
 	canReview := false
 	if pending {
+		var err error
 		canReview, err = s.reviews.CanReview(ctx, slug, actor)
 		if err != nil {
 			return PageReviewDetail{}, err
 		}
 	}
-
-	return PageReviewDetail{
-		Page:       page,
-		Request:    request,
-		Revision:   record,
-		Comments:   comments,
-		CanComment: pending && (canReview || canManage),
-		CanSuggest: pending && canReview,
-		CanApply:   canManage,
-	}, nil
+	detail.CanComment = pending && (canReview || canManage)
+	detail.CanSuggest = pending && canReview
+	detail.CanApply = canManage
+	return detail, nil
 }
 
 // AddReviewComment validates and persists one comment or applicable suggestion against the immutable reviewed revision.
 func (s *ReviewDiscussions) AddReviewComment(ctx context.Context, input PageReviewCommentInput) (domain.PageReviewComment, error) {
-	input.Slug = strings.TrimSpace(input.Slug)
-	input.Body = strings.TrimSpace(input.Body)
-	input.Replacement = normalizeSuggestionText(input.Replacement)
-
+	input = normalizeReviewCommentInput(input)
 	if err := validateReviewCommentInput(input); err != nil {
 		return domain.PageReviewComment{}, err
 	}
-
 	detail, err := s.ReviewDetail(ctx, input.ReviewID, input.Slug, input.Actor)
 	if err != nil {
 		return domain.PageReviewComment{}, err
 	}
-	if detail.Request.Status != domain.PageReviewStatusPending {
-		return domain.PageReviewComment{}, domain.ErrReviewClosed
+	if err := validateReviewCommentPermission(input, detail); err != nil {
+		return domain.PageReviewComment{}, err
 	}
-	if input.Suggestion && !detail.CanSuggest {
-		return domain.PageReviewComment{}, domain.ErrForbidden
+	original, err := reviewCommentOriginal(detail.Revision, input)
+	if err != nil {
+		return domain.PageReviewComment{}, err
 	}
-	if !input.Suggestion && !detail.CanComment {
-		return domain.PageReviewComment{}, domain.ErrForbidden
-	}
-
-	if !reviewRangeVisible(detail.Revision, input.Side, input.StartLine, input.EndLine) {
-		return domain.PageReviewComment{}, domain.NewValidationError("line", "Choose a line that exists in this review diff.")
-	}
-
-	source := detail.Revision.Markdown
-	if input.Side == domain.PageReviewCommentSideOld {
-		source = detail.Revision.PreviousMarkdown
-	}
-	original, ok := markdownLineRange(source, input.StartLine, input.EndLine)
-	if !ok {
-		return domain.PageReviewComment{}, domain.NewValidationError("line", "Choose a line that exists in this review diff.")
-	}
-
 	comment, err := s.repository.AddPageReviewComment(
-		ctx,
-		input.ReviewID,
-		input.Slug,
-		input.Actor.ID,
-		input.Side,
-		input.StartLine,
-		input.EndLine,
-		input.Body,
-		input.Suggestion,
-		original,
-		input.Replacement,
+		ctx, input.ReviewID, input.Slug, input.Actor.ID, input.Side, input.StartLine, input.EndLine,
+		input.Body, input.Suggestion, original, input.Replacement,
 	)
 	if err != nil {
 		return domain.PageReviewComment{}, err
 	}
+	s.recordReviewCommentEffects(ctx, input, detail)
+	return comment, nil
+}
 
+// normalizeReviewCommentInput canonicalizes free-text review feedback fields.
+func normalizeReviewCommentInput(input PageReviewCommentInput) PageReviewCommentInput {
+	input.Slug = strings.TrimSpace(input.Slug)
+	input.Body = strings.TrimSpace(input.Body)
+	input.Replacement = normalizeSuggestionText(input.Replacement)
+	return input
+}
+
+// validateReviewCommentPermission checks review state and actor rights for comments or suggestions.
+func validateReviewCommentPermission(input PageReviewCommentInput, detail PageReviewDetail) error {
+	if detail.Request.Status != domain.PageReviewStatusPending {
+		return domain.ErrReviewClosed
+	}
+	if input.Suggestion && !detail.CanSuggest {
+		return domain.ErrForbidden
+	}
+	if !input.Suggestion && !detail.CanComment {
+		return domain.ErrForbidden
+	}
+	return nil
+}
+
+// reviewCommentOriginal validates the visible diff range and returns its immutable Markdown slice.
+func reviewCommentOriginal(record revision.Revision, input PageReviewCommentInput) (string, error) {
+	if !reviewRangeVisible(record, input.Side, input.StartLine, input.EndLine) {
+		return "", domain.NewValidationError("line", "Choose a line that exists in this review diff.")
+	}
+	source := record.Markdown
+	if input.Side == domain.PageReviewCommentSideOld {
+		source = record.PreviousMarkdown
+	}
+	original, ok := markdownLineRange(source, input.StartLine, input.EndLine)
+	if !ok {
+		return "", domain.NewValidationError("line", "Choose a line that exists in this review diff.")
+	}
+	return original, nil
+}
+
+// recordReviewCommentEffects records audit and watcher side effects after feedback persistence.
+func (s *ReviewDiscussions) recordReviewCommentEffects(ctx context.Context, input PageReviewCommentInput, detail PageReviewDetail) {
 	action := "page.review_commented"
 	detailText := input.Body
 	if input.Suggestion {
@@ -232,8 +253,6 @@ func (s *ReviewDiscussions) AddReviewComment(ctx context.Context, input PageRevi
 	}
 	s.effects.recordAudit(ctx, input.Actor.ID, action, "page", input.Slug, detailText)
 	s.effects.notifyWatchers(ctx, input.Actor.ID, input.Slug, "Review feedback: "+detail.Page.Title, "New feedback was added to a page review.", reviewURL(input.ReviewID, input.Slug))
-
-	return comment, nil
 }
 
 // ApplyReviewSuggestion applies one pending suggestion and creates a new page revision.
@@ -318,7 +337,16 @@ func (s *ReviewDiscussions) applyReviewSuggestions(ctx context.Context, reviewID
 // validateReviewCommentInput checks bounded line feedback before loading review state.
 func validateReviewCommentInput(input PageReviewCommentInput) error {
 	validation := &domain.ValidationError{}
+	validateReviewCommentIdentity(input, validation)
+	validateReviewCommentContent(input, validation)
+	if len(validation.Fields) == 0 {
+		return nil
+	}
+	return validation
+}
 
+// validateReviewCommentIdentity validates review, page, diff side, and line-range identifiers.
+func validateReviewCommentIdentity(input PageReviewCommentInput, validation *domain.ValidationError) {
 	if input.ReviewID <= 0 {
 		validation.Fields = append(validation.Fields, domain.FieldError{Field: "review", Message: "Choose a valid review request."})
 	}
@@ -331,6 +359,10 @@ func validateReviewCommentInput(input PageReviewCommentInput) error {
 	if !validReviewCommentLineRange(input.StartLine, input.EndLine) {
 		validation.Fields = append(validation.Fields, domain.FieldError{Field: "line", Message: "Choose a valid review line range."})
 	}
+}
+
+// validateReviewCommentContent validates comment and suggestion body constraints.
+func validateReviewCommentContent(input PageReviewCommentInput, validation *domain.ValidationError) {
 	if len(input.Body) > maxReviewCommentBytes {
 		validation.Fields = append(validation.Fields, domain.FieldError{Field: "body", Message: "Keep review comments below 8 KiB."})
 	}
@@ -343,12 +375,6 @@ func validateReviewCommentInput(input PageReviewCommentInput) error {
 	if input.Suggestion && len(input.Replacement) > maxReviewSuggestionBytes {
 		validation.Fields = append(validation.Fields, domain.FieldError{Field: "replacement", Message: "Keep suggested Markdown below 64 KiB."})
 	}
-
-	if len(validation.Fields) > 0 {
-		return validation
-	}
-
-	return nil
 }
 
 // reviewRangeVisible reports whether every source line in a requested range is present in the displayed review diff.

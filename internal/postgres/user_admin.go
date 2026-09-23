@@ -68,10 +68,7 @@ ORDER BY lower(u.display_name),lower(u.username),u.id`)
 
 // UpdateUserAccount commits account, membership, credential, and session changes together.
 func (s *Store) UpdateUserAccount(ctx context.Context, input domain.UserAccountUpdate) error {
-	userID, role, enabled := input.UserID, input.Role, input.Enabled
-	groupIDs, localCredentialEnabled := input.GroupIDs, input.LocalCredentialEnabled
-
-	if !domain.ValidUserRole(role) {
+	if !domain.ValidUserRole(input.Role) {
 		return domain.NewValidationError("role", "Choose a valid user role.")
 	}
 
@@ -79,67 +76,86 @@ func (s *Store) UpdateUserAccount(ctx context.Context, input domain.UserAccountU
 	if err != nil {
 		return mutationError(err)
 	}
-
 	defer func() { _ = tx.Rollback(ctx) }()
 
+	if err := updateUserAccountRecord(ctx, tx, input); err != nil {
+		return mutationError(err)
+	}
+	if err := updateUserCredentialState(ctx, tx, input); err != nil {
+		return mutationError(err)
+	}
+	if err := replaceUserGroups(ctx, tx, input.UserID, input.GroupIDs); err != nil {
+		return mutationError(err)
+	}
+	if input.PasswordHash != "" {
+		if err := setLocalCredential(ctx, tx, input.UserID, input.PasswordHash); err != nil {
+			return mutationError(err)
+		}
+	}
+	return mutationError(tx.Commit(ctx))
+}
+
+// updateUserAccountRecord updates role/enabled state and invalidates sessions on disable.
+func updateUserAccountRecord(ctx context.Context, tx pgx.Tx, input domain.UserAccountUpdate) error {
 	tag, err := tx.Exec(ctx, `
 UPDATE users
 SET role=$2,
     enabled=$3,
     session_version=CASE WHEN enabled AND NOT $3 THEN session_version+1 ELSE session_version END
-WHERE id=$1`, userID, role, enabled)
+WHERE id=$1`, input.UserID, input.Role, input.Enabled)
 	if err != nil {
-		return mutationError(err)
+		return err
 	}
 	if tag.RowsAffected() == 0 {
 		return domain.ErrNotFound
 	}
-
-	if !enabled {
-		if _, err := tx.Exec(ctx, `
-DELETE FROM local_sessions
-WHERE user_id=$1`, userID); err != nil {
-			return mutationError(err)
-		}
+	if input.Enabled {
+		return nil
 	}
-	if localCredentialEnabled != nil {
-		if _, err := tx.Exec(ctx, `
+	return deleteLocalSessions(ctx, tx, input.UserID)
+}
+
+// updateUserCredentialState updates the optional local-credential enablement and sessions.
+func updateUserCredentialState(ctx context.Context, tx pgx.Tx, input domain.UserAccountUpdate) error {
+	if input.LocalCredentialEnabled == nil {
+		return nil
+	}
+	if _, err := tx.Exec(ctx, `
 UPDATE local_credentials
 SET enabled=$2,updated_at=now()
-WHERE user_id=$1`, userID, *localCredentialEnabled); err != nil {
-			return mutationError(err)
-		}
-		if !*localCredentialEnabled {
-			if _, err := tx.Exec(ctx, `
-DELETE FROM local_sessions
-WHERE user_id=$1`, userID); err != nil {
-				return mutationError(err)
-			}
-		}
+WHERE user_id=$1`, input.UserID, *input.LocalCredentialEnabled); err != nil {
+		return err
 	}
+	if *input.LocalCredentialEnabled {
+		return nil
+	}
+	return deleteLocalSessions(ctx, tx, input.UserID)
+}
 
+// deleteLocalSessions removes all local sessions for one user inside a transaction.
+func deleteLocalSessions(ctx context.Context, tx pgx.Tx, userID int64) error {
+	_, err := tx.Exec(ctx, `
+DELETE FROM local_sessions
+WHERE user_id=$1`, userID)
+	return err
+}
+
+// replaceUserGroups replaces all explicit group memberships for one user.
+func replaceUserGroups(ctx context.Context, tx pgx.Tx, userID int64, groupIDs []int64) error {
 	if _, err := tx.Exec(ctx, `
 DELETE FROM user_groups
 WHERE user_id=$1`, userID); err != nil {
-		return mutationError(err)
+		return err
 	}
-
 	for _, groupID := range groupIDs {
 		if _, err := tx.Exec(ctx, `
 INSERT INTO user_groups(user_id,group_id)
 VALUES($1,$2)
 ON CONFLICT DO NOTHING`, userID, groupID); err != nil {
-			return mutationError(err)
+			return err
 		}
 	}
-
-	if input.PasswordHash != "" {
-		if err := setLocalCredential(ctx, tx, userID, input.PasswordHash); err != nil {
-			return mutationError(err)
-		}
-	}
-
-	return mutationError(tx.Commit(ctx))
+	return nil
 }
 
 // RevokeUserSessions invalidates local and OIDC sessions for one account.

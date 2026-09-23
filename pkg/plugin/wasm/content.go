@@ -87,18 +87,12 @@ func (m resourceSubstitutionModule) SourceUsage() plugin.SourceUsage {
 
 // PreprocessContent replaces matching macros with opaque tokens and contributes inspector/export metadata.
 func (m resourceSubstitutionModule) PreprocessContent(ctx plugin.Context, source string) (plugin.PreparedContent, error) {
-	if m.storage == nil {
-		return plugin.PreparedContent{Markdown: source}, nil
-	}
 	overrides := exportOverrides(ctx, m.owner, m.module.ID)
-	if !strings.Contains(source, "{{"+m.module.Prefix+":") && len(overrides) == 0 {
+	if !m.resourceSubstitutionNeeded(source, overrides) {
 		return plugin.PreparedContent{Markdown: source}, nil
 	}
-	execution := ctx.Context
-	if execution == nil {
-		execution = context.Background()
-	}
-	records, err := plugin.ReadResourceRecords(execution, m.storage, m.owner, m.resource)
+
+	records, err := m.loadResourceRecords(ctx)
 	if err != nil {
 		return plugin.PreparedContent{}, err
 	}
@@ -108,48 +102,100 @@ func (m resourceSubstitutionModule) PreprocessContent(ctx plugin.Context, source
 		}
 		return plugin.PreparedContent{Markdown: source}, nil
 	}
-	byName := make(map[string]plugin.ResourceRecord, len(records))
-	for _, record := range records {
-		byName[strings.ToLower(record.Key)] = record
-	}
 
-	var nonce [16]byte
-	if _, err := rand.Read(nonce[:]); err != nil {
+	prefix, err := resourceReplacementPrefix()
+	if err != nil {
 		return plugin.PreparedContent{}, err
 	}
-	prefix := "kumbukapluginvalue" + hex.EncodeToString(nonce[:]) + "n"
+	prepared, used, err := m.expandResourceSource(ctx, source, recordsByName(records), prefix)
+	if err != nil {
+		return plugin.PreparedContent{}, err
+	}
+	if err := validateUsedExportOverrides(m.owner, m.module.ID, overrides, used); err != nil {
+		return plugin.PreparedContent{}, err
+	}
+	return prepared, nil
+}
+
+// resourceSubstitutionNeeded reports whether storage is needed for source replacement or export overrides.
+func (m resourceSubstitutionModule) resourceSubstitutionNeeded(source string, overrides map[string]string) bool {
+	return m.storage != nil && (strings.Contains(source, "{{"+m.module.Prefix+":") || len(overrides) != 0)
+}
+
+// loadResourceRecords reads this module's declared resource records with a usable execution context.
+func (m resourceSubstitutionModule) loadResourceRecords(ctx plugin.Context) ([]plugin.ResourceRecord, error) {
+	execution := ctx.Context
+	if execution == nil {
+		execution = context.Background()
+	}
+	return plugin.ReadResourceRecords(execution, m.storage, m.owner, m.resource)
+}
+
+// recordsByName indexes resource records by their case-insensitive key.
+func recordsByName(records []plugin.ResourceRecord) map[string]plugin.ResourceRecord {
+	result := make(map[string]plugin.ResourceRecord, len(records))
+	for _, record := range records {
+		result[strings.ToLower(record.Key)] = record
+	}
+	return result
+}
+
+// resourceReplacementPrefix creates a request-local opaque replacement token prefix.
+func resourceReplacementPrefix() (string, error) {
+	var nonce [16]byte
+	if _, err := rand.Read(nonce[:]); err != nil {
+		return "", err
+	}
+	return "kumbukapluginvalue" + hex.EncodeToString(nonce[:]) + "n", nil
+}
+
+// expandResourceSource expands substitutions outside fenced code and records metadata.
+func (m resourceSubstitutionModule) expandResourceSource(ctx plugin.Context, source string, records map[string]plugin.ResourceRecord, prefix string) (plugin.PreparedContent, map[string]int, error) {
 	prepared := plugin.PreparedContent{Markdown: source}
 	used := make(map[string]int)
 	lines := strings.Split(source, "\n")
 	fence := ""
 	for index, line := range lines {
-		marker := pluginmarkdown.Fence(line)
-		if fence != "" {
-			if pluginmarkdown.Closes(line, fence) {
-				fence = ""
-			}
+		if next, skip := nextResourceFence(line, fence); skip {
+			fence = next
 			continue
 		}
-		if marker != "" {
-			fence = marker
-			continue
-		}
-		expanded, err := m.expandLine(ctx, line, byName, prefix, used, &prepared)
+		expanded, err := m.expandLine(ctx, line, records, prefix, used, &prepared)
 		if err != nil {
-			return plugin.PreparedContent{}, err
+			return plugin.PreparedContent{}, nil, err
 		}
 		lines[index] = expanded
 	}
 	prepared.Markdown = strings.Join(lines, "\n")
+	return prepared, used, nil
+}
+
+// nextResourceFence updates fenced-code state and reports whether the current line must be skipped.
+func nextResourceFence(line, fence string) (string, bool) {
+	if fence != "" {
+		if pluginmarkdown.Closes(line, fence) {
+			return "", true
+		}
+		return fence, true
+	}
+	marker := pluginmarkdown.Fence(line)
+	if marker != "" {
+		return marker, true
+	}
+	return "", false
+}
+
+// validateUsedExportOverrides rejects overrides for values not referenced by the page.
+func validateUsedExportOverrides(pluginID, moduleID string, overrides map[string]string, used map[string]int) error {
 	for key := range overrides {
 		if _, ok := used[strings.ToLower(key)]; !ok {
-			return plugin.PreparedContent{}, &plugin.ParameterError{
-				PluginID: m.owner, ModuleID: m.module.ID, Key: key,
+			return &plugin.ParameterError{
+				PluginID: pluginID, ModuleID: moduleID, Key: key,
 				Message: "Only values used by this page can be overridden.",
 			}
 		}
 	}
-	return prepared, nil
+	return nil
 }
 
 // exportOverrides returns request-local overrides for one plugin module.
@@ -193,58 +239,101 @@ func (m resourceSubstitutionModule) expandLine(
 			break
 		}
 		name := strings.TrimSpace(body[:close])
-		if name == "" || strings.ContainsAny(name, "{}\r\n") {
+		if !validResourceMacroName(name) {
 			output.WriteString(line[start : start+len(opening)+close+2])
 			line = body[close+2:]
 			continue
 		}
-		record, ok := records[strings.ToLower(name)]
-		if !ok {
-			return "", fmt.Errorf("%s %q not found", m.module.Prefix, name)
+
+		position, err := m.resolveReplacement(ctx, name, records, tokenPrefix, used, prepared)
+		if err != nil {
+			return "", err
 		}
-		canonical := record.Key
-		position, found := used[strings.ToLower(canonical)]
-		if !found {
-			position = len(used)
-			used[strings.ToLower(canonical)] = position
-			value := record.Values[m.module.ValueField]
-			if m.module.Export {
-				if override, ok := exportOverride(ctx, m.owner, m.module.ID, canonical); ok {
-					value = override
-				}
-			}
-			token := tokenPrefix + strconv.Itoa(position) + "end"
-			annotation := ""
-			if m.module.Inspect {
-				annotation = annotationID(m.owner, m.module.ID, canonical)
-			}
-			prepared.Replacements = append(prepared.Replacements, plugin.Replacement{Token: token, Value: value, Annotation: annotation})
-			label := canonical
-			if m.module.LabelField != "" && record.Values[m.module.LabelField] != "" {
-				label = record.Values[m.module.LabelField]
-			}
-			detail := ""
-			if m.module.DetailField != "" {
-				detail = record.Values[m.module.DetailField]
-			}
-			if m.module.Inspect {
-				if len(prepared.Inspectors) == 0 {
-					prepared.Inspectors = append(prepared.Inspectors, plugin.Inspector{ID: m.module.ID, PluginID: m.owner, Name: m.resource.Name})
-				}
-				prepared.Inspectors[0].Items = append(prepared.Inspectors[0].Items, plugin.InspectorItem{Key: canonical, Label: label, Value: record.Values[m.module.ValueField], Description: detail, Annotation: annotation})
-			}
-			if m.module.Export {
-				prepared.ExportFields = append(prepared.ExportFields, plugin.ExportField{PluginID: m.owner, ModuleID: m.module.ID, Key: canonical, Label: label, Value: record.Values[m.module.ValueField], Description: detail})
-			}
-		}
-		token := prepared.Replacements[position].Token
-		output.WriteString(token)
-		if m.module.Inspect && len(prepared.Inspectors) != 0 {
-			prepared.Inspectors[0].Items[position].Occurrences++
-		}
+		output.WriteString(prepared.Replacements[position].Token)
+		m.recordReplacementOccurrence(position, prepared)
 		line = body[close+2:]
 	}
 	return output.String(), nil
+}
+
+// validResourceMacroName reports whether a parsed substitution name is safe to resolve.
+func validResourceMacroName(name string) bool {
+	return name != "" && !strings.ContainsAny(name, "{}\r\n")
+}
+
+// resolveReplacement returns the stable replacement position, creating its metadata on first use.
+func (m resourceSubstitutionModule) resolveReplacement(
+	ctx plugin.Context,
+	name string,
+	records map[string]plugin.ResourceRecord,
+	tokenPrefix string,
+	used map[string]int,
+	prepared *plugin.PreparedContent,
+) (int, error) {
+	record, ok := records[strings.ToLower(name)]
+	if !ok {
+		return 0, fmt.Errorf("%s %q not found", m.module.Prefix, name)
+	}
+	canonical := record.Key
+	key := strings.ToLower(canonical)
+	if position, found := used[key]; found {
+		return position, nil
+	}
+
+	position := len(used)
+	used[key] = position
+	value := record.Values[m.module.ValueField]
+	if m.module.Export {
+		if override, ok := exportOverride(ctx, m.owner, m.module.ID, canonical); ok {
+			value = override
+		}
+	}
+	annotation := ""
+	if m.module.Inspect {
+		annotation = annotationID(m.owner, m.module.ID, canonical)
+	}
+	prepared.Replacements = append(prepared.Replacements, plugin.Replacement{
+		Token: tokenPrefix + strconv.Itoa(position) + "end", Value: value, Annotation: annotation,
+	})
+	m.appendReplacementMetadata(record, canonical, annotation, prepared)
+	return position, nil
+}
+
+// appendReplacementMetadata adds inspector and export metadata for one newly used resource value.
+func (m resourceSubstitutionModule) appendReplacementMetadata(
+	record plugin.ResourceRecord,
+	canonical, annotation string,
+	prepared *plugin.PreparedContent,
+) {
+	label := canonical
+	if m.module.LabelField != "" && record.Values[m.module.LabelField] != "" {
+		label = record.Values[m.module.LabelField]
+	}
+	detail := ""
+	if m.module.DetailField != "" {
+		detail = record.Values[m.module.DetailField]
+	}
+	if m.module.Inspect {
+		if len(prepared.Inspectors) == 0 {
+			prepared.Inspectors = append(prepared.Inspectors, plugin.Inspector{ID: m.module.ID, PluginID: m.owner, Name: m.resource.Name})
+		}
+		prepared.Inspectors[0].Items = append(prepared.Inspectors[0].Items, plugin.InspectorItem{
+			Key: canonical, Label: label, Value: record.Values[m.module.ValueField], Description: detail, Annotation: annotation,
+		})
+	}
+	if m.module.Export {
+		prepared.ExportFields = append(prepared.ExportFields, plugin.ExportField{
+			PluginID: m.owner, ModuleID: m.module.ID, Key: canonical, Label: label,
+			Value: record.Values[m.module.ValueField], Description: detail,
+		})
+	}
+}
+
+// recordReplacementOccurrence increments inspector occurrence metadata when inspection is enabled.
+func (m resourceSubstitutionModule) recordReplacementOccurrence(position int, prepared *plugin.PreparedContent) {
+	if m.module.Inspect && len(prepared.Inspectors) != 0 {
+		prepared.Inspectors[0].Items[position].Occurrences++
+	}
 }
 
 // exportOverride finds a request override using the resource's case-insensitive key semantics.

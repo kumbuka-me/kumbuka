@@ -233,13 +233,47 @@ func (s *Store) ApplyPageCommentSuggestion(
 	if err != nil {
 		return domain.Page{}, err
 	}
-
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return domain.Page{}, mutationError(err)
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
+	pageID, err := prepareCommentSuggestionApplication(ctx, tx, slug, commentID, markdown)
+	if err != nil {
+		return domain.Page{}, err
+	}
+	update := pageUpdateTransaction{
+		pageID: pageID, actorID: actorID, markdown: markdown, message: message, links: links,
+		pluginUsage: pluginUsage, renderedContents: renderedContents, render: render,
+	}
+	if err := applyPreparedPageUpdate(ctx, tx, update, markCommentSuggestionApplied(commentID, actorID)); err != nil {
+		return domain.Page{}, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return domain.Page{}, mutationError(err)
+	}
+	return s.GetPage(ctx, slug)
+}
+
+// prepareCommentSuggestionApplication locks and validates the page, comment suggestion, and expected resulting source.
+func prepareCommentSuggestionApplication(ctx context.Context, tx pgx.Tx, slug string, commentID int64, markdown string) (int64, error) {
+	pageID, currentMarkdown, currentRevision, err := lockCommentSuggestionPage(ctx, tx, slug)
+	if err != nil {
+		return 0, err
+	}
+	suggestion, err := lockCommentSuggestion(ctx, tx, pageID, commentID)
+	if err != nil {
+		return 0, err
+	}
+	if err := validateCommentSuggestion(currentRevision, currentMarkdown, markdown, suggestion); err != nil {
+		return 0, err
+	}
+	return pageID, nil
+}
+
+// lockCommentSuggestionPage locks the active page and returns its current source and revision number.
+func lockCommentSuggestionPage(ctx context.Context, tx pgx.Tx, slug string) (int64, string, int, error) {
 	var pageID int64
 	var currentMarkdown string
 	if err := tx.QueryRow(ctx, `
@@ -247,19 +281,22 @@ SELECT id,markdown_content
 FROM pages
 WHERE slug=$1 AND deleted_at IS NULL
 FOR UPDATE`, slug).Scan(&pageID, &currentMarkdown); errors.Is(err, pgx.ErrNoRows) {
-		return domain.Page{}, domain.ErrNotFound
+		return 0, "", 0, domain.ErrNotFound
 	} else if err != nil {
-		return domain.Page{}, mutationError(err)
+		return 0, "", 0, mutationError(err)
 	}
-
 	var currentRevision int
 	if err := tx.QueryRow(ctx, `
 SELECT coalesce(max(revision_number),0)
 FROM page_revisions
 WHERE page_id=$1`, pageID).Scan(&currentRevision); err != nil {
-		return domain.Page{}, mutationError(err)
+		return 0, "", 0, mutationError(err)
 	}
+	return pageID, currentMarkdown, currentRevision, nil
+}
 
+// lockCommentSuggestion locks one page comment and returns its persisted suggestion fields.
+func lockCommentSuggestion(ctx context.Context, tx pgx.Tx, pageID, commentID int64) (domain.PageCommentSuggestion, error) {
 	var suggestion domain.PageCommentSuggestion
 	if err := tx.QueryRow(ctx, `
 SELECT coalesce(suggestion_revision,0),coalesce(suggestion_start_byte,0),coalesce(suggestion_end_byte,0),
@@ -274,54 +311,40 @@ FOR UPDATE`, commentID, pageID).Scan(
 		&suggestion.Replacement,
 		&suggestion.AppliedAt,
 	); errors.Is(err, pgx.ErrNoRows) {
-		return domain.Page{}, domain.ErrCommentNotFound
+		return domain.PageCommentSuggestion{}, domain.ErrCommentNotFound
 	} else if err != nil {
-		return domain.Page{}, mutationError(err)
+		return domain.PageCommentSuggestion{}, mutationError(err)
 	}
+	return suggestion, nil
+}
 
+// validateCommentSuggestion requires an unapplied current suggestion and the exact caller-computed resulting source.
+func validateCommentSuggestion(currentRevision int, currentMarkdown, markdown string, suggestion domain.PageCommentSuggestion) error {
 	if suggestion.RevisionNumber <= 0 {
-		return domain.Page{}, domain.NewValidationError("suggestion", "This comment does not contain an applicable suggestion.")
+		return domain.NewValidationError("suggestion", "This comment does not contain an applicable suggestion.")
 	}
 	if suggestion.AppliedAt != nil {
-		return domain.Page{}, domain.NewValidationError("suggestion", "This suggestion has already been applied.")
+		return domain.NewValidationError("suggestion", "This suggestion has already been applied.")
 	}
 	if !currentSuggestionSource(currentRevision, currentMarkdown, suggestion) {
-		return domain.Page{}, domain.ErrStaleSuggestion
+		return domain.ErrStaleSuggestion
 	}
-
 	expectedMarkdown := currentMarkdown[:suggestion.StartByte] + suggestion.Replacement + currentMarkdown[suggestion.EndByte:]
 	if markdown != expectedMarkdown {
-		return domain.Page{}, domain.ErrStaleSuggestion
+		return domain.ErrStaleSuggestion
 	}
+	return nil
+}
 
-	if _, err := tx.Exec(ctx, `
-UPDATE pages
-SET markdown_content=$2,updated_by=$3,updated_at=now(),plugin_usage=$4::jsonb,
-    rendered_html=$5,rendered_contents=$6::jsonb,render_fingerprint=$7,
-    rendered_at=CASE WHEN $7<>'' THEN now() ELSE NULL END
-WHERE id=$1`, pageID, markdown, actorID, pluginUsage, render.HTML, renderedContents, render.Fingerprint); err != nil {
-		return domain.Page{}, mutationError(err)
-	}
-	if err := appendPageRevision(ctx, tx, pageID, markdown, message, actorID); err != nil {
-		return domain.Page{}, mutationError(err)
-	}
-	if err := supersedePageReviews(ctx, tx, pageID); err != nil {
-		return domain.Page{}, mutationError(err)
-	}
-	if _, err := tx.Exec(ctx, `
+// markCommentSuggestionApplied returns the transaction callback that records one inline suggestion as applied.
+func markCommentSuggestionApplied(commentID, actorID int64) func(context.Context, pgx.Tx) error {
+	return func(ctx context.Context, tx pgx.Tx) error {
+		_, err := tx.Exec(ctx, `
 UPDATE page_comments
 SET suggestion_applied_by=$2,suggestion_applied_at=now(),updated_at=now()
-WHERE id=$1`, commentID, actorID); err != nil {
-		return domain.Page{}, mutationError(err)
+WHERE id=$1`, commentID, actorID)
+		return err
 	}
-	if err := replacePageLinks(ctx, tx, pageID, links); err != nil {
-		return domain.Page{}, mutationError(err)
-	}
-	if err := tx.Commit(ctx); err != nil {
-		return domain.Page{}, mutationError(err)
-	}
-
-	return s.GetPage(ctx, slug)
 }
 
 // currentSuggestionSource reports whether a stored suggestion still matches the current revision and source bytes.

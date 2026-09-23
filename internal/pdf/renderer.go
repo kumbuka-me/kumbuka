@@ -2,6 +2,7 @@
 package pdf
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -87,16 +88,32 @@ func Render(ctx context.Context, endpoint, title, language, rendered string, hea
 		return nil, noop, err
 	}
 
-	content := Document(title, language, rendered)
-	if len(content) > maxHTMLBytes {
-		return nil, noop, errors.New("render PDF: document exceeds the 32 MiB request limit")
-	}
-
-	request, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, strings.NewReader(content))
+	request, err := newRenderRequest(ctx, endpoint, Document(title, language, rendered), headers)
 	if err != nil {
 		return nil, noop, err
 	}
+	response, err := renderClient.Do(request)
+	if err != nil {
+		return nil, noop, fmt.Errorf("request PDF service: %w", err)
+	}
+	defer response.Body.Close() // nolint:errcheck
 
+	prefix, err := validateRenderResponse(response)
+	if err != nil {
+		return nil, noop, err
+	}
+	return writeTemporaryPDF(response.Body, prefix)
+}
+
+// newRenderRequest builds the bounded renderer request and applies caller headers before protocol headers.
+func newRenderRequest(ctx context.Context, endpoint, content string, headers http.Header) (*http.Request, error) {
+	if len(content) > maxHTMLBytes {
+		return nil, errors.New("render PDF: document exceeds the 32 MiB request limit")
+	}
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, strings.NewReader(content))
+	if err != nil {
+		return nil, err
+	}
 	for name, values := range headers {
 		for _, value := range values {
 			request.Header.Add(name, value)
@@ -106,38 +123,39 @@ func Render(ctx context.Context, endpoint, title, language, rendered string, hea
 	// Kumbuka owns the renderer protocol headers even when custom headers are configured.
 	request.Header.Set("Content-Type", "text/html; charset=utf-8")
 	request.Header.Set("Accept", "application/pdf")
+	return request, nil
+}
 
-	response, err := renderClient.Do(request)
-	if err != nil {
-		return nil, noop, fmt.Errorf("request PDF service: %w", err)
-	}
-
-	defer response.Body.Close() // nolint:errcheck
-
+// validateRenderResponse validates status, media type, declared size, and the PDF signature.
+func validateRenderResponse(response *http.Response) ([]byte, error) {
 	if response.StatusCode != http.StatusOK {
-		return nil, noop, fmt.Errorf("render PDF: service returned HTTP %d", response.StatusCode)
+		return nil, fmt.Errorf("render PDF: service returned HTTP %d", response.StatusCode)
 	}
-
 	contentType, _, err := mime.ParseMediaType(response.Header.Get("Content-Type"))
 	if err != nil || contentType != "application/pdf" {
-		return nil, noop, errors.New("render PDF: service returned an unexpected content type")
+		return nil, errors.New("render PDF: service returned an unexpected content type")
 	}
 	if response.ContentLength > maxPDFBytes {
-		return nil, noop, errors.New("render PDF: service response exceeds the 64 MiB limit")
+		return nil, errors.New("render PDF: service response exceeds the 64 MiB limit")
 	}
 
 	prefix := make([]byte, 5)
 	if _, err := io.ReadFull(response.Body, prefix); err != nil || string(prefix) != "%PDF-" {
-		return nil, noop, errors.New("render PDF: service returned an invalid PDF")
+		return nil, errors.New("render PDF: service returned an invalid PDF")
 	}
+	return prefix, nil
+}
 
+// writeTemporaryPDF copies a bounded validated response into a rewound temporary file.
+func writeTemporaryPDF(body io.Reader, prefix []byte) (file *os.File, cleanup func(), err error) {
+	noop := func() {}
 	file, err = os.CreateTemp("", "kumbuka-pdf-*.pdf")
 	if err != nil {
 		return nil, noop, err
 	}
-
 	cleanup = func() { _ = file.Close(); _ = os.Remove(file.Name()) }
-	size, err := io.Copy(file, io.LimitReader(io.MultiReader(strings.NewReader(string(prefix)), response.Body), maxPDFBytes+1))
+
+	size, err := io.Copy(file, io.LimitReader(io.MultiReader(bytes.NewReader(prefix), body), maxPDFBytes+1))
 	if err != nil {
 		cleanup()
 		return nil, noop, fmt.Errorf("read PDF service response: %w", err)
@@ -150,7 +168,6 @@ func Render(ctx context.Context, endpoint, title, language, rendered string, hea
 		cleanup()
 		return nil, noop, err
 	}
-
 	return file, cleanup, nil
 }
 

@@ -6,6 +6,7 @@ import (
 	"io"
 	"io/fs"
 	"log/slog"
+	"net/http"
 	"time"
 
 	"github.com/containeroo/httpgrace/server"
@@ -41,6 +42,7 @@ import (
 	"github.com/kumbuka-me/kumbuka/internal/runtimeinfo"
 	"github.com/kumbuka-me/kumbuka/internal/secrets"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
+	"github.com/kumbuka-me/kumbuka/pkg/icons"
 	"github.com/kumbuka-me/kumbuka/pkg/logging"
 	"github.com/kumbuka-me/kumbuka/pkg/markdown"
 	"github.com/kumbuka-me/kumbuka/pkg/themes"
@@ -57,59 +59,24 @@ func Run(
 	stdout, stderr io.Writer,
 ) error {
 	// Parse deployment configuration before constructing runtime dependencies.
-	cfg, err := flags.Parse(args, version)
-	if err != nil {
-		if tinyflags.IsHelpRequested(err) || tinyflags.IsVersionRequested(err) {
-			_, _ = fmt.Fprint(stdout, err.Error())
-			return nil
-		}
-
-		_, _ = fmt.Fprintln(stderr, err)
+	cfg, handled, err := parseRunConfig(args, version, stdout, stderr)
+	if err != nil || handled {
 		return err
 	}
 
 	// Configure process logging and record the effective application identity.
 	logger := logging.Setup(cfg.LogFormat, cfg.Debug, stdout)
 	setupLogger := logger.With("component", "setup")
-	setupLogger.Info(
-		"starting Kumbuka",
-		"event", "app_starting",
-		"version", version,
-		"commit", commit,
-	)
-
-	if len(cfg.Overrides) > 0 {
-		setupLogger.Info(
-			"CLI Overrides",
-			"event", "cli_overrides",
-			"overrides", cfg.Overrides,
-		)
-	}
+	logStartup(setupLogger, cfg, version, commit)
 
 	// Bind the process lifetime to operating-system shutdown signals.
 	ctx, stop := server.SignalContext(ctx)
 	defer stop()
 
-	// Load deployment-owned presentation and encryption configuration.
-	availableThemes, err := themes.Load(cfg.ThemeDirectory)
+	// Load deployment-owned presentation, encryption, and persistence configuration.
+	availableThemes, secretCipher, database, err := loadRunInfrastructure(ctx, cfg, setupLogger)
 	if err != nil {
-		return setupFailure(setupLogger, "load themes", "theme_load_failed", err)
-	}
-
-	secretCipher, err := secrets.New(cfg.EncryptionKey)
-	if err != nil {
-		return setupFailure(setupLogger, "configure application encryption", "application_encryption_failed", err)
-	}
-
-	// Open the persistence adapter with deployment-level database behavior.
-	var databaseOptions []postgres.Option
-	if cfg.AllowUserRegistrationOverride != nil {
-		databaseOptions = append(databaseOptions, postgres.WithUserRegistrationOverride(*cfg.AllowUserRegistrationOverride))
-	}
-
-	database, err := postgres.Open(ctx, cfg.DatabaseURL, setupLogger, databaseOptions...)
-	if err != nil {
-		return setupFailure(setupLogger, "open database", "database_open_failed", err)
+		return err
 	}
 	defer database.Close()
 
@@ -153,28 +120,13 @@ func Run(
 	editorSave := apppages.NewEditorSave(mutations, drafts, templates, serverLogger)
 	viewPage := apppages.NewView(database, access, reviews, serverLogger)
 
-	// Configure browser and bearer authentication at the HTTP boundary.
-	browserAuth, err := auth.ConfigureBrowserAuth(ctx, browserAuthConfig(cfg), database)
-	if err != nil {
-		return setupFailure(setupLogger, "configure browser auth", "browser_auth_failed", err)
-	}
-	bearerAuth := auth.NewBearer(database)
-
-	// Construct the plugin and Markdown runtime owned by the process.
-	renderer, err := pluginruntime.NewRenderer(
-		ctx,
-		database,
-		secretCipher,
-		authenticatedPluginRequest,
-		logger,
-		setupLogger,
-		version,
-		commit,
-	)
+	// Configure browser authentication and construct the plugin runtime.
+	browserAuth, renderer, err := createRunRuntime(ctx, cfg, database, secretCipher, logger, setupLogger, version, commit)
 	if err != nil {
 		return err
 	}
 	defer closeRenderer(renderer, setupLogger)
+	bearerAuth := auth.NewBearer(database)
 
 	// Inject runtime-derived content and icon capabilities into application services.
 	iconCatalog := renderer.IconCatalog()
@@ -195,25 +147,10 @@ func Run(
 		logger.With("component", "plugin-updates"),
 	)
 
-	// Construct the passive HTML presentation adapter from fully configured runtime dependencies.
-	views, err := webview.New(
-		appFS,
-		logger,
-		version,
-		commit,
-		availableThemes,
-		runtimeinfo.New(cfg, secretCipher.Configured()),
-		iconCatalog,
-	)
+	// Construct and configure the passive HTML presentation adapter.
+	views, err := createRunViews(appFS, logger, setupLogger, version, commit, availableThemes, cfg, secretCipher, iconCatalog, renderer)
 	if err != nil {
-		return setupFailure(setupLogger, "create views", "views_create_failed", err)
-	}
-	views.WithRenderErrorHandler(httpresponse.InternalServerError)
-
-	// Enable opt-in render diagnostics without changing normal request behavior.
-	if cfg.DebugRenderTimings {
-		renderer.EnableRenderTimings(logger.With("component", "markdown"))
-		views.EnablePageTimings(logger.With("component", "handler"))
+		return err
 	}
 
 	// Compose the shared authenticated browser context used by presentation endpoints.
@@ -287,22 +224,96 @@ func Run(
 
 	handler := httpserver.New(serverConfig)
 
-	// Start background plugin update checks only when scheduling is enabled.
+	return runHTTPServer(ctx, cfg, handler, pluginUpdates, setupLogger)
+}
+
+// parseRunConfig parses CLI configuration and handles help/version output without constructing runtime dependencies.
+func parseRunConfig(args []string, version string, stdout, stderr io.Writer) (flags.Config, bool, error) {
+	cfg, err := flags.Parse(args, version)
+	if err == nil {
+		return cfg, false, nil
+	}
+	if tinyflags.IsHelpRequested(err) || tinyflags.IsVersionRequested(err) {
+		_, _ = fmt.Fprint(stdout, err.Error())
+		return flags.Config{}, true, nil
+	}
+	_, _ = fmt.Fprintln(stderr, err)
+	return flags.Config{}, false, err
+}
+
+// logStartup records process identity and explicit CLI overrides.
+func logStartup(logger *slog.Logger, cfg flags.Config, version, commit string) {
+	logger.Info("starting Kumbuka", "event", "app_starting", "version", version, "commit", commit)
+	if len(cfg.Overrides) > 0 {
+		logger.Info("CLI Overrides", "event", "cli_overrides", "overrides", cfg.Overrides)
+	}
+}
+
+// loadRunInfrastructure loads themes, encryption, and the PostgreSQL store.
+func loadRunInfrastructure(ctx context.Context, cfg flags.Config, logger *slog.Logger) ([]themes.Theme, *secrets.Cipher, *postgres.Store, error) {
+	availableThemes, err := themes.Load(cfg.ThemeDirectory)
+	if err != nil {
+		return nil, nil, nil, setupFailure(logger, "load themes", "theme_load_failed", err)
+	}
+	secretCipher, err := secrets.New(cfg.EncryptionKey)
+	if err != nil {
+		return nil, nil, nil, setupFailure(logger, "configure application encryption", "application_encryption_failed", err)
+	}
+	database, err := openRunDatabase(ctx, cfg, logger)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	return availableThemes, secretCipher, database, nil
+}
+
+// openRunDatabase applies deployment-level database options and opens the store.
+func openRunDatabase(ctx context.Context, cfg flags.Config, logger *slog.Logger) (*postgres.Store, error) {
+	var options []postgres.Option
+	if cfg.AllowUserRegistrationOverride != nil {
+		options = append(options, postgres.WithUserRegistrationOverride(*cfg.AllowUserRegistrationOverride))
+	}
+	database, err := postgres.Open(ctx, cfg.DatabaseURL, logger, options...)
+	if err != nil {
+		return nil, setupFailure(logger, "open database", "database_open_failed", err)
+	}
+	return database, nil
+}
+
+// createRunRuntime configures browser authentication and the Markdown/plugin runtime.
+func createRunRuntime(ctx context.Context, cfg flags.Config, database *postgres.Store, secretCipher *secrets.Cipher, logger, setupLogger *slog.Logger, version, commit string) (auth.BrowserAuth, *markdown.Renderer, error) {
+	browserAuth, err := auth.ConfigureBrowserAuth(ctx, browserAuthConfig(cfg), database)
+	if err != nil {
+		return auth.BrowserAuth{}, nil, setupFailure(setupLogger, "configure browser auth", "browser_auth_failed", err)
+	}
+	renderer, err := pluginruntime.NewRenderer(ctx, database, secretCipher, authenticatedPluginRequest, logger, setupLogger, version, commit)
+	if err != nil {
+		return auth.BrowserAuth{}, nil, err
+	}
+	return browserAuth, renderer, nil
+}
+
+// createRunViews constructs views and enables optional render diagnostics.
+func createRunViews(appFS fs.FS, logger, setupLogger *slog.Logger, version, commit string, availableThemes []themes.Theme, cfg flags.Config, secretCipher *secrets.Cipher, iconCatalog *icons.Catalog, renderer *markdown.Renderer) (*webview.Views, error) {
+	views, err := webview.New(appFS, logger, version, commit, availableThemes, runtimeinfo.New(cfg, secretCipher.Configured()), iconCatalog)
+	if err != nil {
+		return nil, setupFailure(setupLogger, "create views", "views_create_failed", err)
+	}
+	views.WithRenderErrorHandler(httpresponse.InternalServerError)
+	if cfg.DebugRenderTimings {
+		renderer.EnableRenderTimings(logger.With("component", "markdown"))
+		views.EnablePageTimings(logger.With("component", "handler"))
+	}
+	return views, nil
+}
+
+// runHTTPServer starts optional plugin update checks and serves until shutdown.
+func runHTTPServer(ctx context.Context, cfg flags.Config, handler http.Handler, pluginUpdates *appplugins.PluginUpdates, logger *slog.Logger) error {
 	if cfg.PluginUpdateCheckInterval > 0 {
 		go pluginUpdates.Run(ctx)
 	}
-
-	// Serve requests until shutdown or a server failure terminates the process.
-	if err := server.Run(
-		ctx,
-		cfg.ListenAddress,
-		handler,
-		setupLogger,
-		server.WithMaxHeaderValueCount(100),
-	); err != nil {
-		return setupFailure(setupLogger, "run server", "server_run_failed", err)
+	if err := server.Run(ctx, cfg.ListenAddress, handler, logger, server.WithMaxHeaderValueCount(100)); err != nil {
+		return setupFailure(logger, "run server", "server_run_failed", err)
 	}
-
 	return nil
 }
 

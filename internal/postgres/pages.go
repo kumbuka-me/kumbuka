@@ -221,6 +221,30 @@ type pageSaveRecord struct {
 	userID int64
 }
 
+// pageSaveTransaction contains the complete ordered page mutation applied inside one transaction.
+type pageSaveTransaction struct {
+	// record contains the pages-table values and derived render metadata.
+	record pageSaveRecord
+	// slug is the canonical page path used by related metadata tables.
+	slug string
+	// icon is the navigation icon assigned to the page.
+	icon string
+	// markdown is the source captured in the new revision.
+	markdown string
+	// message is the revision message.
+	message string
+	// tags are the complete tag set replacing persisted associations.
+	tags []string
+	// groupIDs are the complete explicit page-group assignments.
+	groupIDs []int64
+	// properties are the complete page property set.
+	properties map[string]string
+	// links are the complete outgoing link set.
+	links []string
+	// user is the actor whose assignment permissions and identity apply.
+	user domain.User
+}
+
 // SavePage persists page content, revision history, tags, and links transactionally.
 func (s *Store) SavePage(
 	ctx context.Context,
@@ -232,7 +256,9 @@ func (s *Store) SavePage(
 	render domain.PageRender,
 	user domain.User,
 ) (domain.Page, error) {
-	metadata, pluginUsage, renderedContents, render, err := preparePageSave(metadata, render)
+	mutation, err := preparePageSaveTransaction(
+		previousSlug, slug, title, icon, language, markdown, message, tags, links, groupIDs, metadata, properties, render, user,
+	)
 	if err != nil {
 		return domain.Page{}, err
 	}
@@ -242,53 +268,67 @@ func (s *Store) SavePage(
 		return domain.Page{}, mutationError(err)
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
-
-	if err := validateAssignableGroup(ctx, tx, metadata.OwnerGroupID, user); err != nil {
+	if err := validateAssignableGroup(ctx, tx, mutation.record.metadata.OwnerGroupID, mutation.user); err != nil {
 		return domain.Page{}, mutationError(err)
 	}
-
-	id, err := savePageRecord(ctx, tx, pageSaveRecord{
-		previousSlug:     previousSlug,
-		slug:             slug,
-		title:            title,
-		language:         language,
-		markdown:         markdown,
-		metadata:         metadata,
-		render:           render,
-		pluginUsage:      pluginUsage,
-		renderedContents: renderedContents,
-		userID:           user.ID,
-	})
-	if err != nil {
-		return domain.Page{}, mutationError(err)
-	}
-
-	if err := savePageIcon(ctx, tx, slug, icon); err != nil {
-		return domain.Page{}, mutationError(err)
-	}
-	if err := appendPageRevision(ctx, tx, id, markdown, message, user.ID); err != nil {
-		return domain.Page{}, mutationError(err)
-	}
-	if err := supersedePageReviews(ctx, tx, id); err != nil {
-		return domain.Page{}, mutationError(err)
-	}
-	if err := replacePageTags(ctx, tx, id, tags); err != nil {
-		return domain.Page{}, mutationError(err)
-	}
-	if err := replacePageGroups(ctx, tx, id, groupIDs, user); err != nil {
-		return domain.Page{}, mutationError(err)
-	}
-	if err := replacePageProperties(ctx, tx, id, properties); err != nil {
-		return domain.Page{}, mutationError(err)
-	}
-	if err := replacePageLinks(ctx, tx, id, links); err != nil {
+	if err := executePageSaveTransaction(ctx, tx, mutation); err != nil {
 		return domain.Page{}, mutationError(err)
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return domain.Page{}, mutationError(err)
 	}
-
 	return s.GetPage(ctx, slug)
+}
+
+// preparePageSaveTransaction validates derived data and packages the ordered transactional write.
+func preparePageSaveTransaction(
+	previousSlug, slug, title, icon, language, markdown, message string,
+	tags, links []string,
+	groupIDs []int64,
+	metadata domain.PageMetadata,
+	properties map[string]string,
+	render domain.PageRender,
+	user domain.User,
+) (pageSaveTransaction, error) {
+	metadata, pluginUsage, renderedContents, render, err := preparePageSave(metadata, render)
+	if err != nil {
+		return pageSaveTransaction{}, err
+	}
+	return pageSaveTransaction{
+		record: pageSaveRecord{
+			previousSlug: previousSlug, slug: slug, title: title, language: language, markdown: markdown,
+			metadata: metadata, render: render, pluginUsage: pluginUsage, renderedContents: renderedContents, userID: user.ID,
+		},
+		slug: slug, icon: icon, markdown: markdown, message: message, tags: tags, links: links,
+		groupIDs: groupIDs, properties: properties, user: user,
+	}, nil
+}
+
+// executePageSaveTransaction performs the shared ordered page write inside an existing transaction.
+func executePageSaveTransaction(ctx context.Context, tx pgx.Tx, mutation pageSaveTransaction) error {
+	id, err := savePageRecord(ctx, tx, mutation.record)
+	if err != nil {
+		return err
+	}
+	if err := savePageIcon(ctx, tx, mutation.slug, mutation.icon); err != nil {
+		return err
+	}
+	if err := appendPageRevision(ctx, tx, id, mutation.markdown, mutation.message, mutation.user.ID); err != nil {
+		return err
+	}
+	if err := supersedePageReviews(ctx, tx, id); err != nil {
+		return err
+	}
+	if err := replacePageTags(ctx, tx, id, mutation.tags); err != nil {
+		return err
+	}
+	if err := replacePageGroups(ctx, tx, id, mutation.groupIDs, mutation.user); err != nil {
+		return err
+	}
+	if err := replacePageProperties(ctx, tx, id, mutation.properties); err != nil {
+		return err
+	}
+	return replacePageLinks(ctx, tx, id, mutation.links)
 }
 
 // preparePageSave validates page metadata and encodes derived JSON values for persistence.
