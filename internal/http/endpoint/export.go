@@ -1,7 +1,6 @@
 package endpoint
 
 import (
-	"archive/zip"
 	"cmp"
 	"context"
 	"encoding/base64"
@@ -13,13 +12,11 @@ import (
 	"net/url"
 	"os"
 	"path"
-	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 
+	"github.com/kumbuka-me/kumbuka/internal/application/portablearchive"
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
-	"github.com/kumbuka-me/kumbuka/internal/markdownurl"
 	"github.com/kumbuka-me/kumbuka/internal/pdf"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
@@ -49,7 +46,7 @@ func ExportPageMarkdown(
 			writePageProblem(logger, w, err)
 			return
 		}
-		if len(referencedImageIDs(pageData.Markdown)) == 0 {
+		if len(portablearchive.ReferencedImageIDs(pageData.Markdown)) == 0 {
 			serveMarkdown(w, pageData)
 			return
 		}
@@ -179,7 +176,7 @@ func createExportArchive(
 		_ = os.Remove(name)
 	}
 
-	if err := writeExportArchive(ctx, catalogUseCases, mediaUseCases, file, slugs); err != nil {
+	if err := portablearchive.WriteMarkdown(ctx, catalogUseCases, mediaUseCases, file, slugs); err != nil {
 		cleanup()
 		return nil, time.Time{}, nil, err
 	}
@@ -235,208 +232,6 @@ func exportSlugs(r *http.Request, navigationUseCases navigationService) ([]strin
 	return slugs, nil
 }
 
-// writeExportArchive writes selected Markdown pages and each referenced image once.
-func writeExportArchive(
-	ctx context.Context,
-	catalogUseCases pageContentService,
-	mediaUseCases imageContentService,
-	output io.Writer,
-	slugs []string,
-) error {
-	archive := zip.NewWriter(output)
-
-	exportedImages := map[int64]bool{}
-	imageCache := map[int64]domain.ImageData{}
-
-	for _, slug := range slugs {
-		pageData, err := catalogUseCases.GetPage(ctx, slug)
-		if err != nil {
-			return err
-		}
-
-		cleanSlug := strings.Trim(path.Clean("/"+pageData.Slug), "/")
-		if cleanSlug == "" || cleanSlug == "." {
-			return fmt.Errorf("invalid page slug %q", pageData.Slug)
-		}
-
-		markdownPath := path.Join("pages", cleanSlug+".md")
-		markdown, imageIDs, err := exportedMarkdown(
-			ctx,
-			mediaUseCases,
-			markdownPath,
-			pageData.Markdown,
-			imageCache,
-		)
-		if err != nil {
-			return err
-		}
-
-		entry, err := archive.Create(markdownPath)
-		if err != nil {
-			return err
-		}
-		if _, err := io.WriteString(entry, markdown); err != nil {
-			return err
-		}
-
-		for _, imageID := range imageIDs {
-			if exportedImages[imageID] {
-				continue
-			}
-
-			image := imageCache[imageID]
-			imageEntry, err := archive.Create(
-				path.Join("media", strconv.FormatInt(imageID, 10), path.Base(image.Filename)),
-			)
-			if err != nil {
-				return err
-			}
-			if _, err := imageEntry.Write(image.Data); err != nil {
-				return err
-			}
-
-			exportedImages[imageID] = true
-		}
-	}
-
-	return archive.Close()
-}
-
-// exportedMarkdown rewrites stored media URLs to relative archive paths and returns referenced image identifiers.
-func exportedMarkdown(
-	ctx context.Context,
-	mediaUseCases imageContentService,
-	markdownPath, source string,
-	imageCache map[int64]domain.ImageData,
-) (content string, imageIDs []int64, err error) {
-	seen := map[int64]bool{}
-	var ids []int64
-	result, err := markdownurl.Rewrite(source, func(url string) (string, bool, error) {
-		reference, ok := nextMediaReference(url)
-		if !ok || reference.start != 0 || reference.end != len(url) {
-			return "", false, nil
-		}
-		replacement, err := exportedImagePath(ctx, mediaUseCases, markdownPath, reference.id, imageCache)
-		if err != nil {
-			return "", false, err
-		}
-		if !seen[reference.id] {
-			seen[reference.id] = true
-			ids = append(ids, reference.id)
-		}
-		return replacement, true, nil
-	})
-	if err != nil {
-		return "", nil, err
-	}
-	return result, ids, nil
-}
-
-// exportedImagePath resolves and caches an image and returns its archive-relative path.
-func exportedImagePath(
-	ctx context.Context,
-	mediaUseCases imageContentService,
-	markdownPath string,
-	id int64,
-	cache map[int64]domain.ImageData,
-) (relativePath string, err error) {
-	image, ok := cache[id]
-	if !ok {
-		var err error
-		image, err = mediaUseCases.ImageContent(ctx, id)
-		if err != nil {
-			return "", &exportMediaError{cause: err}
-		}
-		cache[id] = image
-	}
-	target := filepath.FromSlash(path.Join("media", strconv.FormatInt(id, 10), path.Base(image.Filename)))
-	from := filepath.FromSlash(path.Dir(markdownPath))
-	relative, err := filepath.Rel(from, target)
-	if err != nil {
-		return "", err
-	}
-	return filepath.ToSlash(relative), nil
-}
-
-// mediaReference identifies a stored image reference within Markdown source.
-type mediaReference struct {
-	// start and end store the corresponding values for media reference.
-	start, end int
-	// id identifies media reference.
-	id int64
-}
-
-// nextMediaReference scans the same bare /media/ID/filename syntax used by exports.
-func nextMediaReference(source string) (reference mediaReference, found bool) {
-	for offset := 0; offset < len(source); {
-		index := strings.Index(source[offset:], "/media/")
-		if index < 0 {
-			break
-		}
-		start := offset + index
-		offset = start + len("/media/")
-		end := offset
-		for end < len(source) && source[end] >= '0' && source[end] <= '9' {
-			end++
-		}
-		if end == offset {
-			continue
-		}
-		if end >= len(source) || source[end] != '/' {
-			continue
-		}
-		end++
-		for end < len(source) && !strings.ContainsRune(" \t\n\r\f)\"'", rune(source[end])) {
-			end++
-		}
-		id, ok := mediaImageID(source[start:end])
-		if !ok {
-			continue
-		}
-		return mediaReference{start: start, end: end, id: id}, true
-	}
-	return mediaReference{}, false
-}
-
-// mediaImageID validates a local stored-image path and extracts its numeric ID.
-func mediaImageID(value string) (imageID int64, ok bool) {
-	value, ok = strings.CutPrefix(value, "/media/")
-	if !ok {
-		return 0, false
-	}
-	rawID, filename, ok := strings.Cut(value, "/")
-	if !ok {
-		return 0, false
-	}
-	if rawID == "" || filename == "" {
-		return 0, false
-	}
-	for _, digit := range rawID {
-		if digit < '0' || digit > '9' {
-			return 0, false
-		}
-	}
-	id, err := strconv.ParseInt(rawID, 10, 64)
-	return id, err == nil
-}
-
-// referencedImageIDs returns unique image identifiers referenced from Markdown source.
-func referencedImageIDs(source string) []int64 {
-	seen := map[int64]bool{}
-	var ids []int64
-	for _, location := range markdownurl.Ranges(source) {
-		url := source[location.Start:location.End]
-		reference, ok := nextMediaReference(url)
-		if !ok || reference.start != 0 || reference.end != len(url) {
-			continue
-		}
-		if !seen[reference.id] {
-			seen[reference.id] = true
-			ids = append(ids, reference.id)
-		}
-	}
-	return ids
-}
 
 // isRenderedMediaAttribute reports whether an HTML attribute can reference stored Kumbuka media.
 func isRenderedMediaAttribute(element, attribute string) bool {
@@ -508,7 +303,7 @@ func inlineRenderedMediaAttribute(ctx context.Context, mediaUseCases imageConten
 	if err != nil || location.IsAbs() || location.Host != "" {
 		return attribute, false, nil
 	}
-	id, ok := mediaImageID(location.Path)
+	id, ok := portablearchive.MediaImageID(location.Path)
 	if !ok {
 		return attribute, false, nil
 	}
@@ -548,7 +343,7 @@ func (e *exportMediaError) Unwrap() error { return e.cause }
 
 // writeExportProblem translates expected export failures into HTTP problems.
 func writeExportProblem(logger *slog.Logger, w http.ResponseWriter, err error) {
-	if _, media := errors.AsType[*exportMediaError](err); media {
+	if isExportImageFailure(err) {
 		if errors.Is(err, domain.ErrNotFound) {
 			httpresponse.Problem(w, http.StatusNotFound, "An image referenced by this export was not found.")
 			return
@@ -557,4 +352,13 @@ func writeExportProblem(logger *slog.Logger, w http.ResponseWriter, err error) {
 		return
 	}
 	writePageProblem(logger, w, err)
+}
+
+// isExportImageFailure identifies image lookup failures from rendered and archive exports.
+func isExportImageFailure(err error) bool {
+	if _, ok := errors.AsType[*exportMediaError](err); ok {
+		return true
+	}
+	resource, ok := errors.AsType[*portablearchive.ResourceError](err)
+	return ok && resource.Kind == "media"
 }

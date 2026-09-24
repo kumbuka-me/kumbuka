@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/kumbuka-me/kumbuka/internal/application/portablearchive"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -16,12 +17,12 @@ func TestMarkdownExportPreservesImageWidths(t *testing.T) {
 	media := &exportMediaStub{}
 	source := "![Diagram](/media/12/old.png){width=50%}\n\n" +
 		"![Diagram][image]{width=640px}\n\n[image]: /media/12/old.png \"Overview\"\n"
-	got, ids, err := exportedMarkdown(context.Background(), media, "pages/start.md", source, map[int64]domain.ImageData{})
+	got, ids, err := portablearchive.ExportedMarkdown(context.Background(), media, "pages/start.md", source, map[int64]domain.ImageData{})
 
 	require.NoError(t, err)
 	assert.Equal(t, strings.ReplaceAll(source, "/media/12/old.png", "../media/12/image.png"), got)
 	assert.Equal(t, []int64{12}, ids)
-	assert.Equal(t, ids, referencedImageIDs(source))
+	assert.Equal(t, ids, portablearchive.ReferencedImageIDs(source))
 	assert.Equal(t, ids, media.calls)
 }
 
