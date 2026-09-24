@@ -23,6 +23,24 @@ type migration struct {
 	entry fs.DirEntry
 	// version is the unique numeric prefix recorded in schema_migrations.
 	version int
+	// baseline reports whether the migration is a consolidated schema baseline.
+	baseline bool
+}
+
+// migrationHistory describes the migration state recorded by one database.
+type migrationHistory struct {
+	// count is the number of recorded migration versions.
+	count int64
+	// highest is the greatest recorded migration version, or -1 when history is empty.
+	highest int
+}
+
+// migrationResult describes how one migration changed the database history.
+type migrationResult struct {
+	// migration identifies the migration that was handled.
+	migration migration
+	// executed reports whether the migration SQL was executed rather than only adopted.
+	executed bool
 }
 
 // migrate applies unapplied embedded SQL migrations in version order.
@@ -42,7 +60,7 @@ func (s *Store) migrate(ctx context.Context, logger *slog.Logger) error {
 		return err
 	}
 
-	applied, err := applyPendingMigrations(ctx, tx, migrations)
+	results, err := applyPendingMigrations(ctx, tx, migrations)
 	if err != nil {
 		return err
 	}
@@ -50,7 +68,7 @@ func (s *Store) migrate(ctx context.Context, logger *slog.Logger) error {
 		return err
 	}
 
-	logAppliedMigrations(logger, applied)
+	logMigrationResults(logger, results)
 
 	return nil
 }
@@ -65,9 +83,14 @@ CREATE TABLE IF NOT EXISTS schema_migrations (version integer PRIMARY KEY, appli
 	return err
 }
 
-// applyPendingMigrations applies and records each migration not already present in history.
-func applyPendingMigrations(ctx context.Context, tx pgx.Tx, migrations []migration) ([]migration, error) {
-	applied := make([]migration, 0, len(migrations))
+// applyPendingMigrations applies normal migrations and safely adopts consolidated baselines.
+func applyPendingMigrations(ctx context.Context, tx pgx.Tx, migrations []migration) ([]migrationResult, error) {
+	history, err := readMigrationHistory(ctx, tx)
+	if err != nil {
+		return nil, err
+	}
+
+	results := make([]migrationResult, 0, len(migrations))
 	for _, item := range migrations {
 		exists, err := migrationApplied(ctx, tx, item.version)
 		if err != nil {
@@ -77,14 +100,63 @@ func applyPendingMigrations(ctx context.Context, tx pgx.Tx, migrations []migrati
 			continue
 		}
 
-		if err := applyMigration(ctx, tx, item); err != nil {
-			return nil, err
+		execute := true
+		if item.baseline {
+			execute, err = shouldExecuteBaseline(item.version, history)
+			if err != nil {
+				return nil, err
+			}
 		}
 
-		applied = append(applied, item)
+		if execute {
+			if err := applyMigration(ctx, tx, item); err != nil {
+				return nil, err
+			}
+		} else if err := recordMigration(ctx, tx, item.version); err != nil {
+			return nil, fmt.Errorf("migration %d: %w", item.version, err)
+		}
+
+		history.record(item.version)
+		results = append(results, migrationResult{migration: item, executed: execute})
 	}
 
-	return applied, nil
+	return results, nil
+}
+
+// readMigrationHistory returns the number and highest version of recorded migrations.
+func readMigrationHistory(ctx context.Context, tx pgx.Tx) (migrationHistory, error) {
+	var history migrationHistory
+	err := tx.QueryRow(ctx, `
+SELECT count(*),coalesce(max(version),-1)
+FROM schema_migrations`).Scan(&history.count, &history.highest)
+	return history, err
+}
+
+// record updates migration history after one migration is executed or adopted.
+func (h *migrationHistory) record(version int) {
+	if h.count == 0 || version > h.highest {
+		h.highest = version
+	}
+	h.count++
+}
+
+// shouldExecuteBaseline decides whether a consolidated baseline must run or may be adopted.
+func shouldExecuteBaseline(version int, history migrationHistory) (bool, error) {
+	if history.count == 0 {
+		return true, nil
+	}
+
+	expectedPrevious := version - 1
+	if history.highest == expectedPrevious {
+		return false, nil
+	}
+
+	return false, fmt.Errorf(
+		"baseline migration %d requires an empty migration history or highest applied migration %d; found %d",
+		version,
+		expectedPrevious,
+		history.highest,
+	)
 }
 
 // migrationApplied reports whether one migration version is already committed.
@@ -106,23 +178,39 @@ func applyMigration(ctx context.Context, tx pgx.Tx, item migration) error {
 		return fmt.Errorf("migration %d: %w", item.version, err)
 	}
 
-	if _, err := tx.Exec(ctx, `
-INSERT INTO schema_migrations(version)
-VALUES($1)`, item.version); err != nil {
+	if err := recordMigration(ctx, tx, item.version); err != nil {
 		return fmt.Errorf("migration %d: %w", item.version, err)
 	}
 
 	return nil
 }
 
-// logAppliedMigrations records committed schema changes after the transaction succeeds.
-func logAppliedMigrations(logger *slog.Logger, migrations []migration) {
-	for _, item := range migrations {
+// recordMigration records one migration version in schema_migrations.
+func recordMigration(ctx context.Context, tx pgx.Tx, version int) error {
+	_, err := tx.Exec(ctx, `
+INSERT INTO schema_migrations(version)
+VALUES($1)`, version)
+	return err
+}
+
+// logMigrationResults records committed migration work after the transaction succeeds.
+func logMigrationResults(logger *slog.Logger, results []migrationResult) {
+	for _, result := range results {
+		if result.executed {
+			logger.Info(
+				"applied database migration",
+				"event", "database_migration_applied",
+				"version", result.migration.version,
+				"migration", result.migration.entry.Name(),
+			)
+			continue
+		}
+
 		logger.Info(
-			"applied database migration",
-			"event", "database_migration_applied",
-			"version", item.version,
-			"migration", item.entry.Name(),
+			"adopted database migration baseline",
+			"event", "database_migration_baseline_adopted",
+			"version", result.migration.version,
+			"migration", result.migration.entry.Name(),
 		)
 	}
 }
@@ -150,7 +238,11 @@ func planMigrations(entries []fs.DirEntry) ([]migration, error) {
 			return nil, fmt.Errorf("invalid migration %q: %w", entry.Name(), err)
 		}
 
-		planned = append(planned, migration{entry: entry, version: version})
+		planned = append(planned, migration{
+			entry:    entry,
+			version:  version,
+			baseline: isBaselineMigration(entry.Name()),
+		})
 	}
 
 	slices.SortFunc(planned, func(left, right migration) int {
@@ -188,6 +280,11 @@ func migrationVersion(name string) (int, error) {
 	}
 
 	return version, nil
+}
+
+// isBaselineMigration reports whether name identifies a consolidated baseline migration.
+func isBaselineMigration(name string) bool {
+	return strings.HasSuffix(name, "_baseline.sql")
 }
 
 // isSQLFile reports whether entry is a regular SQL migration file.
