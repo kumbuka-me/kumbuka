@@ -39,6 +39,20 @@ func TestDocumentExpandsInteractiveMarkdown(t *testing.T) {
 	assert.Contains(t, result, `<div class="markdown-details-summary">Steps</div>`)
 }
 
+func TestDocumentExpandsNestedAndAttributedDisclosures(t *testing.T) {
+	t.Parallel()
+
+	result := Document("Runbook", "en", `<details class="markdown-details" open><summary class="label">Outer</summary><details><summary>Inner</summary><p>Instructions</p></details></details>`)
+
+	assert.NotContains(t, result, "<details")
+	assert.NotContains(t, result, "</details>")
+	assert.NotContains(t, result, "<summary")
+	assert.NotContains(t, result, "</summary>")
+	assert.Equal(t, strings.Count(result, "<div"), strings.Count(result, "</div>"))
+	assert.Contains(t, result, `<div class="label markdown-details-summary">Outer</div>`)
+	assert.Contains(t, result, `<div class="markdown-details-summary">Inner</div>`)
+}
+
 func TestRenderPostsToExactConfiguredEndpoint(t *testing.T) {
 	t.Parallel()
 

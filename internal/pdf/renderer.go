@@ -14,6 +14,8 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	xhtml "golang.org/x/net/html"
 )
 
 const (
@@ -174,18 +176,7 @@ func writeTemporaryPDF(body io.Reader, prefix []byte) (file *os.File, cleanup fu
 // Document wraps rendered page HTML in a self-contained print-oriented document. The caller must sanitize rendered HTML before passing it to this function.
 func Document(title, language, rendered string) string {
 	rendered = strings.ReplaceAll(rendered, " markdown-tab-panel-hidden", "")
-	rendered = strings.ReplaceAll(
-		rendered,
-		`<details class="markdown-details"`,
-		`<div class="markdown-details"`,
-	)
-	rendered = strings.ReplaceAll(rendered, "</details>", "</div>")
-	rendered = strings.ReplaceAll(
-		rendered,
-		"<summary>",
-		`<div class="markdown-details-summary">`,
-	)
-	rendered = strings.ReplaceAll(rendered, "</summary>", "</div>")
+	rendered = expandPrintableDisclosures(rendered)
 
 	title = html.EscapeString(title)
 	language = html.EscapeString(language)
@@ -204,4 +195,44 @@ func Document(title, language, rendered string) string {
 	</main>
 </body>
 </html>`
+}
+
+// expandPrintableDisclosures turns every disclosure tag into a matching print-friendly div.
+func expandPrintableDisclosures(source string) string {
+	tokenizer := xhtml.NewTokenizer(strings.NewReader(source))
+	var output strings.Builder
+
+	for {
+		kind := tokenizer.Next()
+		if kind == xhtml.ErrorToken {
+			return output.String()
+		}
+		if kind != xhtml.StartTagToken && kind != xhtml.EndTagToken {
+			output.Write(tokenizer.Raw())
+			continue
+		}
+
+		token := tokenizer.Token()
+		if token.Data != "details" && token.Data != "summary" {
+			output.Write(tokenizer.Raw())
+			continue
+		}
+
+		if token.Data == "summary" && kind == xhtml.StartTagToken {
+			addPrintableSummaryClass(&token)
+		}
+		token.Data = "div"
+		output.WriteString(token.String())
+	}
+}
+
+// addPrintableSummaryClass retains an existing summary class while styling its printable replacement.
+func addPrintableSummaryClass(token *xhtml.Token) {
+	for index := range token.Attr {
+		if token.Attr[index].Key == "class" {
+			token.Attr[index].Val += " markdown-details-summary"
+			return
+		}
+	}
+	token.Attr = append(token.Attr, xhtml.Attribute{Key: "class", Val: "markdown-details-summary"})
 }
