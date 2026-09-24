@@ -29,10 +29,10 @@ func (s *exportMediaStub) ImageContent(_ context.Context, id int64) (domain.Imag
 
 func TestExportedMarkdownScansMediaReferences(t *testing.T) {
 	media := &exportMediaStub{}
-	source := `![a](/media/12/old.png) ![b](/media/12/old.png) /media/no/file /media/4/ /media/999999999999999999999/x /media/7/image.png`
+	source := `![a](/media/12/old.png) ![b](/media/12/old.png) /media/no/file /media/4/ /media/999999999999999999999/x [image](/media/7/image.png)`
 	got, ids, err := exportedMarkdown(context.Background(), media, "pages/start.md", source, map[int64]domain.ImageData{})
 	require.NoError(t, err)
-	assert.Equal(t, `![a](../media/12/image.png) ![b](../media/12/image.png) /media/no/file /media/4/ /media/999999999999999999999/x ../media/7/image.png`, got)
+	assert.Equal(t, `![a](../media/12/image.png) ![b](../media/12/image.png) /media/no/file /media/4/ /media/999999999999999999999/x [image](../media/7/image.png)`, got)
 	assert.Equal(t, []int64{12, 7}, ids)
 	assert.Equal(t, ids, referencedImageIDs(source))
 	assert.Equal(t, ids, media.calls)
@@ -41,7 +41,7 @@ func TestExportedMarkdownScansMediaReferences(t *testing.T) {
 func TestExportedMarkdownReturnsLookupError(t *testing.T) {
 	failure := errors.New("lookup failed")
 	media := &exportMediaStub{err: failure}
-	_, _, err := exportedMarkdown(context.Background(), media, "start.md", "/media/1/a /media/2/b", map[int64]domain.ImageData{})
+	_, _, err := exportedMarkdown(context.Background(), media, "start.md", "![one](/media/1/a) ![two](/media/2/b)", map[int64]domain.ImageData{})
 	require.ErrorIs(t, err, failure)
 	assert.Equal(t, []int64{1}, media.calls)
 }

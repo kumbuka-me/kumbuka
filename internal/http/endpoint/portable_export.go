@@ -259,32 +259,24 @@ func (s *portableExportState) rewriteMarkdown(
 	ctx context.Context,
 	markdownPath, source string,
 ) (string, error) {
-	var result strings.Builder
-
-	for {
-		reference, ok := nextPortableResourceReference(source)
-		if !ok {
-			result.WriteString(source)
-			break
+	return rewriteMarkdownResourceURLs(source, func(url string) (string, bool, error) {
+		reference, ok := nextPortableResourceReference(url)
+		if !ok || reference.Start != 0 || reference.End != len(url) {
+			return "", false, nil
 		}
-
-		result.WriteString(source[:reference.Start])
 		resource, err := s.exportResource(ctx, reference.Kind, reference.ID)
 		if err != nil {
-			return "", err
+			return "", false, err
 		}
 
 		from := filepath.FromSlash(path.Dir(markdownPath))
 		target := filepath.FromSlash(resource.Path)
 		relative, err := filepath.Rel(from, target)
 		if err != nil {
-			return "", err
+			return "", false, err
 		}
-		result.WriteString(filepath.ToSlash(relative))
-		source = source[reference.End:]
-	}
-
-	return result.String(), nil
+		return filepath.ToSlash(relative), true, nil
+	})
 }
 
 // exportResource writes one referenced resource once and returns its archive location.

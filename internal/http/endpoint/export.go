@@ -310,26 +310,25 @@ func exportedMarkdown(
 ) (content string, imageIDs []int64, err error) {
 	seen := map[int64]bool{}
 	var ids []int64
-	var result strings.Builder
-	for {
-		reference, ok := nextMediaReference(source)
-		if !ok {
-			result.WriteString(source)
-			break
+	result, err := rewriteMarkdownResourceURLs(source, func(url string) (string, bool, error) {
+		reference, ok := nextMediaReference(url)
+		if !ok || reference.start != 0 || reference.end != len(url) {
+			return "", false, nil
 		}
-		result.WriteString(source[:reference.start])
 		replacement, err := exportedImagePath(ctx, mediaUseCases, markdownPath, reference.id, imageCache)
 		if err != nil {
-			return "", nil, err
+			return "", false, err
 		}
-		result.WriteString(replacement)
 		if !seen[reference.id] {
 			seen[reference.id] = true
 			ids = append(ids, reference.id)
 		}
-		source = source[reference.end:]
+		return replacement, true, nil
+	})
+	if err != nil {
+		return "", nil, err
 	}
-	return result.String(), ids, nil
+	return result, ids, nil
 }
 
 // exportedImagePath resolves and caches an image and returns its archive-relative path.
@@ -424,17 +423,18 @@ func mediaImageID(value string) (imageID int64, ok bool) {
 func referencedImageIDs(source string) []int64 {
 	seen := map[int64]bool{}
 	var ids []int64
-	for {
-		reference, ok := nextMediaReference(source)
-		if !ok {
-			return ids
+	for _, location := range markdownResourceURLRanges(source) {
+		url := source[location.start:location.end]
+		reference, ok := nextMediaReference(url)
+		if !ok || reference.start != 0 || reference.end != len(url) {
+			continue
 		}
 		if !seen[reference.id] {
 			seen[reference.id] = true
 			ids = append(ids, reference.id)
 		}
-		source = source[reference.end:]
 	}
+	return ids
 }
 
 // isRenderedMediaAttribute reports whether an HTML attribute can reference stored Kumbuka media.

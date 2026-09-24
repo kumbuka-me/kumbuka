@@ -287,21 +287,19 @@ func restorePortableResourceReferences(
 	markdownPath, markdown string,
 	replacements map[string]string,
 ) (string, error) {
-	paths := make([]string, 0, len(replacements))
-	for resourcePath := range replacements {
-		paths = append(paths, resourcePath)
-	}
-	sort.Strings(paths)
-
+	urls := make(map[string]string, len(replacements))
 	from := filepath.FromSlash(path.Dir(markdownPath))
-	for _, resourcePath := range paths {
+	for resourcePath, replacement := range replacements {
 		relative, err := filepath.Rel(from, filepath.FromSlash(resourcePath))
 		if err != nil {
 			return "", err
 		}
-		markdown = strings.ReplaceAll(markdown, filepath.ToSlash(relative), replacements[resourcePath])
+		urls[filepath.ToSlash(relative)] = replacement
 	}
-	return markdown, nil
+	return rewriteMarkdownResourceURLs(markdown, func(url string) (string, bool, error) {
+		replacement, ok := urls[url]
+		return replacement, ok, nil
+	})
 }
 
 // clonePortableProperties copies page properties so service mutation cannot alias decoded metadata.
