@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"html/template"
+	"log/slog"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -46,6 +47,8 @@ type pluginUpdateServiceStub struct {
 	downloadedVer string
 	// downloads configures or records the downloads value used by the fixture.
 	downloads []string
+	// onDownload runs a test-specific action before returning one downloaded package.
+	onDownload func(context.Context, string) error
 	// status configures or records the status value used by the fixture.
 	status appplugins.PluginUpdateStatus
 }
@@ -62,10 +65,15 @@ func (s *pluginUpdateServiceStub) Available() (map[string]domain.PluginRelease, 
 }
 
 // Download records the requested release and returns the configured archive.
-func (s *pluginUpdateServiceStub) Download(_ context.Context, id, version string) ([]byte, error) {
+func (s *pluginUpdateServiceStub) Download(ctx context.Context, id, version string) ([]byte, error) {
 	s.downloadedID = id
 	s.downloadedVer = version
 	s.downloads = append(s.downloads, id+"@"+version)
+	if s.onDownload != nil {
+		if err := s.onDownload(ctx, id); err != nil {
+			return nil, err
+		}
+	}
 	if archive, ok := s.archives[id]; ok {
 		return archive, s.downloadErr
 	}
@@ -253,6 +261,58 @@ func TestAdminPluginCatalogUpdateAll(t *testing.T) {
 		callouts.Manifest.ID + "@9.9.9",
 		details.Manifest.ID + "@8.8.8",
 	}, updates.downloads)
+}
+
+func TestAdminPluginCatalogUpdateAllAuditsSuccessfulUpgradesBeforeFailure(t *testing.T) {
+	ctx := context.Background()
+	runtime, err := wasm.New(ctx, wasm.Limits{InitTimeout: 30 * time.Second}, wasm.WithInterpreter())
+	require.NoError(t, err)
+	manager := plugin.NewManager(&plugin.Registry{}, runtime)
+	defer func() { require.NoError(t, manager.Close(ctx)) }()
+
+	firstArchive, err := plugins.Packages.ReadFile("callouts.kumbukaplugin")
+	require.NoError(t, err)
+	first, err := manager.Install(ctx, firstArchive)
+	require.NoError(t, err)
+
+	secondArchive, err := plugins.Packages.ReadFile("details.kumbukaplugin")
+	require.NoError(t, err)
+	second, err := manager.Install(ctx, secondArchive)
+	require.NoError(t, err)
+
+	updates := &pluginUpdateServiceStub{
+		updates: map[string]domain.PluginRelease{
+			first.Manifest.ID:  {Version: "9.9.9"},
+			second.Manifest.ID: {Version: "8.8.8"},
+		},
+		archives: map[string][]byte{
+			first.Manifest.ID:  firstArchive,
+			second.Manifest.ID: secondArchive,
+		},
+		onDownload: func(ctx context.Context, id string) error {
+			if id == second.Manifest.ID {
+				return manager.Uninstall(ctx, id)
+			}
+			return nil
+		},
+	}
+	var logs bytes.Buffer
+	views := testHandlerViewsWithLogger(t, slog.New(slog.NewTextHandler(&logs, nil)), webview.RuntimeInfo{})
+	data := browserContextLoaderStub{load: func(*http.Request, *webview.Views, string) (webview.Layout, error) {
+		return webview.Layout{User: domain.User{ID: 1, Role: "admin"}}, nil
+	}}
+	admin := NewAdminPlugins(manager, updates, data, views)
+
+	request := auth.WithUser(httptest.NewRequest("POST", "/admin/plugins/all/update", nil), domain.User{ID: 1, Role: "admin"})
+	request.SetPathValue("pluginID", "all")
+	request.SetPathValue("action", "update")
+	w := httptest.NewRecorder()
+	admin.Action(w, request)
+
+	assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
+	assert.Contains(t, logs.String(), "event=plugin.update plugin_id="+first.Manifest.ID)
+	assert.NotContains(t, logs.String(), "event=plugin.update plugin_id="+second.Manifest.ID)
+	assert.Contains(t, logs.String(), "event=plugin.update_all_failed")
 }
 
 // TestAdminPluginCatalogUpdateAllPrevalidatesPackages ensures package failures happen before any upgrade is applied.

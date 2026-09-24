@@ -211,13 +211,13 @@ var errPluginActionHandled = errors.New("plugin action response already written"
 // handleBulkUpdate applies all catalog updates and renders the partial-success failure contract.
 func (a *AdminPlugins) handleBulkUpdate(w http.ResponseWriter, r *http.Request) {
 	updated, err := a.updateAllFromCatalog(r.Context())
+	for _, pluginID := range updated {
+		a.audit(r, "update", pluginID)
+	}
 	if err != nil {
 		a.views.Logger().Error("bulk plugin update failed", "event", "plugin.update_all_failed", "error", err, "actor_id", currentUser(r).ID)
 		a.render(w, r, "", http.StatusUnprocessableEntity, "Could not update all plugins from the Kumbuka catalog. Plugins updated before the failure remain on their new versions; the remaining plugins were left unchanged.")
 		return
-	}
-	for _, pluginID := range updated {
-		a.audit(r, "update", pluginID)
 	}
 	http.Redirect(w, r, "/admin/plugins", http.StatusSeeOther)
 }
