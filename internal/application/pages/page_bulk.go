@@ -90,22 +90,29 @@ func (s *Bulk) Import(ctx context.Context, candidates []ImportedPage, format str
 		return 0, err
 	}
 
-	for _, candidate := range validated {
+	for index, candidate := range validated {
 		if err := s.importPage(ctx, candidate, actor); err != nil {
-			return 0, err
+			s.recordImportProgress(ctx, actor, format, index, false)
+			return index, err
 		}
 	}
 
-	s.effects.recordAudit(
-		ctx,
-		actor.ID,
-		"pages.imported",
-		"import",
-		format,
-		fmt.Sprintf("Imported %d pages", len(candidates)),
-	)
+	s.recordImportProgress(ctx, actor, format, len(validated), true)
 
-	return len(candidates), nil
+	return len(validated), nil
+}
+
+// recordImportProgress audits successfully saved pages, including a partially completed import.
+func (s *Bulk) recordImportProgress(ctx context.Context, actor domain.User, format string, count int, complete bool) {
+	if count == 0 {
+		return
+	}
+	status := "completed"
+	if !complete {
+		status = "stopped early"
+	}
+	s.effects.recordAudit(ctx, actor.ID, "pages.imported", "import", format,
+		fmt.Sprintf("Imported %d pages (%s)", count, status))
 }
 
 // validateImportedPages rejects invalid and colliding canonical paths before any page is changed.

@@ -44,20 +44,14 @@ func (s *Bulk) ImportPortable(
 	candidates []PortableImportedPage,
 	actor domain.User,
 ) (int, error) {
-	for _, candidate := range candidates {
+	for index, candidate := range candidates {
 		if err := s.importPortablePage(ctx, candidate, actor); err != nil {
-			return 0, err
+			s.recordImportProgress(ctx, actor, portable.Format, index, false)
+			return index, err
 		}
 	}
 
-	s.effects.recordAudit(
-		ctx,
-		actor.ID,
-		"pages.imported",
-		"import",
-		portable.Format,
-		fmt.Sprintf("Imported %d pages from Kumbuka archive", len(candidates)),
-	)
+	s.recordImportProgress(ctx, actor, portable.Format, len(candidates), true)
 
 	return len(candidates), nil
 }

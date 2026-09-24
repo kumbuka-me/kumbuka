@@ -97,6 +97,9 @@ func ImportPagesWithPortableArchive(
 			currentUser(r),
 		)
 		if err != nil {
+			if writePartialImportProblem(logger, w, imported, err) {
+				return
+			}
 			writePortableArchiveImportProblem(logger, w, err)
 			return
 		}

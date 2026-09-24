@@ -1,6 +1,7 @@
 package endpoint
 
 import (
+	"fmt"
 	"log/slog"
 	"mime/multipart"
 	"net/http"
@@ -70,12 +71,26 @@ func ImportPages(pageUseCases pageImportService, logger *slog.Logger) http.Handl
 			user,
 		)
 		if err != nil {
+			if writePartialImportProblem(logger, w, imported, err) {
+				return
+			}
 			writePageProblem(logger, w, err)
 			return
 		}
 
 		http.Redirect(w, r, "/admin/import?result="+strconv.Itoa(imported), http.StatusSeeOther)
 	}
+}
+
+// writePartialImportProblem reports committed pages when a later import mutation fails.
+func writePartialImportProblem(logger *slog.Logger, w http.ResponseWriter, imported int, err error) bool {
+	if imported == 0 {
+		return false
+	}
+	logger.Error("import stopped after partial success", "imported_pages", imported, "error", err)
+	httpresponse.Problem(w, http.StatusInternalServerError,
+		fmt.Sprintf("Import stopped after %d pages were saved. Check the imported pages before retrying.", imported))
+	return true
 }
 
 // importUploadError associates an import failure with the uploaded file that caused it.

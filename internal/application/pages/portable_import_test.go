@@ -2,6 +2,7 @@ package pages
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
@@ -40,6 +41,10 @@ type portableImportRepositoryStub struct {
 	Metadata domain.PageMetadata
 	// Properties records imported structured properties.
 	Properties map[string]string
+	// SaveCalls counts attempted page saves.
+	SaveCalls int
+	// FailAt makes the corresponding one-based save attempt fail.
+	FailAt int
 }
 
 // GetPage reports whether the target page already exists.
@@ -61,6 +66,10 @@ func (r *portableImportRepositoryStub) SavePage(
 	_ domain.PageRender,
 	_ domain.User,
 ) (domain.Page, error) {
+	r.SaveCalls++
+	if r.SaveCalls == r.FailAt {
+		return domain.Page{}, errors.New("save failed")
+	}
 	r.PreviousSlug = previousSlug
 	r.Slug = slug
 	r.Title = title
@@ -72,6 +81,34 @@ func (r *portableImportRepositoryStub) SavePage(
 	r.Metadata = metadata
 	r.Properties = properties
 	return domain.Page{Slug: slug, Title: title}, nil
+}
+
+func TestImportPortableReportsSavedPagesOnLaterFailure(t *testing.T) {
+	repository := &portableImportRepositoryStub{FailAt: 2}
+	bulk := NewBulk(repository, NewMutations(repository, nil, nil, nil), nil, nil)
+
+	count, err := bulk.ImportPortable(context.Background(), []PortableImportedPage{
+		{Slug: "first", Title: "First", Status: "verified"},
+		{Slug: "second", Title: "Second", Status: "verified"},
+	}, domain.User{ID: 7})
+
+	require.Error(t, err)
+	assert.Equal(t, 1, count)
+	assert.Equal(t, 2, repository.SaveCalls)
+}
+
+func TestImportReportsSavedPagesOnLaterFailure(t *testing.T) {
+	repository := &portableImportRepositoryStub{FailAt: 2}
+	bulk := NewBulk(repository, NewMutations(repository, nil, nil, nil), nil, nil)
+
+	count, err := bulk.Import(context.Background(), []ImportedPage{
+		{Slug: "first", Title: "First", Source: "markdown"},
+		{Slug: "second", Title: "Second", Source: "markdown"},
+	}, "markdown", domain.User{ID: 7})
+
+	require.Error(t, err)
+	assert.Equal(t, 1, count)
+	assert.Equal(t, 2, repository.SaveCalls)
 }
 
 func TestImportPortablePageRestoresArchiveMetadata(t *testing.T) {
