@@ -3,7 +3,6 @@ package server
 import (
 	"net/http"
 
-	appplugins "github.com/kumbuka-me/kumbuka/internal/application/plugins"
 	"github.com/kumbuka-me/kumbuka/internal/http/auth"
 	"github.com/kumbuka-me/kumbuka/internal/http/endpoint"
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
@@ -115,7 +114,7 @@ func (r routeRegistrar) addAdminRoutes() {
 	adminAuthz := r.router.Admin
 
 	pluginManager := config.Renderer.PluginManager()
-	pluginsAdmin := endpoint.NewAdminPlugins(appplugins.NewAdmin(pluginManager, config.PluginUpdates), config.BrowserContext, config.Views)
+	pluginsAdmin := endpoint.NewAdminPlugins(config.PluginAdmin, config.BrowserContext, config.Views)
 	r.router.Handle("GET /admin/plugins", browserAuthn(adminAuthz(http.HandlerFunc(pluginsAdmin.List))))
 	r.router.Handle("GET /admin/plugins/{pluginID}/preview.png", browserAuthn(adminAuthz(endpoint.PluginPreview(pluginManager))))
 	r.router.Handle("POST /admin/plugins", browserAuthn(adminAuthz(http.HandlerFunc(pluginsAdmin.Install))))

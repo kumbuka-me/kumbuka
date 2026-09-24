@@ -180,60 +180,66 @@ func Run(
 
 	// Hand the completed application graph to the HTTP adapter for route construction.
 	serverConfig := httpserver.Config{
-		// Infrastructure.
-		Assets:    appFS,
-		Views:     views,
-		Renderer:  renderer,
-		Logger:    serverLogger,
-		AccessLog: cfg.AccessLog,
-		ReadOnly:  cfg.ReadOnly,
+		InfrastructureConfig: httpserver.InfrastructureConfig{
+			Assets:    appFS,
+			Views:     views,
+			Renderer:  renderer,
+			Logger:    serverLogger,
+			AccessLog: cfg.AccessLog,
+			ReadOnly:  cfg.ReadOnly,
+		},
 
-		// Authentication.
-		BrowserAuth: browserAuth,
-		BearerAuth:  bearerAuth,
+		AuthenticationConfig: httpserver.AuthenticationConfig{
+			BrowserAuth: browserAuth,
+			BearerAuth:  bearerAuth,
+		},
 
-		// Shared browser capabilities.
-		BrowserContext: browserContext,
-		Preferences:    preferences,
-		Knowledge:      knowledge,
-		Notifications:  notifications,
+		BrowserConfig: httpserver.BrowserConfig{
+			BrowserContext: browserContext,
+			Preferences:    preferences,
+			Knowledge:      knowledge,
+			Notifications:  notifications,
+		},
 
-		// Administration and application management.
-		Administration: administration,
-		PluginUpdates:  pluginUpdates,
-		Groups:         groups,
-		Settings:       settings,
-		System:         system,
-		Templates:      templates,
-		Tokens:         tokens,
-		Users:          users,
-		Webhooks:       webhooks,
-		Media:          media,
-		Navigation:     navigation,
-		RecycleBin:     recycleBin,
+		AdministrationConfig: httpserver.AdministrationConfig{
+			Administration: administration,
+			PluginAdmin:    appplugins.NewAdmin(renderer.PluginManager(), pluginUpdates),
+			Groups:         groups,
+			Settings:       settings,
+			System:         system,
+			Templates:      templates,
+			Tokens:         tokens,
+			Users:          users,
+			Webhooks:       webhooks,
+			Media:          media,
+			Navigation:     navigation,
+			RecycleBin:     recycleBin,
+		},
 
-		// Page queries.
-		Access:        access,
-		PageLookup:    pageLookup,
-		PageSearch:    pageSearch,
-		PageDirectory: pageDirectory,
-		PageReports:   pageReports,
-		PagePersonal:  pagePersonal,
-		PageHistory:   pageHistory,
-		PageRender:    pageRender,
-		Drafts:        drafts,
+		PageQueryConfig: httpserver.PageQueryConfig{
+			Access:        access,
+			PageLookup:    pageLookup,
+			PageSearch:    pageSearch,
+			PageDirectory: pageDirectory,
+			PageReports:   pageReports,
+			PagePersonal:  pagePersonal,
+			PageHistory:   pageHistory,
+			PageRender:    pageRender,
+			Drafts:        drafts,
+		},
 
-		// Page workflows.
-		PageMutations:         mutations,
-		PagePresence:          presence,
-		PageDiscussions:       discussions,
-		PageReviews:           reviews,
-		PageReviewDiscussions: reviewDiscussions,
-		PageBulk:              bulk,
-		Home:                  home,
-		Editor:                editor,
-		EditorSave:            editorSave,
-		ViewPage:              viewPage,
+		PageWorkflowConfig: httpserver.PageWorkflowConfig{
+			PageMutations:         mutations,
+			PagePresence:          presence,
+			PageDiscussions:       discussions,
+			PageReviews:           reviews,
+			PageReviewDiscussions: reviewDiscussions,
+			PageBulk:              bulk,
+			Home:                  home,
+			Editor:                editor,
+			EditorSave:            editorSave,
+			ViewPage:              viewPage,
+		},
 	}
 
 	handler := httpserver.New(serverConfig)
