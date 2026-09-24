@@ -201,39 +201,7 @@ func (c *Catalog) ensure() {
 		return
 	}
 
-	options := slices.Clone(lucideOptions)
-	registered := make(map[string]bool, len(options))
-	for _, option := range options {
-		registered[option.Name] = true
-	}
-	resources := make(map[string]pluginpackage.Icon)
-
-	if c.provider != nil {
-		if contributed, err := c.provider.IconResources(); err == nil {
-			for _, resource := range contributed {
-				source := strings.TrimSpace(resource.Source)
-				if !validResourceText(source, maxResourceSource) {
-					continue
-				}
-				document, err := pluginpackage.ParseIconResource(resource.Data)
-				if err != nil {
-					continue
-				}
-				for _, icon := range document.Icons {
-					if registered[icon.Name] {
-						continue
-					}
-					registered[icon.Name] = true
-					resources[icon.Name] = icon
-					options = append(options, Option{Name: icon.Name, Label: icon.Label, Source: source})
-				}
-			}
-		}
-	}
-
-	slices.SortFunc(options, func(left, right Option) int {
-		return cmp.Compare(left.Name, right.Name)
-	})
+	options, resources := catalogContents(c.provider)
 
 	c.mu.Lock()
 	c.loaded = true
@@ -241,6 +209,57 @@ func (c *Catalog) ensure() {
 	c.options = options
 	c.icons = resources
 	c.mu.Unlock()
+}
+
+// catalogContents merges valid contributed icons into a fresh copy of the built-in catalog.
+func catalogContents(provider ResourceProvider) ([]Option, map[string]pluginpackage.Icon) {
+	options := slices.Clone(lucideOptions)
+	registered := make(map[string]bool, len(options))
+	for _, option := range options {
+		registered[option.Name] = true
+	}
+	resources := make(map[string]pluginpackage.Icon)
+
+	if provider != nil {
+		contributed, err := provider.IconResources()
+		if err == nil {
+			options = mergeIconResources(options, resources, registered, contributed)
+		}
+	}
+
+	slices.SortFunc(options, func(left, right Option) int {
+		return cmp.Compare(left.Name, right.Name)
+	})
+	return options, resources
+}
+
+// mergeIconResources appends valid, non-conflicting plugin icons to the catalog contents.
+func mergeIconResources(
+	options []Option,
+	icons map[string]pluginpackage.Icon,
+	registered map[string]bool,
+	contributed []Resource,
+) []Option {
+	for _, resource := range contributed {
+		source := strings.TrimSpace(resource.Source)
+		if !validResourceText(source, maxResourceSource) {
+			continue
+		}
+
+		document, err := pluginpackage.ParseIconResource(resource.Data)
+		if err != nil {
+			continue
+		}
+		for _, icon := range document.Icons {
+			if registered[icon.Name] {
+				continue
+			}
+			registered[icon.Name] = true
+			icons[icon.Name] = icon
+			options = append(options, Option{Name: icon.Name, Label: icon.Label, Source: source})
+		}
+	}
+	return options
 }
 
 // validResourceText reports whether a picker source is safe and bounded.

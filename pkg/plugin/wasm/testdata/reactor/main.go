@@ -16,9 +16,7 @@ import (
 
 var input, output []byte
 
-// These local wire types intentionally avoid importing the public SDK package.
-// The SDK owns the production WASM exports, while this fixture owns raw exports
-// so runtime tests can exercise malformed pointers, malformed JSON, and traps.
+// renderRequest is a local wire type that lets the fixture exercise the raw ABI without the SDK.
 type renderRequest struct {
 	// Source records the source associated with render request.
 	Source string `json:"source"`
@@ -150,9 +148,7 @@ func transform(pointer, length uint32) uint64 {
 	return address()
 }
 
-// callHost exercises the public low-level capability envelope against the raw
-// imported host ABI. The SDK intentionally keeps its generic transport internal;
-// this reactor owns a copy because these tests validate the ABI boundary itself.
+// callHost exercises the public low-level capability envelope against the raw imported host ABI.
 func callHost(method string, params, result any) error {
 	data, err := json.Marshal(params)
 	if err != nil {

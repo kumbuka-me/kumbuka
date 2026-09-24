@@ -246,25 +246,46 @@ func (s *markdownURLScanner) scanHTMLTag(line string, offset, start int) (int, b
 	if !ok {
 		return 0, false
 	}
+
+	name, attributesStart, closing, ok := htmlTagName(line, start, end)
+	if !ok {
+		return 0, false
+	}
+
+	selfClosing := strings.HasSuffix(strings.TrimSpace(line[attributesStart:end]), "/")
+	if isHTMLCodeElement(name) {
+		s.inHTMLCode = !closing && !selfClosing
+	}
+	if s.inHTMLCode || closing || !isHTMLResourceElement(name) {
+		return end + 1, true
+	}
+
+	s.scanHTMLAttributes(line, offset, attributesStart, end, name)
+	return end + 1, true
+}
+
+// htmlTagName returns a normalized tag name, the attribute offset, and whether the tag closes an element.
+func htmlTagName(line string, start, end int) (string, int, bool, bool) {
 	index := start + 1
-	closing := index < len(line) && line[index] == '/'
+	closing := index < end && line[index] == '/'
 	if closing {
 		index++
 	}
+
 	nameStart := index
 	for index < end && isHTMLNameByte(line[index]) {
 		index++
 	}
 	if index == nameStart {
-		return 0, false
+		return "", 0, false, false
 	}
-	name := strings.ToLower(line[nameStart:index])
-	if name == "code" || name == "pre" {
-		s.inHTMLCode = !closing
-	}
-	if s.inHTMLCode || closing || (name != "img" && name != "a") {
-		return end + 1, true
-	}
+
+	return strings.ToLower(line[nameStart:index]), index, closing, true
+}
+
+// scanHTMLAttributes records resource-bearing attribute values from one supported HTML element.
+func (s *markdownURLScanner) scanHTMLAttributes(line string, offset, start, end int, element string) {
+	index := start
 	for index < end {
 		if !isHTMLNameByte(line[index]) {
 			index++
@@ -275,33 +296,63 @@ func (s *markdownURLScanner) scanHTMLTag(line string, offset, start int) (int, b
 			index++
 		}
 		attribute := strings.ToLower(line[attributeStart:index])
-		for index < end && (line[index] == ' ' || line[index] == '\t') {
-			index++
-		}
+		index = skipHTMLSpace(line, index, end)
 		if index >= end || line[index] != '=' {
 			continue
 		}
-		index++
-		for index < end && (line[index] == ' ' || line[index] == '\t') {
-			index++
+
+		valueStart, valueEnd, next := htmlAttributeValue(line, index+1, end)
+		index = next
+		if valueStart == valueEnd || !isHTMLResourceAttribute(element, attribute) {
+			continue
 		}
-		quote := byte(0)
-		if index < end && (line[index] == '"' || line[index] == '\'') {
-			quote = line[index]
-			index++
-		}
-		valueStart := index
-		for index < end && (quote != 0 && line[index] != quote || quote == 0 && !strings.ContainsRune(" \t\r>", rune(line[index]))) {
-			index++
-		}
-		if attribute == "src" && name == "img" || attribute == "href" && name == "a" {
-			s.ranges = append(s.ranges, markdownURLRange{start: offset + valueStart, end: offset + index})
-		}
-		if quote != 0 && index < end {
-			index++
-		}
+		s.ranges = append(s.ranges, markdownURLRange{start: offset + valueStart, end: offset + valueEnd})
 	}
-	return end + 1, true
+}
+
+// skipHTMLSpace advances past horizontal whitespace within a tag.
+func skipHTMLSpace(line string, index, end int) int {
+	for index < end && (line[index] == ' ' || line[index] == '\t') {
+		index++
+	}
+	return index
+}
+
+// htmlAttributeValue returns the bounds and next scan position for a quoted or unquoted value.
+func htmlAttributeValue(line string, index, end int) (int, int, int) {
+	index = skipHTMLSpace(line, index, end)
+	quote := byte(0)
+	if index < end && (line[index] == '"' || line[index] == '\'') {
+		quote = line[index]
+		index++
+	}
+
+	start := index
+	for index < end {
+		if quote != 0 && line[index] == quote {
+			return start, index, index + 1
+		}
+		if quote == 0 && (line[index] == ' ' || line[index] == '\t' || line[index] == '\r' || line[index] == '>') {
+			break
+		}
+		index++
+	}
+	return start, index, index
+}
+
+// isHTMLCodeElement reports whether an element suppresses Markdown URL scanning in its body.
+func isHTMLCodeElement(name string) bool {
+	return name == "code" || name == "pre"
+}
+
+// isHTMLResourceElement reports whether an element can contain a supported resource URL.
+func isHTMLResourceElement(name string) bool {
+	return name == "img" || name == "a"
+}
+
+// isHTMLResourceAttribute reports whether an attribute contains the supported URL for its element.
+func isHTMLResourceAttribute(element, attribute string) bool {
+	return element == "img" && attribute == "src" || element == "a" && attribute == "href"
 }
 
 // htmlTagEnd finds a closing angle bracket outside quoted attribute values.
