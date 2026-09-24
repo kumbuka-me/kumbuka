@@ -1,6 +1,30 @@
-package endpoint
+// Package markdownurl locates resource URL destinations without rewriting Markdown source syntax.
+package markdownurl
 
 import "strings"
+
+// Range identifies one URL destination by byte offsets in its Markdown source.
+type Range struct {
+	// Start is the first byte of the URL.
+	Start int
+	// End is the byte immediately after the URL.
+	End int
+}
+
+// Ranges returns the destinations of Markdown links and supported HTML attributes outside code.
+func Ranges(source string) []Range {
+	locations := markdownResourceURLRanges(source)
+	result := make([]Range, len(locations))
+	for index, location := range locations {
+		result[index] = Range{Start: location.start, End: location.end}
+	}
+	return result
+}
+
+// Rewrite replaces recognized destinations while preserving other Markdown source bytes.
+func Rewrite(source string, replace func(string) (string, bool, error)) (string, error) {
+	return rewriteMarkdownResourceURLs(source, replace)
+}
 
 // markdownURLRange identifies a link destination without including its Markdown delimiters.
 type markdownURLRange struct {

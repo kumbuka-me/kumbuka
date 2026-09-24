@@ -19,6 +19,7 @@ import (
 	"time"
 
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
+	"github.com/kumbuka-me/kumbuka/internal/markdownurl"
 	"github.com/kumbuka-me/kumbuka/internal/pdf"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
@@ -310,7 +311,7 @@ func exportedMarkdown(
 ) (content string, imageIDs []int64, err error) {
 	seen := map[int64]bool{}
 	var ids []int64
-	result, err := rewriteMarkdownResourceURLs(source, func(url string) (string, bool, error) {
+	result, err := markdownurl.Rewrite(source, func(url string) (string, bool, error) {
 		reference, ok := nextMediaReference(url)
 		if !ok || reference.start != 0 || reference.end != len(url) {
 			return "", false, nil
@@ -423,8 +424,8 @@ func mediaImageID(value string) (imageID int64, ok bool) {
 func referencedImageIDs(source string) []int64 {
 	seen := map[int64]bool{}
 	var ids []int64
-	for _, location := range markdownResourceURLRanges(source) {
-		url := source[location.start:location.end]
+	for _, location := range markdownurl.Ranges(source) {
+		url := source[location.Start:location.End]
 		reference, ok := nextMediaReference(url)
 		if !ok || reference.start != 0 || reference.end != len(url) {
 			continue

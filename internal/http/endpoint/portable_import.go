@@ -17,6 +17,7 @@ import (
 
 	apppages "github.com/kumbuka-me/kumbuka/internal/application/pages"
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
+	"github.com/kumbuka-me/kumbuka/internal/markdownurl"
 	"github.com/kumbuka-me/kumbuka/internal/importer"
 	"github.com/kumbuka-me/kumbuka/internal/portable"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
@@ -299,7 +300,7 @@ func restorePortableResourceReferences(
 		}
 		urls[filepath.ToSlash(relative)] = replacement
 	}
-	return rewriteMarkdownResourceURLs(markdown, func(url string) (string, bool, error) {
+	return markdownurl.Rewrite(markdown, func(url string) (string, bool, error) {
 		replacement, ok := urls[url]
 		return replacement, ok, nil
 	})

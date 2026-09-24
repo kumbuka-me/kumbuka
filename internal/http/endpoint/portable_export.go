@@ -19,6 +19,7 @@ import (
 	"time"
 
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
+	"github.com/kumbuka-me/kumbuka/internal/markdownurl"
 	"github.com/kumbuka-me/kumbuka/internal/portable"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
@@ -259,7 +260,7 @@ func (s *portableExportState) rewriteMarkdown(
 	ctx context.Context,
 	markdownPath, source string,
 ) (string, error) {
-	return rewriteMarkdownResourceURLs(source, func(url string) (string, bool, error) {
+	return markdownurl.Rewrite(source, func(url string) (string, bool, error) {
 		reference, ok := nextPortableResourceReference(url)
 		if !ok || reference.Start != 0 || reference.End != len(url) {
 			return "", false, nil
