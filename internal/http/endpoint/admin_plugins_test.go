@@ -364,7 +364,7 @@ func TestAdminPluginManualCatalogRefresh(t *testing.T) {
 	data := browserContextLoaderStub{load: func(*http.Request, *webview.Views, string) (webview.Layout, error) {
 		return webview.Layout{User: domain.User{ID: 1, Role: "admin"}}, nil
 	}}
-	admin := NewAdminPlugins(appplugins.NewAdmin(nil, updates), data, views)
+	admin := NewAdminPlugins(appplugins.NewAdmin(&plugin.Manager{}, updates), data, views)
 
 	request := auth.WithUser(httptest.NewRequest("POST", "/admin/plugins/check-updates", nil), domain.User{ID: 1, Role: "admin"})
 	w := httptest.NewRecorder()
@@ -373,6 +373,37 @@ func TestAdminPluginManualCatalogRefresh(t *testing.T) {
 	require.Equal(t, http.StatusSeeOther, w.Code)
 	assert.Equal(t, "/admin/plugins", w.Header().Get("Location"))
 	assert.Equal(t, 1, updates.refreshes)
+}
+
+func TestAdminPluginManualCatalogRefreshUnavailable(t *testing.T) {
+	t.Run("missing manager", func(t *testing.T) {
+		updates := &pluginUpdateServiceStub{}
+		views := testHandlerViews(t, webview.RuntimeInfo{})
+		admin := NewAdminPlugins(appplugins.NewAdmin(nil, updates), nil, views)
+		request := httptest.NewRequest("POST", "/admin/plugins/check-updates", nil)
+		response := httptest.NewRecorder()
+
+		admin.CheckUpdates(response, request)
+
+		assert.Equal(t, http.StatusServiceUnavailable, response.Code)
+		assert.Contains(t, response.Body.String(), "Plugin manager unavailable.")
+		assert.Zero(t, updates.refreshes)
+	})
+
+	t.Run("missing catalog", func(t *testing.T) {
+		views := testHandlerViews(t, webview.RuntimeInfo{})
+		data := browserContextLoaderStub{load: func(*http.Request, *webview.Views, string) (webview.Layout, error) {
+			return webview.Layout{User: domain.User{ID: 1, Role: "admin"}}, nil
+		}}
+		admin := NewAdminPlugins(appplugins.NewAdmin(&plugin.Manager{}, nil), data, views)
+		request := httptest.NewRequest("POST", "/admin/plugins/check-updates", nil)
+		response := httptest.NewRecorder()
+
+		admin.CheckUpdates(response, request)
+
+		assert.Equal(t, http.StatusServiceUnavailable, response.Code)
+		assert.Contains(t, response.Body.String(), "Plugin update checks are unavailable.")
+	})
 }
 
 // TestAdminPluginManualCatalogRefreshFailure supports plugin administration regression coverage.

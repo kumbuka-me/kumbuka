@@ -126,9 +126,10 @@ func (s *markdownURLScanner) scanLine(line string, offset int) {
 		}
 		if line[index] == '`' {
 			width := markerWidth(line[index:], '`')
-			if s.codeWidth == 0 {
+			switch s.codeWidth {
+			case 0:
 				s.codeWidth = width
-			} else if s.codeWidth == width {
+			case width:
 				s.codeWidth = 0
 			}
 			index += width
