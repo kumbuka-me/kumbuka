@@ -100,6 +100,47 @@ func TestBuildUsesIconsAtEveryNavigationDepth(t *testing.T) {
 	assert.Equal(t, "washing-machine-lucide", household.Children[0].Icon)
 }
 
+func TestBuildKeepsConfiguredIconsRegardlessOfPageOrder(t *testing.T) {
+	t.Parallel()
+
+	t.Run("parent before child", func(t *testing.T) {
+		t.Parallel()
+
+		tree := Build([]Page{
+			{Slug: "personal", Title: "Personal", Icon: "user-lucide"},
+			{Slug: "personal/household", Title: "Household"},
+		}, Options{Icons: map[string]string{"personal": "user"}})
+
+		require.Len(t, tree, 1)
+		assert.Equal(t, "user", tree[0].Icon)
+	})
+
+	t.Run("child before parent", func(t *testing.T) {
+		t.Parallel()
+
+		tree := Build([]Page{
+			{Slug: "personal/household", Title: "Household"},
+			{Slug: "personal", Title: "Personal", Icon: "user-lucide"},
+		}, Options{Icons: map[string]string{"personal": "user"}})
+
+		require.Len(t, tree, 1)
+		assert.Equal(t, "user", tree[0].Icon)
+	})
+}
+
+func TestBuildOrdersTitlesThatDifferOnlyInCaseBySlug(t *testing.T) {
+	t.Parallel()
+
+	tree := Build([]Page{
+		{Slug: "lower", Title: "guide"},
+		{Slug: "upper", Title: "Guide"},
+	}, Options{})
+
+	require.Len(t, tree, 2)
+	assert.Equal(t, "lower", tree[0].Slug)
+	assert.Equal(t, "upper", tree[1].Slug)
+}
+
 func TestChildrenReturnsTheCompleteSubtree(t *testing.T) {
 	t.Parallel()
 

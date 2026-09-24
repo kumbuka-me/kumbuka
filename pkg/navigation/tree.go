@@ -100,7 +100,7 @@ func Build(pages []Page, options Options) []Node {
 				child.page = true
 				child.title = page.Title
 
-				if page.Icon != "" {
+				if page.Icon != "" && options.Icons[child.slug] == "" {
 					child.icon = page.Icon
 				}
 			}
@@ -192,6 +192,9 @@ func compareNodes(left, right Node) int {
 	case !leftFolder && rightFolder:
 		return 1
 	default:
-		return cmp.Compare(strings.ToLower(left.Title), strings.ToLower(right.Title))
+		if order := cmp.Compare(strings.ToLower(left.Title), strings.ToLower(right.Title)); order != 0 {
+			return order
+		}
+		return cmp.Compare(left.Slug, right.Slug)
 	}
 }
