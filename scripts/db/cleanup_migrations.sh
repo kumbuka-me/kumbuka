@@ -6,17 +6,22 @@ usage() {
 Usage: scripts/db/cleanup_migrations.sh --migrations DIR --generated-dir DIR
 
 Replaces the existing migration SQL files with the validated baseline produced
-by merge_migrations.sh. The generated baseline version must match the highest
-current migration version and must be newer than the currently installed
-baseline.
+by merge_migrations.sh. The generated baseline must use the next migration
+version after the highest current migration and must be newer than the currently
+installed baseline.
 USAGE
 }
 
+script_dir=$(CDPATH= cd -- "$(dirname "$0")" && pwd)
 migrations_dir=""
 generated_dir=""
 backup_dir=""
 staged_file=""
+temporary_dir=""
 restore_required=false
+
+# shellcheck source=scripts/db/migration_helpers.sh
+. "$script_dir/migration_helpers.sh"
 
 cleanup() {
   status=$?
@@ -33,31 +38,8 @@ cleanup() {
 
   [ -n "$staged_file" ] && rm -f "$staged_file"
   [ -n "$backup_dir" ] && rm -rf "$backup_dir"
+  [ -n "$temporary_dir" ] && rm -rf "$temporary_dir"
   exit "$status"
-}
-
-migration_version() {
-  migration_name=$(basename "$1")
-  version=${migration_name%%_*}
-
-  if [ "$version" = "$migration_name" ] || [ -z "$version" ]; then
-    echo "Migration filename must start with a numeric version followed by _: $migration_name" >&2
-    return 1
-  fi
-  case "$version" in
-  *[!0-9]*)
-    echo "Migration filename has a non-numeric version: $migration_name" >&2
-    return 1
-    ;;
-  esac
-
-  version=$(printf '%s\n' "$version" | sed 's/^0*//')
-  [ -n "$version" ] || version=0
-  printf '%s\n' "$version"
-}
-
-format_version() {
-  printf '%03d' "$1"
 }
 
 while [ "$#" -gt 0 ]; do
@@ -120,34 +102,35 @@ esac
 migrations_dir=$(CDPATH= cd -- "$migrations_dir" && pwd -P)
 generated_dir=$(CDPATH= cd -- "$generated_dir" && pwd -P)
 
-highest_version=""
-current_baseline_version=""
-migration_count=0
-for migration_file in "$migrations_dir"/*.sql; do
-  [ -f "$migration_file" ] || continue
-  migration_count=$((migration_count + 1))
-  version=$(migration_version "$migration_file") || exit 1
-
-  if [ -z "$highest_version" ] || [ "$version" -gt "$highest_version" ]; then
-    highest_version=$version
-  fi
-
-  case "$(basename "$migration_file")" in
-  *_baseline.sql)
-    if [ -z "$current_baseline_version" ] || [ "$version" -gt "$current_baseline_version" ]; then
-      current_baseline_version=$version
-    fi
-    ;;
-  esac
-done
-
-[ "$migration_count" -gt 0 ] || {
-  echo "No migration SQL files found in $migrations_dir" >&2
+case "$generated_dir/" in
+"$migrations_dir/" | "$migrations_dir/"*)
+  echo "Generated baseline directory must be outside the migrations directory: $generated_dir" >&2
   exit 1
-}
+  ;;
+esac
 
-expected_name="$(format_version "$highest_version")_baseline.sql"
+temporary_dir=$(mktemp -d "${TMPDIR:-/tmp}/kumbuka-migration-cleanup.XXXXXX")
+migration_list="$temporary_dir/migrations.txt"
+
+trap cleanup EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+collect_migrations "$migrations_dir" "$migration_list"
+highest_version=$(highest_migration_version "$migration_list")
+baseline_version=$(current_baseline_version "$migration_list")
+
+if [ -n "$baseline_version" ] && [ "$highest_version" -le "$baseline_version" ]; then
+  echo "No newer migrations to consolidate." >&2
+  echo "Current baseline is version $baseline_version and highest migration is version $highest_version." >&2
+  exit 1
+fi
+
+next_version=$(next_baseline_version "$highest_version")
+expected_name="$(format_migration_version "$next_version")_baseline.sql"
 generated_file="$generated_dir/$expected_name"
+
 [ -f "$generated_file" ] || {
   echo "Expected generated baseline not found: $generated_file" >&2
   echo "Run the merge step before cleanup." >&2
@@ -159,41 +142,35 @@ for candidate in "$generated_dir"/*_baseline.sql; do
   [ -f "$candidate" ] || continue
   generated_count=$((generated_count + 1))
 done
+
 if [ "$generated_count" -ne 1 ]; then
   echo "Generated directory must contain exactly one baseline SQL file; found $generated_count." >&2
   exit 1
 fi
 
-if [ -n "$current_baseline_version" ] && [ "$highest_version" -le "$current_baseline_version" ]; then
-  echo "No newer migrations to consolidate." >&2
-  echo "Current baseline is version $current_baseline_version and highest migration is version $highest_version." >&2
-  exit 1
-fi
-
+migration_count=$(wc -l <"$migration_list" | tr -d ' ')
 staged_file="$migrations_dir/.$expected_name.tmp.$$"
 backup_dir="$migrations_dir/.migration-backup.$$"
-
-trap cleanup EXIT
-trap 'exit 129' HUP
-trap 'exit 130' INT
-trap 'exit 143' TERM
 
 mkdir "$backup_dir"
 cp "$generated_file" "$staged_file"
 restore_required=true
-for migration_file in "$migrations_dir"/*.sql; do
-  [ -f "$migration_file" ] || continue
+
+while IFS="	" read -r _ migration_file; do
   mv "$migration_file" "$backup_dir/"
-done
+done <"$migration_list"
 
 mv "$staged_file" "$migrations_dir/$expected_name"
 staged_file=""
 restore_required=false
+
 rm -rf "$backup_dir"
 backup_dir=""
 rm -f "$generated_file"
 rmdir "$generated_dir" 2>/dev/null || true
 
+rm -rf "$temporary_dir"
+temporary_dir=""
 trap - EXIT HUP INT TERM
 
 echo "Replaced $migration_count migration files with $migrations_dir/$expected_name"

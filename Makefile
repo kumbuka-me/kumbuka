@@ -16,6 +16,7 @@ NODE_MODULES := node_modules/.package-lock.json
 
 PLUGIN_LOCK := plugins.lock
 PLUGIN_DOWNLOAD := scripts/plugins/download.sh
+PLUGIN_UPDATE := scripts/plugins/update.sh
 PLUGIN_STAMP := plugins/.downloaded
 PLUGIN_REPOSITORY ?= kumbuka-me/plugins
 PLUGIN_UPDATE_COMMIT ?= chore: update plugins
@@ -95,15 +96,16 @@ MIGRATION_DIR := internal/postgres/migrations
 MIGRATION_OUTPUT_DIR := build/migrations
 MIGRATION_MERGE := scripts/db/merge_migrations.sh
 MIGRATION_CLEANUP := scripts/db/cleanup_migrations.sh
+MIGRATION_HELPERS := scripts/db/migration_helpers.sh
 
 ##@ Migration
 
 .PHONY: merge-migrations
-merge-migrations: ## Merge all migrations into a validated, automatically versioned baseline.
+merge-migrations: $(MIGRATION_MERGE) $(MIGRATION_HELPERS) ## Merge all migrations into the next validated baseline.
 	$(MIGRATION_MERGE) --migrations "$(MIGRATION_DIR)" --output-dir "$(MIGRATION_OUTPUT_DIR)"
 
 .PHONY: cleanup-migrations
-cleanup-migrations: merge-migrations ## Replace existing migrations with the validated generated baseline.
+cleanup-migrations: merge-migrations $(MIGRATION_CLEANUP) $(MIGRATION_HELPERS) ## Replace existing migrations with the validated generated baseline.
 	$(MIGRATION_CLEANUP) --migrations "$(MIGRATION_DIR)" --generated-dir "$(MIGRATION_OUTPUT_DIR)"
 
 
@@ -250,8 +252,13 @@ plugins-refresh: ## Re-download all pinned first-party plugin packages.
 	$(MAKE) plugins
 
 .PHONY: plugins-update
-plugins-update: ## Update pinned plugins to their latest stable releases and commit them.
-	./scripts/plugins/update.sh --plugins "$(PLUGIN_LOCK)" --repository "$(PLUGIN_REPOSITORY)" --commit "$(PLUGIN_UPDATE_COMMIT)"
+plugins-update: $(PLUGIN_UPDATE) $(PLUGIN_DOWNLOAD) ## Update pinned plugins to their latest stable releases and commit them.
+	$(PLUGIN_UPDATE) \
+		--gh-bin "$(GH)" \
+		--plugin-lock "$(PLUGIN_LOCK)" \
+		--plugin-repository "$(PLUGIN_REPOSITORY)" \
+		--plugin-update-commit "$(PLUGIN_UPDATE_COMMIT)" \
+		--plugin-stamp "$(PLUGIN_STAMP)"
 
 ##@ Assets
 
