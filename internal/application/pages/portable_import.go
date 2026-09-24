@@ -44,16 +44,52 @@ func (s *Bulk) ImportPortable(
 	candidates []PortableImportedPage,
 	actor domain.User,
 ) (int, error) {
+	count, err := s.ImportPortablePages(ctx, candidates, actor)
+	if err != nil {
+		s.recordImportProgress(ctx, actor, portable.Format, count, false)
+		return count, err
+	}
+	s.recordImportProgress(ctx, actor, portable.Format, count, true)
+	return count, nil
+}
+
+// ImportPortablePages saves archive pages without side effects while an outer transaction is active.
+func (s *Bulk) ImportPortablePages(
+	ctx context.Context,
+	candidates []PortableImportedPage,
+	actor domain.User,
+) (int, error) {
 	for index, candidate := range candidates {
 		if err := s.importPortablePage(ctx, candidate, actor); err != nil {
-			s.recordImportProgress(ctx, actor, portable.Format, index, false)
 			return index, err
 		}
 	}
-
-	s.recordImportProgress(ctx, actor, portable.Format, len(candidates), true)
-
 	return len(candidates), nil
+}
+
+// RunPortableImport commits all archive writes before reporting the successful import.
+func (s *Bulk) RunPortableImport(
+	ctx context.Context,
+	actor domain.User,
+	run func(context.Context) (int, error),
+) (int, error) {
+	runner, ok := s.repository.(interface {
+		WithImportTransaction(context.Context, func(context.Context) error) error
+	})
+	if !ok {
+		return 0, fmt.Errorf("portable import repository does not support transactions")
+	}
+	count := 0
+	err := runner.WithImportTransaction(ctx, func(transactionContext context.Context) error {
+		var importErr error
+		count, importErr = run(transactionContext)
+		return importErr
+	})
+	if err != nil {
+		return 0, err
+	}
+	s.recordImportProgress(ctx, actor, portable.Format, count, true)
+	return count, nil
 }
 
 // importPortablePage persists one archive page using portable metadata instead of target defaults.

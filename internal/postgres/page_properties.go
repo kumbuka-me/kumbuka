@@ -12,7 +12,7 @@ import (
 
 // PageProperties returns structured properties for one page.
 func (s *Store) PageProperties(ctx context.Context, pageID int64) ([]domain.PageProperty, error) {
-	rows, err := s.pool.Query(ctx, `
+	rows, err := s.importQuery(ctx).Query(ctx, `
 SELECT key,value
 FROM page_properties
 WHERE page_id=$1

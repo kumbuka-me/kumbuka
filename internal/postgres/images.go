@@ -11,7 +11,7 @@ import (
 // SaveImage stores an immutable uploaded image and returns its metadata.
 func (s *Store) SaveImage(ctx context.Context, filename, contentType string, data []byte, userID int64) (domain.Image, error) {
 	var image domain.Image
-	err := s.pool.QueryRow(ctx, `
+	err := s.importQuery(ctx).QueryRow(ctx, `
 INSERT INTO images(filename,content_type,data,size_bytes,uploaded_by)
 VALUES($1,$2,$3,$4,$5)
 RETURNING id,filename,content_type,size_bytes,coalesce(uploaded_by,0),created_at`, filename, contentType, data, int64(len(data)), userID).Scan(

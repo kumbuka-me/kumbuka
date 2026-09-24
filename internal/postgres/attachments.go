@@ -79,7 +79,7 @@ WHERE id=$1`, id).
 // SaveAttachment stores one uploaded attachment.
 func (s *Store) SaveAttachment(ctx context.Context, filename, contentType string, data []byte, userID int64) (domain.Attachment, error) {
 	var item domain.Attachment
-	err := s.pool.QueryRow(ctx, `
+	err := s.importQuery(ctx).QueryRow(ctx, `
 INSERT INTO attachments(filename,content_type,data,size_bytes,uploaded_by)
 VALUES($1,$2,$3,$4,$5)
 RETURNING id,filename,content_type,size_bytes,coalesce(uploaded_by,0),created_at`, filename, contentType, data, len(data), userID).

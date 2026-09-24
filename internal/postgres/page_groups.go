@@ -9,7 +9,7 @@ import (
 
 // PageGroups returns the collaboration groups assigned to one page.
 func (s *Store) PageGroups(ctx context.Context, pageID int64) ([]domain.Group, error) {
-	rows, err := s.pool.Query(ctx, `
+	rows, err := s.importQuery(ctx).Query(ctx, `
 SELECT g.id,g.name
 FROM wiki_groups g
 JOIN page_groups pg ON pg.group_id=g.id

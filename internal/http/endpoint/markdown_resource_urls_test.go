@@ -1,11 +1,11 @@
 package endpoint
 
 import (
-	"archive/zip"
 	"bytes"
 	"context"
 	"testing"
 
+	"github.com/kumbuka-me/kumbuka/internal/application/portablearchive"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -24,31 +24,29 @@ func TestExportedMarkdownOnlyRewritesResourceDestinations(t *testing.T) {
 		"![local](../media/12/image.png)\n[reference]: ../media/12/image.png\n" +
 		"<img src=\"../media/12/image.png\" alt=\"/media/12/alt.png\">\n"
 
-	got, ids, err := exportedMarkdown(context.Background(), media, "pages/start.md", source, map[int64]domain.ImageData{})
+	got, ids, err := portablearchive.ExportedMarkdown(context.Background(), media, "pages/start.md", source, map[int64]domain.ImageData{})
 	require.NoError(t, err)
 	assert.Equal(t, want, got)
 	assert.Equal(t, []int64{12}, ids)
-	assert.Equal(t, ids, referencedImageIDs(source))
+	assert.Equal(t, ids, portablearchive.ReferencedImageIDs(source))
 	assert.Equal(t, []int64{12}, media.calls)
 }
 
 func TestPortableExportOnlyRewritesResourceDestinations(t *testing.T) {
 	var archive bytes.Buffer
-	writer := zip.NewWriter(&archive)
-	state := &portableExportState{
-		Archive: writer, Media: portableExportMediaStub{},
-		Images: map[int64]portableExportResource{}, Attachments: map[int64]portableExportResource{},
-	}
 	source := "[external](https://example.org/media/99/remote.png) " +
 		"`[code](/media/99/code.png)` /media/99/example.png " +
 		"[local](/media/12/diagram.png)"
-	got, err := state.rewriteMarkdown(context.Background(), "pages/example.md", source)
+	err := portablearchive.WritePortable(context.Background(), portableCatalogStub{"example": {
+		Slug: "example", Markdown: source,
+	}}, portableExportMediaStub{}, &archive, []string{"example"})
 	require.NoError(t, err)
+	files := readTestZip(t, archive.Bytes())
+	got := string(files["pages/example.md"])
 	assert.Equal(t, "[external](https://example.org/media/99/remote.png) "+
 		"`[code](/media/99/code.png)` /media/99/example.png "+
 		"[local](../media/12/diagram.png)", got)
-	assert.Len(t, state.Manifest.Media, 1)
-	require.NoError(t, writer.Close())
+	assert.Contains(t, files, "media/12/diagram.png")
 }
 
 func TestPortableImportOnlyRewritesResourceDestinations(t *testing.T) {
@@ -65,7 +63,7 @@ func TestPortableImportOnlyRewritesResourceDestinations(t *testing.T) {
 		"[reference]: /media/101/diagram.png\n" +
 		"<img src='/media/101/diagram.png' alt='../../media/12/diagram.png'>"
 
-	got, err := restorePortableResourceReferences("pages/team/example.md", source, map[string]string{
+	got, err := portablearchive.RestoreResourceReferences("pages/team/example.md", source, map[string]string{
 		"media/12/diagram.png": "/media/101/diagram.png",
 	})
 	require.NoError(t, err)

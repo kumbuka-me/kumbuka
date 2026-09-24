@@ -9,7 +9,7 @@ import (
 
 // Groups returns all groups and their current user and page counts. Aggregate each relation independently so memberships and page assignments do not form a multiplicative join before counting.
 func (s *Store) Groups(ctx context.Context) ([]domain.Group, error) {
-	rows, err := s.pool.Query(ctx, `
+	rows, err := s.importQuery(ctx).Query(ctx, `
 SELECT
   g.id,
   g.name,
@@ -56,7 +56,7 @@ func (s *Store) CreateGroup(ctx context.Context, name string) (domain.Group, err
 	}
 
 	var group domain.Group
-	err := s.pool.QueryRow(ctx, `
+	err := s.importQuery(ctx).QueryRow(ctx, `
 INSERT INTO wiki_groups(name)
 VALUES($1)
 RETURNING id,name`, name).

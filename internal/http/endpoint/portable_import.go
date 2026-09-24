@@ -1,51 +1,32 @@
 package endpoint
 
 import (
-	"context"
 	"errors"
-	"fmt"
 	"io"
 	"log/slog"
 	"mime/multipart"
 	"net/http"
 	"path"
-	"path/filepath"
-	"slices"
-	"sort"
 	"strconv"
 	"strings"
 
-	apppages "github.com/kumbuka-me/kumbuka/internal/application/pages"
+	"github.com/kumbuka-me/kumbuka/internal/application/portablearchive"
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
-	"github.com/kumbuka-me/kumbuka/internal/markdownurl"
 	"github.com/kumbuka-me/kumbuka/internal/importer"
 	"github.com/kumbuka-me/kumbuka/internal/portable"
-	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
-
-// portableArchiveImportMediaService exposes only the binary writes required by portable import.
-type portableArchiveImportMediaService interface {
-	UploadImage(context.Context, string, []byte, domain.User) (domain.Image, error)
-	UploadAttachment(context.Context, string, []byte, domain.User) (domain.Attachment, error)
-}
 
 // portableArchivePageImportService combines legacy imports with portable archive page restoration.
 type portableArchivePageImportService interface {
 	pageImportService
-	ImportPortable(context.Context, []apppages.PortableImportedPage, domain.User) (int, error)
-}
-
-// portableArchiveGroupService resolves and creates collaboration groups referenced by an archive.
-type portableArchiveGroupService interface {
-	Groups(context.Context) ([]domain.Group, error)
-	CreateGroup(context.Context, string) (domain.Group, error)
+	portablearchive.Pages
 }
 
 // ImportPagesWithPortableArchive extends the normal admin importer with Kumbuka portable archives.
 func ImportPagesWithPortableArchive(
 	pageUseCases portableArchivePageImportService,
-	mediaUseCases portableArchiveImportMediaService,
-	groupUseCases portableArchiveGroupService,
+	mediaUseCases portablearchive.Media,
+	groupUseCases portablearchive.Groups,
 	logger *slog.Logger,
 ) http.HandlerFunc {
 	legacy := ImportPages(pageUseCases, logger)
@@ -89,7 +70,7 @@ func ImportPagesWithPortableArchive(
 			return
 		}
 
-		imported, err := restorePortableArchive(
+		imported, err := portablearchive.Restore(
 			r.Context(),
 			archive,
 			pageUseCases,
@@ -98,9 +79,6 @@ func ImportPagesWithPortableArchive(
 			currentUser(r),
 		)
 		if err != nil {
-			if writePartialImportProblem(logger, w, imported, err) {
-				return
-			}
 			writePortableArchiveImportProblem(logger, w, err)
 			return
 		}
@@ -167,156 +145,6 @@ func readPortableArchiveUpload(header *multipart.FileHeader) (portable.Archive, 
 	return portable.Parse(data, importer.MaxBytes)
 }
 
-// restorePortableArchive recreates resources, groups, and pages from a validated archive.
-func restorePortableArchive(
-	ctx context.Context,
-	archive portable.Archive,
-	pageUseCases portableArchivePageImportService,
-	mediaUseCases portableArchiveImportMediaService,
-	groupUseCases portableArchiveGroupService,
-	actor domain.User,
-) (int, error) {
-	replacements := make(map[string]string, len(archive.Manifest.Media)+len(archive.Manifest.Attachments))
-
-	for _, resource := range archive.Manifest.Media {
-		image, err := mediaUseCases.UploadImage(ctx, resource.Filename, archive.Resources[resource.Path], actor)
-		if err != nil {
-			return 0, fmt.Errorf("restore image %q: %w", resource.Path, err)
-		}
-		replacements[resource.Path] = mediaURL(image.ID, image.Filename)
-	}
-	for _, resource := range archive.Manifest.Attachments {
-		attachment, err := mediaUseCases.UploadAttachment(ctx, resource.Filename, archive.Resources[resource.Path], actor)
-		if err != nil {
-			return 0, fmt.Errorf("restore attachment %q: %w", resource.Path, err)
-		}
-		replacements[resource.Path] = attachmentItem(attachment).URL
-	}
-
-	groupIDs, err := ensurePortableGroups(ctx, groupUseCases, archive.Pages)
-	if err != nil {
-		return 0, err
-	}
-
-	pages := make([]apppages.PortableImportedPage, 0, len(archive.Pages))
-	for _, pageData := range archive.Pages {
-		markdown, err := restorePortableResourceReferences(pageData.Entry.Markdown, pageData.Markdown, replacements)
-		if err != nil {
-			return 0, err
-		}
-
-		groups := make([]int64, 0, len(pageData.Metadata.Groups))
-		seenGroups := map[int64]bool{}
-		for _, name := range pageData.Metadata.Groups {
-			id := groupIDs[portableGroupKey(name)]
-			if id > 0 && !seenGroups[id] {
-				groups = append(groups, id)
-				seenGroups[id] = true
-			}
-		}
-
-		pages = append(pages, apppages.PortableImportedPage{
-			Slug:               pageData.Metadata.Slug,
-			Title:              pageData.Metadata.Title,
-			Icon:               pageData.Metadata.Icon,
-			Language:           pageData.Metadata.Language,
-			Markdown:           markdown,
-			Tags:               slices.Clone(pageData.Metadata.Tags),
-			GroupIDs:           groups,
-			Status:             pageData.Metadata.Status,
-			OwnerGroupID:       groupIDs[portableGroupKey(pageData.Metadata.OwnerGroup)],
-			ReviewIntervalDays: pageData.Metadata.ReviewIntervalDays,
-			DeprecatedTarget:   pageData.Metadata.DeprecatedTarget,
-			Properties:         clonePortableProperties(pageData.Metadata.Properties),
-		})
-	}
-
-	return pageUseCases.ImportPortable(ctx, pages, actor)
-}
-
-// ensurePortableGroups resolves archive group names and creates missing groups in deterministic order.
-func ensurePortableGroups(
-	ctx context.Context,
-	groupUseCases portableArchiveGroupService,
-	pages []portable.Page,
-) (map[string]int64, error) {
-	groups, err := groupUseCases.Groups(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	ids := make(map[string]int64, len(groups))
-	for _, group := range groups {
-		ids[portableGroupKey(group.Name)] = group.ID
-	}
-
-	missingByKey := map[string]string{}
-	for _, pageData := range pages {
-		names := append(slices.Clone(pageData.Metadata.Groups), pageData.Metadata.OwnerGroup)
-		for _, name := range names {
-			name = strings.TrimSpace(name)
-			if name == "" {
-				continue
-			}
-			key := portableGroupKey(name)
-			if ids[key] == 0 {
-				missingByKey[key] = name
-			}
-		}
-	}
-
-	keys := make([]string, 0, len(missingByKey))
-	for key := range missingByKey {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	for _, key := range keys {
-		group, err := groupUseCases.CreateGroup(ctx, missingByKey[key])
-		if err != nil {
-			return nil, fmt.Errorf("create imported group %q: %w", missingByKey[key], err)
-		}
-		ids[key] = group.ID
-	}
-
-	return ids, nil
-}
-
-// portableGroupKey returns the case-insensitive lookup key used for portable group mapping.
-func portableGroupKey(name string) string {
-	return strings.ToLower(strings.TrimSpace(name))
-}
-
-// restorePortableResourceReferences replaces archive-relative resource paths with target URLs.
-func restorePortableResourceReferences(
-	markdownPath, markdown string,
-	replacements map[string]string,
-) (string, error) {
-	urls := make(map[string]string, len(replacements))
-	from := filepath.FromSlash(path.Dir(markdownPath))
-	for resourcePath, replacement := range replacements {
-		relative, err := filepath.Rel(from, filepath.FromSlash(resourcePath))
-		if err != nil {
-			return "", err
-		}
-		urls[filepath.ToSlash(relative)] = replacement
-	}
-	return markdownurl.Rewrite(markdown, func(url string) (string, bool, error) {
-		replacement, ok := urls[url]
-		return replacement, ok, nil
-	})
-}
-
-// clonePortableProperties copies page properties so service mutation cannot alias decoded metadata.
-func clonePortableProperties(properties map[string]string) map[string]string {
-	if len(properties) == 0 {
-		return map[string]string{}
-	}
-	clone := make(map[string]string, len(properties))
-	for key, value := range properties {
-		clone[key] = value
-	}
-	return clone
-}
 
 // writePortableArchiveImportProblem writes safe validation problems and logs unexpected restore failures.
 func writePortableArchiveImportProblem(logger *slog.Logger, w http.ResponseWriter, err error) {

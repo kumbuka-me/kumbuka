@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	apppages "github.com/kumbuka-me/kumbuka/internal/application/pages"
+	"github.com/kumbuka-me/kumbuka/internal/application/portablearchive"
 	"github.com/kumbuka-me/kumbuka/internal/portable"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/stretchr/testify/assert"
@@ -74,7 +75,7 @@ func TestWritePortableExportArchiveIncludesMetadataAndResources(t *testing.T) {
 	}
 
 	var output bytes.Buffer
-	err := writePortableExportArchive(
+	err := portablearchive.WritePortable(
 		context.Background(),
 		catalog,
 		portableExportMediaStub{},
@@ -169,6 +170,16 @@ func (s *portableRestorePagesStub) ImportPortable(
 	return len(pages), nil
 }
 
+// ImportPortablePages records the pages prepared inside the import transaction.
+func (s *portableRestorePagesStub) ImportPortablePages(ctx context.Context, pages []apppages.PortableImportedPage, actor domain.User) (int, error) {
+	return s.ImportPortable(ctx, pages, actor)
+}
+
+// RunPortableImport executes the test transaction callback once.
+func (*portableRestorePagesStub) RunPortableImport(ctx context.Context, _ domain.User, run func(context.Context) (int, error)) (int, error) {
+	return run(ctx)
+}
+
 // portableRestoreMediaStub records recreated resources and returns target identifiers.
 type portableRestoreMediaStub struct {
 	// Images contains uploaded image filenames.
@@ -250,7 +261,7 @@ func TestRestorePortableArchiveRewritesResourcesAndMapsGroups(t *testing.T) {
 		}},
 	}
 
-	count, err := restorePortableArchive(
+	count, err := portablearchive.Restore(
 		context.Background(), archive, pages, media, groups, domain.User{ID: 1},
 	)
 
@@ -291,9 +302,9 @@ func testPortableArchive(t *testing.T, manifest portable.Manifest, files map[str
 	t.Helper()
 	var output bytes.Buffer
 	writer := zip.NewWriter(&output)
-	require.NoError(t, writePortableZipJSON(writer, portable.ManifestPath, manifest))
+	require.NoError(t, portablearchive.WriteZIPJSON(writer, portable.ManifestPath, manifest))
 	for name, data := range files {
-		require.NoError(t, writePortableZipBytes(writer, name, data))
+		require.NoError(t, portablearchive.WriteZIPBytes(writer, name, data))
 	}
 	require.NoError(t, writer.Close())
 	return output.Bytes()
@@ -305,24 +316,4 @@ func mustJSON(t *testing.T, value any) []byte {
 	data, err := json.Marshal(value)
 	require.NoError(t, err)
 	return data
-}
-
-func TestPortableResourceScannerSkipsMalformedReferences(t *testing.T) {
-	t.Parallel()
-	for _, prefix := range []string{"/media/", "/attachments/"} {
-		for _, malformed := range []string{"invalid/file.png", "0/file.png", "999999999999999999999999/file.png", "12/", "12"} {
-			t.Run(prefix+malformed, func(t *testing.T) {
-				source := prefix + malformed + " followed by " + prefix + "42/image.png"
-				reference, ok := nextPortableResourceReference(source)
-				require.True(t, ok)
-				assert.EqualValues(t, 42, reference.ID)
-				assert.Equal(t, prefix+"42/image.png", source[reference.Start:reference.End])
-			})
-		}
-	}
-	source := "/media/invalid /attachments/7/file.txt /media/42/image.png"
-	reference, ok := nextPortableResourceReference(source)
-	require.True(t, ok)
-	assert.Equal(t, portableAttachmentResource, reference.Kind)
-	assert.EqualValues(t, 7, reference.ID)
 }

@@ -60,7 +60,7 @@ func scanPage(row pgx.Row) (domain.Page, error) {
 // GetPage returns a page by slug.
 func (s *Store) GetPage(ctx context.Context, slug string) (domain.Page, error) {
 	page, err := scanPage(
-		s.pool.QueryRow(ctx, pageSelect+`
+		s.importQuery(ctx).QueryRow(ctx, pageSelect+`
 WHERE p.slug=$1 AND p.deleted_at IS NULL
 GROUP BY p.id,u.id`, slug),
 	)
@@ -73,7 +73,7 @@ GROUP BY p.id,u.id`, slug),
 		return domain.Page{}, err
 	}
 	var renderedContents json.RawMessage
-	if err := s.pool.QueryRow(ctx, `
+	if err := s.importQuery(ctx).QueryRow(ctx, `
 SELECT p.content_language,p.status,coalesce(p.owner_group_id,0),coalesce(g.name,''),p.last_reviewed_at,p.review_interval_days,p.deprecated_target,
        p.rendered_html,p.rendered_contents,p.render_fingerprint
 FROM pages p
@@ -261,6 +261,16 @@ func (s *Store) SavePage(
 	)
 	if err != nil {
 		return domain.Page{}, err
+	}
+
+	if tx, active := s.activeImportTransaction(ctx); active {
+		if err := validateAssignableGroup(ctx, tx, mutation.record.metadata.OwnerGroupID, mutation.user); err != nil {
+			return domain.Page{}, mutationError(err)
+		}
+		if err := executePageSaveTransaction(ctx, tx, mutation); err != nil {
+			return domain.Page{}, mutationError(err)
+		}
+		return s.GetPage(ctx, slug)
 	}
 
 	tx, err := s.pool.Begin(ctx)
