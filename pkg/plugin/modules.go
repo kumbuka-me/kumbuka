@@ -200,7 +200,7 @@ type EditorInsert struct {
 	// Placeholder supplies default selected text for wrap and prefix actions.
 	Placeholder string
 	// Mode selects generic editor behavior.
-	Mode string
+	Mode EditorInsertMode
 	// Group is the preferred host toolbar group.
 	Group string
 	// AllowedGroups bounds administrator placement choices.

@@ -156,7 +156,7 @@ func DecidePageReview(pageUseCases pageApprovalService, logger *slog.Logger) htt
 		err := pageUseCases.DecideReview(r.Context(), apppages.PageReviewDecisionInput{
 			ID:       id,
 			Slug:     slug,
-			Decision: r.FormValue("decision"),
+			Decision: domain.PageReviewStatus(r.FormValue("decision")),
 			Note:     r.FormValue("note"),
 			Actor:    currentUser(r),
 		})

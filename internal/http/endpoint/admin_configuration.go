@@ -121,7 +121,7 @@ func SaveAdminAuthentication(
 			field := "auth_mode"
 			message := "The authentication configuration could not be verified."
 
-			if effective.Mode == string(domain.AuthModeOIDC) {
+			if effective.Mode == domain.AuthModeOIDC {
 				field = "oidc_issuer"
 				message = "OIDC provider discovery failed. Check the issuer and server connectivity."
 			}
@@ -154,7 +154,7 @@ func preserveRuntimeManagedAuthenticationSettings(
 
 	settings.Mode = current.Mode
 
-	switch domain.AuthMode(runtime.AuthModeOverride) {
+	switch runtime.AuthModeOverride {
 	case domain.AuthModeOIDC:
 		settings.OIDCIssuer = current.OIDCIssuer
 		settings.OIDCClientID = current.OIDCClientID
@@ -179,7 +179,7 @@ func effectiveAuthenticationSettings(settings domain.AuthenticationSettings, run
 
 	settings.Mode = runtime.AuthModeOverride
 
-	switch domain.AuthMode(runtime.AuthModeOverride) {
+	switch runtime.AuthModeOverride {
 	case domain.AuthModeOIDC:
 		settings.OIDCIssuer = runtime.OIDCIssuerOverride
 		settings.OIDCClientID = runtime.OIDCClientIDOverride
@@ -215,7 +215,7 @@ func authenticationSettingsFromForm(r *http.Request) (domain.AuthenticationSetti
 	}
 
 	return domain.AuthenticationSettings{
-		Mode:                      strings.TrimSpace(r.FormValue("auth_mode")),
+		Mode:                      domain.AuthMode(strings.TrimSpace(r.FormValue("auth_mode"))),
 		OIDCIssuer:                strings.TrimSpace(r.FormValue("oidc_issuer")),
 		OIDCClientID:              strings.TrimSpace(r.FormValue("oidc_client_id")),
 		OIDCGroupClaim:            strings.TrimSpace(r.FormValue("oidc_group_claim")),
@@ -293,9 +293,9 @@ func applicationSettingsFromForm(r *http.Request) domain.ApplicationSettings {
 		DiscussionsEnabled:    r.FormValue("discussions_enabled") == "on",
 		ContentLanguage:       strings.TrimSpace(r.FormValue("content_language")),
 		ExternalLinks:         externalLinksFromForm(r),
-		RobotsPolicy:          strings.TrimSpace(r.FormValue("robots_policy")),
+		RobotsPolicy:          domain.RobotsPolicy(strings.TrimSpace(r.FormValue("robots_policy"))),
 		Rendering: domain.RenderingSettings{
-			DefaultTypographySize: strings.TrimSpace(r.FormValue("default_typography_size")),
+			DefaultTypographySize: domain.TypographySize(strings.TrimSpace(r.FormValue("default_typography_size"))),
 		},
 	}
 }
@@ -317,7 +317,7 @@ func externalLinksFromForm(r *http.Request) []domain.ExternalLink {
 			URL:         formValueAt(urls, index),
 			Icon:        formValueAt(icons, index),
 			Description: formValueAt(descriptions, index),
-			HoverEffect: formValueAt(hoverEffects, index),
+			HoverEffect: domain.ExternalLinkHoverEffect(formValueAt(hoverEffects, index)),
 			HoverText:   formValueAt(hoverTexts, index),
 		}
 		if link == (domain.ExternalLink{}) {

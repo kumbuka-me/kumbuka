@@ -30,7 +30,7 @@ func (*oidcRepositoryStub) SyncOIDCGroups(context.Context, int64, []string, []do
 	return nil
 }
 
-func (*oidcRepositoryStub) SetExternalAdminStatus(context.Context, int64, string, bool) error {
+func (*oidcRepositoryStub) SetExternalAdminStatus(context.Context, int64, domain.AuthMode, bool) error {
 	return nil
 }
 
@@ -58,13 +58,13 @@ func TestOIDCAuthenticateExternalAdministrator(t *testing.T) {
 	user, err := authenticator.Authenticate(request)
 
 	require.NoError(t, err)
-	assert.Equal(t, "admin", user.Role)
+	assert.Equal(t, domain.UserRoleAdmin, user.Role)
 
 	authenticator.adminGroup = ""
 	user, err = authenticator.Authenticate(request)
 
 	require.NoError(t, err)
-	assert.Equal(t, "viewer", user.Role, "a removed administrator-group setting must stop stale elevation")
+	assert.Equal(t, domain.UserRoleViewer, user.Role, "a removed administrator-group setting must stop stale elevation")
 }
 
 func TestOIDCAuthenticateRejectsRevokedSession(t *testing.T) {

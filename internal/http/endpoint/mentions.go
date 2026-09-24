@@ -7,6 +7,7 @@ import (
 
 	"github.com/kumbuka-me/kumbuka/internal/http/auth"
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
+	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
 
 // mentionUser contains the account information exposed by the mention picker.
@@ -16,7 +17,7 @@ type mentionUser struct {
 	// DisplayName is the display name associated with mention user.
 	DisplayName string `json:"display_name"`
 	// Role is the role associated with mention user.
-	Role string `json:"role"`
+	Role domain.UserRole `json:"role"`
 	// Self reports whether self applies to mention user.
 	Self bool `json:"self"`
 }

@@ -15,7 +15,7 @@ func hiddenPluginWidgets(items []plugin.LoadedPlugin, current, presented, visibl
 
 	for _, item := range items {
 		for _, module := range item.Manifest.Modules {
-			if module.Type != "widget" {
+			if plugin.ModuleType(module.Type) != plugin.ModuleTypeWidget {
 				continue
 			}
 			key := plugin.WidgetKey(item.Manifest.ID, module.ID)

@@ -30,7 +30,7 @@ func widgetActions(pluginID, moduleID, surface, pageSlug, next string, actions [
 	result := make([]WidgetAction, 0, len(actions))
 	for _, action := range actions {
 		target := action.URL
-		if action.Kind == "command" {
+		if plugin.WidgetActionKind(action.Kind) == plugin.WidgetActionCommand {
 			target = "/plugins/actions/" + url.PathEscape(pluginID) + "/" + url.PathEscape(moduleID) + "/" + url.PathEscape(action.ID)
 		}
 		result = append(result, WidgetAction{
@@ -51,7 +51,7 @@ func PluginWidgetPreferences(items []plugin.LoadedPlugin, hidden []string) []Wid
 			continue
 		}
 		for _, module := range item.Manifest.Modules {
-			if module.Type != "widget" {
+			if plugin.ModuleType(module.Type) != plugin.ModuleTypeWidget {
 				continue
 			}
 

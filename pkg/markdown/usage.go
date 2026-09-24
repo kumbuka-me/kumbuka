@@ -267,7 +267,7 @@ func RequiredPluginIDs(sources []string, manifests []pluginpackage.Manifest) []s
 // manifestRequiredBySources reports whether any source requires a plugin declared by the manifest.
 func manifestRequiredBySources(scanners []usageScanner, manifest pluginpackage.Manifest) bool {
 	for _, module := range manifest.Modules {
-		if !staticRenderModule(module.Type) {
+		if !staticRenderModule(plugin.ModuleType(module.Type)) {
 			continue
 		}
 		if len(module.Usage) == 0 {
@@ -293,9 +293,9 @@ func manifestRequiredBySources(scanners []usageScanner, manifest pluginpackage.M
 }
 
 // staticRenderModule returns static render metadata for a declarative plugin module.
-func staticRenderModule(moduleType string) bool {
+func staticRenderModule(moduleType plugin.ModuleType) bool {
 	switch moduleType {
-	case "markdown-syntax", "code-highlighter", "content-style", "render-policy", "renderer-extension", "macro", "content-substitution", "icon-resource":
+	case plugin.ModuleTypeMarkdownSyntax, plugin.ModuleTypeCodeHighlighter, plugin.ModuleTypeContentStyle, plugin.ModuleTypeRenderPolicy, plugin.ModuleTypeRendererExtension, plugin.ModuleTypeMacro, plugin.ModuleTypeContentSubstitution, plugin.ModuleTypeIconResource:
 		return true
 	default:
 		return false

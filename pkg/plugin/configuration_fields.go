@@ -55,8 +55,8 @@ func normalizeConfigurationWhitespace(field pluginpackage.ConfigurationField, va
 
 // configurationWhitespaceIsInsignificant reports whether surrounding whitespace is not part of a field value.
 func configurationWhitespaceIsInsignificant(field pluginpackage.ConfigurationField) bool {
-	switch field.Type {
-	case "text", "url", "select", "boolean", "color":
+	switch ConfigurationFieldType(field.Type) {
+	case ConfigurationFieldText, ConfigurationFieldURL, ConfigurationFieldSelect, ConfigurationFieldBoolean, ConfigurationFieldColor:
 		return true
 	default:
 		return field.Key
@@ -86,7 +86,7 @@ func validateConfigurationText(field pluginpackage.ConfigurationField, value str
 	if !utf8.ValidString(value) || strings.ContainsRune(value, '\x00') {
 		return configurationFieldError(field, field.Name+" must contain valid UTF-8 text.")
 	}
-	if field.Type == "secret" && strings.IndexFunc(value, unicode.IsControl) >= 0 {
+	if ConfigurationFieldType(field.Type) == ConfigurationFieldSecret && strings.IndexFunc(value, unicode.IsControl) >= 0 {
 		return configurationFieldError(field, field.Name+" must not contain control characters.")
 	}
 
@@ -101,7 +101,7 @@ func configurationValueLimit(field pluginpackage.ConfigurationField) int {
 	if field.Key {
 		return maxResourceKeyBytes
 	}
-	if field.Type == "textarea" || field.Type == "list" {
+	if ConfigurationFieldType(field.Type) == ConfigurationFieldTextarea || ConfigurationFieldType(field.Type) == ConfigurationFieldList {
 		return 48 << 10
 	}
 
@@ -110,18 +110,18 @@ func configurationValueLimit(field pluginpackage.ConfigurationField) int {
 
 // validateConfigurationType validates type-specific syntax after shared text policy succeeds.
 func validateConfigurationType(field pluginpackage.ConfigurationField, value string) (string, error) {
-	switch field.Type {
-	case "text", "textarea", "secret":
+	switch ConfigurationFieldType(field.Type) {
+	case ConfigurationFieldText, ConfigurationFieldTextarea, ConfigurationFieldSecret:
 		return value, nil
-	case "color":
+	case ConfigurationFieldColor:
 		return validateColorConfiguration(field, value)
-	case "list":
+	case ConfigurationFieldList:
 		return validateListConfiguration(field, value)
-	case "boolean":
+	case ConfigurationFieldBoolean:
 		return validateBooleanConfiguration(field, value)
-	case "select":
+	case ConfigurationFieldSelect:
 		return validateSelectConfiguration(field, value)
-	case "url":
+	case ConfigurationFieldURL:
 		return validateURLConfiguration(field, value)
 	default:
 		return "", configurationFieldError(field, field.Name+" uses an unsupported field type.")
@@ -269,13 +269,13 @@ func requiredConfigurationValueMissing(field pluginpackage.ConfigurationField, v
 		return false
 	}
 
-	return field.Type != "secret" || previous[field.ID] == ""
+	return ConfigurationFieldType(field.Type) != ConfigurationFieldSecret || previous[field.ID] == ""
 }
 
 // encryptConfigurationSecrets replaces submitted plaintext secrets with encrypted persisted values.
 func (m *Manager) encryptConfigurationSecrets(module pluginpackage.Module, values, previous map[string]string) error {
 	for _, field := range module.Fields {
-		if field.Type != "secret" {
+		if ConfigurationFieldType(field.Type) != ConfigurationFieldSecret {
 			continue
 		}
 

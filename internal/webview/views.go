@@ -99,7 +99,7 @@ type RuntimeInfo struct {
 	// AllowUserRegistrationOverride is the deployment-managed registration value when configured.
 	AllowUserRegistrationOverride bool
 	// AuthModeOverride is the optional deployment-level recovery override.
-	AuthModeOverride string
+	AuthModeOverride domain.AuthMode
 	// OIDCIssuerOverride is the deployment-managed issuer used by the OIDC runtime override.
 	OIDCIssuerOverride string
 	// OIDCClientIDOverride is the deployment-managed client ID used by the OIDC runtime override.
@@ -195,7 +195,7 @@ func New(
 		"webhookcontext":     webhookContext,
 		"externalhover":      domain.ExternalLinkHoverTitle,
 		"externalhovereffect": func(link domain.ExternalLink) string {
-			return domain.EffectiveExternalLinkHoverEffect(link.HoverEffect)
+			return string(domain.EffectiveExternalLinkHoverEffect(link.HoverEffect))
 		},
 		"icon": catalog.SVG,
 		"logo": func() template.HTML {

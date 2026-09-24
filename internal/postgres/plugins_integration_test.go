@@ -24,7 +24,11 @@ func TestPluginStoragePersistsAndIsolatesNamespaces(t *testing.T) {
 	database, err = Open(ctx, dsn, logger)
 	require.NoError(t, err)
 	defer database.Close()
-	for _, test := range []struct{ id, namespace, want string }{{"io.one", "data", "one"}, {"io.two", "data", "two"}, {"io.one", "settings", "setting"}} {
+	for _, test := range []struct {
+		id        string
+		namespace plugin.StorageNamespace
+		want      string
+	}{{"io.one", "data", "one"}, {"io.two", "data", "two"}, {"io.one", "settings", "setting"}} {
 		value, found, err := database.ReadPluginValue(ctx, test.id, test.namespace, "key")
 		require.NoError(t, err)
 		require.True(t, found)

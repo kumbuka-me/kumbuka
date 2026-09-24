@@ -152,8 +152,8 @@ func sitemapForPages(publicURL string, pages []domain.Page) (sitemapDocument, er
 }
 
 // indexablePageStatus reports whether a lifecycle state belongs in the public sitemap.
-func indexablePageStatus(status string) bool {
-	return status == "verified" || status == "deprecated"
+func indexablePageStatus(status domain.PageStatus) bool {
+	return status == domain.PageStatusVerified || status == domain.PageStatusDeprecated
 }
 
 // validPublicResourceBaseURL reports whether parsed can serve as an absolute HTTP or HTTPS public base URL.

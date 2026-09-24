@@ -22,19 +22,19 @@ type resourceStorage struct {
 }
 
 // ReadPluginValue reads one stored test value.
-func (s *resourceStorage) ReadPluginValue(_ context.Context, id, namespace, key string) ([]byte, bool, error) {
+func (s *resourceStorage) ReadPluginValue(_ context.Context, id string, namespace StorageNamespace, key string) ([]byte, bool, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	value, ok := s.values[id+"/"+namespace+"/"+key]
+	value, ok := s.values[id+"/"+string(namespace)+"/"+key]
 	return bytes.Clone(value), ok, nil
 }
 
 // ListPluginValues lists matching stored test values.
-func (s *resourceStorage) ListPluginValues(_ context.Context, id, namespace, prefix string) (map[string][]byte, error) {
+func (s *resourceStorage) ListPluginValues(_ context.Context, id string, namespace StorageNamespace, prefix string) (map[string][]byte, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	result := make(map[string][]byte)
-	base := id + "/" + namespace + "/"
+	base := id + "/" + string(namespace) + "/"
 	for key, value := range s.values {
 		if strings.HasPrefix(key, base+prefix) {
 			result[strings.TrimPrefix(key, base)] = bytes.Clone(value)
@@ -44,20 +44,20 @@ func (s *resourceStorage) ListPluginValues(_ context.Context, id, namespace, pre
 }
 
 // WritePluginValue stores one test plugin value.
-func (s *resourceStorage) WritePluginValue(_ context.Context, id, namespace, key string, value []byte) error {
+func (s *resourceStorage) WritePluginValue(_ context.Context, id string, namespace StorageNamespace, key string, value []byte) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.values[id+"/"+namespace+"/"+key] = bytes.Clone(value)
+	s.values[id+"/"+string(namespace)+"/"+key] = bytes.Clone(value)
 	return nil
 }
 
 // ReplacePluginValue atomically moves one test plugin value while rejecting collisions.
-func (s *resourceStorage) ReplacePluginValue(_ context.Context, id, namespace, oldKey, newKey string, value []byte) error {
+func (s *resourceStorage) ReplacePluginValue(_ context.Context, id string, namespace StorageNamespace, oldKey, newKey string, value []byte) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	oldPath := id + "/" + namespace + "/" + oldKey
-	newPath := id + "/" + namespace + "/" + newKey
+	oldPath := id + "/" + string(namespace) + "/" + oldKey
+	newPath := id + "/" + string(namespace) + "/" + newKey
 	if _, ok := s.values[oldPath]; !ok {
 		return ErrPluginValueNotFound
 	}
@@ -70,10 +70,10 @@ func (s *resourceStorage) ReplacePluginValue(_ context.Context, id, namespace, o
 }
 
 // DeletePluginValue removes one test plugin value.
-func (s *resourceStorage) DeletePluginValue(_ context.Context, id, namespace, key string) error {
+func (s *resourceStorage) DeletePluginValue(_ context.Context, id string, namespace StorageNamespace, key string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	delete(s.values, id+"/"+namespace+"/"+key)
+	delete(s.values, id+"/"+string(namespace)+"/"+key)
 	return nil
 }
 
@@ -150,14 +150,14 @@ func TestPluginResourcesAndEditorContributions(t *testing.T) {
 	require.Len(t, providers[0].Fields, 2)
 	assert.Equal(t, "name", providers[0].Fields[0].ID)
 	assert.True(t, providers[0].Fields[0].Key)
-	assert.Equal(t, "textarea", providers[0].Fields[1].Type)
+	assert.Equal(t, ConfigurationFieldTextarea, providers[0].Fields[1].Type)
 
 	inserts := manager.EditorInserts()
 	require.Len(t, inserts, 2)
 	assert.Equal(t, "Variable", inserts[0].Name)
-	assert.Equal(t, "insert", inserts[0].Mode)
+	assert.Equal(t, EditorInsertModeInsert, inserts[0].Mode)
 	assert.Equal(t, "insert", inserts[0].Group)
-	assert.Equal(t, "wrap", inserts[1].Mode)
+	assert.Equal(t, EditorInsertModeWrap, inserts[1].Mode)
 	assert.Equal(t, "text", inserts[1].Group)
 	assert.Equal(t, "~~", inserts[1].Suffix)
 	assert.Equal(t, "strikethrough-lucide", inserts[1].Icon)

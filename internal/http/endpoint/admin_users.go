@@ -93,7 +93,7 @@ func UpdateAdminUser(
 			return
 		}
 
-		role := r.FormValue("role")
+		role := domain.UserRole(r.FormValue("role"))
 		enabled := r.FormValue("account_enabled") == "on"
 
 		groupIDs := make([]int64, 0, len(r.Form["group_id"]))

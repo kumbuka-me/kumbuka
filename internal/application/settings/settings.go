@@ -255,7 +255,7 @@ func normalizeExternalLinks(links []domain.ExternalLink, icons iconValidator) ([
 		link.URL = strings.TrimSpace(link.URL)
 		link.Icon = strings.TrimSpace(link.Icon)
 		link.Description = strings.TrimSpace(link.Description)
-		link.HoverEffect = strings.TrimSpace(link.HoverEffect)
+		link.HoverEffect = domain.ExternalLinkHoverEffect(strings.TrimSpace(string(link.HoverEffect)))
 		link.HoverText = strings.TrimSpace(link.HoverText)
 
 		if link == (domain.ExternalLink{}) {

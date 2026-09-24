@@ -180,7 +180,7 @@ func portableMetadata(pageData domain.Page) portable.PageMetadata {
 		Language:           pageData.Language,
 		Tags:               tags,
 		Groups:             groups,
-		Status:             pageData.Status,
+		Status:             string(pageData.Status),
 		OwnerGroup:         pageData.OwnerGroup,
 		ReviewIntervalDays: pageData.ReviewIntervalDays,
 		DeprecatedTarget:   pageData.DeprecatedTarget,

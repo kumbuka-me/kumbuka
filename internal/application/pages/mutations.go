@@ -38,7 +38,7 @@ type PageSaveInput struct {
 	// GroupIDs replaces the groups allowed to collaborate on the page.
 	GroupIDs []int64
 	// Status is the page lifecycle status.
-	Status string
+	Status domain.PageStatus
 	// OwnerGroupID identifies the group accountable for the page; zero means none.
 	OwnerGroupID int64
 	// ReviewIntervalDays controls when the page becomes due for documentation review.

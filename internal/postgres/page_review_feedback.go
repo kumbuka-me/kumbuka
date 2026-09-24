@@ -61,7 +61,7 @@ func (s *Store) AddPageReviewComment(
 	requestID int64,
 	slug string,
 	userID int64,
-	side string,
+	side domain.PageReviewCommentSide,
 	startLine, endLine int,
 	body string,
 	suggestion bool,
@@ -78,7 +78,7 @@ func (s *Store) AddPageReviewComment(
 		return domain.PageReviewComment{}, err
 	}
 
-	var status string
+	var status domain.PageReviewStatus
 	var requestedRevision int
 	if err := tx.QueryRow(ctx, `
 SELECT status,revision_number
@@ -111,7 +111,7 @@ FROM inserted i
 LEFT JOIN users u ON u.id=i.user_id`,
 		requestID,
 		userID,
-		side,
+		string(side),
 		startLine,
 		endLine,
 		body,
@@ -244,7 +244,7 @@ WHERE id=$1`, pageID).Scan(&currentMarkdown); err != nil {
 
 // validateReviewRevision locks the review request and requires the pending request and page to share the expected revision.
 func validateReviewRevision(ctx context.Context, tx pgx.Tx, requestID int64, currentRevision, expectedRevision int) error {
-	var status string
+	var status domain.PageReviewStatus
 	var requestedRevision int
 	if err := tx.QueryRow(ctx, `
 SELECT status,revision_number

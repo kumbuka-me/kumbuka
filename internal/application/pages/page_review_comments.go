@@ -47,7 +47,7 @@ type PageReviewCommentInput struct {
 	// Slug binds the feedback to the expected page.
 	Slug string
 	// Side selects the previous or reviewed side of the diff.
-	Side string
+	Side domain.PageReviewCommentSide
 	// StartLine is the first one-based source line covered by the feedback.
 	StartLine int
 	// EndLine is the last one-based source line covered by the feedback.
@@ -65,7 +65,7 @@ type PageReviewCommentInput struct {
 // pageReviewDiscussionRepository contains persistence for review comments and atomic suggestion application.
 type pageReviewDiscussionRepository interface {
 	PageReviewComments(context.Context, int64) ([]domain.PageReviewComment, error)
-	AddPageReviewComment(context.Context, int64, string, int64, string, int, int, string, bool, string, string) (domain.PageReviewComment, error)
+	AddPageReviewComment(context.Context, int64, string, int64, domain.PageReviewCommentSide, int, int, string, bool, string, string) (domain.PageReviewComment, error)
 	ApplyPageReviewSuggestions(context.Context, int64, string, int, int64, []int64, bool, string, string, []string, *pluginusage.Index, domain.PageRender) (domain.Page, error)
 }
 
@@ -378,7 +378,7 @@ func validateReviewCommentContent(input PageReviewCommentInput, validation *doma
 }
 
 // reviewRangeVisible reports whether every source line in a requested range is present in the displayed review diff.
-func reviewRangeVisible(record revision.Revision, side string, startLine, endLine int) bool {
+func reviewRangeVisible(record revision.Revision, side domain.PageReviewCommentSide, startLine, endLine int) bool {
 	visible := make(map[int]struct{})
 	for _, line := range revision.Analyze(record).Diff {
 		lineNumber := line.NewLine
@@ -503,7 +503,7 @@ func reviewURL(reviewID int64, slug string) string {
 }
 
 // validReviewCommentSide reports whether side identifies one side of a review diff.
-func validReviewCommentSide(side string) bool {
+func validReviewCommentSide(side domain.PageReviewCommentSide) bool {
 	return side == domain.PageReviewCommentSideOld || side == domain.PageReviewCommentSideNew
 }
 

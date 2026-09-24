@@ -3,6 +3,7 @@ package wasm
 import (
 	"context"
 
+	"github.com/kumbuka-me/kumbuka/pkg/plugin"
 	"github.com/kumbuka-me/sdk"
 )
 
@@ -21,7 +22,7 @@ func (m adminActionModule) Run(ctx context.Context) error {
 	_, err := m.instance.invoke(execution, sdk.RenderRequest{
 		APIVersion: sdk.Version,
 		Module:     m.module.ID,
-		Stage:      "admin-action",
+		Stage:      string(plugin.RenderStageAdminAction),
 	})
 	return err
 }

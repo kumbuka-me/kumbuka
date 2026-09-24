@@ -61,7 +61,7 @@ func (a *TrustedProxy) Authenticate(r *http.Request) (domain.User, error) {
 	if a.headers.AdminGroup != "" {
 		groups := splitHeaderValues(firstHeader(r, a.headers.Groups))
 		externalAdmin := containsGroup(groups, a.headers.AdminGroup)
-		if err := a.repository.SetExternalAdminStatus(r.Context(), user.ID, "trusted-proxy", externalAdmin); err != nil {
+		if err := a.repository.SetExternalAdminStatus(r.Context(), user.ID, domain.AuthModeTrustedProxy, externalAdmin); err != nil {
 			return domain.User{}, err
 		}
 

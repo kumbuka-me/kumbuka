@@ -20,12 +20,22 @@ var embeddedFiles embed.FS
 // DefaultTheme is the embedded fallback used before a user selects a preference.
 const DefaultTheme = "Light"
 
+// ColorScheme identifies the browser-native palette mode associated with a theme.
+type ColorScheme string
+
+const (
+	// ColorSchemeLight identifies a light browser palette.
+	ColorSchemeLight ColorScheme = "light"
+	// ColorSchemeDark identifies a dark browser palette.
+	ColorSchemeDark ColorScheme = "dark"
+)
+
 // Theme defines one file-backed theme available to the Kumbuka interface.
 type Theme struct {
 	// Title is derived from the theme filename without its extension.
 	Title string `json:"title"        toml:"-"`
 	// ColorScheme controls browser-native light or dark rendering.
-	ColorScheme string `json:"color_scheme" toml:"color_scheme"`
+	ColorScheme ColorScheme `json:"color_scheme" toml:"color_scheme"`
 	// Colors contains the semantic colors consumed by Kumbuka components.
 	Colors Colors `json:"colors"       toml:"colors"`
 }
@@ -170,7 +180,7 @@ func sortThemes(available []Theme) {
 
 // validate ensures a theme provides every required semantic color.
 func validate(theme Theme) error {
-	if theme.ColorScheme != "light" && theme.ColorScheme != "dark" {
+	if theme.ColorScheme != ColorSchemeLight && theme.ColorScheme != ColorSchemeDark {
 		return fmt.Errorf("color_scheme must be light or dark")
 	}
 

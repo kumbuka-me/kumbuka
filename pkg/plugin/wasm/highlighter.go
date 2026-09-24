@@ -26,7 +26,7 @@ func (m codeHighlighterModule) Highlight(ctx plugin.Context, language, source st
 	result, err := m.instance.invoke(execution, sdk.RenderRequest{
 		APIVersion: sdk.Version,
 		Module:     m.module.ID,
-		Stage:      "highlight",
+		Stage:      string(plugin.RenderStageHighlight),
 		Source:     source,
 		Language:   language,
 		Features:   ctx.Features,

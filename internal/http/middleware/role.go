@@ -7,10 +7,11 @@ import (
 
 	"github.com/kumbuka-me/kumbuka/internal/http/auth"
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
+	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
 
 // RequireRole authorizes an authenticated request against one of the allowed roles.
-func RequireRole(roles ...string) Middleware {
+func RequireRole(roles ...domain.UserRole) Middleware {
 	allowed := slices.Clone(roles)
 
 	return func(next http.Handler) http.Handler {

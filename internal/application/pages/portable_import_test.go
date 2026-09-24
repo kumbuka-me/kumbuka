@@ -161,7 +161,7 @@ func TestImportPortablePageRestoresArchiveMetadata(t *testing.T) {
 	assert.Equal(t, "# Guide\n", repository.Markdown)
 	assert.Equal(t, []string{"docs", "ops"}, repository.Tags)
 	assert.Equal(t, []int64{4, 9}, repository.GroupIDs)
-	assert.Equal(t, "verified", repository.Metadata.Status)
+	assert.Equal(t, domain.PageStatusVerified, repository.Metadata.Status)
 	assert.EqualValues(t, 9, repository.Metadata.OwnerGroupID)
 	assert.Equal(t, 180, repository.Metadata.ReviewIntervalDays)
 	assert.Equal(t, "guide-v2", repository.Metadata.DeprecatedTarget)
@@ -186,5 +186,5 @@ func TestImportPortablePageReplacesExistingMetadata(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "guide", repository.PreviousSlug)
 	assert.Equal(t, "Imported Guide", repository.Title)
-	assert.Equal(t, "draft", repository.Metadata.Status)
+	assert.Equal(t, domain.PageStatusDraft, repository.Metadata.Status)
 }

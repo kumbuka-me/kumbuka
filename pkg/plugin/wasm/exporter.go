@@ -25,7 +25,7 @@ func (m exporterModule) Export(ctx plugin.Context, request plugin.ExportRequest)
 	result, err := m.instance.invoke(execution, sdk.RenderRequest{
 		APIVersion: sdk.Version,
 		Module:     m.module.ID,
-		Stage:      "export",
+		Stage:      string(plugin.RenderStageExport),
 		Features:   ctx.Features,
 		Export:     &sdk.ExportContext{Page: request.Page, Source: request.Source},
 	})

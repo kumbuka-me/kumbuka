@@ -31,7 +31,7 @@ type accessRepositoryStub struct {
 	// group records the group observed by the test double.
 	group int64
 	// level records the level observed by the test double.
-	level string
+	level domain.PageAccessLevel
 }
 
 func (r *accessRepositoryStub) PageAccess(_ context.Context, path string, _ int64) (domain.PageAccess, error) {
@@ -42,7 +42,7 @@ func (r *accessRepositoryStub) PageAccess(_ context.Context, path string, _ int6
 func (*accessRepositoryStub) PageAccessRules(context.Context) ([]domain.PageAccessRule, error) {
 	return nil, nil
 }
-func (r *accessRepositoryStub) SavePageAccessRule(_ context.Context, path string, groupID int64, access string) error {
+func (r *accessRepositoryStub) SavePageAccessRule(_ context.Context, path string, groupID int64, access domain.PageAccessLevel) error {
 	r.path, r.group, r.level = path, groupID, access
 	return nil
 }
@@ -88,11 +88,11 @@ func TestPageAccess(t *testing.T) {
 	t.Run("rules normalize paths", func(t *testing.T) {
 		t.Parallel()
 		repository := &accessRepositoryStub{}
-		err := NewAccess(repository).SavePageAccessRule(context.Background(), "/Platform/Run Books/", 4, PageAccessEdit)
+		err := NewAccess(repository).SavePageAccessRule(context.Background(), "/Platform/Run Books/", 4, domain.PageAccessEdit)
 		require.NoError(t, err)
 		assert.Equal(t, "platform/run-books", repository.path)
 		assert.Equal(t, int64(4), repository.group)
-		assert.Equal(t, PageAccessEdit, repository.level)
+		assert.Equal(t, domain.PageAccessEdit, repository.level)
 	})
 }
 

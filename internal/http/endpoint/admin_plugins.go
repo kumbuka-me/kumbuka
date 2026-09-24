@@ -12,6 +12,7 @@ import (
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 	md "github.com/kumbuka-me/kumbuka/pkg/markdown"
+	"github.com/kumbuka-me/kumbuka/pkg/plugin"
 	"github.com/kumbuka-me/sdk/pluginpackage"
 )
 
@@ -126,7 +127,7 @@ func (a *AdminPlugins) populatePluginDetails(data *webview.AdminPluginsView, _ s
 // manifestHasPluginSettings reports whether a manifest exposes settings or administration resources.
 func manifestHasPluginSettings(manifest pluginpackage.Manifest) bool {
 	for _, module := range manifest.Modules {
-		if module.Type == "settings" || module.Type == "admin-resource" {
+		if plugin.ModuleType(module.Type) == plugin.ModuleTypeSettings || plugin.ModuleType(module.Type) == plugin.ModuleTypeAdminResource {
 			return true
 		}
 	}

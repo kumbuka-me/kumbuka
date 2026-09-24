@@ -104,7 +104,7 @@ func (b *browserAuthenticator) Authenticate(r *http.Request) (domain.User, error
 		}
 	}
 
-	if b.localLoginEnabled && domain.AuthMode(settings.Mode) != domain.AuthModeLocal {
+	if b.localLoginEnabled && settings.Mode != domain.AuthModeLocal {
 		user, err := b.local.Authenticate(r)
 		if err == nil {
 			return user, nil
@@ -139,7 +139,7 @@ func (b *browserAuthenticator) login(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/setup", http.StatusFound)
 		return
 	}
-	switch domain.AuthMode(settings.Mode) {
+	switch settings.Mode {
 	case domain.AuthModeLocal:
 		next := r.URL.Query().Get("next")
 		target := "/auth/local"
@@ -175,7 +175,7 @@ func (b *browserAuthenticator) callback(w http.ResponseWriter, r *http.Request) 
 		httpresponse.Problem(w, http.StatusInternalServerError, "The request could not be processed.")
 		return
 	}
-	if domain.AuthMode(settings.Mode) != domain.AuthModeOIDC {
+	if settings.Mode != domain.AuthModeOIDC {
 		httpresponse.Problem(w, http.StatusBadRequest, "OIDC authentication is not enabled.")
 		return
 	}
@@ -203,7 +203,7 @@ func (b *browserAuthenticator) validate(ctx context.Context, settings domain.Aut
 		return err
 	}
 
-	if domain.AuthMode(settings.Mode) == domain.AuthModeLocal {
+	if settings.Mode == domain.AuthModeLocal {
 		configured, err := b.repository.HasLocalAdministratorCredential(ctx)
 		if err != nil {
 			return err
@@ -216,7 +216,7 @@ func (b *browserAuthenticator) validate(ctx context.Context, settings domain.Aut
 		}
 	}
 
-	if domain.AuthMode(settings.Mode) == domain.AuthModeOIDC {
+	if settings.Mode == domain.AuthModeOIDC {
 		_, err := b.oidcFor(ctx, settings)
 		return err
 	}
@@ -234,7 +234,7 @@ func (b *browserAuthenticator) currentSettings(ctx context.Context) (domain.Auth
 	// None and local overrides need no provider-specific database settings.
 	switch b.modeOverride {
 	case domain.AuthModeNone, domain.AuthModeLocal:
-		return domain.AuthenticationSettings{Mode: string(b.modeOverride)}, nil
+		return domain.AuthenticationSettings{Mode: b.modeOverride}, nil
 	}
 
 	settings, err := b.repository.ApplicationSettings(ctx)
@@ -247,14 +247,14 @@ func (b *browserAuthenticator) currentSettings(ctx context.Context) (domain.Auth
 	switch b.modeOverride {
 	case "":
 	case domain.AuthModeTrustedProxy:
-		authentication.Mode = string(domain.AuthModeTrustedProxy)
+		authentication.Mode = domain.AuthModeTrustedProxy
 		authentication.TrustedUsernameHeaders = b.trustedProxy.Username
 		authentication.TrustedEmailHeaders = b.trustedProxy.Email
 		authentication.TrustedDisplayNameHeaders = b.trustedProxy.DisplayName
 		authentication.TrustedGroupHeaders = b.trustedProxy.Groups
 		authentication.TrustedAdminGroup = b.trustedProxy.AdminGroup
 	case domain.AuthModeOIDC:
-		authentication.Mode = string(domain.AuthModeOIDC)
+		authentication.Mode = domain.AuthModeOIDC
 		authentication.OIDCIssuer = b.oidcConfig.Issuer
 		authentication.OIDCClientID = b.oidcConfig.ClientID
 		authentication.OIDCGroupClaim = b.oidcConfig.GroupClaim
@@ -282,7 +282,7 @@ func (b *browserAuthenticator) authenticatorForSettings(
 		return nil, err
 	}
 
-	switch domain.AuthMode(settings.Mode) {
+	switch settings.Mode {
 	case domain.AuthModeNone:
 		return b.none, nil
 	case domain.AuthModeLocal:
@@ -306,7 +306,7 @@ func (b *browserAuthenticator) authenticatorForSettings(
 func (b *browserAuthenticator) validateSettings(settings domain.AuthenticationSettings) error {
 	validation := &domain.ValidationError{}
 
-	switch domain.AuthMode(settings.Mode) {
+	switch settings.Mode {
 	case domain.AuthModeNone, domain.AuthModeLocal:
 		return nil
 	case domain.AuthModeTrustedProxy:
@@ -326,7 +326,7 @@ func (b *browserAuthenticator) validateSettings(settings domain.AuthenticationSe
 
 // oidcGroupMappingsEnabled reports whether persisted authentication settings require OIDC group mappings.
 func oidcGroupMappingsEnabled(settings domain.AuthenticationSettings) bool {
-	return domain.AuthMode(settings.Mode) == domain.AuthModeOIDC && settings.OIDCGroupSync
+	return settings.Mode == domain.AuthModeOIDC && settings.OIDCGroupSync
 }
 
 // trustedAdminGroupMissingHeaders reports whether administrator elevation is configured without any trusted group source.
@@ -439,7 +439,7 @@ func (b *browserAuthenticator) localLoginAllowed(ctx context.Context) (bool, err
 		return false, err
 	}
 
-	return domain.AuthMode(settings.Mode) == domain.AuthModeLocal || b.localLoginEnabled, nil
+	return settings.Mode == domain.AuthModeLocal || b.localLoginEnabled, nil
 }
 
 // oidcFor returns a cached OIDC integration for the supplied public settings.

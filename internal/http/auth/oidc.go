@@ -314,7 +314,7 @@ func (o *OIDC) syncAuthorization(ctx context.Context, userID int64, groups []str
 		return nil
 	}
 
-	return o.repository.SetExternalAdminStatus(ctx, userID, "oidc", containsGroup(groups, o.adminGroup))
+	return o.repository.SetExternalAdminStatus(ctx, userID, domain.AuthModeOIDC, containsGroup(groups, o.adminGroup))
 }
 
 // writeOIDCLoginProblem maps identity-registration failures to stable browser responses.

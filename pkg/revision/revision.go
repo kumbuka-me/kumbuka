@@ -34,10 +34,28 @@ type Revision struct {
 	Diff []DiffLine `json:"diff,omitempty"`
 }
 
+// DiffLineKind identifies the semantic role of one unified-diff display row.
+type DiffLineKind string
+
+const (
+	// DiffLineContext is an unchanged source line shown for context.
+	DiffLineContext DiffLineKind = "context"
+	// DiffLineHeader is a unified-diff file header.
+	DiffLineHeader DiffLineKind = "header"
+	// DiffLineHunk is a unified-diff hunk header.
+	DiffLineHunk DiffLineKind = "hunk"
+	// DiffLineAdded is a line introduced by the revision.
+	DiffLineAdded DiffLineKind = "added"
+	// DiffLineRemoved is a line removed by the revision.
+	DiffLineRemoved DiffLineKind = "removed"
+	// DiffLineNote is auxiliary diff metadata such as a missing-newline marker.
+	DiffLineNote DiffLineKind = "note"
+)
+
 // DiffLine is one display line from a unified revision patch.
 type DiffLine struct {
 	// Kind identifies headers, hunks, context, additions, and removals for styling.
-	Kind string `json:"kind"`
+	Kind DiffLineKind `json:"kind"`
 	// Marker is the Git-style prefix shown before content lines.
 	Marker string `json:"marker,omitempty"`
 	// Text is the escaped line content rendered by the template.
@@ -90,20 +108,20 @@ func diff(previous, current string, number int) []DiffLine {
 	oldLine, newLine := 0, 0
 
 	for _, line := range lines {
-		item := DiffLine{Kind: "context", Text: line}
+		item := DiffLine{Kind: DiffLineContext, Text: line}
 
 		switch {
 		case strings.HasPrefix(line, "--- "), strings.HasPrefix(line, "+++ "):
-			item.Kind = "header"
+			item.Kind = DiffLineHeader
 		case strings.HasPrefix(line, "@@"):
-			item.Kind = "hunk"
+			item.Kind = DiffLineHunk
 			oldLine, newLine = hunkStarts(line)
 		case strings.HasPrefix(line, "+"):
-			item.Kind, item.Marker, item.Text = "added", "+", strings.TrimPrefix(line, "+")
+			item.Kind, item.Marker, item.Text = DiffLineAdded, "+", strings.TrimPrefix(line, "+")
 			item.NewLine = newLine
 			newLine++
 		case strings.HasPrefix(line, "-"):
-			item.Kind, item.Marker, item.Text = "removed", "-", strings.TrimPrefix(line, "-")
+			item.Kind, item.Marker, item.Text = DiffLineRemoved, "-", strings.TrimPrefix(line, "-")
 			item.OldLine = oldLine
 			oldLine++
 		case strings.HasPrefix(line, " "):
@@ -112,7 +130,7 @@ func diff(previous, current string, number int) []DiffLine {
 			oldLine++
 			newLine++
 		case strings.HasPrefix(line, "\\"):
-			item.Kind = "note"
+			item.Kind = DiffLineNote
 		}
 
 		result = append(result, item)

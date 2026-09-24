@@ -9,18 +9,11 @@ import (
 	md "github.com/kumbuka-me/kumbuka/pkg/markdown"
 )
 
-const (
-	// PageAccessView grants read access to a protected page path.
-	PageAccessView = "view"
-	// PageAccessEdit grants read and edit access to a protected page path.
-	PageAccessEdit = "edit"
-)
-
 type accessRepository interface {
 	PageAccess(context.Context, string, int64) (domain.PageAccess, error)
 	PageAccessBatch(context.Context, []string, int64) (map[string]domain.PageAccess, error)
 	PageAccessRules(context.Context) ([]domain.PageAccessRule, error)
-	SavePageAccessRule(context.Context, string, int64, string) error
+	SavePageAccessRule(context.Context, string, int64, domain.PageAccessLevel) error
 	DeletePageAccessRule(context.Context, int64) error
 }
 
@@ -93,7 +86,7 @@ func (s *Access) PageAccessRules(ctx context.Context) ([]domain.PageAccessRule, 
 }
 
 // SavePageAccessRule validates and persists one inherited path rule.
-func (s *Access) SavePageAccessRule(ctx context.Context, path string, groupID int64, access string) error {
+func (s *Access) SavePageAccessRule(ctx context.Context, path string, groupID int64, access domain.PageAccessLevel) error {
 	path = normalizeAccessPath(path)
 	if path == "" {
 		return domain.NewValidationError("path", "A page path is required.")
@@ -101,7 +94,7 @@ func (s *Access) SavePageAccessRule(ctx context.Context, path string, groupID in
 	if groupID <= 0 {
 		return domain.NewValidationError("group_id", "Choose a group.")
 	}
-	if access != PageAccessView && access != PageAccessEdit {
+	if access != domain.PageAccessView && access != domain.PageAccessEdit {
 		return domain.NewValidationError("access", "Choose view or edit access.")
 	}
 	return s.repository.SavePageAccessRule(ctx, path, groupID, access)

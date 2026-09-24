@@ -85,7 +85,7 @@ func (r *reviewDiscussionRepositoryStub) AddPageReviewComment(
 	requestID int64,
 	_ string,
 	authorID int64,
-	side string,
+	side domain.PageReviewCommentSide,
 	startLine, endLine int,
 	body string,
 	suggestion bool,

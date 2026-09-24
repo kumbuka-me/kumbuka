@@ -42,7 +42,7 @@ func TestBlankPageTemplate(t *testing.T) {
 
 	blueprint := blankPageTemplate()
 
-	assert.Equal(t, "verified", blueprint.Status)
+	assert.Equal(t, domain.PageStatusVerified, blueprint.Status)
 	assert.NotNil(t, blueprint.Properties)
 	assert.Empty(t, blueprint.Properties)
 }

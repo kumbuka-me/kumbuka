@@ -15,7 +15,7 @@ type trustedProxyRepositoryStub struct {
 	// user records the user observed by the test double.
 	user domain.User
 	// method configures or records the method value used by the fixture.
-	method string
+	method domain.AuthMode
 	// admin controls or records whether admin is active in the test.
 	admin bool
 }
@@ -24,7 +24,7 @@ func (r *trustedProxyRepositoryStub) TrustedProxyUser(context.Context, string, s
 	return r.user, nil
 }
 
-func (r *trustedProxyRepositoryStub) SetExternalAdminStatus(_ context.Context, _ int64, method string, admin bool) error {
+func (r *trustedProxyRepositoryStub) SetExternalAdminStatus(_ context.Context, _ int64, method domain.AuthMode, admin bool) error {
 	r.method = method
 	r.admin = admin
 
@@ -48,9 +48,9 @@ func TestTrustedProxyExternalAdministrator(t *testing.T) {
 	user, err := authenticator.Authenticate(request)
 
 	require.NoError(t, err)
-	assert.Equal(t, "admin", user.Role)
+	assert.Equal(t, domain.UserRoleAdmin, user.Role)
 	assert.True(t, user.ExternalAdmin)
-	assert.Equal(t, "trusted-proxy", repository.method)
+	assert.Equal(t, domain.AuthModeTrustedProxy, repository.method)
 	assert.True(t, repository.admin)
 }
 
@@ -118,5 +118,5 @@ func TestTrustedProxyClearsReturnedExternalAdminStatus(t *testing.T) {
 	require.NoError(t, err)
 	assert.False(t, user.ExternalAdmin)
 	assert.False(t, repository.admin)
-	assert.Equal(t, "viewer", user.Role)
+	assert.Equal(t, domain.UserRoleViewer, user.Role)
 }

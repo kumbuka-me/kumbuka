@@ -200,7 +200,7 @@ func (r *Runtime) getResourceRecord(ctx context.Context, caller *Instance, data 
 		return sdk.PluginResourceRecord{}, errors.New("invalid plugin resource request")
 	}
 	resource := manifestModule(caller.manifest, query.Resource)
-	if resource.Type != "admin-resource" {
+	if plugin.ModuleType(resource.Type) != plugin.ModuleTypeAdminResource {
 		return sdk.PluginResourceRecord{}, errors.New("plugin resource is not declared")
 	}
 	record, found, err := plugin.ReadResourceRecord(ctx, r.storage, caller.manifest.ID, resource, query.Key)
@@ -224,7 +224,7 @@ func (r *Runtime) listResourceRecords(ctx context.Context, caller *Instance, dat
 		return nil, errors.New("invalid plugin resource request")
 	}
 	resource := manifestModule(caller.manifest, query.Resource)
-	if resource.Type != "admin-resource" {
+	if plugin.ModuleType(resource.Type) != plugin.ModuleTypeAdminResource {
 		return nil, errors.New("plugin resource is not declared")
 	}
 	records, err := plugin.ReadResourceRecords(ctx, r.storage, caller.manifest.ID, resource)
@@ -270,9 +270,9 @@ func (r *Runtime) storageCall(ctx context.Context, caller *Instance, request sdk
 		return nil, errors.New("manifest-declared settings are administrator managed")
 	}
 
-	namespace := "data"
+	namespace := plugin.StorageNamespaceData
 	if settingsCall {
-		namespace = "settings"
+		namespace = plugin.StorageNamespaceSettings
 	}
 	if strings.HasSuffix(request.Method, ".read") {
 		data, found, err := r.storage.ReadPluginValue(ctx, id, namespace, value.Key)

@@ -27,7 +27,7 @@ type PortableImportedPage struct {
 	// GroupIDs contains target-instance collaboration group identifiers.
 	GroupIDs []int64
 	// Status is the page lifecycle state.
-	Status string
+	Status domain.PageStatus
 	// OwnerGroupID identifies the target-instance owner group.
 	OwnerGroupID int64
 	// ReviewIntervalDays configures the page's documentation review cadence.

@@ -46,7 +46,7 @@ type pageRequest struct {
 	// Message describes the revision being created.
 	Message string `json:"message"`
 	// Status is the page lifecycle state.
-	Status string `json:"status"`
+	Status domain.PageStatus `json:"status"`
 	// OwnerGroupID optionally assigns documentation ownership to a group.
 	OwnerGroupID int64 `json:"owner_group_id"`
 	// ReviewIntervalDays configures documentation review cadence.

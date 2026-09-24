@@ -52,18 +52,18 @@ func (i *Instance) Contributions() plugin.Contributions {
 
 // appendAdministrationContribution appends manifest-only administration and editor contributions.
 func (i *Instance) appendAdministrationContribution(result *plugin.Contributions, module pluginpackage.Module) bool {
-	switch module.Type {
-	case "icon-resource":
+	switch plugin.ModuleType(module.Type) {
+	case plugin.ModuleTypeIconResource:
 		return true
-	case "admin-action":
+	case plugin.ModuleTypeAdminAction:
 		result.AdminActions = append(result.AdminActions, i.adminActionContribution(module))
-	case "admin-resource":
+	case plugin.ModuleTypeAdminResource:
 		result.AdminResources = append(result.AdminResources, plugin.AdminResource{
 			ID:          module.ID,
 			Name:        module.Name,
 			Description: module.Description,
 		})
-	case "editor-completion":
+	case plugin.ModuleTypeEditorCompletion:
 		result.EditorCompletions = append(result.EditorCompletions, plugin.EditorCompletion{
 			ID:          module.ID,
 			Resource:    module.Resource,
@@ -72,9 +72,9 @@ func (i *Instance) appendAdministrationContribution(result *plugin.Contributions
 			LabelField:  module.LabelField,
 			DetailField: module.DetailField,
 		})
-	case "editor-insert":
+	case plugin.ModuleTypeEditorInsert:
 		result.EditorInserts = append(result.EditorInserts, editorInsertContribution(module))
-	case "editor-menu":
+	case plugin.ModuleTypeEditorMenu:
 		result.EditorMenus = append(result.EditorMenus, plugin.EditorMenu{
 			ID:            module.ID,
 			Name:          module.Name,
@@ -85,7 +85,7 @@ func (i *Instance) appendAdministrationContribution(result *plugin.Contributions
 			Order:         module.Order,
 			Children:      module.Children,
 		})
-	case "settings":
+	case plugin.ModuleTypeSettings:
 		if len(module.Fields) == 0 {
 			result.SettingsModules = append(result.SettingsModules, plugin.SettingsModule{
 				ID:       module.ID,
@@ -102,25 +102,25 @@ func (i *Instance) appendAdministrationContribution(result *plugin.Contributions
 
 // appendPresentationContribution appends passive Markdown and browser presentation contributions.
 func (i *Instance) appendPresentationContribution(result *plugin.Contributions, module pluginpackage.Module) bool {
-	switch module.Type {
-	case "markdown-syntax":
+	switch plugin.ModuleType(module.Type) {
+	case plugin.ModuleTypeMarkdownSyntax:
 		result.MarkdownExtensions = append(result.MarkdownExtensions, syntaxModule{
 			owner:  i.manifest.ID,
 			id:     module.ID,
 			syntax: module.Syntax,
 			usage:  sourceUsageRules(module.Usage),
 		})
-	case "content-style":
+	case plugin.ModuleTypeContentStyle:
 		result.ContentStyles = append(result.ContentStyles, plugin.ContentStyle{
 			ID:  module.ID,
 			CSS: module.CSS,
 		})
-	case "render-policy":
+	case plugin.ModuleTypeRenderPolicy:
 		result.RenderPolicies = append(result.RenderPolicies, plugin.RenderPolicy{
 			ID:     module.ID,
 			Policy: module.Policy,
 		})
-	case "browser-module":
+	case plugin.ModuleTypeBrowserModule:
 		result.BrowserModules = append(result.BrowserModules, plugin.BrowserModule{
 			ID:         module.ID,
 			JavaScript: module.JavaScript,
@@ -135,8 +135,8 @@ func (i *Instance) appendPresentationContribution(result *plugin.Contributions, 
 
 // appendExecutableContribution appends contributions backed by runtime code or resource substitution.
 func (i *Instance) appendExecutableContribution(result *plugin.Contributions, module pluginpackage.Module) {
-	switch module.Type {
-	case "content-substitution":
+	switch plugin.ModuleType(module.Type) {
+	case plugin.ModuleTypeContentSubstitution:
 		resource := manifestModule(i.manifest, module.Resource)
 		result.ContentPreprocessors = append(result.ContentPreprocessors, resourceSubstitutionModule{
 			owner:    i.manifest.ID,
@@ -144,14 +144,14 @@ func (i *Instance) appendExecutableContribution(result *plugin.Contributions, mo
 			resource: resource,
 			storage:  i.runtime.storage,
 		})
-	case "code-highlighter":
+	case plugin.ModuleTypeCodeHighlighter:
 		adapter := codeHighlighterModule{rendererModule{instance: i, module: module}}
 		result.CodeHighlighters = append(result.CodeHighlighters, plugin.CodeHighlighterModule{
 			ID:          module.ID,
 			CSS:         module.CSS,
 			Highlighter: adapter,
 		})
-	case "widget":
+	case plugin.ModuleTypeWidget:
 		result.Widgets = append(result.Widgets, plugin.WidgetModule{
 			ID:      module.ID,
 			Surface: module.Surface,
@@ -159,9 +159,9 @@ func (i *Instance) appendExecutableContribution(result *plugin.Contributions, mo
 			Order:   module.Order,
 			Widget:  widgetModule{rendererModule{instance: i, module: module}},
 		})
-	case "exporter":
+	case plugin.ModuleTypeExporter:
 		result.Exporters = append(result.Exporters, i.exporterContribution(module))
-	case "macro":
+	case plugin.ModuleTypeMacro:
 		result.Macros = append(result.Macros, macroModule{rendererModule{instance: i, module: module}})
 	default:
 		i.appendRendererContribution(result, module)
@@ -185,7 +185,7 @@ func editorInsertContribution(module pluginpackage.Module) plugin.EditorInsert {
 		Markdown:      module.Markdown,
 		Suffix:        module.Suffix,
 		Placeholder:   module.Placeholder,
-		Mode:          module.Mode,
+		Mode:          plugin.EditorInsertMode(module.Mode),
 		Group:         module.Group,
 		AllowedGroups: module.AllowedGroups,
 		Order:         module.Order,
@@ -205,12 +205,12 @@ func (i *Instance) exporterContribution(module pluginpackage.Module) plugin.Expo
 // appendRendererContribution appends a stage-based renderer module to the matching contribution list.
 func (i *Instance) appendRendererContribution(result *plugin.Contributions, module pluginpackage.Module) {
 	adapter := rendererModule{instance: i, module: module}
-	switch module.Stage {
-	case "content-preprocess":
+	switch plugin.RenderStage(module.Stage) {
+	case plugin.RenderStageContentPreprocess:
 		result.ContentPreprocessors = append(result.ContentPreprocessors, contentPreprocessorModule{rendererModule: adapter, priority: module.Priority})
-	case "preprocess":
+	case plugin.RenderStagePreprocess:
 		result.Preprocessors = append(result.Preprocessors, adapter)
-	case "postprocess":
+	case plugin.RenderStagePostprocess:
 		result.Postprocessors = append(result.Postprocessors, adapter)
 	}
 }
@@ -367,7 +367,7 @@ func (i *Instance) call(
 	if err != nil {
 		return sdk.RenderResult{}, err
 	}
-	if err := i.validateRenderResult(result, request.Stage, metrics, profiled); err != nil {
+	if err := i.validateRenderResult(result, plugin.RenderStage(request.Stage), metrics, profiled); err != nil {
 		return result, err
 	}
 
@@ -491,7 +491,7 @@ func decodeRenderResult(
 // validateRenderResult enforces the response contract for one plugin invocation stage.
 func (i *Instance) validateRenderResult(
 	result sdk.RenderResult,
-	stage string,
+	stage plugin.RenderStage,
 	metrics *renderprofile.WASMCall,
 	profiled bool,
 ) error {
@@ -505,24 +505,24 @@ func (i *Instance) validateRenderResult(
 	if err := validateStageSpecificRenderResult(result, stage); err != nil {
 		return err
 	}
-	if stage == "admin-action" || stage == "widget-command" || stage == "export" {
+	if stage == plugin.RenderStageAdminAction || stage == plugin.RenderStageWidgetCommand || stage == plugin.RenderStageExport {
 		return nil
 	}
 	return i.validateGeneralRenderResult(result, stage)
 }
 
 // validateStageSpecificRenderResult validates response shapes reserved for special invocation stages.
-func validateStageSpecificRenderResult(result sdk.RenderResult, stage string) error {
+func validateStageSpecificRenderResult(result sdk.RenderResult, stage plugin.RenderStage) error {
 	switch stage {
-	case "admin-action":
+	case plugin.RenderStageAdminAction:
 		if !validAdminActionResult(result) {
 			return errors.New("invalid plugin admin action response")
 		}
-	case "widget-command":
+	case plugin.RenderStageWidgetCommand:
 		if !validWidgetCommandResult(result) {
 			return errors.New("invalid plugin widget command response")
 		}
-	case "export":
+	case plugin.RenderStageExport:
 		if !validExportResult(result) {
 			return errors.New("invalid plugin export response")
 		}
@@ -538,7 +538,7 @@ func validateStageSpecificRenderResult(result sdk.RenderResult, stage string) er
 }
 
 // validateGeneralRenderResult validates bounded render fragments and widget actions.
-func (i *Instance) validateGeneralRenderResult(result sdk.RenderResult, stage string) error {
+func (i *Instance) validateGeneralRenderResult(result sdk.RenderResult, stage plugin.RenderStage) error {
 	if len(result.Parts) > i.runtime.limits.Parts {
 		return errors.New("plugin returned too many fragments")
 	}
@@ -592,13 +592,13 @@ func timingStarted(enabled bool) time.Time {
 }
 
 // validRenderPart reports whether one guest fragment is valid for the requested render stage.
-func validRenderPart(part sdk.RenderPart, stage string) bool {
-	return part.Markdown == nil || (part.Text == "" && stage == "preprocess")
+func validRenderPart(part sdk.RenderPart, stage plugin.RenderStage) bool {
+	return part.Markdown == nil || (part.Text == "" && stage == plugin.RenderStagePreprocess)
 }
 
 // validWidgetAction validates bounded host-rendered widget action metadata.
-func validWidgetAction(action sdk.WidgetAction, stage string) bool {
-	if stage != "widget" {
+func validWidgetAction(action sdk.WidgetAction, stage plugin.RenderStage) bool {
+	if stage != plugin.RenderStageWidget {
 		return false
 	}
 	if !validWidgetActionIdentity(action) {
@@ -607,10 +607,10 @@ func validWidgetAction(action sdk.WidgetAction, stage string) bool {
 	if action.Icon != "" && !validWidgetIdentifier(action.Icon) {
 		return false
 	}
-	switch action.Kind {
-	case "link", "dialog":
+	switch plugin.WidgetActionKind(action.Kind) {
+	case plugin.WidgetActionLink, plugin.WidgetActionDialog:
 		return action.Confirm == "" && validWidgetActionURL(action.URL)
-	case "command":
+	case plugin.WidgetActionCommand:
 		return action.URL == "" && len(action.Confirm) <= 512
 	default:
 		return false
@@ -675,7 +675,7 @@ type rendererModule struct {
 // SourceUsage exposes declarative source selectors without invoking guest code.
 func (m rendererModule) SourceUsage() plugin.SourceUsage {
 	rules := sourceUsageRules(m.module.Usage)
-	if m.module.Type == "macro" && m.module.Name != "" {
+	if plugin.ModuleType(m.module.Type) == plugin.ModuleTypeMacro && m.module.Name != "" {
 		rules = append([]plugin.SourceUsageRule{{Macro: m.module.Name}}, rules...)
 	}
 	return plugin.SourceUsage{ModuleID: m.module.ID, Rules: rules}

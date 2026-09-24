@@ -9,9 +9,9 @@ import (
 )
 
 // ReadPluginValue reads plugin value.
-func (s *Store) ReadPluginValue(ctx context.Context, id, namespace, key string) ([]byte, bool, error) {
+func (s *Store) ReadPluginValue(ctx context.Context, id string, namespace plugin.StorageNamespace, key string) ([]byte, bool, error) {
 	var value []byte
-	err := s.pool.QueryRow(ctx, `SELECT value FROM plugin_values WHERE plugin_id=$1 AND namespace=$2 AND key=$3`, id, namespace, key).Scan(&value)
+	err := s.pool.QueryRow(ctx, `SELECT value FROM plugin_values WHERE plugin_id=$1 AND namespace=$2 AND key=$3`, id, string(namespace), key).Scan(&value)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, false, nil
 	}
@@ -19,8 +19,8 @@ func (s *Store) ReadPluginValue(ctx context.Context, id, namespace, key string) 
 }
 
 // ListPluginValues lists plugin values whose keys share prefix in deterministic key order.
-func (s *Store) ListPluginValues(ctx context.Context, id, namespace, prefix string) (map[string][]byte, error) {
-	rows, err := s.pool.Query(ctx, `SELECT key,value FROM plugin_values WHERE plugin_id=$1 AND namespace=$2 AND left(key,length($3))=$3 ORDER BY key`, id, namespace, prefix)
+func (s *Store) ListPluginValues(ctx context.Context, id string, namespace plugin.StorageNamespace, prefix string) (map[string][]byte, error) {
+	rows, err := s.pool.Query(ctx, `SELECT key,value FROM plugin_values WHERE plugin_id=$1 AND namespace=$2 AND left(key,length($3))=$3 ORDER BY key`, id, string(namespace), prefix)
 	if err != nil {
 		return nil, err
 	}
@@ -39,7 +39,7 @@ func (s *Store) ListPluginValues(ctx context.Context, id, namespace, prefix stri
 }
 
 // WritePluginValue serializes plugin-scoped writes and enforces a total quota across plugin settings and data: 1,024 keys and 16 MiB. Updating a key at the quota remains possible. The transaction prevents concurrent quota oversubscription.
-func (s *Store) WritePluginValue(ctx context.Context, id, namespace, key string, value []byte) error {
+func (s *Store) WritePluginValue(ctx context.Context, id string, namespace plugin.StorageNamespace, key string, value []byte) error {
 	if value == nil {
 		value = []byte{}
 	}
@@ -52,14 +52,14 @@ func (s *Store) WritePluginValue(ctx context.Context, id, namespace, key string,
 		return err
 	}
 	var count, size int64
-	err = tx.QueryRow(ctx, `SELECT count(*), COALESCE(sum(octet_length(value)),0) FROM plugin_values WHERE plugin_id=$1 AND NOT (namespace=$2 AND key=$3)`, id, namespace, key).Scan(&count, &size)
+	err = tx.QueryRow(ctx, `SELECT count(*), COALESCE(sum(octet_length(value)),0) FROM plugin_values WHERE plugin_id=$1 AND NOT (namespace=$2 AND key=$3)`, id, string(namespace), key).Scan(&count, &size)
 	if err != nil {
 		return err
 	}
 	if count >= 1024 || size+int64(len(value)) > 16<<20 {
 		return errors.New("plugin storage quota exceeded")
 	}
-	_, err = tx.Exec(ctx, `INSERT INTO plugin_values(plugin_id,namespace,key,value) VALUES($1,$2,$3,$4) ON CONFLICT(plugin_id,namespace,key) DO UPDATE SET value=EXCLUDED.value`, id, namespace, key, value)
+	_, err = tx.Exec(ctx, `INSERT INTO plugin_values(plugin_id,namespace,key,value) VALUES($1,$2,$3,$4) ON CONFLICT(plugin_id,namespace,key) DO UPDATE SET value=EXCLUDED.value`, id, string(namespace), key, value)
 	if err != nil {
 		return err
 	}
@@ -67,7 +67,7 @@ func (s *Store) WritePluginValue(ctx context.Context, id, namespace, key string,
 }
 
 // ReplacePluginValue atomically moves one plugin value to a new key while preserving quota guarantees.
-func (s *Store) ReplacePluginValue(ctx context.Context, id, namespace, oldKey, newKey string, value []byte) error {
+func (s *Store) ReplacePluginValue(ctx context.Context, id string, namespace plugin.StorageNamespace, oldKey, newKey string, value []byte) error {
 	if oldKey == newKey {
 		return s.WritePluginValue(ctx, id, namespace, newKey, value)
 	}
@@ -83,10 +83,10 @@ func (s *Store) ReplacePluginValue(ctx context.Context, id, namespace, oldKey, n
 	if err := lockPluginValues(ctx, tx, id); err != nil {
 		return err
 	}
-	if err := validatePluginValueMove(ctx, tx, id, namespace, oldKey, newKey, value); err != nil {
+	if err := validatePluginValueMove(ctx, tx, id, string(namespace), oldKey, newKey, value); err != nil {
 		return err
 	}
-	if err := movePluginValue(ctx, tx, id, namespace, oldKey, newKey, value); err != nil {
+	if err := movePluginValue(ctx, tx, id, string(namespace), oldKey, newKey, value); err != nil {
 		return err
 	}
 	return tx.Commit(ctx)
@@ -147,7 +147,7 @@ func movePluginValue(ctx context.Context, tx pgx.Tx, id, namespace, oldKey, newK
 }
 
 // DeletePluginValue deletes one plugin value. Missing keys are ignored.
-func (s *Store) DeletePluginValue(ctx context.Context, id, namespace, key string) error {
-	_, err := s.pool.Exec(ctx, `DELETE FROM plugin_values WHERE plugin_id=$1 AND namespace=$2 AND key=$3`, id, namespace, key)
+func (s *Store) DeletePluginValue(ctx context.Context, id string, namespace plugin.StorageNamespace, key string) error {
+	_, err := s.pool.Exec(ctx, `DELETE FROM plugin_values WHERE plugin_id=$1 AND namespace=$2 AND key=$3`, id, string(namespace), key)
 	return err
 }

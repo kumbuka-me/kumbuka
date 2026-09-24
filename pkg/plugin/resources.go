@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	resourceNamespace      = pluginSettingsNamespace
+	resourceNamespace      = StorageNamespaceSettings
 	maxResourceKeyBytes    = 128
 	maxResourceRecordBytes = 60 << 10
 )
@@ -55,7 +55,7 @@ type EditorCompletionField struct {
 	// Name is the human-readable form label.
 	Name string `json:"name"`
 	// Type selects the generic editor control used for the field.
-	Type string `json:"type"`
+	Type ConfigurationFieldType `json:"type"`
 	// Required reports whether the field must contain a value.
 	Required bool `json:"required"`
 	// Key reports whether this field identifies the resource record.
@@ -125,7 +125,7 @@ type EditorInsertContribution struct {
 	// Placeholder supplies default selected text for wrap and prefix actions.
 	Placeholder string `json:"placeholder,omitempty"`
 	// Mode and Group select generic editor behavior and toolbar placement.
-	Mode string `json:"mode"`
+	Mode EditorInsertMode `json:"mode"`
 	// Group stores the group value used by editor insert contribution.
 	Group string `json:"group"`
 	// AllowedGroups contains valid administrator placement choices.
@@ -140,9 +140,9 @@ type EditorInsertContribution struct {
 
 // editorInsertView normalizes one validated manifest action for browser use.
 func editorInsertView(pluginID string, module pluginpackage.Module) EditorInsertContribution {
-	mode := module.Mode
+	mode := EditorInsertMode(module.Mode)
 	if mode == "" {
-		mode = "insert"
+		mode = EditorInsertModeInsert
 	}
 	group := module.Group
 	if group == "" {
@@ -235,7 +235,7 @@ func MaskResourceSecrets(record ResourceRecord, module pluginpackage.Module) Res
 	values := cloneResourceValues(record.Values)
 	secrets := make(map[string]bool)
 	for _, field := range module.Fields {
-		if field.Type != "secret" {
+		if ConfigurationFieldType(field.Type) != ConfigurationFieldSecret {
 			continue
 		}
 		secrets[field.ID] = values[field.ID] != ""
@@ -250,7 +250,7 @@ func MaskResourceSecrets(record ResourceRecord, module pluginpackage.Module) Res
 func RevealResourceSecrets(record ResourceRecord, module pluginpackage.Module, codec SecretCodec) (ResourceRecord, error) {
 	values := cloneResourceValues(record.Values)
 	for _, field := range module.Fields {
-		if field.Type != "secret" || values[field.ID] == "" {
+		if ConfigurationFieldType(field.Type) != ConfigurationFieldSecret || values[field.ID] == "" {
 			continue
 		}
 		if codec == nil || !codec.Configured() {
@@ -365,7 +365,7 @@ func (m *Manager) EditorCompletionProviders() []EditorCompletionProvider {
 		}
 
 		for _, module := range item.metadata.Manifest.Modules {
-			if module.Type != "editor-completion" {
+			if ModuleType(module.Type) != ModuleTypeEditorCompletion {
 				continue
 			}
 
@@ -395,7 +395,7 @@ func (m *Manager) EditorCompletionProviders() []EditorCompletionProvider {
 // manifestResourceModule finds one admin-resource declaration by ID.
 func manifestResourceModule(manifest pluginpackage.Manifest, resourceID string) (pluginpackage.Module, bool) {
 	for _, module := range manifest.Modules {
-		if module.Type == "admin-resource" && module.ID == resourceID {
+		if ModuleType(module.Type) == ModuleTypeAdminResource && module.ID == resourceID {
 			return module, true
 		}
 	}
@@ -406,8 +406,8 @@ func manifestResourceModule(manifest pluginpackage.Manifest, resourceID string) 
 func directEditorCompletionFields(fields []pluginpackage.ConfigurationField) ([]EditorCompletionField, bool) {
 	result := make([]EditorCompletionField, 0, len(fields))
 	for _, field := range fields {
-		switch field.Type {
-		case "text", "textarea", "url", "boolean", "select", "color":
+		switch ConfigurationFieldType(field.Type) {
+		case ConfigurationFieldText, ConfigurationFieldTextarea, ConfigurationFieldURL, ConfigurationFieldBoolean, ConfigurationFieldSelect, ConfigurationFieldColor:
 		default:
 			return nil, false
 		}
@@ -415,7 +415,7 @@ func directEditorCompletionFields(fields []pluginpackage.ConfigurationField) ([]
 		result = append(result, EditorCompletionField{
 			ID:       field.ID,
 			Name:     field.Name,
-			Type:     field.Type,
+			Type:     ConfigurationFieldType(field.Type),
 			Required: field.Required,
 			Key:      field.Key,
 			MaxBytes: field.MaxBytes,
@@ -441,7 +441,7 @@ func (m *Manager) EditorCompletions(ctx context.Context) ([]EditorCompletionItem
 	var result []EditorCompletionItem
 	for _, item := range plugins {
 		for _, module := range item.Manifest.Modules {
-			if module.Type != "editor-completion" {
+			if ModuleType(module.Type) != ModuleTypeEditorCompletion {
 				continue
 			}
 			records, err := m.ResourceRecords(ctx, item.Manifest.ID, module.Resource)
@@ -475,7 +475,7 @@ func (m *Manager) EditorInserts() []EditorInsertContribution {
 			continue
 		}
 		for _, module := range item.metadata.Manifest.Modules {
-			if module.Type != "editor-insert" {
+			if ModuleType(module.Type) != ModuleTypeEditorInsert {
 				continue
 			}
 			result = append(result, editorInsertView(id, module))
@@ -493,7 +493,7 @@ func (m *Manager) resourceModule(pluginID, moduleID string) (pluginpackage.Modul
 		return pluginpackage.Module{}, errors.New("plugin is not installed")
 	}
 	for _, module := range item.metadata.Manifest.Modules {
-		if module.ID == moduleID && module.Type == "admin-resource" {
+		if module.ID == moduleID && ModuleType(module.Type) == ModuleTypeAdminResource {
 			return module, nil
 		}
 	}

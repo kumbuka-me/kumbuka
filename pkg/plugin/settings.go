@@ -32,7 +32,7 @@ func (m *Manager) loadSettings(ctx context.Context, manifest pluginpackage.Manif
 	settings := make(map[string]bool)
 
 	for _, module := range manifest.Modules {
-		if module.Type != "settings" || len(module.Fields) != 0 {
+		if ModuleType(module.Type) != ModuleTypeSettings || len(module.Fields) != 0 {
 			continue
 		}
 
@@ -41,7 +41,7 @@ func (m *Manager) loadSettings(ctx context.Context, manifest pluginpackage.Manif
 			continue
 		}
 
-		value, found, err := m.values.ReadPluginValue(ctx, manifest.ID, pluginSettingsNamespace, featureSettingStorageKey(module.ID))
+		value, found, err := m.values.ReadPluginValue(ctx, manifest.ID, StorageNamespaceSettings, featureSettingStorageKey(module.ID))
 		if err != nil {
 			return nil, fmt.Errorf("read plugin setting %s.%s: %w", manifest.ID, module.ID, err)
 		}
@@ -88,7 +88,7 @@ func (m *Manager) UpdateSettings(ctx context.Context, id string, settings map[st
 func declaredFeatureSettings(manifest pluginpackage.Manifest) map[string]pluginpackage.Module {
 	declared := make(map[string]pluginpackage.Module)
 	for _, module := range manifest.Modules {
-		if module.Type == "settings" && len(module.Fields) == 0 {
+		if ModuleType(module.Type) == ModuleTypeSettings && len(module.Fields) == 0 {
 			declared[module.ID] = module
 		}
 	}
@@ -137,7 +137,7 @@ func (m *Manager) persistFeatureSettings(ctx context.Context, pluginID string, s
 		if err != nil {
 			return err
 		}
-		if err := m.values.WritePluginValue(ctx, pluginID, pluginSettingsNamespace, featureSettingStorageKey(key), value); err != nil {
+		if err := m.values.WritePluginValue(ctx, pluginID, StorageNamespaceSettings, featureSettingStorageKey(key), value); err != nil {
 			return fmt.Errorf("save plugin setting %s.%s: %w", pluginID, key, err)
 		}
 	}
@@ -161,7 +161,7 @@ func (m *Manager) SettingGroups(ctx context.Context, pluginID string) ([]Setting
 
 		secrets := make(map[string]bool)
 		for _, field := range module.Fields {
-			if field.Type != "secret" {
+			if ConfigurationFieldType(field.Type) != ConfigurationFieldSecret {
 				continue
 			}
 			secrets[field.ID] = found && values[field.ID] != ""
@@ -204,7 +204,7 @@ func (m *Manager) SaveSettingGroup(ctx context.Context, pluginID, moduleID strin
 		return errors.New("plugin settings group is too large")
 	}
 
-	return m.values.WritePluginValue(ctx, pluginID, pluginSettingsNamespace, settingGroupStorageKey(module.ID), encoded)
+	return m.values.WritePluginValue(ctx, pluginID, StorageNamespaceSettings, settingGroupStorageKey(module.ID), encoded)
 }
 
 // ReadDeclaredSetting resolves one manifest-declared typed setting, applying defaults and decrypting secrets.
@@ -231,7 +231,7 @@ func ReadDeclaredSetting(
 			value = stored
 		}
 	}
-	if field.Type == "secret" && value != "" {
+	if ConfigurationFieldType(field.Type) == ConfigurationFieldSecret && value != "" {
 		if codec == nil || !codec.Configured() {
 			return nil, true, ErrSecretEncryptionUnavailable
 		}
@@ -288,7 +288,7 @@ func (m *Manager) settingGroupModules(pluginID string) ([]pluginpackage.Module, 
 
 	modules := make([]pluginpackage.Module, 0)
 	for _, module := range item.metadata.Manifest.Modules {
-		if module.Type == "settings" && len(module.Fields) != 0 {
+		if ModuleType(module.Type) == ModuleTypeSettings && len(module.Fields) != 0 {
 			modules = append(modules, module)
 		}
 	}
@@ -315,7 +315,7 @@ func readSettingGroup(ctx context.Context, storage Storage, pluginID string, mod
 		return nil, false, nil
 	}
 
-	data, found, err := storage.ReadPluginValue(ctx, pluginID, pluginSettingsNamespace, settingGroupStorageKey(module.ID))
+	data, found, err := storage.ReadPluginValue(ctx, pluginID, StorageNamespaceSettings, settingGroupStorageKey(module.ID))
 	if err != nil || !found {
 		return nil, found, err
 	}
@@ -396,7 +396,7 @@ func validDeclaredSettingKey(moduleID, fieldID string, separated bool) bool {
 
 // matchingSettingsModule reports whether module is the requested non-empty settings group.
 func matchingSettingsModule(module pluginpackage.Module, moduleID string) bool {
-	return module.Type == "settings" && len(module.Fields) != 0 && module.ID == moduleID
+	return ModuleType(module.Type) == ModuleTypeSettings && len(module.Fields) != 0 && module.ID == moduleID
 }
 
 // featureSettingStorageKey isolates host-managed feature toggles from plugin-owned settings and resources.

@@ -53,7 +53,7 @@ func (s *Preferences) SavePreferences(
 }
 
 // validOptionalTypographySize reports whether an optional typography override is empty or valid.
-func validOptionalTypographySize(value string) bool {
+func validOptionalTypographySize(value domain.TypographySize) bool {
 	return value == "" || domain.ValidTypographySize(value)
 }
 

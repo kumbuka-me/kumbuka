@@ -73,7 +73,7 @@ func TestBrowserContextLoad(t *testing.T) {
 			nil,
 		)
 		views, err := webview.New(web.Assets, testViewsLogger(), "v1.2.3", "abc123", []themes.Theme{
-			{Title: "Light", ColorScheme: "light"}, {Title: "Dark", ColorScheme: "dark"},
+			{Title: "Light", ColorScheme: themes.ColorSchemeLight}, {Title: "Dark", ColorScheme: themes.ColorSchemeDark},
 		}, webview.RuntimeInfo{PublicURL: "https://kumbuka.example.test"})
 		require.NoError(t, err)
 
@@ -129,7 +129,7 @@ func TestBrowserContextLoad(t *testing.T) {
 			nil,
 			nil,
 		)
-		views, err := webview.New(web.Assets, testViewsLogger(), "", "", []themes.Theme{{Title: "Dark", ColorScheme: "dark"}}, webview.RuntimeInfo{})
+		views, err := webview.New(web.Assets, testViewsLogger(), "", "", []themes.Theme{{Title: "Dark", ColorScheme: themes.ColorSchemeDark}}, webview.RuntimeInfo{})
 		require.NoError(t, err)
 		request := auth.WithUser(httptest.NewRequest(http.MethodGet, "/admin", nil), user)
 

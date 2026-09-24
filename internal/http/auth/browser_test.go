@@ -39,7 +39,7 @@ func TestBrowserAuthenticatorForSettings(t *testing.T) {
 	t.Run("no authentication", func(t *testing.T) {
 		authenticator, err := browser.authenticatorForSettings(
 			context.Background(),
-			domain.AuthenticationSettings{Mode: string(domain.AuthModeNone)},
+			domain.AuthenticationSettings{Mode: domain.AuthModeNone},
 		)
 
 		require.NoError(t, err)
@@ -49,7 +49,7 @@ func TestBrowserAuthenticatorForSettings(t *testing.T) {
 	t.Run("local", func(t *testing.T) {
 		authenticator, err := browser.authenticatorForSettings(
 			context.Background(),
-			domain.AuthenticationSettings{Mode: string(domain.AuthModeLocal)},
+			domain.AuthenticationSettings{Mode: domain.AuthModeLocal},
 		)
 
 		require.NoError(t, err)
@@ -60,7 +60,7 @@ func TestBrowserAuthenticatorForSettings(t *testing.T) {
 		authenticator, err := browser.authenticatorForSettings(
 			context.Background(),
 			domain.AuthenticationSettings{
-				Mode:                   string(domain.AuthModeTrustedProxy),
+				Mode:                   domain.AuthModeTrustedProxy,
 				TrustedUsernameHeaders: []string{"X-User"},
 			},
 		)
@@ -83,7 +83,7 @@ func TestBrowserAuthenticatorValidatesOIDCSecrets(t *testing.T) {
 	t.Parallel()
 
 	settings := domain.AuthenticationSettings{
-		Mode:         string(domain.AuthModeOIDC),
+		Mode:         domain.AuthModeOIDC,
 		OIDCIssuer:   "https://identity.example.com",
 		OIDCClientID: "kumbuka",
 	}
@@ -117,7 +117,7 @@ func TestBrowserValidationCollectsOIDCProblems(t *testing.T) {
 		SessionSecret: "0123456789abcdef0123456789abcdef",
 	}}
 	settings := domain.AuthenticationSettings{
-		Mode:          string(domain.AuthModeOIDC),
+		Mode:          domain.AuthModeOIDC,
 		OIDCIssuer:    "https://identity.example.com",
 		OIDCClientID:  "kumbuka",
 		OIDCGroupSync: true,
@@ -143,7 +143,7 @@ func TestBrowserValidationChecksHeadersOnlyForTrustedProxyMode(t *testing.T) {
 	}}
 
 	oidcSettings := domain.AuthenticationSettings{
-		Mode:                   string(domain.AuthModeOIDC),
+		Mode:                   domain.AuthModeOIDC,
 		OIDCIssuer:             "https://identity.example.com",
 		OIDCClientID:           "kumbuka",
 		TrustedUsernameHeaders: []string{"Invalid Header"},
@@ -151,7 +151,7 @@ func TestBrowserValidationChecksHeadersOnlyForTrustedProxyMode(t *testing.T) {
 	require.NoError(t, browser.validateSettings(oidcSettings))
 
 	trustedSettings := domain.AuthenticationSettings{
-		Mode:                   string(domain.AuthModeTrustedProxy),
+		Mode:                   domain.AuthModeTrustedProxy,
 		TrustedUsernameHeaders: []string{"Invalid Header"},
 	}
 	validation, ok := errors.AsType[*domain.ValidationError](browser.validateSettings(trustedSettings))

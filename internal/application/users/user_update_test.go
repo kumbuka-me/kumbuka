@@ -18,7 +18,7 @@ type accountRepositoryStub struct {
 	// calls counts calls observed by the test double.
 	calls int
 	// mode configures or records the mode value used by the fixture.
-	mode string
+	mode domain.AuthMode
 	// failure configures or records the failure value used by the fixture.
 	failure error
 }

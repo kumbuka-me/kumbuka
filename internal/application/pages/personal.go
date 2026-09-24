@@ -12,7 +12,7 @@ import (
 type personalRepository interface {
 	GetPage(context.Context, string) (domain.Page, error)
 	SetFavorite(context.Context, string, int64, bool) error
-	SetPageWatch(context.Context, string, int64, string) error
+	SetPageWatch(context.Context, string, int64, domain.PageWatchScope) error
 }
 
 // Personal owns favorite and watch mutations for one actor.
@@ -41,9 +41,9 @@ func (c *Personal) SetFavoriteFor(ctx context.Context, actor domain.User, slug s
 }
 
 // SetPageWatchFor updates a watch only when the actor may view an existing page.
-func (c *Personal) SetPageWatchFor(ctx context.Context, actor domain.User, slug, scope string) error {
+func (c *Personal) SetPageWatchFor(ctx context.Context, actor domain.User, slug string, scope domain.PageWatchScope) error {
 	slug = strings.Trim(strings.TrimSpace(slug), "/")
-	scope = strings.TrimSpace(scope)
+	scope = domain.PageWatchScope(strings.TrimSpace(string(scope)))
 	if !validPageWatchScope(scope) {
 		return domain.NewValidationError("scope", "Choose page or subtree notifications.")
 	}
@@ -57,6 +57,6 @@ func (c *Personal) SetPageWatchFor(ctx context.Context, actor domain.User, slug,
 }
 
 // validPageWatchScope reports whether a page-watch scope is empty or one of the supported domain values.
-func validPageWatchScope(scope string) bool {
+func validPageWatchScope(scope domain.PageWatchScope) bool {
 	return scope == "" || scope == domain.PageWatchScopePage || scope == domain.PageWatchScopeSubtree
 }

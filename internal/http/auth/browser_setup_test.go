@@ -71,7 +71,7 @@ func TestConfigureBrowserAuthAllowsSetupWithStaleLocalMode(t *testing.T) {
 
 	repository := &setupBrowserRepository{
 		settings: domain.ApplicationSettings{
-			Authentication: domain.AuthenticationSettings{Mode: string(domain.AuthModeLocal)},
+			Authentication: domain.AuthenticationSettings{Mode: domain.AuthModeLocal},
 		},
 		setupRequired: true,
 	}
@@ -106,7 +106,7 @@ func TestBrowserLoginRedirectsSetupWithStaleLocalMode(t *testing.T) {
 
 	repository := &setupBrowserRepository{
 		settings: domain.ApplicationSettings{
-			Authentication: domain.AuthenticationSettings{Mode: string(domain.AuthModeLocal)},
+			Authentication: domain.AuthenticationSettings{Mode: domain.AuthModeLocal},
 		},
 		setupRequired: true,
 	}
@@ -174,7 +174,7 @@ func TestBrowserValidationStillRequiresLocalAdministratorAfterSetup(t *testing.T
 	repository := &setupBrowserRepository{setupRequired: false}
 	browser := &browserAuthenticator{repository: repository}
 
-	err := browser.validate(context.Background(), domain.AuthenticationSettings{Mode: string(domain.AuthModeLocal)})
+	err := browser.validate(context.Background(), domain.AuthenticationSettings{Mode: domain.AuthModeLocal})
 
 	validation, ok := errors.AsType[*domain.ValidationError](err)
 	require.True(t, ok)
@@ -192,7 +192,7 @@ func TestBrowserCurrentSettingsOverlaysRuntimeManagedFields(t *testing.T) {
 
 		repository := &setupBrowserRepository{settings: domain.ApplicationSettings{
 			Authentication: domain.AuthenticationSettings{
-				Mode:           string(domain.AuthModeLocal),
+				Mode:           domain.AuthModeLocal,
 				OIDCIssuer:     "https://stored.example.test",
 				OIDCClientID:   "stored-client",
 				OIDCGroupClaim: "groups",
@@ -213,7 +213,7 @@ func TestBrowserCurrentSettingsOverlaysRuntimeManagedFields(t *testing.T) {
 		settings, err := browser.currentSettings(context.Background())
 
 		require.NoError(t, err)
-		assert.Equal(t, string(domain.AuthModeOIDC), settings.Mode)
+		assert.Equal(t, domain.AuthModeOIDC, settings.Mode)
 		assert.Equal(t, "https://runtime.example.test", settings.OIDCIssuer)
 		assert.Equal(t, "runtime-client", settings.OIDCClientID)
 		assert.Equal(t, "roles", settings.OIDCGroupClaim)
@@ -225,7 +225,7 @@ func TestBrowserCurrentSettingsOverlaysRuntimeManagedFields(t *testing.T) {
 
 		repository := &setupBrowserRepository{settings: domain.ApplicationSettings{
 			Authentication: domain.AuthenticationSettings{
-				Mode:                      string(domain.AuthModeLocal),
+				Mode:                      domain.AuthModeLocal,
 				TrustedUsernameHeaders:    []string{"Stored-User"},
 				TrustedEmailHeaders:       []string{"Stored-Email"},
 				TrustedDisplayNameHeaders: []string{"Stored-Name"},
@@ -252,7 +252,7 @@ func TestBrowserCurrentSettingsOverlaysRuntimeManagedFields(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.False(t, repository.oidcMappingsChecked)
-		assert.Equal(t, string(domain.AuthModeTrustedProxy), settings.Mode)
+		assert.Equal(t, domain.AuthModeTrustedProxy, settings.Mode)
 		assert.Equal(t, []string{"Runtime-User"}, settings.TrustedUsernameHeaders)
 		assert.Equal(t, []string{"Runtime-Email"}, settings.TrustedEmailHeaders)
 		assert.Equal(t, []string{"Runtime-Name"}, settings.TrustedDisplayNameHeaders)

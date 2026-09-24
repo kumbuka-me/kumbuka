@@ -95,7 +95,7 @@ func ViewPage(
 		data.PluginExportFields = rendered.ExportFields
 		data.Comments, data.InlineCommentThreads = webview.PartitionPageComments(comments)
 		data.PageFavorite = state.Favorite
-		data.PageWatchScope = state.Watch.Scope
+		data.PageWatchScope = string(state.Watch.Scope)
 		data.PageContents = rendered.Contents
 		data.HasPageContents = len(rendered.Contents) > 0
 		if manager := renderer.PluginManager(); manager != nil {

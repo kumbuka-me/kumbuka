@@ -11,6 +11,17 @@ import (
 	"github.com/kumbuka-me/sdk/pluginpackage"
 )
 
+// pluginSettingsAction identifies one mutation exposed by the plugin-settings route.
+type pluginSettingsAction string
+
+const (
+	pluginSettingsActionSettings       pluginSettingsAction = "settings"
+	pluginSettingsActionSettingsGroup  pluginSettingsAction = "settings-group"
+	pluginSettingsActionResourceSave   pluginSettingsAction = "resource-save"
+	pluginSettingsActionResourceDelete pluginSettingsAction = "resource-delete"
+	pluginSettingsActionAdminAction    pluginSettingsAction = "admin-action"
+)
+
 // AdminPluginSettings renders and mutates configuration owned by installed plugins.
 type AdminPluginSettings struct {
 	// manager owns plugin settings and structured resource persistence.
@@ -34,19 +45,19 @@ func (a *AdminPluginSettings) Show(w http.ResponseWriter, r *http.Request) {
 // Action applies one plugin-owned settings, resource, or administrator action.
 func (a *AdminPluginSettings) Action(w http.ResponseWriter, r *http.Request) {
 	pluginID := strings.TrimSpace(r.PathValue("pluginID"))
-	action := strings.TrimSpace(r.PathValue("action"))
+	action := pluginSettingsAction(strings.TrimSpace(r.PathValue("action")))
 
 	var err error
 	switch action {
-	case "settings":
+	case pluginSettingsActionSettings:
 		err = a.updateSettings(r, pluginID)
-	case "settings-group":
+	case pluginSettingsActionSettingsGroup:
 		err = a.saveSettingsGroup(r, pluginID)
-	case "resource-save":
+	case pluginSettingsActionResourceSave:
 		err = a.saveResource(r, pluginID)
-	case "resource-delete":
+	case pluginSettingsActionResourceDelete:
 		err = a.deleteResource(r, pluginID)
-	case "admin-action":
+	case pluginSettingsActionAdminAction:
 		err = a.runAdminAction(r, pluginID)
 	default:
 		http.NotFound(w, r)
@@ -57,7 +68,7 @@ func (a *AdminPluginSettings) Action(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if action == "admin-action" {
+	if action == pluginSettingsActionAdminAction {
 		a.views.Logger().Info(
 			"plugin admin action completed",
 			"event", "plugin.admin_action_completed",
@@ -78,9 +89,9 @@ func (a *AdminPluginSettings) Action(w http.ResponseWriter, r *http.Request) {
 }
 
 // writeActionError translates expected plugin-setting failures and logs unexpected ones.
-func (a *AdminPluginSettings) writeActionError(w http.ResponseWriter, r *http.Request, pluginID, action string, err error) {
+func (a *AdminPluginSettings) writeActionError(w http.ResponseWriter, r *http.Request, pluginID string, action pluginSettingsAction, err error) {
 	message := "Could not save plugin settings. Check the entered values and setting dependencies."
-	if action == "admin-action" {
+	if action == pluginSettingsActionAdminAction {
 		message = "Could not run the plugin action."
 	}
 	problems := []httpresponse.FieldProblem(nil)
@@ -89,7 +100,7 @@ func (a *AdminPluginSettings) writeActionError(w http.ResponseWriter, r *http.Re
 	if fieldErr, ok := errors.AsType[*plugin.ConfigurationFieldError](err); ok {
 		message = "Plugin resource validation failed."
 		fieldName := "resource_" + fieldErr.Field
-		if action == "settings-group" {
+		if action == pluginSettingsActionSettingsGroup {
 			message = "Plugin settings validation failed."
 			fieldName = "setting_" + strings.TrimSpace(r.FormValue("settings_id")) + "_" + fieldErr.Field
 		}
@@ -101,7 +112,7 @@ func (a *AdminPluginSettings) writeActionError(w http.ResponseWriter, r *http.Re
 	}
 
 	if !expected {
-		if action == "admin-action" {
+		if action == pluginSettingsActionAdminAction {
 			a.views.Logger().Error(
 				"plugin admin action failed",
 				"event", "plugin.admin_action_failed",
@@ -166,7 +177,7 @@ func (a *AdminPluginSettings) render(w http.ResponseWriter, r *http.Request, plu
 
 	resources := make([]webview.PluginResource, 0)
 	for _, module := range selected.Manifest.Modules {
-		if module.Type != "admin-resource" {
+		if plugin.ModuleType(module.Type) != plugin.ModuleTypeAdminResource {
 			continue
 		}
 		records, resourceErr := a.manager.ResourceRecords(r.Context(), selected.Manifest.ID, module.ID)
@@ -196,7 +207,7 @@ func (a *AdminPluginSettings) updateSettings(r *http.Request, pluginID string) e
 
 	settings := make(map[string]bool)
 	for _, module := range selected.Manifest.Modules {
-		if module.Type == "settings" && len(module.Fields) == 0 {
+		if plugin.ModuleType(module.Type) == plugin.ModuleTypeSettings && len(module.Fields) == 0 {
 			settings[module.ID] = r.Form.Has("setting_" + module.ID)
 		}
 	}
@@ -220,7 +231,7 @@ func (a *AdminPluginSettings) saveSettingsGroup(r *http.Request, pluginID string
 	values := make(map[string]string, len(module.Fields))
 	for _, field := range module.Fields {
 		name := "setting_" + module.ID + "_" + field.ID
-		if field.Type == "boolean" {
+		if plugin.ConfigurationFieldType(field.Type) == plugin.ConfigurationFieldBoolean {
 			values[field.ID] = "false"
 			if r.Form.Has(name) {
 				values[field.ID] = "true"
@@ -250,7 +261,7 @@ func (a *AdminPluginSettings) saveResource(r *http.Request, pluginID string) err
 	values := make(map[string]string, len(module.Fields))
 	for _, field := range module.Fields {
 		name := "resource_" + field.ID
-		if field.Type == "boolean" {
+		if plugin.ConfigurationFieldType(field.Type) == plugin.ConfigurationFieldBoolean {
 			if r.Form.Has(name) {
 				values[field.ID] = "true"
 			} else {
@@ -309,8 +320,8 @@ func pluginHasAdminSettings(item plugin.LoadedPlugin) bool {
 
 // isPluginAdminModule reports whether a plugin module contributes administrator-managed functionality.
 func isPluginAdminModule(module pluginpackage.Module) bool {
-	switch module.Type {
-	case "settings", "admin-resource", "admin-action":
+	switch plugin.ModuleType(module.Type) {
+	case plugin.ModuleTypeSettings, plugin.ModuleTypeAdminResource, plugin.ModuleTypeAdminAction:
 		return true
 	default:
 		return false
@@ -319,7 +330,7 @@ func isPluginAdminModule(module pluginpackage.Module) bool {
 
 // isPluginSettingsGroup reports whether module is the requested non-empty typed settings group.
 func isPluginSettingsGroup(module pluginpackage.Module, moduleID string) bool {
-	return module.Type == "settings" && len(module.Fields) != 0 && module.ID == moduleID
+	return plugin.ModuleType(module.Type) == plugin.ModuleTypeSettings && len(module.Fields) != 0 && module.ID == moduleID
 }
 
 // pluginSettingsGroupModule returns one declared typed settings group from a loaded plugin.
@@ -335,7 +346,7 @@ func pluginSettingsGroupModule(item plugin.LoadedPlugin, moduleID string) (plugi
 // pluginResourceModule returns one declared structured resource from a loaded plugin.
 func pluginResourceModule(item plugin.LoadedPlugin, moduleID string) (pluginpackage.Module, bool) {
 	for _, module := range item.Manifest.Modules {
-		if module.Type == "admin-resource" && module.ID == moduleID {
+		if plugin.ModuleType(module.Type) == plugin.ModuleTypeAdminResource && module.ID == moduleID {
 			return module, true
 		}
 	}
@@ -345,7 +356,7 @@ func pluginResourceModule(item plugin.LoadedPlugin, moduleID string) (pluginpack
 // pluginAdminActionModule reports whether one executable administrator action is declared by a plugin.
 func pluginAdminActionModule(item plugin.LoadedPlugin, moduleID string) bool {
 	for _, module := range item.Manifest.Modules {
-		if module.Type == "admin-action" && module.ID == moduleID {
+		if plugin.ModuleType(module.Type) == plugin.ModuleTypeAdminAction && module.ID == moduleID {
 			return true
 		}
 	}

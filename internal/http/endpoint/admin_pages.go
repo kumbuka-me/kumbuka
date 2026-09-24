@@ -10,6 +10,7 @@ import (
 	"github.com/kumbuka-me/kumbuka/internal/application/portablearchive"
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
+	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
 
 // AdminPages renders bulk page management.
@@ -90,9 +91,9 @@ func BulkAdminPages(
 		}
 
 		if err := pageUseCases.Bulk(r.Context(), apppages.BulkPageInput{
-			Action:  action,
+			Action:  apppages.BulkPageAction(action),
 			Slugs:   slugs,
-			Status:  r.FormValue("status"),
+			Status:  domain.PageStatus(r.FormValue("status")),
 			Tag:     r.FormValue("tag"),
 			GroupID: groupID,
 			Target:  r.FormValue("target"),

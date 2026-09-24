@@ -9,11 +9,6 @@ import (
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
 
-const (
-	pendingOIDCStatusPending  = "pending"
-	pendingOIDCStatusRejected = "rejected"
-)
-
 // oidcIdentityProfile contains normalized identity-provider attributes used during login.
 type oidcIdentityProfile struct {
 	// issuer identifies the verified OIDC provider namespace.
@@ -37,13 +32,13 @@ type oidcGroupMembershipPlan struct {
 }
 
 // SetExternalAdminStatus records the most recently asserted external administrator state.
-func (s *Store) SetExternalAdminStatus(ctx context.Context, userID int64, method string, admin bool) error {
+func (s *Store) SetExternalAdminStatus(ctx context.Context, userID int64, method domain.AuthMode, admin bool) error {
 	var query string
 
 	switch method {
-	case "oidc":
+	case domain.AuthModeOIDC:
 		query = `UPDATE users SET oidc_admin_observed=true,oidc_external_admin=$2 WHERE id=$1`
-	case "trusted-proxy":
+	case domain.AuthModeTrustedProxy:
 		query = `UPDATE users SET trusted_proxy_admin_observed=true,trusted_proxy_external_admin=$2 WHERE id=$1`
 	default:
 		return domain.NewValidationError("method", "Choose a supported external authentication method.")
@@ -321,7 +316,7 @@ func (s *Store) LoginOIDCUser(
 		return refreshAndCompleteOIDCLogin(ctx, tx, user, identity)
 	}
 
-	if pendingStatus == pendingOIDCStatusRejected {
+	if pendingStatus == domain.PendingOIDCStatusRejected {
 		return recordPendingOIDCOutcome(ctx, tx, identity, domain.ErrIdentityRejected)
 	}
 
@@ -469,7 +464,7 @@ func (s *Store) ApprovePendingOIDCIdentity(ctx context.Context, pendingID int64)
 	if err != nil {
 		return domain.User{}, err
 	}
-	if pending.Status != pendingOIDCStatusPending {
+	if pending.Status != domain.PendingOIDCStatusPending {
 		return domain.User{}, domain.ErrForbidden
 	}
 
@@ -513,7 +508,7 @@ func (s *Store) LinkPendingOIDCIdentity(ctx context.Context, pendingID, userID i
 	if err != nil {
 		return domain.User{}, err
 	}
-	if pending.Status != pendingOIDCStatusPending {
+	if pending.Status != domain.PendingOIDCStatusPending {
 		return domain.User{}, domain.ErrForbidden
 	}
 	if err := ensureOIDCIdentityUnbound(ctx, tx, pending.Issuer, pending.Subject); err != nil {
@@ -656,16 +651,16 @@ SET username=EXCLUDED.username,
 
 // SetPendingOIDCIdentityRejected rejects or reopens a pending identity request.
 func (s *Store) SetPendingOIDCIdentityRejected(ctx context.Context, pendingID int64, rejected bool) error {
-	status := pendingOIDCStatusPending
+	status := domain.PendingOIDCStatusPending
 
 	if rejected {
-		status = pendingOIDCStatusRejected
+		status = domain.PendingOIDCStatusRejected
 	}
 
 	tag, err := s.pool.Exec(ctx, `
 UPDATE pending_oidc_identities
 SET status=$2
-WHERE id=$1`, pendingID, status)
+WHERE id=$1`, pendingID, string(status))
 	if err != nil {
 		return err
 	}
@@ -720,8 +715,8 @@ FOR UPDATE`, pendingID).Scan(
 }
 
 // pendingOIDCStatusForUpdate returns the current request state when one already exists.
-func pendingOIDCStatusForUpdate(ctx context.Context, tx pgx.Tx, issuer, subject string) (string, error) {
-	var status string
+func pendingOIDCStatusForUpdate(ctx context.Context, tx pgx.Tx, issuer, subject string) (domain.PendingOIDCStatus, error) {
+	var status domain.PendingOIDCStatus
 	err := tx.QueryRow(ctx, `
 SELECT status
 FROM pending_oidc_identities
@@ -739,8 +734,8 @@ func upsertPendingOIDCIdentity(
 	ctx context.Context,
 	tx pgx.Tx,
 	issuer, subject, username, email, displayName string,
-) (string, error) {
-	var status string
+) (domain.PendingOIDCStatus, error) {
+	var status domain.PendingOIDCStatus
 	err := tx.QueryRow(ctx, `
 INSERT INTO pending_oidc_identities(issuer,subject,username,email,display_name)
 VALUES($1,$2,$3,$4,$5)

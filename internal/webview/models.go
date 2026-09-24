@@ -122,7 +122,7 @@ type ReviewDiffLine struct {
 	// Diff is the rendered line from the immutable reviewed revision comparison.
 	Diff revision.DiffLine
 	// AnchorSide selects the old or new source side used when creating feedback.
-	AnchorSide string
+	AnchorSide domain.PageReviewCommentSide
 	// AnchorLine is the one-based source line used when creating feedback.
 	AnchorLine int
 	// Comments contains feedback whose range starts at this source line.
@@ -175,7 +175,7 @@ type Layout struct {
 	Preferences domain.UserPreferences
 
 	// TypographySize is the effective content typography preset after applying the application default.
-	TypographySize string
+	TypographySize domain.TypographySize
 
 	// SavedSearches contains named smart collections for the current user.
 	SavedSearches []domain.SavedSearch

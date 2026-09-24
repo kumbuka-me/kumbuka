@@ -49,7 +49,7 @@ type PageReviewDecisionInput struct {
 	// Slug binds the decision to the expected page.
 	Slug string
 	// Decision is approved or changes_requested.
-	Decision string
+	Decision domain.PageReviewStatus
 	// Note records the reviewer rationale.
 	Note string
 	// Actor is the authenticated reviewer making the decision.
@@ -68,7 +68,7 @@ type pageReviewRepository interface {
 	UpdatePageReview(context.Context, int64, string, int64, []int64, int64, string) (domain.PageReviewRequest, error)
 	CancelPageReview(context.Context, int64, string, int64) (string, error)
 	CanReviewPage(context.Context, string, int64) (bool, error)
-	DecidePageReview(context.Context, int64, string, int64, bool, string, string) (string, error)
+	DecidePageReview(context.Context, int64, string, int64, bool, domain.PageReviewStatus, string) (string, error)
 }
 
 // Reviews owns page approval workflows.
@@ -268,7 +268,7 @@ func (s *Reviews) CancelReview(ctx context.Context, id int64, slug string, actor
 }
 
 // validReviewDecision reports whether decision is one of the two reviewer outcomes.
-func validReviewDecision(decision string) bool {
+func validReviewDecision(decision domain.PageReviewStatus) bool {
 	return decision == domain.PageReviewStatusApproved || decision == domain.PageReviewStatusChangesRequested
 }
 
@@ -306,8 +306,8 @@ func (s *Reviews) DecideReview(ctx context.Context, input PageReviewDecisionInpu
 		return err
 	}
 
-	s.effects.recordAudit(ctx, input.Actor.ID, "page.review_"+input.Decision, "page", resolvedSlug, strings.TrimSpace(input.Note))
-	s.effects.notifyWatchers(ctx, input.Actor.ID, resolvedSlug, "review-"+input.Decision, "Review "+strings.ReplaceAll(input.Decision, "_", " "), "/pages/"+resolvedSlug)
+	s.effects.recordAudit(ctx, input.Actor.ID, "page.review_"+string(input.Decision), "page", resolvedSlug, strings.TrimSpace(input.Note))
+	s.effects.notifyWatchers(ctx, input.Actor.ID, resolvedSlug, "review-"+string(input.Decision), "Review "+strings.ReplaceAll(string(input.Decision), "_", " "), "/pages/"+resolvedSlug)
 
 	return nil
 }

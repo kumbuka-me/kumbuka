@@ -74,7 +74,7 @@ func (s *Users) UserGroups(ctx context.Context, userID int64) ([]domain.Group, e
 func (s *Users) UpdateUser(
 	ctx context.Context,
 	userID int64,
-	role string,
+	role domain.UserRole,
 	enabled bool,
 	groupIDs []int64,
 	localCredentialEnabled *bool,

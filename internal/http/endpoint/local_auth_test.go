@@ -115,10 +115,10 @@ func TestLocalLoginRedirectsSetupWithRuntimeOIDCOverride(t *testing.T) {
 	t.Parallel()
 
 	settings := &localAuthSettingsStub{settings: domain.ApplicationSettings{
-		Authentication: domain.AuthenticationSettings{Mode: string(domain.AuthModeNone)},
+		Authentication: domain.AuthenticationSettings{Mode: domain.AuthModeNone},
 	}}
 	system := &localAuthSystemStub{setupRequired: true}
-	views := testHandlerViews(t, webview.RuntimeInfo{AuthModeOverride: string(domain.AuthModeOIDC)})
+	views := testHandlerViews(t, webview.RuntimeInfo{AuthModeOverride: domain.AuthModeOIDC})
 	handler := LocalLogin(
 		settings,
 		system,
@@ -139,12 +139,12 @@ func TestSetupAllowsRuntimeOIDCOverrideAndCreatesBootstrapSession(t *testing.T) 
 	t.Parallel()
 
 	settings := &localAuthSettingsStub{settings: domain.ApplicationSettings{
-		Authentication: domain.AuthenticationSettings{Mode: string(domain.AuthModeNone)},
+		Authentication: domain.AuthenticationSettings{Mode: domain.AuthModeNone},
 	}}
 	system := &localAuthSystemStub{setupRequired: true}
 	repository := &localAuthRepositoryStub{}
 	local := auth.NewLocal(repository, "http://localhost:8080")
-	views := testHandlerViews(t, webview.RuntimeInfo{AuthModeOverride: string(domain.AuthModeOIDC)})
+	views := testHandlerViews(t, webview.RuntimeInfo{AuthModeOverride: domain.AuthModeOIDC})
 	handler := Setup(settings, system, auth.BrowserAuth{Local: local}, views)
 
 	form := url.Values{
@@ -177,7 +177,7 @@ func TestSetupHTMLValidationUsesUnprocessableStatus(t *testing.T) {
 	t.Parallel()
 
 	settings := &localAuthSettingsStub{settings: domain.ApplicationSettings{
-		Authentication: domain.AuthenticationSettings{Mode: string(domain.AuthModeNone)},
+		Authentication: domain.AuthenticationSettings{Mode: domain.AuthModeNone},
 	}}
 	system := &localAuthSystemStub{setupRequired: true}
 	views := testHandlerViews(t, webview.RuntimeInfo{})

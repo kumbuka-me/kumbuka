@@ -21,7 +21,7 @@ import (
 // A narrow row fake checks the projection order without a running database.
 type pageContractRow struct {
 	// status configures or records the status value used by the fixture.
-	status string
+	status domain.PageStatus
 	// pluginUsage configures or records the plugin usage value used by the fixture.
 	pluginUsage json.RawMessage
 }
@@ -30,9 +30,9 @@ func (r pageContractRow) Scan(destinations ...any) error {
 	if len(destinations) != 14 {
 		return fmt.Errorf("page projection has %d fields, want 14", len(destinations))
 	}
-	status, ok := destinations[12].(*string)
+	status, ok := destinations[12].(*domain.PageStatus)
 	if !ok {
-		return fmt.Errorf("page status destination is %T, want *string", destinations[12])
+		return fmt.Errorf("page status destination is %T, want *domain.PageStatus", destinations[12])
 	}
 	*status = r.status
 	usage, ok := destinations[13].(*json.RawMessage)
@@ -50,33 +50,33 @@ func TestScanPagePreservesLifecycleStatus(t *testing.T) {
 	t.Run("draft", func(t *testing.T) {
 		t.Parallel()
 
-		page, err := scanPage(pageContractRow{status: "draft"})
+		page, err := scanPage(pageContractRow{status: domain.PageStatusDraft})
 		require.NoError(t, err)
-		assert.Equal(t, "draft", page.Status)
+		assert.Equal(t, domain.PageStatusDraft, page.Status)
 	})
 
 	t.Run("verified", func(t *testing.T) {
 		t.Parallel()
 
-		page, err := scanPage(pageContractRow{status: "verified"})
+		page, err := scanPage(pageContractRow{status: domain.PageStatusVerified})
 		require.NoError(t, err)
-		assert.Equal(t, "verified", page.Status)
+		assert.Equal(t, domain.PageStatusVerified, page.Status)
 	})
 
 	t.Run("deprecated", func(t *testing.T) {
 		t.Parallel()
 
-		page, err := scanPage(pageContractRow{status: "deprecated"})
+		page, err := scanPage(pageContractRow{status: domain.PageStatusDeprecated})
 		require.NoError(t, err)
-		assert.Equal(t, "deprecated", page.Status)
+		assert.Equal(t, domain.PageStatusDeprecated, page.Status)
 	})
 
 	t.Run("archived", func(t *testing.T) {
 		t.Parallel()
 
-		page, err := scanPage(pageContractRow{status: "archived"})
+		page, err := scanPage(pageContractRow{status: domain.PageStatusArchived})
 		require.NoError(t, err)
-		assert.Equal(t, "archived", page.Status)
+		assert.Equal(t, domain.PageStatusArchived, page.Status)
 	})
 }
 
@@ -127,11 +127,11 @@ func TestPageLifecycleQueryContracts(t *testing.T) {
 	defer database.Close()
 	actor, err := database.EnsureAdministrator(ctx, "contract-admin", "", "Contract Admin")
 	require.NoError(t, err)
-	statuses := []string{"draft", "verified", "deprecated", "archived"}
+	statuses := []domain.PageStatus{domain.PageStatusDraft, domain.PageStatusVerified, domain.PageStatusDeprecated, domain.PageStatusArchived}
 	for _, status := range statuses {
-		slug := "contract/" + status
+		slug := "contract/" + string(status)
 		metadata := domain.PageMetadata{Status: status}
-		if status == "verified" {
+		if status == domain.PageStatusVerified {
 			metadata.PluginUsage = &pluginusage.Index{
 				Version:     pluginusage.Version,
 				Fingerprint: "contract",
@@ -139,7 +139,7 @@ func TestPageLifecycleQueryContracts(t *testing.T) {
 				Modules:     []pluginusage.Module{{PluginID: "io.example", ModuleID: "example", Values: []string{"value"}}},
 			}
 		}
-		_, err := database.SavePage(ctx, "", slug, "Contract "+status, "", "", "Lifecycle contract", "Created", nil, nil, nil,
+		_, err := database.SavePage(ctx, "", slug, "Contract "+string(status), "", "", "Lifecycle contract", "Created", nil, nil, nil,
 			metadata, map[string]string{" Owner ": " Platform "}, domain.PageRender{}, actor)
 		require.NoError(t, err)
 		require.NoError(t, database.SetFavorite(ctx, slug, actor.ID, true))

@@ -18,7 +18,7 @@ type personalRepositoryStub struct {
 	// userID records the user ID observed by the test double.
 	userID int64
 	// scope configures or records the scope value used by the fixture.
-	scope string
+	scope domain.PageWatchScope
 }
 
 func (s *personalRepositoryStub) GetPage(_ context.Context, slug string) (domain.Page, error) {
@@ -26,7 +26,7 @@ func (s *personalRepositoryStub) GetPage(_ context.Context, slug string) (domain
 	return domain.Page{Slug: slug}, nil
 }
 
-func (s *personalRepositoryStub) SetPageWatch(_ context.Context, slug string, userID int64, scope string) error {
+func (s *personalRepositoryStub) SetPageWatch(_ context.Context, slug string, userID int64, scope domain.PageWatchScope) error {
 	s.slug = slug
 	s.userID = userID
 	s.scope = scope

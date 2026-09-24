@@ -154,7 +154,7 @@ INSERT INTO page_review_requests(
   page_id,revision_number,requested_by,reviewer_group_id,status,note,previous_status
 )
 VALUES($1,$2,$3,NULLIF($4,0),'pending',$5,$6)
-RETURNING id`, pageID, revisionNumber, actorID, reviewerGroupID, note, previousStatus).Scan(&id)
+RETURNING id`, pageID, revisionNumber, actorID, reviewerGroupID, note, string(previousStatus)).Scan(&id)
 	if err != nil {
 		return domain.PageReviewRequest{}, mutationError(err)
 	}
@@ -194,7 +194,7 @@ func (s *Store) UpdatePageReview(
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
-	var status string
+	var status domain.PageReviewStatus
 	err = tx.QueryRow(ctx, `
 SELECT rr.status
 FROM page_review_requests rr
@@ -243,7 +243,8 @@ func (s *Store) CancelPageReview(ctx context.Context, id int64, slug string, act
 		return "", err
 	}
 
-	var status, previousStatus string
+	var status domain.PageReviewStatus
+	var previousStatus domain.PageStatus
 	var requestedRevision int
 	err = tx.QueryRow(ctx, `
 SELECT status,previous_status,revision_number
@@ -282,7 +283,7 @@ func restoreCanceledReviewStatus(
 	tx pgx.Tx,
 	pageID int64,
 	requestedRevision, currentRevision int,
-	previousStatus string,
+	previousStatus domain.PageStatus,
 ) error {
 	if requestedRevision != currentRevision {
 		return nil
@@ -291,7 +292,7 @@ func restoreCanceledReviewStatus(
 	_, err := tx.Exec(ctx, `
 UPDATE pages
 SET status=$2,updated_at=now()
-WHERE id=$1 AND status='draft'`, pageID, previousStatus)
+WHERE id=$1 AND status='draft'`, pageID, string(previousStatus))
 
 	return err
 }
@@ -331,7 +332,7 @@ type reviewDecisionState struct {
 	// requestedRevision is the revision captured when the review was opened.
 	requestedRevision int
 	// status is the current review-request status.
-	status string
+	status domain.PageReviewStatus
 	// assigned reports whether the reviewer is authorized for this request.
 	assigned bool
 }
@@ -343,7 +344,7 @@ func (s *Store) DecidePageReview(
 	expectedSlug string,
 	reviewerID int64,
 	administrator bool,
-	decision string,
+	decision domain.PageReviewStatus,
 	note string,
 ) (string, error) {
 	tx, err := s.pool.Begin(ctx)
@@ -415,11 +416,11 @@ func validateReviewDecisionState(state reviewDecisionState, currentRevision int)
 }
 
 // persistReviewDecision updates the review request and page-level approval metadata.
-func persistReviewDecision(ctx context.Context, tx pgx.Tx, id, pageID, reviewerID int64, decision, note string) error {
+func persistReviewDecision(ctx context.Context, tx pgx.Tx, id, pageID, reviewerID int64, decision domain.PageReviewStatus, note string) error {
 	if _, err := tx.Exec(ctx, `
 UPDATE page_review_requests
 SET status=$2,decision_note=$3,reviewed_by=$4,updated_at=now()
-WHERE id=$1`, id, decision, note, reviewerID); err != nil {
+WHERE id=$1`, id, string(decision), note, reviewerID); err != nil {
 		return mutationError(err)
 	}
 	return markPageReviewApproved(ctx, tx, pageID, decision)
@@ -507,10 +508,10 @@ ORDER BY lower(u.display_name),lower(u.username),u.id`, requestID)
 }
 
 // reviewPageState locks the page and returns the revision and lifecycle used by a new request.
-func reviewPageState(ctx context.Context, tx pgx.Tx, slug string) (int64, int, string, error) {
+func reviewPageState(ctx context.Context, tx pgx.Tx, slug string) (int64, int, domain.PageStatus, error) {
 	var pageID int64
 	var revisionNumber int
-	var status string
+	var status domain.PageStatus
 	err := tx.QueryRow(ctx, `
 SELECT p.id,coalesce((
   SELECT max(r.revision_number)
@@ -589,7 +590,7 @@ WHERE rr.id=$1 AND u.id<>$2`, requestID, actorID, titlePrefix, body)
 }
 
 // markPageReviewApproved verifies a page only for an approval decision.
-func markPageReviewApproved(ctx context.Context, tx pgx.Tx, pageID int64, decision string) error {
+func markPageReviewApproved(ctx context.Context, tx pgx.Tx, pageID int64, decision domain.PageReviewStatus) error {
 	if decision != domain.PageReviewStatusApproved {
 		return nil
 	}
@@ -607,7 +608,7 @@ func notifyReviewRequester(
 	ctx context.Context,
 	tx pgx.Tx,
 	requesterID, reviewerID int64,
-	title, slug, decision, note string,
+	title, slug string, decision domain.PageReviewStatus, note string,
 ) error {
 	if requesterID == reviewerID {
 		return nil
@@ -615,12 +616,12 @@ func notifyReviewRequester(
 
 	body := note
 	if body == "" {
-		body = "The review was " + decision + "."
+		body = "The review was " + string(decision) + "."
 	}
 
 	_, err := tx.Exec(ctx, `
 INSERT INTO notifications(user_id,kind,title,body,url)
-VALUES($1,'review',$2,$3,$4)`, requesterID, "Review "+decision+" for "+title, body, "/pages/"+slug)
+VALUES($1,'review',$2,$3,$4)`, requesterID, "Review "+string(decision)+" for "+title, body, "/pages/"+slug)
 
 	return err
 }

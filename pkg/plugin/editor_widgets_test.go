@@ -138,8 +138,8 @@ func TestEditorWidgets(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, widgets, 5)
 		require.True(t, widgets[1].Attributes[1].Repeat)
-		require.Equal(t, "textarea", widgets[2].Settings[1].Type)
-		require.Equal(t, "tabs", widgets[4].Preview.Kind)
+		require.Equal(t, EditorWidgetSettingTextarea, widgets[2].Settings[1].Type)
+		require.Equal(t, EditorWidgetPreviewTabs, widgets[4].Preview.Kind)
 	})
 
 	t.Run("accepts resource setting with owned completion module", func(t *testing.T) {

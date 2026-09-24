@@ -38,57 +38,6 @@ var (
 	ErrStaleSuggestion = errors.New("page changed after suggestion was created")
 )
 
-const (
-	// PageReviewStatusPending means the requested revision is awaiting a decision.
-	PageReviewStatusPending = "pending"
-	// PageReviewStatusChangesRequested means a reviewer asked the author to update the page.
-	PageReviewStatusChangesRequested = "changes_requested"
-	// PageReviewStatusApproved means the requested revision was approved.
-	PageReviewStatusApproved = "approved"
-	// PageReviewStatusCanceled means the requester or an administrator canceled the request.
-	PageReviewStatusCanceled = "canceled"
-	// PageReviewStatusSuperseded means a newer page revision replaced the requested revision.
-	PageReviewStatusSuperseded = "superseded"
-	// PageReviewCommentSideOld anchors feedback to a removed line from the previous revision.
-	PageReviewCommentSideOld = "old"
-	// PageReviewCommentSideNew anchors feedback to a line in the reviewed revision.
-	PageReviewCommentSideNew = "new"
-	// PageWatchScopePage subscribes to changes on one exact page.
-	PageWatchScopePage = "page"
-	// PageWatchScopeSubtree subscribes to the selected page path and descendants.
-	PageWatchScopeSubtree = "subtree"
-	// NavigationStyleSidebar keeps Kumbuka's full navigation sidebar.
-	NavigationStyleSidebar = "sidebar"
-	// NavigationStyleTopbar moves page navigation into a horizontal desktop bar.
-	NavigationStyleTopbar = "topbar"
-	// NavigationStyleTree uses a focused page-tree sidebar.
-	NavigationStyleTree = "tree"
-	// NavigationDensityComfortable is the default roomy sidebar layout.
-	NavigationDensityComfortable = "comfortable"
-	// NavigationDensityCompact reduces vertical navigation spacing.
-	NavigationDensityCompact = "compact"
-	// RobotsPolicyAllow permits crawlers to crawl the application.
-	RobotsPolicyAllow = "allow"
-	// RobotsPolicyDisallow asks crawlers not to crawl the application.
-	RobotsPolicyDisallow = "disallow"
-	// RobotsPolicyNone disables robots.txt output.
-	RobotsPolicyNone = "none"
-	// TypographySizeCompact uses the smallest content typography preset.
-	TypographySizeCompact = "compact"
-	// TypographySizeStandard uses the regular content typography preset.
-	TypographySizeStandard = "standard"
-	// TypographySizeLarge uses the largest content typography preset.
-	TypographySizeLarge = "large"
-	// DefaultTypographySize is the application default on new installations.
-	DefaultTypographySize = TypographySizeCompact
-	// DefaultSidebarWidth is the default desktop sidebar width in CSS pixels.
-	DefaultSidebarWidth = 280
-	// MinSidebarWidth is the smallest supported desktop sidebar width.
-	MinSidebarWidth = 220
-	// MaxSidebarWidth is the largest supported desktop sidebar width.
-	MaxSidebarWidth = 420
-)
-
 // AdminStats contains high-level object counts shown on the administration page.
 type AdminStats struct {
 	// Users is the number of wiki users.
@@ -154,13 +103,13 @@ type TagInfo struct {
 // RenderingSettings contains application-wide content presentation defaults.
 type RenderingSettings struct {
 	// DefaultTypographySize is used when a user has not selected a personal content size.
-	DefaultTypographySize string
+	DefaultTypographySize TypographySize
 }
 
 // AuthenticationSettings controls browser authentication without storing secrets.
 type AuthenticationSettings struct {
 	// Mode selects local, trusted-proxy, or OIDC authentication.
-	Mode string
+	Mode AuthMode
 	// OIDCIssuer is the OIDC discovery issuer URL.
 	OIDCIssuer string
 	// OIDCClientID is the public OIDC client identifier.
@@ -198,27 +147,18 @@ type ExternalLink struct {
 	// Description describes external link.
 	Description string `json:"description,omitempty" toml:"description"`
 	// HoverEffect controls visual feedback when a pointer hovers over the link.
-	HoverEffect string `json:"hover_effect,omitempty" toml:"hover_effect"`
+	HoverEffect ExternalLinkHoverEffect `json:"hover_effect,omitempty" toml:"hover_effect"`
 	// HoverText is an optional title template supporting {{label}} and {{description}}.
 	HoverText string `json:"hover_text,omitempty" toml:"hover_text"`
 }
 
-const (
-	// ExternalLinkHoverHighlight highlights a link without moving it.
-	ExternalLinkHoverHighlight = "highlight"
-	// ExternalLinkHoverLift raises a link slightly on pointer hover.
-	ExternalLinkHoverLift = "lift"
-	// ExternalLinkHoverNone disables visual hover treatment.
-	ExternalLinkHoverNone = "none"
-)
-
 // ExternalLinkHoverEffects returns the supported external-link hover presentations.
 func ExternalLinkHoverEffects() []string {
-	return []string{ExternalLinkHoverHighlight, ExternalLinkHoverLift, ExternalLinkHoverNone}
+	return []string{string(ExternalLinkHoverHighlight), string(ExternalLinkHoverLift), string(ExternalLinkHoverNone)}
 }
 
 // ValidExternalLinkHoverEffect reports whether value is a supported hover presentation. Empty selects the default highlight presentation.
-func ValidExternalLinkHoverEffect(value string) bool {
+func ValidExternalLinkHoverEffect(value ExternalLinkHoverEffect) bool {
 	switch value {
 	case "", ExternalLinkHoverHighlight, ExternalLinkHoverLift, ExternalLinkHoverNone:
 		return true
@@ -228,7 +168,7 @@ func ValidExternalLinkHoverEffect(value string) bool {
 }
 
 // EffectiveExternalLinkHoverEffect returns the visual hover presentation used for a link.
-func EffectiveExternalLinkHoverEffect(value string) string {
+func EffectiveExternalLinkHoverEffect(value ExternalLinkHoverEffect) ExternalLinkHoverEffect {
 	if value == "" {
 		return ExternalLinkHoverHighlight
 	}
@@ -316,7 +256,7 @@ type ApplicationSettings struct {
 	// ExternalLinks contains configurable links rendered beside global search.
 	ExternalLinks []ExternalLink
 	// RobotsPolicy controls whether robots.txt allows, disallows, or omits crawler guidance.
-	RobotsPolicy string
+	RobotsPolicy RobotsPolicy
 	// Authentication contains non-secret browser authentication settings.
 	Authentication AuthenticationSettings
 	// Rendering contains application-wide content presentation defaults.
@@ -446,7 +386,7 @@ type ImageData struct {
 // PageMetadata contains optional workflow metadata attached to a page.
 type PageMetadata struct {
 	// Status is the current status of page metadata.
-	Status string `json:"status"`
+	Status PageStatus `json:"status"`
 	// OwnerGroupID identifies the owner group associated with page metadata.
 	OwnerGroupID int64 `json:"owner_group_id,omitempty"`
 	// ReviewIntervalDays stores the review interval days value used by page metadata.
@@ -484,7 +424,7 @@ type PageWatch struct {
 	// Path is the path associated with page watch.
 	Path string `json:"path"`
 	// Scope stores the scope value used by page watch.
-	Scope string `json:"scope"`
+	Scope PageWatchScope `json:"scope"`
 	// CreatedAt records the created at timestamp for page watch.
 	CreatedAt time.Time `json:"created_at"`
 }
@@ -512,13 +452,13 @@ type PageReviewRequest struct {
 	// ReviewedByName is the reviewed by name associated with page review request.
 	ReviewedByName string
 	// Status is the current status of page review request.
-	Status string
+	Status PageReviewStatus
 	// Note stores the note value used by page review request.
 	Note string
 	// DecisionNote stores the decision note value used by page review request.
 	DecisionNote string
 	// PreviousStatus is the previous status associated with page review request.
-	PreviousStatus string
+	PreviousStatus PageReviewStatus
 	// CreatedAt records the created at timestamp for page review request.
 	CreatedAt time.Time
 	// UpdatedAt records the updated at timestamp for page review request.
@@ -536,7 +476,7 @@ type PageReviewComment struct {
 	// Author is the display name of the comment author.
 	Author string
 	// Side selects the previous or reviewed side of the revision diff.
-	Side string
+	Side PageReviewCommentSide
 	// StartLine is the first one-based source line covered by the comment.
 	StartLine int
 	// EndLine is the last one-based source line covered by the comment.
@@ -580,7 +520,7 @@ type PageAccessRule struct {
 	// GroupName is the group name associated with page access rule.
 	GroupName string
 	// Access stores the access value used by page access rule.
-	Access string
+	Access PageAccessLevel
 	// CreatedAt records the created at timestamp for page access rule.
 	CreatedAt time.Time
 	// UpdatedAt records the updated at timestamp for page access rule.
@@ -746,7 +686,7 @@ type GraphNode struct {
 	// Title is the title associated with graph node.
 	Title string `json:"title"`
 	// Status is the current status of graph node.
-	Status string `json:"status"`
+	Status PageStatus `json:"status"`
 }
 
 // GraphEdge is one wiki-link relationship between pages.
@@ -860,7 +800,7 @@ type PendingOIDCIdentity struct {
 	// DisplayName is the display name associated with pending OIDC identity.
 	DisplayName string
 	// Status is the current status of pending OIDC identity.
-	Status string
+	Status PendingOIDCStatus
 	// FirstSeenAt records the first seen at timestamp for pending OIDC identity.
 	FirstSeenAt time.Time
 	// LastSeenAt records the last seen at timestamp for pending OIDC identity.
@@ -912,7 +852,7 @@ type PageTemplate struct {
 	// Tags contains the tags associated with page template.
 	Tags []string
 	// Status is the current status of page template.
-	Status string
+	Status PageStatus
 	// OwnerGroupID identifies the owner group associated with page template.
 	OwnerGroupID int64
 	// ReviewIntervalDays stores the review interval days value used by page template.
@@ -930,11 +870,11 @@ type UserPreferences struct {
 	// ShowPageContents controls whether wiki pages render a heading table of contents.
 	ShowPageContents bool
 	// NavigationStyle controls the desktop navigation layout.
-	NavigationStyle string
+	NavigationStyle NavigationStyle
 	// NavigationDensity controls vertical spacing in the page tree.
-	NavigationDensity string
+	NavigationDensity NavigationDensity
 	// TypographySize overrides the application content size; empty inherits the administrator default.
-	TypographySize string
+	TypographySize TypographySize
 	// SidebarWidth is the desktop sidebar width in CSS pixels.
 	SidebarWidth int
 	// ShowNavigationGuides controls tree indentation guide lines.
@@ -949,15 +889,6 @@ type UserPreferences struct {
 	ExpandedNavigation []string
 }
 
-const (
-	// UserRoleAdmin grants full account-level administration.
-	UserRoleAdmin = "admin"
-	// UserRoleEditor grants account-level content editing without administration.
-	UserRoleEditor = "editor"
-	// UserRoleViewer grants authenticated read access without content editing.
-	UserRoleViewer = "viewer"
-)
-
 // User represents an authenticated wiki account.
 type User struct {
 	// ID is the stable identifier.
@@ -969,7 +900,7 @@ type User struct {
 	// DisplayName is the human-readable account name.
 	DisplayName string `json:"display_name"`
 	// Role controls the account authorization level.
-	Role string `json:"role"`
+	Role UserRole `json:"role"`
 	// Enabled controls authentication through every method.
 	Enabled bool `json:"-"`
 	// ExternalAdmin is an authentication-time administrator elevation.
@@ -1033,7 +964,7 @@ type Page struct {
 	// ViewCount is the total recorded page views.
 	ViewCount int64 `json:"view_count"`
 	// Status is the page lifecycle state.
-	Status string `json:"status"`
+	Status PageStatus `json:"status"`
 	// OwnerGroupID optionally assigns documentation ownership to a collaboration group.
 	OwnerGroupID int64 `json:"owner_group_id,omitempty"`
 	// OwnerGroup is the human-readable owner group name.
@@ -1101,7 +1032,7 @@ func (u User) CanEditContent() bool {
 }
 
 // ValidUserRole reports whether value is a supported account role.
-func ValidUserRole(value string) bool {
+func ValidUserRole(value UserRole) bool {
 	switch value {
 	case UserRoleAdmin, UserRoleEditor, UserRoleViewer:
 		return true
@@ -1111,7 +1042,7 @@ func ValidUserRole(value string) bool {
 }
 
 // ValidNavigationStyle reports whether value is a supported desktop navigation layout.
-func ValidNavigationStyle(value string) bool {
+func ValidNavigationStyle(value NavigationStyle) bool {
 	switch value {
 	case NavigationStyleSidebar, NavigationStyleTopbar, NavigationStyleTree:
 		return true
@@ -1121,12 +1052,12 @@ func ValidNavigationStyle(value string) bool {
 }
 
 // ValidNavigationDensity reports whether value is a supported navigation density.
-func ValidNavigationDensity(value string) bool {
+func ValidNavigationDensity(value NavigationDensity) bool {
 	return value == NavigationDensityComfortable || value == NavigationDensityCompact
 }
 
 // ValidRobotsPolicy reports whether value is a supported robots.txt policy.
-func ValidRobotsPolicy(value string) bool {
+func ValidRobotsPolicy(value RobotsPolicy) bool {
 	switch value {
 	case RobotsPolicyAllow, RobotsPolicyDisallow, RobotsPolicyNone:
 		return true
@@ -1136,7 +1067,7 @@ func ValidRobotsPolicy(value string) bool {
 }
 
 // ValidTypographySize reports whether value is a supported content typography preset.
-func ValidTypographySize(value string) bool {
+func ValidTypographySize(value TypographySize) bool {
 	switch value {
 	case TypographySizeCompact, TypographySizeStandard, TypographySizeLarge:
 		return true
@@ -1157,12 +1088,12 @@ func ValidReviewIntervalDays(days int) bool {
 
 // PageStatuses returns the supported page lifecycle statuses.
 func PageStatuses() []string {
-	return []string{"draft", "verified", "deprecated", "archived"}
+	return []string{string(PageStatusDraft), string(PageStatusVerified), string(PageStatusDeprecated), string(PageStatusArchived)}
 }
 
 // ValidPageStatus reports whether a page status is supported.
-func ValidPageStatus(value string) bool {
-	return slices.Contains(PageStatuses(), value)
+func ValidPageStatus(value PageStatus) bool {
+	return slices.Contains([]PageStatus{PageStatusDraft, PageStatusVerified, PageStatusDeprecated, PageStatusArchived}, value)
 }
 
 // DefaultUserPreferences returns the presentation defaults used before a user saves preferences.

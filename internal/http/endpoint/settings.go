@@ -174,15 +174,15 @@ func preferencesFromForm(r *http.Request, views *webview.Views) (domain.UserPref
 		return domain.UserPreferences{}, "Unknown theme."
 	}
 	navigationStyle := r.FormValue("navigation_style")
-	if !domain.ValidNavigationStyle(navigationStyle) {
+	if !domain.ValidNavigationStyle(domain.NavigationStyle(navigationStyle)) {
 		return domain.UserPreferences{}, "Unknown navigation style."
 	}
 	density := r.FormValue("navigation_density")
-	if !domain.ValidNavigationDensity(density) {
+	if !domain.ValidNavigationDensity(domain.NavigationDensity(density)) {
 		return domain.UserPreferences{}, "Unknown navigation density."
 	}
 	typographySize := r.FormValue("typography_size")
-	if typographySize != "" && !domain.ValidTypographySize(typographySize) {
+	if typographySize != "" && !domain.ValidTypographySize(domain.TypographySize(typographySize)) {
 		return domain.UserPreferences{}, "Unknown typography size."
 	}
 	sidebarWidth, err := strconv.Atoi(r.FormValue("sidebar_width"))
@@ -192,7 +192,7 @@ func preferencesFromForm(r *http.Request, views *webview.Views) (domain.UserPref
 
 	return domain.UserPreferences{
 		Theme: selectedTheme.Title, ShowPageContents: r.FormValue("show_page_contents") == "on",
-		NavigationStyle: navigationStyle, NavigationDensity: density, TypographySize: typographySize, SidebarWidth: sidebarWidth,
+		NavigationStyle: domain.NavigationStyle(navigationStyle), NavigationDensity: domain.NavigationDensity(density), TypographySize: domain.TypographySize(typographySize), SidebarWidth: sidebarWidth,
 		ShowNavigationGuides:     r.FormValue("show_navigation_guides") == "on",
 		RememberNavigationState:  r.FormValue("remember_navigation_state") == "on",
 		ShowNavigationPageCounts: r.FormValue("show_navigation_page_counts") == "on",

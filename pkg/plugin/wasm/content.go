@@ -42,7 +42,7 @@ func (m contentPreprocessorModule) PreprocessContent(ctx plugin.Context, source 
 	result, err := m.instance.invoke(execution, sdk.RenderRequest{
 		APIVersion: sdk.Version,
 		Module:     m.module.ID,
-		Stage:      "content-preprocess",
+		Stage:      string(plugin.RenderStageContentPreprocess),
 		Source:     source,
 		Features:   ctx.Features,
 	})

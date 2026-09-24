@@ -41,7 +41,7 @@ type groupWriter interface {
 // pageAccessAdmin manages inherited page access rules.
 type pageAccessAdmin interface {
 	PageAccessRules(context.Context) ([]domain.PageAccessRule, error)
-	SavePageAccessRule(context.Context, string, int64, string) error
+	SavePageAccessRule(context.Context, string, int64, domain.PageAccessLevel) error
 	DeletePageAccessRule(context.Context, int64) error
 }
 
@@ -80,7 +80,7 @@ type userDirectoryService interface {
 type userManagementService interface {
 	Users(context.Context) ([]domain.AdminUser, error)
 	UserGroups(context.Context, int64) ([]domain.Group, error)
-	UpdateUser(context.Context, int64, string, bool, []int64, *bool) error
+	UpdateUser(context.Context, int64, domain.UserRole, bool, []int64, *bool) error
 	RevokeUserSessions(context.Context, int64, int64) error
 }
 

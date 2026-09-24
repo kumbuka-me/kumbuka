@@ -7,6 +7,7 @@ import (
 
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
+	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
 
 // AdminPageAccess renders inherited page-path access rules.
@@ -49,7 +50,7 @@ func SaveAdminPageAccess(accessUseCases pageAccessAdmin, logger *slog.Logger) ht
 			httpresponse.Problem(w, http.StatusUnprocessableEntity, "Page access validation failed.", httpresponse.NewFieldProblem("group_id", "Choose a group."))
 			return
 		}
-		if err := accessUseCases.SavePageAccessRule(r.Context(), r.FormValue("path"), groupID, r.FormValue("access")); err != nil {
+		if err := accessUseCases.SavePageAccessRule(r.Context(), r.FormValue("path"), groupID, domain.PageAccessLevel(r.FormValue("access"))); err != nil {
 			writeAdminProblem(logger, w, err, "Page access rule")
 			return
 		}

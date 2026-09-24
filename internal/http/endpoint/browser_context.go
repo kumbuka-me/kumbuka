@@ -154,14 +154,14 @@ func addPluginFeatures(features map[string]bool, item plugin.LoadedPlugin) {
 	}
 
 	for _, module := range item.Manifest.Modules {
-		if module.Type != "markdown-syntax" || module.Syntax == "" {
+		if plugin.ModuleType(module.Type) != plugin.ModuleTypeMarkdownSyntax || module.Syntax == "" {
 			continue
 		}
 
 		feature := "markdown-syntax." + module.Syntax
 		features[feature] = true
 		for _, setting := range item.Manifest.Modules {
-			if setting.Type != "settings" || !slices.Contains(setting.Requires, module.ID) {
+			if plugin.ModuleType(setting.Type) != plugin.ModuleTypeSettings || !slices.Contains(setting.Requires, module.ID) {
 				continue
 			}
 			features[feature+"."+setting.ID] = item.Settings[setting.ID]
@@ -285,7 +285,7 @@ func pluginExposesSettings(item plugin.LoadedPlugin) bool {
 }
 
 // effectiveTypographySize resolves the user preference against the application default.
-func effectiveTypographySize(preferences domain.UserPreferences, settings domain.ApplicationSettings) string {
+func effectiveTypographySize(preferences domain.UserPreferences, settings domain.ApplicationSettings) domain.TypographySize {
 	typographySize := preferences.TypographySize
 	if typographySize == "" {
 		typographySize = settings.Rendering.DefaultTypographySize

@@ -27,9 +27,9 @@ WHERE user_id=$1 AND path=$2`, userID, strings.Trim(strings.TrimSpace(slug), "/"
 }
 
 // SetPageWatch creates, changes, or removes one user's exact-path watch.
-func (s *Store) SetPageWatch(ctx context.Context, slug string, userID int64, scope string) error {
+func (s *Store) SetPageWatch(ctx context.Context, slug string, userID int64, scope domain.PageWatchScope) error {
 	slug = strings.Trim(strings.TrimSpace(slug), "/")
-	scope = strings.TrimSpace(scope)
+	scope = domain.PageWatchScope(strings.TrimSpace(string(scope)))
 	if slug == "" || userID <= 0 {
 		return domain.NewValidationError("watch", "Choose a valid page to watch.")
 	}
@@ -46,7 +46,7 @@ WHERE user_id=$1 AND path=$2`, userID, slug)
 INSERT INTO page_watches(user_id,path,scope)
 VALUES($1,$2,$3)
 ON CONFLICT(user_id,path) DO UPDATE
-SET scope=EXCLUDED.scope,created_at=now()`, userID, slug, scope)
+SET scope=EXCLUDED.scope,created_at=now()`, userID, slug, string(scope))
 	return err
 }
 

@@ -56,11 +56,11 @@ func TestPartitionPageCommentsKeepsOrphanRepliesVisible(t *testing.T) {
 func TestReviewDiffAnchorChoosesStableSide(t *testing.T) {
 	t.Parallel()
 
-	side, line := reviewDiffAnchor(revision.DiffLine{Kind: "removed", OldLine: 8})
+	side, line := reviewDiffAnchor(revision.DiffLine{Kind: revision.DiffLineRemoved, OldLine: 8})
 	assert.Equal(t, domain.PageReviewCommentSideOld, side)
 	assert.Equal(t, 8, line)
 
-	side, line = reviewDiffAnchor(revision.DiffLine{Kind: "context", OldLine: 9, NewLine: 10})
+	side, line = reviewDiffAnchor(revision.DiffLine{Kind: revision.DiffLineContext, OldLine: 9, NewLine: 10})
 	assert.Equal(t, domain.PageReviewCommentSideNew, side)
 	assert.Equal(t, 10, line)
 }
@@ -74,8 +74,8 @@ func TestReviewDiffLinesGroupsFeedback(t *testing.T) {
 		{ID: 2, Side: domain.PageReviewCommentSideNew, StartLine: 5},
 	}
 	diff := []revision.DiffLine{
-		{Kind: "removed", OldLine: 4, Text: "old"},
-		{Kind: "added", NewLine: 5, Text: "new"},
+		{Kind: revision.DiffLineRemoved, OldLine: 4, Text: "old"},
+		{Kind: revision.DiffLineAdded, NewLine: 5, Text: "new"},
 	}
 
 	lines := ReviewDiffLines(diff, comments)

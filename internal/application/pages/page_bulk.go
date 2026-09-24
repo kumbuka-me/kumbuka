@@ -25,14 +25,30 @@ type ImportedPage struct {
 	Source string
 }
 
+// BulkPageAction identifies one supported administrative bulk-page mutation.
+type BulkPageAction string
+
+const (
+	// BulkPageActionStatus changes the lifecycle status of selected pages.
+	BulkPageActionStatus BulkPageAction = "status"
+	// BulkPageActionTag adds one tag to selected pages.
+	BulkPageActionTag BulkPageAction = "tag"
+	// BulkPageActionGroup assigns selected pages to one owner group.
+	BulkPageActionGroup BulkPageAction = "group"
+	// BulkPageActionMove moves selected pages below a target path.
+	BulkPageActionMove BulkPageAction = "move"
+	// BulkPageActionDelete moves selected pages to the recycle bin.
+	BulkPageActionDelete BulkPageAction = "delete"
+)
+
 // BulkPageInput contains one mutation to apply to a set of pages.
 type BulkPageInput struct {
 	// Action selects the bulk mutation to perform.
-	Action string
+	Action BulkPageAction
 	// Slugs identifies the selected pages.
 	Slugs []string
 	// Status is the replacement lifecycle status for a status action.
-	Status string
+	Status domain.PageStatus
 	// Tag is added by a tag action.
 	Tag string
 	// GroupID is assigned by a group action.
@@ -49,7 +65,7 @@ type pageBulkRepository interface {
 	BulkAssignPageGroup(context.Context, []string, int64) error
 	BulkDeletePages(context.Context, []string, int64) error
 	BulkMovePages(context.Context, []string, string, domain.User) error
-	BulkSetPageStatus(context.Context, []string, string) error
+	BulkSetPageStatus(context.Context, []string, domain.PageStatus) error
 }
 
 // bulkRepository composes only persistence required by bulk and import workflows.
@@ -146,7 +162,7 @@ func (s *Bulk) importPage(ctx context.Context, candidate ImportedPage, actor dom
 		Title:      candidate.Title,
 		Markdown:   candidate.Markdown,
 		Message:    "Imported from " + candidate.Source,
-		Status:     "verified",
+		Status:     domain.PageStatusVerified,
 		Properties: map[string]string{},
 		Actor:      actor,
 	}
@@ -186,24 +202,24 @@ func (s *Bulk) Bulk(ctx context.Context, input BulkPageInput) error {
 	var err error
 
 	switch input.Action {
-	case "status":
+	case BulkPageActionStatus:
 		if !domain.ValidPageStatus(input.Status) {
 			return domain.NewValidationError("status", "Choose a valid page status.")
 		}
 		err = s.repository.BulkSetPageStatus(ctx, input.Slugs, input.Status)
-	case "tag":
+	case BulkPageActionTag:
 		if strings.TrimSpace(input.Tag) == "" {
 			return domain.NewValidationError("tag", "Enter a tag.")
 		}
 		err = s.repository.BulkAddPageTag(ctx, input.Slugs, input.Tag)
-	case "group":
+	case BulkPageActionGroup:
 		if input.GroupID <= 0 {
 			return domain.NewValidationError("group_id", "Choose a valid group.")
 		}
 		err = s.repository.BulkAssignPageGroup(ctx, input.Slugs, input.GroupID)
-	case "move":
+	case BulkPageActionMove:
 		err = s.bulkMove(ctx, input.Slugs, input.Target, input.Actor)
-	case "delete":
+	case BulkPageActionDelete:
 		err = s.repository.BulkDeletePages(ctx, input.Slugs, input.Actor.ID)
 	default:
 		return domain.NewValidationError("action", "Choose a valid bulk action.")
@@ -216,7 +232,7 @@ func (s *Bulk) Bulk(ctx context.Context, input BulkPageInput) error {
 	s.effects.recordAudit(
 		ctx,
 		input.Actor.ID,
-		"page.bulk_"+input.Action,
+		"page.bulk_"+string(input.Action),
 		"page",
 		strings.Join(input.Slugs, ","),
 		fmt.Sprintf("%d pages", len(input.Slugs)),

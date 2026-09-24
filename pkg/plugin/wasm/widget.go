@@ -26,7 +26,7 @@ func (m widgetModule) Render(ctx plugin.Context, request plugin.WidgetRequest) (
 	result, err := m.instance.invoke(execution, sdk.RenderRequest{
 		APIVersion: sdk.Version,
 		Module:     m.module.ID,
-		Stage:      "widget",
+		Stage:      string(plugin.RenderStageWidget),
 		Features:   ctx.Features,
 		Widget:     &sdk.WidgetContext{Surface: request.Surface, Page: request.Page},
 	})
@@ -59,7 +59,7 @@ func (m widgetModule) Command(ctx plugin.Context, request plugin.WidgetCommandRe
 	result, err := m.instance.invoke(execution, sdk.RenderRequest{
 		APIVersion: sdk.Version,
 		Module:     m.module.ID,
-		Stage:      "widget-command",
+		Stage:      string(plugin.RenderStageWidgetCommand),
 		Features:   ctx.Features,
 		WidgetCommand: &sdk.WidgetCommandContext{
 			Surface: request.Surface,

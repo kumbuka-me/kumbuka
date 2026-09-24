@@ -24,7 +24,7 @@ type PageTemplateInput struct {
 	// Tags contains the tags associated with page template input.
 	Tags []string
 	// Status is the current status of page template input.
-	Status string
+	Status domain.PageStatus
 	// OwnerGroupID identifies the owner group associated with page template input.
 	OwnerGroupID int64
 	// ReviewIntervalDays stores the review interval days value used by page template input.
@@ -132,9 +132,9 @@ func validatePageTemplate(input PageTemplateInput, icons iconValidator) (domain.
 }
 
 // defaultPageTemplateStatus applies the verified default to an unspecified blueprint status.
-func defaultPageTemplateStatus(status string) string {
+func defaultPageTemplateStatus(status domain.PageStatus) domain.PageStatus {
 	if status == "" {
-		return "verified"
+		return domain.PageStatusVerified
 	}
 
 	return status

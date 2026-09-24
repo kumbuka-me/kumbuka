@@ -27,7 +27,7 @@ var editorWidgetClass = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_-]{0,127}$`)
 // EditorWidgetSyntax declares the Markdown construct recognized by one visual-editor widget.
 type EditorWidgetSyntax struct {
 	// Kind selects macro, substitution, callout, details, or tabs source mapping.
-	Kind string `json:"kind"`
+	Kind EditorWidgetSyntaxKind `json:"kind"`
 	// Name identifies a macro name or substitution prefix when the syntax kind uses one.
 	Name string `json:"name,omitempty"`
 	// Multiline allows a macro invocation to span multiple source lines.
@@ -39,7 +39,7 @@ type EditorWidgetAttribute struct {
 	// Name identifies the Markdown attribute.
 	Name string `json:"name"`
 	// Type selects string, identifier, enum, list, or color-list validation.
-	Type string `json:"type"`
+	Type EditorWidgetAttributeType `json:"type"`
 	// Default is applied by the editor when the source omits this attribute.
 	Default string `json:"default,omitempty"`
 	// Required reports whether the attribute must contain a value.
@@ -69,13 +69,13 @@ type EditorWidgetSettingColumn struct {
 	// Label is the human-readable column heading.
 	Label string `json:"label"`
 	// Type selects a text, textarea, or color input.
-	Type string `json:"type"`
+	Type EditorWidgetColumnType `json:"type"`
 }
 
 // EditorWidgetSetting declares one generic control rendered by the visual editor.
 type EditorWidgetSetting struct {
 	// Type selects text, textarea, select, resource, or table behavior.
-	Type string `json:"type"`
+	Type EditorWidgetSettingType `json:"type"`
 	// Label is the human-readable setting label.
 	Label string `json:"label"`
 	// Attribute identifies the scalar attribute edited by text and select controls.
@@ -95,7 +95,7 @@ type EditorWidgetSetting struct {
 // EditorWidgetConstraint declares a cross-attribute validation rule.
 type EditorWidgetConstraint struct {
 	// Kind selects exactly-one or same-length validation.
-	Kind string `json:"kind"`
+	Kind EditorWidgetConstraintKind `json:"kind"`
 	// Attributes contains the attributes participating in the rule.
 	Attributes []string `json:"attributes"`
 	// Optional allows the final attribute to be omitted for same-length validation.
@@ -217,7 +217,7 @@ type EditorWidgetTabsPreview struct {
 // EditorWidgetPreview declares the host-rendered visual representation used while editing.
 type EditorWidgetPreview struct {
 	// Kind selects a bounded host-owned preview renderer.
-	Kind string `json:"kind"`
+	Kind EditorWidgetPreviewKind `json:"kind"`
 	// Badge contains badge-specific presentation metadata.
 	Badge *EditorWidgetBadgePreview `json:"badge,omitempty"`
 	// Reference contains resource-reference chip metadata.
@@ -322,14 +322,14 @@ func editorWidgetsFromPackage(pkg *pluginpackage.Package) ([]EditorWidgetContrib
 func validateEditorWidgetCompletionReferences(widgets []EditorWidgetContribution, manifest pluginpackage.Manifest) error {
 	completionModules := make(map[string]bool)
 	for _, module := range manifest.Modules {
-		if module.Type == "editor-completion" {
+		if ModuleType(module.Type) == ModuleTypeEditorCompletion {
 			completionModules[module.ID] = true
 		}
 	}
 
 	for _, widget := range widgets {
 		for _, setting := range widget.Settings {
-			if setting.Type == "resource" && !completionModules[setting.CompletionModuleID] {
+			if setting.Type == EditorWidgetSettingResource && !completionModules[setting.CompletionModuleID] {
 				return fmt.Errorf("visual editor widget %q references unknown editor-completion module %q", widget.ID, setting.CompletionModuleID)
 			}
 		}
@@ -496,11 +496,11 @@ func validateEditorWidgetDeclaration(widget *EditorWidgetContribution) error {
 // validateEditorWidgetSyntax validates the source syntax declaration for one widget.
 func validateEditorWidgetSyntax(syntax EditorWidgetSyntax, inline bool) error {
 	switch syntax.Kind {
-	case "macro", "substitution":
+	case EditorWidgetSyntaxMacro, EditorWidgetSyntaxSubstitution:
 		if !validID.MatchString(syntax.Name) {
 			return errors.New("syntax must declare a valid macro name or substitution prefix")
 		}
-	case "callout", "details", "tabs":
+	case EditorWidgetSyntaxCallout, EditorWidgetSyntaxDetails, EditorWidgetSyntaxTabs:
 		if syntax.Name != "" || inline {
 			return errors.New("block syntax cannot declare a name or be inline")
 		}
@@ -558,11 +558,11 @@ func validateEditorWidgetAttribute(attribute EditorWidgetAttribute) error {
 	}
 
 	switch attribute.Type {
-	case "string", "identifier":
+	case EditorWidgetAttributeString, EditorWidgetAttributeIdentifier:
 		return validateEditorWidgetScalarAttributeDeclaration(attribute)
-	case "enum":
+	case EditorWidgetAttributeEnum:
 		return validateEditorWidgetEnumAttributeDeclaration(attribute)
-	case "list", "color-list":
+	case EditorWidgetAttributeList, EditorWidgetAttributeColorList:
 		return validateEditorWidgetListAttributeDeclaration(attribute)
 	default:
 		return fmt.Errorf("unsupported type %q", attribute.Type)
@@ -615,7 +615,7 @@ func validateEditorWidgetListAttributeDeclaration(attribute EditorWidgetAttribut
 	if attribute.Separator == "" {
 		return errors.New("list attribute requires a separator")
 	}
-	if attribute.Type == "list" && len(attribute.Aliases) != 0 {
+	if attribute.Type == EditorWidgetAttributeList && len(attribute.Aliases) != 0 {
 		return errors.New("plain list attribute cannot declare color aliases")
 	}
 	if len(attribute.Aliases) > 32 {
@@ -641,7 +641,7 @@ func validEditorWidgetEnumValue(value string, seen map[string]bool) bool {
 
 // validEditorWidgetMemberOfConstraint reports whether a member-of rule maps a scalar attribute to a list attribute.
 func validEditorWidgetMemberOfConstraint(value, set EditorWidgetAttribute) bool {
-	return (value.Type == "string" || value.Type == "identifier") && set.Type == "list"
+	return (value.Type == EditorWidgetAttributeString || value.Type == EditorWidgetAttributeIdentifier) && set.Type == EditorWidgetAttributeList
 }
 
 // validateEditorWidgetSetting validates a generated control and its referenced attributes.
@@ -651,13 +651,13 @@ func validateEditorWidgetSetting(setting EditorWidgetSetting, attributes map[str
 	}
 
 	switch setting.Type {
-	case "text", "textarea":
+	case EditorWidgetSettingText, EditorWidgetSettingTextarea:
 		return validateEditorWidgetTextSettingDeclaration(setting, attributes)
-	case "select":
+	case EditorWidgetSettingSelect:
 		return validateEditorWidgetSelectSettingDeclaration(setting, attributes)
-	case "resource":
+	case EditorWidgetSettingResource:
 		return validateEditorWidgetResourceSettingDeclaration(setting, attributes)
-	case "table":
+	case EditorWidgetSettingTable:
 		return validateEditorWidgetTableSettingDeclaration(setting, attributes)
 	default:
 		return fmt.Errorf("unsupported visual editor setting type %q", setting.Type)
@@ -734,7 +734,7 @@ func validateEditorWidgetTableColumnBinding(setting EditorWidgetSetting, index i
 	if !validEditorWidgetTableColumn(column) {
 		return fmt.Errorf("table setting %q has invalid column", setting.Label)
 	}
-	if column.Type == "color" && attribute.Type != "color-list" {
+	if column.Type == EditorWidgetColumnColor && attribute.Type != EditorWidgetAttributeColorList {
 		return fmt.Errorf("table color column %q must target a color-list", column.Label)
 	}
 	return nil
@@ -747,13 +747,13 @@ func validateEditorWidgetConstraint(constraint EditorWidgetConstraint, attribute
 	}
 
 	switch constraint.Kind {
-	case "exactly-one":
+	case EditorWidgetConstraintExactlyOne:
 		if constraint.Optional {
 			return errors.New("exactly-one constraint cannot be optional")
 		}
-	case "same-length":
+	case EditorWidgetConstraintSameLength:
 		return validateEditorWidgetSameLengthConstraint(constraint, attributes)
-	case "member-of":
+	case EditorWidgetConstraintMemberOf:
 		return validateEditorWidgetMemberOfConstraintDeclaration(constraint, attributes)
 	default:
 		return fmt.Errorf("unsupported visual editor constraint %q", constraint.Kind)
@@ -778,7 +778,7 @@ func validateEditorWidgetConstraintReferences(constraint EditorWidgetConstraint,
 func validateEditorWidgetSameLengthConstraint(constraint EditorWidgetConstraint, attributes map[string]EditorWidgetAttribute) error {
 	for _, name := range constraint.Attributes {
 		attribute := attributes[name]
-		if attribute.Type != "list" && attribute.Type != "color-list" {
+		if attribute.Type != EditorWidgetAttributeList && attribute.Type != EditorWidgetAttributeColorList {
 			return errors.New("same-length constraint requires list attributes")
 		}
 	}
@@ -801,17 +801,17 @@ func validateEditorWidgetMemberOfConstraintDeclaration(constraint EditorWidgetCo
 // validateEditorWidgetPreview validates safe class names and attribute references for one preview.
 func validateEditorWidgetPreview(preview EditorWidgetPreview, attributes map[string]EditorWidgetAttribute) error {
 	switch preview.Kind {
-	case "badge":
+	case EditorWidgetPreviewBadge:
 		return validateEditorWidgetBadgePreview(preview, attributes)
-	case "reference":
+	case EditorWidgetPreviewReference:
 		return validateEditorWidgetReferencePreview(preview, attributes)
-	case "card":
+	case EditorWidgetPreviewCard:
 		return validateEditorWidgetCardPreview(preview, attributes)
-	case "callout":
+	case EditorWidgetPreviewCallout:
 		return validateEditorWidgetCalloutPreview(preview, attributes)
-	case "details":
+	case EditorWidgetPreviewDetails:
 		return validateEditorWidgetDetailsPreview(preview, attributes)
-	case "tabs":
+	case EditorWidgetPreviewTabs:
 		return validateEditorWidgetTabsPreview(preview, attributes)
 	default:
 		return fmt.Errorf("unsupported visual editor preview kind %q", preview.Kind)
@@ -820,7 +820,7 @@ func validateEditorWidgetPreview(preview EditorWidgetPreview, attributes map[str
 
 // validateEditorWidgetBadgePreview validates badge-specific preview metadata.
 func validateEditorWidgetBadgePreview(preview EditorWidgetPreview, attributes map[string]EditorWidgetAttribute) error {
-	if preview.Badge == nil || previewHasOtherKind(preview, "badge") {
+	if preview.Badge == nil || previewHasOtherKind(preview, EditorWidgetPreviewBadge) {
 		return errors.New("badge preview metadata is invalid")
 	}
 
@@ -849,7 +849,7 @@ func validateEditorWidgetBadgePreview(preview EditorWidgetPreview, attributes ma
 
 // validateEditorWidgetReferencePreview validates inline-reference preview metadata.
 func validateEditorWidgetReferencePreview(preview EditorWidgetPreview, attributes map[string]EditorWidgetAttribute) error {
-	if preview.Reference == nil || previewHasOtherKind(preview, "reference") {
+	if preview.Reference == nil || previewHasOtherKind(preview, EditorWidgetPreviewReference) {
 		return errors.New("reference preview metadata is invalid")
 	}
 
@@ -865,7 +865,7 @@ func validateEditorWidgetReferencePreview(preview EditorWidgetPreview, attribute
 
 // validateEditorWidgetCardPreview validates card-specific preview metadata.
 func validateEditorWidgetCardPreview(preview EditorWidgetPreview, attributes map[string]EditorWidgetAttribute) error {
-	if preview.Card == nil || previewHasOtherKind(preview, "card") {
+	if preview.Card == nil || previewHasOtherKind(preview, EditorWidgetPreviewCard) {
 		return errors.New("card preview metadata is invalid")
 	}
 
@@ -881,7 +881,7 @@ func validateEditorWidgetCardPreview(preview EditorWidgetPreview, attributes map
 
 // validateEditorWidgetCalloutPreview validates callout-specific preview metadata.
 func validateEditorWidgetCalloutPreview(preview EditorWidgetPreview, attributes map[string]EditorWidgetAttribute) error {
-	if preview.Callout == nil || previewHasOtherKind(preview, "callout") {
+	if preview.Callout == nil || previewHasOtherKind(preview, EditorWidgetPreviewCallout) {
 		return errors.New("callout preview metadata is invalid")
 	}
 
@@ -897,7 +897,7 @@ func validateEditorWidgetCalloutPreview(preview EditorWidgetPreview, attributes 
 
 // validateEditorWidgetDetailsPreview validates details-specific preview metadata.
 func validateEditorWidgetDetailsPreview(preview EditorWidgetPreview, attributes map[string]EditorWidgetAttribute) error {
-	if preview.Details == nil || previewHasOtherKind(preview, "details") {
+	if preview.Details == nil || previewHasOtherKind(preview, EditorWidgetPreviewDetails) {
 		return errors.New("details preview metadata is invalid")
 	}
 
@@ -913,7 +913,7 @@ func validateEditorWidgetDetailsPreview(preview EditorWidgetPreview, attributes 
 
 // validateEditorWidgetTabsPreview validates tabs-specific preview metadata.
 func validateEditorWidgetTabsPreview(preview EditorWidgetPreview, attributes map[string]EditorWidgetAttribute) error {
-	if preview.Tabs == nil || previewHasOtherKind(preview, "tabs") {
+	if preview.Tabs == nil || previewHasOtherKind(preview, EditorWidgetPreviewTabs) {
 		return errors.New("tabs preview metadata is invalid")
 	}
 
@@ -928,7 +928,7 @@ func validateEditorWidgetTabsPreview(preview EditorWidgetPreview, attributes map
 		if err := validateEditorWidgetAttributeReferences(attributes, name); err != nil {
 			return err
 		}
-		if attributes[name].Type != "list" {
+		if attributes[name].Type != EditorWidgetAttributeList {
 			return errors.New("tabs preview attributes must be lists")
 		}
 	}
@@ -936,17 +936,17 @@ func validateEditorWidgetTabsPreview(preview EditorWidgetPreview, attributes map
 }
 
 // previewHasOtherKind reports whether preview contains metadata for a different preview renderer.
-func previewHasOtherKind(preview EditorWidgetPreview, allowed string) bool {
+func previewHasOtherKind(preview EditorWidgetPreview, allowed EditorWidgetPreviewKind) bool {
 	kinds := []struct {
-		name    string
+		name    EditorWidgetPreviewKind
 		present bool
 	}{
-		{name: "badge", present: preview.Badge != nil},
-		{name: "reference", present: preview.Reference != nil},
-		{name: "card", present: preview.Card != nil},
-		{name: "callout", present: preview.Callout != nil},
-		{name: "details", present: preview.Details != nil},
-		{name: "tabs", present: preview.Tabs != nil},
+		{name: EditorWidgetPreviewBadge, present: preview.Badge != nil},
+		{name: EditorWidgetPreviewReference, present: preview.Reference != nil},
+		{name: EditorWidgetPreviewCard, present: preview.Card != nil},
+		{name: EditorWidgetPreviewCallout, present: preview.Callout != nil},
+		{name: EditorWidgetPreviewDetails, present: preview.Details != nil},
+		{name: EditorWidgetPreviewTabs, present: preview.Tabs != nil},
 	}
 	for _, kind := range kinds {
 		if kind.name != allowed && kind.present {
@@ -1018,17 +1018,17 @@ func validEditorWidgetSettingMetadata(setting EditorWidgetSetting) bool {
 
 // validEditorWidgetTextSetting reports whether a text control targets one scalar attribute.
 func validEditorWidgetTextSetting(setting EditorWidgetSetting, attribute EditorWidgetAttribute, found bool) bool {
-	return found && (attribute.Type == "string" || attribute.Type == "identifier") && len(setting.Attributes) == 0 && len(setting.Columns) == 0 && setting.CompletionModuleID == ""
+	return found && (attribute.Type == EditorWidgetAttributeString || attribute.Type == EditorWidgetAttributeIdentifier) && len(setting.Attributes) == 0 && len(setting.Columns) == 0 && setting.CompletionModuleID == ""
 }
 
 // validEditorWidgetSelectSetting reports whether a select control targets one enum attribute without extra control data.
 func validEditorWidgetSelectSetting(setting EditorWidgetSetting, attribute EditorWidgetAttribute, found bool) bool {
-	return found && attribute.Type == "enum" && len(setting.Attributes) == 0 && len(setting.Columns) == 0 && len(setting.Suggestions) == 0 && setting.CompletionModuleID == ""
+	return found && attribute.Type == EditorWidgetAttributeEnum && len(setting.Attributes) == 0 && len(setting.Columns) == 0 && len(setting.Suggestions) == 0 && setting.CompletionModuleID == ""
 }
 
 // validEditorWidgetResourceSetting reports whether a resource control targets one scalar attribute without unrelated control data.
 func validEditorWidgetResourceSetting(setting EditorWidgetSetting, attribute EditorWidgetAttribute, found bool) bool {
-	return found && (attribute.Type == "string" || attribute.Type == "identifier") && len(setting.Attributes) == 0 && len(setting.Columns) == 0 && len(setting.Suggestions) == 0
+	return found && (attribute.Type == EditorWidgetAttributeString || attribute.Type == EditorWidgetAttributeIdentifier) && len(setting.Attributes) == 0 && len(setting.Columns) == 0 && len(setting.Suggestions) == 0
 }
 
 // validEditorWidgetTableShape reports whether a table control has a bounded one-to-one attribute and column layout.
@@ -1039,18 +1039,18 @@ func validEditorWidgetTableShape(setting EditorWidgetSetting) bool {
 
 // validEditorWidgetFirstTableColumn reports whether the first table column is textual and backed by a list.
 func validEditorWidgetFirstTableColumn(attribute EditorWidgetAttribute, column EditorWidgetSettingColumn) bool {
-	return attribute.Type == "list" && (column.Type == "text" || column.Type == "textarea")
+	return attribute.Type == EditorWidgetAttributeList && (column.Type == EditorWidgetColumnText || column.Type == EditorWidgetColumnTextarea)
 }
 
 // validEditorWidgetTableAttribute reports whether a table attribute exists, is list-like, and is not duplicated.
 func validEditorWidgetTableAttribute(attribute EditorWidgetAttribute, found, duplicate bool) bool {
-	return found && (attribute.Type == "list" || attribute.Type == "color-list") && !duplicate
+	return found && (attribute.Type == EditorWidgetAttributeList || attribute.Type == EditorWidgetAttributeColorList) && !duplicate
 }
 
 // validEditorWidgetTableColumn reports whether a table column has a bounded label and supported control type.
 func validEditorWidgetTableColumn(column EditorWidgetSettingColumn) bool {
 	return strings.TrimSpace(column.Label) != "" && len(column.Label) <= 128 &&
-		(column.Type == "text" || column.Type == "textarea" || column.Type == "color")
+		(column.Type == EditorWidgetColumnText || column.Type == EditorWidgetColumnTextarea || column.Type == EditorWidgetColumnColor)
 }
 
 // validEditorWidgetBadgeMetadata reports whether badge preview metadata stays within contract limits.

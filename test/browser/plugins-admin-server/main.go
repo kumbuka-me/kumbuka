@@ -123,7 +123,7 @@ func main() {
 		if r.Header.Get("X-Fixture-Role") != "" {
 			role = r.Header.Get("X-Fixture-Role")
 		}
-		mux.ServeHTTP(w, auth.WithUser(r, domain.User{ID: 1, Role: role}))
+		mux.ServeHTTP(w, auth.WithUser(r, domain.User{ID: 1, Role: domain.UserRole(role)}))
 	})))
 
 	fmt.Println("http://" + listener.Addr().String())

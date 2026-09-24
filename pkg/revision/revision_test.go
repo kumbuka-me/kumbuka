@@ -20,10 +20,10 @@ func TestAnalyzeUsesUnifiedFormat(t *testing.T) {
 	})
 
 	require.NotEmpty(t, record.Diff)
-	assert.True(t, hasDiffLine(record.Diff, "header", "revision 1"))
-	assert.True(t, hasDiffLine(record.Diff, "hunk", "@@"))
-	assert.True(t, hasDiffLine(record.Diff, "removed", "old command"))
-	assert.True(t, hasDiffLine(record.Diff, "added", "new command"))
+	assert.True(t, hasDiffLine(record.Diff, DiffLineHeader, "revision 1"))
+	assert.True(t, hasDiffLine(record.Diff, DiffLineHunk, "@@"))
+	assert.True(t, hasDiffLine(record.Diff, DiffLineRemoved, "old command"))
+	assert.True(t, hasDiffLine(record.Diff, DiffLineAdded, "new command"))
 	assert.Equal(t, 1, record.AddedLines)
 	assert.Equal(t, 1, record.RemovedLines)
 }
@@ -38,9 +38,9 @@ func TestAnalyzeTracksOldAndNewLineNumbers(t *testing.T) {
 		Markdown:         "first\nnew\nthird\n",
 	})
 
-	removed := findDiffLine(t, record.Diff, "removed", "old")
-	added := findDiffLine(t, record.Diff, "added", "new")
-	context := findDiffLine(t, record.Diff, "context", "third")
+	removed := findDiffLine(t, record.Diff, DiffLineRemoved, "old")
+	added := findDiffLine(t, record.Diff, DiffLineAdded, "new")
+	context := findDiffLine(t, record.Diff, DiffLineContext, "third")
 
 	assert.Equal(t, 2, removed.OldLine)
 	assert.Zero(t, removed.NewLine)
@@ -68,7 +68,7 @@ func TestAnalyzeFirstRevisionStartsAtDevNull(t *testing.T) {
 	record := Analyze(Revision{Number: 1, Markdown: "# First page\n"})
 
 	require.NotEmpty(t, record.Diff)
-	assert.Equal(t, "header", record.Diff[0].Kind)
+	assert.Equal(t, DiffLineHeader, record.Diff[0].Kind)
 	assert.Contains(t, record.Diff[0].Text, "/dev/null")
 }
 
@@ -83,14 +83,14 @@ func TestHunkStartsParsesRanges(t *testing.T) {
 }
 
 // hasDiffLine reports whether a diff contains one line with the requested kind and text fragment.
-func hasDiffLine(lines []DiffLine, kind, text string) bool {
+func hasDiffLine(lines []DiffLine, kind DiffLineKind, text string) bool {
 	return slices.ContainsFunc(lines, func(line DiffLine) bool {
 		return line.Kind == kind && strings.Contains(line.Text, text)
 	})
 }
 
 // findDiffLine returns the matching diff row or fails the test when no row matches.
-func findDiffLine(t *testing.T, lines []DiffLine, kind, text string) DiffLine {
+func findDiffLine(t *testing.T, lines []DiffLine, kind DiffLineKind, text string) DiffLine {
 	t.Helper()
 
 	for _, line := range lines {

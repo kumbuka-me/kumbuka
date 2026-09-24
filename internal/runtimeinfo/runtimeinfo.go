@@ -24,7 +24,7 @@ func New(cfg flags.Config, encryptionKeyConfigured bool) webview.RuntimeInfo {
 		ReadOnly:                           cfg.ReadOnly,
 		UserRegistrationOverrideConfigured: registrationOverrideConfigured,
 		AllowUserRegistrationOverride:      allowUserRegistrationOverride,
-		AuthModeOverride:                   string(cfg.AuthModeOverride),
+		AuthModeOverride:                   cfg.AuthModeOverride,
 		OIDCIssuerOverride:                 cfg.OIDCIssuer,
 		OIDCClientIDOverride:               cfg.OIDCClientID,
 		TrustedUsernameHeadersOverride:     cfg.TrustedUsernameHeaders,

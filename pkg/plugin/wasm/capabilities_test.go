@@ -28,42 +28,42 @@ type memoryStorage struct {
 }
 
 // ReadPluginValue reads plugin value.
-func (s *memoryStorage) ReadPluginValue(_ context.Context, id, namespace, key string) ([]byte, bool, error) {
+func (s *memoryStorage) ReadPluginValue(_ context.Context, id string, namespace plugin.StorageNamespace, key string) ([]byte, bool, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	value, ok := s.values[id+"/"+namespace+"/"+key]
+	value, ok := s.values[id+"/"+string(namespace)+"/"+key]
 	return bytes.Clone(value), ok, nil
 }
 
 // ListPluginValues lists matching plugin values.
-func (s *memoryStorage) ListPluginValues(_ context.Context, id, namespace, prefix string) (map[string][]byte, error) {
+func (s *memoryStorage) ListPluginValues(_ context.Context, id string, namespace plugin.StorageNamespace, prefix string) (map[string][]byte, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	result := make(map[string][]byte)
-	wanted := id + "/" + namespace + "/" + prefix
+	wanted := id + "/" + string(namespace) + "/" + prefix
 	for key, value := range s.values {
 		if strings.HasPrefix(key, wanted) {
-			result[strings.TrimPrefix(key, id+"/"+namespace+"/")] = bytes.Clone(value)
+			result[strings.TrimPrefix(key, id+"/"+string(namespace)+"/")] = bytes.Clone(value)
 		}
 	}
 	return result, nil
 }
 
 // WritePluginValue stores one plugin value.
-func (s *memoryStorage) WritePluginValue(_ context.Context, id, namespace, key string, value []byte) error {
+func (s *memoryStorage) WritePluginValue(_ context.Context, id string, namespace plugin.StorageNamespace, key string, value []byte) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.values[id+"/"+namespace+"/"+key] = bytes.Clone(value)
+	s.values[id+"/"+string(namespace)+"/"+key] = bytes.Clone(value)
 	return nil
 }
 
 // ReplacePluginValue atomically moves one test plugin value while rejecting collisions.
-func (s *memoryStorage) ReplacePluginValue(_ context.Context, id, namespace, oldKey, newKey string, value []byte) error {
+func (s *memoryStorage) ReplacePluginValue(_ context.Context, id string, namespace plugin.StorageNamespace, oldKey, newKey string, value []byte) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	oldPath := id + "/" + namespace + "/" + oldKey
-	newPath := id + "/" + namespace + "/" + newKey
+	oldPath := id + "/" + string(namespace) + "/" + oldKey
+	newPath := id + "/" + string(namespace) + "/" + newKey
 	if _, ok := s.values[oldPath]; !ok {
 		return plugin.ErrPluginValueNotFound
 	}
@@ -76,10 +76,10 @@ func (s *memoryStorage) ReplacePluginValue(_ context.Context, id, namespace, old
 }
 
 // DeletePluginValue removes one plugin value.
-func (s *memoryStorage) DeletePluginValue(_ context.Context, id, namespace, key string) error {
+func (s *memoryStorage) DeletePluginValue(_ context.Context, id string, namespace plugin.StorageNamespace, key string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	delete(s.values, id+"/"+namespace+"/"+key)
+	delete(s.values, id+"/"+string(namespace)+"/"+key)
 	return nil
 }
 

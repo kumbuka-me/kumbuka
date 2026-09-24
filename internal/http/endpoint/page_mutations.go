@@ -201,7 +201,7 @@ func WatchPage(catalogUseCases visiblePageActions, views *webview.Views) http.Ha
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, _ := auth.User(r)
 		slug := strings.Trim(strings.TrimSpace(r.PathValue("slug")), "/")
-		scope := strings.TrimSpace(r.FormValue("scope"))
+		scope := domain.PageWatchScope(strings.TrimSpace(r.FormValue("scope")))
 
 		if err := catalogUseCases.SetPageWatchFor(r.Context(), user, slug, scope); err != nil {
 			writePageProblem(views.Logger(), w, err)
@@ -245,7 +245,7 @@ func parseGroupIDs(values []string) []int64 {
 // pageMetadataFromForm parses page lifecycle and review metadata.
 func pageMetadataFromForm(r *http.Request) (domain.PageMetadata, error) {
 	status := strings.TrimSpace(r.FormValue("status"))
-	if !domain.ValidPageStatus(status) {
+	if !domain.ValidPageStatus(domain.PageStatus(status)) {
 		return domain.PageMetadata{}, newRequestError(
 			"status",
 			"Choose a valid page status.",
@@ -292,7 +292,7 @@ func pageMetadataFromForm(r *http.Request) (domain.PageMetadata, error) {
 	}
 
 	return domain.PageMetadata{
-		Status:             status,
+		Status:             domain.PageStatus(status),
 		OwnerGroupID:       ownerGroupID,
 		ReviewIntervalDays: interval,
 		MarkReviewed:       r.FormValue("mark_reviewed") == "on",

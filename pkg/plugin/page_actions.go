@@ -16,7 +16,7 @@ type PageActionContribution struct {
 	// Name is the human-readable action label.
 	Name string
 	// Kind selects link or host-dialog presentation.
-	Kind string
+	Kind PageActionKind
 	// Description is optional help text shown by the host.
 	Description string
 	// Icon is the optional host icon rendered for the action.
@@ -40,7 +40,7 @@ func pageActions(plugins []LoadedPlugin, pageID int64, slug string) []PageAction
 			continue
 		}
 		for _, module := range item.Manifest.Modules {
-			if module.Type != "page-action" {
+			if ModuleType(module.Type) != ModuleTypePageAction {
 				continue
 			}
 			result = append(result, PageActionContribution{
@@ -71,9 +71,9 @@ func resolvePageActionURL(template string, pageID int64, slug string) string {
 }
 
 // pageActionKind applies the declarative default for page actions.
-func pageActionKind(kind string) string {
+func pageActionKind(kind string) PageActionKind {
 	if kind == "" {
-		return "link"
+		return PageActionLink
 	}
-	return kind
+	return PageActionKind(kind)
 }

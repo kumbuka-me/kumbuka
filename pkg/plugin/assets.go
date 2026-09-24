@@ -73,7 +73,7 @@ func (m *Manager) IconResourceVersion() string {
 	var version strings.Builder
 	for _, id := range m.order {
 		item, ok := m.loaded[id]
-		if !activePluginWithModule(item, ok, "icon-resource") {
+		if !activePluginWithModule(item, ok, ModuleTypeIconResource) {
 			continue
 		}
 		version.WriteString(id)
@@ -92,13 +92,13 @@ func (m *Manager) IconResources() ([]icons.Resource, error) {
 	resources := make([]icons.Resource, 0)
 	for _, id := range m.order {
 		item, ok := m.loaded[id]
-		if !activePluginWithModule(item, ok, "icon-resource") {
+		if !activePluginWithModule(item, ok, ModuleTypeIconResource) {
 			continue
 		}
 
 		var pkg *pluginpackage.Package
 		for _, module := range item.metadata.Manifest.Modules {
-			if module.Type != "icon-resource" {
+			if ModuleType(module.Type) != ModuleTypeIconResource {
 				continue
 			}
 			if pkg == nil {
@@ -122,9 +122,9 @@ func (m *Manager) IconResources() ([]icons.Resource, error) {
 }
 
 // hasModuleType reports whether a manifest declares at least one module of the requested type.
-func hasModuleType(manifest pluginpackage.Manifest, moduleType string) bool {
+func hasModuleType(manifest pluginpackage.Manifest, moduleType ModuleType) bool {
 	for _, module := range manifest.Modules {
-		if module.Type == moduleType {
+		if ModuleType(module.Type) == moduleType {
 			return true
 		}
 	}
@@ -143,7 +143,7 @@ func (m *Manager) BrowserModules() []BrowserContribution {
 		}
 		commands := browserCommandTargets(item.metadata.Manifest)
 		for _, module := range item.metadata.Manifest.Modules {
-			if module.Type != "browser-module" {
+			if ModuleType(module.Type) != ModuleTypeBrowserModule {
 				continue
 			}
 			result = append(result, BrowserContribution{
@@ -160,7 +160,7 @@ func (m *Manager) BrowserModules() []BrowserContribution {
 func browserCommandTargets(manifest pluginpackage.Manifest) []BrowserCommandTarget {
 	result := make([]BrowserCommandTarget, 0)
 	for _, module := range manifest.Modules {
-		if module.Type == "widget" {
+		if ModuleType(module.Type) == ModuleTypeWidget {
 			result = append(result, BrowserCommandTarget{ModuleID: module.ID, Surface: module.Surface})
 		}
 	}
@@ -179,7 +179,7 @@ func (m *Manager) CodeHighlighters() []CodeHighlighterContribution {
 			continue
 		}
 		for _, module := range item.metadata.Manifest.Modules {
-			if module.Type != "code-highlighter" {
+			if ModuleType(module.Type) != ModuleTypeCodeHighlighter {
 				continue
 			}
 			result = append(result, CodeHighlighterContribution{
@@ -206,7 +206,7 @@ func (m *Manager) ContentStyles() []ContentStyleContribution {
 			continue
 		}
 		for _, module := range item.metadata.Manifest.Modules {
-			if module.Type != "content-style" {
+			if ModuleType(module.Type) != ModuleTypeContentStyle {
 				continue
 			}
 			result = append(result, ContentStyleContribution{
@@ -271,7 +271,7 @@ func validPluginPreview(data []byte) bool {
 }
 
 // activePluginWithModule reports whether a loaded plugin is enabled and declares the requested module type.
-func activePluginWithModule(item managedPlugin, found bool, moduleType string) bool {
+func activePluginWithModule(item managedPlugin, found bool, moduleType ModuleType) bool {
 	return found && item.metadata.Enabled && hasModuleType(item.metadata.Manifest, moduleType)
 }
 
@@ -281,8 +281,8 @@ func activePluginVersion(item managedPlugin, found bool, digest string) bool {
 }
 
 // moduleDeclaresAsset reports whether a module of the requested type owns the named browser asset.
-func moduleDeclaresAsset(module pluginpackage.Module, moduleType, name string) bool {
-	return module.Type == moduleType && (module.JavaScript == name || module.CSS == name)
+func moduleDeclaresAsset(module pluginpackage.Module, moduleType ModuleType, name string) bool {
+	return ModuleType(module.Type) == moduleType && (module.JavaScript == name || module.CSS == name)
 }
 
 // BrowserAsset serves bytes from an enabled, exact-version package only. There is no filesystem extraction, and lifecycle changes invalidate old URLs.
@@ -295,7 +295,7 @@ func (m *Manager) BrowserAsset(id, digest, name string) ([]byte, error) {
 	}
 	hasBrowser := false
 	for _, module := range item.metadata.Manifest.Modules {
-		if module.Type == "browser-module" {
+		if ModuleType(module.Type) == ModuleTypeBrowserModule {
 			hasBrowser = true
 			break
 		}
@@ -314,18 +314,18 @@ func (m *Manager) BrowserAsset(id, digest, name string) ([]byte, error) {
 func (m *Manager) CodeHighlighterAsset(id, digest, name string) ([]byte, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	return m.declaredAsset(id, digest, name, "code-highlighter")
+	return m.declaredAsset(id, digest, name, ModuleTypeCodeHighlighter)
 }
 
 // ContentStyleAsset returns an asset declared by an active content-style module.
 func (m *Manager) ContentStyleAsset(id, digest, name string) ([]byte, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	return m.declaredAsset(id, digest, name, "content-style")
+	return m.declaredAsset(id, digest, name, ModuleTypeContentStyle)
 }
 
 // declaredAsset returns one exact-version asset declared by moduleType.
-func (m *Manager) declaredAsset(id, digest, name, moduleType string) ([]byte, error) {
+func (m *Manager) declaredAsset(id, digest, name string, moduleType ModuleType) ([]byte, error) {
 	item, ok := m.loaded[id]
 	if !activePluginVersion(item, ok, digest) {
 		return nil, fs.ErrNotExist

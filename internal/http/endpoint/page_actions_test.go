@@ -116,6 +116,6 @@ func TestPageReviewMutationHandlersUseRouteSlug(t *testing.T) {
 
 		require.Equal(t, http.StatusSeeOther, response.Code)
 		assert.Equal(t, routeSlug, useCases.decision.Slug)
-		assert.Equal(t, "approved", useCases.decision.Decision)
+		assert.Equal(t, domain.PageReviewStatusApproved, useCases.decision.Decision)
 	})
 }

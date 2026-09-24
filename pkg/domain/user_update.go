@@ -5,7 +5,7 @@ type UserAccountUpdate struct {
 	// UserID identifies the user associated with user account update.
 	UserID int64
 	// Role is the role associated with user account update.
-	Role string
+	Role UserRole
 	// Enabled reports whether enabled applies to user account update.
 	Enabled bool
 	// GroupIDs contains the group i ds associated with user account update.

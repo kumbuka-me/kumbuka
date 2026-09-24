@@ -368,7 +368,7 @@ func readZipFile(entry *zip.File, remaining *int64) ([]byte, error) {
 
 // validPortableWorkflowMetadata reports whether imported page workflow metadata uses supported values.
 func validPortableWorkflowMetadata(metadata PageMetadata) bool {
-	return domain.ValidPageStatus(metadata.Status) && domain.ValidReviewIntervalDays(metadata.ReviewIntervalDays)
+	return domain.ValidPageStatus(domain.PageStatus(metadata.Status)) && domain.ValidReviewIntervalDays(metadata.ReviewIntervalDays)
 }
 
 // validArchivePath normalizes one ZIP path and rejects traversal or platform-specific separators.

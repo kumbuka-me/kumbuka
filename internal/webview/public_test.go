@@ -11,8 +11,8 @@ func TestPublicLayout(t *testing.T) {
 	t.Parallel()
 
 	availableThemes := []themes.Theme{
-		{Title: "Light", ColorScheme: "light"},
-		{Title: "Dark", ColorScheme: "dark"},
+		{Title: "Light", ColorScheme: themes.ColorSchemeLight},
+		{Title: "Dark", ColorScheme: themes.ColorSchemeDark},
 	}
 	views := &Views{
 		version:      "v1.2.3",

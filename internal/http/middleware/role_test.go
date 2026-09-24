@@ -86,7 +86,7 @@ func TestRequireRole(t *testing.T) {
 }
 
 func TestRequireRoleSnapshotsAllowedRoles(t *testing.T) {
-	roles := []string{"admin"}
+	roles := []domain.UserRole{domain.UserRoleAdmin}
 	middleware := RequireRole(roles...)
 	roles[0] = "viewer"
 	handler := middleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {

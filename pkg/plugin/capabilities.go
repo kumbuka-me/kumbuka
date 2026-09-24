@@ -6,8 +6,6 @@ import (
 	"errors"
 )
 
-const pluginSettingsNamespace = "settings"
-
 var (
 	// ErrPluginValueAlreadyExists indicates that an atomic plugin-value replacement would overwrite another key.
 	ErrPluginValueAlreadyExists = errors.New("plugin value already exists")
@@ -23,13 +21,13 @@ type Capability func(context.Context, json.RawMessage) (any, error)
 // never decoded from plugin arguments.
 type Storage interface {
 	// ReadPluginValue reads plugin value.
-	ReadPluginValue(context.Context, string, string, string) ([]byte, bool, error)
+	ReadPluginValue(context.Context, string, StorageNamespace, string) ([]byte, bool, error)
 	// ListPluginValues lists values whose keys share prefix in deterministic key order.
-	ListPluginValues(context.Context, string, string, string) (map[string][]byte, error)
+	ListPluginValues(context.Context, string, StorageNamespace, string) (map[string][]byte, error)
 	// WritePluginValue writes plugin value.
-	WritePluginValue(context.Context, string, string, string, []byte) error
+	WritePluginValue(context.Context, string, StorageNamespace, string, []byte) error
 	// DeletePluginValue deletes one plugin value. Missing keys are ignored.
-	DeletePluginValue(context.Context, string, string, string) error
+	DeletePluginValue(context.Context, string, StorageNamespace, string) error
 	// ReplacePluginValue atomically replaces oldKey with newKey and rejects collisions.
-	ReplacePluginValue(context.Context, string, string, string, string, []byte) error
+	ReplacePluginValue(context.Context, string, StorageNamespace, string, string, []byte) error
 }

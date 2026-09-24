@@ -38,7 +38,7 @@ func (m *Manager) Exporters(slug string) []ExporterContribution {
 			continue
 		}
 		for _, module := range item.Manifest.Modules {
-			if module.Type != "exporter" {
+			if ModuleType(module.Type) != ModuleTypeExporter {
 				continue
 			}
 			result = append(result, ExporterContribution{

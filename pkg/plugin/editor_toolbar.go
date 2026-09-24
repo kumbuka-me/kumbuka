@@ -82,24 +82,24 @@ func (m *Manager) ResolveEditorToolbar(overrides []domain.EditorToolbarOverride)
 		actions := make(map[string]EditorInsertContribution)
 		menuChildren := map[string]bool{}
 		for _, module := range item.metadata.Manifest.Modules {
-			if module.Type == "editor-menu" {
+			if ModuleType(module.Type) == ModuleTypeEditorMenu {
 				for _, child := range module.Children {
 					menuChildren[child] = true
 				}
 				continue
 			}
-			if module.Type == "editor-insert" {
+			if ModuleType(module.Type) == ModuleTypeEditorInsert {
 				actions[module.ID] = editorInsertView(pluginID, module)
 			}
 		}
 		for _, module := range item.metadata.Manifest.Modules {
-			if module.Type == "editor-insert" && !menuChildren[module.ID] {
+			if ModuleType(module.Type) == ModuleTypeEditorInsert && !menuChildren[module.ID] {
 				action := actions[module.ID]
 				contribution := toolbarContribution(pluginID, item.metadata.Manifest.Name, module.ID, module.Name, module.Description, module.Icon, module.Group, module.AllowedGroups, module.Order, overrideByID[pluginID+":"+module.ID])
 				contribution.Action = &action
 				appendToolbarContribution(groups, contribution)
 			}
-			if module.Type == "editor-menu" {
+			if ModuleType(module.Type) == ModuleTypeEditorMenu {
 				contribution := toolbarContribution(pluginID, item.metadata.Manifest.Name, module.ID, module.Name, module.Description, module.Icon, module.Group, module.AllowedGroups, module.Order, overrideByID[pluginID+":"+module.ID])
 				for _, child := range module.Children {
 					contribution.Children = append(contribution.Children, actions[child])

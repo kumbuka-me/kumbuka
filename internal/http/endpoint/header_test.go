@@ -25,7 +25,7 @@ func TestNotificationHeaderUnreadClass(t *testing.T) {
 		"timeago":       func(time.Time) string { return "now" },
 		"externalhover": domain.ExternalLinkHoverTitle,
 		"externalhovereffect": func(link domain.ExternalLink) string {
-			return domain.EffectiveExternalLinkHoverEffect(link.HoverEffect)
+			return string(domain.EffectiveExternalLinkHoverEffect(link.HoverEffect))
 		},
 	}).Parse(string(source))
 	require.NoError(t, err)

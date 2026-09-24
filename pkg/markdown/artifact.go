@@ -121,7 +121,7 @@ func (r *Renderer) hasSelectedDynamicPluginModule(selected map[string]bool) bool
 // manifestHasSelectedDynamicModule reports whether one plugin has an executable dynamic module relevant to the page.
 func manifestHasSelectedDynamicModule(item plugin.LoadedPlugin, selected map[string]bool) bool {
 	for _, module := range item.Manifest.Modules {
-		if !renderExecutableModule(module.Type) {
+		if !renderExecutableModule(plugin.ModuleType(module.Type)) {
 			continue
 		}
 		if len(module.Usage) == 0 || selected[item.Manifest.ID+"\x00"+module.ID] {
@@ -152,9 +152,9 @@ func dynamicReadPermission(permission string) bool {
 }
 
 // renderExecutableModule renders one executable plugin module with the supplied context.
-func renderExecutableModule(moduleType string) bool {
+func renderExecutableModule(moduleType plugin.ModuleType) bool {
 	switch moduleType {
-	case "renderer-extension", "code-highlighter", "content-substitution", "macro":
+	case plugin.ModuleTypeRendererExtension, plugin.ModuleTypeCodeHighlighter, plugin.ModuleTypeContentSubstitution, plugin.ModuleTypeMacro:
 		return true
 	default:
 		return false

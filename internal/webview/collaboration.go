@@ -69,7 +69,7 @@ func pageCommentRoot(comment domain.PageComment, byID map[int64]domain.PageComme
 // reviewCommentAnchor identifies one side and source line in a page review diff.
 type reviewCommentAnchor struct {
 	// side is old or new source content.
-	side string
+	side domain.PageReviewCommentSide
 	// line is the one-based source line number.
 	line int
 }
@@ -101,8 +101,8 @@ func ReviewDiffLines(diff []revision.DiffLine, comments []domain.PageReviewComme
 }
 
 // reviewDiffAnchor returns the source side and line used to attach feedback to a diff row.
-func reviewDiffAnchor(line revision.DiffLine) (string, int) {
-	if line.Kind == "removed" && line.OldLine > 0 {
+func reviewDiffAnchor(line revision.DiffLine) (domain.PageReviewCommentSide, int) {
+	if line.Kind == revision.DiffLineRemoved && line.OldLine > 0 {
 		return domain.PageReviewCommentSideOld, line.OldLine
 	}
 	if line.NewLine > 0 {
@@ -113,7 +113,7 @@ func reviewDiffAnchor(line revision.DiffLine) (string, int) {
 }
 
 // reviewCommentAnchorKey returns a stable map key for one review source position.
-func reviewCommentAnchorKey(side string, line int) reviewCommentAnchor {
+func reviewCommentAnchorKey(side domain.PageReviewCommentSide, line int) reviewCommentAnchor {
 	return reviewCommentAnchor{side: side, line: line}
 }
 

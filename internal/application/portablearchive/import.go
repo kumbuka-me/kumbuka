@@ -84,7 +84,7 @@ func restore(ctx context.Context, archive portable.Archive, pageService Pages, m
 			Slug: pageData.Metadata.Slug, Title: pageData.Metadata.Title,
 			Icon: pageData.Metadata.Icon, Language: pageData.Metadata.Language,
 			Markdown: markdown, Tags: slices.Clone(pageData.Metadata.Tags), GroupIDs: groups,
-			Status: pageData.Metadata.Status, OwnerGroupID: groupIDs[groupKey(pageData.Metadata.OwnerGroup)],
+			Status: domain.PageStatus(pageData.Metadata.Status), OwnerGroupID: groupIDs[groupKey(pageData.Metadata.OwnerGroup)],
 			ReviewIntervalDays: pageData.Metadata.ReviewIntervalDays,
 			DeprecatedTarget:   pageData.Metadata.DeprecatedTarget,
 			Properties:         cloneProperties(pageData.Metadata.Properties),

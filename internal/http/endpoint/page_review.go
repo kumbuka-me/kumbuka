@@ -9,6 +9,7 @@ import (
 	apppages "github.com/kumbuka-me/kumbuka/internal/application/pages"
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
+	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/kumbuka-me/kumbuka/pkg/revision"
 )
 
@@ -79,7 +80,7 @@ func AddPageReviewComment(pageUseCases pageReviewDiscussionService, views *webvi
 		comment, err := pageUseCases.AddReviewComment(r.Context(), apppages.PageReviewCommentInput{
 			ReviewID:    reviewID,
 			Slug:        slug,
-			Side:        strings.TrimSpace(r.FormValue("side")),
+			Side:        domain.PageReviewCommentSide(strings.TrimSpace(r.FormValue("side"))),
 			StartLine:   startLine,
 			EndLine:     endLine,
 			Body:        r.FormValue("body"),

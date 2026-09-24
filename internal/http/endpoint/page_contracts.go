@@ -54,7 +54,7 @@ type visiblePageInventoryService interface {
 // visiblePageActions mutates actor-owned page preferences after application authorization.
 type visiblePageActions interface {
 	SetFavoriteFor(context.Context, domain.User, string, bool) error
-	SetPageWatchFor(context.Context, domain.User, string, string) error
+	SetPageWatchFor(context.Context, domain.User, string, domain.PageWatchScope) error
 }
 
 // pageReportService supplies authorized plugin/report capabilities for one actor.

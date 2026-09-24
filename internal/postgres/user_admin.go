@@ -102,7 +102,7 @@ UPDATE users
 SET role=$2,
     enabled=$3,
     session_version=CASE WHEN enabled AND NOT $3 THEN session_version+1 ELSE session_version END
-WHERE id=$1`, input.UserID, input.Role, input.Enabled)
+WHERE id=$1`, input.UserID, string(input.Role), input.Enabled)
 	if err != nil {
 		return err
 	}

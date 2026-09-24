@@ -63,12 +63,12 @@ ORDER BY r.path,lower(g.name),r.id`)
 }
 
 // SavePageAccessRule creates or replaces one group's access at a path.
-func (s *Store) SavePageAccessRule(ctx context.Context, path string, groupID int64, access string) error {
+func (s *Store) SavePageAccessRule(ctx context.Context, path string, groupID int64, access domain.PageAccessLevel) error {
 	_, err := s.pool.Exec(ctx, `
 INSERT INTO page_access_rules(path,group_id,access)
 VALUES($1,$2,$3)
 ON CONFLICT(path,group_id) DO UPDATE
-SET access=excluded.access,updated_at=now()`, path, groupID, access)
+SET access=excluded.access,updated_at=now()`, path, groupID, string(access))
 	return mutationError(err)
 }
 

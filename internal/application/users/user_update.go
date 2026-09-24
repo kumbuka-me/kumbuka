@@ -14,7 +14,7 @@ type UserUpdateInput struct {
 	// Actor is the administrator requesting the account change.
 	Actor domain.User
 	// Role is the requested account role.
-	Role string
+	Role domain.UserRole
 	// Enabled is the requested account-enabled state.
 	Enabled bool
 	// GroupIDs replaces the account group memberships.
@@ -26,7 +26,7 @@ type UserUpdateInput struct {
 	// LocalCredentialEnabled is the requested recovery-credential state when no new password is supplied.
 	LocalCredentialEnabled bool
 	// AuthModeOverride is the deployment-managed authentication mode, when configured.
-	AuthModeOverride string
+	AuthModeOverride domain.AuthMode
 }
 
 // UpdateAccount validates the complete operation before submitting one atomic mutation.
@@ -89,7 +89,7 @@ func (s *Users) prepareLocalCredentialUpdate(ctx context.Context, input UserUpda
 	if err != nil {
 		return err
 	}
-	if !domain.IsExternalAuthMode(domain.AuthMode(mode)) {
+	if !domain.IsExternalAuthMode(mode) {
 		return domain.NewValidationError(
 			"local_credential_enabled",
 			"Local recovery credentials can only be enabled or disabled while external authentication is active.")
@@ -100,7 +100,7 @@ func (s *Users) prepareLocalCredentialUpdate(ctx context.Context, input UserUpda
 }
 
 // accountAuthenticationMode returns the deployment override or the persisted authentication mode.
-func (s *Users) accountAuthenticationMode(ctx context.Context, override string) (string, error) {
+func (s *Users) accountAuthenticationMode(ctx context.Context, override domain.AuthMode) (domain.AuthMode, error) {
 	if override != "" {
 		return override, nil
 	}

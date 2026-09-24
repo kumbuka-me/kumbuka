@@ -36,7 +36,7 @@ ORDER BY p.slug`)
 }
 
 // BulkSetPageStatus updates lifecycle status for selected pages.
-func (s *Store) BulkSetPageStatus(ctx context.Context, slugs []string, status string) error {
+func (s *Store) BulkSetPageStatus(ctx context.Context, slugs []string, status domain.PageStatus) error {
 	if !domain.ValidPageStatus(status) {
 		return domain.NewValidationError("status", "Choose a valid page status.")
 	}
@@ -44,7 +44,7 @@ func (s *Store) BulkSetPageStatus(ctx context.Context, slugs []string, status st
 	_, err := s.pool.Exec(ctx, `
 UPDATE pages
 SET status=$2,updated_at=now()
-WHERE slug=ANY($1::text[]) AND deleted_at IS NULL`, slugs, status)
+WHERE slug=ANY($1::text[]) AND deleted_at IS NULL`, slugs, string(status))
 
 	return err
 }
