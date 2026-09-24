@@ -145,7 +145,6 @@ func readPortableArchiveUpload(header *multipart.FileHeader) (portable.Archive, 
 	return portable.Parse(data, importer.MaxBytes)
 }
 
-
 // writePortableArchiveImportProblem writes safe validation problems and logs unexpected restore failures.
 func writePortableArchiveImportProblem(logger *slog.Logger, w http.ResponseWriter, err error) {
 	var archiveValidation *portable.ValidationError

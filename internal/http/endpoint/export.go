@@ -232,7 +232,6 @@ func exportSlugs(r *http.Request, navigationUseCases navigationService) ([]strin
 	return slugs, nil
 }
 
-
 // isRenderedMediaAttribute reports whether an HTML attribute can reference stored Kumbuka media.
 func isRenderedMediaAttribute(element, attribute string) bool {
 	switch element {

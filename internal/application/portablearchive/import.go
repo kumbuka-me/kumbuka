@@ -86,8 +86,8 @@ func restore(ctx context.Context, archive portable.Archive, pageService Pages, m
 			Markdown: markdown, Tags: slices.Clone(pageData.Metadata.Tags), GroupIDs: groups,
 			Status: pageData.Metadata.Status, OwnerGroupID: groupIDs[groupKey(pageData.Metadata.OwnerGroup)],
 			ReviewIntervalDays: pageData.Metadata.ReviewIntervalDays,
-			DeprecatedTarget: pageData.Metadata.DeprecatedTarget,
-			Properties: cloneProperties(pageData.Metadata.Properties),
+			DeprecatedTarget:   pageData.Metadata.DeprecatedTarget,
+			Properties:         cloneProperties(pageData.Metadata.Properties),
 		})
 	}
 	return pageService.ImportPortablePages(ctx, imported, actor)

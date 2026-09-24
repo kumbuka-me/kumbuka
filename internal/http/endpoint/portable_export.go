@@ -93,7 +93,6 @@ func createPortableExportArchive(
 	return file, info.ModTime(), cleanup, nil
 }
 
-
 // writePortableExportProblem translates expected portable resource failures into HTTP problems.
 func writePortableExportProblem(logger *slog.Logger, w http.ResponseWriter, err error) {
 	var resourceError *portablearchive.ResourceError

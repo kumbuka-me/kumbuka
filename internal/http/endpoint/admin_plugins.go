@@ -20,7 +20,6 @@ func validPluginUploadPart(formName, filename string) bool {
 	return formName == "package" && filename != ""
 }
 
-
 // AdminPlugins exposes package metadata and lifecycle operations through the existing administration layout. Routes apply browser authentication/admin authorization.
 type AdminPlugins struct {
 	// manager coordinates lifecycle actions and catalog updates in the application layer.
@@ -56,7 +55,6 @@ func (a *AdminPlugins) CheckUpdates(w http.ResponseWriter, r *http.Request) {
 	a.views.Logger().Info("plugin update catalog checked", "event", "plugin.catalog_check", "actor_id", currentUser(r).ID)
 	http.Redirect(w, r, "/admin/plugins", http.StatusSeeOther)
 }
-
 
 // render renders the plugin administration page.
 func (a *AdminPlugins) render(w http.ResponseWriter, r *http.Request, id string, status int, message string) {
@@ -243,7 +241,6 @@ func pluginActionDestination(r *http.Request, id, action string) string {
 	}
 	return "/admin/plugins"
 }
-
 
 // renderPluginREADME renders package documentation without activating plugin macros.
 func renderPluginREADME(source string) (template.HTML, error) {
