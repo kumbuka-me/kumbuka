@@ -85,7 +85,12 @@ func NewBulk(
 
 // Import persists imported pages while retaining workflow metadata on replacements.
 func (s *Bulk) Import(ctx context.Context, candidates []ImportedPage, format string, actor domain.User) (int, error) {
-	for _, candidate := range candidates {
+	validated, err := validateImportedPages(candidates)
+	if err != nil {
+		return 0, err
+	}
+
+	for _, candidate := range validated {
 		if err := s.importPage(ctx, candidate, actor); err != nil {
 			return 0, err
 		}
@@ -103,15 +108,34 @@ func (s *Bulk) Import(ctx context.Context, candidates []ImportedPage, format str
 	return len(candidates), nil
 }
 
-// importPage persists one import candidate while retaining existing metadata.
-func (s *Bulk) importPage(ctx context.Context, candidate ImportedPage, actor domain.User) error {
-	slug := md.Slug(candidate.Slug)
-	if slug == "" {
-		return domain.NewValidationError("slug", fmt.Sprintf("Invalid imported page path %q.", candidate.Slug))
+// validateImportedPages rejects invalid and colliding canonical paths before any page is changed.
+func validateImportedPages(candidates []ImportedPage) ([]ImportedPage, error) {
+	validated := make([]ImportedPage, 0, len(candidates))
+	seen := make(map[string]bool, len(candidates))
+
+	for _, candidate := range candidates {
+		slug := md.Slug(candidate.Slug)
+		validation := &domain.ValidationError{}
+		validatePageSlug(slug, validation)
+		if len(validation.Fields) != 0 {
+			return nil, validation
+		}
+		if seen[slug] {
+			return nil, domain.NewValidationError("slug", fmt.Sprintf("Multiple imported pages resolve to %q.", slug))
+		}
+
+		seen[slug] = true
+		candidate.Slug = slug
+		validated = append(validated, candidate)
 	}
 
+	return validated, nil
+}
+
+// importPage persists one import candidate while retaining existing metadata.
+func (s *Bulk) importPage(ctx context.Context, candidate ImportedPage, actor domain.User) error {
 	input := PageSaveInput{
-		Slug:       slug,
+		Slug:       candidate.Slug,
 		Title:      candidate.Title,
 		Markdown:   candidate.Markdown,
 		Message:    "Imported from " + candidate.Source,
@@ -119,7 +143,7 @@ func (s *Bulk) importPage(ctx context.Context, candidate ImportedPage, actor dom
 		Properties: map[string]string{},
 		Actor:      actor,
 	}
-	current, err := s.repository.GetPage(ctx, slug)
+	current, err := s.repository.GetPage(ctx, candidate.Slug)
 
 	if err == nil {
 		input.Icon = current.Icon
