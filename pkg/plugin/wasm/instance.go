@@ -250,6 +250,19 @@ func (i *Instance) Close(ctx context.Context) error {
 
 // invoke executes one serialized guest render request with the current capability scope.
 func (i *Instance) invoke(ctx context.Context, request sdk.RenderRequest) (result sdk.RenderResult, err error) {
+	started := time.Now()
+	if i.runtime.invocationObserver != nil {
+		defer func() {
+			i.runtime.invocationObserver.ObservePluginInvocation(
+				i.manifest.ID,
+				request.Module,
+				request.Stage,
+				time.Since(started),
+				err,
+			)
+		}()
+	}
+
 	metrics, finishProfile := i.beginInvocationProfile(ctx, request)
 	defer func() { finishProfile(err) }()
 

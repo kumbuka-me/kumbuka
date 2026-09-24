@@ -31,6 +31,7 @@ func New(config Config) http.Handler {
 		Logger:      config.Logger,
 		AccessLog:   config.AccessLog,
 		ReadOnly:    config.ReadOnly,
+		Metrics:     config.Metrics,
 	})
 	addRoutes(router, config)
 	return router.Handler()

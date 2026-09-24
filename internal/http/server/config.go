@@ -41,6 +41,8 @@ type InfrastructureConfig struct {
 	AccessLog bool
 	// ReadOnly blocks state-changing application routes while preserving authentication flows.
 	ReadOnly bool
+	// Metrics exposes Prometheus metrics and instruments registered HTTP routes.
+	Metrics endpoint.Metrics
 }
 
 // AuthenticationConfig contains browser and API authentication adapters.

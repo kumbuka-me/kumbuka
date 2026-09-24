@@ -25,6 +25,8 @@ type Config struct {
 	AccessLog bool
 	// ReadOnly blocks state-changing application routes while preserving authentication flows.
 	ReadOnly bool
+	// Metrics instruments registered application routes when configured.
+	Metrics endpoint.Metrics
 }
 
 // routePolicies groups authentication and authorization middleware used while registering routes.
@@ -68,12 +70,15 @@ func New(config Config) *Router {
 
 // Handle registers one preconstructed handler for an HTTP method/path pattern.
 func (r *Router) Handle(pattern string, handler http.Handler) {
+	if r.config.Metrics != nil {
+		handler = r.config.Metrics.InstrumentHandler(pattern, handler)
+	}
 	r.mux.Handle(pattern, handler)
 }
 
 // HandleFunc registers one preconstructed handler function for an HTTP method/path pattern.
 func (r *Router) HandleFunc(pattern string, handler http.HandlerFunc) {
-	r.mux.HandleFunc(pattern, handler)
+	r.Handle(pattern, handler)
 }
 
 // Browser applies browser-session authentication to a handler.

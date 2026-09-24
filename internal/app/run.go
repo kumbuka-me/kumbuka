@@ -35,6 +35,7 @@ import (
 	"github.com/kumbuka-me/kumbuka/internal/http/endpoint"
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
 	httpserver "github.com/kumbuka-me/kumbuka/internal/http/server"
+	appmetrics "github.com/kumbuka-me/kumbuka/internal/metrics"
 	"github.com/kumbuka-me/kumbuka/internal/pagecontent"
 	"github.com/kumbuka-me/kumbuka/internal/pluginruntime"
 	"github.com/kumbuka-me/kumbuka/internal/pluginupdate"
@@ -78,6 +79,8 @@ func Run(
 		"version", version,
 		"commit", commit,
 	)
+
+	metricsRegistry := appmetrics.NewRegistry(version, commit)
 
 	if len(cfg.Overrides) > 0 {
 		logger.Info("CLI Overrides", "event", "cli_overrides", "overrides", cfg.Overrides)
@@ -135,11 +138,12 @@ func Run(
 	viewPage := apppages.NewView(database, access, reviews, serverLogger)
 
 	// Configure browser authentication and construct the plugin runtime.
-	browserAuth, renderer, err := createRunRuntime(ctx, cfg, database, secretCipher, logger, setupLogger, version, commit)
+	browserAuth, renderer, err := createRunRuntime(ctx, cfg, database, secretCipher, metricsRegistry, logger, setupLogger, version, commit)
 	if err != nil {
 		return err
 	}
 	defer closeRenderer(renderer, setupLogger)
+	metricsRegistry.RegisterPluginProvider(renderer.PluginManager())
 	bearerAuth := auth.NewBearer(database)
 
 	// Inject runtime-derived content and icon capabilities into application services.
@@ -187,6 +191,7 @@ func Run(
 			Logger:    serverLogger,
 			AccessLog: cfg.AccessLog,
 			ReadOnly:  cfg.ReadOnly,
+			Metrics:   metricsRegistry,
 		},
 
 		AuthenticationConfig: httpserver.AuthenticationConfig{
@@ -278,12 +283,12 @@ func openRunDatabase(ctx context.Context, cfg flags.Config, logger *slog.Logger)
 }
 
 // createRunRuntime configures browser authentication and the Markdown/plugin runtime.
-func createRunRuntime(ctx context.Context, cfg flags.Config, database *postgres.Store, secretCipher *secrets.Cipher, logger, setupLogger *slog.Logger, version, commit string) (auth.BrowserAuth, *markdown.Renderer, error) {
+func createRunRuntime(ctx context.Context, cfg flags.Config, database *postgres.Store, secretCipher *secrets.Cipher, metricsRegistry *appmetrics.Registry, logger, setupLogger *slog.Logger, version, commit string) (auth.BrowserAuth, *markdown.Renderer, error) {
 	browserAuth, err := auth.ConfigureBrowserAuth(ctx, browserAuthConfig(cfg), database)
 	if err != nil {
 		return auth.BrowserAuth{}, nil, setupFailure(setupLogger, "configure browser auth", "browser_auth_failed", err)
 	}
-	renderer, err := pluginruntime.NewRenderer(ctx, database, secretCipher, authenticatedPluginRequest, logger, setupLogger, version, commit)
+	renderer, err := pluginruntime.NewRenderer(ctx, database, secretCipher, authenticatedPluginRequest, metricsRegistry, logger, setupLogger, version, commit)
 	if err != nil {
 		return auth.BrowserAuth{}, nil, err
 	}

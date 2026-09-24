@@ -22,6 +22,7 @@ func NewRenderer(
 	store Store,
 	secretCodec plugin.SecretCodec,
 	authorizeHTTP func(context.Context) bool,
+	invocationObserver wasm.InvocationObserver,
 	logger, setupLogger *slog.Logger,
 	version, commit string,
 ) (*markdown.Renderer, error) {
@@ -38,6 +39,7 @@ func NewRenderer(
 		wasm.WithStorage(store),
 		wasm.WithSecretCodec(secretCodec),
 		wasm.WithHTTPAuthorizer(authorizeHTTP),
+		wasm.WithInvocationObserver(invocationObserver),
 		wasm.WithPermissions(
 			"network:http",
 			"network:private",

@@ -89,6 +89,12 @@ func sharedCompilationCache() wazero.CompilationCache {
 // hits bypass this gate; rendering and guest state are never shared here.
 var compilationGate = make(chan struct{}, 1)
 
+// InvocationObserver receives bounded metadata for completed executable plugin calls.
+type InvocationObserver interface {
+	// ObservePluginInvocation records one completed executable plugin call.
+	ObservePluginInvocation(pluginID, moduleID, stage string, duration time.Duration, err error)
+}
+
 // Runtime owns the wazero engine and trusted host policy used for plugin instances.
 type Runtime struct {
 	// engine owns compiled modules and instantiated WASM guests.
@@ -107,6 +113,8 @@ type Runtime struct {
 	httpActive chan struct{}
 	// logger receives debug-only plugin initialization timings when configured.
 	logger *slog.Logger
+	// invocationObserver receives completed executable plugin call measurements.
+	invocationObserver InvocationObserver
 	// interpreter forces wazero's interpreter instead of AOT compilation.
 	interpreter bool
 }
@@ -136,6 +144,11 @@ func WithHTTPAuthorizer(authorize func(context.Context) bool) Option {
 
 // WithLogger enables runtime diagnostics such as per-plugin initialization timings. Timing messages use DEBUG level, so normal application logging remains unchanged.
 func WithLogger(logger *slog.Logger) Option { return func(r *Runtime) { r.logger = logger } }
+
+// WithInvocationObserver records completed executable plugin calls without coupling the runtime to a metrics implementation.
+func WithInvocationObserver(observer InvocationObserver) Option {
+	return func(r *Runtime) { r.invocationObserver = observer }
+}
 
 // WithInterpreter uses wazero's interpreter instead of AOT compilation. It is useful for tests that exercise guest behavior without benchmarking compilation.
 func WithInterpreter() Option { return func(r *Runtime) { r.interpreter = true } }
