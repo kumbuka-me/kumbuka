@@ -111,7 +111,7 @@ func TestAdminPluginLifecycleAndAuthorization(t *testing.T) {
 	data := browserContextLoaderStub{load: func(*http.Request, *webview.Views, string) (webview.Layout, error) {
 		return webview.Layout{User: domain.User{ID: 1, Role: "admin"}}, nil
 	}}
-	admin := NewAdminPlugins(manager, nil, data, views)
+	admin := NewAdminPlugins(appplugins.NewAdmin(manager, nil), data, views)
 	archive, err := plugins.Packages.ReadFile("callouts.kumbukaplugin")
 	require.NoError(t, err)
 	denied := httptest.NewRecorder()
@@ -191,7 +191,7 @@ func TestAdminPluginCatalogUpdate(t *testing.T) {
 	data := browserContextLoaderStub{load: func(*http.Request, *webview.Views, string) (webview.Layout, error) {
 		return webview.Layout{User: domain.User{ID: 1, Role: "admin"}}, nil
 	}}
-	admin := NewAdminPlugins(manager, updates, data, views)
+	admin := NewAdminPlugins(appplugins.NewAdmin(manager, updates), data, views)
 
 	detail := httptest.NewRequest("GET", "/admin/plugins?plugin="+item.Manifest.ID, nil)
 	w := httptest.NewRecorder()
@@ -247,7 +247,7 @@ func TestAdminPluginCatalogUpdateAll(t *testing.T) {
 	data := browserContextLoaderStub{load: func(*http.Request, *webview.Views, string) (webview.Layout, error) {
 		return webview.Layout{User: domain.User{ID: 1, Role: "admin"}}, nil
 	}}
-	admin := NewAdminPlugins(manager, updates, data, views)
+	admin := NewAdminPlugins(appplugins.NewAdmin(manager, updates), data, views)
 
 	request := auth.WithUser(httptest.NewRequest("POST", "/admin/plugins/all/update", nil), domain.User{ID: 1, Role: "admin"})
 	request.SetPathValue("pluginID", "all")
@@ -301,7 +301,7 @@ func TestAdminPluginCatalogUpdateAllAuditsSuccessfulUpgradesBeforeFailure(t *tes
 	data := browserContextLoaderStub{load: func(*http.Request, *webview.Views, string) (webview.Layout, error) {
 		return webview.Layout{User: domain.User{ID: 1, Role: "admin"}}, nil
 	}}
-	admin := NewAdminPlugins(manager, updates, data, views)
+	admin := NewAdminPlugins(appplugins.NewAdmin(manager, updates), data, views)
 
 	request := auth.WithUser(httptest.NewRequest("POST", "/admin/plugins/all/update", nil), domain.User{ID: 1, Role: "admin"})
 	request.SetPathValue("pluginID", "all")
@@ -340,7 +340,7 @@ func TestAdminPluginCatalogUpdateAllPrevalidatesPackages(t *testing.T) {
 	data := browserContextLoaderStub{load: func(*http.Request, *webview.Views, string) (webview.Layout, error) {
 		return webview.Layout{User: domain.User{ID: 1, Role: "admin"}}, nil
 	}}
-	admin := NewAdminPlugins(manager, updates, data, views)
+	admin := NewAdminPlugins(appplugins.NewAdmin(manager, updates), data, views)
 
 	request := auth.WithUser(httptest.NewRequest("POST", "/admin/plugins/all/update", nil), domain.User{ID: 1, Role: "admin"})
 	request.SetPathValue("pluginID", "all")
@@ -364,7 +364,7 @@ func TestAdminPluginManualCatalogRefresh(t *testing.T) {
 	data := browserContextLoaderStub{load: func(*http.Request, *webview.Views, string) (webview.Layout, error) {
 		return webview.Layout{User: domain.User{ID: 1, Role: "admin"}}, nil
 	}}
-	admin := NewAdminPlugins(nil, updates, data, views)
+	admin := NewAdminPlugins(appplugins.NewAdmin(nil, updates), data, views)
 
 	request := auth.WithUser(httptest.NewRequest("POST", "/admin/plugins/check-updates", nil), domain.User{ID: 1, Role: "admin"})
 	w := httptest.NewRecorder()
@@ -388,7 +388,7 @@ func TestAdminPluginManualCatalogRefreshFailure(t *testing.T) {
 	data := browserContextLoaderStub{load: func(*http.Request, *webview.Views, string) (webview.Layout, error) {
 		return webview.Layout{User: domain.User{ID: 1, Role: "admin"}}, nil
 	}}
-	admin := NewAdminPlugins(&plugin.Manager{}, updates, data, views)
+	admin := NewAdminPlugins(appplugins.NewAdmin(&plugin.Manager{}, updates), data, views)
 
 	request := auth.WithUser(httptest.NewRequest("POST", "/admin/plugins/check-updates", nil), domain.User{ID: 1, Role: "admin"})
 	w := httptest.NewRecorder()
