@@ -7,11 +7,11 @@ import (
 	"fmt"
 	"io/fs"
 	"log/slog"
-
-	"github.com/jackc/pgx/v5"
 	"slices"
 	"strconv"
 	"strings"
+
+	"github.com/jackc/pgx/v5"
 )
 
 //go:embed migrations/*.sql
@@ -31,14 +31,17 @@ func (s *Store) migrate(ctx context.Context, logger *slog.Logger) error {
 	if err != nil {
 		return err
 	}
+
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return err
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
+
 	if err := initializeMigrationTransaction(ctx, tx); err != nil {
 		return err
 	}
+
 	applied, err := applyPendingMigrations(ctx, tx, migrations)
 	if err != nil {
 		return err
@@ -46,7 +49,9 @@ func (s *Store) migrate(ctx context.Context, logger *slog.Logger) error {
 	if err := tx.Commit(ctx); err != nil {
 		return err
 	}
+
 	logAppliedMigrations(logger, applied)
+
 	return nil
 }
 
@@ -71,11 +76,14 @@ func applyPendingMigrations(ctx context.Context, tx pgx.Tx, migrations []migrati
 		if exists {
 			continue
 		}
+
 		if err := applyMigration(ctx, tx, item); err != nil {
 			return nil, err
 		}
+
 		applied = append(applied, item)
 	}
+
 	return applied, nil
 }
 
@@ -93,14 +101,17 @@ func applyMigration(ctx context.Context, tx pgx.Tx, item migration) error {
 	if err != nil {
 		return err
 	}
+
 	if _, err := tx.Exec(ctx, string(sql)); err != nil {
 		return fmt.Errorf("migration %d: %w", item.version, err)
 	}
+
 	if _, err := tx.Exec(ctx, `
 INSERT INTO schema_migrations(version)
 VALUES($1)`, item.version); err != nil {
 		return fmt.Errorf("migration %d: %w", item.version, err)
 	}
+
 	return nil
 }
 

@@ -50,7 +50,14 @@ COMMAND ?= ./cmd/kumbuka
 GO_TEST_RACE_FLAGS ?= -p=2 -parallel=4
 BROWSER_TEST_CONCURRENCY ?= 2
 RACE_TEST_PACKAGES := ./pkg/markdown ./pkg/plugin ./pkg/plugin/wasm ./internal/postgres
-RACE_TEST_PATTERN := ^(TestMacroCapabilitiesStayRequestLocal|TestRegistryConcurrentSnapshotsAndRemoval|TestWASMRequestsAreIsolatedAndSerialized|TestCapabilitiesUseCurrentRequestAndRecoverFromHostPanic|TestUpgradeDuringRenderingKeepsWholeSnapshotAlive|TestConcurrentStartupMigrations)$$
+RACE_TEST_PATTERN := ^( \
+	TestMacroCapabilitiesStayRequestLocal| \
+	TestRegistryConcurrentSnapshotsAndRemoval| \
+	TestWASMRequestsAreIsolatedAndSerialized| \
+	TestCapabilitiesUseCurrentRequestAndRecoverFromHostPanic| \
+	TestUpgradeDuringRenderingKeepsWholeSnapshotAlive| \
+	TestConcurrentStartupMigrations \
+)$$
 RUN_ARGS ?=
 BUILD_VERSION ?= dev
 BUILD_COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo none)
@@ -82,6 +89,24 @@ LOGO_PNG_WIDTH ?= 1280
 PRETTIER_MD_SOURCES := README.md "**/*.md"
 
 
+## Migration
+
+MIGRATION_DIR := internal/postgres/migrations
+MIGRATION_OUTPUT_DIR := build/migrations
+MIGRATION_MERGE := scripts/db/merge_migrations.sh
+MIGRATION_CLEANUP := scripts/db/cleanup_migrations.sh
+
+##@ Migration
+
+.PHONY: merge-migrations
+merge-migrations: ## Merge all migrations into a validated, automatically versioned baseline.
+	$(MIGRATION_MERGE) --migrations "$(MIGRATION_DIR)" --output-dir "$(MIGRATION_OUTPUT_DIR)"
+
+.PHONY: cleanup-migrations
+cleanup-migrations: merge-migrations ## Replace existing migrations with the validated generated baseline.
+	$(MIGRATION_CLEANUP) --migrations "$(MIGRATION_DIR)" --generated-dir "$(MIGRATION_OUTPUT_DIR)"
+
+
 ##@ Development
 
 .PHONY: ports-reset
@@ -100,80 +125,6 @@ ports: $(DEV_PORT) ## Print selected local development ports.
 .PHONY: dev-build
 dev-build: ports
 	$(MAKE) generate web
-
-.PHONY: plugins
-plugins: $(PLUGIN_STAMP) ## Download the pinned first-party plugin packages.
-
-$(PLUGIN_STAMP): $(PLUGIN_LOCK) $(PLUGIN_DOWNLOAD)
-	$(PLUGIN_DOWNLOAD)
-	@touch "$(PLUGIN_STAMP)"
-
-.PHONY: plugins-refresh
-plugins-refresh: ## Re-download all pinned first-party plugin packages.
-	rm -f "$(PLUGIN_STAMP)"
-	$(MAKE) plugins
-
-.PHONY: plugins-update
-plugins-update: ## Update pinned plugins to their latest stable releases and commit them.
-	@set -eu; \
-	if ! command -v "$(GH)" >/dev/null 2>&1; then \
-		echo "Missing $(GH). Install GitHub CLI first." >&2; \
-		exit 1; \
-	fi; \
-	if ! git diff --cached --quiet; then \
-		echo "Refusing to update plugins while other changes are staged." >&2; \
-		exit 1; \
-	fi; \
-	if ! git diff --quiet -- "$(PLUGIN_LOCK)"; then \
-		echo "Refusing to overwrite uncommitted changes in $(PLUGIN_LOCK)." >&2; \
-		exit 1; \
-	fi; \
-	releases=$$(mktemp); \
-	next=$$(mktemp); \
-	trap 'rm -f "$$releases" "$$next"' EXIT INT TERM; \
-	$(GH) api \
-		--paginate \
-		"repos/$(PLUGIN_REPOSITORY)/releases?per_page=100" \
-		--jq '.[] | select(.draft == false and .prerelease == false) | .tag_name' \
-		> "$$releases"; \
-	: > "$$next"; \
-	updated=0; \
-	while IFS= read -r line || [ -n "$$line" ]; do \
-		case "$$line" in \
-			""|\#*) \
-				printf '%s\n' "$$line" >> "$$next"; \
-				continue; \
-				;; \
-		esac; \
-		plugin=$${line%%=*}; \
-		current=$${line#*=}; \
-		if [ "$$plugin" = "$$line" ] || [ -z "$$plugin" ] || [ -z "$$current" ]; then \
-			echo "Invalid $(PLUGIN_LOCK) entry: $$line" >&2; \
-			exit 1; \
-		fi; \
-		tag=$$(awk -v prefix="$$plugin/v" \
-			'index($$0, prefix) == 1 { print; exit }' \
-			"$$releases"); \
-		if [ -z "$$tag" ]; then \
-			echo "No stable release found for $$plugin in $(PLUGIN_REPOSITORY)." >&2; \
-			exit 1; \
-		fi; \
-		latest=$${tag#$$plugin/v}; \
-		printf '%s=%s\n' "$$plugin" "$$latest" >> "$$next"; \
-		if [ "$$current" != "$$latest" ]; then \
-			printf '%-22s %s -> %s\n' "$$plugin" "$$current" "$$latest"; \
-			updated=1; \
-		fi; \
-	done < "$(PLUGIN_LOCK)"; \
-	if [ "$$updated" -eq 0 ]; then \
-		echo "All pinned plugins already use the latest stable releases."; \
-		exit 0; \
-	fi; \
-	mv "$$next" "$(PLUGIN_LOCK)"; \
-	$(MAKE) plugins-refresh; \
-	git add "$(PLUGIN_LOCK)"; \
-	git add -u -- plugins; \
-	git commit -m "$(PLUGIN_UPDATE_COMMIT)"
 
 .PHONY: generate
 generate: plugins ## Generate application source files.
@@ -204,18 +155,6 @@ typecheck: $(NODE_MODULES) ## Type-check all authored TypeScript without emittin
 	$(TSC) -p tsconfig.json --noEmit
 	$(TSC) -p web/src/ts/service-worker/tsconfig.json --noEmit
 	$(TSC) -p test/ts/tsconfig.json --noEmit
-
-.PHONY: test-web
-test-web: check-web ## Compile and run the TypeScript frontend unit tests.
-	@set -eu; \
-	tmp=$$(mktemp -d); \
-	trap 'rm -rf "$$tmp"' EXIT INT TERM; \
-	$(TSC) -p test/ts/tsconfig.json --outDir "$$tmp"; \
-	$(NODE) --test "$$tmp"/test/ts/*.test.js
-
-.PHONY: test-browser
-test-browser: check-web ## Run browser regressions in Chrome.
-	$(NODE) --test --test-concurrency=$(BROWSER_TEST_CONCURRENCY) test/browser/*.test.mjs
 
 .PHONY: download
 download: $(NODE_MODULES) dev-tools plugins ## Download all project dependencies.
@@ -261,6 +200,27 @@ build: generate web ## Build the Kumbuka binary.
 vet: generate web ## Run Go static analysis.
 	go vet ./...
 
+.PHONY: clean
+clean: ## Clean up generated application files.
+	rm -f $(BINARY) coverage.out coverage.html
+	rm -f plugins/*.kumbukaplugin
+	rm -f "$(PLUGIN_STAMP)"
+	rm -rf web/dist build
+
+##@ testing
+
+.PHONY: test-web
+test-web: check-web ## Compile and run the TypeScript frontend unit tests.
+	@set -eu; \
+	tmp=$$(mktemp -d); \
+	trap 'rm -rf "$$tmp"' EXIT INT TERM; \
+	$(TSC) -p test/ts/tsconfig.json --outDir "$$tmp"; \
+	$(NODE) --test "$$tmp"/test/ts/*.test.js
+
+.PHONY: test-browser
+test-browser: check-web ## Run browser regressions in Chrome.
+	$(NODE) --test --test-concurrency=$(BROWSER_TEST_CONCURRENCY) test/browser/*.test.mjs
+
 .PHONY: test
 test: test-web vet ## Run frontend and backend unit tests.
 	go test -count=1 -timeout=3m ./...
@@ -274,13 +234,24 @@ cover: test-web plugins ## Display Go test coverage.
 	go test -coverprofile=coverage.out -covermode=set -count=1 -timeout=3m ./...
 	go tool cover -html=coverage.out
 
-.PHONY: clean
-clean: ## Clean up generated application files.
-	rm -f $(BINARY) coverage.out coverage.html
-	rm -f plugins/*.kumbukaplugin
-	rm -f "$(PLUGIN_STAMP)"
-	rm -rf web/dist build
 
+##@ plugins
+
+.PHONY: plugins
+plugins: $(PLUGIN_STAMP) ## Download the pinned first-party plugin packages.
+
+$(PLUGIN_STAMP): $(PLUGIN_LOCK) $(PLUGIN_DOWNLOAD)
+	$(PLUGIN_DOWNLOAD)
+	@touch "$(PLUGIN_STAMP)"
+
+.PHONY: plugins-refresh
+plugins-refresh: ## Re-download all pinned first-party plugin packages.
+	rm -f "$(PLUGIN_STAMP)"
+	$(MAKE) plugins
+
+.PHONY: plugins-update
+plugins-update: ## Update pinned plugins to their latest stable releases and commit them.
+	./scripts/plugins/update.sh --plugins "$(PLUGIN_LOCK)" --repository "$(PLUGIN_REPOSITORY)" --commit "$(PLUGIN_UPDATE_COMMIT)"
 
 ##@ Assets
 

@@ -75,5 +75,3 @@ printf '%s\n' "$imports" | while IFS= read -r relative; do
   rm -f "$output_dir/$relative"
 done
 find "$output_dir" -depth -type d -empty -delete 2>/dev/null || true
-
-
