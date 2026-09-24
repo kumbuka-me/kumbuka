@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	appplugins "github.com/kumbuka-me/kumbuka/internal/application/plugins"
 	"github.com/kumbuka-me/kumbuka/internal/http/auth"
 	"github.com/kumbuka-me/kumbuka/internal/http/endpoint"
 	"github.com/kumbuka-me/kumbuka/internal/http/middleware"
@@ -81,8 +82,7 @@ func main() {
 		panic(err)
 	}
 	admin := endpoint.NewAdminPlugins(
-		renderer.PluginManager(),
-		nil,
+		appplugins.NewAdmin(renderer.PluginManager(), nil),
 		dataLoader{catalog: catalog},
 		views,
 	)

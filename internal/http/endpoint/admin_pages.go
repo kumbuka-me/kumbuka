@@ -7,6 +7,7 @@ import (
 	"time"
 
 	apppages "github.com/kumbuka-me/kumbuka/internal/application/pages"
+	"github.com/kumbuka-me/kumbuka/internal/application/portablearchive"
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 )
@@ -48,7 +49,7 @@ func AdminPages(
 func BulkAdminPages(
 	pageUseCases pageBulkService,
 	catalogUseCases pageContentService,
-	mediaUseCases portableArchiveExportMediaService,
+	mediaUseCases portablearchive.MediaExport,
 	logger *slog.Logger,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {

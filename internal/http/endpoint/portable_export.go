@@ -11,6 +11,7 @@ import (
 
 	"github.com/kumbuka-me/kumbuka/internal/application/portablearchive"
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
+	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
 
 // ExportPortablePages creates a versioned archive containing pages, metadata, images, and attachments.
