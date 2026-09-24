@@ -22,7 +22,7 @@ type MediaImages interface {
 // WriteMarkdown writes selected Markdown pages and each referenced image once.
 func WriteMarkdown(
 	ctx context.Context,
-	catalogUseCases pageContentService,
+	catalogUseCases CatalogExport,
 	mediaUseCases MediaImages,
 	output io.Writer,
 	slugs []string,
