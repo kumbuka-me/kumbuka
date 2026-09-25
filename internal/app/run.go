@@ -92,7 +92,7 @@ func Run(
 	// Load deployment-owned presentation, encryption, and persistence configuration.
 	availableThemes, secretCipher, database, err := loadRunInfrastructure(ctx, cfg, setupLogger)
 	if err != nil {
-		return err
+		return setupFailure(logger, "load infrastructure", "infrastructure_load_failed", err)
 	}
 	defer database.Close()
 
