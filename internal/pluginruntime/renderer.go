@@ -56,7 +56,7 @@ func NewRenderer(
 			"users:read",
 			"notifications:send",
 		),
-		wasm.WithLogger(logger.With("component", "plugins")),
+		wasm.WithLogger(logger),
 	)
 	if err != nil {
 		setupLogger.Error("create markdown renderer", "event", "markdown_renderer_failed", "error", err)

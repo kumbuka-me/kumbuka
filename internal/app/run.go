@@ -6,7 +6,6 @@ import (
 	"io"
 	"io/fs"
 	"log/slog"
-	"net/http"
 	"time"
 
 	"github.com/containeroo/httpgrace/server"
@@ -247,9 +246,16 @@ func Run(
 		},
 	}
 
-	handler := httpserver.New(serverConfig)
+	if cfg.PluginUpdateCheckInterval > 0 {
+		go pluginUpdates.Run(ctx)
+	}
 
-	return runHTTPServer(ctx, cfg, handler, pluginUpdates, setupLogger)
+	handler := httpserver.New(serverConfig)
+	if err := server.Run(ctx, cfg.ListenAddress, handler, logger, server.WithMaxHeaderValueCount(100)); err != nil {
+		return setupFailure(logger, "run server", "server_run_failed", err)
+	}
+
+	return nil
 }
 
 // loadRunInfrastructure loads themes, encryption, and the PostgreSQL store.
@@ -283,12 +289,30 @@ func openRunDatabase(ctx context.Context, cfg flags.Config, logger *slog.Logger)
 }
 
 // createRunRuntime configures browser authentication and the Markdown/plugin runtime.
-func createRunRuntime(ctx context.Context, cfg flags.Config, database *postgres.Store, secretCipher *secrets.Cipher, metricsRegistry *appmetrics.Registry, logger, setupLogger *slog.Logger, version, commit string) (auth.BrowserAuth, *markdown.Renderer, error) {
+func createRunRuntime(
+	ctx context.Context,
+	cfg flags.Config,
+	database *postgres.Store,
+	secretCipher *secrets.Cipher,
+	metricsRegistry *appmetrics.Registry,
+	logger, setupLogger *slog.Logger,
+	version, commit string,
+) (auth.BrowserAuth, *markdown.Renderer, error) {
 	browserAuth, err := auth.ConfigureBrowserAuth(ctx, browserAuthConfig(cfg), database)
 	if err != nil {
 		return auth.BrowserAuth{}, nil, setupFailure(setupLogger, "configure browser auth", "browser_auth_failed", err)
 	}
-	renderer, err := pluginruntime.NewRenderer(ctx, database, secretCipher, authenticatedPluginRequest, metricsRegistry, logger, setupLogger, version, commit)
+	renderer, err := pluginruntime.NewRenderer(
+		ctx,
+		database,
+		secretCipher,
+		authenticatedPluginRequest,
+		metricsRegistry,
+		logger.With("component", "plugins"),
+		setupLogger,
+		version,
+		commit,
+	)
 	if err != nil {
 		return auth.BrowserAuth{}, nil, err
 	}
@@ -296,7 +320,16 @@ func createRunRuntime(ctx context.Context, cfg flags.Config, database *postgres.
 }
 
 // createRunViews constructs views and enables optional render diagnostics.
-func createRunViews(appFS fs.FS, logger, setupLogger *slog.Logger, version, commit string, availableThemes []themes.Theme, cfg flags.Config, secretCipher *secrets.Cipher, iconCatalog *icons.Catalog, renderer *markdown.Renderer) (*webview.Views, error) {
+func createRunViews(
+	appFS fs.FS,
+	logger, setupLogger *slog.Logger,
+	version, commit string,
+	availableThemes []themes.Theme,
+	cfg flags.Config,
+	secretCipher *secrets.Cipher,
+	iconCatalog *icons.Catalog,
+	renderer *markdown.Renderer,
+) (*webview.Views, error) {
 	views, err := webview.New(appFS, logger, version, commit, availableThemes, runtimeinfo.New(cfg, secretCipher.Configured()), iconCatalog)
 	if err != nil {
 		return nil, setupFailure(setupLogger, "create views", "views_create_failed", err)
@@ -307,17 +340,6 @@ func createRunViews(appFS fs.FS, logger, setupLogger *slog.Logger, version, comm
 		views.EnablePageTimings(logger.With("component", "handler"))
 	}
 	return views, nil
-}
-
-// runHTTPServer starts optional plugin update checks and serves until shutdown.
-func runHTTPServer(ctx context.Context, cfg flags.Config, handler http.Handler, pluginUpdates *appplugins.PluginUpdates, logger *slog.Logger) error {
-	if cfg.PluginUpdateCheckInterval > 0 {
-		go pluginUpdates.Run(ctx)
-	}
-	if err := server.Run(ctx, cfg.ListenAddress, handler, logger, server.WithMaxHeaderValueCount(100)); err != nil {
-		return setupFailure(logger, "run server", "server_run_failed", err)
-	}
-	return nil
 }
 
 // browserAuthConfig maps deployment configuration onto the authentication boundary.
