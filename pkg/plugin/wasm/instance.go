@@ -29,6 +29,8 @@ type Instance struct {
 	gate chan struct{}
 	// module holds the active WebAssembly module instance.
 	module api.Module
+	// diagnostics captures bounded guest stderr for actionable crash messages.
+	diagnostics guestDiagnostics
 	// closed prevents calls after the instance has been shut down.
 	closed bool
 }
@@ -279,15 +281,59 @@ func (i *Instance) invoke(ctx context.Context, request sdk.RenderRequest) (resul
 	}
 	defer release()
 
+	i.diagnostics.Reset()
 	if err := i.ensureInvocationModule(ctx, metrics); err != nil {
-		return sdk.RenderResult{}, err
+		return sdk.RenderResult{}, i.describeInvocationError(ctx, request, err)
 	}
+	i.diagnostics.Reset()
 	ctx = context.WithValue(ctx, callerKey{}, &invocationState{instance: i, remaining: 512})
 	result, err = i.call(ctx, request, metrics, renderprofile.FromContext(ctx) != nil)
 	if err != nil {
 		i.discardInvocationModule()
+		err = i.describeInvocationError(ctx, request, err)
 	}
 	return result, err
+}
+
+// describeInvocationError adds module context and turns opaque WASM traps into bounded crash diagnostics.
+func (i *Instance) describeInvocationError(ctx context.Context, request sdk.RenderRequest, err error) error {
+	trap, crashed := wasmTrapSummary(err)
+	if !crashed {
+		return fmt.Errorf("module %s (%s): %w", request.Module, request.Stage, err)
+	}
+
+	guestError := i.diagnostics.Summary()
+	if i.runtime.logger != nil {
+		i.runtime.logger.ErrorContext(
+			ctx,
+			"plugin crashed",
+			"event", "plugin_crash",
+			"plugin_id", i.manifest.ID,
+			"module_id", request.Module,
+			"stage", request.Stage,
+			"guest_error", guestError,
+			"error", err,
+		)
+	}
+
+	if guestError != "" {
+		return fmt.Errorf("module %s (%s) crashed: %s [%s]", request.Module, request.Stage, guestError, trap)
+	}
+	return fmt.Errorf("module %s (%s) crashed: %s", request.Module, request.Stage, trap)
+}
+
+// wasmTrapSummary returns the first wazero trap line without its numeric stack dump.
+func wasmTrapSummary(err error) (string, bool) {
+	message := err.Error()
+	index := strings.Index(message, "wasm error:")
+	if index < 0 {
+		return "", false
+	}
+	message = message[index:]
+	if end := strings.IndexByte(message, '\n'); end >= 0 {
+		message = message[:end]
+	}
+	return strings.TrimSpace(message), true
 }
 
 // beginInvocationProfile prepares optional WASM call profiling and returns its completion hook.

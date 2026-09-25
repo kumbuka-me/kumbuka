@@ -57,7 +57,9 @@ func (r *Renderer) RenderWidgets(
 		if binding.Surface != surface || hidden[plugin.WidgetKey(binding.PluginID, binding.ModuleID)] {
 			continue
 		}
-		rendered, err := binding.Module.Render(widgetContext, request)
+		rendered, err := plugin.Guard(binding.PluginID, func() (plugin.WidgetResult, error) {
+			return binding.Module.Render(widgetContext, request)
+		})
 		if err != nil {
 			return nil, err
 		}

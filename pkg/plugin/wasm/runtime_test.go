@@ -254,6 +254,31 @@ func TestSandboxRejectsTrapsAndMalformedResultsAndRecovers(t *testing.T) {
 	}
 }
 
+// TestSandboxReportsPluginCrashDiagnostics verifies traps keep actionable guest context and a detailed crash log.
+func TestSandboxReportsPluginCrashDiagnostics(t *testing.T) {
+	var logs bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&logs, nil))
+	instance, _ := runtimeFixtureWithOptions(t, "preprocess", wasm.Limits{}, wasm.WithLogger(logger))
+	transform := instance.Contributions().Preprocessors[0]
+
+	_, err := transform.Preprocess(plugin.Context{}, "trap")
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "module fixture (preprocess) crashed")
+	assert.Contains(t, err.Error(), "panic: guest failed")
+	assert.Contains(t, err.Error(), "wasm error: unreachable")
+	assert.NotContains(t, err.Error(), "wasm stack trace")
+
+	log := logs.String()
+	assert.Contains(t, log, `msg="plugin crashed"`)
+	assert.Contains(t, log, "event=plugin_crash")
+	assert.Contains(t, log, "plugin_id=io.example.fixture")
+	assert.Contains(t, log, "module_id=fixture")
+	assert.Contains(t, log, "stage=preprocess")
+	assert.Contains(t, log, `guest_error="panic: guest failed"`)
+	assert.Contains(t, log, "wasm stack trace")
+}
+
 // TestSandboxTimeoutAndCancellation verifies sandbox timeout and cancellation behavior.
 func TestSandboxTimeoutAndCancellation(t *testing.T) {
 	instance, _ := runtimeFixture(t, "preprocess", wasm.Limits{CallTimeout: 100 * time.Millisecond})

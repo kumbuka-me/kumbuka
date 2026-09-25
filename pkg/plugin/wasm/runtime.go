@@ -121,7 +121,7 @@ type Runtime struct {
 	httpAuthorizer func(context.Context) bool
 	// httpActive bounds concurrent outbound plugin requests across the runtime.
 	httpActive chan struct{}
-	// logger receives debug-only plugin initialization timings when configured.
+	// logger receives plugin initialization timings and crash diagnostics when configured.
 	logger *slog.Logger
 	// invocationObserver receives completed executable plugin call measurements.
 	invocationObserver InvocationObserver
@@ -155,7 +155,7 @@ func WithHTTPAuthorizer(authorize func(context.Context) bool) Option {
 	return func(r *Runtime) { r.httpAuthorizer = authorize }
 }
 
-// WithLogger enables runtime diagnostics such as per-plugin initialization timings. Timing messages use DEBUG level, so normal application logging remains unchanged.
+// WithLogger enables runtime diagnostics such as initialization timings and plugin crash details. Timing messages use DEBUG level while crashes use ERROR.
 func WithLogger(logger *slog.Logger) Option { return func(r *Runtime) { r.logger = logger } }
 
 // WithInvocationObserver records completed executable plugin calls without coupling the runtime to a metrics implementation.
@@ -313,7 +313,7 @@ func (i *Instance) instantiate(ctx context.Context) error {
 	// is invoked, and it shares the load/call deadline and memory limit.
 	// Widgets compare stored timestamps with time.Now, so the WASI wall clock
 	// must reflect real time rather than wazero's default simulated epoch.
-	config := wazero.NewModuleConfig().WithName("").WithStartFunctions("_initialize").WithSysWalltime()
+	config := wazero.NewModuleConfig().WithName("").WithStartFunctions("_initialize").WithSysWalltime().WithStderr(&i.diagnostics)
 	module, err := i.runtime.engine.InstantiateModule(ctx, i.compiled.CompiledModule, config)
 	if err != nil {
 		return fmt.Errorf("initialize WASM: %w", err)

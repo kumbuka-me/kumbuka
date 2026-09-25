@@ -2,6 +2,7 @@ package markdown
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/kumbuka-me/kumbuka/pkg/plugin"
@@ -19,6 +20,22 @@ func (testWidget) Render(_ plugin.Context, request plugin.WidgetRequest) (plugin
 		HTML:    `<h2>Widget</h2><script>alert(1)</script><a href="/pages/ok">Safe</a>`,
 		Actions: []sdk.WidgetAction{{ID: "all", Kind: "dialog", Label: "All", URL: revisionURL}},
 	}, nil
+}
+
+// failingWidget returns a deterministic render failure for error-context tests.
+type failingWidget struct{}
+
+// Render returns a deterministic widget error.
+func (failingWidget) Render(_ plugin.Context, _ plugin.WidgetRequest) (plugin.WidgetResult, error) {
+	return plugin.WidgetResult{}, errors.New("widget failed")
+}
+
+// panickingWidget simulates a trusted native widget panic.
+type panickingWidget struct{}
+
+// Render panics so the shared plugin guard can convert it into an error.
+func (panickingWidget) Render(_ plugin.Context, _ plugin.WidgetRequest) (plugin.WidgetResult, error) {
+	panic("widget panic")
 }
 
 func TestRenderWidgetsUsesSurfaceAndCentralSanitizer(t *testing.T) {
@@ -83,4 +100,32 @@ func TestRenderWidgetsSkipsHiddenPluginWidgets(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, widgets, 1)
 	assert.Equal(t, "second", widgets[0].ModuleID)
+}
+
+func TestRenderWidgetsAddsPluginContextToFailures(t *testing.T) {
+	t.Parallel()
+
+	t.Run("error", func(t *testing.T) {
+		registry := &plugin.Registry{}
+		require.NoError(t, registry.Register(plugin.Descriptor{ID: "io.example.widget", Name: "Widget"}, plugin.Contributions{
+			Widgets: []plugin.WidgetModule{{ID: "details", Surface: "page.details", Widget: failingWidget{}}},
+		}))
+		renderer := NewWithRegistry(registry)
+
+		_, err := renderer.RenderWidgets(context.Background(), "page.details", nil, nil, nil, nil)
+
+		require.ErrorContains(t, err, "plugin io.example.widget: widget failed")
+	})
+
+	t.Run("panic", func(t *testing.T) {
+		registry := &plugin.Registry{}
+		require.NoError(t, registry.Register(plugin.Descriptor{ID: "io.example.widget", Name: "Widget"}, plugin.Contributions{
+			Widgets: []plugin.WidgetModule{{ID: "details", Surface: "page.details", Widget: panickingWidget{}}},
+		}))
+		renderer := NewWithRegistry(registry)
+
+		_, err := renderer.RenderWidgets(context.Background(), "page.details", nil, nil, nil, nil)
+
+		require.ErrorContains(t, err, "plugin io.example.widget panicked")
+	})
 }
