@@ -13,6 +13,12 @@ import (
 
 const maxWidgetCommandFormBytes = 16 << 10
 
+// pluginWidgetCommandResponse is returned to browser-module controls that execute commands without navigation.
+type pluginWidgetCommandResponse struct {
+	// Redirect is an optional local path requested by the plugin after the command succeeds.
+	Redirect string `json:"redirect,omitempty"`
+}
+
 // PluginWidgetCommand executes one host-mediated command from an active plugin widget.
 func PluginWidgetCommand(
 	catalog pageReportService,
@@ -87,15 +93,25 @@ func PluginWidgetCommand(
 			return
 		}
 
-		next := safeAuthNext(result.Redirect)
-		if next == "" {
-			next = safeAuthNext(r.PostForm.Get("next"))
-		}
-		if next == "" {
-			next = "/"
-		}
-		http.Redirect(w, r, next, http.StatusSeeOther)
+		respondPluginWidgetCommand(w, r, result)
 	}
+}
+
+// respondPluginWidgetCommand returns JSON to in-place browser controls and redirects regular widget forms.
+func respondPluginWidgetCommand(w http.ResponseWriter, r *http.Request, result sdk.WidgetCommandResult) {
+	if r.PostForm.Get("response") == "json" {
+		httpresponse.Respond(w, http.StatusOK, pluginWidgetCommandResponse{Redirect: result.Redirect})
+		return
+	}
+
+	next := safeAuthNext(result.Redirect)
+	if next == "" {
+		next = safeAuthNext(r.PostForm.Get("next"))
+	}
+	if next == "" {
+		next = "/"
+	}
+	http.Redirect(w, r, next, http.StatusSeeOther)
 }
 
 // activePluginName returns the enabled plugin's host-validated display name.

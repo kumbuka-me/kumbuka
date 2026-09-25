@@ -118,16 +118,22 @@ test("trusted browser-module changes relay only same-plugin widget commands", as
       };
     `;
     let commandRequest;
+    let documentRequests = 0;
 
     await page.route("http://status.test/**", async (route) => {
       const request = route.request();
+      if (request.resourceType() === "document") documentRequests++;
       const path = new URL(request.url()).pathname;
       if (
         path ===
         "/plugins/actions/me.kumbuka.status-dropdowns/page-details/set-aaaaaaaaaaaaaaaaaaaaaaaa-3"
       ) {
         commandRequest = request;
-        await route.fulfill({ status: 204 });
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({}),
+        });
         return;
       }
       if (
@@ -156,6 +162,7 @@ test("trusted browser-module changes relay only same-plugin widget commands", as
     await page.goto("http://status.test/pages/release/readiness");
     await page.locator("iframe[data-plugin-ready]").waitFor();
 
+    const documentRequestsBeforeCommand = documentRequests;
     const command = page.waitForRequest(
       (request) =>
         request.method() === "POST" &&
@@ -169,12 +176,17 @@ test("trusted browser-module changes relay only same-plugin widget commands", as
       .getByRole("option", { name: "Done", exact: true })
       .click();
     await command;
+    await page.waitForTimeout(50);
 
     assert.ok(commandRequest);
+    assert.equal(commandRequest.resourceType(), "fetch");
     const form = new URLSearchParams(commandRequest.postData() || "");
     assert.equal(form.get("surface"), "page.details");
     assert.equal(form.get("page"), "release/readiness");
     assert.equal(form.get("next"), "/pages/release/readiness");
+    assert.equal(form.get("response"), "json");
+    assert.equal(documentRequests, documentRequestsBeforeCommand);
+    assert.equal(page.url(), "http://status.test/pages/release/readiness");
   } finally {
     await browser.close();
   }

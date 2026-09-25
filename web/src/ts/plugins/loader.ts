@@ -90,35 +90,78 @@ const pageSurfaces = new Set([
   "page.aside",
 ]);
 
-function submitPluginCommand(
+type CommandResponse = {
+  redirect?: string;
+};
+
+function isCommandResponse(value: unknown): value is CommandResponse {
+  if (typeof value !== "object" || value === null) return false;
+  const response = value as Record<string, unknown>;
+  return (
+    response.redirect === undefined || typeof response.redirect === "string"
+  );
+}
+
+async function submitPluginCommand(
   pluginID: string,
   target: CommandTarget,
   action: string,
-): void {
+): Promise<boolean> {
   const page = document.body.dataset.currentPage?.trim() || "";
-  if (pageSurfaces.has(target.surface) && !page) return;
+  if (pageSurfaces.has(target.surface) && !page) return true;
 
-  const form = document.createElement("form");
-  form.method = "post";
-  form.action = `/plugins/actions/${encodeURIComponent(pluginID)}/${encodeURIComponent(target.module_id)}/${encodeURIComponent(action)}`;
-  form.hidden = true;
-
-  const fields: Record<string, string> = {
+  const fields = new URLSearchParams({
     surface: target.surface,
     next: `${location.pathname}${location.search}`,
-  };
-  if (pageSurfaces.has(target.surface)) fields.page = page;
+    response: "json",
+  });
+  if (pageSurfaces.has(target.surface)) fields.set("page", page);
 
-  for (const [name, value] of Object.entries(fields)) {
-    const input = document.createElement("input");
-    input.type = "hidden";
-    input.name = name;
-    input.value = value;
-    form.append(input);
+  let response: Response;
+  try {
+    response = await fetch(
+      `/plugins/actions/${encodeURIComponent(pluginID)}/${encodeURIComponent(target.module_id)}/${encodeURIComponent(action)}`,
+      {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+        },
+        body: fields,
+        credentials: "same-origin",
+      },
+    );
+  } catch {
+    location.reload();
+    return false;
   }
 
-  document.body.append(form);
-  form.submit();
+  if (!response.ok) {
+    location.reload();
+    return false;
+  }
+
+  let result: unknown;
+  try {
+    result = await response.json();
+  } catch {
+    location.reload();
+    return false;
+  }
+  if (!isCommandResponse(result)) {
+    location.reload();
+    return false;
+  }
+
+  const redirect = result.redirect?.trim() || "";
+  if (redirect === "") return true;
+  if (!redirect.startsWith("/") || redirect.startsWith("//")) {
+    location.reload();
+    return false;
+  }
+
+  location.assign(redirect);
+  return false;
 }
 
 function remove(block: HTMLElement): void {
@@ -210,6 +253,7 @@ function mount(block: HTMLElement, module: Module): Promise<void> {
     finish = resolve;
   });
   const timeout = window.setTimeout(() => remove(block), 15000);
+  let commandQueue = Promise.resolve(true);
   const message = async (event: MessageEvent<unknown>) => {
     if (!isPluginFrameMessage(event, frame)) return;
     const data = event.data as Record<string, unknown>;
@@ -248,8 +292,13 @@ function mount(block: HTMLElement, module: Module): Promise<void> {
       const target = module.commands?.find(
         (candidate) => candidate.module_id === data.module,
       );
-      if (target && !block.closest("[data-editor-preview]"))
-        submitPluginCommand(module.plugin_id, target, data.action);
+      if (target && !block.closest("[data-editor-preview]")) {
+        commandQueue = commandQueue.then((continueCommands) =>
+          continueCommands
+            ? submitPluginCommand(module.plugin_id, target, data.action)
+            : false,
+        );
+      }
       return;
     }
     if (isPluginReadyMessage(data)) {
