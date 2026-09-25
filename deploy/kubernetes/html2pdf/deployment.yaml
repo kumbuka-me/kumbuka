@@ -22,7 +22,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: html2pdf
-          image: ghcr.io/gi8lino/html2pdf:latest
+          image: ghcr.io/kumbuka-me/html2pdf:latest
           imagePullPolicy: Always
           ports:
             - name: http
@@ -69,4 +69,3 @@ spec:
           emptyDir:
             medium: Memory
             sizeLimit: 128Mi
-

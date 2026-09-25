@@ -17,7 +17,7 @@ services:
     restart: unless-stopped
 
   html2pdf:
-    image: ghcr.io/gi8lino/html2pdf:latest
+    image: ghcr.io/kumbuka-me/html2pdf:latest
     restart: unless-stopped
     ports:
       - "127.0.0.1:${KUMBUKA_PDF_PORT:-8081}:8080"
@@ -50,6 +50,3 @@ services:
 
 volumes:
   kumbuka-postgres:
-
-
-
