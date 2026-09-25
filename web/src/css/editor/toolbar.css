@@ -80,6 +80,33 @@
   opacity: 0.42;
 }
 
+.markdown-toolbar[data-show-icon-names]
+  button[aria-label]:has(> .lucide-icon, > .simple-icon, > .plugin-icon)::after,
+.markdown-toolbar[data-show-icon-names]
+  .markdown-toolbar-menu
+  > summary[aria-label]:has(
+    > .lucide-icon,
+    > .simple-icon,
+    > .plugin-icon
+  )::after {
+  margin-inline-start: 4px;
+  content: attr(aria-label);
+  white-space: nowrap;
+}
+
+.markdown-toolbar[data-show-icon-names] .markdown-toolbar-group {
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+}
+
+.markdown-toolbar[data-show-icon-names] button[aria-label],
+.markdown-toolbar[data-show-icon-names]
+  .markdown-toolbar-menu
+  > summary[aria-label] {
+  max-width: 100%;
+}
+
 .markdown-toolbar-menu {
   position: relative;
 }

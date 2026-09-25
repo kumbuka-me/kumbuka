@@ -2,6 +2,8 @@
 
 import { Node as TiptapNode, type AnyExtension } from "./visual-deps/core.ts";
 import type { CatalogCompletion } from "./catalog.ts";
+import { isRecord } from "../../core/guards.ts";
+import { requestJSON } from "../../core/http.ts";
 import { openSourceDialog } from "./source-dialog.ts";
 import { searchMentionUsers, type MentionUser } from "../mentions.ts";
 import {
@@ -528,6 +530,24 @@ function listRows(
   widget: CatalogWidget,
   values: Record<string, string>,
 ): string[][] {
+  if (setting.row_separator && setting.attributes?.length === 1) {
+    const name = setting.attributes[0];
+    const attribute = widgetAttribute(widget, name);
+    const items = attribute
+      ? splitWidgetList(values[name] || "", attribute)
+      : [];
+    const count = setting.columns?.length || 0;
+    const rows = items.map((item) => {
+      const separator = item.indexOf(setting.row_separator || "");
+      if (separator < 0) return [item, ...Array(count - 1).fill("")];
+      return [
+        item.slice(0, separator),
+        item.slice(separator + setting.row_separator!.length),
+        ...Array(Math.max(0, count - 2)).fill(""),
+      ];
+    });
+    return rows.length ? rows : [Array(count).fill("")];
+  }
   const lists = (setting.attributes || []).map((name) => {
     const attribute = widgetAttribute(widget, name);
     return attribute ? splitWidgetList(values[name] || "", attribute) : [];
@@ -575,7 +595,9 @@ function appendTableRow(
   );
   (setting.columns || []).forEach((column, index) => {
     const cell = row.insertCell();
-    const attributeName = setting.attributes?.[index] || "";
+    const attributeName = setting.row_separator
+      ? setting.attributes?.[0] || ""
+      : setting.attributes?.[index] || "";
     const attribute = widgetAttribute(widget, attributeName);
     const control =
       column.type === "textarea"
@@ -588,6 +610,7 @@ function appendTableRow(
         ? normalizeWidgetColor(values[index] || "", attribute) || "#64748b"
         : values[index] || "";
     control.dataset.widgetTableAttribute = attributeName;
+    control.dataset.widgetTableColumn = String(index);
     if (activationAttribute)
       control.dataset.widgetExclusiveAttribute = activationAttribute;
     control.setAttribute("aria-label", column.label);
@@ -687,15 +710,67 @@ function tableRows(
 
   return [...(table.tBodies[0]?.rows || [])]
     .map((row) =>
-      attributes.map((name) =>
+      (setting.columns || []).map((_, index) =>
         (
           row.querySelector<HTMLInputElement | HTMLTextAreaElement>(
-            `[data-widget-table-attribute="${CSS.escape(name)}"]`,
+            `[data-widget-table-column="${index}"]`,
           )?.value || ""
         ).trim(),
       ),
     )
     .filter((row) => Boolean(row[0]));
+}
+
+function tableRowsIncludingEmpty(
+  form: HTMLFormElement,
+  setting: CatalogWidgetSetting,
+): string[][] {
+  const first = form.querySelector<HTMLInputElement | HTMLTextAreaElement>(
+    `[data-widget-table-attribute="${CSS.escape(setting.attributes?.[0] || "")}"]`,
+  );
+  const table = first?.closest("table");
+  if (!table) return [];
+  return [...(table.tBodies[0]?.rows || [])].map((row) =>
+    (setting.columns || []).map(
+      (_, index) =>
+        row
+          .querySelector<HTMLInputElement | HTMLTextAreaElement>(
+            `[data-widget-table-column="${index}"]`,
+          )
+          ?.value.trim() || "",
+    ),
+  );
+}
+
+function compoundTableProblem(
+  form: HTMLFormElement,
+  widget: CatalogWidget,
+): string {
+  for (const setting of widget.settings) {
+    if (setting.type !== "table" || !setting.row_separator) continue;
+    for (const row of tableRowsIncludingEmpty(form, setting)) {
+      if (row.some(Boolean) && row.some((value) => !value))
+        return `Complete every ${setting.label.toLocaleLowerCase()} row.`;
+    }
+  }
+  if (widget.preview.kind !== "card") return "";
+  const annotations = widget.preview.card.line_annotations;
+  if (!annotations) return "";
+  const setting = widget.settings.find(
+    (candidate) =>
+      candidate.type === "table" &&
+      candidate.attributes?.[0] === annotations.attribute,
+  );
+  if (!setting) return "";
+  for (const row of tableRowsIncludingEmpty(form, setting)) {
+    if (!row[0]) continue;
+    const match = /^(\d+)(?:-(\d+))?$/u.exec(row[0]);
+    const start = Number(match?.[1]);
+    const end = Number(match?.[2] || match?.[1]);
+    if (!match || start < 1 || end < start)
+      return "Use a positive line number or inclusive range such as 12-15.";
+  }
+  return "";
 }
 
 function defaultTableColors(widget: CatalogWidget, count: number): string[] {
@@ -784,6 +859,16 @@ function collectFormValues(
   for (const setting of widget.settings) {
     if (setting.type !== "table") continue;
     const rows = tableRows(form, setting);
+    if (setting.row_separator && setting.attributes?.length === 1) {
+      const name = setting.attributes[0];
+      const attribute = widgetAttribute(widget, name);
+      if (attribute) {
+        result[name] = rows
+          .map((row) => row.join(setting.row_separator))
+          .join(attribute.separator || ";");
+      }
+      continue;
+    }
     (setting.attributes || []).forEach((name, column) => {
       const attribute = widgetAttribute(widget, name);
       if (!attribute) return;
@@ -825,6 +910,7 @@ function createSettingsPopover(
   preview: (raw: string) => void,
   close: (restorePreview: boolean) => void,
   completions: CatalogCompletion[],
+  initialAnnotation?: { attribute: string; selection: string },
 ): HTMLElement {
   const popover = document.createElement("div");
   popover.className = "visual-widget-popover";
@@ -846,6 +932,36 @@ function createSettingsPopover(
         ? createTableSetting(setting, widget, values, activate)
         : createScalarSetting(setting, widget, values, completions),
     );
+  }
+  if (initialAnnotation) {
+    const setting = widget.settings.find(
+      (candidate) =>
+        candidate.type === "table" &&
+        candidate.row_separator &&
+        candidate.attributes?.[0] === initialAnnotation.attribute,
+    );
+    const first = form.querySelector<HTMLInputElement>(
+      `[data-widget-table-attribute="${CSS.escape(initialAnnotation.attribute)}"][data-widget-table-column="0"]`,
+    );
+    const body = first?.closest("table")?.tBodies[0];
+    if (setting && body) {
+      const empty = [...body.rows].find((row) =>
+        [
+          ...row.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>(
+            "input, textarea",
+          ),
+        ].every((control) => !control.value),
+      );
+      const row = empty || appendTableRow(body, setting, widget, []);
+      const selection = row.querySelector<HTMLInputElement>(
+        '[data-widget-table-column="0"]',
+      );
+      const text = row.querySelector<HTMLTextAreaElement | HTMLInputElement>(
+        '[data-widget-table-column="1"]',
+      );
+      if (selection) selection.value = initialAnnotation.selection;
+      requestAnimationFrame(() => text?.focus());
+    }
   }
 
   const error = document.createElement("div");
@@ -913,6 +1029,12 @@ function createSettingsPopover(
   cancel.addEventListener("click", () => close(true));
   form.addEventListener("submit", (event) => {
     event.preventDefault();
+    const tableProblem = compoundTableProblem(form, widget);
+    if (tableProblem) {
+      error.textContent = tableProblem;
+      error.hidden = false;
+      return;
+    }
     const next = collectFormValues(form, widget, values);
     const problems = validateWidgetValues(next, widget);
     if (problems.length) {
@@ -930,6 +1052,16 @@ function createSettingsPopover(
   return popover;
 }
 
+interface RenderedWidgetPayload {
+  html: string;
+}
+
+function isRenderedWidgetPayload(
+  value: unknown,
+): value is RenderedWidgetPayload {
+  return isRecord(value) && typeof value.html === "string";
+}
+
 function widgetNodeView(
   widgets: CatalogWidget[],
   completions: CatalogCompletion[],
@@ -938,6 +1070,7 @@ function widgetNodeView(
 ): any {
   let node = context.node;
   let popover: HTMLElement | null = null;
+  let renderVersion = 0;
   const shell = document.createElement(inline ? "span" : "div");
   shell.className = inline
     ? "visual-widget-node"
@@ -948,7 +1081,149 @@ function widgetNodeView(
   const preview = document.createElement(inline ? "span" : "div");
   shell.append(preview);
 
+  const renderServerPreview = async (
+    raw: string,
+    widget: CatalogWidget,
+    version: number,
+  ) => {
+    if (widget.preview.kind !== "card" || !widget.preview.card.rendered) return;
+    const form = shell.closest<HTMLFormElement>("form[data-preview-url]");
+    const endpoint = form?.dataset.previewUrl;
+    if (!form || !endpoint) return;
+    const slug =
+      form.querySelector<HTMLInputElement>('[name="slug"]')?.value || "";
+    try {
+      const payload = await requestJSON(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ markdown: raw, slug }),
+      });
+      if (!isRenderedWidgetPayload(payload) || version !== renderVersion)
+        return;
+      const staging = document.createElement("div");
+      staging.innerHTML = payload.html;
+      const rendered = staging.querySelector<HTMLElement>(
+        `.${CSS.escape(widget.preview.card.class)}`,
+      );
+      if (!rendered) return;
+      resetPreview(preview);
+      preview.append(rendered);
+      setupLineAnnotationSelection(rendered, widget);
+    } catch {
+      // Keep the declarative card fallback when a dynamic preview is unavailable.
+    }
+  };
+
+  const setupLineAnnotationSelection = (
+    rendered: HTMLElement,
+    widget: CatalogWidget,
+  ) => {
+    if (widget.preview.kind !== "card") return;
+    const annotation = widget.preview.card.line_annotations;
+    if (!annotation) return;
+    const rows = [
+      ...rendered.querySelectorAll<HTMLElement>(
+        `.${CSS.escape(annotation.line_class)}`,
+      ),
+    ];
+    if (!rows.length) return;
+    let anchor = -1;
+    let selected: { start: number; end: number } | null = null;
+    const numberFor = (row: HTMLElement): number =>
+      Number.parseInt(
+        row.querySelector<HTMLElement>(
+          `.${CSS.escape(annotation.line_number_class)}`,
+        )?.textContent || "",
+        10,
+      );
+    const toolbar = document.createElement("div");
+    toolbar.className = "visual-widget-line-actions";
+    toolbar.hidden = true;
+    const add = document.createElement("button");
+    add.type = "button";
+    add.textContent = "Add note";
+    toolbar.append(add);
+    rendered.append(toolbar);
+
+    const select = (first: number, last: number) => {
+      const start = Math.min(first, last);
+      const end = Math.max(first, last);
+      selected = { start, end };
+      for (const row of rows) {
+        const number = numberFor(row);
+        row.classList.toggle(
+          "visual-widget-line-selected",
+          number >= start && number <= end,
+        );
+      }
+      add.textContent =
+        start === end
+          ? `Add note to line ${start}`
+          : `Add note to lines ${start}–${end}`;
+      toolbar.hidden = false;
+    };
+
+    for (const row of rows) {
+      const numberControl = row.querySelector<HTMLElement>(
+        `.${CSS.escape(annotation.line_number_class)}`,
+      );
+      numberControl?.classList.add("visual-widget-line-number");
+      numberControl?.setAttribute(
+        "title",
+        "Select this line for an annotation",
+      );
+      numberControl?.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const number = numberFor(row);
+        if (!Number.isInteger(number)) return;
+        if (!(event instanceof MouseEvent) || !event.shiftKey || anchor < 0)
+          anchor = number;
+        select(anchor, number);
+      });
+    }
+
+    rendered.addEventListener("mouseup", () => {
+      const selection = window.getSelection();
+      if (!selection || selection.isCollapsed || !selection.rangeCount) return;
+      const range = selection.getRangeAt(0);
+      const elementFor = (node: Node): Element | null =>
+        node instanceof Element ? node : node.parentElement;
+      const startRow = elementFor(range.startContainer)?.closest<HTMLElement>(
+        `.${CSS.escape(annotation.line_class)}`,
+      );
+      const endRow = elementFor(range.endContainer)?.closest<HTMLElement>(
+        `.${CSS.escape(annotation.line_class)}`,
+      );
+      if (
+        !startRow ||
+        !endRow ||
+        !rendered.contains(startRow) ||
+        !rendered.contains(endRow)
+      )
+        return;
+      const start = numberFor(startRow);
+      const end = numberFor(endRow);
+      if (Number.isInteger(start) && Number.isInteger(end)) {
+        anchor = start;
+        select(start, end);
+      }
+    });
+
+    add.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (!selected) return;
+      const selection =
+        selected.start === selected.end
+          ? String(selected.start)
+          : `${selected.start}-${selected.end}`;
+      open({ attribute: annotation.attribute, selection });
+    });
+  };
+
   const render = () => {
+    const version = ++renderVersion;
     const raw = String(node.attrs?.raw || "");
     const widget = contractForRaw(raw, widgets);
     if (!widget) {
@@ -960,6 +1235,7 @@ function widgetNodeView(
     renderWidget(preview, raw, widget);
     shell.dataset.pluginId = widget.plugin_id;
     shell.dataset.widgetId = widget.id;
+    queueMicrotask(() => void renderServerPreview(raw, widget, version));
   };
   const close = (restorePreview = true) => {
     popover?.remove();
@@ -979,7 +1255,10 @@ function widgetNodeView(
     );
     context.editor.view.dispatch(transaction);
   };
-  const open = () => {
+  const open = (initialAnnotation?: {
+    attribute: string;
+    selection: string;
+  }) => {
     const raw = String(node.attrs?.raw || "");
     const widget = contractForRaw(raw, widgets);
     if (!widget) return;
@@ -992,11 +1271,37 @@ function widgetNodeView(
       (previewRaw) => renderWidget(preview, previewRaw, widget),
       close,
       completions,
+      initialAnnotation,
     );
   };
 
   shell.addEventListener("mousedown", (event) => {
     if (!(event instanceof MouseEvent) || event.button !== 0) return;
+    const target = event.target;
+    const contract = widgetForSource(String(node.attrs?.raw || ""), widgets);
+    const lineNumberClass =
+      contract?.preview.kind === "card"
+        ? contract.preview.card.line_annotations?.line_number_class
+        : undefined;
+    const lineClass =
+      contract?.preview.kind === "card"
+        ? contract.preview.card.line_annotations?.line_class
+        : undefined;
+    if (
+      target instanceof Element &&
+      (target.closest(".visual-widget-line-actions") ||
+        (lineNumberClass &&
+          target.closest(`.${CSS.escape(lineNumberClass)}`)) ||
+        (lineClass && target.closest(`.${CSS.escape(lineClass)}`)))
+    ) {
+      if (
+        target.closest(".visual-widget-line-actions") ||
+        (lineNumberClass && target.closest(`.${CSS.escape(lineNumberClass)}`))
+      )
+        event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
     event.preventDefault();
     const position = context.getPos();
     const selection = context.editor.state.selection;
@@ -1008,7 +1313,7 @@ function widgetNodeView(
     // A selected block widget is draggable, so browsers may suppress its click
     // event. Open from the primary-button press after ProseMirror has applied
     // the node selection instead.
-    queueMicrotask(open);
+    queueMicrotask(() => open());
   });
   render();
 

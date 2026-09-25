@@ -36,9 +36,16 @@ export interface CatalogWidgetSetting {
   attribute?: string;
   attributes?: string[];
   columns?: CatalogWidgetSettingColumn[];
+  row_separator?: string;
   placeholder?: string;
   suggestions?: string[];
   completion_module_id?: string;
+}
+
+export interface CatalogWidgetLineAnnotations {
+  attribute: string;
+  line_class: string;
+  line_number_class: string;
 }
 
 export interface CatalogWidgetConstraint {
@@ -80,6 +87,8 @@ export interface CatalogWidgetCardPreview {
   metadata_attributes?: string[];
   metadata_class?: string;
   body_text?: string;
+  rendered?: boolean;
+  line_annotations?: CatalogWidgetLineAnnotations;
 }
 
 export interface CatalogWidgetCalloutPreview {
@@ -229,8 +238,20 @@ function isWidgetSetting(value: unknown): value is CatalogWidgetSetting {
     (value.attributes === undefined || strings(value.attributes)) &&
     (value.columns === undefined ||
       (Array.isArray(value.columns) && value.columns.every(isWidgetColumn))) &&
+    optionalString(value.row_separator) &&
     optionalString(value.placeholder) &&
     (value.suggestions === undefined || strings(value.suggestions))
+  );
+}
+
+function isLineAnnotations(
+  value: unknown,
+): value is CatalogWidgetLineAnnotations {
+  return (
+    isRecord(value) &&
+    typeof value.attribute === "string" &&
+    typeof value.line_class === "string" &&
+    typeof value.line_number_class === "string"
   );
 }
 
@@ -288,7 +309,10 @@ function isCardPreview(value: unknown): value is CatalogWidgetCardPreview {
     (value.metadata_attributes === undefined ||
       strings(value.metadata_attributes)) &&
     optionalString(value.metadata_class) &&
-    optionalString(value.body_text)
+    optionalString(value.body_text) &&
+    optionalBoolean(value.rendered) &&
+    (value.line_annotations === undefined ||
+      isLineAnnotations(value.line_annotations))
   );
 }
 

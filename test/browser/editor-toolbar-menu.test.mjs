@@ -3,6 +3,101 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { chromium } from "playwright";
 
+test("holding Alt reveals toolbar icon names until it is released", async () => {
+  const browser = await chromium.launch({
+    channel: process.env.BROWSER_CHANNEL || "chrome",
+    headless: true,
+  });
+  try {
+    const page = await browser.newPage({
+      viewport: { width: 360, height: 640 },
+    });
+    await page.route("http://toolbar-labels.test/**", async (route) => {
+      const path = new URL(route.request().url()).pathname;
+      if (path.startsWith("/assets/")) {
+        await route.fulfill({
+          body: await readFile(
+            new URL(`../../web/dist/${path.slice(8)}`, import.meta.url),
+          ),
+          contentType: path.endsWith(".css") ? "text/css" : "text/javascript",
+        });
+        return;
+      }
+      await route.fulfill({
+        contentType: "text/html",
+        body: `<link rel="stylesheet" href="/assets/css/app.css">
+          <form data-editor-form>
+            <div class="markdown-toolbar" data-markdown-toolbar role="toolbar">
+              <div class="markdown-toolbar-group">
+                <button type="button" data-markdown-action="bold" aria-label="Bold">
+                  <svg class="lucide-icon" aria-hidden="true"></svg>
+                </button>
+                <button type="button" aria-label="Inline code">
+                  <svg class="lucide-icon" aria-hidden="true"></svg>
+                </button>
+                <button type="button" aria-label="Format complete document">
+                  <svg class="lucide-icon" aria-hidden="true"></svg>
+                </button>
+                <details class="markdown-toolbar-menu">
+                  <summary aria-label="Heading">
+                    <svg class="lucide-icon" aria-hidden="true"></svg>
+                  </summary>
+                </details>
+              </div>
+            </div>
+            <textarea data-markdown-editor></textarea>
+          </form>
+          <script type="module">
+            import {initMarkdownToolbar} from '/assets/js/features/editor/toolbar.js';
+            initMarkdownToolbar();
+          </script>`,
+      });
+    });
+
+    await page.goto("http://toolbar-labels.test/");
+    const toolbar = page.getByRole("toolbar");
+    const bold = page.getByRole("button", { name: "Bold", exact: true });
+    const heading = page.getByLabel("Heading", { exact: true });
+    const generatedName = (locator) =>
+      locator.evaluate(
+        (element) => getComputedStyle(element, "::after").content,
+      );
+    const iconWidth = (await bold.boundingBox()).width;
+
+    assert.equal(await generatedName(bold), "none");
+    assert.equal(await generatedName(heading), "none");
+    await page.keyboard.down("Alt");
+    await page.waitForFunction(
+      () =>
+        document.querySelector("[data-markdown-toolbar]")?.dataset
+          .showIconNames === "true",
+    );
+    assert.equal(await generatedName(bold), '"Bold"');
+    assert.equal(await generatedName(heading), '"Heading"');
+    assert.ok((await bold.boundingBox()).width > iconWidth);
+    assert.equal(
+      await toolbar.evaluate(
+        (element) => element.scrollWidth <= element.clientWidth,
+      ),
+      true,
+      "expanded icon names must fit inside the toolbar",
+    );
+
+    await page.keyboard.up("Alt");
+    await page.waitForFunction(
+      () =>
+        !document.querySelector("[data-markdown-toolbar]")?.dataset
+          .showIconNames,
+    );
+    assert.equal(await generatedName(bold), "none");
+    assert.equal(await generatedName(heading), "none");
+    assert.equal((await bold.boundingBox()).width, iconWidth);
+    assert.equal(await toolbar.getAttribute("data-show-icon-names"), null);
+  } finally {
+    await browser.close();
+  }
+});
+
 test("plugin toolbar submenu children stay hidden until the menu opens", async () => {
   const browser = await chromium.launch({
     channel: process.env.BROWSER_CHANNEL || "chrome",

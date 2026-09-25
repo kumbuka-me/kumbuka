@@ -34,7 +34,26 @@ async function packagedExternalFileWidget() {
   const document = JSON.parse(stdout);
   assert.equal(document.version, 1);
   assert.equal(document.widgets.length, 1);
-  return document.widgets[0];
+  const widget = document.widgets[0];
+  const annotations = widget.settings.find(
+    (setting) => setting.type === "table" && setting.attributes?.[0] === "note",
+  );
+  Object.assign(annotations, {
+    row_separator: ":",
+    columns: [
+      { label: "Line(s)", type: "text" },
+      { label: "Note", type: "textarea" },
+    ],
+  });
+  Object.assign(widget.preview.card, {
+    rendered: true,
+    line_annotations: {
+      attribute: "note",
+      line_class: "external-file-line",
+      line_number_class: "external-file-number",
+    },
+  });
+  return widget;
 }
 
 async function externalFilesCatalog() {
@@ -112,6 +131,20 @@ test("External Files insert and widget list configured sources", async () => {
         });
         return;
       }
+      if (path === "/api/preview") {
+        await route.fulfill({
+          contentType: "application/json",
+          body: JSON.stringify({
+            html: `<div class="external-file"><pre class="external-file-code"><code>
+              <span class="external-file-line"><span class="external-file-number">1</span><span class="external-file-source">first</span></span>
+              <span class="external-file-line"><span class="external-file-number">2</span><span class="external-file-source">second</span></span>
+              <span class="external-file-line"><span class="external-file-number">3</span><span class="external-file-source">third</span></span>
+              <span class="external-file-line"><span class="external-file-number">4</span><span class="external-file-source">fourth</span></span>
+            </code></pre></div>`,
+          }),
+        });
+        return;
+      }
       if (path.startsWith("/assets/")) {
         await route.fulfill({
           body: await readFile(
@@ -125,7 +158,7 @@ test("External Files insert and widget list configured sources", async () => {
         contentType: "text/html",
         body: `
           <link rel="stylesheet" href="/assets/css/app.css">
-          <form class="editor" data-editor-form>
+          <form class="editor" data-editor-form data-preview-url="/api/preview">
             ${modeSwitcher}
             <div data-markdown-toolbar role="toolbar">
               <button type="button"
@@ -200,6 +233,42 @@ test("External Files insert and widget list configured sources", async () => {
         await page.locator("textarea[data-markdown-editor]").inputValue()
       ).trimEnd(),
       '{{external-file source="engineering" path="cmd/server/main.go"}}',
+    );
+
+    const lineNumbers = widget.locator(".external-file-number");
+    await lineNumbers.first().waitFor({ state: "visible" });
+    await widget.evaluate((element) => {
+      const sources = element.querySelectorAll(".external-file-source");
+      const start = sources[1]?.firstChild;
+      const end = sources[3]?.firstChild;
+      if (!start || !end) throw new Error("preview source lines are missing");
+      const range = document.createRange();
+      range.setStart(start, 0);
+      range.setEnd(end, end.textContent?.length || 0);
+      const selection = window.getSelection();
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+      sources[3]?.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
+    });
+    await widget.getByRole("button", { name: "Add note to lines 2–4" }).click();
+
+    const annotationDialog = page.getByRole("dialog", {
+      name: "Edit External file",
+    });
+    assert.equal(
+      await annotationDialog.getByLabel("Line(s)").inputValue(),
+      "2-4",
+    );
+    await annotationDialog
+      .getByLabel("Note")
+      .fill("These lines work together.");
+    await annotationDialog.getByRole("button", { name: "Apply" }).click();
+
+    assert.equal(
+      (
+        await page.locator("textarea[data-markdown-editor]").inputValue()
+      ).trimEnd(),
+      '{{external-file source="engineering" path="cmd/server/main.go" note="2-4:These lines work together."}}',
     );
     assert.deepEqual(errors, []);
   } finally {

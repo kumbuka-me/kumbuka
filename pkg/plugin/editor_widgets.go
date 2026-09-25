@@ -84,12 +84,24 @@ type EditorWidgetSetting struct {
 	Attributes []string `json:"attributes,omitempty"`
 	// Columns describes the table columns corresponding to Attributes.
 	Columns []EditorWidgetSettingColumn `json:"columns,omitempty"`
+	// RowSeparator splits and rejoins compound rows stored in one list attribute.
+	RowSeparator string `json:"row_separator,omitempty"`
 	// Placeholder is optional helper text for a scalar input.
 	Placeholder string `json:"placeholder,omitempty"`
 	// Suggestions supplies optional text-input choices without restricting custom values.
 	Suggestions []string `json:"suggestions,omitempty"`
 	// CompletionModuleID identifies the owning plugin's editor-completion module for a resource control.
 	CompletionModuleID string `json:"completion_module_id,omitempty"`
+}
+
+// EditorWidgetLineAnnotations describes direct line-range annotation controls for a rendered card preview.
+type EditorWidgetLineAnnotations struct {
+	// Attribute is the repeated list attribute that stores range-and-text rows.
+	Attribute string `json:"attribute"`
+	// LineClass identifies selectable rendered source rows.
+	LineClass string `json:"line_class"`
+	// LineNumberClass identifies the rendered line-number control inside each row.
+	LineNumberClass string `json:"line_number_class"`
 }
 
 // EditorWidgetConstraint declares a cross-attribute validation rule.
@@ -164,6 +176,10 @@ type EditorWidgetCardPreview struct {
 	MetadataClass string `json:"metadata_class,omitempty"`
 	// BodyText is optional static helper text for dynamic content unavailable in the editor.
 	BodyText string `json:"body_text,omitempty"`
+	// Rendered replaces the placeholder with a server-rendered preview of this widget when available.
+	Rendered bool `json:"rendered,omitempty"`
+	// LineAnnotations enables direct line-range selection in a rendered preview.
+	LineAnnotations *EditorWidgetLineAnnotations `json:"line_annotations,omitempty"`
 }
 
 // EditorWidgetCalloutPreview describes the published callout panel shape.
@@ -368,6 +384,10 @@ func cloneEditorWidget(widget EditorWidgetContribution) EditorWidgetContribution
 	if widget.Preview.Card != nil {
 		card := *widget.Preview.Card
 		card.MetadataAttributes = append([]string(nil), widget.Preview.Card.MetadataAttributes...)
+		if widget.Preview.Card.LineAnnotations != nil {
+			annotations := *widget.Preview.Card.LineAnnotations
+			card.LineAnnotations = &annotations
+		}
 		clone.Preview.Card = &card
 	}
 	if widget.Preview.Callout != nil {
@@ -709,6 +729,18 @@ func validateEditorWidgetTableSettingDeclaration(setting EditorWidgetSetting, at
 	if !validEditorWidgetTableShape(setting) {
 		return fmt.Errorf("table setting %q has invalid columns", setting.Label)
 	}
+	if setting.RowSeparator != "" {
+		attribute := attributes[setting.Attributes[0]]
+		if attribute.Type != EditorWidgetAttributeList || strings.Contains(attribute.Separator, setting.RowSeparator) {
+			return fmt.Errorf("table setting %q has an invalid row separator", setting.Label)
+		}
+		for _, column := range setting.Columns {
+			if !validEditorWidgetTableColumn(column) || column.Type == EditorWidgetColumnColor {
+				return fmt.Errorf("table setting %q has an invalid compound column", setting.Label)
+			}
+		}
+		return nil
+	}
 	first := attributes[setting.Attributes[0]]
 	if !validEditorWidgetFirstTableColumn(first, setting.Columns[0]) {
 		return fmt.Errorf("table setting %q must start with a text or textarea list column", setting.Label)
@@ -876,6 +908,16 @@ func validateEditorWidgetCardPreview(preview EditorWidgetPreview, attributes map
 	if err := validateEditorWidgetClasses(card.Class, card.TitleClass, card.SubtitleClass, card.MetadataClass); err != nil {
 		return err
 	}
+	if card.LineAnnotations != nil {
+		annotation := card.LineAnnotations
+		attribute, ok := attributes[annotation.Attribute]
+		if !card.Rendered || !ok || attribute.Type != EditorWidgetAttributeList {
+			return errors.New("card line annotations require a rendered list attribute")
+		}
+		if err := validateEditorWidgetClasses(annotation.LineClass, annotation.LineNumberClass); err != nil {
+			return err
+		}
+	}
 	return validateEditorWidgetAttributeReferences(attributes, append([]string{card.SubtitleAttribute}, card.MetadataAttributes...)...)
 }
 
@@ -1013,7 +1055,8 @@ func validEditorWidgetEnumAttribute(attribute EditorWidgetAttribute) bool {
 
 // validEditorWidgetSettingMetadata reports whether common setting presentation fields stay within contract limits.
 func validEditorWidgetSettingMetadata(setting EditorWidgetSetting) bool {
-	return strings.TrimSpace(setting.Label) != "" && len(setting.Label) <= 128 && len(setting.Placeholder) <= 256 && len(setting.Suggestions) <= 16
+	return strings.TrimSpace(setting.Label) != "" && len(setting.Label) <= 128 && len(setting.Placeholder) <= 256 && len(setting.Suggestions) <= 16 &&
+		(setting.Type == EditorWidgetSettingTable || setting.RowSeparator == "")
 }
 
 // validEditorWidgetTextSetting reports whether a text control targets one scalar attribute.
@@ -1033,8 +1076,11 @@ func validEditorWidgetResourceSetting(setting EditorWidgetSetting, attribute Edi
 
 // validEditorWidgetTableShape reports whether a table control has a bounded one-to-one attribute and column layout.
 func validEditorWidgetTableShape(setting EditorWidgetSetting) bool {
-	return setting.Attribute == "" && len(setting.Attributes) > 0 && len(setting.Attributes) == len(setting.Columns) &&
-		len(setting.Attributes) <= 4 && len(setting.Suggestions) == 0 && setting.CompletionModuleID == ""
+	compound := setting.RowSeparator != "" && len(setting.Attributes) == 1 && len(setting.Columns) >= 2
+	parallel := setting.RowSeparator == "" && len(setting.Attributes) == len(setting.Columns)
+	return setting.Attribute == "" && len(setting.Attributes) > 0 && (compound || parallel) &&
+		len(setting.Columns) <= 4 && len(setting.Suggestions) == 0 && setting.CompletionModuleID == "" &&
+		(setting.RowSeparator == "" || setting.RowSeparator == ":")
 }
 
 // validEditorWidgetFirstTableColumn reports whether the first table column is textual and backed by a list.

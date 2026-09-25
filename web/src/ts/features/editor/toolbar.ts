@@ -155,6 +155,26 @@ function closeToolbarMenus(toolbar: HTMLElement): void {
   }
 }
 
+// Reveals icon labels while Alt is held and reliably clears them if the window
+// loses focus before the matching keyup event arrives.
+function setupToolbarIconNameReveal(toolbar: HTMLElement): void {
+  function setVisible(visible: boolean): void {
+    if (visible) toolbar.dataset.showIconNames = "true";
+    else delete toolbar.dataset.showIconNames;
+  }
+
+  window.addEventListener("keydown", (event: KeyboardEvent) => {
+    if (event.key === "Alt") setVisible(true);
+  });
+  window.addEventListener("keyup", (event: KeyboardEvent) => {
+    if (event.key === "Alt") setVisible(false);
+  });
+  window.addEventListener("blur", () => setVisible(false));
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) setVisible(false);
+  });
+}
+
 // Wires markdown toolbar behavior.
 function setupMarkdownToolbar(toolbar: HTMLElement): void {
   const form = toolbar.closest<HTMLFormElement>("[data-editor-form]");
@@ -164,6 +184,7 @@ function setupMarkdownToolbar(toolbar: HTMLElement): void {
   if (!textarea) return;
 
   const editor = textarea;
+  setupToolbarIconNameReveal(toolbar);
 
   function visualCommand(
     action: string,

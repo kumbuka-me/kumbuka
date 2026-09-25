@@ -83,9 +83,9 @@ func TestEditorWidgets(t *testing.T) {
       ],
       "settings": [
         {"type": "text", "label": "Path", "attribute": "path"},
-        {"type": "table", "label": "Notes", "attributes": ["note"], "columns": [{"label": "Note", "type": "textarea"}]}
+        {"type": "table", "label": "Notes", "attributes": ["note"], "row_separator": ":", "columns": [{"label": "Line(s)", "type": "text"}, {"label": "Note", "type": "textarea"}]}
       ],
-      "preview": {"kind": "card", "card": {"class": "external-file", "title": "External file", "subtitle_attribute": "path"}}
+      "preview": {"kind": "card", "card": {"class": "external-file", "title": "External file", "subtitle_attribute": "path", "rendered": true, "line_annotations": {"attribute": "note", "line_class": "external-file-line", "line_number_class": "external-file-number"}}}
     },
     {
       "id": "callout",
@@ -138,6 +138,9 @@ func TestEditorWidgets(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, widgets, 5)
 		require.True(t, widgets[1].Attributes[1].Repeat)
+		require.Equal(t, ":", widgets[1].Settings[1].RowSeparator)
+		require.True(t, widgets[1].Preview.Card.Rendered)
+		require.Equal(t, "note", widgets[1].Preview.Card.LineAnnotations.Attribute)
 		require.Equal(t, EditorWidgetSettingTextarea, widgets[2].Settings[1].Type)
 		require.Equal(t, EditorWidgetPreviewTabs, widgets[4].Preview.Kind)
 	})
