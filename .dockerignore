@@ -6,6 +6,3 @@ coverage.out
 .DS_Store
 plugins/*.kumbukaplugin
 plugins/.downloaded
-
-
-
