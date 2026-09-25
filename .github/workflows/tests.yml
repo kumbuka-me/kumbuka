@@ -77,6 +77,9 @@ jobs:
       - name: Run race tests
         run: make test-race
 
+      - name: Run browser tests
+        run: make test-browser
+
       - name: Upload web dist artifact
         uses: actions/upload-artifact@v7
         with:
