@@ -169,6 +169,11 @@ SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version=$1)`, version).Scan(
 
 // applyMigration executes one embedded migration and records its version atomically.
 func applyMigration(ctx context.Context, tx pgx.Tx, item migration) error {
+	var searchPath string
+	if err := tx.QueryRow(ctx, `SHOW search_path`).Scan(&searchPath); err != nil {
+		return fmt.Errorf("migration %d: read search path: %w", item.version, err)
+	}
+
 	sql, err := migrationFiles.ReadFile("migrations/" + item.entry.Name())
 	if err != nil {
 		return err
@@ -176,6 +181,14 @@ func applyMigration(ctx context.Context, tx pgx.Tx, item migration) error {
 
 	if _, err := tx.Exec(ctx, string(sql)); err != nil {
 		return fmt.Errorf("migration %d: %w", item.version, err)
+	}
+
+	if _, err := tx.Exec(
+		ctx,
+		`SELECT pg_catalog.set_config('search_path',$1,false)`,
+		searchPath,
+	); err != nil {
+		return fmt.Errorf("migration %d: restore search path: %w", item.version, err)
 	}
 
 	if err := recordMigration(ctx, tx, item.version); err != nil {

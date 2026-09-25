@@ -85,7 +85,10 @@ function enhancePopover(popover: HTMLElement): void {
   const close = document.createElement("button");
   close.type = "button";
   close.className = "icon-button visual-widget-popover-close";
-  close.setAttribute("aria-label", `Close ${heading.textContent || "plugin form"}`);
+  close.setAttribute(
+    "aria-label",
+    `Close ${heading.textContent || "plugin form"}`,
+  );
   close.title = "Close";
   close.textContent = "×";
 

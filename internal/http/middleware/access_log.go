@@ -21,14 +21,10 @@ func AccessLog(logger *slog.Logger) Middleware {
 			}
 			requestLogger.Info(
 				"request",
-				"event",
-				"request_complete",
-				"method",
-				r.Method,
-				"path",
-				r.URL.Path,
-				"duration",
-				time.Since(started),
+				"event", "request_complete",
+				"method", r.Method,
+				"path", r.URL.Path,
+				"duration", time.Since(started),
 			)
 		})
 	}
