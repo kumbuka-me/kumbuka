@@ -10,6 +10,7 @@ const (
 	ModuleTypeCodeHighlighter     ModuleType = "code-highlighter"
 	ModuleTypeContentStyle        ModuleType = "content-style"
 	ModuleTypeContentSubstitution ModuleType = "content-substitution"
+	ModuleTypeContentChange       ModuleType = "content-change"
 	ModuleTypeEditorCompletion    ModuleType = "editor-completion"
 	ModuleTypeEditorInsert        ModuleType = "editor-insert"
 	ModuleTypeEditorMenu          ModuleType = "editor-menu"
@@ -40,6 +41,7 @@ type RenderStage string
 const (
 	RenderStageAdminAction       RenderStage = "admin-action"
 	RenderStageContentPreprocess RenderStage = "content-preprocess"
+	RenderStageContentChange     RenderStage = "content-change"
 	RenderStageExport            RenderStage = "export"
 	RenderStageHighlight         RenderStage = "highlight"
 	RenderStagePostprocess       RenderStage = "postprocess"

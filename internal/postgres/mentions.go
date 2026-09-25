@@ -17,6 +17,10 @@ func mentionedUsernames(text string) []string {
 			break
 		}
 		start := offset + next
+		if end, inside := mentionMacroEnd(text, start); inside {
+			offset = end
+			continue
+		}
 		// The preceding boundary must not belong to an already-consumed mention.
 		validBoundary := start == 0 || start > consumed && !mentionWordByte(text[start-1])
 		offset = start + 1
@@ -39,6 +43,19 @@ func mentionedUsernames(text string) []string {
 		consumed = end
 	}
 	return usernames
+}
+
+// mentionMacroEnd reports whether an at sign is inside a plugin-style {{...}} declaration and where scanning should resume.
+func mentionMacroEnd(text string, at int) (int, bool) {
+	open := strings.LastIndex(text[:at], "{{")
+	if open < 0 || strings.LastIndex(text[:at], "}}") > open {
+		return 0, false
+	}
+	closeOffset := strings.Index(text[at:], "}}")
+	if closeOffset < 0 {
+		return len(text), true
+	}
+	return at + closeOffset + 2, true
 }
 
 // mentionNameByte reports whether value can occur inside a username mention.

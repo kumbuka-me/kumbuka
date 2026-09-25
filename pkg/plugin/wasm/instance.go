@@ -144,6 +144,11 @@ func (i *Instance) appendExecutableContribution(result *plugin.Contributions, mo
 			resource: resource,
 			storage:  i.runtime.storage,
 		})
+	case plugin.ModuleTypeContentChange:
+		result.ContentChanges = append(result.ContentChanges, plugin.ContentChangeModule{
+			ID:      module.ID,
+			Handler: contentChangeModule{rendererModule{instance: i, module: module}},
+		})
 	case plugin.ModuleTypeCodeHighlighter:
 		adapter := codeHighlighterModule{rendererModule{instance: i, module: module}}
 		result.CodeHighlighters = append(result.CodeHighlighters, plugin.CodeHighlighterModule{
@@ -505,7 +510,7 @@ func (i *Instance) validateRenderResult(
 	if err := validateStageSpecificRenderResult(result, stage); err != nil {
 		return err
 	}
-	if stage == plugin.RenderStageAdminAction || stage == plugin.RenderStageWidgetCommand || stage == plugin.RenderStageExport {
+	if stage == plugin.RenderStageAdminAction || stage == plugin.RenderStageWidgetCommand || stage == plugin.RenderStageExport || stage == plugin.RenderStageContentChange {
 		return nil
 	}
 	return i.validateGeneralRenderResult(result, stage)
@@ -526,6 +531,10 @@ func validateStageSpecificRenderResult(result sdk.RenderResult, stage plugin.Ren
 		if !validExportResult(result) {
 			return errors.New("invalid plugin export response")
 		}
+	case plugin.RenderStageContentChange:
+		if !emptyRenderResult(result) {
+			return errors.New("invalid plugin content change response")
+		}
 	default:
 		if result.WidgetCommand != nil {
 			return errors.New("unexpected plugin widget command response")
@@ -535,6 +544,12 @@ func validateStageSpecificRenderResult(result sdk.RenderResult, stage plugin.Ren
 		}
 	}
 	return nil
+}
+
+// emptyRenderResult reports whether a mutation hook returned no render output.
+func emptyRenderResult(result sdk.RenderResult) bool {
+	return !result.Matched && len(result.Invocation) == 0 && len(result.Parts) == 0 && len(result.Actions) == 0 &&
+		result.File == nil && result.WidgetCommand == nil
 }
 
 // validateGeneralRenderResult validates bounded render fragments and widget actions.

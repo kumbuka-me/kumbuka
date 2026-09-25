@@ -98,6 +98,7 @@ func cloneEntry(entry Entry) Entry {
 	entry.Descriptor.Requires = slices.Clone(entry.Descriptor.Requires)
 	c := &entry.Contributions
 	c.ContentPreprocessors = slices.Clone(c.ContentPreprocessors)
+	c.ContentChanges = slices.Clone(c.ContentChanges)
 	c.Preprocessors = slices.Clone(c.Preprocessors)
 	c.MarkdownExtensions = slices.Clone(c.MarkdownExtensions)
 	c.CodeHighlighters = slices.Clone(c.CodeHighlighters)

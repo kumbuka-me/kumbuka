@@ -145,6 +145,30 @@ type ContentPreprocessor interface {
 	PreprocessContent(Context, string) (PreparedContent, error)
 }
 
+// ContentChangeRequest describes canonical page Markdown before and after a committed mutation.
+type ContentChangeRequest struct {
+	// Page contains public metadata for the committed page version.
+	Page sdk.Page
+	// PreviousSource is the canonical Markdown stored before the mutation.
+	PreviousSource string
+	// Source is the canonical Markdown stored by the mutation.
+	Source string
+}
+
+// ContentChange handles a committed page Markdown mutation.
+type ContentChange interface {
+	// Changed reacts to one committed source change using mutation-scoped capabilities.
+	Changed(Context, ContentChangeRequest) error
+}
+
+// ContentChangeModule describes one post-commit page-source mutation hook.
+type ContentChangeModule struct {
+	// ID identifies the hook within its plugin.
+	ID string
+	// Handler performs the sandboxed post-commit operation.
+	Handler ContentChange
+}
+
 // AdminAction executes one explicit administrator-triggered plugin operation.
 type AdminAction interface {
 	// Run executes the action inside the authenticated administrator request context.
@@ -434,6 +458,8 @@ type RenderPolicy struct {
 type Contributions struct {
 	// ContentPreprocessors transform application Markdown before the normal render pipeline.
 	ContentPreprocessors []ContentPreprocessor
+	// ContentChanges react to committed canonical Markdown changes.
+	ContentChanges []ContentChangeModule
 	// Preprocessors run before core Markdown parsing in contribution order.
 	Preprocessors []Preprocessor
 	// MarkdownExtensions contribute fresh Goldmark extensions per render.

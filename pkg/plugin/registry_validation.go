@@ -171,6 +171,7 @@ func validateContributionIDs(contributions Contributions) error {
 		ids  []string
 	}{
 		{kind: "code-highlighter", ids: contributionIDs(contributions.CodeHighlighters, func(module CodeHighlighterModule) string { return module.ID })},
+		{kind: "content-change", ids: contributionIDs(contributions.ContentChanges, func(module ContentChangeModule) string { return module.ID })},
 		{kind: "widget", ids: contributionIDs(contributions.Widgets, func(module WidgetModule) string { return module.ID })},
 		{kind: "exporter", ids: contributionIDs(contributions.Exporters, func(module ExporterModule) string { return module.ID })},
 		{kind: "browser", ids: contributionIDs(contributions.BrowserModules, func(module BrowserModule) string { return module.ID })},
@@ -204,6 +205,11 @@ func contributionIDs[T any](modules []T, id func(T) string) []string {
 
 // validateContributionCallbacks checks required executable callbacks before validating contribution identifiers.
 func validateContributionCallbacks(contributions Contributions) error {
+	for _, module := range contributions.ContentChanges {
+		if module.Handler == nil {
+			return fmt.Errorf("nil content change handler %q", module.ID)
+		}
+	}
 	for _, module := range contributions.Exporters {
 		if module.Exporter == nil {
 			return fmt.Errorf("nil exporter %q", module.ID)

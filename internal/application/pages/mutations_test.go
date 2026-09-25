@@ -21,11 +21,13 @@ type pageSaveRepositoryStub struct {
 	metadata domain.PageMetadata
 	// render configures the render used by the fixture.
 	render domain.PageRender
+	// previous configures the page returned before an edit.
+	previous domain.Page
 }
 
 func (r *pageSaveRepositoryStub) SavePage(
 	_ context.Context,
-	_, slug, title, _, _, _, _ string,
+	_, slug, title, _, _, markdown, _ string,
 	_, _ []string,
 	_ []int64,
 	metadata domain.PageMetadata,
@@ -37,7 +39,11 @@ func (r *pageSaveRepositoryStub) SavePage(
 	r.metadata = metadata
 	r.render = render
 
-	return domain.Page{Slug: slug, Title: title}, nil
+	return domain.Page{Slug: slug, Title: title, Markdown: markdown}, nil
+}
+
+func (r *pageSaveRepositoryStub) GetPage(context.Context, string) (domain.Page, error) {
+	return r.previous, nil
 }
 
 func (r *pageSaveRepositoryStub) ApplicationSettings(context.Context) (domain.ApplicationSettings, error) {
@@ -50,6 +56,19 @@ type pageContentPreparerStub struct {
 	usage pluginusage.Index
 	// render configures the render used by the fixture.
 	render domain.PageRender
+}
+
+// pageContentChangeSinkStub records committed page Markdown mutations.
+type pageContentChangeSinkStub struct {
+	// changes contains observed post-commit mutations.
+	changes []PageContentChange
+	// err is the configured post-commit hook failure.
+	err error
+}
+
+func (s *pageContentChangeSinkStub) ContentChanged(_ context.Context, change PageContentChange) error {
+	s.changes = append(s.changes, change)
+	return s.err
 }
 
 func (s pageContentPreparerStub) Prepare(context.Context, string) (*pluginusage.Index, domain.PageRender, error) {
@@ -117,6 +136,57 @@ func TestSavePersistsDerivedPluginUsage(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, repository.metadata.PluginUsage)
 	assert.Equal(t, want, *repository.metadata.PluginUsage)
+}
+
+func TestSaveEmitsCommittedContentChange(t *testing.T) {
+	t.Parallel()
+	repository := &pageSaveRepositoryStub{previous: domain.Page{Slug: "guide", Markdown: "old"}}
+	sink := &pageContentChangeSinkStub{}
+	actor := domain.User{ID: 7}
+	pages := NewMutations(repository, nil, nil, slog.Default()).WithContentChangeSink(sink)
+
+	page, err := pages.Save(context.Background(), PageSaveInput{
+		PreviousSlug: "guide",
+		Slug:         "guide",
+		Title:        "Guide",
+		Markdown:     "new",
+		Status:       domain.PageStatusVerified,
+		Actor:        actor,
+	})
+
+	require.NoError(t, err)
+	require.Len(t, sink.changes, 1)
+	assert.Equal(t, page, sink.changes[0].Page)
+	assert.Equal(t, "old", sink.changes[0].PreviousMarkdown)
+	assert.Equal(t, "new", sink.changes[0].Markdown)
+	assert.Equal(t, actor, sink.changes[0].Actor)
+}
+
+func TestSaveSkipsContentHookWhenMarkdownIsUnchanged(t *testing.T) {
+	t.Parallel()
+	repository := &pageSaveRepositoryStub{previous: domain.Page{Slug: "guide", Markdown: "same"}}
+	sink := &pageContentChangeSinkStub{}
+	_, err := NewMutations(repository, nil, nil, slog.Default()).WithContentChangeSink(sink).Save(
+		context.Background(),
+		PageSaveInput{PreviousSlug: "guide", Slug: "guide", Title: "Guide", Markdown: "same", Status: domain.PageStatusVerified},
+	)
+
+	require.NoError(t, err)
+	assert.Empty(t, sink.changes)
+}
+
+func TestSaveKeepsCommittedPageWhenContentHookFails(t *testing.T) {
+	t.Parallel()
+	repository := &pageSaveRepositoryStub{}
+	sink := &pageContentChangeSinkStub{err: errors.New("hook failed")}
+	page, err := NewMutations(repository, nil, nil, slog.Default()).WithContentChangeSink(sink).Save(
+		context.Background(),
+		PageSaveInput{Slug: "guide", Title: "Guide", Markdown: "new", Status: domain.PageStatusVerified},
+	)
+
+	require.NoError(t, err)
+	assert.Equal(t, "guide", page.Slug)
+	require.Len(t, sink.changes, 1)
 }
 
 func TestSaveValidatesPageBeforePersistence(t *testing.T) {

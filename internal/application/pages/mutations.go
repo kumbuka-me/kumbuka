@@ -73,6 +73,22 @@ type pageIconValidator interface {
 	IsIcon(string) bool
 }
 
+// PageContentChange describes canonical Markdown before and after one committed page mutation.
+type PageContentChange struct {
+	// Page contains the committed page version.
+	Page domain.Page
+	// PreviousMarkdown is the canonical source stored before the mutation.
+	PreviousMarkdown string
+	// Markdown is the canonical source stored by the mutation.
+	Markdown string
+	// Actor is the authenticated user that committed the mutation.
+	Actor domain.User
+}
+
+type pageContentChangeSink interface {
+	ContentChanged(context.Context, PageContentChange) error
+}
+
 // Mutations coordinates core page mutations and their application-level side effects.
 type Mutations struct {
 	// repository persists core page content and revision mutations.
@@ -85,6 +101,8 @@ type Mutations struct {
 	content pageContentPreparer
 	// icons validates page icons against the active built-in and plugin catalog.
 	icons pageIconValidator
+	// contentChanges receives committed canonical Markdown mutations.
+	contentChanges pageContentChangeSink
 }
 
 // NewMutations constructs core page mutation use cases. Event sinks are optional so page mutations remain independently testable.
@@ -118,6 +136,12 @@ func (s *Mutations) WithContentPreparer(preparer pageContentPreparer) *Mutations
 	return s
 }
 
+// WithContentChangeSink enables post-commit plugin page-source hooks.
+func (s *Mutations) WithContentChangeSink(sink pageContentChangeSink) *Mutations {
+	s.contentChanges = sink
+	return s
+}
+
 // Save validates and persists a page, then records audit and mention side effects.
 func (s *Mutations) Save(ctx context.Context, input PageSaveInput) (domain.Page, error) {
 	destination := md.Slug(input.Slug)
@@ -128,6 +152,16 @@ func (s *Mutations) Save(ctx context.Context, input PageSaveInput) (domain.Page,
 		return domain.Page{}, err
 	}
 	if err := s.authorization.requireEdit(ctx, input.Actor, destination); err != nil {
+		return domain.Page{}, err
+	}
+	normalized := normalizePageSaveInput(input)
+	if err := s.validatePageSaveInput(normalized); err != nil {
+		return domain.Page{}, err
+	}
+	input = normalized
+
+	previousMarkdown, err := s.previousPageMarkdown(ctx, input.PreviousSlug)
+	if err != nil {
 		return domain.Page{}, err
 	}
 
@@ -154,8 +188,44 @@ func (s *Mutations) Save(ctx context.Context, input PageSaveInput) (domain.Page,
 		"/pages/"+page.Slug,
 	)
 	s.effects.notifyWatchers(ctx, input.Actor.ID, page.Slug, actionTitle(action, page.Title), "A watched page changed.", "/pages/"+page.Slug)
+	s.notifyContentChanged(ctx, PageContentChange{
+		Page:             page,
+		PreviousMarkdown: previousMarkdown,
+		Markdown:         page.Markdown,
+		Actor:            input.Actor,
+	})
 
 	return page, nil
+}
+
+// previousPageMarkdown returns the source present before an edit and an empty source for creation.
+func (s *Mutations) previousPageMarkdown(ctx context.Context, previousSlug string) (string, error) {
+	previousSlug = strings.TrimSpace(previousSlug)
+	if previousSlug == "" {
+		return "", nil
+	}
+	page, err := s.repository.GetPage(ctx, previousSlug)
+	if err != nil {
+		return "", err
+	}
+	return page.Markdown, nil
+}
+
+// notifyContentChanged invokes post-commit hooks only when canonical Markdown changed.
+func (s *Mutations) notifyContentChanged(ctx context.Context, change PageContentChange) {
+	if s.contentChanges == nil || change.PreviousMarkdown == change.Markdown {
+		return
+	}
+	if err := s.contentChanges.ContentChanged(ctx, change); err != nil {
+		s.effects.logger.ErrorContext(ctx,
+			"plugin content change failed",
+			"event", "page_side_effect_failed",
+			"operation", "plugin_content_change",
+			"actor_id", change.Actor.ID,
+			"slug", change.Page.Slug,
+			"error", err,
+		)
+	}
 }
 
 // validPageWorkflowSettings reports whether page lifecycle and review metadata are internally valid.
@@ -351,6 +421,7 @@ func (s *Mutations) RestoreRevision(ctx context.Context, slug string, number int
 		return domain.Page{}, err
 	}
 
+	previousMarkdown := page.Markdown
 	record, err := s.repository.Revision(ctx, slug, number)
 	if err != nil {
 		return domain.Page{}, err
@@ -398,6 +469,12 @@ func (s *Mutations) RestoreRevision(ctx context.Context, slug string, number int
 		"Restored revision "+fmt.Sprint(number),
 	)
 	s.effects.notifyWatchers(ctx, actor.ID, page.Slug, "Revision restored: "+page.Title, "A watched page restored an older revision.", "/pages/"+page.Slug)
+	s.notifyContentChanged(ctx, PageContentChange{
+		Page:             page,
+		PreviousMarkdown: previousMarkdown,
+		Markdown:         page.Markdown,
+		Actor:            actor,
+	})
 
 	return page, nil
 }

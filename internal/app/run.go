@@ -165,7 +165,15 @@ func Run(
 	iconCatalog := renderer.IconCatalog()
 	content := pagecontent.New(renderer)
 	navigation.WithIconValidator(iconCatalog)
-	mutations.WithIconValidator(iconCatalog).WithContentPreparer(content)
+	contentChanges := pluginruntime.NewContentChanges(
+		database,
+		renderer.PluginManager(),
+		notifications,
+		logger.With("component", "plugin-content-changes"),
+	)
+	mutations.WithIconValidator(iconCatalog).
+		WithContentPreparer(content).
+		WithContentChangeSink(contentChanges)
 	discussions.WithContentPreparer(content)
 	reviewDiscussions.WithContentPreparer(content)
 	settings.WithIconValidator(iconCatalog)
@@ -262,6 +270,7 @@ func Run(
 		},
 	}
 
+	go contentChanges.Run(ctx)
 	if cfg.PluginUpdateCheckInterval > 0 {
 		go pluginUpdates.Run(ctx)
 	}

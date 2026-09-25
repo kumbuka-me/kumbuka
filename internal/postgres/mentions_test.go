@@ -31,4 +31,10 @@ func TestMentionedUsernames(t *testing.T) {
 	t.Run("accepts adjacent mentions", func(t *testing.T) {
 		assert.Equal(t, []string{"one", "two"}, mentionedUsernames("@one,@two"))
 	})
+	t.Run("ignores mentions in plugin declarations", func(t *testing.T) {
+		assert.Equal(t, []string{"bob"}, mentionedUsernames(`{{task assignee="@alice"}} Please review, @bob!`))
+	})
+	t.Run("ignores mentions after an unterminated plugin declaration", func(t *testing.T) {
+		assert.Equal(t, []string(nil), mentionedUsernames(`{{task assignee="@alice"`))
+	})
 }

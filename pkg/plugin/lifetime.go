@@ -103,6 +103,26 @@ func (r *Registry) AcquireEntry(id string) (Entry, func(), bool) {
 	return entry, func() { once.Do(entry.lifetime.release) }, true
 }
 
+// AcquireEntries pins a deterministic snapshot of every active plugin for a non-render operation.
+func (r *Registry) AcquireEntries() ([]Entry, func()) {
+	r.mu.RLock()
+	entries := make([]Entry, len(r.entries))
+	for index, entry := range r.entries {
+		entries[index] = cloneEntry(entry)
+		entries[index].lifetime.acquire()
+	}
+	r.mu.RUnlock()
+
+	var once sync.Once
+	return entries, func() {
+		once.Do(func() {
+			for _, entry := range entries {
+				entry.lifetime.release()
+			}
+		})
+	}
+}
+
 // transition validates a candidate before committing persistence or publication. Replacement keeps contribution order and is never observable as remove/add.
 func (r *Registry) transition(id string, replacement *Entry, replace bool, commit func() error) (*lifetime, error) {
 	r.mu.Lock()
