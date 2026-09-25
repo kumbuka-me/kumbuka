@@ -329,6 +329,40 @@ func TestReadOnlyCanBeEnabledFromEnvironment(t *testing.T) {
 	assert.True(t, cfg.ReadOnly)
 }
 
+// TestMetricsAreEnabledByDefault verifies Prometheus metrics remain available unless explicitly disabled.
+func TestMetricsAreEnabledByDefault(t *testing.T) {
+	t.Setenv("KUMBUKA__DISABLE_METRICS", "")
+
+	cfg, err := parseTestConfig([]string{"--database-url", "postgres://example/kumbuka"})
+
+	require.NoError(t, err)
+	assert.False(t, cfg.DisableMetrics)
+}
+
+// TestMetricsCanBeDisabledByFlag verifies the deployment can remove Prometheus metrics explicitly.
+func TestMetricsCanBeDisabledByFlag(t *testing.T) {
+	t.Parallel()
+
+	cfg, err := parseTestConfig([]string{
+		"--database-url", "postgres://example/kumbuka",
+		"--disable-metrics",
+	})
+
+	require.NoError(t, err)
+	assert.True(t, cfg.DisableMetrics)
+}
+
+// TestMetricsCanBeDisabledFromEnvironment verifies the disable switch follows normal deployment configuration.
+func TestMetricsCanBeDisabledFromEnvironment(t *testing.T) {
+	t.Setenv("KUMBUKA__DATABASE_URL", "postgres://example/kumbuka")
+	t.Setenv("KUMBUKA__DISABLE_METRICS", "true")
+
+	cfg, err := parseTestConfig(nil)
+
+	require.NoError(t, err)
+	assert.True(t, cfg.DisableMetrics)
+}
+
 // TestTrustedProxyAuthorizationOverridesFromEnvironment verifies the corresponding flag configuration behavior.
 func TestTrustedProxyAuthorizationOverridesFromEnvironment(t *testing.T) {
 	t.Setenv("KUMBUKA__DATABASE_URL", "postgres://example/kumbuka")

@@ -79,7 +79,7 @@ func Run(
 		"commit", commit,
 	)
 
-	metricsRegistry := appmetrics.NewRegistry(version, commit)
+	metricsRegistry := appmetrics.NewRegistry(!cfg.DisableMetrics, version, commit)
 
 	if len(cfg.Overrides) > 0 {
 		logger.Info("CLI Overrides", "event", "cli_overrides", "overrides", cfg.Overrides)
@@ -208,13 +208,14 @@ func Run(
 	// Hand the completed application graph to the HTTP adapter for route construction.
 	serverConfig := httpserver.Config{
 		InfrastructureConfig: httpserver.InfrastructureConfig{
-			Assets:    appFS,
-			Views:     views,
-			Renderer:  renderer,
-			Logger:    serverLogger,
-			AccessLog: cfg.AccessLog,
-			ReadOnly:  cfg.ReadOnly,
-			Metrics:   metricsRegistry,
+			Assets:         appFS,
+			Views:          views,
+			Renderer:       renderer,
+			Logger:         serverLogger,
+			AccessLog:      cfg.AccessLog,
+			ReadOnly:       cfg.ReadOnly,
+			MetricsEnabled: !cfg.DisableMetrics,
+			Metrics:        metricsRegistry,
 		},
 
 		AuthenticationConfig: httpserver.AuthenticationConfig{

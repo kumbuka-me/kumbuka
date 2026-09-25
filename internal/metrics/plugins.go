@@ -23,7 +23,7 @@ type pluginCollector struct {
 
 // RegisterPluginProvider adds scrape-time plugin lifecycle gauges to the private registry.
 func (r *Registry) RegisterPluginProvider(provider PluginProvider) {
-	if provider == nil {
+	if !r.enabled || provider == nil {
 		return
 	}
 

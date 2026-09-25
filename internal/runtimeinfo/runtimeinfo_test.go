@@ -58,3 +58,27 @@ func TestNewRedactsManagedSecrets(t *testing.T) {
 	assert.NotContains(t, authentication.Items[10].Value, "client-secret")
 	assert.NotContains(t, authentication.Items[11].Value, cfg.OIDCSessionSecret)
 }
+
+// TestManagedConfigurationReportsDisabledMetrics verifies administrators can see the effective deployment setting.
+func TestManagedConfigurationReportsDisabledMetrics(t *testing.T) {
+	t.Parallel()
+
+	cfg := flags.Config{
+		DisableMetrics:  true,
+		OverrideSources: map[string]string{"disable-metrics": "Flag"},
+	}
+	info := New(cfg, false)
+
+	server := info.ManagedConfiguration[0]
+	for _, item := range server.Items {
+		if item.Name != "Prometheus metrics" {
+			continue
+		}
+
+		assert.Equal(t, "Disabled", item.Value)
+		assert.Equal(t, "Flag · --disable-metrics", item.Source)
+		return
+	}
+
+	assert.Fail(t, "Prometheus metrics configuration item not found")
+}

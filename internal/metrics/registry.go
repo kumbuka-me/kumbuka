@@ -3,6 +3,7 @@ package metrics
 
 import (
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -13,6 +14,8 @@ import (
 
 // Registry owns the private Prometheus registry and application metrics.
 type Registry struct {
+	// enabled reports whether Prometheus collection is active for this process.
+	enabled bool
 	// registry contains only collectors explicitly registered by Kumbuka.
 	registry *prometheus.Registry
 	// httpRequests counts completed HTTP requests by stable route and response code.
@@ -27,8 +30,12 @@ type Registry struct {
 	pluginInvocationDuration *prometheus.HistogramVec
 }
 
-// NewRegistry constructs Kumbuka's private Prometheus registry.
-func NewRegistry(version, commit string) *Registry {
+// NewRegistry constructs Kumbuka's private Prometheus registry when enabled.
+func NewRegistry(enabled bool, version, commit string) *Registry {
+	if !enabled {
+		return &Registry{}
+	}
+
 	registry := prometheus.NewRegistry()
 
 	httpRequests := prometheus.NewCounterVec(
@@ -90,6 +97,7 @@ func NewRegistry(version, commit string) *Registry {
 	)
 
 	return &Registry{
+		enabled:                  true,
 		registry:                 registry,
 		httpRequests:             httpRequests,
 		httpDuration:             httpDuration,
@@ -101,25 +109,68 @@ func NewRegistry(version, commit string) *Registry {
 
 // Metrics returns the Prometheus exposition handler for this registry.
 func (r *Registry) Metrics() http.Handler {
+	if !r.enabled {
+		return http.NotFoundHandler()
+	}
 	return promhttp.HandlerFor(r.registry, promhttp.HandlerOpts{})
 }
 
-// InstrumentHandler records request count and duration using the registered route pattern rather than the raw URL.
-func (r *Registry) InstrumentHandler(pattern string, handler http.Handler) http.Handler {
-	method, route := routeLabels(pattern)
-	labels := prometheus.Labels{"method": method, "route": route}
+// InstrumentHTTP records request count and duration from the route selected by ServeMux.
+func (r *Registry) InstrumentHTTP(handler http.Handler) http.Handler {
+	if !r.enabled {
+		return handler
+	}
 
-	counter := r.httpRequests.MustCurryWith(labels)
-	duration := r.httpDuration.MustCurryWith(labels)
+	return http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		started := time.Now()
+		tracked := &statusWriter{ResponseWriter: response}
 
-	return promhttp.InstrumentHandlerDuration(
-		duration,
-		promhttp.InstrumentHandlerCounter(counter, handler),
-	)
+		handler.ServeHTTP(tracked, request)
+
+		method, route := requestLabels(request)
+		status := tracked.status
+		if status == 0 {
+			status = http.StatusOK
+		}
+
+		r.httpRequests.WithLabelValues(method, route, strconv.Itoa(status)).Inc()
+		r.httpDuration.WithLabelValues(method, route).Observe(time.Since(started).Seconds())
+	})
+}
+
+// statusWriter records the final HTTP status while preserving response-controller access to the underlying writer.
+type statusWriter struct {
+	// ResponseWriter forwards response operations to the wrapped HTTP stack.
+	http.ResponseWriter
+	// status stores the first final response status.
+	status int
+}
+
+// Unwrap exposes the underlying response writer to http.ResponseController.
+func (w *statusWriter) Unwrap() http.ResponseWriter { return w.ResponseWriter }
+
+// WriteHeader records the first final response status while forwarding informational responses unchanged.
+func (w *statusWriter) WriteHeader(status int) {
+	if status >= 200 && w.status == 0 {
+		w.status = status
+	}
+	w.ResponseWriter.WriteHeader(status)
+}
+
+// Write records the implicit successful status before forwarding response bytes.
+func (w *statusWriter) Write(data []byte) (int, error) {
+	if w.status == 0 {
+		w.WriteHeader(http.StatusOK)
+	}
+	return w.ResponseWriter.Write(data)
 }
 
 // ObservePluginInvocation records one executable plugin invocation.
 func (r *Registry) ObservePluginInvocation(pluginID, moduleID, stage string, duration time.Duration, err error) {
+	if !r.enabled {
+		return
+	}
+
 	labels := []string{pluginID, moduleID, stage}
 	r.pluginInvocations.WithLabelValues(labels...).Inc()
 	r.pluginInvocationDuration.WithLabelValues(labels...).Observe(duration.Seconds())
@@ -128,13 +179,16 @@ func (r *Registry) ObservePluginInvocation(pluginID, moduleID, stage string, dur
 	}
 }
 
-// routeLabels splits a ServeMux method/path pattern into bounded metric label values.
-func routeLabels(pattern string) (string, string) {
-	pattern = strings.TrimSpace(pattern)
-	method, route, ok := strings.Cut(pattern, " ")
-	if !ok || strings.TrimSpace(method) == "" || strings.TrimSpace(route) == "" {
-		return "ANY", pattern
+// requestLabels returns bounded method and matched-route labels without exposing the raw request path.
+func requestLabels(request *http.Request) (string, string) {
+	method := strings.ToUpper(strings.TrimSpace(request.Method))
+	pattern := strings.TrimSpace(request.Pattern)
+	if _, route, ok := strings.Cut(pattern, " "); ok {
+		pattern = strings.TrimSpace(route)
+	}
+	if pattern == "" {
+		pattern = "unmatched"
 	}
 
-	return strings.ToUpper(strings.TrimSpace(method)), strings.TrimSpace(route)
+	return method, pattern
 }

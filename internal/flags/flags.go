@@ -56,6 +56,8 @@ type Config struct {
 	AllowUserRegistrationOverride *bool
 	// ReadOnly blocks state-changing application requests while allowing authentication flows.
 	ReadOnly bool
+	// DisableMetrics disables Prometheus exposition and request instrumentation.
+	DisableMetrics bool
 	// AuthModeOverride forces one browser authentication mode for recovery when non-empty.
 	AuthModeOverride domain.AuthMode
 	// TrustedUsernameHeaders are used only by the trusted-proxy runtime override.
@@ -147,6 +149,8 @@ func Parse(args []string, version string) (Config, error) {
 		"Deployment override for whether unknown OIDC or trusted-proxy identities may create accounts",
 	).Strict()
 	tf.BoolVar(&cfg.ReadOnly, "read-only", false, "Block state-changing application requests while keeping reads and authentication available").
+		Value()
+	tf.BoolVar(&cfg.DisableMetrics, "disable-metrics", false, "Disable Prometheus metrics exposition and HTTP request instrumentation").
 		Value()
 	tf.BoolVar(&cfg.LocalLogin, "local-login", false, "Enable the local recovery login alongside the configured authentication mode").
 		Value()

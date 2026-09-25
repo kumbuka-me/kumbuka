@@ -38,13 +38,10 @@ func (r routeRegistrar) addPublicRoutes() {
 	browserAuth := config.BrowserAuth
 	renderer := config.Renderer
 
-	r.router.Handle("GET /metrics", config.Metrics.Metrics())
-
 	r.router.HandleFunc("GET /plugins/styles.css", endpoint.PluginPresentationStyles(renderer.PluginManager()))
 	r.router.HandleFunc("GET /plugins/runtime.js", endpoint.PluginBrowserRuntime(config.Assets))
 	r.router.HandleFunc("GET /plugins/{pluginID}/{digest}/assets/{asset...}", endpoint.PluginAssets(renderer.PluginManager()))
 	r.router.HandleFunc("GET /plugins/{pluginID}/{digest}/frames/{frame}", endpoint.PluginFrame(renderer.PluginManager()))
-	r.router.HandleFunc("GET /healthz", endpoint.Health(config.System))
 	r.router.Handle("GET /robots.txt", endpoint.Robots(config.Settings, config.Views, config.Logger))
 	r.router.Handle("GET /sitemap.xml", endpoint.Sitemap(config.Settings, config.PageDirectory, config.Views, config.Logger))
 	r.router.Handle("GET /assets/", endpoint.Assets(config.Assets))

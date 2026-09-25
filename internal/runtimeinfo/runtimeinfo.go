@@ -57,6 +57,7 @@ func managedConfiguration(cfg flags.Config, encryptionKeyConfigured bool) []webv
 				managedConfigurationItem(cfg, "Plugin update checks", "plugin-update-check-interval", pluginUpdateCheckIntervalLabel(cfg.PluginUpdateCheckInterval)),
 				managedConfigurationItem(cfg, "Allow new users override", "allow-user-registration", optionalBoolLabel(cfg.AllowUserRegistrationOverride)),
 				managedConfigurationItem(cfg, "Read-only mode", "read-only", enabledLabel(cfg.ReadOnly)),
+				managedConfigurationItem(cfg, "Prometheus metrics", "disable-metrics", enabledLabel(!cfg.DisableMetrics)),
 				managedConfigurationItem(cfg, "Local recovery login", "local-login", enabledLabel(cfg.LocalLogin)),
 				managedConfigurationItem(cfg, "Theme directory", "theme-directory", configuredValue(cfg.ThemeDirectory)),
 			},
