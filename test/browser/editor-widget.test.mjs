@@ -247,6 +247,15 @@ test("callout widget previews type and content changes before apply", async () =
     const originalSource = await source.inputValue();
     await widget.click();
     const dialog = page.getByRole("dialog", { name: "Edit Callout" });
+    assert.equal(
+      await callout
+        .locator(".callout-body")
+        .evaluate((element) => getComputedStyle(element, "::selection").color),
+      await callout
+        .locator(".callout-body")
+        .evaluate((element) => getComputedStyle(element).color),
+      "selected widget text must retain its readable foreground color",
+    );
     await dialog.getByLabel("Type").selectOption("danger");
     assert.equal(
       await callout.evaluate((element) => element.classList.contains("danger")),

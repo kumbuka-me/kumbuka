@@ -623,6 +623,12 @@
   outline-offset: 2px;
 }
 
+.ProseMirror-selectednode.visual-widget-node::selection,
+.ProseMirror-selectednode.visual-widget-node *::selection {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--text);
+}
+
 .visual-widget-popover {
   position: fixed;
   z-index: 140;
