@@ -1,0 +1,261 @@
+/* Plugin visual-editor forms and textarea-backed widget tables. */
+
+.visual-widget-popover {
+  padding: 0;
+  overscroll-behavior: contain;
+}
+
+.visual-widget-popover-header {
+  position: sticky;
+  z-index: 4;
+  top: 0;
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: color-mix(in srgb, var(--surface-elevated) 94%, transparent);
+  padding: 10px 12px 9px;
+  backdrop-filter: blur(10px);
+}
+
+.visual-widget-popover-title {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 750;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.visual-widget-popover-close {
+  flex: 0 0 auto;
+  color: var(--text-tertiary);
+  font-size: 22px;
+  font-weight: 400;
+  line-height: 1;
+}
+
+.visual-widget-popover-close:hover,
+.visual-widget-popover-close:focus-visible {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.visual-widget-popover > form {
+  padding: 12px;
+}
+
+.visual-widget-popover:has(.visual-widget-table-longform) {
+  width: min(640px, calc(100vw - 16px));
+}
+
+.visual-widget-table-field-longform {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+
+.visual-widget-table-field-longform legend {
+  margin: 0;
+  padding: 0;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.visual-widget-table-longform {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0 7px;
+  margin: -7px 0 0;
+}
+
+.visual-widget-table-longform th,
+.visual-widget-table-longform td {
+  min-width: 0;
+}
+
+.visual-widget-table-longform th:last-child,
+.visual-widget-table-longform td:last-child {
+  width: 38px;
+}
+
+.visual-widget-table-line-notes th:first-child,
+.visual-widget-table-line-notes td:first-child {
+  width: 72px;
+}
+
+.visual-widget-table-longform thead th {
+  padding: 0 8px 1px;
+  color: var(--text-tertiary);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.035em;
+  text-align: left;
+}
+
+.visual-widget-table-longform thead th:last-child {
+  padding: 0;
+}
+
+.visual-widget-table-longform tbody td {
+  height: 44px;
+  padding: 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  vertical-align: middle;
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.visual-widget-table-longform tbody td:first-child {
+  overflow: hidden;
+  border-left: 1px solid var(--border);
+  border-radius: 9px 0 0 9px;
+}
+
+.visual-widget-table-longform tbody td:last-child {
+  border-right: 1px solid var(--border);
+  border-left: 1px solid var(--border-subtle);
+  border-radius: 0 9px 9px 0;
+  text-align: center;
+}
+
+.visual-widget-table-longform tbody tr:focus-within td {
+  border-top-color: color-mix(in srgb, var(--accent) 52%, var(--border));
+  border-bottom-color: color-mix(in srgb, var(--accent) 52%, var(--border));
+}
+
+.visual-widget-table-longform tbody tr:focus-within td:first-child {
+  border-left-color: color-mix(in srgb, var(--accent) 52%, var(--border));
+}
+
+.visual-widget-table-longform tbody tr:focus-within td:last-child {
+  border-right-color: color-mix(in srgb, var(--accent) 52%, var(--border));
+}
+
+.visual-widget-table-longform input[type="text"],
+.visual-widget-table-longform textarea {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  border: 0;
+  border-radius: 0;
+  outline: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text);
+  font: inherit;
+}
+
+.visual-widget-table-longform input[type="text"] {
+  display: block;
+  height: 100%;
+  min-height: 44px;
+  overflow: hidden;
+  padding: 0 10px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.visual-widget-table-longform textarea {
+  display: block;
+  min-height: 44px;
+  max-height: 160px;
+  resize: none;
+  overflow: hidden;
+  padding: 10px 12px;
+  line-height: 1.4;
+}
+
+.visual-widget-table-longform input[type="text"]:focus,
+.visual-widget-table-longform textarea:focus {
+  outline: 0;
+}
+
+.visual-widget-table-longform .visual-widget-remove-row {
+  display: inline-grid;
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  place-items: center;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  padding: 0;
+  color: var(--text-tertiary);
+  font-size: 0;
+}
+
+.visual-widget-table-longform .visual-widget-remove-row::before {
+  content: "×";
+  font-size: 18px;
+  font-weight: 450;
+  line-height: 1;
+}
+
+.visual-widget-table-longform .visual-widget-remove-row:hover,
+.visual-widget-table-longform .visual-widget-remove-row:focus-visible {
+  background: color-mix(in srgb, var(--danger) 8%, var(--surface));
+  color: var(--danger);
+  outline: none;
+}
+
+.visual-widget-table-field-longform > .visual-widget-add-row {
+  width: 100%;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface-elevated) 55%, transparent);
+  padding: 7px 10px;
+  color: var(--text-secondary);
+  font-weight: 650;
+  text-align: center;
+}
+
+.visual-widget-table-field-longform > .visual-widget-add-row::before {
+  margin-right: 5px;
+  content: "+";
+  color: var(--accent);
+  font-weight: 800;
+}
+
+.visual-widget-table-field-longform > .visual-widget-add-row:hover,
+.visual-widget-table-field-longform > .visual-widget-add-row:focus-visible {
+  border-color: color-mix(in srgb, var(--accent) 38%, var(--border));
+  background: color-mix(in srgb, var(--accent) 5%, var(--surface));
+  color: var(--text);
+  outline: none;
+}
+
+@media (max-width: 520px) {
+  .visual-widget-popover > form {
+    padding: 10px;
+  }
+
+  .visual-widget-table-longform th:last-child,
+  .visual-widget-table-longform td:last-child {
+    width: 34px;
+  }
+
+  .visual-widget-table-line-notes th:first-child,
+  .visual-widget-table-line-notes td:first-child {
+    width: 64px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .visual-widget-table-longform tbody tr {
+    transition: none;
+  }
+}

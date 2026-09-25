@@ -13,6 +13,7 @@ import { initTablePaste } from "./paste-table.ts";
 import { initMarkdownListContinuation } from "./lists.ts";
 import { initMarkdownToolbar } from "./toolbar.ts";
 import { initLazyVisualEditor } from "./visual-loader.ts";
+import { initVisualWidgetPopovers } from "./visual-widget-popover.ts";
 import { initWikiLinkAutocomplete } from "./wikilinks.ts";
 import { initPluginCompletions } from "./completions.ts";
 
@@ -33,6 +34,7 @@ export function initEditor(): void {
   initMarkdownListContinuation();
   initTablePalette();
   initTablePaste();
+  initVisualWidgetPopovers();
   // Visual mode must register before preview captures the mode switch buttons.
   initLazyVisualEditor();
   initEditorPreview();
