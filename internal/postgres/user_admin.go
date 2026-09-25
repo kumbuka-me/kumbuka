@@ -264,3 +264,53 @@ LIMIT $3`, "%"+query+"%", query+"%", limit)
 
 	return users, rows.Err()
 }
+
+// SearchPublicUsers returns enabled accounts matched only by username or display name.
+func (s *Store) SearchPublicUsers(ctx context.Context, query string, limit int) ([]domain.User, error) {
+	query = strings.TrimSpace(strings.TrimPrefix(query, "@"))
+	if limit <= 0 || limit > 50 {
+		limit = 20
+	}
+	rows, err := s.pool.Query(ctx, `
+SELECT id,username,email,display_name,role,enabled
+FROM users
+WHERE enabled AND (username ILIKE $1 OR display_name ILIKE $1)
+ORDER BY
+  CASE WHEN username ILIKE $2 OR display_name ILIKE $2 THEN 0 ELSE 1 END,
+  lower(display_name),lower(username),id
+LIMIT $3`, "%"+query+"%", query+"%", limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	users := make([]domain.User, 0)
+	for rows.Next() {
+		var user domain.User
+		if err := rows.Scan(&user.ID, &user.Username, &user.Email, &user.DisplayName, &user.Role, &user.Enabled); err != nil {
+			return nil, err
+		}
+		users = append(users, user)
+	}
+	return users, rows.Err()
+}
+
+// UserByUsername returns one account by case-insensitive username.
+func (s *Store) UserByUsername(ctx context.Context, username string) (domain.User, error) {
+	var user domain.User
+	err := s.pool.QueryRow(ctx, `
+SELECT id,username,email,display_name,role,enabled,session_version
+FROM users
+WHERE lower(username)=lower($1)`, username).Scan(
+		&user.ID,
+		&user.Username,
+		&user.Email,
+		&user.DisplayName,
+		&user.Role,
+		&user.Enabled,
+		&user.SessionVersion,
+	)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return domain.User{}, domain.ErrNotFound
+	}
+	return user, err
+}

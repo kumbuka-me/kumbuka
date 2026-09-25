@@ -7,6 +7,7 @@ import (
 	"github.com/kumbuka-me/kumbuka/pkg/markdown"
 	"github.com/kumbuka-me/kumbuka/pkg/plugin"
 	"github.com/kumbuka-me/kumbuka/pkg/plugin/wasm"
+	"github.com/kumbuka-me/kumbuka/pkg/plugincap"
 	"github.com/kumbuka-me/kumbuka/plugins"
 )
 
@@ -14,6 +15,7 @@ import (
 type Store interface {
 	plugin.Store
 	plugin.Storage
+	plugincap.PublicUserSource
 }
 
 // NewRenderer constructs the Markdown renderer and its WASM plugin runtime.
@@ -37,6 +39,7 @@ func NewRenderer(
 		store,
 		archives,
 		wasm.WithStorage(store),
+		wasm.WithUserDirectory(plugincap.PublicUsers{Source: store}),
 		wasm.WithSecretCodec(secretCodec),
 		wasm.WithHTTPAuthorizer(authorizeHTTP),
 		wasm.WithInvocationObserver(invocationObserver),
@@ -50,6 +53,8 @@ func NewRenderer(
 			"settings:write",
 			"storage:read",
 			"storage:write",
+			"users:read",
+			"notifications:send",
 		),
 		wasm.WithLogger(logger.With("component", "plugins")),
 	)

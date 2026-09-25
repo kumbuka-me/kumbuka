@@ -289,11 +289,12 @@ func SaveAdminSettings(settingsUseCases settingsService, views *webview.Views, l
 // applicationSettingsFromForm parses mutable application-wide settings from a form.
 func applicationSettingsFromForm(r *http.Request) domain.ApplicationSettings {
 	return domain.ApplicationSettings{
-		AllowUserRegistration: r.FormValue("allow_user_registration") == "on",
-		DiscussionsEnabled:    r.FormValue("discussions_enabled") == "on",
-		ContentLanguage:       strings.TrimSpace(r.FormValue("content_language")),
-		ExternalLinks:         externalLinksFromForm(r),
-		RobotsPolicy:          domain.RobotsPolicy(strings.TrimSpace(r.FormValue("robots_policy"))),
+		AllowUserRegistration:           r.FormValue("allow_user_registration") == "on",
+		DiscussionsEnabled:              r.FormValue("discussions_enabled") == "on",
+		IntegrationUserDirectoryEnabled: r.FormValue("integration_user_directory_enabled") == "on",
+		ContentLanguage:                 strings.TrimSpace(r.FormValue("content_language")),
+		ExternalLinks:                   externalLinksFromForm(r),
+		RobotsPolicy:                    domain.RobotsPolicy(strings.TrimSpace(r.FormValue("robots_policy"))),
 		Rendering: domain.RenderingSettings{
 			DefaultTypographySize: domain.TypographySize(strings.TrimSpace(r.FormValue("default_typography_size"))),
 		},

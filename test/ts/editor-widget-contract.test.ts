@@ -183,6 +183,39 @@ test("status widget validates page-local rows and cross-field rules", () => {
   assert.ok(problems.some((problem) => problem.includes("initial")));
 });
 
+test("mention and date settings validate canonical persisted values", () => {
+  const widget: CatalogWidget = {
+    plugin_id: "me.example.assignment",
+    id: "assignment",
+    name: "Assignment",
+    inline: false,
+    syntax: { kind: "macro", name: "assignment" },
+    attributes: [
+      { name: "assignee", type: "string", max_bytes: 128 },
+      { name: "due", type: "string", max_bytes: 10 },
+    ],
+    settings: [
+      { type: "mention", label: "Assignee", attribute: "assignee" },
+      { type: "date", label: "Due", attribute: "due" },
+    ],
+    preview: {
+      kind: "card",
+      card: { class: "assignment", title: "Assignment" },
+    },
+  };
+
+  assert.deepEqual(
+    validateWidgetValues({ assignee: "@alice", due: "2026-09-25" }, widget),
+    [],
+  );
+  const problems = validateWidgetValues(
+    { assignee: "alice", due: "2026-02-30" },
+    widget,
+  );
+  assert.ok(problems.some((problem) => problem.includes("@mention")));
+  assert.ok(problems.some((problem) => problem.includes("YYYY-MM-DD")));
+});
+
 test("multiline macro matching remains opt-in per plugin contract", () => {
   const multiline = {
     ...statusWidget,

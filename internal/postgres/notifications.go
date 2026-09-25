@@ -22,7 +22,7 @@ WHERE user_id=$1 AND read_at IS NULL`, userID).Scan(&unread); err != nil {
 	}
 
 	rows, err := s.pool.Query(ctx, `
-SELECT id,kind,title,body,url,read_at,created_at
+SELECT id,kind,title,body,url,user_id,coalesce(actor_id,0),source_type,source_id,source_name,read_at,created_at
 FROM notifications
 WHERE user_id=$1
 ORDER BY created_at DESC,id DESC
@@ -35,13 +35,52 @@ LIMIT $2`, userID, limit)
 
 	for rows.Next() {
 		var item domain.Notification
-		if err := rows.Scan(&item.ID, &item.Kind, &item.Title, &item.Body, &item.URL, &item.ReadAt, &item.CreatedAt); err != nil {
+		if err := rows.Scan(&item.ID, &item.Kind, &item.Title, &item.Body, &item.URL, &item.RecipientUserID, &item.ActorID, &item.SourceType, &item.SourceID, &item.SourceName, &item.ReadAt, &item.CreatedAt); err != nil {
 			return nil, 0, err
 		}
 		notifications = append(notifications, item)
 	}
 
 	return notifications, unread, rows.Err()
+}
+
+// CreateNotification atomically inserts or resolves one idempotent plugin notification.
+func (s *Store) CreateNotification(ctx context.Context, item domain.Notification) (domain.Notification, bool, error) {
+	var created bool
+	err := s.pool.QueryRow(ctx, `
+INSERT INTO notifications(user_id,kind,title,body,url,actor_id,source_type,source_id,source_name,idempotency_key)
+VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+ON CONFLICT (source_id,user_id,idempotency_key)
+WHERE source_type='plugin' AND idempotency_key<>''
+DO UPDATE SET id=notifications.id
+RETURNING id,user_id,kind,title,body,url,coalesce(actor_id,0),source_type,source_id,source_name,idempotency_key,read_at,created_at,(xmax=0)`,
+		item.RecipientUserID,
+		item.Kind,
+		item.Title,
+		item.Body,
+		item.URL,
+		item.ActorID,
+		item.SourceType,
+		item.SourceID,
+		item.SourceName,
+		item.IdempotencyKey,
+	).Scan(
+		&item.ID,
+		&item.RecipientUserID,
+		&item.Kind,
+		&item.Title,
+		&item.Body,
+		&item.URL,
+		&item.ActorID,
+		&item.SourceType,
+		&item.SourceID,
+		&item.SourceName,
+		&item.IdempotencyKey,
+		&item.ReadAt,
+		&item.CreatedAt,
+		&created,
+	)
+	return item, created, err
 }
 
 // AddNotification creates a notification for one user.

@@ -30,7 +30,8 @@ export interface CatalogWidgetSettingColumn {
 }
 
 export interface CatalogWidgetSetting {
-  type: "text" | "textarea" | "select" | "resource" | "table";
+  type:
+    "text" | "textarea" | "select" | "resource" | "mention" | "date" | "table";
   label: string;
   attribute?: string;
   attributes?: string[];
@@ -153,6 +154,8 @@ const identifier = /^[a-z0-9][a-z0-9._-]{0,127}$/;
 const attributeName = /^[A-Za-z][A-Za-z0-9._-]{0,127}$/;
 const widgetIdentifier = /^[A-Za-z0-9][A-Za-z0-9._:/-]*$/;
 const color = /^#[0-9a-fA-F]{6}$/;
+const canonicalMention = /^@[A-Za-z0-9_.-]+$/;
+const calendarDate = /^\d{4}-\d{2}-\d{2}$/;
 
 function strings(value: unknown): value is string[] {
   return (
@@ -218,6 +221,8 @@ function isWidgetSetting(value: unknown): value is CatalogWidgetSetting {
       value.type === "textarea" ||
       value.type === "select" ||
       value.type === "resource" ||
+      value.type === "mention" ||
+      value.type === "date" ||
       value.type === "table") &&
     typeof value.label === "string" &&
     optionalString(value.attribute) &&
@@ -801,6 +806,16 @@ function encodedLength(value: string): number {
   return new TextEncoder().encode(value).length;
 }
 
+// validCalendarDate reports whether a value is a real canonical YYYY-MM-DD date.
+function validCalendarDate(value: string): boolean {
+  if (!calendarDate.test(value)) return false;
+  const parsed = new Date(`${value}T00:00:00Z`);
+  return (
+    !Number.isNaN(parsed.valueOf()) &&
+    parsed.toISOString().slice(0, 10) === value
+  );
+}
+
 // validateWidgetValues applies contract validation before a NodeView transaction changes source.
 export function validateWidgetValues(
   values: Record<string, string>,
@@ -841,6 +856,15 @@ export function validateWidgetValues(
 
     if (attribute.max_bytes && encodedLength(value) > attribute.max_bytes)
       errors.push(`${attribute.name} is too long.`);
+  }
+
+  for (const setting of widget.settings) {
+    const value = setting.attribute ? values[setting.attribute] || "" : "";
+    if (!value) continue;
+    if (setting.type === "mention" && !canonicalMention.test(value))
+      errors.push(`${setting.attribute} must be a canonical @mention.`);
+    if (setting.type === "date" && !validCalendarDate(value))
+      errors.push(`${setting.attribute} must use YYYY-MM-DD.`);
   }
 
   for (const constraint of widget.constraints || []) {

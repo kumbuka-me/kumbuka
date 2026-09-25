@@ -119,7 +119,7 @@ func hostRequest(t *testing.T, instance plugin.Instance, ctx plugin.Context, met
 // TestCapabilityPermissionsAndStorageIsolation verifies capability permissions and storage isolation behavior.
 func TestCapabilityPermissionsAndStorageIsolation(t *testing.T) {
 	ctx := context.Background()
-	permissions := []string{"pages:read", "storage:read", "storage:write", "settings:read", "settings:write"}
+	permissions := []string{"pages:read", "storage:read", "storage:write", "settings:read", "settings:write", "notifications:send"}
 	storage := &memoryStorage{values: make(map[string][]byte)}
 	runtime, err := wasm.New(ctx, wasm.Limits{}, wasm.WithPermissions(permissions...), wasm.WithStorage(storage))
 	require.NoError(t, err)
@@ -148,6 +148,7 @@ func TestCapabilityPermissionsAndStorageIsolation(t *testing.T) {
 	assert.Contains(t, hostRequest(t, instances[0], scope, "plugin.storage.read", map[string]any{"Key": "key", "plugin_id": "io.two"}), "invalid storage")
 	assert.Contains(t, hostRequest(t, instances[0], scope, "network", nil), "denied")
 	assert.Contains(t, hostRequest(t, instances[0], scope, "pages.get", nil), "unavailable")
+	assert.Contains(t, hostRequest(t, instances[0], scope, "notifications.send", sdk.NotificationInput{}), "unavailable")
 	ungranted, err := wasm.New(ctx, wasm.Limits{})
 	require.NoError(t, err)
 	defer func() { _ = ungranted.Close(ctx) }()

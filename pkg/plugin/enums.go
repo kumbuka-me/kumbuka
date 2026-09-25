@@ -118,6 +118,8 @@ const (
 	EditorWidgetSettingSelect   EditorWidgetSettingType = "select"
 	EditorWidgetSettingResource EditorWidgetSettingType = "resource"
 	EditorWidgetSettingTable    EditorWidgetSettingType = "table"
+	EditorWidgetSettingMention  EditorWidgetSettingType = "mention"
+	EditorWidgetSettingDate     EditorWidgetSettingType = "date"
 )
 
 // EditorWidgetColumnType identifies one table-setting column control.

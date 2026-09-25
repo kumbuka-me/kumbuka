@@ -1,9 +1,12 @@
 package users
 
 import (
+	"cmp"
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 
 	"github.com/kumbuka-me/kumbuka/internal/application/audit"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
@@ -105,6 +108,37 @@ func (s *Users) RevokeUserSessions(ctx context.Context, userID, actorID int64) e
 // SearchUsers returns accounts matching a display or login query.
 func (s *Users) SearchUsers(ctx context.Context, query string, limit int) ([]domain.User, error) {
 	return s.repository.SearchUsers(ctx, query, limit)
+}
+
+// SearchPublicUsers returns enabled accounts matching a mention or display-name query without email matching.
+func (s *Users) SearchPublicUsers(ctx context.Context, query string, limit int) ([]domain.User, error) {
+	source, ok := s.repository.(interface {
+		SearchPublicUsers(context.Context, string, int) ([]domain.User, error)
+	})
+	if !ok {
+		return nil, errors.New("public user directory unavailable")
+	}
+	return source.SearchPublicUsers(ctx, query, limit)
+}
+
+// ResolveMention resolves one canonical or case-insensitive @mention to an enabled account.
+func (s *Users) ResolveMention(ctx context.Context, mention string) (domain.User, error) {
+	mention = strings.TrimSpace(mention)
+	username, found := strings.CutPrefix(mention, "@")
+	if !found || username == "" || len(username) > 128 || strings.Contains(username, "@") {
+		return domain.User{}, domain.NewValidationError("mention", "Use an @-prefixed Kumbuka username.")
+	}
+	source, ok := s.repository.(interface {
+		UserByUsername(context.Context, string) (domain.User, error)
+	})
+	if !ok {
+		return domain.User{}, errors.New("public user directory unavailable")
+	}
+	user, err := source.UserByUsername(ctx, username)
+	if err != nil || !user.Enabled {
+		return domain.User{}, cmp.Or(err, domain.ErrNotFound)
+	}
+	return user, nil
 }
 
 // OIDCIdentities returns the external identities linked to user accounts.

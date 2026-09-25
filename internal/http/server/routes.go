@@ -239,6 +239,10 @@ func (r routeRegistrar) addAdminRoutes() {
 		"DELETE /api/admin/bin/{slug...}",
 		apiAuthn(adminAuthz(endpoint.PermanentlyDeletePage(config.RecycleBin, config.Logger))),
 	)
+	r.router.Handle(
+		"GET /api/integration/users/{id}",
+		apiAuthn(adminAuthz(endpoint.IntegrationUser(config.Users, config.Settings, config.Logger))),
+	)
 }
 
 // addPageRoutes registers browser page workflows, collaboration, and export endpoints.
@@ -249,7 +253,7 @@ func (r routeRegistrar) addPageRoutes() {
 	editorAuthz := r.router.Editor
 	r.router.Handle(
 		"POST /plugins/actions/{pluginID}/{moduleID}/{actionID}",
-		browserAuthn(endpoint.PluginWidgetCommand(config.PageReports, config.Navigation, config.Renderer)),
+		browserAuthn(endpoint.PluginWidgetCommand(config.PageReports, config.Navigation, config.Renderer, config.Notifications)),
 	)
 
 	r.router.Handle(

@@ -130,6 +130,30 @@ const (
 	PendingOIDCStatusRejected PendingOIDCStatus = "rejected"
 )
 
+// NotificationKind identifies a core-owned inbox presentation category.
+type NotificationKind string
+
+const (
+	// NotificationKindInfo identifies a generic informational notification.
+	NotificationKindInfo NotificationKind = "info"
+	// NotificationKindMention identifies a notification caused by an @mention.
+	NotificationKindMention NotificationKind = "mention"
+	// NotificationKindReply identifies a discussion reply notification.
+	NotificationKindReply NotificationKind = "reply"
+	// NotificationKindPlugin identifies a notification created by a plugin.
+	NotificationKindPlugin NotificationKind = "plugin"
+)
+
+// NotificationSourceType identifies the trusted producer of a notification.
+type NotificationSourceType string
+
+const (
+	// NotificationSourceCore identifies a notification produced by Kumbuka core.
+	NotificationSourceCore NotificationSourceType = "core"
+	// NotificationSourcePlugin identifies a notification produced through the plugin SDK.
+	NotificationSourcePlugin NotificationSourceType = "plugin"
+)
+
 // UserRole identifies an account-level authorization role.
 type UserRole string
 

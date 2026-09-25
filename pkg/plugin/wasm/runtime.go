@@ -95,6 +95,14 @@ type InvocationObserver interface {
 	ObservePluginInvocation(pluginID, moduleID, stage string, duration time.Duration, err error)
 }
 
+// UserDirectory provides privacy-safe user lookup capabilities to plugins.
+type UserDirectory interface {
+	// Search returns enabled users matching one bounded query.
+	Search(context.Context, sdk.UserQuery) ([]sdk.User, error)
+	// ResolveMention resolves one canonical or case-insensitive mention.
+	ResolveMention(context.Context, sdk.UserMention) (sdk.User, error)
+}
+
 // Runtime owns the wazero engine and trusted host policy used for plugin instances.
 type Runtime struct {
 	// engine owns compiled modules and instantiated WASM guests.
@@ -105,6 +113,8 @@ type Runtime struct {
 	permissions map[string]bool
 	// storage provides persistent plugin state storage.
 	storage plugin.Storage
+	// users provides the privacy-safe Kumbuka user directory.
+	users UserDirectory
 	// secrets decrypts manifest-declared plugin secret configuration for its owning guest.
 	secrets plugin.SecretCodec
 	// httpAuthorizer decides whether the current invocation may perform outbound network I/O.
@@ -133,6 +143,9 @@ func WithPermissions(permissions ...string) Option {
 
 // WithStorage provides namespaced persistent settings and data storage to plugins.
 func WithStorage(storage plugin.Storage) Option { return func(r *Runtime) { r.storage = storage } }
+
+// WithUserDirectory provides privacy-safe user lookup capabilities to plugins.
+func WithUserDirectory(users UserDirectory) Option { return func(r *Runtime) { r.users = users } }
 
 // WithSecretCodec provides encryption for manifest-declared secret configuration fields.
 func WithSecretCodec(codec plugin.SecretCodec) Option { return func(r *Runtime) { r.secrets = codec } }

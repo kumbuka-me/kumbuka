@@ -74,7 +74,7 @@ type EditorWidgetSettingColumn struct {
 
 // EditorWidgetSetting declares one generic control rendered by the visual editor.
 type EditorWidgetSetting struct {
-	// Type selects text, textarea, select, resource, or table behavior.
+	// Type selects text, textarea, select, resource, mention, date, or table behavior.
 	Type EditorWidgetSettingType `json:"type"`
 	// Label is the human-readable setting label.
 	Label string `json:"label"`
@@ -651,7 +651,7 @@ func validateEditorWidgetSetting(setting EditorWidgetSetting, attributes map[str
 	}
 
 	switch setting.Type {
-	case EditorWidgetSettingText, EditorWidgetSettingTextarea:
+	case EditorWidgetSettingText, EditorWidgetSettingTextarea, EditorWidgetSettingMention, EditorWidgetSettingDate:
 		return validateEditorWidgetTextSettingDeclaration(setting, attributes)
 	case EditorWidgetSettingSelect:
 		return validateEditorWidgetSelectSettingDeclaration(setting, attributes)

@@ -17,9 +17,15 @@ const defaultWebhookBodyTemplate = `{
   "object_type": {{ .Payload.ObjectType | json }},
   "object_key": {{ .Payload.ObjectKey | json }},
   "detail": {{ .Payload.Detail | json }},
+  "data": {{ .Payload.Data | json }},
   "occurred_at": {{ .Payload.OccurredAt | json }},
   "url": {{ .Payload.URL | json }}
 }`
+
+const (
+	// EventNotificationCreated identifies one committed in-app notification.
+	EventNotificationCreated = "notification.created"
+)
 
 const (
 	defaultWebhookRetryCount      = 2
@@ -35,6 +41,7 @@ var webhookEvents = []string{
 	"page.review_approved", "page.review_changes_requested",
 	"page.revision_restored", "comment.created", "pages.imported",
 	"page.bulk_status", "page.bulk_tag", "page.bulk_group", "page.bulk_move", "page.bulk_delete",
+	EventNotificationCreated,
 }
 
 var reservedWebhookHeaderNames = map[string]struct{}{
@@ -62,6 +69,8 @@ type OutgoingEvent struct {
 	ObjectKey string `json:"object_key"`
 	// Detail contains optional human-readable context for the event.
 	Detail string `json:"detail,omitempty"`
+	// Data contains event-specific structured values safe for configured webhook receivers.
+	Data map[string]any `json:"data,omitempty"`
 	// OccurredAt records when the mutation committed.
 	OccurredAt time.Time `json:"occurred_at"`
 }

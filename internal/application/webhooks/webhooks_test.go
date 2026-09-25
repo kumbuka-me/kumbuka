@@ -84,6 +84,13 @@ func testWebhookLogger() *slog.Logger {
 	return slog.New(slog.NewTextHandler(io.Discard, nil))
 }
 
+// TestNotificationCreatedIsAFilterableWebhookEvent verifies notification events use the existing allow-list.
+func TestNotificationCreatedIsAFilterableWebhookEvent(t *testing.T) {
+	t.Parallel()
+	assert.Contains(t, WebhookEvents(), EventNotificationCreated)
+	assert.Contains(t, DefaultWebhook().BodyTemplate, `"data"`)
+}
+
 func TestWebhookDeliveryHistoryFailureIsObservableWithoutReplacingPrimaryError(t *testing.T) {
 	t.Parallel()
 

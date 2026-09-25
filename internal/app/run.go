@@ -119,7 +119,7 @@ func Run(
 	drafts := apppages.NewDrafts(database)
 	groups := appgroups.NewGroups(database)
 	knowledge := appsearch.NewKnowledge(database, access)
-	notifications := appnotifications.NewNotifications(database)
+	notifications := appnotifications.NewNotifications(database, webhooks).WithLogger(logger.With("component", "notifications"))
 	media := appmedia.NewMedia(database)
 	navigation := appnavigation.NewNavigation(database, access)
 	preferences := apppreferences.NewPreferences(database)

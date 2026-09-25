@@ -3,6 +3,7 @@
 import { Node as TiptapNode, type AnyExtension } from "./visual-deps/core.ts";
 import type { CatalogCompletion } from "./catalog.ts";
 import { openSourceDialog } from "./source-dialog.ts";
+import { searchMentionUsers, type MentionUser } from "../mentions.ts";
 import {
   matchWidgetSource,
   normalizeWidgetColor,
@@ -39,6 +40,7 @@ interface WidgetNodeViewContext {
 }
 
 const sourceMarkers = ["{{", "!!! ", "???", '=== "'];
+let widgetMentionSequence = 0;
 
 function firstWidgetSourceIndex(
   source: string,
@@ -452,8 +454,9 @@ function createScalarSetting(
     control = textarea;
   } else {
     const input = document.createElement("input");
-    input.type = "text";
+    input.type = setting.type === "date" ? "date" : "text";
     input.placeholder = setting.placeholder || "";
+    if (setting.type === "mention") setupMentionSetting(input, wrapper);
     if (setting.suggestions?.length) {
       const list = document.createElement("datalist");
       list.id = `visual-widget-suggestions-${widget.id}-${attribute.name}`;
@@ -472,6 +475,46 @@ function createScalarSetting(
   if (attribute.required) control.required = true;
   wrapper.append(control);
   return wrapper;
+}
+
+// setupMentionSetting adds bounded user autocomplete and canonical mention selection.
+function setupMentionSetting(
+  input: HTMLInputElement,
+  wrapper: HTMLElement,
+): void {
+  const list = document.createElement("datalist");
+  list.id = `visual-widget-mentions-${++widgetMentionSequence}`;
+  input.setAttribute("list", list.id);
+  input.autocomplete = "off";
+  input.pattern = "@[A-Za-z0-9_.-]+";
+  wrapper.append(list);
+  let results: MentionUser[] = [];
+  let request = 0;
+  const canonicalize = () => {
+    const current = input.value.trim().toLocaleLowerCase();
+    const match = results.find(
+      (user) => `@${user.username}`.toLocaleLowerCase() === current,
+    );
+    if (match) input.value = `@${match.username}`;
+  };
+  input.addEventListener("change", canonicalize);
+  input.addEventListener("input", () => {
+    const current = ++request;
+    const query = input.value.trim().replace(/^@/u, "");
+    void searchMentionUsers(query).then((users) => {
+      if (current !== request) return;
+      results = users;
+      list.replaceChildren(
+        ...users.map((user) => {
+          const option = document.createElement("option");
+          option.value = `@${user.username}`;
+          option.label = user.display_name || user.username;
+          return option;
+        }),
+      );
+      canonicalize();
+    });
+  });
 }
 
 function defaultPreviewColors(widget: CatalogWidget): string[] {

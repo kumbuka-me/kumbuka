@@ -68,6 +68,7 @@
         <span>
           <strong>{{ .Title }}</strong>
           {{ if .Body }}<small>{{ .Body }}</small>{{ end }}
+          {{ if .SourceName }}<small>From {{ .SourceName }}</small>{{ end }}
           <time>{{ timeago .CreatedAt }}</time>
         </span>
       </button>

@@ -204,6 +204,7 @@ func (n webhookNotification) Data(receiver string, _ map[string]any, title strin
 			ObjectType: n.event.ObjectType,
 			ObjectKey:  n.event.ObjectKey,
 			Detail:     n.event.Detail,
+			Data:       n.event.Data,
 			OccurredAt: n.event.OccurredAt,
 			URL:        webhookObjectURL(n.publicURL, n.event),
 		},
@@ -240,6 +241,8 @@ type webhookTemplatePayload struct {
 	ObjectKey string `json:"object_key"`
 	// Detail stores the detail value used by webhook template payload.
 	Detail string `json:"detail"`
+	// Data contains event-specific structured values.
+	Data map[string]any `json:"data,omitempty"`
 	// OccurredAt records the occurred at timestamp for webhook template payload.
 	OccurredAt time.Time `json:"occurred_at"`
 	// URL is the target URL for webhook template payload.

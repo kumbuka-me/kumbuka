@@ -144,7 +144,7 @@ func hasDynamicReadPermission(permissions []string) bool {
 // dynamicReadPermission reports whether a permission can make rendered output depend on mutable request-time data.
 func dynamicReadPermission(permission string) bool {
 	switch permission {
-	case "pages:read", "pages:content", "attachments:read", "settings:read", "storage:read", "network:http":
+	case "pages:read", "pages:content", "attachments:read", "settings:read", "storage:read", "network:http", "users:read":
 		return true
 	default:
 		return false

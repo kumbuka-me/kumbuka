@@ -1,6 +1,7 @@
 package endpoint
 
 import (
+	"context"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -9,6 +10,11 @@ import (
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
+
+// mentionDirectoryService exposes privacy-safe user searches for editor autocomplete.
+type mentionDirectoryService interface {
+	SearchPublicUsers(context.Context, string, int) ([]domain.User, error)
+}
 
 // mentionUser contains the account information exposed by the mention picker.
 type mentionUser struct {
@@ -23,7 +29,7 @@ type mentionUser struct {
 }
 
 // MentionUsers returns accounts matching an editor mention query.
-func MentionUsers(userUseCases userDirectoryService, logger *slog.Logger) http.HandlerFunc {
+func MentionUsers(userUseCases mentionDirectoryService, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		current, ok := auth.User(r)
 		if !ok {
@@ -31,7 +37,7 @@ func MentionUsers(userUseCases userDirectoryService, logger *slog.Logger) http.H
 			return
 		}
 
-		users, err := userUseCases.SearchUsers(r.Context(), strings.TrimSpace(r.URL.Query().Get("q")), 50)
+		users, err := userUseCases.SearchPublicUsers(r.Context(), strings.TrimSpace(r.URL.Query().Get("q")), 50)
 		if err != nil {
 			httpresponse.InternalServerError(logger, w, err)
 			return

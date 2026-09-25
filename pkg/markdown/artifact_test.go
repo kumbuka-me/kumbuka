@@ -41,4 +41,5 @@ func TestRenderFingerprintTracksBuildAndOptions(t *testing.T) {
 func TestDynamicReadPermissionIncludesNetworkHTTP(t *testing.T) {
 	t.Parallel()
 	assert.True(t, hasDynamicReadPermission([]string{"network:http"}))
+	assert.True(t, hasDynamicReadPermission([]string{"users:read"}))
 }

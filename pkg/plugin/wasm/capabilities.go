@@ -144,9 +144,31 @@ func (r *Runtime) dispatchBuiltinCapability(ctx context.Context, caller *Instanc
 	case request.Method == "log":
 		err := logCapabilityMessage(ctx, caller, request.Params)
 		return nil, true, err
+	case request.Method == "users.search" || request.Method == "users.resolve-mention":
+		value, err := r.userCall(ctx, request)
+		return value, true, err
 	default:
 		return nil, false, nil
 	}
+}
+
+// userCall executes one runtime-wide privacy-safe user-directory operation.
+func (r *Runtime) userCall(ctx context.Context, request sdk.CapabilityRequest) (any, error) {
+	if r.users == nil {
+		return nil, errors.New("user directory unavailable")
+	}
+	if request.Method == "users.search" {
+		var query sdk.UserQuery
+		if err := decode(request.Params, &query); err != nil {
+			return nil, errors.New("invalid user query")
+		}
+		return r.users.Search(ctx, query)
+	}
+	var mention sdk.UserMention
+	if err := decode(request.Params, &mention); err != nil {
+		return nil, errors.New("invalid user mention")
+	}
+	return r.users.ResolveMention(ctx, mention)
 }
 
 // logCapabilityMessage validates and records one guest log request.

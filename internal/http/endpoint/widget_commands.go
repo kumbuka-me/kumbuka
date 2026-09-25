@@ -18,6 +18,7 @@ func PluginWidgetCommand(
 	catalog pageReportService,
 	navigation navigationService,
 	renderer *md.Renderer,
+	notifications plugincap.NotificationSender,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		manager := renderer.PluginManager()
@@ -43,8 +44,17 @@ func PluginWidgetCommand(
 		}
 
 		user, _ := auth.User(r)
+		pluginID := r.PathValue("pluginID")
+		pluginName := activePluginName(manager, pluginID)
+		if pluginName == "" {
+			httpresponse.Problem(w, http.StatusNotFound, "Plugin widget not found.")
+			return
+		}
 		var pageValue *sdk.Page
-		capabilities := plugincap.Capabilities(nil, nil, renderer.IconCatalog())
+		capabilities := plugincap.MergeCapabilities(
+			plugincap.Capabilities(nil, nil, renderer.IconCatalog()),
+			plugincap.NotificationCapabilities(notifications, user.ID, pluginID, pluginName),
+		)
 		if slug := pageSlug; slug != "" {
 			page, err := catalog.GetPageFor(r.Context(), user, slug)
 			if err != nil {
@@ -59,12 +69,15 @@ func PluginWidgetCommand(
 				httpresponse.Problem(w, http.StatusInternalServerError, "The request could not be processed.")
 				return
 			}
-			capabilities = plugincap.Capabilities(securedCatalog, pageNavigation, renderer.IconCatalog())
+			capabilities = plugincap.MergeCapabilities(
+				plugincap.Capabilities(securedCatalog, pageNavigation, renderer.IconCatalog()),
+				plugincap.NotificationCapabilities(notifications, user.ID, pluginID, pluginName),
+			)
 		}
 
 		result, err := manager.WidgetCommand(
 			r.Context(),
-			r.PathValue("pluginID"),
+			pluginID,
 			r.PathValue("moduleID"),
 			plugin.Context{Capabilities: capabilities, Features: manager.FeatureSettings()},
 			plugin.WidgetCommandRequest{Surface: surface, Page: pageValue, Action: r.PathValue("actionID")},
@@ -83,6 +96,16 @@ func PluginWidgetCommand(
 		}
 		http.Redirect(w, r, next, http.StatusSeeOther)
 	}
+}
+
+// activePluginName returns the enabled plugin's host-validated display name.
+func activePluginName(manager *plugin.Manager, pluginID string) string {
+	for _, item := range manager.Plugins() {
+		if item.Enabled && item.Manifest.ID == pluginID {
+			return item.Manifest.Name
+		}
+	}
+	return ""
 }
 
 // widgetSurfaceNeedsPage reports whether a widget surface is rendered with current-page context.

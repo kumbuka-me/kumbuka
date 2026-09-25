@@ -3,8 +3,11 @@ package notifications
 import (
 	"context"
 	"testing"
+	"time"
 
+	"github.com/kumbuka-me/kumbuka/internal/application/webhooks"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
+	"github.com/kumbuka-me/sdk"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -23,6 +26,10 @@ type notificationRepositoryStub struct {
 	deletedID int64
 	// openedID records the ID passed to open operations.
 	openedID int64
+	// created records the plugin-created notification passed to persistence.
+	created domain.Notification
+	// createNew reports whether persistence inserted a new row.
+	createNew bool
 }
 
 // Notifications records the requested limit and returns an empty inbox.
@@ -65,6 +72,84 @@ func (s *notificationRepositoryStub) OpenNotification(_ context.Context, _ int64
 	s.openedID = id
 
 	return "/pages/example", nil
+}
+
+// User returns one enabled notification recipient.
+func (*notificationRepositoryStub) User(_ context.Context, id int64) (domain.User, error) {
+	return domain.User{ID: id, Username: "alice", DisplayName: "Alice", Enabled: true}, nil
+}
+
+// CreateNotification records and returns one committed notification.
+func (s *notificationRepositoryStub) CreateNotification(_ context.Context, item domain.Notification) (domain.Notification, bool, error) {
+	s.created = item
+	item.ID = 7
+	item.CreatedAt = time.Date(2026, time.September, 25, 10, 30, 0, 0, time.UTC)
+	return item, s.createNew, nil
+}
+
+// notificationEventSink records the most recent emitted event.
+type notificationEventSink struct {
+	event webhooks.OutgoingEvent
+}
+
+// Emit records one notification event.
+func (s *notificationEventSink) Emit(_ context.Context, event webhooks.OutgoingEvent) error {
+	s.event = event
+	return nil
+}
+
+// TestSendPluginCreatesAttributedNotificationAndEvent verifies mutation attribution and webhook payloads.
+func TestSendPluginCreatesAttributedNotificationAndEvent(t *testing.T) {
+	t.Parallel()
+	repository := &notificationRepositoryStub{createNew: true}
+	sink := &notificationEventSink{}
+	service := NewNotifications(repository, sink)
+
+	receipt, err := service.SendPlugin(context.Background(), 9, "me.example.tasks", "Tasks", sdk.NotificationInput{
+		RecipientUserID: 42,
+		Title:           "Task assigned",
+		Body:            "Review the plan.",
+		URL:             "/pages/plan",
+		IdempotencyKey:  "task:one:assigned",
+	})
+
+	require.NoError(t, err)
+	assert.Equal(t, int64(7), receipt.ID)
+	assert.Equal(t, domain.NotificationKindPlugin, repository.created.Kind)
+	assert.Equal(t, int64(9), repository.created.ActorID)
+	assert.Equal(t, "me.example.tasks", repository.created.SourceID)
+	assert.Equal(t, "notification.created", sink.event.Event)
+	assert.Equal(t, int64(9), sink.event.ActorID)
+	recipient := sink.event.Data["recipient"].(map[string]any)
+	assert.Equal(t, "@alice", recipient["mention"])
+}
+
+// TestSendPluginDoesNotEmitForIdempotentReplay verifies retried mutations do not duplicate events.
+func TestSendPluginDoesNotEmitForIdempotentReplay(t *testing.T) {
+	t.Parallel()
+	repository := &notificationRepositoryStub{createNew: false}
+	sink := &notificationEventSink{}
+	_, err := NewNotifications(repository, sink).SendPlugin(context.Background(), 9, "me.example.tasks", "Tasks", sdk.NotificationInput{
+		RecipientUserID: 42,
+		Title:           "Task assigned",
+		IdempotencyKey:  "task:one:assigned",
+	})
+	require.NoError(t, err)
+	assert.Empty(t, sink.event.Event)
+}
+
+// TestSendPluginRejectsExternalDestinations verifies plugins cannot turn inbox links into arbitrary redirects.
+func TestSendPluginRejectsExternalDestinations(t *testing.T) {
+	t.Parallel()
+	repository := &notificationRepositoryStub{createNew: true}
+	_, err := NewNotifications(repository).SendPlugin(context.Background(), 9, "me.example.tasks", "Tasks", sdk.NotificationInput{
+		RecipientUserID: 42,
+		Title:           "Task assigned",
+		URL:             "https://example.test/phishing",
+		IdempotencyKey:  "task:one:assigned",
+	})
+	require.Error(t, err)
+	assert.Empty(t, repository.created.Title)
 }
 
 func TestNotificationsLimit(t *testing.T) {
