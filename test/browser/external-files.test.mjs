@@ -1,11 +1,15 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { execFile } from "node:child_process";
 import { readFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
 import { chromium } from "playwright";
 
 const pluginID = "me.kumbuka.external-files";
 const completionModuleID = "source-completion";
 const trigger = "{{external-file ";
+const execFileAsync = promisify(execFile);
 
 function sourceCompletion(name, repository) {
   return {
@@ -18,7 +22,22 @@ function sourceCompletion(name, repository) {
   };
 }
 
-function externalFilesCatalog() {
+async function packagedExternalFileWidget() {
+  const packagePath = fileURLToPath(
+    new URL("../../plugins/external-files.kumbukaplugin", import.meta.url),
+  );
+  const { stdout } = await execFileAsync(
+    "unzip",
+    ["-p", packagePath, "assets/visual-editor.json"],
+    { encoding: "utf8" },
+  );
+  const document = JSON.parse(stdout);
+  assert.equal(document.version, 1);
+  assert.equal(document.widgets.length, 1);
+  return document.widgets[0];
+}
+
+async function externalFilesCatalog() {
   return {
     pages: [],
     aliases: {},
@@ -53,44 +72,7 @@ function externalFilesCatalog() {
         inline: false,
       },
     ],
-    widgets: [
-      {
-        plugin_id: pluginID,
-        id: "external-file",
-        name: "External file",
-        inline: false,
-        syntax: { kind: "macro", name: "external-file" },
-        attributes: [
-          { name: "source", type: "string", required: true, max_bytes: 128 },
-          { name: "path", type: "string", required: true, max_bytes: 1024 },
-        ],
-        settings: [
-          {
-            type: "resource",
-            label: "Source",
-            attribute: "source",
-            placeholder: "Choose a configured source…",
-            completion_module_id: completionModuleID,
-          },
-          {
-            type: "text",
-            label: "Path",
-            attribute: "path",
-            placeholder: "src/main.go",
-          },
-        ],
-        preview: {
-          kind: "card",
-          card: {
-            class: "external-file",
-            title: "External file",
-            subtitle_attribute: "path",
-            metadata_attributes: ["source"],
-            body_text: "Repository content is loaded when the page is rendered.",
-          },
-        },
-      },
-    ],
+    widgets: [{ plugin_id: pluginID, ...(await packagedExternalFileWidget()) }],
     widget_problems: [],
   };
 }
@@ -109,7 +91,7 @@ async function editorModeSwitcher() {
 
 test("External Files insert and widget list configured sources", async () => {
   const modeSwitcher = await editorModeSwitcher();
-  const catalog = externalFilesCatalog();
+  const catalog = await externalFilesCatalog();
   const browser = await chromium.launch({
     channel: process.env.BROWSER_CHANNEL || "chrome",
     headless: true,
@@ -176,12 +158,16 @@ test("External Files insert and widget list configured sources", async () => {
       state: "visible",
     });
 
-    await page.getByRole("button", { name: "External file", exact: true }).click();
+    await page
+      .getByRole("button", { name: "External file", exact: true })
+      .click();
 
     const picker = page.getByRole("dialog", { name: "Choose External file" });
     await picker.waitFor({ state: "visible" });
     assert.deepEqual(
-      await picker.locator(".editor-completion-option strong").allTextContents(),
+      await picker
+        .locator(".editor-completion-option strong")
+        .allTextContents(),
       ["engineering", "documentation"],
     );
     assert.deepEqual(
@@ -210,7 +196,9 @@ test("External Files insert and widget list configured sources", async () => {
     await settings.getByRole("button", { name: "Apply" }).click();
 
     assert.equal(
-      await page.locator("textarea[data-markdown-editor]").inputValue(),
+      (
+        await page.locator("textarea[data-markdown-editor]").inputValue()
+      ).trimEnd(),
       '{{external-file source="engineering" path="cmd/server/main.go"}}',
     );
     assert.deepEqual(errors, []);
