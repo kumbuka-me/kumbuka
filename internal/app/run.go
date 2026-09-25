@@ -97,7 +97,7 @@ func Run(
 	defer database.Close()
 
 	// Construct page mutation and collaboration capabilities that other workflows depend on.
-	webhooks := appwebhooks.NewWebhooks(database, secretCipher, logger.With("component", "webhooks"), cfg.PublicURL)
+	webhooks := appwebhooks.NewWebhooks(database, secretCipher, logger.With("component", "webhooks"), cfg.PublicURL).WithUserDirectory(database)
 	access := appaccess.NewAccess(database)
 	mutations := apppages.NewMutations(database, access, database, logger, webhooks)
 	presence := apppages.NewPresence(database, access)

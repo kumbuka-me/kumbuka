@@ -30,21 +30,36 @@
           <strong>JSON payload</strong>
           <small>Transform Kumbuka events into the JSON body expected by the receiver.</small>
         </div>
-        <span class="webhook-template-badge">Go template</span>
+        <div class="webhook-template-heading-actions">
+          <span class="webhook-template-badge">Go template</span>
+          <button class="button compact"
+                  type="button"
+                  data-webhook-help-open>{{ icon "info-lucide" 14 }}<span>Fields</span></button>
+        </div>
       </div>
       <label class="webhook-template-field">
         <textarea name="body_template"
                   rows="13"
                   spellcheck="false"
                   autocapitalize="off"
-                  autocomplete="off">{{ .BodyTemplate }}</textarea>
+                  autocomplete="off"
+                  data-webhook-template>{{ .BodyTemplate }}</textarea>
       </label>
       <p class="webhook-template-help">
         Use <code>{{ "{{ .Input.Event | json }}" }}</code> for the event name and
         <code>.Payload.ActorID</code>, <code>.Payload.ObjectType</code>, <code>.Payload.ObjectKey</code>,
-        <code>.Payload.Detail</code>, <code>.Payload.OccurredAt</code>, or <code>.Payload.URL</code> for event data.
-        Pipe JSON values through <code>| json</code>. Notifykit's default template helpers are available.
+        <code>.Payload.Detail</code>, <code>.Payload.Data</code>, <code>.Payload.OccurredAt</code>, or <code>.Payload.URL</code> for event data.
+        Type <code>.Input</code> or <code>.Payload</code> for suggestions.
       </p>
+      <label class="webhook-enabled-row webhook-user-details">
+        <span>
+          <strong>Include user details</strong>
+          <small>Allow this template to use actor and recipient contact fields, including email.</small>
+        </span>
+        <input type="checkbox"
+               name="include_user_details"
+               {{ if .IncludeUserDetails }}checked{{ end }} />
+      </label>
     </section>
     <section class="webhook-header-settings">
       <div class="webhook-section-heading">
@@ -341,5 +356,141 @@
         <p class="muted webhook-no-deliveries">No deliveries yet.</p>
       {{ end }}
     </section>
+    <dialog class="app-dialog webhook-help-dialog"
+            data-webhook-help-dialog
+            aria-labelledby="webhook-help-title">
+      <div class="app-dialog-header">
+        <div>
+          <p class="eyebrow">Webhook reference</p>
+          <h2 id="webhook-help-title">Fields and template data</h2>
+        </div>
+        <button class="icon-button app-dialog-close"
+                type="button"
+                data-webhook-help-close
+                aria-label="Close webhook reference">{{ icon "x-lucide" 20 }}</button>
+      </div>
+      <div class="app-dialog-body webhook-help-body">
+        <section>
+          <h3>Configuration</h3>
+          <dl class="webhook-help-definitions">
+            <div>
+              <dt>Name</dt>
+              <dd>
+                Identifies this destination in administration and delivery history.
+              </dd>
+            </div>
+            <div>
+              <dt>Endpoint</dt>
+              <dd>
+                The absolute HTTP or HTTPS URL that receives POST requests.
+              </dd>
+            </div>
+            <div>
+              <dt>Enabled</dt>
+              <dd>
+                Controls whether matching events are delivered.
+              </dd>
+            </div>
+            <div>
+              <dt>JSON payload</dt>
+              <dd>
+                A Go template that must render valid JSON. Pipe inserted values through <code>| json</code>.
+              </dd>
+            </div>
+            <div>
+              <dt>Include user details</dt>
+              <dd>
+                Resolves actor and recipient contact data for this template. Leave disabled unless the receiver needs it.
+              </dd>
+            </div>
+            <div>
+              <dt>Request headers</dt>
+              <dd>
+                Add receiver-specific headers. Sensitive values are encrypted and hidden after saving.
+              </dd>
+            </div>
+            <div>
+              <dt>Retries</dt>
+              <dd>
+                Retry count is additional attempts; backoff grows up to the maximum, and jitter randomizes delays.
+              </dd>
+            </div>
+            <div>
+              <dt>Events</dt>
+              <dd>
+                Select which generic Kumbuka events trigger this destination.
+              </dd>
+            </div>
+          </dl>
+        </section>
+        <section>
+          <h3>Template fields</h3>
+          <div class="webhook-help-table-wrap">
+            <table class="webhook-help-table">
+              <thead>
+                <tr>
+                  <th>Field</th>
+                  <th>Meaning</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>.Input.Event</code></td>
+                  <td>Event name, such as <code>notification.created</code>.</td>
+                </tr>
+                <tr>
+                  <td><code>.Payload.ActorID</code></td>
+                  <td>Stable ID of the user who caused the event, or zero.</td>
+                </tr>
+                <tr>
+                  <td><code>.Payload.ObjectType</code></td>
+                  <td>Generic affected resource type.</td>
+                </tr>
+                <tr>
+                  <td><code>.Payload.ObjectKey</code></td>
+                  <td>Resource identifier within its type.</td>
+                </tr>
+                <tr>
+                  <td><code>.Payload.Detail</code></td>
+                  <td>Optional human-readable event summary.</td>
+                </tr>
+                <tr>
+                  <td><code>.Payload.Data</code></td>
+                  <td>Event-specific map. Access a key with <code>index .Payload.Data "key"</code>.</td>
+                </tr>
+                <tr>
+                  <td><code>.Payload.OccurredAt</code></td>
+                  <td>UTC timestamp for the committed mutation.</td>
+                </tr>
+                <tr>
+                  <td><code>.Payload.URL</code></td>
+                  <td>Public Kumbuka page URL when the event identifies a page.</td>
+                </tr>
+                <tr>
+                  <td><code>.Payload.Actor.*</code></td>
+                  <td><code>ID</code>, <code>Mention</code>, <code>DisplayName</code>, <code>Email</code>, and <code>Enabled</code> for the actor.</td>
+                </tr>
+                <tr>
+                  <td><code>.Payload.Recipient.*</code></td>
+                  <td>The same fields for the target user, when the event has one.</td>
+                </tr>
+                <tr>
+                  <td><code>.Receiver</code></td>
+                  <td>Configured webhook receiver name.</td>
+                </tr>
+                <tr>
+                  <td><code>.Title</code></td>
+                  <td>Rendered delivery title; currently the event name.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="muted">Actor and recipient objects are available only when <strong>Include user details</strong> is enabled. Some events do not have one or both users.</p>
+        </section>
+      </div>
+      <div class="app-dialog-actions">
+        <button class="button" type="button" data-webhook-help-close>Close</button>
+      </div>
+    </dialog>
   </section>
 {{ end }}

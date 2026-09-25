@@ -249,8 +249,6 @@ type ApplicationSettings struct {
 	AllowUserRegistration bool
 	// DiscussionsEnabled enables page comments and anchored discussions.
 	DiscussionsEnabled bool
-	// IntegrationUserDirectoryEnabled allows administrators to expose contact details through the protected integration API.
-	IntegrationUserDirectoryEnabled bool
 	// ContentLanguage is the BCP 47 language tag applied to wiki content and the editor.
 	ContentLanguage string
 	// PDFURL is the persisted HTML-to-PDF rendering endpoint.
@@ -555,6 +553,8 @@ type Webhook struct {
 	Events []string
 	// BodyTemplate stores the body template value used by webhook.
 	BodyTemplate string
+	// IncludeUserDetails makes actor and recipient contact fields available to the payload template.
+	IncludeUserDetails bool
 	// Headers contains the headers associated with webhook.
 	Headers []WebhookHeader
 	// RetryEnabled reports whether retry enabled applies to webhook.

@@ -164,6 +164,12 @@
   gap: 2px;
 }
 
+.webhook-template-heading-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .webhook-section-heading strong {
   font-size: 12px;
 }
@@ -199,6 +205,138 @@
   line-height: 1.5;
   tab-size: 2;
   white-space: pre;
+}
+
+.webhook-user-details {
+  padding-block: 9px;
+}
+
+.webhook-template-completions {
+  position: fixed;
+  z-index: 1000;
+  max-height: min(320px, 40vh);
+  overflow: auto;
+  padding: 5px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.webhook-template-completion {
+  display: grid;
+  width: 100%;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.webhook-template-completion[data-active="true"],
+.webhook-template-completion:hover {
+  background: var(--surface-hover);
+}
+
+.webhook-template-completion code {
+  overflow: hidden;
+  font-size: 11px;
+  text-overflow: ellipsis;
+}
+
+.webhook-template-completion span {
+  color: var(--text-tertiary);
+  font-size: 10px;
+}
+
+.webhook-help-dialog {
+  width: min(840px, calc(100vw - 32px));
+}
+
+.webhook-help-body {
+  display: grid;
+  gap: 22px;
+}
+
+.webhook-help-body section {
+  display: grid;
+  gap: 10px;
+}
+
+.webhook-help-body h3 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.webhook-help-definitions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.webhook-help-definitions > div {
+  padding: 9px 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 7px;
+  background: var(--surface-elevated);
+}
+
+.webhook-help-definitions dt {
+  margin-bottom: 2px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.webhook-help-definitions dd {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.webhook-help-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+}
+
+.webhook-help-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.webhook-help-table th,
+.webhook-help-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border-subtle);
+  text-align: left;
+  vertical-align: top;
+}
+
+.webhook-help-table th {
+  background: var(--surface-elevated);
+  color: var(--text-secondary);
+  font-size: 10px;
+}
+
+.webhook-help-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.webhook-help-table td:first-child {
+  white-space: nowrap;
+}
+
+.webhook-help-body > section > .muted {
+  margin: 0;
+  font-size: 10px;
 }
 
 .webhook-template-help,
@@ -510,6 +648,10 @@
   .webhook-section-heading {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .webhook-help-definitions {
+    grid-template-columns: 1fr;
   }
 
   .webhook-header-actions {

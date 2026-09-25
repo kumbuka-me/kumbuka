@@ -63,6 +63,8 @@ type OutgoingEvent struct {
 	Event string `json:"event"`
 	// ActorID identifies the user that caused the event when one exists.
 	ActorID int64 `json:"actor_id,omitempty"`
+	// RecipientUserID identifies the event recipient when one exists.
+	RecipientUserID int64 `json:"recipient_user_id,omitempty"`
 	// ObjectType names the affected resource type.
 	ObjectType string `json:"object_type"`
 	// ObjectKey identifies the affected resource within its type.
@@ -89,6 +91,10 @@ type webhookRepository interface {
 	WebhookDeliveries(context.Context, int) ([]domain.WebhookDelivery, error)
 }
 
+type webhookUserDirectory interface {
+	User(context.Context, int64) (domain.User, error)
+}
+
 // WebhookHeaderInput contains one administrator-supplied webhook request header.
 type WebhookHeaderInput struct {
 	// ID identifies an existing persisted header; zero creates a new row.
@@ -111,6 +117,8 @@ type WebhookInput struct {
 	Events []string
 	// BodyTemplate renders the JSON request body.
 	BodyTemplate string
+	// IncludeUserDetails exposes actor and recipient contact fields to the template.
+	IncludeUserDetails bool
 	// Headers contains additional administrator-configured request headers.
 	Headers []WebhookHeaderInput
 	// RetryEnabled enables retrying transient delivery failures.
@@ -145,6 +153,14 @@ type Webhooks struct {
 	logger *slog.Logger
 	// publicURL is the externally visible base URL used when building webhook payloads.
 	publicURL string
+	// users resolves contact details only for explicitly enabled webhook templates.
+	users webhookUserDirectory
+}
+
+// WithUserDirectory enables opt-in webhook template user enrichment.
+func (s *Webhooks) WithUserDirectory(users webhookUserDirectory) *Webhooks {
+	s.users = users
+	return s
 }
 
 // NewWebhooks constructs outgoing webhook use cases.
@@ -165,13 +181,14 @@ func NewWebhooks(
 // DefaultWebhook returns the initial values used for a new webhook form.
 func DefaultWebhook() domain.Webhook {
 	return domain.Webhook{
-		BodyTemplate:    defaultWebhookBodyTemplate,
-		RetryEnabled:    false,
-		RetryCount:      defaultWebhookRetryCount,
-		RetryBackoff:    defaultWebhookRetryBackoff,
-		RetryMaxBackoff: defaultWebhookRetryMaxBackoff,
-		RetryJitter:     true,
-		Enabled:         true,
+		BodyTemplate:       defaultWebhookBodyTemplate,
+		IncludeUserDetails: false,
+		RetryEnabled:       false,
+		RetryCount:         defaultWebhookRetryCount,
+		RetryBackoff:       defaultWebhookRetryBackoff,
+		RetryMaxBackoff:    defaultWebhookRetryMaxBackoff,
+		RetryJitter:        true,
+		Enabled:            true,
 	}
 }
 
@@ -218,17 +235,18 @@ func (s *Webhooks) SaveWebhook(ctx context.Context, id int64, input WebhookInput
 	}
 
 	item, err := s.repository.SaveWebhook(ctx, id, domain.Webhook{
-		Name:            input.Name,
-		URL:             input.URL,
-		Events:          events,
-		BodyTemplate:    input.BodyTemplate,
-		Headers:         headers,
-		RetryEnabled:    input.RetryEnabled,
-		RetryCount:      input.RetryCount,
-		RetryBackoff:    input.RetryBackoff,
-		RetryMaxBackoff: input.RetryMaxBackoff,
-		RetryJitter:     input.RetryJitter,
-		Enabled:         input.Enabled,
+		Name:               input.Name,
+		URL:                input.URL,
+		Events:             events,
+		BodyTemplate:       input.BodyTemplate,
+		IncludeUserDetails: input.IncludeUserDetails,
+		Headers:            headers,
+		RetryEnabled:       input.RetryEnabled,
+		RetryCount:         input.RetryCount,
+		RetryBackoff:       input.RetryBackoff,
+		RetryMaxBackoff:    input.RetryMaxBackoff,
+		RetryJitter:        input.RetryJitter,
+		Enabled:            input.Enabled,
 	})
 	if err != nil {
 		return domain.Webhook{}, err

@@ -105,7 +105,11 @@ func (s *Webhooks) deliver(ctx context.Context, item domain.Webhook, event Outgo
 		})
 	}
 
-	notification := webhookNotification{event: event, publicURL: s.publicURL}
+	notification, err := s.webhookNotification(ctx, item, event)
+	if err != nil {
+		s.recordWebhookDelivery(ctx, item.ID, event.Event, 0, 0, err.Error()) // nolint:errcheck
+		return err
+	}
 	deliveryErr := kit.Send(ctx, notification, kit.NewReceivers(receiver), s.logger)
 	message := ""
 	if deliveryErr != nil {
@@ -124,6 +128,54 @@ func (s *Webhooks) deliver(ctx context.Context, item domain.Webhook, event Outgo
 	}
 
 	return recordErr
+}
+
+// webhookNotification builds the template input and resolves optional user contact details.
+func (s *Webhooks) webhookNotification(
+	ctx context.Context,
+	item domain.Webhook,
+	event OutgoingEvent,
+) (webhookNotification, error) {
+	notification := webhookNotification{event: event, publicURL: s.publicURL}
+	if !item.IncludeUserDetails {
+		return notification, nil
+	}
+	if s.users == nil {
+		return webhookNotification{}, errors.New("webhook user directory is unavailable")
+	}
+
+	var err error
+	notification.actor, err = s.webhookTemplateUser(ctx, event.ActorID)
+	if err != nil {
+		return webhookNotification{}, fmt.Errorf("resolve webhook actor: %w", err)
+	}
+	notification.recipient, err = s.webhookTemplateUser(ctx, event.RecipientUserID)
+	if err != nil {
+		return webhookNotification{}, fmt.Errorf("resolve webhook recipient: %w", err)
+	}
+
+	return notification, nil
+}
+
+// webhookTemplateUser resolves one user into the restricted contact fields exposed to webhook templates.
+func (s *Webhooks) webhookTemplateUser(ctx context.Context, id int64) (*webhookTemplateUser, error) {
+	if id == 0 {
+		return nil, nil
+	}
+	user, err := s.users.User(ctx, id)
+	if errors.Is(err, domain.ErrNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &webhookTemplateUser{
+		ID:          user.ID,
+		Mention:     "@" + user.Username,
+		DisplayName: user.DisplayName,
+		Email:       user.Email,
+		Enabled:     user.Enabled,
+	}, nil
 }
 
 // webhookRequestHeaders decrypts sensitive headers and adds Kumbuka request metadata.
@@ -188,6 +240,10 @@ type webhookNotification struct {
 	event OutgoingEvent
 	// publicURL is the externally visible base URL available to webhook templates.
 	publicURL string
+	// actor contains opt-in contact data for the user who caused the event.
+	actor *webhookTemplateUser
+	// recipient contains opt-in contact data for the user targeted by the event.
+	recipient *webhookTemplateUser
 }
 
 // ID returns a stable-enough delivery identifier for structured Notifykit logs.
@@ -207,6 +263,8 @@ func (n webhookNotification) Data(receiver string, _ map[string]any, title strin
 			Data:       n.event.Data,
 			OccurredAt: n.event.OccurredAt,
 			URL:        webhookObjectURL(n.publicURL, n.event),
+			Actor:      n.actor,
+			Recipient:  n.recipient,
 		},
 		Receiver: receiver,
 		Title:    title,
@@ -247,6 +305,24 @@ type webhookTemplatePayload struct {
 	OccurredAt time.Time `json:"occurred_at"`
 	// URL is the target URL for webhook template payload.
 	URL string `json:"url"`
+	// Actor contains contact data for the user who caused the event when explicitly enabled.
+	Actor *webhookTemplateUser `json:"actor,omitempty"`
+	// Recipient contains contact data for the event recipient when explicitly enabled.
+	Recipient *webhookTemplateUser `json:"recipient,omitempty"`
+}
+
+// webhookTemplateUser contains the restricted account fields available to opted-in webhook templates.
+type webhookTemplateUser struct {
+	// ID is the stable Kumbuka user identifier.
+	ID int64 `json:"id"`
+	// Mention is the canonical @-prefixed username.
+	Mention string `json:"mention"`
+	// DisplayName is the human-readable account name.
+	DisplayName string `json:"display_name"`
+	// Email is the account contact email.
+	Email string `json:"email"`
+	// Enabled reports whether the account can currently sign in.
+	Enabled bool `json:"enabled"`
 }
 
 // webhookObjectURL returns a public page URL when the event identifies a page.

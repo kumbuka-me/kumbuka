@@ -71,17 +71,18 @@ func SaveAdminWebhook(webhookUseCases webhookAdminService, logger *slog.Logger) 
 		}
 
 		_, err = webhookUseCases.SaveWebhook(r.Context(), id, appwebhooks.WebhookInput{
-			Name:            r.FormValue("name"),
-			URL:             r.FormValue("url"),
-			Events:          r.Form["event"],
-			BodyTemplate:    r.FormValue("body_template"),
-			Headers:         headers,
-			RetryEnabled:    r.FormValue("retry_enabled") == "on",
-			RetryCount:      retryCount,
-			RetryBackoff:    retryBackoff,
-			RetryMaxBackoff: retryMaxBackoff,
-			RetryJitter:     r.FormValue("retry_jitter") == "on",
-			Enabled:         r.FormValue("enabled") == "on",
+			Name:               r.FormValue("name"),
+			URL:                r.FormValue("url"),
+			Events:             r.Form["event"],
+			BodyTemplate:       r.FormValue("body_template"),
+			IncludeUserDetails: r.FormValue("include_user_details") == "on",
+			Headers:            headers,
+			RetryEnabled:       r.FormValue("retry_enabled") == "on",
+			RetryCount:         retryCount,
+			RetryBackoff:       retryBackoff,
+			RetryMaxBackoff:    retryMaxBackoff,
+			RetryJitter:        r.FormValue("retry_jitter") == "on",
+			Enabled:            r.FormValue("enabled") == "on",
 		})
 		if err != nil {
 			writeAdminProblem(logger, w, err, "Webhook")

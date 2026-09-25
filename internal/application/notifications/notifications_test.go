@@ -128,6 +128,7 @@ func TestSendPluginCreatesAttributedNotificationAndEvent(t *testing.T) {
 	assert.Equal(t, "me.example.tasks", repository.created.SourceID)
 	assert.Equal(t, "notification.created", sink.event.Event)
 	assert.Equal(t, int64(9), sink.event.ActorID)
+	assert.Equal(t, int64(42), sink.event.RecipientUserID)
 	recipient := sink.event.Data["recipient"].(map[string]any)
 	assert.Equal(t, "@alice", recipient["mention"])
 }

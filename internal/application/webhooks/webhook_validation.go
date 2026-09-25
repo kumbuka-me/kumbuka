@@ -118,9 +118,18 @@ func validateWebhookBodyTemplate(value string) error {
 		Detail:     `Example "page" updated`,
 		OccurredAt: time.Date(2026, 9, 11, 8, 0, 0, 0, time.UTC),
 	}
+	sampleUser := &webhookTemplateUser{
+		ID:          42,
+		Mention:     "@alice",
+		DisplayName: "Alice Example",
+		Email:       "alice@example.test",
+		Enabled:     true,
+	}
 	body, err := tmpl.Render(webhookNotification{
 		event:     event,
 		publicURL: "https://kumbuka.example",
+		actor:     sampleUser,
+		recipient: sampleUser,
 	}.Data("Example", nil, event.Event))
 	if err != nil {
 		return fmt.Errorf("render template: %w", err)

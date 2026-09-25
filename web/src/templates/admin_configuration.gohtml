@@ -83,15 +83,6 @@
                    name="discussions_enabled"
                    {{ if .ApplicationSettings.DiscussionsEnabled }}checked{{ end }} />
           </label>
-          <label class="toggle-row">
-            <span>
-              <strong>Integration user directory API</strong>
-              <small>Allow administrator API tokens to retrieve user contact details for external notification delivery.</small>
-            </span>
-            <input type="checkbox"
-                   name="integration_user_directory_enabled"
-                   {{ if .ApplicationSettings.IntegrationUserDirectoryEnabled }}checked{{ end }} />
-          </label>
           <label class="configuration-choice-row">
             <span class="configuration-choice-copy">
               <strong>Content language</strong>

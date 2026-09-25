@@ -10,7 +10,7 @@ import (
 )
 
 const webhookSelect = `
-SELECT id,name,url,events,body_template,retry_enabled,retry_count,retry_backoff_ms,retry_max_backoff_ms,retry_jitter,enabled,created_at,updated_at
+SELECT id,name,url,events,body_template,include_user_details,retry_enabled,retry_count,retry_backoff_ms,retry_max_backoff_ms,retry_jitter,enabled,created_at,updated_at
 FROM webhooks`
 
 type webhookRow interface {
@@ -91,14 +91,15 @@ func (s *Store) createWebhook(ctx context.Context, item domain.Webhook) (domain.
 
 	row := tx.QueryRow(ctx, `
 INSERT INTO webhooks(
-  name,url,events,body_template,retry_enabled,retry_count,retry_backoff_ms,retry_max_backoff_ms,retry_jitter,enabled
+  name,url,events,body_template,include_user_details,retry_enabled,retry_count,retry_backoff_ms,retry_max_backoff_ms,retry_jitter,enabled
 )
-VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
-RETURNING id,name,url,events,body_template,retry_enabled,retry_count,retry_backoff_ms,retry_max_backoff_ms,retry_jitter,enabled,created_at,updated_at`,
+VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+RETURNING id,name,url,events,body_template,include_user_details,retry_enabled,retry_count,retry_backoff_ms,retry_max_backoff_ms,retry_jitter,enabled,created_at,updated_at`,
 		item.Name,
 		item.URL,
 		item.Events,
 		item.BodyTemplate,
+		item.IncludeUserDetails,
 		item.RetryEnabled,
 		item.RetryCount,
 		item.RetryBackoff.Milliseconds(),
@@ -138,20 +139,22 @@ SET name=$2,
     url=$3,
     events=$4,
     body_template=$5,
-    retry_enabled=$6,
-    retry_count=$7,
-    retry_backoff_ms=$8,
-    retry_max_backoff_ms=$9,
-    retry_jitter=$10,
-    enabled=$11,
+    include_user_details=$6,
+    retry_enabled=$7,
+    retry_count=$8,
+    retry_backoff_ms=$9,
+    retry_max_backoff_ms=$10,
+    retry_jitter=$11,
+    enabled=$12,
     updated_at=now()
 WHERE id=$1
-RETURNING id,name,url,events,body_template,retry_enabled,retry_count,retry_backoff_ms,retry_max_backoff_ms,retry_jitter,enabled,created_at,updated_at`,
+RETURNING id,name,url,events,body_template,include_user_details,retry_enabled,retry_count,retry_backoff_ms,retry_max_backoff_ms,retry_jitter,enabled,created_at,updated_at`,
 		id,
 		item.Name,
 		item.URL,
 		item.Events,
 		item.BodyTemplate,
+		item.IncludeUserDetails,
 		item.RetryEnabled,
 		item.RetryCount,
 		item.RetryBackoff.Milliseconds(),
@@ -194,6 +197,7 @@ func scanWebhook(row webhookRow) (domain.Webhook, error) {
 		&item.URL,
 		&item.Events,
 		&item.BodyTemplate,
+		&item.IncludeUserDetails,
 		&item.RetryEnabled,
 		&item.RetryCount,
 		&backoffMS,

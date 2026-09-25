@@ -74,18 +74,17 @@ func TestApplicationSettingsFromForm(t *testing.T) {
 	t.Parallel()
 
 	form := url.Values{
-		"allow_user_registration":            {"on"},
-		"discussions_enabled":                {"on"},
-		"integration_user_directory_enabled": {"on"},
-		"default_typography_size":            {" compact "},
-		"content_language":                   {" de-CH "},
-		"robots_policy":                      {" disallow "},
-		"external_link_label":                {" Repository ", "Status"},
-		"external_link_url":                  {" https://github.com/kumbuka-me/kumbuka ", "https://status.example.test"},
-		"external_link_icon":                 {" github-simple ", ""},
-		"external_link_description":          {" v2.4.1 ", ""},
-		"external_link_hover_effect":         {" lift ", "none"},
-		"external_link_hover_text":           {" {{label }} | {{description}} ", "Status page"},
+		"allow_user_registration":    {"on"},
+		"discussions_enabled":        {"on"},
+		"default_typography_size":    {" compact "},
+		"content_language":           {" de-CH "},
+		"robots_policy":              {" disallow "},
+		"external_link_label":        {" Repository ", "Status"},
+		"external_link_url":          {" https://github.com/kumbuka-me/kumbuka ", "https://status.example.test"},
+		"external_link_icon":         {" github-simple ", ""},
+		"external_link_description":  {" v2.4.1 ", ""},
+		"external_link_hover_effect": {" lift ", "none"},
+		"external_link_hover_text":   {" {{label }} | {{description}} ", "Status page"},
 	}
 	request := httptest.NewRequest("POST", "/admin/settings", strings.NewReader(form.Encode()))
 
@@ -96,7 +95,6 @@ func TestApplicationSettingsFromForm(t *testing.T) {
 
 	assert.True(t, settings.AllowUserRegistration)
 	assert.True(t, settings.DiscussionsEnabled)
-	assert.True(t, settings.IntegrationUserDirectoryEnabled)
 	assert.Equal(t, domain.TypographySizeCompact, settings.Rendering.DefaultTypographySize)
 	assert.Equal(t, "de-CH", settings.ContentLanguage)
 	assert.Equal(t, domain.RobotsPolicyDisallow, settings.RobotsPolicy)

@@ -32,6 +32,23 @@ type webhookRepositoryStub struct {
 	deliveryErr error
 }
 
+// webhookUserDirectoryStub resolves users by identifier for delivery tests.
+type webhookUserDirectoryStub struct {
+	// users contains test users keyed by stable identifier.
+	users map[int64]domain.User
+	// calls records requested user identifiers.
+	calls []int64
+}
+
+func (s *webhookUserDirectoryStub) User(_ context.Context, id int64) (domain.User, error) {
+	s.calls = append(s.calls, id)
+	user, ok := s.users[id]
+	if !ok {
+		return domain.User{}, domain.ErrNotFound
+	}
+	return user, nil
+}
+
 func (r *webhookRepositoryStub) Webhooks(context.Context) ([]domain.Webhook, error) {
 	return append([]domain.Webhook(nil), r.items...), nil
 }
@@ -191,6 +208,71 @@ func TestWebhooks(t *testing.T) {
 		assert.Equal(t, 1, repository.deliveries[0].Attempts)
 	})
 
+	t.Run("resolves opted-in actor and recipient details for the template", func(t *testing.T) {
+		t.Parallel()
+
+		received := make(chan []byte, 1)
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			body, _ := io.ReadAll(r.Body)
+			received <- body
+			w.WriteHeader(http.StatusNoContent)
+		}))
+		defer server.Close()
+
+		repository := &webhookRepositoryStub{items: []domain.Webhook{{
+			ID:                 1,
+			Name:               "notification-forwarder",
+			URL:                server.URL,
+			Events:             []string{EventNotificationCreated},
+			BodyTemplate:       `{"actor": {{ .Payload.Actor.Email | json }}, "recipient": {{ .Payload.Recipient.Email | json }}, "mention": {{ .Payload.Recipient.Mention | json }}}`,
+			IncludeUserDetails: true,
+			Enabled:            true,
+		}}}
+		users := &webhookUserDirectoryStub{users: map[int64]domain.User{
+			7: {ID: 7, Username: "alice", Email: "alice@example.test", DisplayName: "Alice", Enabled: true},
+			9: {ID: 9, Username: "bob", Email: "bob@example.test", DisplayName: "Bob", Enabled: true},
+		}}
+
+		err := NewWebhooks(repository, nil, testWebhookLogger(), "").WithUserDirectory(users).Emit(
+			context.Background(),
+			OutgoingEvent{Event: EventNotificationCreated, ActorID: 7, RecipientUserID: 9},
+		)
+
+		require.NoError(t, err)
+		var body map[string]any
+		require.NoError(t, json.Unmarshal(<-received, &body))
+		assert.Equal(t, "alice@example.test", body["actor"])
+		assert.Equal(t, "bob@example.test", body["recipient"])
+		assert.Equal(t, "@bob", body["mention"])
+		assert.Equal(t, []int64{7, 9}, users.calls)
+	})
+
+	t.Run("does not resolve user details unless the webhook opts in", func(t *testing.T) {
+		t.Parallel()
+
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusNoContent)
+		}))
+		defer server.Close()
+		repository := &webhookRepositoryStub{items: []domain.Webhook{{
+			ID:           1,
+			Name:         "generic",
+			URL:          server.URL,
+			Events:       []string{EventNotificationCreated},
+			BodyTemplate: `{"recipient_id": {{ .Payload.ActorID | json }}}`,
+			Enabled:      true,
+		}}}
+		users := &webhookUserDirectoryStub{users: map[int64]domain.User{}}
+
+		err := NewWebhooks(repository, nil, testWebhookLogger(), "").WithUserDirectory(users).Emit(
+			context.Background(),
+			OutgoingEvent{Event: EventNotificationCreated, ActorID: 7, RecipientUserID: 9},
+		)
+
+		require.NoError(t, err)
+		assert.Empty(t, users.calls)
+	})
+
 	t.Run("retries transient webhook failures with notifykit default policy", func(t *testing.T) {
 		t.Parallel()
 
@@ -330,20 +412,22 @@ func TestWebhooks(t *testing.T) {
 		cipher := testWebhookSecretCipher(t)
 		repository := &webhookRepositoryStub{}
 		_, err := NewWebhooks(repository, cipher, testWebhookLogger(), "").SaveWebhook(context.Background(), 0, WebhookInput{
-			Name:            "hook",
-			URL:             "https://example.test/hook",
-			Events:          []string{"page.updated"},
-			BodyTemplate:    `{"event": {{ .Input.Event | json }}}`,
-			Headers:         []WebhookHeaderInput{{Name: "authorization", Value: "Bearer secret", Sensitive: true}},
-			RetryEnabled:    true,
-			RetryCount:      2,
-			RetryBackoff:    time.Second,
-			RetryMaxBackoff: 30 * time.Second,
-			RetryJitter:     true,
-			Enabled:         true,
+			Name:               "hook",
+			URL:                "https://example.test/hook",
+			Events:             []string{"page.updated"},
+			BodyTemplate:       `{"event": {{ .Input.Event | json }}}`,
+			IncludeUserDetails: true,
+			Headers:            []WebhookHeaderInput{{Name: "authorization", Value: "Bearer secret", Sensitive: true}},
+			RetryEnabled:       true,
+			RetryCount:         2,
+			RetryBackoff:       time.Second,
+			RetryMaxBackoff:    30 * time.Second,
+			RetryJitter:        true,
+			Enabled:            true,
 		})
 
 		require.NoError(t, err)
+		assert.True(t, repository.saved.IncludeUserDetails)
 		require.Len(t, repository.saved.Headers, 1)
 		assert.Equal(t, "Authorization", repository.saved.Headers[0].Name)
 		assert.NotEqual(t, "Bearer secret", repository.saved.Headers[0].Value)

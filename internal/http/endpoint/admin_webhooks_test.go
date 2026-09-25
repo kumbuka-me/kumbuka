@@ -40,6 +40,7 @@ func TestSaveAdminWebhookParsesDeliveryConfiguration(t *testing.T) {
 		"url":                         {"https://hooks.example.test/kumbuka"},
 		"event":                       {"page.created", "page.updated"},
 		"body_template":               {`{"text": {{ .Payload.Detail | json }}}`},
+		"include_user_details":        {"on"},
 		"enabled":                     {"on"},
 		"retry_enabled":               {"on"},
 		"retry_count":                 {"4"},
@@ -70,6 +71,7 @@ func TestSaveAdminWebhookParsesDeliveryConfiguration(t *testing.T) {
 	assert.Equal(t, "https://hooks.example.test/kumbuka", stub.input.URL)
 	assert.Equal(t, []string{"page.created", "page.updated"}, stub.input.Events)
 	assert.Equal(t, `{"text": {{ .Payload.Detail | json }}}`, stub.input.BodyTemplate)
+	assert.True(t, stub.input.IncludeUserDetails)
 	assert.True(t, stub.input.Enabled)
 	assert.True(t, stub.input.RetryEnabled)
 	assert.Equal(t, 4, stub.input.RetryCount)

@@ -17,7 +17,6 @@ func (s *Store) ApplicationSettings(ctx context.Context) (domain.ApplicationSett
 SELECT
   allow_user_registration,
   discussions_enabled,
-	integration_user_directory_enabled,
   pdf_url,
   external_links,
   default_typography_size,
@@ -40,7 +39,6 @@ FROM application_settings
 WHERE singleton=true`).Scan(
 		&settings.AllowUserRegistration,
 		&settings.DiscussionsEnabled,
-		&settings.IntegrationUserDirectoryEnabled,
 		&settings.PDFURL,
 		&externalLinks,
 		&settings.Rendering.DefaultTypographySize,
@@ -81,17 +79,16 @@ func (s *Store) SaveApplicationSettings(ctx context.Context, settings domain.App
 	}
 
 	_, err = s.pool.Exec(ctx, `
-INSERT INTO application_settings(singleton,allow_user_registration,discussions_enabled,integration_user_directory_enabled,external_links,default_typography_size,content_language,robots_policy,updated_at)
-VALUES(true,$1,$2,$3,$4::jsonb,$5,$6,$7,now())
+INSERT INTO application_settings(singleton,allow_user_registration,discussions_enabled,external_links,default_typography_size,content_language,robots_policy,updated_at)
+VALUES(true,$1,$2,$3::jsonb,$4,$5,$6,now())
 ON CONFLICT(singleton) DO UPDATE
 SET allow_user_registration=EXCLUDED.allow_user_registration,
     discussions_enabled=EXCLUDED.discussions_enabled,
-	integration_user_directory_enabled=EXCLUDED.integration_user_directory_enabled,
     external_links=EXCLUDED.external_links,
     default_typography_size=EXCLUDED.default_typography_size,
     content_language=EXCLUDED.content_language,
     robots_policy=EXCLUDED.robots_policy,
-    updated_at=now()`, settings.AllowUserRegistration, settings.DiscussionsEnabled, settings.IntegrationUserDirectoryEnabled, string(externalLinks), settings.Rendering.DefaultTypographySize, settings.ContentLanguage, settings.RobotsPolicy)
+    updated_at=now()`, settings.AllowUserRegistration, settings.DiscussionsEnabled, string(externalLinks), settings.Rendering.DefaultTypographySize, settings.ContentLanguage, settings.RobotsPolicy)
 	return err
 }
 

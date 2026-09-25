@@ -191,11 +191,12 @@ func validNotificationURL(value string) bool {
 // emitCreated delivers one committed notification event as a best-effort side effect.
 func (s *Notifications) emitCreated(ctx context.Context, item domain.Notification, recipient domain.User) {
 	event := webhooks.OutgoingEvent{
-		Event:      webhooks.EventNotificationCreated,
-		ActorID:    item.ActorID,
-		ObjectType: "notification",
-		ObjectKey:  fmt.Sprint(item.ID),
-		OccurredAt: item.CreatedAt,
+		Event:           webhooks.EventNotificationCreated,
+		ActorID:         item.ActorID,
+		RecipientUserID: recipient.ID,
+		ObjectType:      "notification",
+		ObjectKey:       fmt.Sprint(item.ID),
+		OccurredAt:      item.CreatedAt,
 		Data: map[string]any{
 			"recipient":    map[string]any{"user_id": recipient.ID, "mention": "@" + recipient.Username, "display_name": recipient.DisplayName},
 			"notification": map[string]any{"title": item.Title, "body": item.Body, "url": item.URL, "source_type": item.SourceType, "source_id": item.SourceID, "source_name": item.SourceName},
