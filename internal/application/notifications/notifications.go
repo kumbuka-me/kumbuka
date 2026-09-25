@@ -9,6 +9,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/kumbuka-me/kumbuka/internal/application/audit"
 	"github.com/kumbuka-me/kumbuka/internal/application/webhooks"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/kumbuka-me/sdk"
@@ -71,14 +72,12 @@ type Notifications struct {
 
 // NewNotifications constructs the notification inbox service.
 func NewNotifications(repository notificationRepository, eventSinks ...webhooks.EventSink) *Notifications {
-	return &Notifications{repository: repository, logger: slog.Default(), eventSinks: eventSinks}
+	return &Notifications{repository: repository, logger: audit.Logger(nil), eventSinks: eventSinks}
 }
 
 // WithLogger uses logger for best-effort notification event diagnostics.
 func (s *Notifications) WithLogger(logger *slog.Logger) *Notifications {
-	if logger != nil {
-		s.logger = logger
-	}
+	s.logger = audit.Logger(logger)
 	return s
 }
 

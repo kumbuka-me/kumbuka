@@ -2,6 +2,7 @@ package notifications
 
 import (
 	"context"
+	"log/slog"
 	"testing"
 	"time"
 
@@ -11,6 +12,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// TestWithLoggerNormalizesNil verifies notification diagnostics always retain a usable logger.
+func TestWithLoggerNormalizesNil(t *testing.T) {
+	service := NewNotifications(nil).WithLogger(nil)
+
+	assert.Same(t, slog.Default(), service.logger)
+}
 
 // notificationRepositoryStub provides controllable notification repository behavior for tests.
 type notificationRepositoryStub struct {
