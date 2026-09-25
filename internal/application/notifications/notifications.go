@@ -186,7 +186,7 @@ func validNotificationURL(value string) bool {
 		return false
 	}
 	parsed, err := url.Parse(value)
-	return err == nil && parsed.IsAbs() == false && parsed.Host == "" && strings.HasPrefix(parsed.Path, "/") && !strings.HasPrefix(value, "//")
+	return err == nil && !parsed.IsAbs() && parsed.Host == "" && strings.HasPrefix(parsed.Path, "/") && !strings.HasPrefix(value, "//")
 }
 
 // emitCreated delivers one committed notification event as a best-effort side effect.

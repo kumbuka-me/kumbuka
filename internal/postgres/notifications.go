@@ -35,7 +35,20 @@ LIMIT $2`, userID, limit)
 
 	for rows.Next() {
 		var item domain.Notification
-		if err := rows.Scan(&item.ID, &item.Kind, &item.Title, &item.Body, &item.URL, &item.RecipientUserID, &item.ActorID, &item.SourceType, &item.SourceID, &item.SourceName, &item.ReadAt, &item.CreatedAt); err != nil {
+		if err := rows.Scan(
+			&item.ID,
+			&item.Kind,
+			&item.Title,
+			&item.Body,
+			&item.URL,
+			&item.RecipientUserID,
+			&item.ActorID,
+			&item.SourceType,
+			&item.SourceID,
+			&item.SourceName,
+			&item.ReadAt,
+			&item.CreatedAt,
+		); err != nil {
 			return nil, 0, err
 		}
 		notifications = append(notifications, item)
