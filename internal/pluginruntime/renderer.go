@@ -25,12 +25,11 @@ func NewRenderer(
 	secretCodec plugin.SecretCodec,
 	authorizeHTTP func(context.Context) bool,
 	invocationObserver wasm.InvocationObserver,
-	logger, setupLogger *slog.Logger,
+	logger *slog.Logger,
 	version, commit string,
 ) (*markdown.Renderer, error) {
 	archives, err := plugins.Archives()
 	if err != nil {
-		setupLogger.Error("load bundled plugins", "event", "plugin_packages_load_failed", "error", err)
 		return nil, err
 	}
 
@@ -59,7 +58,6 @@ func NewRenderer(
 		wasm.WithLogger(logger),
 	)
 	if err != nil {
-		setupLogger.Error("create markdown renderer", "event", "markdown_renderer_failed", "error", err)
 		return nil, err
 	}
 

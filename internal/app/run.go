@@ -136,11 +136,27 @@ func Run(
 	editorSave := apppages.NewEditorSave(mutations, drafts, templates, serverLogger)
 	viewPage := apppages.NewView(database, access, reviews, serverLogger)
 
-	// Configure browser authentication and construct the plugin runtime.
-	browserAuth, renderer, err := createRunRuntime(ctx, cfg, database, secretCipher, metricsRegistry, logger, setupLogger, version, commit)
+	// Configure browser authentication.
+	browserAuth, err := auth.ConfigureBrowserAuth(ctx, browserAuthConfig(cfg), database)
 	if err != nil {
-		return err
+		return setupFailure(logger, "configure browser auth", "browser_auth_failed", err)
 	}
+
+	// Construct the plugin runtime.
+	renderer, err := pluginruntime.NewRenderer(
+		ctx,
+		database,
+		secretCipher,
+		authenticatedPluginRequest,
+		metricsRegistry,
+		logger.With("component", "plugins"),
+		version,
+		commit,
+	)
+	if err != nil {
+		return setupFailure(logger, "create plugin runtime", "plugin_runtime_failed", err)
+	}
+
 	defer closeRenderer(renderer, setupLogger)
 	metricsRegistry.RegisterPluginProvider(renderer.PluginManager())
 	bearerAuth := auth.NewBearer(database)
@@ -165,9 +181,9 @@ func Run(
 	)
 
 	// Construct and configure the passive HTML presentation adapter.
-	views, err := createRunViews(appFS, logger, setupLogger, version, commit, availableThemes, cfg, secretCipher, iconCatalog, renderer)
+	views, err := createRunViews(appFS, logger, version, commit, availableThemes, cfg, secretCipher, iconCatalog, renderer)
 	if err != nil {
-		return err
+		return setupFailure(logger, "create views", "views_create_failed", err)
 	}
 
 	// Compose the shared authenticated browser context used by presentation endpoints.
@@ -288,41 +304,10 @@ func openRunDatabase(ctx context.Context, cfg flags.Config, logger *slog.Logger)
 	return database, nil
 }
 
-// createRunRuntime configures browser authentication and the Markdown/plugin runtime.
-func createRunRuntime(
-	ctx context.Context,
-	cfg flags.Config,
-	database *postgres.Store,
-	secretCipher *secrets.Cipher,
-	metricsRegistry *appmetrics.Registry,
-	logger, setupLogger *slog.Logger,
-	version, commit string,
-) (auth.BrowserAuth, *markdown.Renderer, error) {
-	browserAuth, err := auth.ConfigureBrowserAuth(ctx, browserAuthConfig(cfg), database)
-	if err != nil {
-		return auth.BrowserAuth{}, nil, setupFailure(setupLogger, "configure browser auth", "browser_auth_failed", err)
-	}
-	renderer, err := pluginruntime.NewRenderer(
-		ctx,
-		database,
-		secretCipher,
-		authenticatedPluginRequest,
-		metricsRegistry,
-		logger.With("component", "plugins"),
-		setupLogger,
-		version,
-		commit,
-	)
-	if err != nil {
-		return auth.BrowserAuth{}, nil, err
-	}
-	return browserAuth, renderer, nil
-}
-
 // createRunViews constructs views and enables optional render diagnostics.
 func createRunViews(
 	appFS fs.FS,
-	logger, setupLogger *slog.Logger,
+	logger *slog.Logger,
 	version, commit string,
 	availableThemes []themes.Theme,
 	cfg flags.Config,
@@ -330,9 +315,17 @@ func createRunViews(
 	iconCatalog *icons.Catalog,
 	renderer *markdown.Renderer,
 ) (*webview.Views, error) {
-	views, err := webview.New(appFS, logger, version, commit, availableThemes, runtimeinfo.New(cfg, secretCipher.Configured()), iconCatalog)
+	views, err := webview.New(
+		appFS,
+		logger,
+		version,
+		commit,
+		availableThemes,
+		runtimeinfo.New(cfg, secretCipher.Configured()),
+		iconCatalog,
+	)
 	if err != nil {
-		return nil, setupFailure(setupLogger, "create views", "views_create_failed", err)
+		return nil, err
 	}
 	views.WithRenderErrorHandler(httpresponse.InternalServerError)
 	if cfg.DebugRenderTimings {
