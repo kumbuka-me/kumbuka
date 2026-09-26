@@ -11,6 +11,7 @@ import (
 	"github.com/kumbuka-me/kumbuka/internal/application/webhooks"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	md "github.com/kumbuka-me/kumbuka/pkg/markdown"
+	"github.com/kumbuka-me/kumbuka/pkg/pagemove"
 	"github.com/kumbuka-me/kumbuka/pkg/pluginusage"
 	"github.com/kumbuka-me/kumbuka/pkg/revision"
 )
@@ -372,16 +373,10 @@ func (s *Mutations) Move(
 	options domain.MovePageOptions,
 	actor domain.User,
 ) error {
-	oldSlug = strings.Trim(strings.TrimSpace(oldSlug), "/")
-	newSlug = md.Slug(newSlug)
-	if oldSlug == "" || newSlug == "" {
-		return &domain.ValidationError{Fields: []domain.FieldError{{Field: "slug", Message: "A destination path is required."}}}
-	}
-	if oldSlug == newSlug {
-		return domain.NewValidationError("slug", "Choose a different destination path.")
-	}
-	if options.MoveChildren && strings.HasPrefix(newSlug, oldSlug+"/") {
-		return domain.NewValidationError("slug", "A page tree cannot be moved inside itself.")
+	var err error
+	oldSlug, newSlug, err = pagemove.Normalize(oldSlug, newSlug, options)
+	if err != nil {
+		return err
 	}
 	if err := s.authorization.requireEdit(ctx, actor, oldSlug); err != nil {
 		return err

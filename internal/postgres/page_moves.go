@@ -3,12 +3,12 @@ package postgres
 import (
 	"cmp"
 	"context"
-	"path"
 	"slices"
 	"strings"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
+	"github.com/kumbuka-me/kumbuka/pkg/pagemove"
 )
 
 // movedPage describes one page path included in a tree move.
@@ -46,9 +46,10 @@ func (s *Store) MovePage(ctx context.Context, oldSlug, newSlug string, options d
 
 // BulkMovePages moves every selected page atomically beneath one target path.
 func (s *Store) BulkMovePages(ctx context.Context, slugs []string, target string, user domain.User) error {
-	target = strings.Trim(strings.TrimSpace(target), "/")
-	if target == "" {
-		return domain.NewValidationError("target", "A target path is required.")
+	var err error
+	target, err = pagemove.NormalizeTarget(target)
+	if err != nil {
+		return err
 	}
 
 	ordered := slices.Clone(slugs)
@@ -64,14 +65,9 @@ func (s *Store) BulkMovePages(ctx context.Context, slugs []string, target string
 
 	options := domain.MovePageOptions{UpdateIncomingLinks: true, KeepAliases: true}
 	for _, slug := range ordered {
-		source := strings.Trim(strings.TrimSpace(slug), "/")
-		if source == "" {
-			return domain.NewValidationError("pages", "Choose valid pages to move.")
-		}
-
-		destination := target + "/" + path.Base(source)
-		if source == destination {
-			return domain.NewValidationError("target", "Choose a different destination for every selected page.")
+		source, destination, err := pagemove.Destination(slug, target)
+		if err != nil {
+			return err
 		}
 		if err := movePage(ctx, tx, source, destination, options, user); err != nil {
 			return mutationError(err)
@@ -83,7 +79,7 @@ func (s *Store) BulkMovePages(ctx context.Context, slugs []string, target string
 
 // movePage applies one page move inside the caller-owned transaction.
 func movePage(ctx context.Context, tx pgx.Tx, oldSlug, newSlug string, options domain.MovePageOptions, user domain.User) error {
-	oldSlug, newSlug, err := normalizeMoveSlugs(oldSlug, newSlug, options)
+	oldSlug, newSlug, err := pagemove.Normalize(oldSlug, newSlug, options)
 	if err != nil {
 		return err
 	}
@@ -112,25 +108,6 @@ func movePage(ctx context.Context, tx pgx.Tx, oldSlug, newSlug string, options d
 	}
 
 	return nil
-}
-
-// validMoveSlugPair reports whether source and destination are distinct non-empty page paths.
-func validMoveSlugPair(oldSlug, newSlug string) bool {
-	return oldSlug != "" && newSlug != "" && oldSlug != newSlug
-}
-
-// normalizeMoveSlugs normalizes and validates the source and destination paths for a move.
-func normalizeMoveSlugs(oldSlug, newSlug string, options domain.MovePageOptions) (string, string, error) {
-	oldSlug = strings.Trim(strings.TrimSpace(oldSlug), "/")
-	newSlug = strings.Trim(strings.TrimSpace(newSlug), "/")
-	if !validMoveSlugPair(oldSlug, newSlug) {
-		return "", "", domain.NewValidationError("slug", "Choose a different, non-empty destination path.")
-	}
-	if options.MoveChildren && strings.HasPrefix(newSlug, oldSlug+"/") {
-		return "", "", domain.NewValidationError("slug", "A page tree cannot be moved inside itself.")
-	}
-
-	return oldSlug, newSlug, nil
 }
 
 // loadMovedPages loads the source page set and calculates each destination path.

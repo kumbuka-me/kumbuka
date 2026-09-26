@@ -5,12 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"path"
 	"strings"
 
 	"github.com/kumbuka-me/kumbuka/internal/application/webhooks"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	md "github.com/kumbuka-me/kumbuka/pkg/markdown"
+	"github.com/kumbuka-me/kumbuka/pkg/pagemove"
 )
 
 // ImportedPage contains one transport-independent page discovered by an importer.
@@ -243,15 +243,15 @@ func (s *Bulk) Bulk(ctx context.Context, input BulkPageInput) error {
 
 // bulkMove validates the requested target and delegates the complete move set as one transaction.
 func (s *Bulk) bulkMove(ctx context.Context, slugs []string, target string, actor domain.User) error {
-	target = md.Slug(target)
-	if target == "" {
-		return domain.NewValidationError("target", "A target path is required.")
+	var err error
+	target, err = pagemove.NormalizeTarget(target)
+	if err != nil {
+		return err
 	}
 
 	for _, slug := range slugs {
-		source := strings.Trim(strings.TrimSpace(slug), "/")
-		if source == "" || source == target+"/"+path.Base(source) {
-			return domain.NewValidationError("target", "Choose a different destination for every selected page.")
+		if _, _, err := pagemove.Destination(slug, target); err != nil {
+			return err
 		}
 	}
 
