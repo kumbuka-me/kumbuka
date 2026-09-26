@@ -143,6 +143,8 @@ func Run(
 	groups := appgroups.NewGroups(database)
 	knowledge := appsearch.NewKnowledge(database, access)
 	notifications := appnotifications.NewNotifications(database, webhooks).WithLogger(logger.With("component", "notifications"))
+	mutations.WithMentionNotifications(notifications)
+	discussions.WithMentionNotifications(notifications)
 	media := appmedia.NewMedia(database)
 	navigation := appnavigation.NewNavigation(database, access)
 	preferences := apppreferences.NewPreferences(database)

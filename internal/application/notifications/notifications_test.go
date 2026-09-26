@@ -87,6 +87,11 @@ func (*notificationRepositoryStub) User(_ context.Context, id int64) (domain.Use
 	return domain.User{ID: id, Username: "alice", DisplayName: "Alice", Enabled: true}, nil
 }
 
+// UserByUsername returns one enabled notification recipient by mention name.
+func (*notificationRepositoryStub) UserByUsername(_ context.Context, username string) (domain.User, error) {
+	return domain.User{ID: 42, Username: username, DisplayName: "Alice", Enabled: true}, nil
+}
+
 // CreateNotification records and returns one committed notification.
 func (s *notificationRepositoryStub) CreateNotification(_ context.Context, item domain.Notification) (domain.Notification, bool, error) {
 	s.created = item
@@ -131,6 +136,30 @@ func TestSendPluginCreatesAttributedNotificationAndEvent(t *testing.T) {
 	assert.Equal(t, int64(42), sink.event.RecipientUserID)
 	recipient := sink.event.Data["recipient"].(map[string]any)
 	assert.Equal(t, "@alice", recipient["mention"])
+}
+
+// TestSendMentionsCreatesCoreNotificationAndEvent verifies page mentions include self-mentions and emit notification webhooks.
+func TestSendMentionsCreatesCoreNotificationAndEvent(t *testing.T) {
+	t.Parallel()
+	repository := &notificationRepositoryStub{createNew: true}
+	sink := &notificationEventSink{}
+
+	err := NewNotifications(repository, sink).SendMentions(
+		context.Background(),
+		42,
+		"Please review, @alice.",
+		"Mention in Example",
+		"/pages/example",
+	)
+
+	require.NoError(t, err)
+	assert.Equal(t, domain.NotificationKindMention, repository.created.Kind)
+	assert.Equal(t, domain.NotificationSourceCore, repository.created.SourceType)
+	assert.Equal(t, int64(42), repository.created.ActorID)
+	assert.Equal(t, int64(42), repository.created.RecipientUserID)
+	assert.Equal(t, "notification.created", sink.event.Event)
+	assert.Equal(t, int64(42), sink.event.ActorID)
+	assert.Equal(t, int64(42), sink.event.RecipientUserID)
 }
 
 // TestSendPluginDoesNotEmitForIdempotentReplay verifies retried mutations do not duplicate events.

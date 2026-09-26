@@ -57,7 +57,7 @@ LIMIT $2`, userID, limit)
 	return notifications, unread, rows.Err()
 }
 
-// CreateNotification atomically inserts or resolves one idempotent plugin notification.
+// CreateNotification inserts one notification and resolves idempotent plugin retries to the existing row.
 func (s *Store) CreateNotification(ctx context.Context, item domain.Notification) (domain.Notification, bool, error) {
 	var created bool
 	err := s.pool.QueryRow(ctx, `
@@ -187,21 +187,32 @@ WHERE id=$1 AND user_id IS NOT NULL AND user_id<>$2`, parentID, actorID).Scan(&u
 	)
 }
 
-// NotifyMentions creates notifications for distinct @username references in text.
+// NotifyMentions creates fallback core notifications for distinct @username references in text.
+// The application notification service is preferred because it also emits notification.created events.
 func (s *Store) NotifyMentions(ctx context.Context, actorID int64, text, title, url string) error {
 	for _, username := range mentionedUsernames(text) {
 		var userID int64
 		err := s.pool.QueryRow(ctx, `
 SELECT id
 FROM users
-WHERE lower(username)=lower($1) AND id<>$2`, username, actorID).Scan(&userID)
+WHERE lower(username)=lower($1) AND enabled`, username).Scan(&userID)
 		if errors.Is(err, pgx.ErrNoRows) {
 			continue
 		}
 		if err != nil {
 			return err
 		}
-		if err := s.AddNotification(ctx, userID, "mention", title, "You were mentioned in page content.", url); err != nil {
+		_, _, err = s.CreateNotification(ctx, domain.Notification{
+			Kind:            domain.NotificationKindMention,
+			Title:           title,
+			Body:            "You were mentioned in page content.",
+			URL:             url,
+			RecipientUserID: userID,
+			ActorID:         actorID,
+			SourceType:      domain.NotificationSourceCore,
+			SourceName:      "Kumbuka",
+		})
+		if err != nil {
 			return err
 		}
 	}

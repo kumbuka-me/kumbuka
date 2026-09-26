@@ -148,6 +148,80 @@ func TestWebhooks(t *testing.T) {
 		assert.True(t, item.RetryJitter)
 	})
 
+	t.Run("test delivery uses one configured event and the administrator as sample user", func(t *testing.T) {
+		t.Parallel()
+
+		type receivedWebhook struct {
+			event string
+			body  []byte
+		}
+		received := make(chan receivedWebhook, 1)
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			body, _ := io.ReadAll(r.Body)
+			received <- receivedWebhook{event: r.Header.Get("X-Kumbuka-Event"), body: body}
+			w.WriteHeader(http.StatusNoContent)
+		}))
+		defer server.Close()
+
+		repository := &webhookRepositoryStub{items: []domain.Webhook{{
+			ID:                 1,
+			Name:               "mail",
+			URL:                server.URL,
+			Events:             []string{EventNotificationCreated},
+			BodyTemplate:       `{{- $notification := index .Payload.Data "notification" -}}{"recipient": {{ .Payload.Recipient.Email | json }}, "mention": {{ .Payload.Recipient.Mention | json }}, "subject": {{ index $notification "title" | json }}}`,
+			IncludeUserDetails: true,
+			Enabled:            true,
+		}}}
+		administrator := domain.User{
+			ID: 7, Username: "admin", DisplayName: "Admin User", Email: "admin@example.test", Enabled: true,
+		}
+
+		err := NewWebhooks(repository, nil, testWebhookLogger(), "https://kumbuka.example").TestWebhook(
+			context.Background(),
+			1,
+			EventNotificationCreated,
+			administrator,
+		)
+
+		require.NoError(t, err)
+		request := <-received
+		assert.Equal(t, EventNotificationCreated, request.event)
+		var body map[string]any
+		require.NoError(t, json.Unmarshal(request.body, &body))
+		assert.Equal(t, "admin@example.test", body["recipient"])
+		assert.Equal(t, "@admin", body["mention"])
+		assert.Equal(t, "Test notification from Kumbuka", body["subject"])
+		require.Len(t, repository.deliveries, 1)
+		assert.Equal(t, EventNotificationCreated, repository.deliveries[0].Event)
+		assert.Equal(t, http.StatusNoContent, repository.deliveries[0].StatusCode)
+	})
+
+	t.Run("test delivery rejects events not configured on the webhook", func(t *testing.T) {
+		t.Parallel()
+
+		repository := &webhookRepositoryStub{items: []domain.Webhook{{
+			ID:           1,
+			Name:         "mail",
+			URL:          "https://example.test/hook",
+			Events:       []string{EventNotificationCreated},
+			BodyTemplate: `{}`,
+			Enabled:      true,
+		}}}
+
+		err := NewWebhooks(repository, nil, testWebhookLogger(), "").TestWebhook(
+			context.Background(),
+			1,
+			"page.updated",
+			domain.User{ID: 7},
+		)
+
+		validation, ok := errors.AsType[*domain.ValidationError](err)
+		require.True(t, ok)
+		require.Len(t, validation.Fields, 1)
+		assert.Equal(t, "event", validation.Fields[0].Field)
+		assert.Empty(t, repository.deliveries)
+	})
+
 	t.Run("renders custom payload and decrypts request headers", func(t *testing.T) {
 		t.Parallel()
 

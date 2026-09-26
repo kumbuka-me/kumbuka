@@ -302,7 +302,17 @@
                   </div>
                 </form>
                 <div class="webhook-secondary-actions">
-                  <form action="/admin/webhooks/{{ .ID }}/test" method="post">
+                  <form action="/admin/webhooks/{{ .ID }}/test"
+                        method="post"
+                        class="webhook-test-form">
+                    <label class="sr-only" for="webhook-test-event-{{ .ID }}">Test event</label>
+                    <select id="webhook-test-event-{{ .ID }}"
+                            name="event"
+                            aria-label="Test event">
+                      {{ range .Events }}
+                        <option value="{{ . }}">{{ . }}</option>
+                      {{ end }}
+                    </select>
                     <button class="button" type="submit">{{ icon "send-lucide" 15 }}<span>Send test</span></button>
                   </form>
                   <form action="/admin/webhooks/{{ .ID }}/delete"

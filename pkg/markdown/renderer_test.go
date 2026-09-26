@@ -534,3 +534,26 @@ func TestSyntaxHighlightingFallsBackForUnknownLanguage(t *testing.T) {
 	assert.Contains(t, got, `<pre><code class="language-not-a-real-language">plain &lt;text&gt;`)
 	assert.NotContains(t, got, `class="chroma"`)
 }
+
+func TestUserMentionsRenderAsChips(t *testing.T) {
+	t.Parallel()
+
+	renderer := testRenderer(t)
+	got, err := renderer.Render("@admin: please review with @Alice.\n")
+
+	require.NoError(t, err)
+	assert.Contains(t, got, `<span class="user-mention">@admin</span>:`)
+	assert.Contains(t, got, `<span class="user-mention">@Alice.</span>`)
+}
+
+func TestUserMentionsStayLiteralInCodeAndEmailAddresses(t *testing.T) {
+	t.Parallel()
+
+	renderer := testRenderer(t)
+	got, err := renderer.Render("Contact admin@example.com or run `echo @admin`.\n")
+
+	require.NoError(t, err)
+	assert.NotContains(t, got, `class="user-mention"`)
+	assert.Contains(t, got, `admin@example.com`)
+	assert.Contains(t, got, `<code>echo @admin</code>`)
+}

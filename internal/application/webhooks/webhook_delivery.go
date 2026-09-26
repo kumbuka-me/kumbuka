@@ -16,23 +16,27 @@ import (
 
 var webhookClient = notifywebhook.NewClient(5 * time.Second)
 
-// TestWebhook sends a diagnostic event to one webhook regardless of its filters.
-func (s *Webhooks) TestWebhook(ctx context.Context, id int64) error {
+// TestWebhook sends one representative configured event to a webhook using the administrator as sample user data.
+func (s *Webhooks) TestWebhook(ctx context.Context, id int64, eventName string, actor domain.User) error {
 	item, err := s.repository.Webhook(ctx, id)
 	if err != nil {
 		return err
 	}
 	normalizeStoredWebhook(&item)
 
-	event := OutgoingEvent{
-		Event:      "webhook.test",
-		ObjectType: "webhook",
-		ObjectKey:  item.Name,
-		Detail:     "Test delivery from Kumbuka",
-		OccurredAt: time.Now().UTC(),
+	eventName = strings.TrimSpace(eventName)
+	if !slices.Contains(item.Events, eventName) {
+		return domain.NewValidationError("event", "Choose an event configured for this webhook.")
 	}
 
-	return s.deliver(ctx, item, event)
+	notification := webhookTemplateSampleNotification(
+		eventName,
+		s.publicURL,
+		item.IncludeUserDetails,
+		actor,
+		actor,
+	)
+	return s.deliverWithNotification(ctx, item, notification.event, &notification)
 }
 
 // Emit delivers one committed application event to every matching webhook.
@@ -64,6 +68,16 @@ func (s *Webhooks) Emit(ctx context.Context, event OutgoingEvent) error {
 
 // deliver renders and sends one webhook through Notifykit and records its final outcome.
 func (s *Webhooks) deliver(ctx context.Context, item domain.Webhook, event OutgoingEvent) error {
+	return s.deliverWithNotification(ctx, item, event, nil)
+}
+
+// deliverWithNotification optionally uses prepared template data for explicit test deliveries.
+func (s *Webhooks) deliverWithNotification(
+	ctx context.Context,
+	item domain.Webhook,
+	event OutgoingEvent,
+	prepared *webhookNotification,
+) error {
 	headers, err := s.webhookRequestHeaders(item, event)
 	if err != nil {
 		s.recordWebhookDelivery(ctx, item.ID, event.Event, 0, 0, err.Error()) // nolint:errcheck
@@ -105,10 +119,15 @@ func (s *Webhooks) deliver(ctx context.Context, item domain.Webhook, event Outgo
 		})
 	}
 
-	notification, err := s.webhookNotification(ctx, item, event)
-	if err != nil {
-		s.recordWebhookDelivery(ctx, item.ID, event.Event, 0, 0, err.Error()) // nolint:errcheck
-		return err
+	notification := webhookNotification{}
+	if prepared != nil {
+		notification = *prepared
+	} else {
+		notification, err = s.webhookNotification(ctx, item, event)
+		if err != nil {
+			s.recordWebhookDelivery(ctx, item.ID, event.Event, 0, 0, err.Error()) // nolint:errcheck
+			return err
+		}
 	}
 	deliveryErr := kit.Send(ctx, notification, kit.NewReceivers(receiver), s.logger)
 	message := ""
@@ -169,13 +188,18 @@ func (s *Webhooks) webhookTemplateUser(ctx context.Context, id int64) (*webhookT
 	if err != nil {
 		return nil, err
 	}
+	return webhookTemplateUserValue(user), nil
+}
+
+// webhookTemplateUserValue converts one domain user into the restricted contact shape exposed to webhook templates.
+func webhookTemplateUserValue(user domain.User) *webhookTemplateUser {
 	return &webhookTemplateUser{
 		ID:          user.ID,
 		Mention:     "@" + user.Username,
 		DisplayName: user.DisplayName,
 		Email:       user.Email,
 		Enabled:     user.Enabled,
-	}, nil
+	}
 }
 
 // webhookRequestHeaders decrypts sensitive headers and adds Kumbuka request metadata.

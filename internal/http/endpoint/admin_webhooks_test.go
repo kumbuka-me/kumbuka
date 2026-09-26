@@ -12,6 +12,7 @@ import (
 	"time"
 
 	appwebhooks "github.com/kumbuka-me/kumbuka/internal/application/webhooks"
+	"github.com/kumbuka-me/kumbuka/internal/http/auth"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -114,4 +115,40 @@ func TestWebhookRetryFromFormRejectsInvalidDuration(t *testing.T) {
 	_, _, _, err := webhookRetryFromForm(request)
 
 	require.Error(t, err)
+}
+
+// webhookAdminTestStub records explicit webhook test deliveries.
+type webhookAdminTestStub struct {
+	webhookAdminService
+	id    int64
+	event string
+	actor domain.User
+}
+
+func (s *webhookAdminTestStub) TestWebhook(_ context.Context, id int64, event string, actor domain.User) error {
+	s.id = id
+	s.event = event
+	s.actor = actor
+	return nil
+}
+
+func TestAdminWebhookSendsSelectedEventAsCurrentAdministrator(t *testing.T) {
+	t.Parallel()
+
+	form := url.Values{"event": {appwebhooks.EventNotificationCreated}}
+	request := httptest.NewRequest(http.MethodPost, "/admin/webhooks/9/test", strings.NewReader(form.Encode()))
+	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	request.SetPathValue("id", "9")
+	administrator := domain.User{ID: 7, Username: "admin", Email: "admin@example.test", Role: domain.UserRoleAdmin}
+	request = auth.WithUser(request, administrator)
+	response := httptest.NewRecorder()
+	stub := &webhookAdminTestStub{}
+
+	TestAdminWebhook(stub, slog.New(slog.NewTextHandler(io.Discard, nil)))(response, request)
+
+	assert.Equal(t, http.StatusSeeOther, response.Code)
+	assert.Equal(t, "/admin/webhooks", response.Header().Get("Location"))
+	assert.Equal(t, int64(9), stub.id)
+	assert.Equal(t, appwebhooks.EventNotificationCreated, stub.event)
+	assert.Equal(t, administrator, stub.actor)
 }

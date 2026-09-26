@@ -124,6 +124,14 @@ func NewMutations(
 	}
 }
 
+// WithMentionNotifications routes page mentions through the shared notification service.
+func (s *Mutations) WithMentionNotifications(sender MentionNotificationSender) *Mutations {
+	if s.effects != nil {
+		s.effects.withMentionNotifications(sender)
+	}
+	return s
+}
+
 // WithIconValidator uses the active icon capability for page validation.
 func (s *Mutations) WithIconValidator(validator pageIconValidator) *Mutations {
 	s.icons = validator

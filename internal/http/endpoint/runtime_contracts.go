@@ -39,6 +39,6 @@ type webhookAdminService interface {
 	WebhookDeliveries(context.Context, int) ([]domain.WebhookDelivery, error)
 	SaveWebhook(context.Context, int64, appwebhooks.WebhookInput) (domain.Webhook, error)
 	DeleteWebhook(context.Context, int64) error
-	TestWebhook(context.Context, int64) error
+	TestWebhook(context.Context, int64, string, domain.User) error
 	RevealWebhookHeader(context.Context, int64, int64) (string, error)
 }

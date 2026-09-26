@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/kumbuka-me/kumbuka/pkg/icons"
+	"github.com/kumbuka-me/kumbuka/pkg/mention"
 	"github.com/kumbuka-me/kumbuka/pkg/plugin"
 	"github.com/kumbuka-me/kumbuka/pkg/pluginusage"
 	"github.com/kumbuka-me/kumbuka/pkg/renderprofile"
@@ -116,9 +117,9 @@ func (e markdownEngine) Convert(source []byte, output io.Writer) error {
 }
 
 // engine constructs a Goldmark renderer from administrator-controlled options.
-func engine(contributed []plugin.MarkdownComponents, annotationRanges []annotationRange) markdownEngine {
+func engine(contributed []plugin.MarkdownComponents, annotationRanges []annotationRange, mentionRanges []mention.Range) markdownEngine {
 	parserExtensions := make([]parser.Extension, 0, len(contributed))
-	rendererExtensions := make([]goldhtml.Extension, 0, len(contributed)+1)
+	rendererExtensions := make([]goldhtml.Extension, 0, len(contributed)+2)
 	for _, components := range contributed {
 		if components.Parser != nil {
 			parserExtensions = append(parserExtensions, components.Parser)
@@ -127,7 +128,7 @@ func engine(contributed []plugin.MarkdownComponents, annotationRanges []annotati
 			rendererExtensions = append(rendererExtensions, components.HTMLRenderer)
 		}
 	}
-	rendererExtensions = append(rendererExtensions, annotationHTMLRendererExtension{ranges: annotationRanges})
+	rendererExtensions = append(rendererExtensions, mentionHTMLRendererExtension{}, annotationHTMLRendererExtension{ranges: annotationRanges})
 
 	return markdownEngine{
 		parser: parser.New(
@@ -135,6 +136,7 @@ func engine(contributed []plugin.MarkdownComponents, annotationRanges []annotati
 			parser.WithExtensions(parserExtensions...),
 			parser.WithASTTransformers(
 				util.Prioritized[parser.ASTTransformer](imageWidthTransformer{}, 100),
+				util.Prioritized[parser.ASTTransformer](mentionTransformer{ranges: mentionRanges}, 200),
 				util.Prioritized[parser.ASTTransformer](annotationTransformer{ranges: annotationRanges}, 210),
 			),
 		),
@@ -410,7 +412,7 @@ func (r *Renderer) renderRawResolved(
 	// Conversion invokes contributed parsers, transformers, and node renderers.
 	stop = options.pipeline.trace.Measure("goldmark")
 	_, err = plugin.Guard("Markdown conversion", func() (struct{}, error) {
-		return struct{}{}, engine(extensions, annotationRanges).Convert([]byte(source), &output)
+		return struct{}{}, engine(extensions, annotationRanges, mention.Ranges(source)).Convert([]byte(source), &output)
 	})
 	stop()
 	if err != nil {

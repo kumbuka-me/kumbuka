@@ -12,6 +12,7 @@ import (
 	"github.com/kumbuka-me/kumbuka/internal/application/audit"
 	"github.com/kumbuka-me/kumbuka/internal/application/webhooks"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
+	"github.com/kumbuka-me/kumbuka/pkg/mention"
 	"github.com/kumbuka-me/sdk"
 )
 
@@ -57,6 +58,12 @@ type notificationRepository interface {
 // notificationCreator contains persistence required only for plugin-created notifications.
 type notificationCreator interface {
 	User(context.Context, int64) (domain.User, error)
+	CreateNotification(context.Context, domain.Notification) (domain.Notification, bool, error)
+}
+
+// mentionNotificationCreator provides persistence and account lookup for core mention notifications.
+type mentionNotificationCreator interface {
+	UserByUsername(context.Context, string) (domain.User, error)
 	CreateNotification(context.Context, domain.Notification) (domain.Notification, bool, error)
 }
 
@@ -140,6 +147,53 @@ func (s *Notifications) SendPlugin(
 	return sdk.Notification{ID: item.ID, RecipientUserID: item.RecipientUserID, CreatedAt: item.CreatedAt}, err
 }
 
+// SendMentions creates core-owned notifications for each distinct enabled user mentioned in text.
+// Self-mentions are intentionally delivered so testing and personal workflows behave like any other mention.
+func (s *Notifications) SendMentions(ctx context.Context, actorID int64, text, title, url string) error {
+	title = strings.TrimSpace(title)
+	url = strings.TrimSpace(url)
+	body := "You were mentioned in page content."
+	if err := validateCoreNotification(actorID, title, body, url); err != nil {
+		return err
+	}
+	creator, ok := s.repository.(mentionNotificationCreator)
+	if !ok {
+		return errors.New("mention notification creation unavailable")
+	}
+
+	for _, username := range mention.Usernames(text) {
+		recipient, err := creator.UserByUsername(ctx, username)
+		if errors.Is(err, domain.ErrNotFound) {
+			continue
+		}
+		if err != nil {
+			return err
+		}
+		if !recipient.Enabled {
+			continue
+		}
+
+		item, created, err := creator.CreateNotification(ctx, domain.Notification{
+			Kind:            domain.NotificationKindMention,
+			Title:           title,
+			Body:            body,
+			URL:             url,
+			RecipientUserID: recipient.ID,
+			ActorID:         actorID,
+			SourceType:      domain.NotificationSourceCore,
+			SourceName:      "Kumbuka",
+		})
+		if err != nil {
+			return err
+		}
+		if created {
+			s.emitCreated(ctx, item, recipient)
+		}
+	}
+
+	return nil
+}
+
 // normalizeCreateInput trims plugin-controlled scalar values before validation.
 func normalizeCreateInput(input CreateInput) CreateInput {
 	input.Title = strings.TrimSpace(input.Title)
@@ -168,6 +222,27 @@ func validateCreateInput(input CreateInput) error {
 		validation.Fields = append(validation.Fields, domain.FieldError{Field: "idempotency_key", Message: "Use a valid idempotency key."})
 	}
 	if !validNotificationURL(input.URL) {
+		validation.Fields = append(validation.Fields, domain.FieldError{Field: "url", Message: "Use a local Kumbuka URL."})
+	}
+	if len(validation.Fields) != 0 {
+		return validation
+	}
+	return nil
+}
+
+// validateCoreNotification validates one trusted core notification before persistence.
+func validateCoreNotification(actorID int64, title, body, url string) error {
+	validation := &domain.ValidationError{}
+	if actorID <= 0 {
+		validation.Fields = append(validation.Fields, domain.FieldError{Field: "actor_id", Message: "Notification attribution is unavailable."})
+	}
+	if title == "" || len(title) > maxNotificationTitleBytes || !utf8.ValidString(title) {
+		validation.Fields = append(validation.Fields, domain.FieldError{Field: "title", Message: "Use a valid notification title."})
+	}
+	if len(body) > maxNotificationBodyBytes || !utf8.ValidString(body) {
+		validation.Fields = append(validation.Fields, domain.FieldError{Field: "body", Message: "Notification body is too long."})
+	}
+	if !validNotificationURL(url) {
 		validation.Fields = append(validation.Fields, domain.FieldError{Field: "url", Message: "Use a local Kumbuka URL."})
 	}
 	if len(validation.Fields) != 0 {

@@ -549,6 +549,18 @@
   border-top: 1px solid var(--border-subtle);
 }
 
+.webhook-test-form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.webhook-test-form select {
+  max-width: 230px;
+  min-width: 0;
+}
+
 .webhook-empty {
   display: grid;
   justify-items: center;

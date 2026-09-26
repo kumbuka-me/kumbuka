@@ -52,3 +52,45 @@ func TestPageSaveReportsSecondaryFailuresWithoutFailingMutation(t *testing.T) {
 	assert.Contains(t, logs.String(), `"actor_id":42`)
 	assert.NotContains(t, logs.String(), "private page content")
 }
+
+type mentionNotificationSenderStub struct {
+	calls       int
+	actorID     int64
+	text        string
+	title       string
+	destination string
+}
+
+func (s *mentionNotificationSenderStub) SendMentions(_ context.Context, actorID int64, text, title, destination string) error {
+	s.calls++
+	s.actorID = actorID
+	s.text = text
+	s.title = title
+	s.destination = destination
+	return nil
+}
+
+func TestPageSaveUsesSharedMentionNotificationSender(t *testing.T) {
+	t.Parallel()
+
+	repository := &failingPageSideEffects{}
+	sender := &mentionNotificationSenderStub{}
+	mutations := NewMutations(repository, nil, repository, slog.Default()).WithMentionNotifications(sender)
+
+	page, err := mutations.Save(context.Background(), PageSaveInput{
+		Slug:     "example",
+		Title:    "Example",
+		Markdown: "Please review, @admin",
+		Status:   "verified",
+		Actor:    domain.User{ID: 42},
+	})
+
+	require.NoError(t, err)
+	assert.Equal(t, "example", page.Slug)
+	assert.Equal(t, 1, sender.calls)
+	assert.Equal(t, int64(42), sender.actorID)
+	assert.Equal(t, "Please review, @admin", sender.text)
+	assert.Equal(t, "Mention in Example", sender.title)
+	assert.Equal(t, "/pages/example", sender.destination)
+	assert.Zero(t, repository.mentionCalls)
+}

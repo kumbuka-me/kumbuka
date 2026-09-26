@@ -177,7 +177,7 @@ func DeleteAdminWebhook(webhookUseCases webhookAdminService, logger *slog.Logger
 	}
 }
 
-// TestAdminWebhook sends a diagnostic delivery to one configured webhook.
+// TestAdminWebhook sends a representative selected event to one configured webhook.
 func TestAdminWebhook(webhookUseCases webhookAdminService, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
@@ -185,8 +185,17 @@ func TestAdminWebhook(webhookUseCases webhookAdminService, logger *slog.Logger) 
 			httpresponse.Problem(w, http.StatusBadRequest, "Invalid webhook identifier.")
 			return
 		}
-		if err := webhookUseCases.TestWebhook(r.Context(), id); err != nil {
-			httpresponse.InternalServerError(logger, w, err)
+		if err := r.ParseForm(); err != nil {
+			httpresponse.Problem(w, http.StatusBadRequest, "Invalid webhook test form.")
+			return
+		}
+		if err := webhookUseCases.TestWebhook(
+			r.Context(),
+			id,
+			strings.TrimSpace(r.FormValue("event")),
+			currentUser(r),
+		); err != nil {
+			writeAdminProblem(logger, w, err, "Webhook test")
 			return
 		}
 		http.Redirect(w, r, "/admin/webhooks", http.StatusSeeOther)

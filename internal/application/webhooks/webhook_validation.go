@@ -109,20 +109,18 @@ func validateWebhookBodyTemplate(value string, events []string, includeUserDetai
 		return fmt.Errorf("parse template: %w", err)
 	}
 
+	actor := domain.User{ID: 42, Username: "alice", DisplayName: "Alice Example", Email: "alice@example.test", Enabled: true}
+	recipient := domain.User{ID: 43, Username: "bob", DisplayName: "Bob Example", Email: "bob@example.test", Enabled: true}
 	for _, eventName := range events {
-		event := webhookTemplateValidationEvent(eventName)
-		notification := webhookNotification{
-			event:     event,
-			publicURL: "https://kumbuka.example",
-		}
-		if includeUserDetails {
-			notification.actor = webhookTemplateValidationUser(42, "@alice", "Alice Example", "alice@example.test")
-			if event.RecipientUserID != 0 {
-				notification.recipient = webhookTemplateValidationUser(43, "@bob", "Bob Example", "bob@example.test")
-			}
-		}
+		notification := webhookTemplateSampleNotification(
+			eventName,
+			"https://kumbuka.example",
+			includeUserDetails,
+			actor,
+			recipient,
+		)
 
-		body, err := tmpl.Render(notification.Data("Example", nil, event.Event))
+		body, err := tmpl.Render(notification.Data("Example", nil, eventName))
 		if err != nil {
 			return fmt.Errorf("render template for %s: %w", eventName, err)
 		}
@@ -134,11 +132,30 @@ func validateWebhookBodyTemplate(value string, events []string, includeUserDetai
 	return nil
 }
 
-// webhookTemplateValidationEvent returns representative data matching one supported outgoing event.
-func webhookTemplateValidationEvent(event string) OutgoingEvent {
+// webhookTemplateSampleNotification builds representative render data shared by validation and explicit test deliveries.
+func webhookTemplateSampleNotification(
+	eventName, publicURL string,
+	includeUserDetails bool,
+	actor, recipient domain.User,
+) webhookNotification {
+	event := webhookTemplateSampleEvent(eventName, actor, recipient)
+	notification := webhookNotification{event: event, publicURL: publicURL}
+	if !includeUserDetails {
+		return notification
+	}
+
+	notification.actor = webhookTemplateUserValue(actor)
+	if event.RecipientUserID != 0 {
+		notification.recipient = webhookTemplateUserValue(recipient)
+	}
+	return notification
+}
+
+// webhookTemplateSampleEvent returns representative data matching one supported outgoing event.
+func webhookTemplateSampleEvent(event string, actor, recipient domain.User) OutgoingEvent {
 	sample := OutgoingEvent{
 		Event:      event,
-		ActorID:    42,
+		ActorID:    actor.ID,
 		ObjectType: "page",
 		ObjectKey:  "guides/example",
 		Detail:     "Example event",
@@ -147,23 +164,23 @@ func webhookTemplateValidationEvent(event string) OutgoingEvent {
 
 	switch event {
 	case EventNotificationCreated:
-		sample.RecipientUserID = 43
+		sample.RecipientUserID = recipient.ID
 		sample.ObjectType = "notification"
 		sample.ObjectKey = "101"
 		sample.Detail = ""
 		sample.Data = map[string]any{
 			"recipient": map[string]any{
-				"user_id":      int64(43),
-				"mention":      "@bob",
-				"display_name": "Bob Example",
+				"user_id":      recipient.ID,
+				"mention":      "@" + recipient.Username,
+				"display_name": recipient.DisplayName,
 			},
 			"notification": map[string]any{
-				"title":       "Task assigned",
-				"body":        "Review the plan.",
+				"title":       "Test notification from Kumbuka",
+				"body":        "This is a test webhook delivery from Kumbuka.",
 				"url":         "/pages/guides/example",
 				"source_type": "plugin",
-				"source_id":   "me.example.tasks",
-				"source_name": "Tasks",
+				"source_id":   "me.example.test",
+				"source_name": "Kumbuka test",
 			},
 		}
 	case "pages.imported":
@@ -176,17 +193,6 @@ func webhookTemplateValidationEvent(event string) OutgoingEvent {
 	}
 
 	return sample
-}
-
-// webhookTemplateValidationUser returns representative opt-in contact data for template validation.
-func webhookTemplateValidationUser(id int64, mention, displayName, email string) *webhookTemplateUser {
-	return &webhookTemplateUser{
-		ID:          id,
-		Mention:     mention,
-		DisplayName: displayName,
-		Email:       email,
-		Enabled:     true,
-	}
 }
 
 // prepareWebhookHeaders validates headers and encrypts changed sensitive values.

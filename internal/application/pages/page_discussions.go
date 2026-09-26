@@ -74,6 +74,14 @@ func NewDiscussions(
 	}
 }
 
+// WithMentionNotifications routes discussion mentions through the shared notification service.
+func (s *Discussions) WithMentionNotifications(sender MentionNotificationSender) *Discussions {
+	if s.effects != nil {
+		s.effects.withMentionNotifications(sender)
+	}
+	return s
+}
+
 // ErrDiscussionsDisabled indicates that page discussions are globally disabled.
 var ErrDiscussionsDisabled = errors.New("page discussions are disabled")
 
