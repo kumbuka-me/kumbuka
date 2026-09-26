@@ -32,8 +32,10 @@ const (
 
 // OIDC authenticates browser sessions and handles the OIDC authorization flow.
 type OIDC struct {
-	// repository persists and resolves authenticated OIDC users.
+	// repository persists and resolves authenticated OIDC sessions and authorization state.
 	repository oidcRepository
+	// login applies application-level OIDC registration and profile policy.
+	login oidcLoginService
 	// verifier validates OIDC identity tokens.
 	verifier *oidc.IDTokenVerifier
 	// oauth contains the OIDC authorization-code client configuration.
@@ -95,6 +97,7 @@ func NewOIDC(
 	ctx context.Context,
 	config OIDCConfig,
 	repository oidcRepository,
+	login oidcLoginService,
 ) (*OIDC, error) {
 	provider, err := oidc.NewProvider(ctx, config.Issuer)
 	if err != nil {
@@ -103,6 +106,7 @@ func NewOIDC(
 
 	return &OIDC{
 		repository:          repository,
+		login:               login,
 		verifier:            provider.Verifier(&oidc.Config{ClientID: config.ClientID}),
 		secret:              []byte(config.SessionSecret),
 		issuer:              strings.TrimSpace(config.Issuer),
@@ -255,7 +259,7 @@ func (o *OIDC) callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := o.repository.LoginOIDCUser(
+	user, err := o.login.Login(
 		r.Context(),
 		issuer,
 		subject,

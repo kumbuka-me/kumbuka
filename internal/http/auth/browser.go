@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 
+	appauthentication "github.com/kumbuka-me/kumbuka/internal/application/authentication"
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"golang.org/x/net/http/httpguts"
@@ -28,6 +29,8 @@ type browserAuthenticator struct {
 	none *None
 	// local authenticates Kumbuka-managed browser sessions.
 	local *Local
+	// oidcLogin applies application-level OIDC login policy.
+	oidcLogin oidcLoginService
 	// localLoginEnabled exposes local recovery login alongside another effective mode.
 	localLoginEnabled bool
 
@@ -52,6 +55,7 @@ func ConfigureBrowserAuth(
 		oidcConfig:        config.OIDC,
 		none:              NewNone(repository),
 		local:             NewLocal(repository, config.OIDC.PublicURL),
+		oidcLogin:         appauthentication.NewOIDC(repository, config.AllowUserRegistrationOverride),
 		localLoginEnabled: config.LocalLoginEnabled,
 	}
 
@@ -467,7 +471,7 @@ func (b *browserAuthenticator) oidcFor(ctx context.Context, settings domain.Auth
 		GroupsAuthoritative: settings.OIDCGroupsAuthoritative,
 		GroupMappings:       settings.OIDCGroupMappings,
 		AdminGroup:          strings.TrimSpace(settings.OIDCAdminGroup),
-	}, b.repository)
+	}, b.repository, b.oidcLogin)
 	if err != nil {
 		return nil, err
 	}

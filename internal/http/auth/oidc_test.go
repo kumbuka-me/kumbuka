@@ -18,7 +18,7 @@ type oidcRepositoryStub struct {
 	user domain.User
 }
 
-func (r *oidcRepositoryStub) LoginOIDCUser(context.Context, string, string, string, string, string) (domain.User, error) {
+func (r *oidcRepositoryStub) ResolveOIDCLogin(context.Context, string, string, string, string, string, bool) (domain.User, error) {
 	return r.user, nil
 }
 

@@ -33,9 +33,13 @@ type localRepository interface {
 	SetLocalCredential(context.Context, int64, string) error
 }
 
+// oidcLoginService resolves verified OIDC profiles through application policy.
+type oidcLoginService interface {
+	Login(context.Context, string, string, string, string, string) (domain.User, error)
+}
+
 // oidcRepository persists OIDC identities and synchronized group memberships.
 type oidcRepository interface {
-	LoginOIDCUser(context.Context, string, string, string, string, string) (domain.User, error)
 	OIDCUser(context.Context, string, string) (domain.User, error)
 	SyncOIDCGroups(context.Context, int64, []string, []domain.OIDCGroupMapping, bool) error
 	SetExternalAdminStatus(context.Context, int64, domain.AuthMode, bool) error
@@ -48,6 +52,7 @@ type browserRepository interface {
 	oidcRepository
 	trustedProxyRepository
 	ApplicationSettings(context.Context) (domain.ApplicationSettings, error)
+	ResolveOIDCLogin(context.Context, string, string, string, string, string, bool) (domain.User, error)
 	HasLocalAdministratorCredential(context.Context) (bool, error)
 	OIDCGroupMappings(context.Context) ([]domain.OIDCGroupMapping, error)
 	SetupRequired(context.Context) (bool, error)

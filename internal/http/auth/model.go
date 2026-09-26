@@ -17,6 +17,8 @@ type BrowserConfig struct {
 	OIDC OIDCConfig
 	// LocalLoginEnabled exposes local login alongside another configured mode for recovery.
 	LocalLoginEnabled bool
+	// AllowUserRegistrationOverride overrides the persisted external-user registration policy when non-nil.
+	AllowUserRegistrationOverride *bool
 }
 
 // OIDCConfig contains the settings required for the OIDC authorization flow.

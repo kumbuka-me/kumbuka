@@ -9,7 +9,7 @@ import (
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
 
-// oidcIdentityProfile contains normalized identity-provider attributes used during login.
+// oidcIdentityProfile contains application-normalized identity-provider attributes used during an atomic login transaction.
 type oidcIdentityProfile struct {
 	// issuer identifies the verified OIDC provider namespace.
 	issuer string
@@ -277,14 +277,14 @@ ORDER BY
 	return identities, rows.Err()
 }
 
-// LoginOIDCUser resolves or creates a Kumbuka account for a verified OIDC identity.
-func (s *Store) LoginOIDCUser(
+// ResolveOIDCLogin atomically resolves, refreshes, or creates an account for an application-normalized OIDC identity.
+func (s *Store) ResolveOIDCLogin(
 	ctx context.Context,
 	issuer, subject, username, email, displayName string,
+	registrationEnabled bool,
 ) (domain.User, error) {
-	identity, err := normalizeOIDCIdentityProfile(issuer, subject, username, email, displayName)
-	if err != nil {
-		return domain.User{}, err
+	identity := oidcIdentityProfile{
+		issuer: issuer, subject: subject, username: username, email: email, displayName: displayName,
 	}
 
 	tx, err := s.pool.Begin(ctx)
@@ -319,11 +319,6 @@ func (s *Store) LoginOIDCUser(
 	if pendingStatus == domain.PendingOIDCStatusRejected {
 		return recordPendingOIDCOutcome(ctx, tx, identity, domain.ErrIdentityRejected)
 	}
-
-	registrationEnabled, err := s.oidcRegistrationEnabled(ctx, tx)
-	if err != nil {
-		return domain.User{}, err
-	}
 	if !registrationEnabled {
 		return recordPendingOIDCOutcome(ctx, tx, identity, domain.ErrIdentityApprovalRequired)
 	}
@@ -342,32 +337,6 @@ func (s *Store) LoginOIDCUser(
 	}
 
 	return completeOIDCLogin(ctx, tx, user, identity)
-}
-
-// completeOIDCIdentity reports whether the provider supplied every required stable identity field.
-func completeOIDCIdentity(identity oidcIdentityProfile) bool {
-	return identity.issuer != "" && identity.subject != "" && identity.username != ""
-}
-
-// normalizeOIDCIdentityProfile trims provider attributes and validates required identity fields.
-func normalizeOIDCIdentityProfile(
-	issuer, subject, username, email, displayName string,
-) (oidcIdentityProfile, error) {
-	identity := oidcIdentityProfile{
-		issuer:      strings.TrimSpace(issuer),
-		subject:     strings.TrimSpace(subject),
-		username:    strings.TrimSpace(username),
-		email:       strings.TrimSpace(email),
-		displayName: strings.TrimSpace(displayName),
-	}
-	if !completeOIDCIdentity(identity) {
-		return oidcIdentityProfile{}, domain.NewValidationError(
-			"identity",
-			"The identity provider must supply issuer, subject, and username.",
-		)
-	}
-
-	return identity, nil
 }
 
 // refreshAndCompleteOIDCLogin updates a bound account and commits the successful login.
@@ -434,21 +403,6 @@ func recordPendingOIDCOutcome(
 	}
 
 	return domain.User{}, outcome
-}
-
-// oidcRegistrationEnabled reports whether automatic OIDC user creation is enabled.
-func (s *Store) oidcRegistrationEnabled(ctx context.Context, tx pgx.Tx) (bool, error) {
-	if enabled, overridden := s.userRegistrationOverride(); overridden {
-		return enabled, nil
-	}
-
-	var enabled bool
-	err := tx.QueryRow(ctx, `
-SELECT allow_user_registration
-FROM application_settings
-WHERE singleton=true`).Scan(&enabled)
-
-	return enabled, err
 }
 
 // ApprovePendingOIDCIdentity creates a new Kumbuka user for an administrator-approved identity.

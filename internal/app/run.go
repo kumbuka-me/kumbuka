@@ -367,7 +367,8 @@ func browserAuthConfig(cfg flags.Config) auth.BrowserConfig {
 			GroupClaim:    cfg.OIDCGroupClaim,
 			AdminGroup:    cfg.OIDCAdminGroup,
 		},
-		LocalLoginEnabled: cfg.LocalLogin,
+		LocalLoginEnabled:             cfg.LocalLogin,
+		AllowUserRegistrationOverride: cfg.AllowUserRegistrationOverride,
 	}
 }
 

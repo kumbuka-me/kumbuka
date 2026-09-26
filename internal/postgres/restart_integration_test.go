@@ -101,7 +101,7 @@ func TestOIDCIdentitySurvivesDatabaseReopen(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	database, err := Open(ctx, dsn, logger)
 	require.NoError(t, err)
-	user, err := database.LoginOIDCUser(ctx, "https://issuer.example", "subject-7", "alice", "alice@example.com", "Alice")
+	user, err := database.ResolveOIDCLogin(ctx, "https://issuer.example", "subject-7", "alice", "alice@example.com", "Alice", true)
 	require.NoError(t, err)
 	require.NoError(t, database.SetExternalAdminStatus(ctx, user.ID, "oidc", true))
 	database.Close()
