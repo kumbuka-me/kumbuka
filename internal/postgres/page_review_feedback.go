@@ -2,13 +2,11 @@ package postgres
 
 import (
 	"context"
-	"slices"
-	"sort"
-	"strings"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/kumbuka-me/kumbuka/pkg/pluginusage"
+	"github.com/kumbuka-me/kumbuka/pkg/reviewsuggestions"
 )
 
 // PageReviewComments returns line-anchored comments and suggestions for one review request.
@@ -216,7 +214,7 @@ func prepareReviewSuggestionApplication(
 	if err := validateSelectedReviewSuggestions(suggestionIDs, suggestions, applyAll); err != nil {
 		return 0, err
 	}
-	expectedMarkdown, err := applyLockedReviewSuggestions(currentMarkdown, suggestions)
+	expectedMarkdown, err := reviewsuggestions.Apply(currentMarkdown, suggestions)
 	if err != nil {
 		return 0, err
 	}
@@ -342,74 +340,6 @@ func reviewSuggestionIDs(suggestions []domain.PageReviewComment) []int64 {
 	}
 
 	return ids
-}
-
-// applyLockedReviewSuggestions reconstructs the exact source produced by locked persisted suggestions.
-func applyLockedReviewSuggestions(markdown string, suggestions []domain.PageReviewComment) (string, error) {
-	ordered := slices.Clone(suggestions)
-	sort.Slice(ordered, func(left, right int) bool {
-		if ordered[left].StartLine != ordered[right].StartLine {
-			return ordered[left].StartLine < ordered[right].StartLine
-		}
-		return ordered[left].EndLine < ordered[right].EndLine
-	})
-
-	previousEnd := 0
-	for _, suggestion := range ordered {
-		if !orderedPersistedReviewSuggestion(suggestion, previousEnd) {
-			return "", domain.ErrReviewSuggestionConflict
-		}
-
-		original, ok := reviewMarkdownLineRange(markdown, suggestion.StartLine, suggestion.EndLine)
-		if !ok || original != suggestion.Original {
-			return "", domain.ErrStaleReview
-		}
-		previousEnd = suggestion.EndLine
-	}
-
-	lines := strings.Split(markdown, "\n")
-	for index := len(ordered) - 1; index >= 0; index-- {
-		suggestion := ordered[index]
-		start := suggestion.StartLine - 1
-		end := suggestion.EndLine
-		replacement := reviewSuggestionLines(suggestion.Replacement)
-
-		updated := make([]string, 0, len(lines)-(end-start)+len(replacement))
-		updated = append(updated, lines[:start]...)
-		updated = append(updated, replacement...)
-		updated = append(updated, lines[end:]...)
-		lines = updated
-	}
-
-	return strings.Join(lines, "\n"), nil
-}
-
-// orderedPersistedReviewSuggestion reports whether a persisted suggestion targets the new side without overlap.
-func orderedPersistedReviewSuggestion(suggestion domain.PageReviewComment, previousEnd int) bool {
-	return suggestion.Side == domain.PageReviewCommentSideNew && suggestion.StartLine > previousEnd
-}
-
-// reviewMarkdownLineRange returns a one-based inclusive source range without trailing separators.
-func reviewMarkdownLineRange(markdown string, startLine, endLine int) (string, bool) {
-	if startLine <= 0 || endLine < startLine {
-		return "", false
-	}
-
-	lines := strings.Split(markdown, "\n")
-	if startLine > len(lines) || endLine > len(lines) {
-		return "", false
-	}
-
-	return strings.Join(lines[startLine-1:endLine], "\n"), true
-}
-
-// reviewSuggestionLines converts replacement Markdown into lines while treating an empty replacement as deletion.
-func reviewSuggestionLines(replacement string) []string {
-	if replacement == "" {
-		return nil
-	}
-
-	return strings.Split(replacement, "\n")
 }
 
 // sameReviewSuggestionIDs reports whether two identifier sets contain the same unique values.

@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"slices"
-	"sort"
 	"strings"
 
 	appaccess "github.com/kumbuka-me/kumbuka/internal/application/access"
@@ -13,6 +11,7 @@ import (
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	md "github.com/kumbuka-me/kumbuka/pkg/markdown"
 	"github.com/kumbuka-me/kumbuka/pkg/pluginusage"
+	"github.com/kumbuka-me/kumbuka/pkg/reviewsuggestions"
 	"github.com/kumbuka-me/kumbuka/pkg/revision"
 )
 
@@ -244,7 +243,7 @@ func reviewCommentOriginal(record revision.Revision, input PageReviewCommentInpu
 	if input.Side == domain.PageReviewCommentSideOld {
 		source = record.PreviousMarkdown
 	}
-	original, ok := markdownLineRange(source, input.StartLine, input.EndLine)
+	original, ok := reviewsuggestions.LineRange(source, input.StartLine, input.EndLine)
 	if !ok {
 		return "", domain.NewValidationError("line", "Choose a line that exists in this review diff.")
 	}
@@ -299,7 +298,7 @@ func (s *ReviewDiscussions) applyReviewSuggestions(ctx context.Context, reviewID
 	if err != nil {
 		return domain.Page{}, err
 	}
-	updatedMarkdown, err := applyMarkdownSuggestions(detail.Revision.Markdown, suggestions)
+	updatedMarkdown, err := reviewsuggestions.Apply(detail.Revision.Markdown, suggestions)
 	if err != nil {
 		return domain.Page{}, err
 	}
@@ -443,68 +442,6 @@ func selectedReviewSuggestions(comments []domain.PageReviewComment, selected []i
 	return result, nil
 }
 
-// applyMarkdownSuggestions applies non-overlapping line replacements from bottom to top against an immutable source snapshot.
-func applyMarkdownSuggestions(markdown string, suggestions []domain.PageReviewComment) (string, error) {
-	ordered := slices.Clone(suggestions)
-	sort.Slice(ordered, func(left, right int) bool {
-		if ordered[left].StartLine != ordered[right].StartLine {
-			return ordered[left].StartLine < ordered[right].StartLine
-		}
-		return ordered[left].EndLine < ordered[right].EndLine
-	})
-
-	previousEnd := 0
-	for _, suggestion := range ordered {
-		if !orderedReviewSuggestion(suggestion, previousEnd) {
-			return "", domain.ErrReviewSuggestionConflict
-		}
-		original, ok := markdownLineRange(markdown, suggestion.StartLine, suggestion.EndLine)
-		if !ok || original != suggestion.Original {
-			return "", domain.ErrStaleReview
-		}
-		previousEnd = suggestion.EndLine
-	}
-
-	lines := strings.Split(markdown, "\n")
-	for index := len(ordered) - 1; index >= 0; index-- {
-		suggestion := ordered[index]
-		start := suggestion.StartLine - 1
-		end := suggestion.EndLine
-		replacement := suggestionLines(suggestion.Replacement)
-
-		updated := make([]string, 0, len(lines)-(end-start)+len(replacement))
-		updated = append(updated, lines[:start]...)
-		updated = append(updated, replacement...)
-		updated = append(updated, lines[end:]...)
-		lines = updated
-	}
-
-	return strings.Join(lines, "\n"), nil
-}
-
-// markdownLineRange returns an exact one-based inclusive source range without trailing line separators.
-func markdownLineRange(markdown string, startLine, endLine int) (string, bool) {
-	if startLine <= 0 || endLine < startLine {
-		return "", false
-	}
-
-	lines := strings.Split(markdown, "\n")
-	if startLine > len(lines) || endLine > len(lines) {
-		return "", false
-	}
-
-	return strings.Join(lines[startLine-1:endLine], "\n"), true
-}
-
-// suggestionLines converts replacement Markdown into source lines, treating an empty replacement as deletion.
-func suggestionLines(replacement string) []string {
-	if replacement == "" {
-		return nil
-	}
-
-	return strings.Split(replacement, "\n")
-}
-
 // reviewURL returns the local review page URL for notifications.
 func reviewURL(reviewID int64, slug string) string {
 	return fmt.Sprintf("/reviews/%d/%s", reviewID, strings.TrimSpace(slug))
@@ -513,11 +450,6 @@ func reviewURL(reviewID int64, slug string) string {
 // validReviewCommentSide reports whether side identifies one side of a review diff.
 func validReviewCommentSide(side domain.PageReviewCommentSide) bool {
 	return side == domain.PageReviewCommentSideOld || side == domain.PageReviewCommentSideNew
-}
-
-// orderedReviewSuggestion reports whether a suggestion targets the new side without overlapping the previous suggestion.
-func orderedReviewSuggestion(suggestion domain.PageReviewComment, previousEnd int) bool {
-	return suggestion.Side == domain.PageReviewCommentSideNew && suggestion.StartLine > previousEnd
 }
 
 // validReviewCommentLineRange reports whether a review anchor is ordered, positive, and within the configured span.

@@ -9,6 +9,7 @@ import (
 
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/kumbuka-me/kumbuka/pkg/pluginusage"
+	"github.com/kumbuka-me/kumbuka/pkg/reviewsuggestions"
 	"github.com/kumbuka-me/kumbuka/pkg/revision"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -190,7 +191,7 @@ func TestApplyMarkdownSuggestions(t *testing.T) {
 	t.Run("applies multiple suggestions from bottom to top", func(t *testing.T) {
 		t.Parallel()
 
-		updated, err := applyMarkdownSuggestions("one\ntwo\nthree\nfour", []domain.PageReviewComment{
+		updated, err := reviewsuggestions.Apply("one\ntwo\nthree\nfour", []domain.PageReviewComment{
 			{ID: 1, Side: domain.PageReviewCommentSideNew, StartLine: 2, EndLine: 2, Original: "two", Replacement: "TWO"},
 			{ID: 2, Side: domain.PageReviewCommentSideNew, StartLine: 4, EndLine: 4, Original: "four", Replacement: "FOUR\nFIVE"},
 		})
@@ -202,7 +203,7 @@ func TestApplyMarkdownSuggestions(t *testing.T) {
 	t.Run("supports deletion", func(t *testing.T) {
 		t.Parallel()
 
-		updated, err := applyMarkdownSuggestions("one\ntwo\nthree", []domain.PageReviewComment{
+		updated, err := reviewsuggestions.Apply("one\ntwo\nthree", []domain.PageReviewComment{
 			{ID: 1, Side: domain.PageReviewCommentSideNew, StartLine: 2, EndLine: 2, Original: "two", Replacement: ""},
 		})
 
@@ -213,7 +214,7 @@ func TestApplyMarkdownSuggestions(t *testing.T) {
 	t.Run("rejects overlapping ranges", func(t *testing.T) {
 		t.Parallel()
 
-		_, err := applyMarkdownSuggestions("one\ntwo\nthree", []domain.PageReviewComment{
+		_, err := reviewsuggestions.Apply("one\ntwo\nthree", []domain.PageReviewComment{
 			{ID: 1, Side: domain.PageReviewCommentSideNew, StartLine: 1, EndLine: 2, Original: "one\ntwo", Replacement: "first"},
 			{ID: 2, Side: domain.PageReviewCommentSideNew, StartLine: 2, EndLine: 3, Original: "two\nthree", Replacement: "last"},
 		})
@@ -224,7 +225,7 @@ func TestApplyMarkdownSuggestions(t *testing.T) {
 	t.Run("rejects stale original text", func(t *testing.T) {
 		t.Parallel()
 
-		_, err := applyMarkdownSuggestions("one\nchanged\nthree", []domain.PageReviewComment{
+		_, err := reviewsuggestions.Apply("one\nchanged\nthree", []domain.PageReviewComment{
 			{ID: 1, Side: domain.PageReviewCommentSideNew, StartLine: 2, EndLine: 2, Original: "two", Replacement: "TWO"},
 		})
 
