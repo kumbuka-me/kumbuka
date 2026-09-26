@@ -70,10 +70,12 @@ COMPOSE_PROJECT ?= $(notdir $(CURDIR))
 COMPOSE_FILE := deploy/compose.yaml
 DB_CONTAINER_NAME ?= postgres
 PDF_CONTAINER_NAME ?= html2pdf
+MAILBRIDGE_CONTAINER_NAME ?= mailbridge
 
 KUMBUKA_ASSIGNED_PORT ?= $(call dev-port,app)
 DB_ASSIGNED_PORT ?= $(call dev-port,postgres)
 PDF_ASSIGNED_PORT ?= $(call dev-port,pdf)
+MAILBRIDGE_ASSIGNED_PORT ?= $(call dev-port,mailbridge)
 
 ## Assets
 
@@ -171,6 +173,10 @@ postgres: ports ## Run postgres locally.
 html-pdf: ports ## Run html2pdf locally.
 	@KUMBUKA_PDF_PORT=$(PDF_ASSIGNED_PORT) docker compose -f $(COMPOSE_FILE) -p $(COMPOSE_PROJECT) up -d $(PDF_CONTAINER_NAME)
 
+.PHONY: mailbridge
+mailbridge: ports ## Run mailbridge locally.
+	@KUMBUKA_MAILBRIDGE_PORT=$(MAILBRIDGE_ASSIGNED_PORT) docker compose -f $(COMPOSE_FILE) -p $(COMPOSE_PROJECT) up -d $(MAILBRIDGE_CONTAINER_NAME)
+
 .PHONY: serve
 serve: ports ## Run Kumbuka using the saved ports.
 	@echo "Starting Kumbuka application..."
@@ -188,7 +194,7 @@ open: ports $(OPEN_BROWSER) ## Open Kumbuka in the browser.
 	$(call run-tool,$(OPEN_BROWSER),"http://127.0.0.1:$(KUMBUKA_ASSIGNED_PORT)/")
 
 .PHONY: run
-run: dev-build html-pdf postgres $(OPEN_BROWSER) ## Build, start services, and run Kumbuka.
+run: dev-build html-pdf mailbridge postgres $(OPEN_BROWSER) ## Build, start services, and run Kumbuka.
 	@$(OPEN_BROWSER) "http://127.0.0.1:$(KUMBUKA_ASSIGNED_PORT)/" & \
 	browser_pid=$$!; \
 	trap 'kill "$$browser_pid" 2>/dev/null || true' EXIT; \

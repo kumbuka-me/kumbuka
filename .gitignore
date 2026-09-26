@@ -1,6 +1,8 @@
 /kumbuka
 /bin/*
 !/bin/dev-tools.mk
+.encrc
+deploy/.envrc
 
 coverage.out
 .DS_Store
