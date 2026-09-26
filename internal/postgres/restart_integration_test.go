@@ -64,7 +64,6 @@ func TestOpenAppliesOptions(t *testing.T) {
 	require.True(t, configured)
 	require.True(t, enabled)
 
-	allowRegistration = false
 	enabled, configured = database.userRegistrationOverride()
 	require.True(t, configured)
 	require.True(t, enabled)
