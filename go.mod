@@ -6,7 +6,7 @@ require (
 	github.com/aymerick/douceur v0.2.0
 	github.com/containeroo/httpgrace v0.2.0
 	github.com/containeroo/notifykit v0.7.0
-	github.com/containeroo/tinyflags v0.0.86
+	github.com/containeroo/tinyflags v0.0.87
 	github.com/containeroo/uuidv7 v0.0.2
 	github.com/coreos/go-oidc/v3 v3.21.0
 	github.com/go-jose/go-jose/v4 v4.1.5
