@@ -15,6 +15,9 @@ import (
 //go:embed template.gohtml
 var templateSource string
 
+//go:embed core.css
+var coreStyles string
+
 var frameTemplate = template.Must(
 	template.New("pluginbrowser").Parse(templateSource),
 )
@@ -101,6 +104,7 @@ func Frame(prefix, runtimeURL string, origins []string, m plugin.BrowserContribu
 		Runtime:    runtimeURL,
 		JavaScript: assetURL(base + m.JavaScript),
 		CSS:        css,
+		CoreCSS:    template.CSS(coreStyles),
 	})
 	if err != nil {
 		return nil, "", fmt.Errorf("plugin frame: %w", err)
@@ -124,4 +128,6 @@ type frameData struct {
 	JavaScript string
 	// CSS is the escaped stylesheet URL, or empty when the module has no stylesheet.
 	CSS string
+	// CoreCSS contains trusted host-owned presentation primitives shared by every browser module.
+	CoreCSS template.CSS
 }

@@ -11,10 +11,13 @@
     {{if .CSS}}
     <link rel="stylesheet" href="{{.CSS}}">
     {{end}}
+    <style>{{.CoreCSS}}</style>
     <script defer src="{{.Runtime}}"></script>
   </head>
   <body data-plugin-javascript="{{.JavaScript}}">
     <main id="plugin-root"></main>
   </body>
 </html>
+
+
 

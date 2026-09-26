@@ -542,8 +542,8 @@ func TestUserMentionsRenderAsChips(t *testing.T) {
 	got, err := renderer.Render("@admin: please review with @Alice.\n")
 
 	require.NoError(t, err)
-	assert.Contains(t, got, `<span class="user-mention">@admin</span>:`)
-	assert.Contains(t, got, `<span class="user-mention">@Alice.</span>`)
+	assert.Contains(t, got, `<span class="user-mention" data-kumbuka-mention>@admin</span>:`)
+	assert.Contains(t, got, `<span class="user-mention" data-kumbuka-mention>@Alice.</span>`)
 }
 
 func TestUserMentionsStayLiteralInCodeAndEmailAddresses(t *testing.T) {
@@ -554,6 +554,7 @@ func TestUserMentionsStayLiteralInCodeAndEmailAddresses(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.NotContains(t, got, `class="user-mention"`)
+	assert.NotContains(t, got, `data-kumbuka-mention`)
 	assert.Contains(t, got, `admin@example.com`)
 	assert.Contains(t, got, `<code>echo @admin</code>`)
 }

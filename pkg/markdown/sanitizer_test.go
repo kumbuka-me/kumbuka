@@ -29,3 +29,23 @@ func TestSanitizerRejectsInvalidInlineBrowserModuleMarkers(t *testing.T) {
 	require.NotContains(t, output, `data-kumbuka-input`)
 	require.Contains(t, output, `data-kumbuka-fallback`)
 }
+
+// TestSanitizerKeepsCoreMentionMarker verifies plugins can opt into the host-owned mention presentation contract.
+func TestSanitizerKeepsCoreMentionMarker(t *testing.T) {
+	input := `<span data-kumbuka-mention>@alice</span>`
+
+	output := newSanitizer().Sanitize(input)
+
+	require.Contains(t, output, `data-kumbuka-mention`)
+	require.Contains(t, output, `@alice`)
+}
+
+// TestSanitizerRestrictsCoreMentionMarkerToSpans keeps the presentation primitive bounded to inline mention content.
+func TestSanitizerRestrictsCoreMentionMarkerToSpans(t *testing.T) {
+	input := `<div data-kumbuka-mention>@alice</div>`
+
+	output := newSanitizer().Sanitize(input)
+
+	require.NotContains(t, output, `data-kumbuka-mention`)
+	require.Contains(t, output, `@alice`)
+}

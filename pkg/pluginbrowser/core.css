@@ -1,0 +1,15 @@
+/* Core-owned presentation primitives available inside isolated plugin browser frames. */
+
+[data-kumbuka-mention] {
+  display: inline-flex;
+  align-items: baseline;
+  padding: 0.05em 0.34em;
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--border));
+  border-radius: 0.45em;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  color: var(--accent);
+  font-size: 0.94em;
+  font-weight: 650;
+  line-height: 1.35;
+  white-space: nowrap;
+}

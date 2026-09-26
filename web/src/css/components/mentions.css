@@ -86,7 +86,8 @@
   padding: 10px;
 }
 
-.prose .user-mention {
+.user-mention,
+[data-kumbuka-mention] {
   display: inline-flex;
   align-items: baseline;
   padding: 0.05em 0.34em;

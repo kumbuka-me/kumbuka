@@ -83,6 +83,18 @@ See `github.com/kumbuka-me/sdk/WIRE.md` for methods and wire contracts. Tests co
 
 Tests exercise install/disable/re-enable/upgrade/uninstall through real WASM in one process, a render spanning an upgrade, dependency and cycle failures, persistence failure rollback, bootstrap atomicity, installed overrides of bundled IDs, and PostgreSQL/runtime reopen recovery.
 
+## Core presentation primitives
+
+Plugin-generated HTML can opt into a small set of host-owned semantic presentation primitives. These markers are sanitized by Kumbuka and styled by core both in rendered page content and inside isolated browser-module frames.
+
+A canonical Kumbuka user mention is marked as:
+
+```html
+<span data-kumbuka-mention>@alice</span>
+```
+
+The marker is presentation-only and does not reveal or resolve user data, so it requires no permission. Plugins that search the user directory or resolve a mention to a user still require `users:read`. Plugins should use the semantic marker instead of copying Kumbuka's mention CSS so core can evolve the appearance consistently.
+
 ## Browser modules
 
 Mermaid is a bundled `.kumbukaplugin` with a WASM postprocessor and packaged JavaScript/CSS. Bundled and installed modules use the same manager metadata, versioned asset handlers and browser harness. `browser:render` must be declared and granted. The manifest names `javascript` and optional `css` paths relative to `assets/`; the loader validates that these files exist.

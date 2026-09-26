@@ -133,7 +133,7 @@ func renderUserMention(
 ) (ast.WalkStatus, error) {
 	w := writer.(util.BufWriter)
 	if entering {
-		_, _ = w.WriteString(`<span class="user-mention">`)
+		_, _ = w.WriteString(`<span class="user-mention" data-kumbuka-mention>`)
 	} else {
 		_, _ = w.WriteString("</span>")
 	}
