@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/containeroo/tinyflags"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -208,17 +209,19 @@ func TestOverriddenValuesMaskSecrets(t *testing.T) {
 	assert.NotEqual(t, encryptionKey, overrides["encryption-key"])
 }
 
-// TestOverrideSources identifies explicit flag and environment deployment sources.
-func TestOverrideSources(t *testing.T) {
-	t.Run("Flag", func(t *testing.T) {
+// TestOverrideOrigins identifies the exact flag or environment input behind each deployment override.
+func TestOverrideOrigins(t *testing.T) {
+	t.Run("flags", func(t *testing.T) {
 		cfg, err := parseTestConfig([]string{
 			"--database-url", "postgres://example/kumbuka",
 			"--public-url", "https://kumbuka.example.test",
+			"-a", "127.0.0.1:9090",
 		})
 
 		require.NoError(t, err)
-		assert.Equal(t, "Flag", cfg.OverrideSources["database-url"])
-		assert.Equal(t, "Flag", cfg.OverrideSources["public-url"])
+		assert.Equal(t, tinyflags.ValueOrigin{Source: tinyflags.ValueSourceFlag, Key: "--database-url"}, cfg.OverrideOrigins["database-url"])
+		assert.Equal(t, tinyflags.ValueOrigin{Source: tinyflags.ValueSourceFlag, Key: "--public-url"}, cfg.OverrideOrigins["public-url"])
+		assert.Equal(t, tinyflags.ValueOrigin{Source: tinyflags.ValueSourceFlag, Key: "-a"}, cfg.OverrideOrigins["listen-address"])
 	})
 
 	t.Run("environment", func(t *testing.T) {
@@ -228,8 +231,106 @@ func TestOverrideSources(t *testing.T) {
 		cfg, err := parseTestConfig(nil)
 
 		require.NoError(t, err)
-		assert.Equal(t, "Environment", cfg.OverrideSources["database-url"])
-		assert.Equal(t, "Environment", cfg.OverrideSources["public-url"])
+		assert.Equal(t, tinyflags.ValueOrigin{Source: tinyflags.ValueSourceEnvironment, Key: "KUMBUKA__DATABASE_URL"}, cfg.OverrideOrigins["database-url"])
+		assert.Equal(t, tinyflags.ValueOrigin{Source: tinyflags.ValueSourceEnvironment, Key: "KUMBUKA__PUBLIC_URL"}, cfg.OverrideOrigins["public-url"])
+	})
+}
+
+func TestDatabaseMaxConns(t *testing.T) {
+	t.Run("default uses automatic sizing", func(t *testing.T) {
+		t.Setenv("KUMBUKA__DATABASE_MAX_CONNS", "")
+
+		cfg, err := parseTestConfig([]string{"--database-url", "postgres://example/kumbuka"})
+
+		require.NoError(t, err)
+		assert.Zero(t, cfg.DatabaseMaxConns)
+	})
+
+	t.Run("flag", func(t *testing.T) {
+		cfg, err := parseTestConfig([]string{
+			"--database-url", "postgres://example/kumbuka",
+			"--database-max-conns", "36",
+		})
+
+		require.NoError(t, err)
+		assert.Equal(t, int32(36), cfg.DatabaseMaxConns)
+	})
+
+	t.Run("environment", func(t *testing.T) {
+		t.Setenv("KUMBUKA__DATABASE_URL", "postgres://example/kumbuka")
+		t.Setenv("KUMBUKA__DATABASE_MAX_CONNS", "24")
+
+		cfg, err := parseTestConfig(nil)
+
+		require.NoError(t, err)
+		assert.Equal(t, int32(24), cfg.DatabaseMaxConns)
+	})
+
+	t.Run("negative", func(t *testing.T) {
+		_, err := parseTestConfig([]string{
+			"--database-url", "postgres://example/kumbuka",
+			"--database-max-conns", "-1",
+		})
+
+		require.Error(t, err)
+	})
+
+	t.Run("outside int32 range", func(t *testing.T) {
+		_, err := parseTestConfig([]string{
+			"--database-url", "postgres://example/kumbuka",
+			"--database-max-conns", "2147483648",
+		})
+
+		require.Error(t, err)
+	})
+}
+
+func TestDatabaseMinIdleConns(t *testing.T) {
+	t.Run("default uses pgxpool default", func(t *testing.T) {
+		t.Setenv("KUMBUKA__DATABASE_MIN_IDLE_CONNS", "")
+
+		cfg, err := parseTestConfig([]string{"--database-url", "postgres://example/kumbuka"})
+
+		require.NoError(t, err)
+		assert.Zero(t, cfg.DatabaseMinIdleConns)
+	})
+
+	t.Run("flag", func(t *testing.T) {
+		cfg, err := parseTestConfig([]string{
+			"--database-url", "postgres://example/kumbuka",
+			"--database-min-idle-conns", "4",
+		})
+
+		require.NoError(t, err)
+		assert.Equal(t, int32(4), cfg.DatabaseMinIdleConns)
+	})
+
+	t.Run("environment", func(t *testing.T) {
+		t.Setenv("KUMBUKA__DATABASE_URL", "postgres://example/kumbuka")
+		t.Setenv("KUMBUKA__DATABASE_MIN_IDLE_CONNS", "3")
+
+		cfg, err := parseTestConfig(nil)
+
+		require.NoError(t, err)
+		assert.Equal(t, int32(3), cfg.DatabaseMinIdleConns)
+	})
+
+	t.Run("negative", func(t *testing.T) {
+		_, err := parseTestConfig([]string{
+			"--database-url", "postgres://example/kumbuka",
+			"--database-min-idle-conns", "-1",
+		})
+
+		require.Error(t, err)
+	})
+
+	t.Run("outside int32 range", func(t *testing.T) {
+		_, err := parseTestConfig([]string{
+			"--database-url", "postgres://example/kumbuka",
+			"--database-min-idle-conns", "2147483648",
+		})
+
+		require.Error(t, err)
 	})
 }
 

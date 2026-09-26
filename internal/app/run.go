@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -72,7 +73,7 @@ func Run(
 	// Configure process logging and record the effective application identity.
 	logger := logging.Setup(cfg.LogFormat, cfg.Debug, stdout)
 	setupLogger := logger.With("component", "setup")
-	logger.Info(
+	setupLogger.Info(
 		"starting Kumbuka",
 		"event", "app_starting",
 		"version", version,
@@ -82,18 +83,40 @@ func Run(
 	metricsRegistry := appmetrics.NewRegistry(!cfg.DisableMetrics, version, commit)
 
 	if len(cfg.Overrides) > 0 {
-		logger.Info("CLI Overrides", "event", "cli_overrides", "overrides", cfg.Overrides)
+		setupLogger.Info("CLI Overrides", "event", "cli_overrides", "overrides", cfg.Overrides)
 	}
 
 	// Bind the process lifetime to operating-system shutdown signals.
 	ctx, stop := server.SignalContext(ctx)
 	defer stop()
 
-	// Load deployment-owned presentation, encryption, and persistence configuration.
-	availableThemes, secretCipher, database, err := loadRunInfrastructure(ctx, cfg, setupLogger)
+	availableThemes, err := themes.Load(cfg.ThemeDirectory)
 	if err != nil {
-		return setupFailure(logger, "load infrastructure", "infrastructure_load_failed", err)
+		setupLogger.Error("load themes", "event", "theme_load_failed", "error", err)
+		return err
 	}
+
+	secretCipher, err := secrets.New(cfg.EncryptionKey)
+	if err != nil {
+		setupLogger.Error("configure application encryption", "event", "application_encryption_failed", "error", err)
+		return err
+
+	}
+
+	databaseOptions := []postgres.Option{
+		postgres.WithMaxConns(cfg.DatabaseMaxConns),
+		postgres.WithMinIdleConns(cfg.DatabaseMinIdleConns),
+	}
+	if cfg.AllowUserRegistrationOverride != nil {
+		databaseOptions = append(databaseOptions, postgres.WithUserRegistrationOverride(*cfg.AllowUserRegistrationOverride))
+	}
+
+	database, err := postgres.Open(ctx, cfg.DatabaseURL, logger, databaseOptions...)
+	if err != nil {
+		setupLogger.Error("open database", "event", "database_open_failed", "error", err)
+		return errors.New("database_open_failed")
+	}
+
 	defer database.Close()
 	metricsRegistry.RegisterPostgres(database)
 
@@ -140,7 +163,8 @@ func Run(
 	// Configure browser authentication.
 	browserAuth, err := auth.ConfigureBrowserAuth(ctx, browserAuthConfig(cfg), database)
 	if err != nil {
-		return setupFailure(logger, "configure browser auth", "browser_auth_failed", err)
+		setupLogger.Error("configure browser auth", "event", "browser_auth_failed", "error", err)
+		return err
 	}
 
 	// Construct the plugin runtime.
@@ -155,7 +179,8 @@ func Run(
 		commit,
 	)
 	if err != nil {
-		return setupFailure(logger, "create plugin runtime", "plugin_runtime_failed", err)
+		setupLogger.Error("create plugin runtime", "event", "plugin_runtime_failed", "error", err)
+		return err
 	}
 
 	defer closeRenderer(renderer, setupLogger)
@@ -192,7 +217,8 @@ func Run(
 	// Construct and configure the passive HTML presentation adapter.
 	views, err := createRunViews(appFS, logger, version, commit, availableThemes, cfg, secretCipher, iconCatalog, renderer)
 	if err != nil {
-		return setupFailure(logger, "create views", "views_create_failed", err)
+		setupLogger.Error("create views", "event", "views_create_failed", "error", err)
+		return err
 	}
 
 	// Compose the shared authenticated browser context used by presentation endpoints.
@@ -279,40 +305,11 @@ func Run(
 
 	handler := httpserver.New(serverConfig)
 	if err := server.Run(ctx, cfg.ListenAddress, handler, logger, server.WithMaxHeaderValueCount(100)); err != nil {
-		return setupFailure(logger, "run server", "server_run_failed", err)
+		setupLogger.Error("run server", "event", "server_run_failed", "error", err)
+		return err
 	}
 
 	return nil
-}
-
-// loadRunInfrastructure loads themes, encryption, and the PostgreSQL store.
-func loadRunInfrastructure(ctx context.Context, cfg flags.Config, logger *slog.Logger) ([]themes.Theme, *secrets.Cipher, *postgres.Store, error) {
-	availableThemes, err := themes.Load(cfg.ThemeDirectory)
-	if err != nil {
-		return nil, nil, nil, setupFailure(logger, "load themes", "theme_load_failed", err)
-	}
-	secretCipher, err := secrets.New(cfg.EncryptionKey)
-	if err != nil {
-		return nil, nil, nil, setupFailure(logger, "configure application encryption", "application_encryption_failed", err)
-	}
-	database, err := openRunDatabase(ctx, cfg, logger)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	return availableThemes, secretCipher, database, nil
-}
-
-// openRunDatabase applies deployment-level database options and opens the store.
-func openRunDatabase(ctx context.Context, cfg flags.Config, logger *slog.Logger) (*postgres.Store, error) {
-	var options []postgres.Option
-	if cfg.AllowUserRegistrationOverride != nil {
-		options = append(options, postgres.WithUserRegistrationOverride(*cfg.AllowUserRegistrationOverride))
-	}
-	database, err := postgres.Open(ctx, cfg.DatabaseURL, logger, options...)
-	if err != nil {
-		return nil, setupFailure(logger, "open database", "database_open_failed", err)
-	}
-	return database, nil
 }
 
 // createRunViews constructs views and enables optional render diagnostics.
@@ -388,10 +385,4 @@ func closeRenderer(renderer *markdown.Renderer, logger *slog.Logger) {
 			"error", err,
 		)
 	}
-}
-
-// setupFailure records a startup failure and returns the original error.
-func setupFailure(logger *slog.Logger, message, event string, err error) error {
-	logger.Error(message, "event", event, "error", err)
-	return err
 }

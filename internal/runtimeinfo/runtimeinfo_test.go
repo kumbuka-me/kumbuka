@@ -4,29 +4,111 @@ import (
 	"testing"
 	"time"
 
+	"github.com/containeroo/tinyflags"
 	"github.com/kumbuka-me/kumbuka/internal/flags"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestManagedConfigurationSourceDefaults(t *testing.T) {
+func TestManagedConfigurationUsesExactOrigins(t *testing.T) {
 	t.Parallel()
 
-	assert.Equal(t, "Default", managedConfigurationSource(flags.Config{}, "listen-address"))
+	cfg := flags.Config{
+		ListenAddress: "127.0.0.1:9090",
+		DatabaseURL:   "postgres://example/kumbuka",
+		OverrideOrigins: map[string]tinyflags.ValueOrigin{
+			"listen-address": {Source: tinyflags.ValueSourceFlag, Key: "-a"},
+			"database-url":   {Source: tinyflags.ValueSourceEnvironment, Key: "CUSTOM_DATABASE_DSN"},
+		},
+	}
+
+	info := New(cfg, false)
+	server := info.ManagedConfiguration[0]
+
+	assert.Equal(t, "Flag · -a", server.Items[0].Source)
+	assert.Equal(t, "Environment · CUSTOM_DATABASE_DSN", server.Items[1].Source)
+	assert.Equal(t, "Default", server.Items[2].Source)
 }
 
-func TestManagedConfigurationSourceReportsFlag(t *testing.T) {
+func TestNewRegistrationOverride(t *testing.T) {
 	t.Parallel()
 
-	cfg := flags.Config{OverrideSources: map[string]string{"listen-address": "Flag"}}
-	assert.Equal(t, "Flag · --listen-address", managedConfigurationSource(cfg, "listen-address"))
+	t.Run("unset", func(t *testing.T) {
+		t.Parallel()
+
+		info := New(flags.Config{}, false)
+
+		assert.False(t, info.UserRegistrationOverrideConfigured)
+		assert.False(t, info.AllowUserRegistrationOverride)
+	})
+
+	t.Run("enabled", func(t *testing.T) {
+		t.Parallel()
+
+		enabled := true
+		info := New(flags.Config{AllowUserRegistrationOverride: &enabled}, false)
+
+		assert.True(t, info.UserRegistrationOverrideConfigured)
+		assert.True(t, info.AllowUserRegistrationOverride)
+	})
+
+	t.Run("disabled", func(t *testing.T) {
+		t.Parallel()
+
+		enabled := false
+		info := New(flags.Config{AllowUserRegistrationOverride: &enabled}, false)
+
+		assert.True(t, info.UserRegistrationOverrideConfigured)
+		assert.False(t, info.AllowUserRegistrationOverride)
+	})
 }
 
-func TestManagedConfigurationSourceReportsEnvironment(t *testing.T) {
+func TestManagedConfigurationReportsDatabaseMaxConns(t *testing.T) {
 	t.Parallel()
 
-	cfg := flags.Config{OverrideSources: map[string]string{"database-url": "Environment"}}
-	assert.Equal(t, "Environment · KUMBUKA__DATABASE_URL", managedConfigurationSource(cfg, "database-url"))
+	cfg := flags.Config{
+		DatabaseMaxConns: 36,
+		OverrideOrigins: map[string]tinyflags.ValueOrigin{
+			"database-max-conns": {Source: tinyflags.ValueSourceEnvironment, Key: "KUMBUKA__DATABASE_MAX_CONNS"},
+		},
+	}
+	info := New(cfg, false)
+
+	for _, item := range info.ManagedConfiguration[0].Items {
+		if item.Name != "Database max connections" {
+			continue
+		}
+
+		assert.Equal(t, "36", item.Value)
+		assert.Equal(t, "Environment · KUMBUKA__DATABASE_MAX_CONNS", item.Source)
+		return
+	}
+
+	assert.Fail(t, "Database max connections configuration item not found")
+}
+
+func TestManagedConfigurationReportsDatabaseMinIdleConns(t *testing.T) {
+	t.Parallel()
+
+	cfg := flags.Config{
+		DatabaseMinIdleConns: 4,
+		OverrideOrigins: map[string]tinyflags.ValueOrigin{
+			"database-min-idle-conns": {Source: tinyflags.ValueSourceFlag, Key: "--database-min-idle-conns"},
+		},
+	}
+	info := New(cfg, false)
+
+	for _, item := range info.ManagedConfiguration[0].Items {
+		if item.Name != "Database minimum idle connections" {
+			continue
+		}
+
+		assert.Equal(t, "4", item.Value)
+		assert.Equal(t, "Flag · --database-min-idle-conns", item.Source)
+		return
+	}
+
+	assert.Fail(t, "Database minimum idle connections configuration item not found")
 }
 
 func TestNewRedactsManagedSecrets(t *testing.T) {
@@ -65,7 +147,7 @@ func TestManagedConfigurationReportsDisabledMetrics(t *testing.T) {
 
 	cfg := flags.Config{
 		DisableMetrics:  true,
-		OverrideSources: map[string]string{"disable-metrics": "Flag"},
+		OverrideOrigins: map[string]tinyflags.ValueOrigin{"disable-metrics": {Source: tinyflags.ValueSourceFlag, Key: "--disable-metrics"}},
 	}
 	info := New(cfg, false)
 

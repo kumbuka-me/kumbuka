@@ -4,7 +4,6 @@ package flags
 import (
 	"errors"
 	"net"
-	"strings"
 	"time"
 
 	"github.com/containeroo/tinyflags"
@@ -46,6 +45,10 @@ type Config struct {
 	ListenAddress string
 	// DatabaseURL is the PostgreSQL connection URL.
 	DatabaseURL string
+	// DatabaseMaxConns is the maximum number of database connections.
+	DatabaseMaxConns int32
+	// DatabaseMinIdleConns is the minimum number of idle database connections kept ready.
+	DatabaseMinIdleConns int32
 	// PublicURL is the externally visible base URL.
 	PublicURL string
 	// PDFURL optionally overrides the persisted PDF rendering endpoint for this process.
@@ -98,8 +101,8 @@ type Config struct {
 	AccessLog bool
 	// Overrides records configuration values explicitly overridden by flags or environment variables.
 	Overrides map[string]any
-	// OverrideSources records whether each explicit override came from a flag or environment variable.
-	OverrideSources map[string]string
+	// OverrideOrigins records the exact input that supplied each explicit override.
+	OverrideOrigins map[string]tinyflags.ValueOrigin
 }
 
 // Parse parses command-line arguments into application configuration.
@@ -120,6 +123,22 @@ func Parse(args []string, version string) (Config, error) {
 		Required().
 		Placeholder("URL").
 		OverriddenValueMaskFn(tinyflags.MaskPostgresURL).
+		Value()
+	tf.Int32Var(&cfg.DatabaseMaxConns, "database-max-conns", 0, "Maximum number of database connections; 0 uses the pgxpool default").
+		Validate(func(n int32) error {
+			if n < 0 {
+				return errors.New("database max connections must not be negative")
+			}
+			return nil
+		}).
+		Value()
+	tf.Int32Var(&cfg.DatabaseMinIdleConns, "database-min-idle-conns", 0, "Minimum number of idle database connections kept ready; 0 uses the pgxpool default").
+		Validate(func(n int32) error {
+			if n < 0 {
+				return errors.New("database minimum idle connections must not be negative")
+			}
+			return nil
+		}).
 		Value()
 	tf.StringVar(&cfg.PublicURL, "public-url", "http://localhost:8080", "Externally visible base URL").
 		Placeholder("URL").
@@ -237,41 +256,7 @@ func Parse(args []string, version string) (Config, error) {
 	cfg.ListenAddress = (*listen).String()
 	cfg.LogFormat = *logFormat
 	cfg.Overrides = tf.OverriddenValues()
-	cfg.OverrideSources = overrideSources(args, cfg.Overrides)
+	cfg.OverrideOrigins = tf.OverriddenOrigins()
 
 	return cfg, nil
-}
-
-// overrideSources identifies whether each explicit deployment override came from a flag or environment variable.
-func overrideSources(args []string, overrides map[string]any) map[string]string {
-	sources := make(map[string]string, len(overrides))
-	for name := range overrides {
-		sources[name] = "Environment"
-		if argumentSetsFlag(args, name) {
-			sources[name] = "Flag"
-		}
-	}
-
-	return sources
-}
-
-// argumentSetsFlag reports whether command-line arguments explicitly set the named long flag.
-func argumentSetsFlag(args []string, name string) bool {
-	long := "--" + name
-	short := map[string]string{
-		"listen-address": "-a",
-		"log-format":     "-l",
-		"debug":          "-d",
-	}[name]
-
-	for _, argument := range args {
-		if argument == long || strings.HasPrefix(argument, long+"=") {
-			return true
-		}
-		if short != "" && (argument == short || strings.HasPrefix(argument, short+"=")) {
-			return true
-		}
-	}
-
-	return false
 }

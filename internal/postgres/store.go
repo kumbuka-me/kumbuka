@@ -2,11 +2,44 @@ package postgres
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+// config controls PostgreSQL store construction before the pool is created.
+type config struct {
+	maxConns                      int32
+	minIdleConns                  int32
+	allowUserRegistrationOverride *bool
+}
+
+// Option configures PostgreSQL store construction.
+type Option func(*config)
+
+// WithMaxConns overrides pgxpool's automatically selected maximum when greater than zero.
+func WithMaxConns(maxConns int32) Option {
+	return func(config *config) {
+		config.maxConns = maxConns
+	}
+}
+
+// WithMinIdleConns sets the minimum number of idle connections pgxpool keeps ready when greater than zero.
+func WithMinIdleConns(minIdleConns int32) Option {
+	return func(config *config) {
+		config.minIdleConns = minIdleConns
+	}
+}
+
+// WithUserRegistrationOverride forces the effective external-user registration policy.
+func WithUserRegistrationOverride(allowed bool) Option {
+	return func(config *config) {
+		value := allowed
+		config.allowUserRegistrationOverride = &value
+	}
+}
 
 // Store provides PostgreSQL-backed persistence for Kumbuka data.
 type Store struct {
@@ -46,27 +79,42 @@ type PoolStats struct {
 	MaxLifetimeDestroyed int64
 }
 
-// Option customizes Store behavior when a database connection is opened.
-type Option func(*Store)
-
-// WithUserRegistrationOverride forces the effective external-user registration policy.
-func WithUserRegistrationOverride(allowed bool) Option {
-	return func(store *Store) {
-		value := allowed
-		store.allowUserRegistrationOverride = &value
-	}
-}
-
 // Open connects to PostgreSQL and applies pending embedded migrations.
 func Open(ctx context.Context, url string, logger *slog.Logger, options ...Option) (*Store, error) {
-	pool, err := pgxpool.New(ctx, url)
+	settings := config{}
+	for _, option := range options {
+		option(&settings)
+	}
+
+	switch {
+	case settings.maxConns < 0:
+		return nil, errors.New("database max connections must not be negative")
+	case settings.minIdleConns < 0:
+		return nil, errors.New("database minimum idle connections must not be negative")
+	}
+
+	poolConfig, err := pgxpool.ParseConfig(url)
+	if err != nil {
+		return nil, err
+	}
+	if settings.maxConns > 0 {
+		poolConfig.MaxConns = settings.maxConns
+	}
+	if settings.minIdleConns > 0 {
+		poolConfig.MinIdleConns = settings.minIdleConns
+	}
+	if poolConfig.MinIdleConns > poolConfig.MaxConns {
+		return nil, errors.New("database minimum idle connections must not exceed maximum connections")
+	}
+
+	pool, err := pgxpool.NewWithConfig(ctx, poolConfig)
 	if err != nil {
 		return nil, err
 	}
 
-	s := &Store{pool: pool}
-	for _, option := range options {
-		option(s)
+	s := &Store{
+		pool:                          pool,
+		allowUserRegistrationOverride: settings.allowUserRegistrationOverride,
 	}
 	if err := pool.Ping(ctx); err != nil {
 		pool.Close()

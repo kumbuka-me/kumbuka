@@ -2,6 +2,7 @@
 package runtimeinfo
 
 import (
+	"strconv"
 	"strings"
 	"time"
 
@@ -9,21 +10,15 @@ import (
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 )
 
-// New returns administrator-safe runtime information for the active deployment. Parameters: - cfg: Parsed deployment-owned process configuration. - encryptionKeyConfigured: Whether application encryption is available without exposing its key. Returns: - webview.RuntimeInfo: Redacted runtime and managed-configuration presentation data.
+// New returns administrator-safe runtime information for the active deployment.
 func New(cfg flags.Config, encryptionKeyConfigured bool) webview.RuntimeInfo {
-	registrationOverrideConfigured := cfg.AllowUserRegistrationOverride != nil
-	allowUserRegistrationOverride := false
-	if registrationOverrideConfigured {
-		allowUserRegistrationOverride = *cfg.AllowUserRegistrationOverride
-	}
-
 	return webview.RuntimeInfo{
 		ListenAddress:                      cfg.ListenAddress,
 		PublicURL:                          cfg.PublicURL,
 		PDFURL:                             cfg.PDFURL,
 		ReadOnly:                           cfg.ReadOnly,
-		UserRegistrationOverrideConfigured: registrationOverrideConfigured,
-		AllowUserRegistrationOverride:      allowUserRegistrationOverride,
+		UserRegistrationOverrideConfigured: cfg.AllowUserRegistrationOverride != nil,
+		AllowUserRegistrationOverride:      cfg.AllowUserRegistrationOverride != nil && *cfg.AllowUserRegistrationOverride,
 		AuthModeOverride:                   cfg.AuthModeOverride,
 		OIDCIssuerOverride:                 cfg.OIDCIssuer,
 		OIDCClientIDOverride:               cfg.OIDCClientID,
@@ -52,6 +47,8 @@ func managedConfiguration(cfg flags.Config, encryptionKeyConfigured bool) []webv
 			Items: []webview.ManagedConfigurationItem{
 				managedConfigurationItem(cfg, "Listen address", "listen-address", cfg.ListenAddress),
 				managedConfigurationItem(cfg, "Database URL", "database-url", configuredLabel(cfg.DatabaseURL != "")),
+				managedConfigurationItem(cfg, "Database max connections", "database-max-conns", databaseConnectionCountLabel(cfg.DatabaseMaxConns)),
+				managedConfigurationItem(cfg, "Database minimum idle connections", "database-min-idle-conns", databaseConnectionCountLabel(cfg.DatabaseMinIdleConns)),
 				managedConfigurationItem(cfg, "Public URL", "public-url", cfg.PublicURL),
 				managedConfigurationItem(cfg, "PDF URL override", "pdf-url", configuredValue(cfg.PDFURL)),
 				managedConfigurationItem(cfg, "Plugin update checks", "plugin-update-check-interval", pluginUpdateCheckIntervalLabel(cfg.PluginUpdateCheckInterval)),
@@ -97,23 +94,17 @@ func managedConfigurationItem(cfg flags.Config, name, flagName, value string) we
 	return webview.ManagedConfigurationItem{
 		Name:   name,
 		Value:  value,
-		Source: managedConfigurationSource(cfg, flagName),
+		Source: cfg.OverrideOrigins[flagName].String(),
 	}
 }
 
-// managedConfigurationSource formats the source of one deployment-owned setting.
-func managedConfigurationSource(cfg flags.Config, flagName string) string {
-	source, overridden := cfg.OverrideSources[flagName]
-	if !overridden {
-		return "Default"
+// databaseConnectionCountLabel formats an explicit pool connection count or reports pgxpool-managed sizing.
+func databaseConnectionCountLabel(count int32) string {
+	if count <= 0 {
+		return "Automatic"
 	}
 
-	if source == "Flag" {
-		return "Flag · --" + flagName
-	}
-
-	environment := "KUMBUKA__" + strings.ToUpper(strings.ReplaceAll(flagName, "-", "_"))
-	return "Environment · " + environment
+	return strconv.FormatInt(int64(count), 10)
 }
 
 // configuredValue returns a readable label for an optional non-secret deployment value.

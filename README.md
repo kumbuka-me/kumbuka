@@ -44,20 +44,22 @@ kumbuka \
 
 Environment variables use the `KUMBUKA__` prefix.
 
-| Setting | Default | What it changes |
-| --- | --- | --- |
-| `KUMBUKA__LISTEN_ADDRESS` | `127.0.0.1:8080` | Address and port Kumbuka listens on. |
-| `KUMBUKA__PUBLIC_URL` | `http://localhost:8080` | Externally visible URL of the Kumbuka installation. |
-| `KUMBUKA__DATABASE_URL` | — | PostgreSQL connection URL. |
-| `KUMBUKA__PLUGIN_UPDATE_CHECK_INTERVAL` | `1h` | Checks the first-party plugin catalog on this interval; `0` disables scheduled checks while manual checks remain available. |
-| `KUMBUKA__READ_ONLY` | `false` | Blocks state-changing application requests while keeping reads and authentication available. |
-| `KUMBUKA__DISABLE_METRICS` | `false` | Disables the `/metrics` endpoint and HTTP request instrumentation. |
-| `KUMBUKA__ALLOW_USER_REGISTRATION` | — | Overrides whether unknown OIDC or trusted-proxy identities may create accounts. |
-| `KUMBUKA__LOCAL_LOGIN` | `false` | Enables the local recovery login alongside the configured authentication mode. |
-| `KUMBUKA__TRUSTED_GROUP_HEADERS` | `X-Forwarded-Groups,X-Auth-Request-Groups` | Trusted-proxy group headers used with the trusted-proxy authentication override. |
-| `KUMBUKA__TRUSTED_ADMIN_GROUP` | — | Trusted-proxy group that grants administrator access with the authentication override. |
-| `KUMBUKA__OIDC_GROUP_CLAIM` | `groups` | OIDC group-membership claim used with the OIDC authentication override. |
-| `KUMBUKA__OIDC_ADMIN_GROUP` | — | OIDC group that grants administrator access with the authentication override. |
+| Setting                                 | Default                                    | What it changes                                                                                                             |
+| --------------------------------------- | ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------- |
+| `KUMBUKA__LISTEN_ADDRESS`               | `127.0.0.1:8080`                           | Address and port Kumbuka listens on.                                                                                        |
+| `KUMBUKA__PUBLIC_URL`                   | `http://localhost:8080`                    | Externally visible URL of the Kumbuka installation.                                                                         |
+| `KUMBUKA__DATABASE_URL`                 | —                                          | PostgreSQL connection URL.                                                                                                  |
+| `KUMBUKA__DATABASE_MAX_CONNS`           | `0`                                        | Maximum PostgreSQL pool connections; `0` uses pgxpool automatic sizing.                                                     |
+| `KUMBUKA__DATABASE_MIN_IDLE_CONNS`      | `0`                                        | Minimum idle PostgreSQL pool connections kept ready; `0` uses the pgxpool default.                                          |
+| `KUMBUKA__PLUGIN_UPDATE_CHECK_INTERVAL` | `1h`                                       | Checks the first-party plugin catalog on this interval; `0` disables scheduled checks while manual checks remain available. |
+| `KUMBUKA__READ_ONLY`                    | `false`                                    | Blocks state-changing application requests while keeping reads and authentication available.                                |
+| `KUMBUKA__DISABLE_METRICS`              | `false`                                    | Disables the `/metrics` endpoint and HTTP request instrumentation.                                                          |
+| `KUMBUKA__ALLOW_USER_REGISTRATION`      | —                                          | Overrides whether unknown OIDC or trusted-proxy identities may create accounts.                                             |
+| `KUMBUKA__LOCAL_LOGIN`                  | `false`                                    | Enables the local recovery login alongside the configured authentication mode.                                              |
+| `KUMBUKA__TRUSTED_GROUP_HEADERS`        | `X-Forwarded-Groups,X-Auth-Request-Groups` | Trusted-proxy group headers used with the trusted-proxy authentication override.                                            |
+| `KUMBUKA__TRUSTED_ADMIN_GROUP`          | —                                          | Trusted-proxy group that grants administrator access with the authentication override.                                      |
+| `KUMBUKA__OIDC_GROUP_CLAIM`             | `groups`                                   | OIDC group-membership claim used with the OIDC authentication override.                                                     |
+| `KUMBUKA__OIDC_ADMIN_GROUP`             | —                                          | OIDC group that grants administrator access with the authentication override.                                               |
 
 See the [documentation](https://kumbuka.me/) for all settings and authentication options.
 
