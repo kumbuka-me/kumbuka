@@ -74,7 +74,13 @@ func (r *webhookRepositoryStub) SaveWebhook(_ context.Context, id int64, item do
 
 func (*webhookRepositoryStub) DeleteWebhook(context.Context, int64) error { return nil }
 
-func (r *webhookRepositoryStub) AddWebhookDelivery(_ context.Context, id int64, event string, status, attempts int, message string) error {
+func (r *webhookRepositoryStub) AddWebhookDelivery(
+	_ context.Context,
+	id int64,
+	event string,
+	status, attempts int,
+	message string,
+) error {
 	r.deliveries = append(r.deliveries, domain.WebhookDelivery{
 		WebhookID:  id,
 		Event:      event,
@@ -126,11 +132,106 @@ func TestWebhookDeliveryHistoryFailureIsObservableWithoutReplacingPrimaryError(t
 		}},
 	}
 
-	err := NewWebhooks(repository, nil, logger, "").Emit(context.Background(), OutgoingEvent{Event: "page.updated"})
+	err := NewWebhooks(repository, nil, logger, "").Emit(
+		context.Background(),
+		OutgoingEvent{Event: "page.updated"},
+	)
 
 	require.ErrorIs(t, err, errSecretCodecNotConfigured)
 	assert.Contains(t, output.String(), `"event":"webhook_delivery_record_failed"`)
 	assert.Contains(t, output.String(), "delivery history unavailable")
+}
+
+func TestNotificationForDelivery(t *testing.T) {
+	t.Parallel()
+
+	t.Run("uses prepared notification", func(t *testing.T) {
+		t.Parallel()
+
+		service := NewWebhooks(
+			&webhookRepositoryStub{},
+			nil,
+			testWebhookLogger(),
+			"https://kumbuka.example",
+		)
+		prepared := webhookNotification{
+			event: OutgoingEvent{
+				Event:      EventNotificationCreated,
+				ActorID:    42,
+				ObjectType: "notification",
+				ObjectKey:  "101",
+			},
+			publicURL: "https://prepared.example",
+			actor: &webhookTemplateUser{
+				ID:      42,
+				Mention: "@alice",
+				Email:   "alice@example.test",
+			},
+		}
+
+		notification, err := service.notificationForDelivery(
+			context.Background(),
+			domain.Webhook{IncludeUserDetails: true},
+			OutgoingEvent{Event: "page.updated"},
+			&prepared,
+		)
+
+		require.NoError(t, err)
+		assert.Equal(t, prepared.event, notification.event)
+		assert.Equal(t, prepared.publicURL, notification.publicURL)
+		assert.Equal(t, prepared.actor, notification.actor)
+		assert.Equal(t, prepared.recipient, notification.recipient)
+	})
+
+	t.Run("builds notification when none is prepared", func(t *testing.T) {
+		t.Parallel()
+
+		service := NewWebhooks(
+			&webhookRepositoryStub{},
+			nil,
+			testWebhookLogger(),
+			"https://kumbuka.example",
+		)
+		event := OutgoingEvent{
+			Event:      "page.updated",
+			ActorID:    42,
+			ObjectType: "page",
+			ObjectKey:  "guides/example",
+		}
+
+		notification, err := service.notificationForDelivery(
+			context.Background(),
+			domain.Webhook{},
+			event,
+			nil,
+		)
+
+		require.NoError(t, err)
+		assert.Equal(t, event, notification.event)
+		assert.Equal(t, "https://kumbuka.example", notification.publicURL)
+		assert.Nil(t, notification.actor)
+		assert.Nil(t, notification.recipient)
+	})
+
+	t.Run("returns notification construction error", func(t *testing.T) {
+		t.Parallel()
+
+		service := NewWebhooks(
+			&webhookRepositoryStub{},
+			nil,
+			testWebhookLogger(),
+			"",
+		)
+
+		_, err := service.notificationForDelivery(
+			context.Background(),
+			domain.Webhook{IncludeUserDetails: true},
+			OutgoingEvent{Event: "page.updated", ActorID: 42},
+			nil,
+		)
+
+		require.EqualError(t, err, "webhook user directory is unavailable")
+	})
 }
 
 func TestWebhooks(t *testing.T) {
@@ -260,13 +361,16 @@ func TestWebhooks(t *testing.T) {
 			Enabled: true,
 		}}}
 
-		err = NewWebhooks(repository, cipher, testWebhookLogger(), "https://kumbuka.example").Emit(context.Background(), OutgoingEvent{
-			Event:      "page.updated",
-			ActorID:    42,
-			ObjectType: "page",
-			ObjectKey:  "guides/example",
-			Detail:     "Example",
-		})
+		err = NewWebhooks(repository, cipher, testWebhookLogger(), "https://kumbuka.example").Emit(
+			context.Background(),
+			OutgoingEvent{
+				Event:      "page.updated",
+				ActorID:    42,
+				ObjectType: "page",
+				ObjectKey:  "guides/example",
+				Detail:     "Example",
+			},
+		)
 
 		require.NoError(t, err)
 		request := <-received
@@ -328,6 +432,7 @@ func TestWebhooks(t *testing.T) {
 			w.WriteHeader(http.StatusNoContent)
 		}))
 		defer server.Close()
+
 		repository := &webhookRepositoryStub{items: []domain.Webhook{{
 			ID:           1,
 			Name:         "generic",
@@ -373,11 +478,14 @@ func TestWebhooks(t *testing.T) {
 			Enabled:         true,
 		}}}
 
-		err := NewWebhooks(repository, testWebhookSecretCipher(t), testWebhookLogger(), "").Emit(context.Background(), OutgoingEvent{
-			Event:      "page.updated",
-			ObjectType: "page",
-			ObjectKey:  "guide",
-		})
+		err := NewWebhooks(repository, testWebhookSecretCipher(t), testWebhookLogger(), "").Emit(
+			context.Background(),
+			OutgoingEvent{
+				Event:      "page.updated",
+				ObjectType: "page",
+				ObjectKey:  "guide",
+			},
+		)
 
 		require.NoError(t, err)
 		assert.Equal(t, int32(2), calls.Load())
@@ -407,11 +515,14 @@ func TestWebhooks(t *testing.T) {
 			Enabled:      true,
 		}}}
 
-		err := NewWebhooks(repository, testWebhookSecretCipher(t), testWebhookLogger(), "").Emit(context.Background(), OutgoingEvent{
-			Event:      "page.updated",
-			ObjectType: "page",
-			ObjectKey:  "guide",
-		})
+		err := NewWebhooks(repository, testWebhookSecretCipher(t), testWebhookLogger(), "").Emit(
+			context.Background(),
+			OutgoingEvent{
+				Event:      "page.updated",
+				ObjectType: "page",
+				ObjectKey:  "guide",
+			},
+		)
 
 		require.Error(t, err)
 		assert.Equal(t, int32(1), calls.Load())
@@ -443,11 +554,14 @@ func TestWebhooks(t *testing.T) {
 			Enabled:         true,
 		}}}
 
-		err := NewWebhooks(repository, testWebhookSecretCipher(t), testWebhookLogger(), "").Emit(context.Background(), OutgoingEvent{
-			Event:      "page.updated",
-			ObjectType: "page",
-			ObjectKey:  "guide",
-		})
+		err := NewWebhooks(repository, testWebhookSecretCipher(t), testWebhookLogger(), "").Emit(
+			context.Background(),
+			OutgoingEvent{
+				Event:      "page.updated",
+				ObjectType: "page",
+				ObjectKey:  "guide",
+			},
+		)
 
 		require.Error(t, err)
 		assert.Equal(t, int32(1), calls.Load())
@@ -470,7 +584,12 @@ func TestWebhooks(t *testing.T) {
 			}},
 		}}}
 
-		items, err := NewWebhooks(repository, testWebhookSecretCipher(t), testWebhookLogger(), "").Webhooks(context.Background())
+		items, err := NewWebhooks(
+			repository,
+			testWebhookSecretCipher(t),
+			testWebhookLogger(),
+			"",
+		).Webhooks(context.Background())
 
 		require.NoError(t, err)
 		require.Len(t, items, 1)
@@ -485,20 +604,28 @@ func TestWebhooks(t *testing.T) {
 
 		cipher := testWebhookSecretCipher(t)
 		repository := &webhookRepositoryStub{}
-		_, err := NewWebhooks(repository, cipher, testWebhookLogger(), "").SaveWebhook(context.Background(), 0, WebhookInput{
-			Name:               "hook",
-			URL:                "https://example.test/hook",
-			Events:             []string{"page.updated"},
-			BodyTemplate:       `{"event": {{ .Input.Event | json }}}`,
-			IncludeUserDetails: true,
-			Headers:            []WebhookHeaderInput{{Name: "authorization", Value: "Bearer secret", Sensitive: true}},
-			RetryEnabled:       true,
-			RetryCount:         2,
-			RetryBackoff:       time.Second,
-			RetryMaxBackoff:    30 * time.Second,
-			RetryJitter:        true,
-			Enabled:            true,
-		})
+		_, err := NewWebhooks(repository, cipher, testWebhookLogger(), "").SaveWebhook(
+			context.Background(),
+			0,
+			WebhookInput{
+				Name:               "hook",
+				URL:                "https://example.test/hook",
+				Events:             []string{"page.updated"},
+				BodyTemplate:       `{"event": {{ .Input.Event | json }}}`,
+				IncludeUserDetails: true,
+				Headers: []WebhookHeaderInput{{
+					Name:      "authorization",
+					Value:     "Bearer secret",
+					Sensitive: true,
+				}},
+				RetryEnabled:    true,
+				RetryCount:      2,
+				RetryBackoff:    time.Second,
+				RetryMaxBackoff: 30 * time.Second,
+				RetryJitter:     true,
+				Enabled:         true,
+			},
+		)
 
 		require.NoError(t, err)
 		assert.True(t, repository.saved.IncludeUserDetails)
@@ -522,17 +649,21 @@ func TestWebhooks(t *testing.T) {
 			Headers: []domain.WebhookHeader{{ID: 4, Name: "Authorization", Value: encrypted, Sensitive: true}},
 		}}}
 
-		_, err = NewWebhooks(repository, cipher, testWebhookLogger(), "").SaveWebhook(context.Background(), 9, WebhookInput{
-			Name:            "hook",
-			URL:             "https://example.test/hook",
-			Events:          []string{"page.updated"},
-			BodyTemplate:    `{"event": {{ .Input.Event | json }}}`,
-			Headers:         []WebhookHeaderInput{{ID: 4, Name: "Authorization", Sensitive: true}},
-			RetryCount:      2,
-			RetryBackoff:    time.Second,
-			RetryMaxBackoff: 30 * time.Second,
-			Enabled:         true,
-		})
+		_, err = NewWebhooks(repository, cipher, testWebhookLogger(), "").SaveWebhook(
+			context.Background(),
+			9,
+			WebhookInput{
+				Name:            "hook",
+				URL:             "https://example.test/hook",
+				Events:          []string{"page.updated"},
+				BodyTemplate:    `{"event": {{ .Input.Event | json }}}`,
+				Headers:         []WebhookHeaderInput{{ID: 4, Name: "Authorization", Sensitive: true}},
+				RetryCount:      2,
+				RetryBackoff:    time.Second,
+				RetryMaxBackoff: 30 * time.Second,
+				Enabled:         true,
+			},
+		)
 
 		require.NoError(t, err)
 		require.Len(t, repository.saved.Headers, 1)
@@ -543,16 +674,25 @@ func TestWebhooks(t *testing.T) {
 		t.Parallel()
 
 		repository := &webhookRepositoryStub{}
-		_, err := NewWebhooks(repository, testWebhookSecretCipher(t), testWebhookLogger(), "").SaveWebhook(context.Background(), 0, WebhookInput{
-			Name:            "hook",
-			URL:             "https://example.test/hook",
-			Events:          []string{"page.updated"},
-			BodyTemplate:    `{"missing": {{ .Payload.Missing | json }}}`,
-			RetryCount:      2,
-			RetryBackoff:    time.Second,
-			RetryMaxBackoff: 30 * time.Second,
-			Enabled:         true,
-		})
+		_, err := NewWebhooks(
+			repository,
+			testWebhookSecretCipher(t),
+			testWebhookLogger(),
+			"",
+		).SaveWebhook(
+			context.Background(),
+			0,
+			WebhookInput{
+				Name:            "hook",
+				URL:             "https://example.test/hook",
+				Events:          []string{"page.updated"},
+				BodyTemplate:    `{"missing": {{ .Payload.Missing | json }}}`,
+				RetryCount:      2,
+				RetryBackoff:    time.Second,
+				RetryMaxBackoff: 30 * time.Second,
+				Enabled:         true,
+			},
+		)
 
 		validation, ok := err.(*domain.ValidationError)
 		require.True(t, ok)
@@ -571,7 +711,12 @@ func TestWebhooks(t *testing.T) {
 			Headers: []domain.WebhookHeader{{ID: 4, Name: "Authorization", Value: encrypted, Sensitive: true}},
 		}}}
 
-		value, err := NewWebhooks(repository, cipher, testWebhookLogger(), "").RevealWebhookHeader(context.Background(), 9, 4)
+		value, err := NewWebhooks(
+			repository,
+			cipher,
+			testWebhookLogger(),
+			"",
+		).RevealWebhookHeader(context.Background(), 9, 4)
 
 		require.NoError(t, err)
 		assert.Equal(t, "Bearer stored", value)

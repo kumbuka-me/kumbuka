@@ -89,7 +89,12 @@ func (s *Webhooks) deliverWithNotification(
 		s.recordWebhookDelivery(ctx, item.ID, event.Event, 0, 0, err.Error()) // nolint:errcheck
 		return err
 	}
-	titleTemplate, err := templates.ParseStringTemplate("kumbuka-webhook-title", `{{ .Input.Event }}`, templates.WithDefaultFuncs())
+
+	titleTemplate, err := templates.ParseStringTemplate(
+		"kumbuka-webhook-title",
+		`{{ .Input.Event }}`,
+		templates.WithDefaultFuncs(),
+	)
 	if err != nil {
 		s.recordWebhookDelivery(ctx, item.ID, event.Event, 0, 0, err.Error()) // nolint:errcheck
 		return err
@@ -119,21 +124,18 @@ func (s *Webhooks) deliverWithNotification(
 		})
 	}
 
-	notification := webhookNotification{}
-	if prepared != nil {
-		notification = *prepared
-	} else {
-		notification, err = s.webhookNotification(ctx, item, event)
-		if err != nil {
-			s.recordWebhookDelivery(ctx, item.ID, event.Event, 0, 0, err.Error()) // nolint:errcheck
-			return err
-		}
+	notification, err := s.notificationForDelivery(ctx, item, event, prepared)
+	if err != nil {
+		s.recordWebhookDelivery(ctx, item.ID, event.Event, 0, 0, err.Error()) // nolint:errcheck
+		return err
 	}
+
 	deliveryErr := kit.Send(ctx, notification, kit.NewReceivers(receiver), s.logger)
 	message := ""
 	if deliveryErr != nil {
 		message = deliveryErr.Error()
 	}
+
 	recordErr := s.recordWebhookDelivery(
 		ctx,
 		item.ID,
@@ -147,6 +149,20 @@ func (s *Webhooks) deliverWithNotification(
 	}
 
 	return recordErr
+}
+
+// notificationForDelivery returns prepared template data when supplied or builds it from the event.
+func (s *Webhooks) notificationForDelivery(
+	ctx context.Context,
+	item domain.Webhook,
+	event OutgoingEvent,
+	prepared *webhookNotification,
+) (webhookNotification, error) {
+	if prepared != nil {
+		return *prepared, nil
+	}
+
+	return s.webhookNotification(ctx, item, event)
 }
 
 // webhookNotification builds the template input and resolves optional user contact details.
@@ -227,7 +243,9 @@ func (s *Webhooks) webhookRequestHeaders(item domain.Webhook, event OutgoingEven
 	return headers, nil
 }
 
-// recordWebhookDelivery persists one delivery outcome and reports history failures. Callers may preserve a more important primary delivery error while the log keeps the secondary persistence failure observable.
+// recordWebhookDelivery persists one delivery outcome and reports history failures.
+// Callers may preserve a more important primary delivery error while the log keeps
+// the secondary persistence failure observable.
 func (s *Webhooks) recordWebhookDelivery(
 	ctx context.Context,
 	webhookID int64,
