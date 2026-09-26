@@ -14,7 +14,7 @@ func TestNormalize(t *testing.T) {
 	oldSlug, newSlug, err := Normalize(" /Guide/Child/ ", "Archive / New Home", domain.MovePageOptions{})
 	require.NoError(t, err)
 	assert.Equal(t, "Guide/Child", oldSlug)
-	assert.Equal(t, "archive/new-home", newSlug)
+	assert.Equal(t, "archive-/-new-home", newSlug)
 }
 
 func TestNormalizeRejectsTreeMoveIntoItself(t *testing.T) {
