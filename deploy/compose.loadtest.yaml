@@ -33,7 +33,7 @@ services:
       retries: 30
 
   k6:
-    image: grafana/k6:0.59.0
+    image: grafana/k6:2.3.0
     profiles: ["loadtest"]
     environment:
       BASE_URL: http://kumbuka:8080
