@@ -3,7 +3,6 @@ package webhooks
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/textproto"
 	"net/url"
@@ -20,7 +19,7 @@ import (
 func validateWebhookInput(input WebhookInput, events []string) error {
 	validation := &domain.ValidationError{}
 	validateWebhookIdentity(input, events, validation)
-	validateWebhookTemplate(input.BodyTemplate, validation)
+	validateWebhookTemplate(input.BodyTemplate, events, input.IncludeUserDetails, validation)
 	validateWebhookRetry(input, validation)
 	if len(validation.Fields) == 0 {
 		return nil
@@ -51,9 +50,9 @@ func validateWebhookIdentity(input WebhookInput, events []string, validation *do
 	}
 }
 
-// validateWebhookTemplate validates the optional request body template.
-func validateWebhookTemplate(value string, validation *domain.ValidationError) {
-	if err := validateWebhookBodyTemplate(value); err != nil {
+// validateWebhookTemplate validates the request body template for every selected event shape.
+func validateWebhookTemplate(value string, events []string, includeUserDetails bool, validation *domain.ValidationError) {
+	if err := validateWebhookBodyTemplate(value, events, includeUserDetails); err != nil {
 		validation.Fields = append(validation.Fields, domain.FieldError{
 			Field:   "body_template",
 			Message: "Payload template is invalid: " + err.Error(),
@@ -103,42 +102,91 @@ func preserveWebhookHeaderValue(previous domain.WebhookHeader, input WebhookHead
 	return previous.ID != 0 && previous.Sensitive && input.Sensitive
 }
 
-// validateWebhookBodyTemplate parses and renders one template against the documented webhook context.
-func validateWebhookBodyTemplate(value string) error {
+// validateWebhookBodyTemplate parses one template and renders it for every selected event shape.
+func validateWebhookBodyTemplate(value string, events []string, includeUserDetails bool) error {
 	tmpl, err := parseWebhookBodyTemplate(value)
 	if err != nil {
 		return fmt.Errorf("parse template: %w", err)
 	}
 
-	event := OutgoingEvent{
-		Event:      "page.updated",
-		ActorID:    42,
-		ObjectType: "page",
-		ObjectKey:  "guides/example",
-		Detail:     `Example "page" updated`,
-		OccurredAt: time.Date(2026, 9, 11, 8, 0, 0, 0, time.UTC),
-	}
-	sampleUser := &webhookTemplateUser{
-		ID:          42,
-		Mention:     "@alice",
-		DisplayName: "Alice Example",
-		Email:       "alice@example.test",
-		Enabled:     true,
-	}
-	body, err := tmpl.Render(webhookNotification{
-		event:     event,
-		publicURL: "https://kumbuka.example",
-		actor:     sampleUser,
-		recipient: sampleUser,
-	}.Data("Example", nil, event.Event))
-	if err != nil {
-		return fmt.Errorf("render template: %w", err)
-	}
-	if !json.Valid(body) {
-		return errors.New("result is not valid JSON; use | json for JSON values")
+	for _, eventName := range events {
+		event := webhookTemplateValidationEvent(eventName)
+		notification := webhookNotification{
+			event:     event,
+			publicURL: "https://kumbuka.example",
+		}
+		if includeUserDetails {
+			notification.actor = webhookTemplateValidationUser(42, "@alice", "Alice Example", "alice@example.test")
+			if event.RecipientUserID != 0 {
+				notification.recipient = webhookTemplateValidationUser(43, "@bob", "Bob Example", "bob@example.test")
+			}
+		}
+
+		body, err := tmpl.Render(notification.Data("Example", nil, event.Event))
+		if err != nil {
+			return fmt.Errorf("render template for %s: %w", eventName, err)
+		}
+		if !json.Valid(body) {
+			return fmt.Errorf("render template for %s: result is not valid JSON; use | json for JSON values", eventName)
+		}
 	}
 
 	return nil
+}
+
+// webhookTemplateValidationEvent returns representative data matching one supported outgoing event.
+func webhookTemplateValidationEvent(event string) OutgoingEvent {
+	sample := OutgoingEvent{
+		Event:      event,
+		ActorID:    42,
+		ObjectType: "page",
+		ObjectKey:  "guides/example",
+		Detail:     "Example event",
+		OccurredAt: time.Date(2026, 9, 11, 8, 0, 0, 0, time.UTC),
+	}
+
+	switch event {
+	case EventNotificationCreated:
+		sample.RecipientUserID = 43
+		sample.ObjectType = "notification"
+		sample.ObjectKey = "101"
+		sample.Detail = ""
+		sample.Data = map[string]any{
+			"recipient": map[string]any{
+				"user_id":      int64(43),
+				"mention":      "@bob",
+				"display_name": "Bob Example",
+			},
+			"notification": map[string]any{
+				"title":       "Task assigned",
+				"body":        "Review the plan.",
+				"url":         "/pages/guides/example",
+				"source_type": "plugin",
+				"source_id":   "me.example.tasks",
+				"source_name": "Tasks",
+			},
+		}
+	case "pages.imported":
+		sample.ObjectType = "import"
+		sample.ObjectKey = "markdown"
+		sample.Detail = "Imported 2 pages (completed)"
+	case "page.bulk_status", "page.bulk_tag", "page.bulk_group", "page.bulk_move", "page.bulk_delete":
+		sample.ObjectKey = "guides/one,guides/two"
+		sample.Detail = "2 pages"
+	}
+
+	return sample
+}
+
+// webhookTemplateValidationUser returns representative opt-in contact data for template validation.
+func webhookTemplateValidationUser(id int64, mention, displayName, email string) *webhookTemplateUser {
+	return &webhookTemplateUser{
+		ID:          id,
+		Mention:     mention,
+		DisplayName: displayName,
+		Email:       email,
+		Enabled:     true,
+	}
 }
 
 // prepareWebhookHeaders validates headers and encrypts changed sensitive values.
