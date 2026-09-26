@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"log/slog"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -13,6 +14,36 @@ type Store struct {
 	pool *pgxpool.Pool
 	// allowUserRegistrationOverride optionally replaces the persisted registration policy.
 	allowUserRegistrationOverride *bool
+}
+
+// PoolStats is a transport-neutral snapshot of the PostgreSQL connection pool.
+type PoolStats struct {
+	// AcquiredConnections is the number of connections currently checked out by callers.
+	AcquiredConnections int32
+	// IdleConnections is the number of currently idle connections in the pool.
+	IdleConnections int32
+	// ConstructingConnections is the number of connections currently being established.
+	ConstructingConnections int32
+	// TotalConnections is the total number of acquired, idle, and constructing connections.
+	TotalConnections int32
+	// MaxConnections is the configured upper bound for the pool.
+	MaxConnections int32
+	// Acquires is the cumulative number of successful pool acquisitions.
+	Acquires int64
+	// EmptyAcquires is the cumulative number of successful acquisitions that had to wait because the pool was empty.
+	EmptyAcquires int64
+	// CanceledAcquires is the cumulative number of acquisitions canceled by their context.
+	CanceledAcquires int64
+	// AcquireDuration is the cumulative duration spent successfully acquiring connections.
+	AcquireDuration time.Duration
+	// EmptyAcquireWaitTime is the cumulative time successful callers waited while the pool was empty.
+	EmptyAcquireWaitTime time.Duration
+	// NewConnections is the cumulative number of connections opened by the pool.
+	NewConnections int64
+	// MaxIdleDestroyed is the cumulative number of connections closed after exceeding the idle limit.
+	MaxIdleDestroyed int64
+	// MaxLifetimeDestroyed is the cumulative number of connections closed after exceeding their lifetime.
+	MaxLifetimeDestroyed int64
 }
 
 // Option customizes Store behavior when a database connection is opened.
@@ -56,6 +87,27 @@ func (s *Store) userRegistrationOverride() (bool, bool) {
 	}
 
 	return *s.allowUserRegistrationOverride, true
+}
+
+// PoolStats returns a point-in-time snapshot of PostgreSQL connection-pool activity.
+func (s *Store) PoolStats() PoolStats {
+	stats := s.pool.Stat()
+
+	return PoolStats{
+		AcquiredConnections:     stats.AcquiredConns(),
+		IdleConnections:         stats.IdleConns(),
+		ConstructingConnections: stats.ConstructingConns(),
+		TotalConnections:        stats.TotalConns(),
+		MaxConnections:          stats.MaxConns(),
+		Acquires:                stats.AcquireCount(),
+		EmptyAcquires:           stats.EmptyAcquireCount(),
+		CanceledAcquires:        stats.CanceledAcquireCount(),
+		AcquireDuration:         stats.AcquireDuration(),
+		EmptyAcquireWaitTime:    stats.EmptyAcquireWaitTime(),
+		NewConnections:          stats.NewConnsCount(),
+		MaxIdleDestroyed:        stats.MaxIdleDestroyCount(),
+		MaxLifetimeDestroyed:    stats.MaxLifetimeDestroyCount(),
+	}
 }
 
 // Close releases the PostgreSQL connection pool.

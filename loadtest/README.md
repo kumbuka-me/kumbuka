@@ -54,4 +54,6 @@ make loadtest-stress LOADTEST_MONITOR_INTERVAL=2
 
 The monitoring traffic is intentionally low and `/metrics` is fetched from inside the isolated Compose network. No Kumbuka host port is required.
 
+Kumbuka also exports PostgreSQL pool metrics. The sampler records current acquired, idle, constructing, total, and maximum connections together with cumulative acquisition counts, pool-empty waits, canceled acquisitions, acquisition duration, new connections, and connections destroyed by idle or lifetime limits. The monitoring summary reports the peak pool occupancy plus per-run deltas for empty/canceled acquisitions and wait time.
+
 `make loadtest-reset` removes the load-test database volume and recreates it with fresh seed data. `make loadtest-down` stops the stack while preserving its data.

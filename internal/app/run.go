@@ -95,6 +95,7 @@ func Run(
 		return setupFailure(logger, "load infrastructure", "infrastructure_load_failed", err)
 	}
 	defer database.Close()
+	metricsRegistry.RegisterPostgres(database)
 
 	// Construct page mutation and collaboration capabilities that other workflows depend on.
 	webhooks := appwebhooks.NewWebhooks(database, secretCipher, logger.With("component", "webhooks"), cfg.PublicURL).WithUserDirectory(database)
