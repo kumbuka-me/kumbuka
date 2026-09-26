@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/url"
+	"sort"
 	"strings"
 	"unicode/utf8"
 
@@ -65,6 +66,12 @@ type notificationCreator interface {
 type mentionNotificationCreator interface {
 	UserByUsername(context.Context, string) (domain.User, error)
 	CreateNotification(context.Context, domain.Notification) (domain.Notification, bool, error)
+}
+
+// pluginUpdateNotificationRepository owns durable update-announcement deduplication and administrator lookup.
+type pluginUpdateNotificationRepository interface {
+	ClaimPluginUpdateAnnouncements(context.Context, []domain.PluginUpdateNotice) ([]domain.PluginUpdateNotice, error)
+	EnabledAdministratorIDs(context.Context) ([]int64, error)
 }
 
 // Notifications exposes per-user notification inbox use cases.
@@ -147,13 +154,44 @@ func (s *Notifications) SendPlugin(
 	return sdk.Notification{ID: item.ID, RecipientUserID: item.RecipientUserID, CreatedAt: item.CreatedAt}, err
 }
 
+// SendCore creates one core-owned notification for an enabled recipient.
+func (s *Notifications) SendCore(
+	ctx context.Context,
+	recipientUserID, actorID int64,
+	kind domain.NotificationKind,
+	title, body, destination string,
+) error {
+	title = strings.TrimSpace(title)
+	body = strings.TrimSpace(body)
+	destination = strings.TrimSpace(destination)
+	if err := validateCoreDelivery(recipientUserID, actorID, kind, title, body, destination); err != nil {
+		return err
+	}
+	creator, ok := s.repository.(notificationCreator)
+	if !ok {
+		return errors.New("notification creation unavailable")
+	}
+	recipient, err := creator.User(ctx, recipientUserID)
+	if errors.Is(err, domain.ErrNotFound) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if !recipient.Enabled {
+		return nil
+	}
+
+	return s.createCore(ctx, creator, recipient, actorID, kind, title, body, destination)
+}
+
 // SendMentions creates core-owned notifications for each distinct enabled user mentioned in text.
 // Self-mentions are intentionally delivered so testing and personal workflows behave like any other mention.
-func (s *Notifications) SendMentions(ctx context.Context, actorID int64, text, title, url string) error {
+func (s *Notifications) SendMentions(ctx context.Context, actorID int64, text, title, destination string) error {
 	title = strings.TrimSpace(title)
-	url = strings.TrimSpace(url)
+	destination = strings.TrimSpace(destination)
 	body := "You were mentioned in page content."
-	if err := validateCoreNotification(actorID, title, body, url); err != nil {
+	if err := validateCoreNotification(actorID, title, body, destination); err != nil {
 		return err
 	}
 	creator, ok := s.repository.(mentionNotificationCreator)
@@ -172,26 +210,93 @@ func (s *Notifications) SendMentions(ctx context.Context, actorID int64, text, t
 		if !recipient.Enabled {
 			continue
 		}
-
-		item, created, err := creator.CreateNotification(ctx, domain.Notification{
-			Kind:            domain.NotificationKindMention,
-			Title:           title,
-			Body:            body,
-			URL:             url,
-			RecipientUserID: recipient.ID,
-			ActorID:         actorID,
-			SourceType:      domain.NotificationSourceCore,
-			SourceName:      "Kumbuka",
-		})
-		if err != nil {
+		if err := s.createCore(ctx, creator, recipient, actorID, domain.NotificationKindMention, title, body, destination); err != nil {
 			return err
-		}
-		if created {
-			s.emitCreated(ctx, item, recipient)
 		}
 	}
 
 	return nil
+}
+
+// NotifyPluginUpdates creates one deduplicated core notification for each enabled administrator.
+func (s *Notifications) NotifyPluginUpdates(ctx context.Context, updates []domain.PluginUpdateNotice) error {
+	repository, ok := s.repository.(pluginUpdateNotificationRepository)
+	if !ok {
+		return errors.New("plugin update notification persistence unavailable")
+	}
+	administratorIDs, err := repository.EnabledAdministratorIDs(ctx)
+	if err != nil || len(administratorIDs) == 0 {
+		return err
+	}
+	pending, err := repository.ClaimPluginUpdateAnnouncements(ctx, updates)
+	if err != nil || len(pending) == 0 {
+		return err
+	}
+
+	sort.Slice(pending, func(i, j int) bool {
+		return strings.ToLower(pending[i].Name) < strings.ToLower(pending[j].Name)
+	})
+	title, body := pluginUpdateNotification(pending)
+	for _, userID := range administratorIDs {
+		if err := s.SendCore(ctx, userID, 0, domain.NotificationKindPluginUpdate, title, body, "/admin/plugins"); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// createCore persists and emits one core-owned notification for a resolved recipient.
+func (s *Notifications) createCore(
+	ctx context.Context,
+	creator interface {
+		CreateNotification(context.Context, domain.Notification) (domain.Notification, bool, error)
+	},
+	recipient domain.User,
+	actorID int64,
+	kind domain.NotificationKind,
+	title, body, destination string,
+) error {
+	item, created, err := creator.CreateNotification(ctx, domain.Notification{
+		Kind:            kind,
+		Title:           title,
+		Body:            body,
+		URL:             destination,
+		RecipientUserID: recipient.ID,
+		ActorID:         actorID,
+		SourceType:      domain.NotificationSourceCore,
+		SourceName:      "Kumbuka",
+	})
+	if err != nil {
+		return err
+	}
+	if created {
+		s.emitCreated(ctx, item, recipient)
+	}
+	return nil
+}
+
+// pluginUpdateNotification formats one compact administrator notification for newly announced releases.
+func pluginUpdateNotification(updates []domain.PluginUpdateNotice) (string, string) {
+	if len(updates) == 1 {
+		update := updates[0]
+		return "Plugin update available", fmt.Sprintf(
+			"%s %s is available; currently %s.",
+			update.Name,
+			update.AvailableVersion,
+			update.CurrentVersion,
+		)
+	}
+
+	entries := make([]string, 0, len(updates))
+	for _, update := range updates {
+		entries = append(entries, fmt.Sprintf(
+			"%s %s -> %s",
+			update.Name,
+			update.CurrentVersion,
+			update.AvailableVersion,
+		))
+	}
+	return fmt.Sprintf("%d plugin updates available", len(updates)), strings.Join(entries, "; ")
 }
 
 // normalizeCreateInput trims plugin-controlled scalar values before validation.
@@ -243,6 +348,33 @@ func validateCoreNotification(actorID int64, title, body, url string) error {
 		validation.Fields = append(validation.Fields, domain.FieldError{Field: "body", Message: "Notification body is too long."})
 	}
 	if !validNotificationURL(url) {
+		validation.Fields = append(validation.Fields, domain.FieldError{Field: "url", Message: "Use a local Kumbuka URL."})
+	}
+	if len(validation.Fields) != 0 {
+		return validation
+	}
+	return nil
+}
+
+// validateCoreDelivery validates one generic core-owned notification. Actor zero is reserved for system-generated notifications.
+func validateCoreDelivery(recipientUserID, actorID int64, kind domain.NotificationKind, title, body, destination string) error {
+	validation := &domain.ValidationError{}
+	if recipientUserID <= 0 {
+		validation.Fields = append(validation.Fields, domain.FieldError{Field: "recipient_user_id", Message: "Choose a valid recipient."})
+	}
+	if actorID < 0 {
+		validation.Fields = append(validation.Fields, domain.FieldError{Field: "actor_id", Message: "Notification attribution is unavailable."})
+	}
+	if kind == "" || kind == domain.NotificationKindPlugin {
+		validation.Fields = append(validation.Fields, domain.FieldError{Field: "kind", Message: "Choose a valid core notification kind."})
+	}
+	if title == "" || len(title) > maxNotificationTitleBytes || !utf8.ValidString(title) {
+		validation.Fields = append(validation.Fields, domain.FieldError{Field: "title", Message: "Use a valid notification title."})
+	}
+	if len(body) > maxNotificationBodyBytes || !utf8.ValidString(body) {
+		validation.Fields = append(validation.Fields, domain.FieldError{Field: "body", Message: "Notification body is too long."})
+	}
+	if !validNotificationURL(destination) {
 		validation.Fields = append(validation.Fields, domain.FieldError{Field: "url", Message: "Use a local Kumbuka URL."})
 	}
 	if len(validation.Fields) != 0 {

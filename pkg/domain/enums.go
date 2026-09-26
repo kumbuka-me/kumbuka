@@ -142,6 +142,12 @@ const (
 	NotificationKindReply NotificationKind = "reply"
 	// NotificationKindPlugin identifies a notification created by a plugin.
 	NotificationKindPlugin NotificationKind = "plugin"
+	// NotificationKindWatch identifies a notification produced by a watched page.
+	NotificationKindWatch NotificationKind = "watch"
+	// NotificationKindReview identifies a page review workflow notification.
+	NotificationKindReview NotificationKind = "review"
+	// NotificationKindPluginUpdate identifies an administrator plugin update notification.
+	NotificationKindPluginUpdate NotificationKind = "plugin-update"
 )
 
 // NotificationSourceType identifies the trusted producer of a notification.

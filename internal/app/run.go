@@ -143,8 +143,10 @@ func Run(
 	groups := appgroups.NewGroups(database)
 	knowledge := appsearch.NewKnowledge(database, access)
 	notifications := appnotifications.NewNotifications(database, webhooks).WithLogger(logger.With("component", "notifications"))
-	mutations.WithMentionNotifications(notifications)
-	discussions.WithMentionNotifications(notifications)
+	mutations.WithNotifications(notifications)
+	discussions.WithNotifications(notifications)
+	reviews.WithNotifications(notifications)
+	reviewDiscussions.WithNotifications(notifications)
 	media := appmedia.NewMedia(database)
 	navigation := appnavigation.NewNavigation(database, access)
 	preferences := apppreferences.NewPreferences(database)
@@ -211,7 +213,7 @@ func Run(
 	pluginUpdates := appplugins.NewPluginUpdates(
 		pluginupdate.New(pluginupdate.DefaultCatalogURL),
 		renderer.PluginManager(),
-		database,
+		notifications,
 		cfg.PluginUpdateCheckInterval,
 		logger.With("component", "plugin-updates"),
 	)

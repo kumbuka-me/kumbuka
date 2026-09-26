@@ -28,7 +28,6 @@ type pageDiscussionRepository interface {
 	PageComment(context.Context, string, int64) (domain.PageComment, error)
 	ApplyPageCommentSuggestion(context.Context, string, int64, int64, string, string, []string, *pluginusage.Index, domain.PageRender) (domain.Page, error)
 	ApplicationSettings(context.Context) (domain.ApplicationSettings, error)
-	NotifyCommentReply(context.Context, int64, int64, string, string) error
 	ResolvePageComment(context.Context, string, int64, bool) error
 }
 
@@ -74,10 +73,10 @@ func NewDiscussions(
 	}
 }
 
-// WithMentionNotifications routes discussion mentions through the shared notification service.
-func (s *Discussions) WithMentionNotifications(sender MentionNotificationSender) *Discussions {
+// WithNotifications routes discussion notifications through the shared notification service.
+func (s *Discussions) WithNotifications(sender NotificationSender) *Discussions {
 	if s.effects != nil {
-		s.effects.withMentionNotifications(sender)
+		s.effects.withNotifications(sender)
 	}
 	return s
 }
@@ -119,8 +118,19 @@ func (s *Discussions) AddComment(
 	destination := pageCommentURL(slug, comment.ID)
 	s.effects.notifyMentions(ctx, actor.ID, body, "Mention in "+slug, destination)
 	if parentID > 0 {
-		if err := s.repository.NotifyCommentReply(ctx, actor.ID, parentID, "Reply in "+slug, destination); err != nil {
-			s.logger.ErrorContext(ctx, "comment reply notification failed", "event", "page_side_effect_failed", "error", err)
+		parent, err := s.repository.PageComment(ctx, slug, parentID)
+		if err != nil {
+			s.logger.ErrorContext(ctx, "resolve comment reply recipient", "event", "page_side_effect_failed", "error", err)
+		} else if parent.AuthorID != actor.ID {
+			s.effects.notifyUser(
+				ctx,
+				parent.AuthorID,
+				actor.ID,
+				domain.NotificationKindReply,
+				"Reply in "+slug,
+				"Someone replied to your discussion comment.",
+				destination,
+			)
 		}
 	}
 	s.effects.notifyWatchers(ctx, actor.ID, slug, "New comment: "+slug, "A watched page has a new discussion comment.", destination)

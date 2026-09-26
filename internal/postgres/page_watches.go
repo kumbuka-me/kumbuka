@@ -50,12 +50,11 @@ SET scope=EXCLUDED.scope,created_at=now()`, userID, slug, string(scope))
 	return err
 }
 
-// NotifyPageWatchers creates one notification per matching watcher, excluding the actor.
-func (s *Store) NotifyPageWatchers(ctx context.Context, actorID int64, slug, title, body, url string) error {
+// PageWatcherUserIDs returns enabled users whose page or subtree watch matches slug, excluding the actor.
+func (s *Store) PageWatcherUserIDs(ctx context.Context, actorID int64, slug string) ([]int64, error) {
 	slug = strings.Trim(strings.TrimSpace(slug), "/")
-	_, err := s.pool.Exec(ctx, `
-INSERT INTO notifications(user_id,kind,title,body,url)
-SELECT DISTINCT w.user_id,'watch',$3,$4,$5
+	rows, err := s.pool.Query(ctx, `
+SELECT DISTINCT w.user_id
 FROM page_watches w
 JOIN users u ON u.id=w.user_id AND u.enabled
 WHERE w.user_id<>$1
@@ -63,6 +62,20 @@ WHERE w.user_id<>$1
     (w.scope='page' AND w.path=$2)
     OR
     (w.scope='subtree' AND ($2=w.path OR $2 LIKE w.path || '/%'))
-  )`, actorID, slug, title, body, url)
-	return err
+  )
+ORDER BY w.user_id`, actorID, slug)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var userIDs []int64
+	for rows.Next() {
+		var userID int64
+		if err := rows.Scan(&userID); err != nil {
+			return nil, err
+		}
+		userIDs = append(userIDs, userID)
+	}
+	return userIDs, rows.Err()
 }

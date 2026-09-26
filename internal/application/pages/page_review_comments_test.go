@@ -134,9 +134,9 @@ func (*reviewDiscussionRepositoryStub) LogAudit(context.Context, int64, string, 
 	return nil
 }
 
-// NotifyPageWatchers accepts best-effort watcher notifications in review service tests.
-func (*reviewDiscussionRepositoryStub) NotifyPageWatchers(context.Context, int64, string, string, string, string) error {
-	return nil
+// PageWatcherUserIDs returns no watcher recipients in review service tests.
+func (*reviewDiscussionRepositoryStub) PageWatcherUserIDs(context.Context, int64, string) ([]int64, error) {
+	return nil, nil
 }
 
 func newReviewDiscussionsForTest(repository *reviewDiscussionRepositoryStub) *ReviewDiscussions {

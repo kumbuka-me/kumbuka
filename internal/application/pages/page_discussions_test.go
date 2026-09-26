@@ -131,14 +131,9 @@ func (*inlineSuggestionRepositoryStub) LogAudit(context.Context, int64, string, 
 	return nil
 }
 
-// NotifyPageWatchers accepts best-effort page-watch notifications from the page service.
-func (*inlineSuggestionRepositoryStub) NotifyPageWatchers(context.Context, int64, string, string, string, string) error {
-	return nil
-}
-
-// NotifyMentions accepts best-effort mention notifications from the page service.
-func (*inlineSuggestionRepositoryStub) NotifyMentions(context.Context, int64, string, string, string) error {
-	return nil
+// PageWatcherUserIDs returns no watcher recipients in discussion service tests.
+func (*inlineSuggestionRepositoryStub) PageWatcherUserIDs(context.Context, int64, string) ([]int64, error) {
+	return nil, nil
 }
 
 func newDiscussionsForTest(repository *inlineSuggestionRepositoryStub) *Discussions {

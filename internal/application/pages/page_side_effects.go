@@ -6,30 +6,31 @@ import (
 
 	"github.com/kumbuka-me/kumbuka/internal/application/audit"
 	"github.com/kumbuka-me/kumbuka/internal/application/webhooks"
+	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
 
-// pageSideEffectRepository contains best-effort audit and notification persistence.
+// pageSideEffectRepository contains persistence required to resolve page side-effect recipients.
 type pageSideEffectRepository interface {
 	LogAudit(context.Context, int64, string, string, string, string) error
-	NotifyMentions(context.Context, int64, string, string, string) error
-	NotifyPageWatchers(context.Context, int64, string, string, string, string) error
+	PageWatcherUserIDs(context.Context, int64, string) ([]int64, error)
 }
 
-// MentionNotificationSender creates core mention notifications and any configured delivery events.
-type MentionNotificationSender interface {
+// NotificationSender creates application-owned notifications and their configured delivery events.
+type NotificationSender interface {
 	SendMentions(context.Context, int64, string, string, string) error
+	SendCore(context.Context, int64, int64, domain.NotificationKind, string, string, string) error
 }
 
 // pageEffects owns best-effort side effects shared by page commands.
 type pageEffects struct {
-	// repository persists audit records and notification deliveries.
+	// repository persists audit records and resolves notification recipients.
 	repository pageSideEffectRepository
 	// logger records side-effect failures without failing the primary mutation.
 	logger *slog.Logger
 	// eventSinks receive outgoing webhook events after successful mutations.
 	eventSinks []webhooks.EventSink
-	// mentionNotifications creates mention inbox items through the shared notification service.
-	mentionNotifications MentionNotificationSender
+	// notifications creates core inbox items through the shared notification service.
+	notifications NotificationSender
 }
 
 // newPageEffects constructs page mutation side effects.
@@ -44,10 +45,10 @@ func newPageEffects(
 	return &pageEffects{repository: repository, logger: logger, eventSinks: eventSinks}
 }
 
-// withMentionNotifications routes mention delivery through the shared notification service.
-func (e *pageEffects) withMentionNotifications(sender MentionNotificationSender) *pageEffects {
+// withNotifications routes page notifications through the shared notification service.
+func (e *pageEffects) withNotifications(sender NotificationSender) *pageEffects {
 	if e != nil {
-		e.mentionNotifications = sender
+		e.notifications = sender
 	}
 	return e
 }
@@ -69,16 +70,10 @@ func (e *pageEffects) recordAudit(ctx context.Context, actorID int64, action, ob
 
 // notifyMentions reports delivery failures without logging the page or comment body.
 func (e *pageEffects) notifyMentions(ctx context.Context, actorID int64, body, title, destination string) {
-	if e == nil {
+	if e == nil || e.notifications == nil {
 		return
 	}
-	var err error
-	if e.mentionNotifications != nil {
-		err = e.mentionNotifications.SendMentions(ctx, actorID, body, title, destination)
-	} else if e.repository != nil {
-		err = e.repository.NotifyMentions(ctx, actorID, body, title, destination)
-	}
-	if err != nil {
+	if err := e.notifications.SendMentions(ctx, actorID, body, title, destination); err != nil {
 		e.logger.ErrorContext(ctx,
 			"page mentions failed",
 			"event", "page_side_effect_failed",
@@ -90,19 +85,47 @@ func (e *pageEffects) notifyMentions(ctx context.Context, actorID int64, body, t
 	}
 }
 
-// notifyWatchers reports delivery failures without changing the primary mutation result.
-func (e *pageEffects) notifyWatchers(ctx context.Context, actorID int64, slug, title, body, destination string) {
-	if e == nil || e.repository == nil {
+// notifyUser sends one core notification as a best-effort application side effect.
+func (e *pageEffects) notifyUser(
+	ctx context.Context,
+	recipientUserID, actorID int64,
+	kind domain.NotificationKind,
+	title, body, destination string,
+) {
+	if e == nil || e.notifications == nil || recipientUserID <= 0 {
 		return
 	}
-	if err := e.repository.NotifyPageWatchers(ctx, actorID, slug, title, body, destination); err != nil {
+	if err := e.notifications.SendCore(ctx, recipientUserID, actorID, kind, title, body, destination); err != nil {
 		e.logger.ErrorContext(ctx,
-			"page watch notifications failed",
+			"page notification failed",
 			"event", "page_side_effect_failed",
-			"operation", "notify_watchers",
+			"operation", "notify_user",
+			"recipient_user_id", recipientUserID,
+			"actor_id", actorID,
+			"destination", destination,
+			"error", err,
+		)
+	}
+}
+
+// notifyWatchers resolves watcher recipients in persistence and sends notifications through the shared application service.
+func (e *pageEffects) notifyWatchers(ctx context.Context, actorID int64, slug, title, body, destination string) {
+	if e == nil || e.repository == nil || e.notifications == nil {
+		return
+	}
+	userIDs, err := e.repository.PageWatcherUserIDs(ctx, actorID, slug)
+	if err != nil {
+		e.logger.ErrorContext(ctx,
+			"page watch recipients failed",
+			"event", "page_side_effect_failed",
+			"operation", "resolve_watchers",
 			"actor_id", actorID,
 			"slug", slug,
 			"error", err,
 		)
+		return
+	}
+	for _, userID := range userIDs {
+		e.notifyUser(ctx, userID, actorID, domain.NotificationKindWatch, title, body, destination)
 	}
 }

@@ -168,9 +168,6 @@ SET status='draft',updated_at=now()
 WHERE id=$1`, pageID); err != nil {
 		return domain.PageReviewRequest{}, err
 	}
-	if err := notifyPageReviewTargets(ctx, tx, id, actorID, "Review requested for ", note); err != nil {
-		return domain.PageReviewRequest{}, err
-	}
 	if err := tx.Commit(ctx); err != nil {
 		return domain.PageReviewRequest{}, err
 	}
@@ -220,9 +217,6 @@ WHERE id=$1`, id, reviewerGroupID, note); err != nil {
 	if err := replacePageReviewers(ctx, tx, id, reviewerIDs); err != nil {
 		return domain.PageReviewRequest{}, err
 	}
-	if err := notifyPageReviewTargets(ctx, tx, id, actorID, "Review request updated for ", note); err != nil {
-		return domain.PageReviewRequest{}, err
-	}
 	if err := tx.Commit(ctx); err != nil {
 		return domain.PageReviewRequest{}, err
 	}
@@ -265,9 +259,6 @@ WHERE id=$1`, id); err != nil {
 		return "", err
 	}
 	if err := restoreCanceledReviewStatus(ctx, tx, pageID, requestedRevision, currentRevision, previousStatus); err != nil {
-		return "", err
-	}
-	if err := notifyPageReviewTargets(ctx, tx, id, actorID, "Review canceled for ", "The review request was canceled."); err != nil {
 		return "", err
 	}
 	if err := tx.Commit(ctx); err != nil {
@@ -325,10 +316,51 @@ SELECT EXISTS(
 	return allowed, err
 }
 
+// PageReviewNotificationUserIDs returns enabled review targets, falling back to administrators when no explicit target remains.
+func (s *Store) PageReviewNotificationUserIDs(ctx context.Context, requestID, actorID int64) ([]int64, error) {
+	rows, err := s.pool.Query(ctx, `
+WITH explicit_targets AS (
+  SELECT rru.user_id
+  FROM page_review_request_reviewers rru
+  WHERE rru.request_id=$1
+  UNION
+  SELECT ug.user_id
+  FROM page_review_requests rr
+  JOIN user_groups ug ON rr.reviewer_group_id IS NOT NULL AND ug.group_id=rr.reviewer_group_id
+  WHERE rr.id=$1
+), eligible_targets AS (
+  SELECT DISTINCT target.user_id
+  FROM explicit_targets target
+  JOIN users u ON u.id=target.user_id AND u.enabled AND u.role IN ('admin','editor')
+  WHERE target.user_id<>$2
+), fallback_targets AS (
+  SELECT u.id AS user_id
+  FROM users u
+  WHERE u.enabled AND u.role='admin' AND u.id<>$2
+    AND NOT EXISTS (SELECT 1 FROM eligible_targets)
+)
+SELECT user_id FROM eligible_targets
+UNION ALL
+SELECT user_id FROM fallback_targets
+ORDER BY user_id`, requestID, actorID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var userIDs []int64
+	for rows.Next() {
+		var userID int64
+		if err := rows.Scan(&userID); err != nil {
+			return nil, err
+		}
+		userIDs = append(userIDs, userID)
+	}
+	return userIDs, rows.Err()
+}
+
 // reviewDecisionState contains the locked review row fields needed to authorize a decision.
 type reviewDecisionState struct {
-	// requesterID identifies the user who requested the review.
-	requesterID int64
 	// requestedRevision is the revision captured when the review was opened.
 	requestedRevision int
 	// status is the current review-request status.
@@ -367,13 +399,6 @@ func (s *Store) DecidePageReview(
 	if err := persistReviewDecision(ctx, tx, id, pageID, reviewerID, decision, note); err != nil {
 		return "", err
 	}
-	title, err := reviewPageTitle(ctx, tx, pageID)
-	if err != nil {
-		return "", err
-	}
-	if err := notifyReviewRequester(ctx, tx, state.requesterID, reviewerID, title, expectedSlug, decision, note); err != nil {
-		return "", err
-	}
 	if err := tx.Commit(ctx); err != nil {
 		return "", err
 	}
@@ -384,7 +409,7 @@ func (s *Store) DecidePageReview(
 func lockReviewDecision(ctx context.Context, tx pgx.Tx, id, reviewerID int64, administrator bool) (reviewDecisionState, error) {
 	var state reviewDecisionState
 	err := tx.QueryRow(ctx, `
-SELECT rr.requested_by,rr.revision_number,rr.status,
+SELECT rr.revision_number,rr.status,
        $2 OR EXISTS(
          SELECT 1 FROM page_review_request_reviewers rru
          WHERE rru.request_id=rr.id AND rru.user_id=$3
@@ -396,7 +421,7 @@ SELECT rr.requested_by,rr.revision_number,rr.status,
 FROM page_review_requests rr
 WHERE rr.id=$1
 FOR UPDATE OF rr`, id, administrator, reviewerID).Scan(
-		&state.requesterID, &state.requestedRevision, &state.status, &state.assigned,
+		&state.requestedRevision, &state.status, &state.assigned,
 	)
 	return state, err
 }
@@ -445,17 +470,6 @@ FOR UPDATE OF p`, requestID, slug).Scan(&pageID, &currentRevision)
 	}
 
 	return pageID, currentRevision, err
-}
-
-// reviewPageTitle returns the current title while the caller already holds the page lock.
-func reviewPageTitle(ctx context.Context, tx pgx.Tx, pageID int64) (string, error) {
-	var title string
-	err := tx.QueryRow(ctx, `
-SELECT title
-FROM pages
-WHERE id=$1`, pageID).Scan(&title)
-
-	return title, err
 }
 
 // scanPageReviewRequest maps the common review-request query shape into the domain model.
@@ -548,47 +562,6 @@ ON CONFLICT DO NOTHING`, requestID, userID); err != nil {
 	return nil
 }
 
-// notifyPageReviewTargets notifies assigned people, a selected group, or administrators as fallback.
-func notifyPageReviewTargets(
-	ctx context.Context,
-	tx pgx.Tx,
-	requestID, actorID int64,
-	titlePrefix, body string,
-) error {
-	tag, err := tx.Exec(ctx, `
-INSERT INTO notifications(user_id,kind,title,body,url)
-SELECT DISTINCT target.user_id,'review',$3 || p.title,$4,'/pages/' || p.slug
-FROM page_review_requests rr
-JOIN pages p ON p.id=rr.page_id
-JOIN LATERAL (
-  SELECT rru.user_id
-  FROM page_review_request_reviewers rru
-  WHERE rru.request_id=rr.id
-  UNION
-  SELECT ug.user_id
-  FROM user_groups ug
-  WHERE rr.reviewer_group_id IS NOT NULL AND ug.group_id=rr.reviewer_group_id
-) target ON true
-JOIN users u ON u.id=target.user_id AND u.enabled AND u.role IN ('admin','editor')
-WHERE rr.id=$1 AND target.user_id<>$2`, requestID, actorID, titlePrefix, body)
-	if err != nil {
-		return err
-	}
-	if tag.RowsAffected() > 0 {
-		return nil
-	}
-
-	_, err = tx.Exec(ctx, `
-INSERT INTO notifications(user_id,kind,title,body,url)
-SELECT u.id,'review',$3 || p.title,$4,'/pages/' || p.slug
-FROM page_review_requests rr
-JOIN pages p ON p.id=rr.page_id
-JOIN users u ON u.role='admin' AND u.enabled
-WHERE rr.id=$1 AND u.id<>$2`, requestID, actorID, titlePrefix, body)
-
-	return err
-}
-
 // markPageReviewApproved verifies a page only for an approval decision.
 func markPageReviewApproved(ctx context.Context, tx pgx.Tx, pageID int64, decision domain.PageReviewStatus) error {
 	if decision != domain.PageReviewStatusApproved {
@@ -599,29 +572,6 @@ func markPageReviewApproved(ctx context.Context, tx pgx.Tx, pageID int64, decisi
 UPDATE pages
 SET status='verified',last_reviewed_at=now(),updated_at=now()
 WHERE id=$1`, pageID)
-
-	return err
-}
-
-// notifyReviewRequester sends the review result unless the requester reviewed their own request.
-func notifyReviewRequester(
-	ctx context.Context,
-	tx pgx.Tx,
-	requesterID, reviewerID int64,
-	title, slug string, decision domain.PageReviewStatus, note string,
-) error {
-	if requesterID == reviewerID {
-		return nil
-	}
-
-	body := note
-	if body == "" {
-		body = "The review was " + string(decision) + "."
-	}
-
-	_, err := tx.Exec(ctx, `
-INSERT INTO notifications(user_id,kind,title,body,url)
-VALUES($1,'review',$2,$3,$4)`, requesterID, "Review "+string(decision)+" for "+title, body, "/pages/"+slug)
 
 	return err
 }

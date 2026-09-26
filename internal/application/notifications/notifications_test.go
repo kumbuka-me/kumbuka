@@ -34,10 +34,16 @@ type notificationRepositoryStub struct {
 	deletedID int64
 	// openedID records the ID passed to open operations.
 	openedID int64
-	// created records the plugin-created notification passed to persistence.
+	// created records the most recent notification passed to persistence.
 	created domain.Notification
+	// createdItems records every notification passed to persistence.
+	createdItems []domain.Notification
 	// createNew reports whether persistence inserted a new row.
 	createNew bool
+	// claimed configures newly claimed plugin update announcements.
+	claimed []domain.PluginUpdateNotice
+	// administratorIDs configures enabled administrator recipients.
+	administratorIDs []int64
 }
 
 // Notifications records the requested limit and returns an empty inbox.
@@ -95,9 +101,20 @@ func (*notificationRepositoryStub) UserByUsername(_ context.Context, username st
 // CreateNotification records and returns one committed notification.
 func (s *notificationRepositoryStub) CreateNotification(_ context.Context, item domain.Notification) (domain.Notification, bool, error) {
 	s.created = item
+	s.createdItems = append(s.createdItems, item)
 	item.ID = 7
 	item.CreatedAt = time.Date(2026, time.September, 25, 10, 30, 0, 0, time.UTC)
 	return item, s.createNew, nil
+}
+
+// ClaimPluginUpdateAnnouncements returns newly claimed releases configured by the test.
+func (s *notificationRepositoryStub) ClaimPluginUpdateAnnouncements(_ context.Context, _ []domain.PluginUpdateNotice) ([]domain.PluginUpdateNotice, error) {
+	return append([]domain.PluginUpdateNotice(nil), s.claimed...), nil
+}
+
+// EnabledAdministratorIDs returns configured administrator recipients.
+func (s *notificationRepositoryStub) EnabledAdministratorIDs(context.Context) ([]int64, error) {
+	return append([]int64(nil), s.administratorIDs...), nil
 }
 
 // notificationEventSink records the most recent emitted event.
@@ -160,6 +177,52 @@ func TestSendMentionsCreatesCoreNotificationAndEvent(t *testing.T) {
 	assert.Equal(t, "notification.created", sink.event.Event)
 	assert.Equal(t, int64(42), sink.event.ActorID)
 	assert.Equal(t, int64(42), sink.event.RecipientUserID)
+}
+
+// TestSendCoreCreatesAttributedCoreNotification verifies application workflows use the shared core notification path.
+func TestSendCoreCreatesAttributedCoreNotification(t *testing.T) {
+	t.Parallel()
+	repository := &notificationRepositoryStub{createNew: true}
+	sink := &notificationEventSink{}
+
+	err := NewNotifications(repository, sink).SendCore(
+		context.Background(),
+		42,
+		9,
+		domain.NotificationKindReply,
+		"Reply in guide",
+		"Someone replied to your discussion comment.",
+		"/pages/guide#comment-7",
+	)
+
+	require.NoError(t, err)
+	assert.Equal(t, domain.NotificationKindReply, repository.created.Kind)
+	assert.Equal(t, domain.NotificationSourceCore, repository.created.SourceType)
+	assert.Equal(t, int64(9), repository.created.ActorID)
+	assert.Equal(t, int64(42), repository.created.RecipientUserID)
+	assert.Equal(t, "notification.created", sink.event.Event)
+}
+
+// TestNotifyPluginUpdatesClaimsBeforeSending verifies update deduplication remains persistence-owned while content is application-owned.
+func TestNotifyPluginUpdatesClaimsBeforeSending(t *testing.T) {
+	t.Parallel()
+	repository := &notificationRepositoryStub{
+		createNew:        true,
+		administratorIDs: []int64{7, 9},
+		claimed: []domain.PluginUpdateNotice{{
+			ID: "me.kumbuka.callouts", Name: "Callouts", CurrentVersion: "1.0.0", AvailableVersion: "1.1.0",
+		}},
+	}
+
+	err := NewNotifications(repository).NotifyPluginUpdates(context.Background(), repository.claimed)
+
+	require.NoError(t, err)
+	require.Len(t, repository.createdItems, 2)
+	for _, item := range repository.createdItems {
+		assert.Equal(t, domain.NotificationKindPluginUpdate, item.Kind)
+		assert.Equal(t, "Plugin update available", item.Title)
+		assert.Equal(t, "/admin/plugins", item.URL)
+	}
 }
 
 // TestSendPluginDoesNotEmitForIdempotentReplay verifies retried mutations do not duplicate events.

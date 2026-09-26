@@ -116,6 +116,14 @@ func NewReviewDiscussions(
 	}
 }
 
+// WithNotifications routes review discussion notifications through the shared notification service.
+func (s *ReviewDiscussions) WithNotifications(sender NotificationSender) *ReviewDiscussions {
+	if s.effects != nil {
+		s.effects.withNotifications(sender)
+	}
+	return s
+}
+
 // WithContentPreparer uses the active Markdown preparation capability for suggestion application.
 func (s *ReviewDiscussions) WithContentPreparer(preparer pageContentPreparer) *ReviewDiscussions {
 	s.content = preparer

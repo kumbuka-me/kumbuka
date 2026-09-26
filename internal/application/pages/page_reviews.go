@@ -69,6 +69,7 @@ type pageReviewRepository interface {
 	CancelPageReview(context.Context, int64, string, int64) (string, error)
 	CanReviewPage(context.Context, string, int64) (bool, error)
 	DecidePageReview(context.Context, int64, string, int64, bool, domain.PageReviewStatus, string) (string, error)
+	PageReviewNotificationUserIDs(context.Context, int64, int64) ([]int64, error)
 }
 
 // Reviews owns page approval workflows.
@@ -94,6 +95,14 @@ func NewReviews(
 		authorization: pageAuthorization{policy: access},
 		effects:       newPageEffects(sideEffects, logger, eventSinks...),
 	}
+}
+
+// WithNotifications routes review notifications through the shared notification service.
+func (s *Reviews) WithNotifications(sender NotificationSender) *Reviews {
+	if s.effects != nil {
+		s.effects.withNotifications(sender)
+	}
+	return s
 }
 
 // PageReviewRequest returns the active review workflow item for a page.
@@ -173,6 +182,12 @@ func (s *Reviews) RequestReview(ctx context.Context, input PageReviewRequestInpu
 		return domain.PageReviewRequest{}, err
 	}
 
+	page, pageErr := s.repository.GetPage(ctx, input.Slug)
+	if pageErr != nil {
+		s.effects.logger.ErrorContext(ctx, "load page for review notification", "event", "page_side_effect_failed", "error", pageErr)
+	} else {
+		s.notifyReviewTargets(ctx, request.ID, input.Actor.ID, "Review requested for "+page.Title, strings.TrimSpace(input.Note), "/pages/"+input.Slug)
+	}
 	s.effects.recordAudit(ctx, input.Actor.ID, "page.review_requested", "page", input.Slug, "Review requested for revision "+fmt.Sprint(request.RevisionNumber))
 	s.effects.notifyWatchers(ctx, input.Actor.ID, input.Slug, "review-requested", "Review requested", "/pages/"+input.Slug)
 
@@ -226,6 +241,12 @@ func (s *Reviews) UpdateReview(ctx context.Context, input PageReviewUpdateInput)
 		return domain.PageReviewRequest{}, err
 	}
 
+	page, pageErr := s.repository.GetPage(ctx, input.Slug)
+	if pageErr != nil {
+		s.effects.logger.ErrorContext(ctx, "load page for review notification", "event", "page_side_effect_failed", "error", pageErr)
+	} else {
+		s.notifyReviewTargets(ctx, updated.ID, input.Actor.ID, "Review request updated for "+page.Title, strings.TrimSpace(input.Note), "/pages/"+input.Slug)
+	}
 	s.effects.recordAudit(ctx, input.Actor.ID, "page.review_updated", "page", input.Slug, "Pending review request updated")
 	s.effects.notifyWatchers(ctx, input.Actor.ID, input.Slug, "review-updated", "Review request updated", "/pages/"+input.Slug)
 
@@ -261,6 +282,12 @@ func (s *Reviews) CancelReview(ctx context.Context, id int64, slug string, actor
 		return err
 	}
 
+	page, pageErr := s.repository.GetPage(ctx, resolvedSlug)
+	if pageErr != nil {
+		s.effects.logger.ErrorContext(ctx, "load page for review notification", "event", "page_side_effect_failed", "error", pageErr)
+	} else {
+		s.notifyReviewTargets(ctx, id, actor.ID, "Review canceled for "+page.Title, "The review request was canceled.", "/pages/"+resolvedSlug)
+	}
 	s.effects.recordAudit(ctx, actor.ID, "page.review_canceled", "page", resolvedSlug, "Pending review request canceled")
 	s.effects.notifyWatchers(ctx, actor.ID, resolvedSlug, "review-canceled", "Review request canceled", "/pages/"+resolvedSlug)
 
@@ -284,6 +311,10 @@ func (s *Reviews) DecideReview(ctx context.Context, input PageReviewDecisionInpu
 		return err
 	}
 
+	request, err := s.repository.PageReviewRequestByID(ctx, input.ID, strings.TrimSpace(input.Slug))
+	if err != nil {
+		return err
+	}
 	allowed, err := s.CanReview(ctx, input.Slug, input.Actor)
 	if err != nil {
 		return err
@@ -306,10 +337,43 @@ func (s *Reviews) DecideReview(ctx context.Context, input PageReviewDecisionInpu
 		return err
 	}
 
+	page, pageErr := s.repository.GetPage(ctx, resolvedSlug)
+	if pageErr != nil {
+		s.effects.logger.ErrorContext(ctx, "load page for review notification", "event", "page_side_effect_failed", "error", pageErr)
+	} else if request.RequestedBy != input.Actor.ID {
+		body := strings.TrimSpace(input.Note)
+		if body == "" {
+			body = "The review was " + string(input.Decision) + "."
+		}
+		s.effects.notifyUser(
+			ctx,
+			request.RequestedBy,
+			input.Actor.ID,
+			domain.NotificationKindReview,
+			"Review "+string(input.Decision)+" for "+page.Title,
+			body,
+			"/pages/"+resolvedSlug,
+		)
+	}
 	s.effects.recordAudit(ctx, input.Actor.ID, "page.review_"+string(input.Decision), "page", resolvedSlug, strings.TrimSpace(input.Note))
 	s.effects.notifyWatchers(ctx, input.Actor.ID, resolvedSlug, "review-"+string(input.Decision), "Review "+strings.ReplaceAll(string(input.Decision), "_", " "), "/pages/"+resolvedSlug)
 
 	return nil
+}
+
+// notifyReviewTargets resolves review recipients from persistence and sends application-owned notifications.
+func (s *Reviews) notifyReviewTargets(ctx context.Context, requestID, actorID int64, title, body, destination string) {
+	if s.effects == nil || s.effects.notifications == nil {
+		return
+	}
+	userIDs, err := s.repository.PageReviewNotificationUserIDs(ctx, requestID, actorID)
+	if err != nil {
+		s.effects.logger.ErrorContext(ctx, "resolve review notification recipients", "event", "page_side_effect_failed", "error", err)
+		return
+	}
+	for _, userID := range userIDs {
+		s.effects.notifyUser(ctx, userID, actorID, domain.NotificationKindReview, title, body, destination)
+	}
 }
 
 // canRequestReview reports whether an actor may open a page review.

@@ -124,10 +124,10 @@ func NewMutations(
 	}
 }
 
-// WithMentionNotifications routes page mentions through the shared notification service.
-func (s *Mutations) WithMentionNotifications(sender MentionNotificationSender) *Mutations {
+// WithNotifications routes page notifications through the shared notification service.
+func (s *Mutations) WithNotifications(sender NotificationSender) *Mutations {
 	if s.effects != nil {
-		s.effects.withMentionNotifications(sender)
+		s.effects.withNotifications(sender)
 	}
 	return s
 }
