@@ -65,6 +65,10 @@ func Ranges(text string) []Range {
 // Usernames returns distinct normalized usernames in mention order.
 func Usernames(text string) []string {
 	ranges := Ranges(text)
+	if len(ranges) == 0 {
+		return nil
+	}
+
 	usernames := make([]string, 0, len(ranges))
 	seen := make(map[string]bool, len(ranges))
 	for _, item := range ranges {
