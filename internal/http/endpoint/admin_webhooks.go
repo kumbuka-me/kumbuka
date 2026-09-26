@@ -198,6 +198,10 @@ func TestAdminWebhook(webhookUseCases webhookAdminService, logger *slog.Logger) 
 			writeAdminProblem(logger, w, err, "Webhook test")
 			return
 		}
+		if wantsJSON(r) {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
 		http.Redirect(w, r, "/admin/webhooks", http.StatusSeeOther)
 	}
 }

@@ -123,13 +123,14 @@ type webhookAdminTestStub struct {
 	id    int64
 	event string
 	actor domain.User
+	err   error
 }
 
 func (s *webhookAdminTestStub) TestWebhook(_ context.Context, id int64, event string, actor domain.User) error {
 	s.id = id
 	s.event = event
 	s.actor = actor
-	return nil
+	return s.err
 }
 
 func TestAdminWebhookSendsSelectedEventAsCurrentAdministrator(t *testing.T) {
@@ -151,4 +152,48 @@ func TestAdminWebhookSendsSelectedEventAsCurrentAdministrator(t *testing.T) {
 	assert.Equal(t, int64(9), stub.id)
 	assert.Equal(t, appwebhooks.EventNotificationCreated, stub.event)
 	assert.Equal(t, administrator, stub.actor)
+}
+
+func TestAdminWebhookReturnsNoContentForJSONRequest(t *testing.T) {
+	t.Parallel()
+
+	form := url.Values{"event": {"page.updated"}}
+	request := httptest.NewRequest(http.MethodPost, "/admin/webhooks/9/test", strings.NewReader(form.Encode()))
+	request.Header.Set("Accept", "application/json")
+	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	request.SetPathValue("id", "9")
+	response := httptest.NewRecorder()
+	stub := &webhookAdminTestStub{}
+
+	TestAdminWebhook(stub, slog.New(slog.NewTextHandler(io.Discard, nil)))(response, request)
+
+	assert.Equal(t, http.StatusNoContent, response.Code)
+	assert.Empty(t, response.Body.String())
+	assert.Empty(t, response.Header().Get("Location"))
+	assert.Equal(t, int64(9), stub.id)
+	assert.Equal(t, "page.updated", stub.event)
+}
+
+func TestAdminWebhookReturnsStructuredProblemForJSONFailure(t *testing.T) {
+	t.Parallel()
+
+	form := url.Values{"event": {"page.updated"}}
+	request := httptest.NewRequest(http.MethodPost, "/admin/webhooks/9/test", strings.NewReader(form.Encode()))
+	request.Header.Set("Accept", "application/json")
+	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	request.SetPathValue("id", "9")
+	response := httptest.NewRecorder()
+	stub := &webhookAdminTestStub{
+		err: domain.NewValidationError("event", "Choose an event configured for this webhook."),
+	}
+
+	TestAdminWebhook(stub, slog.New(slog.NewTextHandler(io.Discard, nil)))(response, request)
+
+	assert.Equal(t, http.StatusUnprocessableEntity, response.Code)
+	assert.JSONEq(t, `{
+		"error": "Webhook test validation failed.",
+		"problems": {
+			"event": "Choose an event configured for this webhook."
+		}
+	}`, response.Body.String())
 }

@@ -1,7 +1,13 @@
 // Administrator webhook payload, header, and retry configuration behavior.
 
+import { showNotice, showProblemDialog } from "../../core/dialogs.ts";
 import { requiredElement } from "../../core/dom.ts";
-import { errorMessage, responseProblem } from "../../core/http.ts";
+import {
+  errorMessage,
+  parseProblemPayload,
+  responseProblem,
+  type ProblemPayload,
+} from "../../core/http.ts";
 
 const sensitiveWebhookHeaderNames = new Set([
   "authorization",
@@ -338,6 +344,95 @@ function setupWebhookRetry(form: HTMLFormElement): void {
   refresh();
 }
 
+function hasWebhookTestProblem(problem: ProblemPayload): boolean {
+  if (problem.error?.trim()) return true;
+  return Object.values(problem.problems ?? {}).some(
+    (message) => message.trim() !== "",
+  );
+}
+
+// Sends one webhook test request and returns a structured server problem when present.
+export async function sendWebhookTestRequest(
+  action: string,
+  body: URLSearchParams,
+): Promise<ProblemPayload | null> {
+  const response = await fetch(action, {
+    method: "POST",
+    credentials: "same-origin",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+    },
+    body,
+  });
+  if (response.ok) return null;
+
+  const payload: unknown = await response
+    .clone()
+    .json()
+    .catch(() => undefined);
+  const problem = parseProblemPayload(payload);
+  if (hasWebhookTestProblem(problem)) return problem;
+
+  throw await responseProblem(response, payload);
+}
+
+function webhookTestFormBody(form: HTMLFormElement): URLSearchParams {
+  const body = new URLSearchParams();
+
+  for (const [name, value] of new FormData(form)) {
+    if (typeof value === "string") body.append(name, value);
+  }
+
+  return body;
+}
+
+async function runWebhookTest(form: HTMLFormElement): Promise<void> {
+  const submit = requiredElement<HTMLButtonElement>(
+    form,
+    'button[type="submit"]',
+  );
+  submit.disabled = true;
+
+  try {
+    const problem = await sendWebhookTestRequest(
+      form.action,
+      webhookTestFormBody(form),
+    );
+    if (problem) {
+      const shown = await showProblemDialog(problem, {
+        title: "Webhook test failed",
+      });
+      if (!shown) {
+        await showNotice(
+          problem.error?.trim() || "The webhook test could not be sent.",
+          { title: "Webhook test failed" },
+        );
+      }
+      return;
+    }
+
+    await showNotice("The webhook test was delivered successfully.", {
+      title: "Webhook test sent",
+    });
+  } catch (error: unknown) {
+    console.error("webhook test failed", error);
+    await showNotice(
+      errorMessage(error) || "The webhook test could not be sent.",
+      { title: "Webhook test failed" },
+    );
+  } finally {
+    submit.disabled = false;
+  }
+}
+
+function setupWebhookTestForm(form: HTMLFormElement): void {
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    void runWebhookTest(form);
+  });
+}
+
 function setupWebhookForm(form: HTMLFormElement): void {
   const list = requiredElement<HTMLElement>(form, "[data-webhook-header-list]");
   const template = requiredElement<HTMLTemplateElement>(
@@ -381,5 +476,10 @@ export function initAdminWebhooks(): void {
     "[data-webhook-form]",
   )) {
     setupWebhookForm(form);
+  }
+  for (const form of document.querySelectorAll<HTMLFormElement>(
+    "[data-webhook-test-form]",
+  )) {
+    setupWebhookTestForm(form);
   }
 }
