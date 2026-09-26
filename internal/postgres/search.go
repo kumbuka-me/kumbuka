@@ -4,32 +4,16 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"unicode"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
+	"github.com/kumbuka-me/kumbuka/pkg/searchquery"
 )
 
-// isSearchFilter reports whether a token prefix is a supported field filter.
-func isSearchFilter(key string) bool {
-	switch key {
-	case "tag", "group", "title", "namespace", "author", "status", "owner", "property":
-		return true
-	default:
-		return false
-	}
-}
-
-// Search supports free text and field filters for taxonomy, ownership, lifecycle, and structured properties.
-func (s *Store) Search(ctx context.Context, query string, limit int) ([]domain.Page, error) {
-	return s.SearchPage(ctx, query, limit, 0)
-}
-
 // SearchPage returns one deterministic window of filtered search results.
-func (s *Store) SearchPage(ctx context.Context, query string, limit, offset int) ([]domain.Page, error) {
-	parsed := parseSearchQuery(query)
-	builder := newSearchQueryBuilder(parsed.text)
-	builder.applyFilters(parsed.filters)
+func (s *Store) SearchPage(ctx context.Context, query searchquery.Query, limit, offset int) ([]domain.Page, error) {
+	builder := newSearchQueryBuilder(query.Text)
+	builder.applyFilters(query.Filters)
 
 	rows, err := s.pool.Query(ctx, builder.sql(limit, offset), builder.args...)
 	if err != nil {
@@ -38,78 +22,6 @@ func (s *Store) SearchPage(ctx context.Context, query string, limit, offset int)
 	defer rows.Close()
 
 	return scanSearchPages(rows)
-}
-
-// parsedSearchQuery separates free-text terms from supported field filters.
-type parsedSearchQuery struct {
-	// text preserves free-text websearch syntax after supported filters are removed.
-	text string
-	// filters groups supported filter values by their normalized filter name.
-	filters map[string][]string
-}
-
-// parseSearchQuery classifies search tokens without changing their original value semantics.
-func parseSearchQuery(query string) parsedSearchQuery {
-	var textTerms []string
-	filters := make(map[string][]string)
-	for _, token := range searchTokens(query) {
-		key, value, ok := splitSearchFilter(token)
-		if ok {
-			filters[key] = append(filters[key], value)
-			continue
-		}
-
-		textTerms = append(textTerms, token)
-	}
-	return parsedSearchQuery{text: strings.Join(textTerms, " "), filters: filters}
-}
-
-// splitSearchFilter recognizes supported field filters and decodes a quoted filter value.
-func splitSearchFilter(token string) (string, string, bool) {
-	key, value, found := strings.Cut(token, ":")
-	key = strings.ToLower(key)
-	if !found || value == "" || !isSearchFilter(key) {
-		return "", "", false
-	}
-
-	return key, unquoteSearchValue(value), true
-}
-
-// unquoteSearchValue removes matching filter-value quotes while preserving escaped characters.
-func unquoteSearchValue(value string) string {
-	if !hasMatchingSearchValueQuotes(value) {
-		return value
-	}
-
-	var decoded strings.Builder
-	escaped := false
-	for _, character := range value[1 : len(value)-1] {
-		if escaped {
-			decoded.WriteRune(character)
-			escaped = false
-			continue
-		}
-		if character == '\\' {
-			escaped = true
-			continue
-		}
-		decoded.WriteRune(character)
-	}
-	if escaped {
-		decoded.WriteRune('\\')
-	}
-
-	return decoded.String()
-}
-
-// hasMatchingSearchValueQuotes reports whether a filter value is enclosed by the same supported quote character.
-func hasMatchingSearchValueQuotes(value string) bool {
-	if len(value) < 2 {
-		return false
-	}
-
-	quote := value[0]
-	return (quote == '\'' || quote == '"') && value[len(value)-1] == quote
 }
 
 // searchQueryBuilder owns SQL predicates, ranking, and positional arguments for page search.
@@ -254,51 +166,6 @@ LIMIT $1`,
 	return collectPages(rows)
 }
 
-// searchTokens splits a search query while preserving quoted segments and their delimiters.
-func searchTokens(query string) []string {
-	var tokens []string
-	var current strings.Builder
-	var quote rune
-	escaped := false
-
-	for _, r := range query {
-		if escaped {
-			current.WriteRune(r)
-			escaped = false
-			continue
-		}
-		if quote != 0 {
-			current.WriteRune(r)
-			if r == '\\' {
-				escaped = true
-				continue
-			}
-			if r == quote {
-				quote = 0
-			}
-			continue
-		}
-		if r == '"' || r == '\'' {
-			quote = r
-			current.WriteRune(r)
-			continue
-		}
-		if unicode.IsSpace(r) {
-			tokens = flushSearchToken(tokens, &current)
-			continue
-		}
-
-		current.WriteRune(r)
-	}
-	if escaped {
-		current.WriteRune('\\')
-	}
-
-	tokens = flushSearchToken(tokens, &current)
-
-	return tokens
-}
-
 // queryArgs owns SQL parameters and returns their positional placeholder.
 type queryArgs []any
 
@@ -307,16 +174,4 @@ func (a *queryArgs) add(value any) string {
 	*a = append(*a, value)
 
 	return fmt.Sprintf("$%d", len(*a))
-}
-
-// flushSearchToken appends the current token and resets its builder.
-func flushSearchToken(tokens []string, current *strings.Builder) []string {
-	if current.Len() == 0 {
-		return tokens
-	}
-
-	tokens = append(tokens, current.String())
-	current.Reset()
-
-	return tokens
 }

@@ -5,12 +5,13 @@ import (
 	"slices"
 
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
+	"github.com/kumbuka-me/kumbuka/pkg/searchquery"
 )
 
 // searchRepository contains page listing, search, and tag discovery reads.
 type searchRepository interface {
 	ListPagesPage(context.Context, int, int) ([]domain.Page, error)
-	SearchPage(context.Context, string, int, int) ([]domain.Page, error)
+	SearchPage(context.Context, searchquery.Query, int, int) ([]domain.Page, error)
 	TaggedPages(context.Context) ([]domain.Page, error)
 }
 
@@ -34,8 +35,9 @@ func (q *Search) ListPagesFor(ctx context.Context, actor domain.User, limit int)
 
 // SearchFor returns only search results visible to the actor.
 func (q *Search) SearchFor(ctx context.Context, actor domain.User, query string, limit int) ([]domain.Page, error) {
+	parsed := searchquery.Parse(query)
 	return visiblePageWindow(ctx, q.access, actor, limit, func(ctx context.Context, size, offset int) ([]domain.Page, error) {
-		return q.repository.SearchPage(ctx, query, size, offset)
+		return q.repository.SearchPage(ctx, parsed, size, offset)
 	})
 }
 

@@ -6,13 +6,13 @@ import (
 	appaccess "github.com/kumbuka-me/kumbuka/internal/application/access"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/kumbuka-me/kumbuka/pkg/revision"
+	"github.com/kumbuka-me/kumbuka/pkg/searchquery"
 )
 
 // reportRepository contains the page reads exposed to reports and plugin capabilities.
 type reportRepository interface {
 	GetPage(context.Context, string) (domain.Page, error)
-	Search(context.Context, string, int) ([]domain.Page, error)
-	SearchPage(context.Context, string, int, int) ([]domain.Page, error)
+	SearchPage(context.Context, searchquery.Query, int, int) ([]domain.Page, error)
 	Backlinks(context.Context, string) ([]domain.Page, error)
 	PageLinks(context.Context, string) ([]domain.PageLink, error)
 	LatestRevision(context.Context, string) (revision.Revision, int, error)
@@ -52,12 +52,12 @@ func (q *Reports) GetPage(ctx context.Context, slug string) (domain.Page, error)
 
 // Search returns raw report search results; actor-scoped callers use Accessible.
 func (q *Reports) Search(ctx context.Context, query string, limit int) ([]domain.Page, error) {
-	return q.repository.Search(ctx, query, limit)
+	return q.repository.SearchPage(ctx, searchquery.Parse(query), limit, 0)
 }
 
 // SearchPage returns one raw deterministic search window for actor-scoped filtering.
 func (q *Reports) SearchPage(ctx context.Context, query string, limit, offset int) ([]domain.Page, error) {
-	return q.repository.SearchPage(ctx, query, limit, offset)
+	return q.repository.SearchPage(ctx, searchquery.Parse(query), limit, offset)
 }
 
 // Backlinks returns pages linking to slug.

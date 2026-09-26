@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
+	"github.com/kumbuka-me/kumbuka/pkg/searchquery"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -21,7 +22,7 @@ func (s searchRepositoryStub) ListPagesPage(_ context.Context, limit, offset int
 	return pageWindow(s.pages, limit, offset), nil
 }
 
-func (s searchRepositoryStub) SearchPage(_ context.Context, _ string, limit, offset int) ([]domain.Page, error) {
+func (s searchRepositoryStub) SearchPage(_ context.Context, _ searchquery.Query, limit, offset int) ([]domain.Page, error) {
 	return pageWindow(s.pages, limit, offset), nil
 }
 

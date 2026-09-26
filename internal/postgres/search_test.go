@@ -3,55 +3,16 @@ package postgres
 import (
 	"testing"
 
+	"github.com/kumbuka-me/kumbuka/pkg/searchquery"
 	"github.com/stretchr/testify/assert"
 )
-
-func TestSearchTokensPreserveQuotedSegments(t *testing.T) {
-	t.Parallel()
-
-	got := searchTokens(`group:"Platform Team" tag:kubernetes "postgres restore"`)
-	want := []string{`group:"Platform Team"`, "tag:kubernetes", `"postgres restore"`}
-
-	assert.Equal(t, want, got)
-}
-
-func TestParseSearchQueryPreservesQuotedFreeText(t *testing.T) {
-	t.Parallel()
-
-	parsed := parseSearchQuery(`"postgres restore" group:"Platform Team"`)
-
-	assert.Equal(t, `"postgres restore"`, parsed.text)
-	assert.Equal(t, map[string][]string{"group": {"Platform Team"}}, parsed.filters)
-}
-
-func TestSplitSearchFilterDecodesEscapedQuotedValue(t *testing.T) {
-	t.Parallel()
-
-	key, value, ok := splitSearchFilter(`group:"Platform \"Blue\" Team"`)
-
-	assert.True(t, ok)
-	assert.Equal(t, "group", key)
-	assert.Equal(t, `Platform "Blue" Team`, value)
-}
 
 func TestSearchQueryBuilderAppliesFiltersInStableOrder(t *testing.T) {
 	t.Parallel()
 
-	parsed := parseSearchQuery(`restore group:"Platform Team" tag:Kubernetes title:Runbook namespace:ops author:Alice status:DRAFT owner:SRE property:"tier=gold"`)
-	assert.Equal(t, "restore", parsed.text)
-	assert.Equal(t, map[string][]string{
-		"group":     {"Platform Team"},
-		"tag":       {"Kubernetes"},
-		"title":     {"Runbook"},
-		"namespace": {"ops"},
-		"author":    {"Alice"},
-		"status":    {"DRAFT"},
-		"owner":     {"SRE"},
-		"property":  {"tier=gold"},
-	}, parsed.filters)
-
-	builder := newSearchQueryBuilder(parsed.text)
-	builder.applyFilters(parsed.filters)
+	parsed := searchquery.Parse(`restore group:"Platform Team" tag:Kubernetes title:Runbook namespace:ops author:Alice status:DRAFT owner:SRE property:"tier=gold"`)
+	builder := newSearchQueryBuilder(parsed.Text)
+	builder.applyFilters(parsed.Filters)
 	query := builder.sql(25, 50)
 
 	assert.Equal(t, queryArgs{
@@ -78,13 +39,4 @@ func TestSearchQueryBuilderAppliesFiltersInStableOrder(t *testing.T) {
 	assert.Contains(t, query, "lower(og.name)=$8")
 	assert.Contains(t, query, "lower(pp.key)=$9 AND pp.value ILIKE $10")
 	assert.Contains(t, query, "LIMIT $11 OFFSET $12")
-}
-
-func TestParseSearchQueryKeepsUnknownFiltersAsText(t *testing.T) {
-	t.Parallel()
-
-	parsed := parseSearchQuery(`kind:runbook plain`)
-
-	assert.Equal(t, "kind:runbook plain", parsed.text)
-	assert.Empty(t, parsed.filters)
 }

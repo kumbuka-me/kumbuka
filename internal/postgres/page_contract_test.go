@@ -14,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/kumbuka-me/kumbuka/pkg/pluginusage"
+	"github.com/kumbuka-me/kumbuka/pkg/searchquery"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -155,7 +156,7 @@ func TestPageLifecycleQueryContracts(t *testing.T) {
 	})
 
 	t.Run("search", func(t *testing.T) {
-		pages, err := database.Search(ctx, "Contract", 100)
+		pages, err := database.SearchPage(ctx, searchquery.Parse("Contract"), 100, 0)
 		require.NoError(t, err)
 		require.Len(t, pages, len(statuses))
 		for _, page := range pages {
