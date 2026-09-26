@@ -11,7 +11,7 @@ require (
 	github.com/coreos/go-oidc/v3 v3.21.0
 	github.com/go-jose/go-jose/v4 v4.1.5
 	github.com/jackc/pgx/v5 v5.11.0
-	github.com/kaugesaar/lucide-go v0.27.0
+	github.com/kaugesaar/lucide-go v0.28.0
 	github.com/kumbuka-me/sdk v0.18.0
 	github.com/microcosm-cc/bluemonday v1.0.27
 	github.com/pelletier/go-toml/v2 v2.4.3
