@@ -38,6 +38,10 @@ services:
       - "127.0.0.1:${KUMBUKA_MAILBRIDGE_PORT:-8082}:8080"
     env_file:
       - .envrc
+    environment:
+      MAILBRIDGE__LISTEN_ADDRESS: "0.0.0.0:8080"
+      MAILBRIDGE__DEBUG: "${KUMBUKA_MAILBRIDGE_DEBUG:-false}"
+      MAILBRIDGE__ACCESS_LOG: "${KUMBUKA_MAILBRIDGE_ACCESS_LOG:-false}"
     cap_drop:
       - ALL
     security_opt:

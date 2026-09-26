@@ -126,9 +126,11 @@ ports: $(DEV_PORT) ## Print selected local development ports.
 	@$(DEV_PORT) app --port "$(KUMBUKA_ASSIGNED_PORT)" > /dev/null
 	@$(DEV_PORT) postgres --port "$(DB_ASSIGNED_PORT)" > /dev/null
 	@$(DEV_PORT) pdf --port "$(PDF_ASSIGNED_PORT)" > /dev/null
+	@$(DEV_PORT) mailbridge --port "$(MAILBRIDGE_ASSIGNED_PORT)" > /dev/null
 	@echo "Kumbuka: http://127.0.0.1:$(KUMBUKA_ASSIGNED_PORT)/"
 	@echo "Postgres: 127.0.0.1:$(DB_ASSIGNED_PORT)"
 	@echo "PDF: http://127.0.0.1:$(PDF_ASSIGNED_PORT)/render"
+	@echo "Mailbridge: http://127.0.0.1:$(MAILBRIDGE_ASSIGNED_PORT)/mail"
 
 .PHONY: dev-build
 dev-build: ports
@@ -179,7 +181,10 @@ html-pdf: ports ## Run html2pdf locally.
 
 .PHONY: mailbridge
 mailbridge: ports ## Run mailbridge locally.
-	@KUMBUKA_MAILBRIDGE_PORT=$(MAILBRIDGE_ASSIGNED_PORT) docker compose -f $(COMPOSE_FILE) -p $(COMPOSE_PROJECT) up -d $(MAILBRIDGE_CONTAINER_NAME)
+	@KUMBUKA_MAILBRIDGE_PORT=$(MAILBRIDGE_ASSIGNED_PORT) \
+		KUMBUKA_MAILBRIDGE_DEBUG="true" \
+		KUMBUKA_MAILBRIDGE_ACCESS_LOG="true" \
+		docker compose -f $(COMPOSE_FILE) -p $(COMPOSE_PROJECT) up -d $(MAILBRIDGE_CONTAINER_NAME)
 
 .PHONY: serve
 serve: ports ## Run Kumbuka using the saved ports.
