@@ -1,0 +1,63 @@
+name: kumbuka-loadtest
+
+# This stack deliberately does not share services, volumes, or ports with the
+# development deployment in compose.yaml. It is safe to reset between runs.
+services:
+  kumbuka:
+    build:
+      context: ..
+    environment:
+      KUMBUKA__DATABASE_URL: postgres://kumbuka:kumbuka@postgres:5432/kumbuka?sslmode=disable
+      KUMBUKA__LISTEN_ADDRESS: 0.0.0.0:8080
+      KUMBUKA__PUBLIC_URL: http://kumbuka:8080
+      KUMBUKA__AUTH_MODE: trusted-proxy
+      KUMBUKA__ALLOW_USER_REGISTRATION: "true"
+      KUMBUKA__TRUSTED_ADMIN_GROUP: loadtest-admins
+      KUMBUKA__PLUGIN_UPDATE_CHECK_INTERVAL: "0"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: kumbuka
+      POSTGRES_USER: kumbuka
+      POSTGRES_PASSWORD: kumbuka
+    volumes:
+      - kumbuka-loadtest-postgres:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kumbuka -d kumbuka"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+
+  k6:
+    image: grafana/k6:0.57.0
+    profiles: ["loadtest"]
+    environment:
+      BASE_URL: http://kumbuka:8080
+      PAGE_COUNT: "48"
+    volumes:
+      - ../loadtest:/scripts:ro
+      - ../README.md:/source/README.md:ro
+      - ../pkg/plugin/README.md:/source/plugin-README.md:ro
+    depends_on:
+      kumbuka:
+        condition: service_started
+
+  metrics-sampler:
+    image: alpine:3.24
+    profiles: ["loadtest"]
+    environment:
+      BASE_URL: http://kumbuka:8080
+      SAMPLE_INTERVAL: ${LOADTEST_MONITOR_INTERVAL:-5}
+    volumes:
+      - ../loadtest/metrics-sampler.sh:/scripts/metrics-sampler.sh:ro
+    command: ["/scripts/metrics-sampler.sh"]
+    depends_on:
+      kumbuka:
+        condition: service_started
+
+volumes:
+  kumbuka-loadtest-postgres:

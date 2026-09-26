@@ -68,6 +68,10 @@ LDFLAGS ?= -s -w -X main.Version=$(BUILD_VERSION) -X main.Commit=$(BUILD_COMMIT)
 
 COMPOSE_PROJECT ?= $(notdir $(CURDIR))
 COMPOSE_FILE := deploy/compose.yaml
+LOADTEST_COMPOSE_FILE := deploy/compose.loadtest.yaml
+LOADTEST_COMPOSE := docker compose -f $(LOADTEST_COMPOSE_FILE)
+LOADTEST_MONITOR_INTERVAL ?= 5
+LOADTEST_STRESS_RUNNER := loadtest/run-stress.sh
 DB_CONTAINER_NAME ?= postgres
 PDF_CONTAINER_NAME ?= html2pdf
 MAILBRIDGE_CONTAINER_NAME ?= mailbridge
@@ -199,6 +203,48 @@ run: dev-build html-pdf mailbridge postgres $(OPEN_BROWSER) ## Build, start serv
 	browser_pid=$$!; \
 	trap 'kill "$$browser_pid" 2>/dev/null || true' EXIT; \
 	$(MAKE) serve
+
+##@ Load testing
+
+.PHONY: loadtest-up
+loadtest-up: ## Start the isolated Kumbuka and PostgreSQL load-test stack.
+	$(LOADTEST_COMPOSE) up --build --wait --wait-timeout 120 kumbuka postgres
+
+.PHONY: loadtest-seed
+loadtest-seed: ## Create or verify the dedicated load-test pages.
+	$(LOADTEST_COMPOSE) --profile loadtest run --rm k6 run /scripts/seed.js
+
+.PHONY: loadtest-prepare
+loadtest-prepare: loadtest-up loadtest-seed ## Start the isolated stack and seed its test data.
+
+.PHONY: loadtest-smoke
+loadtest-smoke: loadtest-prepare ## Run the one-user load-test correctness check.
+	$(LOADTEST_COMPOSE) --profile loadtest run --rm k6 run /scripts/smoke.js
+
+.PHONY: loadtest-read
+loadtest-read: loadtest-prepare ## Run the baseline read-heavy load test.
+	$(LOADTEST_COMPOSE) --profile loadtest run --rm k6 run /scripts/read-heavy.js
+
+.PHONY: loadtest-stress
+loadtest-stress: loadtest-prepare ## Run the stepped mixed stress test with resource monitoring.
+	@LOADTEST_MONITOR_INTERVAL=$(LOADTEST_MONITOR_INTERVAL) $(LOADTEST_STRESS_RUNNER) "$(LOADTEST_COMPOSE_FILE)" stress /scripts/stress.js
+
+.PHONY: loadtest-search-stress
+loadtest-search-stress: loadtest-prepare ## Run the search-only stress test with resource monitoring.
+	@LOADTEST_MONITOR_INTERVAL=$(LOADTEST_MONITOR_INTERVAL) $(LOADTEST_STRESS_RUNNER) "$(LOADTEST_COMPOSE_FILE)" search-stress /scripts/search-stress.js
+
+.PHONY: loadtest-render-stress
+loadtest-render-stress: loadtest-prepare ## Run the rendered-page stress test with resource monitoring.
+	@LOADTEST_MONITOR_INTERVAL=$(LOADTEST_MONITOR_INTERVAL) $(LOADTEST_STRESS_RUNNER) "$(LOADTEST_COMPOSE_FILE)" render-stress /scripts/render-stress.js
+
+.PHONY: loadtest-down
+loadtest-down: ## Stop the isolated load-test stack and retain its data.
+	$(LOADTEST_COMPOSE) down
+
+.PHONY: loadtest-reset
+loadtest-reset: ## Delete and recreate the isolated load-test database and seed data.
+	$(LOADTEST_COMPOSE) down --volumes --remove-orphans
+	$(MAKE) loadtest-prepare
 
 .PHONY: build
 build: generate web ## Build the Kumbuka binary.
@@ -337,3 +383,5 @@ golangci-lint: $(GO_INSTALL_TOOL) ## Download golangci-lint locally if necessary
 		--target "$(GOLANGCI_LINT)" \
 		--package github.com/golangci/golangci-lint/v2/cmd/golangci-lint \
 		--tool-version "$(GOLANGCI_LINT_VERSION)"
+
+
