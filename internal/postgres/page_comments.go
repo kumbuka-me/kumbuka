@@ -28,6 +28,7 @@ func scanPageComment(row pageCommentScanner) (domain.PageComment, error) {
 	err := row.Scan(
 		&item.ID,
 		&item.PageID,
+		&item.AuthorID,
 		&item.ParentID,
 		&item.ParentAuthor,
 		&item.ParentBody,
@@ -69,7 +70,7 @@ func scanPageComment(row pageCommentScanner) (domain.PageComment, error) {
 // PageComments returns comments for a page, unresolved first.
 func (s *Store) PageComments(ctx context.Context, slug string) ([]domain.PageComment, error) {
 	rows, err := s.pool.Query(ctx, `
-SELECT c.id,c.page_id,coalesce(c.parent_id,0),coalesce(parent_user.display_name,parent_user.username,'Deleted user'),
+SELECT c.id,c.page_id,coalesce(c.user_id,0),coalesce(c.parent_id,0),coalesce(parent_user.display_name,parent_user.username,'Deleted user'),
        coalesce(parent.body,''),coalesce(u.display_name,u.username,'Deleted user'),c.anchor,c.quote,c.body,
        coalesce(c.suggestion_revision,0),coalesce(c.suggestion_start_byte,0),coalesce(c.suggestion_end_byte,0),
        c.suggestion_original,c.suggestion_replacement,c.resolved_at,c.created_at,coalesce(c.suggestion_applied_by,0),
@@ -103,7 +104,7 @@ ORDER BY (c.resolved_at IS NOT NULL),c.created_at`, slug)
 // PageComment returns one page comment bound to the expected page slug.
 func (s *Store) PageComment(ctx context.Context, slug string, id int64) (domain.PageComment, error) {
 	item, err := scanPageComment(s.pool.QueryRow(ctx, `
-SELECT c.id,c.page_id,coalesce(c.parent_id,0),coalesce(parent_user.display_name,parent_user.username,'Deleted user'),
+SELECT c.id,c.page_id,coalesce(c.user_id,0),coalesce(c.parent_id,0),coalesce(parent_user.display_name,parent_user.username,'Deleted user'),
        coalesce(parent.body,''),coalesce(u.display_name,u.username,'Deleted user'),c.anchor,c.quote,c.body,
        coalesce(c.suggestion_revision,0),coalesce(c.suggestion_start_byte,0),coalesce(c.suggestion_end_byte,0),
        c.suggestion_original,c.suggestion_replacement,c.resolved_at,c.created_at,coalesce(c.suggestion_applied_by,0),

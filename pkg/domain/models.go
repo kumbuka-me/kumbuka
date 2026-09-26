@@ -671,6 +671,8 @@ type PageComment struct {
 	ID int64 `json:"id"`
 	// PageID identifies the page associated with page comment.
 	PageID int64 `json:"page_id"`
+	// AuthorID identifies the user who created the comment, or zero if the account was deleted.
+	AuthorID int64 `json:"-"`
 	// ParentID identifies the comment this item replies to.
 	ParentID int64 `json:"parent_id,omitempty"`
 	// ParentAuthor is the display name of the replied-to comment author.

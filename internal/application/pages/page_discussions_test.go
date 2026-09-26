@@ -140,6 +140,107 @@ func newDiscussionsForTest(repository *inlineSuggestionRepositoryStub) *Discussi
 	return NewDiscussions(repository, nil, nil, repository, slog.Default())
 }
 
+// discussionCommentRepositoryStub provides reply context for comment notification tests.
+type discussionCommentRepositoryStub struct {
+	discussionRepository
+	parent domain.PageComment
+}
+
+func (*discussionCommentRepositoryStub) ApplicationSettings(context.Context) (domain.ApplicationSettings, error) {
+	return domain.ApplicationSettings{DiscussionsEnabled: true}, nil
+}
+
+func (*discussionCommentRepositoryStub) AddPageComment(
+	context.Context,
+	string,
+	int64,
+	int64,
+	string,
+	string,
+	string,
+) (domain.PageComment, error) {
+	return domain.PageComment{ID: 12, PageID: 7, AuthorID: 42}, nil
+}
+
+func (r *discussionCommentRepositoryStub) PageComment(context.Context, string, int64) (domain.PageComment, error) {
+	return r.parent, nil
+}
+
+func (*discussionCommentRepositoryStub) LogAudit(context.Context, int64, string, string, string, string) error {
+	return nil
+}
+
+func (*discussionCommentRepositoryStub) PageWatcherUserIDs(context.Context, int64, string) ([]int64, error) {
+	return nil, nil
+}
+
+type discussionNotificationSenderStub struct {
+	coreCalls int
+	recipient int64
+}
+
+func (*discussionNotificationSenderStub) SendMentions(context.Context, int64, string, string, string) error {
+	return nil
+}
+
+func (s *discussionNotificationSenderStub) SendCore(
+	_ context.Context,
+	recipientUserID, _ int64,
+	_ domain.NotificationKind,
+	_, _, _ string,
+) error {
+	s.coreCalls++
+	s.recipient = recipientUserID
+	return nil
+}
+
+func TestAddCommentReplyNotificationUsesParentAuthorID(t *testing.T) {
+	t.Parallel()
+
+	t.Run("notifies parent author", func(t *testing.T) {
+		t.Parallel()
+
+		repository := &discussionCommentRepositoryStub{parent: domain.PageComment{ID: 9, AuthorID: 7}}
+		sender := &discussionNotificationSenderStub{}
+		discussions := NewDiscussions(repository, nil, nil, repository, slog.Default()).WithNotifications(sender)
+
+		_, err := discussions.AddComment(
+			context.Background(),
+			"guide",
+			9,
+			"",
+			"",
+			"Reply",
+			domain.User{ID: 42},
+		)
+
+		require.NoError(t, err)
+		assert.Equal(t, 1, sender.coreCalls)
+		assert.Equal(t, int64(7), sender.recipient)
+	})
+
+	t.Run("skips deleted parent author", func(t *testing.T) {
+		t.Parallel()
+
+		repository := &discussionCommentRepositoryStub{parent: domain.PageComment{ID: 9}}
+		sender := &discussionNotificationSenderStub{}
+		discussions := NewDiscussions(repository, nil, nil, repository, slog.Default()).WithNotifications(sender)
+
+		_, err := discussions.AddComment(
+			context.Background(),
+			"guide",
+			9,
+			"",
+			"",
+			"Reply",
+			domain.User{ID: 42},
+		)
+
+		require.NoError(t, err)
+		assert.Zero(t, sender.coreCalls)
+	})
+}
+
 // TestAddSuggestionMapsSelectedText verifies a unique rendered-text selection is mapped to its exact Markdown byte range.
 func TestAddSuggestionMapsSelectedText(t *testing.T) {
 	t.Parallel()

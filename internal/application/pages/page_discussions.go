@@ -121,7 +121,7 @@ func (s *Discussions) AddComment(
 		parent, err := s.repository.PageComment(ctx, slug, parentID)
 		if err != nil {
 			s.logger.ErrorContext(ctx, "resolve comment reply recipient", "event", "page_side_effect_failed", "error", err)
-		} else if parent.AuthorID != actor.ID {
+		} else if parent.AuthorID > 0 && parent.AuthorID != actor.ID {
 			s.effects.notifyUser(
 				ctx,
 				parent.AuthorID,
