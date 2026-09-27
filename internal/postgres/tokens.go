@@ -12,6 +12,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
+	"github.com/kumbuka-me/kumbuka/pkg/utils"
 )
 
 // CreateToken generates and stores a personal access token for the selected user.
@@ -123,12 +124,10 @@ ORDER BY t.created_at DESC,t.id DESC`, args...)
 		}
 
 		if lastUsed.Valid {
-			value := lastUsed.Time
-			token.LastUsed = &value
+			token.LastUsed = utils.ToPtr(lastUsed.Time)
 		}
 		if expiresAt.Valid {
-			value := expiresAt.Time
-			token.ExpiresAt = &value
+			token.ExpiresAt = utils.ToPtr(expiresAt.Time)
 		}
 
 		tokens = append(tokens, token)

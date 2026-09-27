@@ -11,6 +11,7 @@ import (
 	"github.com/kumbuka-me/kumbuka/internal/secrets"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/kumbuka-me/kumbuka/pkg/logging"
+	"github.com/kumbuka-me/kumbuka/pkg/utils"
 )
 
 // DefaultPluginUpdateCheckInterval is the default background plugin catalog refresh interval.
@@ -218,7 +219,7 @@ func registerServerFlags(tf *tinyflags.FlagSet, cfg *Config) func() {
 		Value()
 
 	allowUserRegistrationFlag := tf.BoolVar(
-		new(bool),
+		utils.ToPtr(false),
 		"allow-user-registration",
 		false,
 		"Deployment override for whether unknown OIDC or trusted-proxy identities may create accounts",

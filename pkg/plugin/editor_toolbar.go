@@ -5,6 +5,7 @@ import (
 	"sort"
 
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
+	"github.com/kumbuka-me/kumbuka/pkg/utils"
 	"github.com/kumbuka-me/sdk/pluginpackage"
 )
 
@@ -128,8 +129,7 @@ func resolvedEditorToolbarContributions(
 				continue
 			}
 			contribution := toolbarContributionForModule(pluginID, metadata.Manifest.Name, module, overrides)
-			action := actions[module.ID]
-			contribution.Action = &action
+			contribution.Action = utils.ToPtr(actions[module.ID])
 			contributions = append(contributions, contribution)
 		case ModuleTypeEditorMenu:
 			contribution := toolbarContributionForModule(pluginID, metadata.Manifest.Name, module, overrides)

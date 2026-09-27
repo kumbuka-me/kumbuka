@@ -10,6 +10,7 @@ import (
 
 	"github.com/kumbuka-me/kumbuka/pkg/plugin"
 	"github.com/kumbuka-me/kumbuka/pkg/pluginusage"
+	"github.com/kumbuka-me/kumbuka/pkg/utils"
 	"github.com/kumbuka-me/sdk"
 )
 
@@ -92,8 +93,7 @@ func currentOrAnalyzedUsage(source string, usage *pluginusage.Index, plan *plugi
 	if currentUsageIndex(usage, plan, source) {
 		return usage
 	}
-	index := analyzeUsage(source, plan)
-	return &index
+	return utils.ToPtr(analyzeUsage(source, plan))
 }
 
 // selectedUsageModules indexes source-selected plugin modules by plugin and module ID.

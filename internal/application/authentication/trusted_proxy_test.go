@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
+	"github.com/kumbuka-me/kumbuka/pkg/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -76,11 +77,10 @@ func TestTrustedProxyLoginHonorsPersistedRegistrationPolicy(t *testing.T) {
 func TestTrustedProxyLoginHonorsDeploymentRegistrationOverride(t *testing.T) {
 	t.Parallel()
 
-	disabled := false
 	repository := &trustedProxyRepositoryStub{
 		settings: domain.ApplicationSettings{AllowUserRegistration: true},
 	}
-	_, err := NewTrustedProxy(repository, &disabled).Login(context.Background(), "alice", "", "")
+	_, err := NewTrustedProxy(repository, utils.ToPtr(false)).Login(context.Background(), "alice", "", "")
 
 	assert.ErrorIs(t, err, domain.ErrRegistrationDisabled)
 	assert.Zero(t, repository.createCalls)

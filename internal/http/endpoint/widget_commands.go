@@ -8,6 +8,7 @@ import (
 	md "github.com/kumbuka-me/kumbuka/pkg/markdown"
 	"github.com/kumbuka-me/kumbuka/pkg/plugin"
 	"github.com/kumbuka-me/kumbuka/pkg/plugincap"
+	"github.com/kumbuka-me/kumbuka/pkg/utils"
 	"github.com/kumbuka-me/sdk"
 )
 
@@ -67,8 +68,7 @@ func PluginWidgetCommand(
 				httpresponse.Problem(w, http.StatusNotFound, "Page not found.")
 				return
 			}
-			value := plugincap.PageValue(page)
-			pageValue = &value
+			pageValue = utils.ToPtr(plugincap.PageValue(page))
 			securedCatalog := catalog.Accessible(user)
 			pageNavigation, err := subpageNavigation(r.Context(), navigation, user, slug)
 			if err != nil {

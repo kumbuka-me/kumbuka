@@ -6,6 +6,7 @@ import (
 
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/kumbuka-me/kumbuka/pkg/revision"
+	"github.com/kumbuka-me/kumbuka/pkg/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -14,11 +15,10 @@ import (
 func TestPartitionPageComments(t *testing.T) {
 	t.Parallel()
 
-	resolvedAt := time.Now()
 	comments := []domain.PageComment{
 		{ID: 3, ParentID: 1, Body: "inline reply"},
 		{ID: 2, Body: "page root"},
-		{ID: 1, Anchor: "selected text", Body: "inline root", Resolved: &resolvedAt},
+		{ID: 1, Anchor: "selected text", Body: "inline root", Resolved: utils.ToPtr(time.Now())},
 		{ID: 4, ParentID: 2, Body: "page reply"},
 		{ID: 5, ParentID: 3, Body: "nested inline reply"},
 	}
@@ -91,10 +91,9 @@ func TestReviewDiffLinesGroupsFeedback(t *testing.T) {
 func TestOpenReviewSuggestionCountIgnoresAppliedSuggestions(t *testing.T) {
 	t.Parallel()
 
-	appliedAt := time.Now()
 	comments := []domain.PageReviewComment{
 		{ID: 1, IsSuggestion: true},
-		{ID: 2, IsSuggestion: true, AppliedAt: &appliedAt},
+		{ID: 2, IsSuggestion: true, AppliedAt: utils.ToPtr(time.Now())},
 		{ID: 3},
 	}
 

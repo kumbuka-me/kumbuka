@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/kumbuka-me/kumbuka/pkg/plugin"
+	"github.com/kumbuka-me/kumbuka/pkg/utils"
 	"github.com/kumbuka-me/sdk/pluginpackage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -291,13 +292,12 @@ func TestPluginUsageForDifferentSourceFallsBackToTransientAnalysis(t *testing.T)
 		}},
 	}))
 	renderer := NewWithRegistry(registry)
-	index := renderer.AnalyzeUsage("plain Markdown")
 
 	_, err := renderer.RenderPageResolvedWithFunctions(
 		"!!! warning\ncontent",
 		Slug,
 		DefaultOptions(),
-		Functions{PluginUsage: &index},
+		Functions{PluginUsage: utils.ToPtr(renderer.AnalyzeUsage("plain Markdown"))},
 	)
 
 	require.NoError(t, err)

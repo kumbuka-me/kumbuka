@@ -6,6 +6,7 @@ import (
 
 	"github.com/containeroo/tinyflags"
 	"github.com/kumbuka-me/kumbuka/internal/flags"
+	"github.com/kumbuka-me/kumbuka/pkg/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -45,8 +46,7 @@ func TestNewRegistrationOverride(t *testing.T) {
 	t.Run("enabled", func(t *testing.T) {
 		t.Parallel()
 
-		enabled := true
-		info := New(flags.Config{AllowUserRegistrationOverride: &enabled}, false)
+		info := New(flags.Config{AllowUserRegistrationOverride: utils.ToPtr(true)}, false)
 
 		assert.True(t, info.UserRegistrationOverrideConfigured)
 		assert.True(t, info.AllowUserRegistrationOverride)
@@ -55,8 +55,7 @@ func TestNewRegistrationOverride(t *testing.T) {
 	t.Run("disabled", func(t *testing.T) {
 		t.Parallel()
 
-		enabled := false
-		info := New(flags.Config{AllowUserRegistrationOverride: &enabled}, false)
+		info := New(flags.Config{AllowUserRegistrationOverride: utils.ToPtr(false)}, false)
 
 		assert.True(t, info.UserRegistrationOverrideConfigured)
 		assert.False(t, info.AllowUserRegistrationOverride)

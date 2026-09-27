@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/kumbuka-me/kumbuka/pkg/utils"
 	"github.com/kumbuka-me/sdk/pluginpackage"
 )
 
@@ -378,29 +379,24 @@ func cloneEditorWidget(widget EditorWidgetContribution) EditorWidgetContribution
 		clone.Preview.Badge = &badge
 	}
 	if widget.Preview.Reference != nil {
-		reference := *widget.Preview.Reference
-		clone.Preview.Reference = &reference
+		clone.Preview.Reference = utils.ToPtr(*widget.Preview.Reference)
 	}
 	if widget.Preview.Card != nil {
 		card := *widget.Preview.Card
 		card.MetadataAttributes = append([]string(nil), widget.Preview.Card.MetadataAttributes...)
 		if widget.Preview.Card.LineAnnotations != nil {
-			annotations := *widget.Preview.Card.LineAnnotations
-			card.LineAnnotations = &annotations
+			card.LineAnnotations = utils.ToPtr(*widget.Preview.Card.LineAnnotations)
 		}
 		clone.Preview.Card = &card
 	}
 	if widget.Preview.Callout != nil {
-		callout := *widget.Preview.Callout
-		clone.Preview.Callout = &callout
+		clone.Preview.Callout = utils.ToPtr(*widget.Preview.Callout)
 	}
 	if widget.Preview.Details != nil {
-		details := *widget.Preview.Details
-		clone.Preview.Details = &details
+		clone.Preview.Details = utils.ToPtr(*widget.Preview.Details)
 	}
 	if widget.Preview.Tabs != nil {
-		tabs := *widget.Preview.Tabs
-		clone.Preview.Tabs = &tabs
+		clone.Preview.Tabs = utils.ToPtr(*widget.Preview.Tabs)
 	}
 	return clone
 }

@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
+	"github.com/kumbuka-me/kumbuka/pkg/utils"
 )
 
 // UserUpdateInput describes the administrator's intended account change. Password confirmation belongs to the form; password policy belongs to this operation.
@@ -94,8 +95,7 @@ func (s *Users) prepareLocalCredentialUpdate(ctx context.Context, input UserUpda
 			"local_credential_enabled",
 			"Local recovery credentials can only be enabled or disabled while external authentication is active.")
 	}
-	enabled := input.Password != "" || input.LocalCredentialEnabled
-	update.LocalCredentialEnabled = &enabled
+	update.LocalCredentialEnabled = utils.ToPtr(input.Password != "" || input.LocalCredentialEnabled)
 	return nil
 }
 

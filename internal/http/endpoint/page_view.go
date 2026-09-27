@@ -15,6 +15,7 @@ import (
 	md "github.com/kumbuka-me/kumbuka/pkg/markdown"
 	"github.com/kumbuka-me/kumbuka/pkg/navigation"
 	"github.com/kumbuka-me/kumbuka/pkg/plugincap"
+	"github.com/kumbuka-me/kumbuka/pkg/utils"
 )
 
 // ViewPage renders one readable page and its active plugin detail widgets.
@@ -104,11 +105,10 @@ func ViewPage(
 		}
 
 		stop = measurePageStage(r.Context(), "page_detail_widgets")
-		pageValue := plugincap.PageValue(page)
 		widgets, err := renderer.RenderWidgets(
 			r.Context(),
 			"page.details",
-			&pageValue,
+			utils.ToPtr(plugincap.PageValue(page)),
 			data.PluginFeatures,
 			capabilities,
 			data.Preferences.HiddenPluginWidgets,
