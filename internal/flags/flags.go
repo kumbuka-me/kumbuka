@@ -113,8 +113,36 @@ func Parse(args []string, version string) (Config, error) {
 	tf.EnvPrefix("KUMBUKA_")
 	tf.Version(version)
 
-	// Server
-	listen := tf.TCPAddr("listen-address", &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 8080}, "Address on which the web server listens").
+	applyServerFlags := registerServerFlags(tf, &cfg)
+	applyAuthFlags := registerAuthFlags(tf, &cfg)
+	registerTrustedProxyFlags(tf, &cfg)
+	registerOIDCFlags(tf, &cfg)
+	applyLoggingFlags := registerLoggingFlags(tf, &cfg)
+
+	if err := tf.Parse(args); err != nil {
+		return Config{}, err
+	}
+
+	applyServerFlags()
+	applyAuthFlags()
+	applyLoggingFlags()
+
+	cfg.Overrides = tf.OverriddenValues()
+	cfg.OverrideOrigins = tf.OverriddenOrigins()
+
+	return cfg, nil
+}
+
+// registerServerFlags registers flags for the server configuration.
+func registerServerFlags(tf *tinyflags.FlagSet, cfg *Config) func() {
+	listen := tf.TCPAddr(
+		"listen-address",
+		&net.TCPAddr{
+			IP:   net.ParseIP("127.0.0.1"),
+			Port: 8080,
+		},
+		"Address on which the web server listens",
+	).
 		Short("a").
 		Placeholder("ADDR").
 		Value()
@@ -124,29 +152,56 @@ func Parse(args []string, version string) (Config, error) {
 		Placeholder("URL").
 		OverriddenValueMaskFn(tinyflags.MaskPostgresURL).
 		Value()
-	tf.Int32Var(&cfg.DatabaseMaxConns, "database-max-conns", 0, "Maximum number of database connections; 0 uses the pgxpool default").
+
+	tf.Int32Var(
+		&cfg.DatabaseMaxConns,
+		"database-max-conns",
+		0,
+		"Maximum number of database connections; 0 uses the pgxpool default",
+	).
 		Validate(func(n int32) error {
 			if n < 0 {
 				return errors.New("database max connections must not be negative")
 			}
+
 			return nil
 		}).
 		Value()
-	tf.Int32Var(&cfg.DatabaseMinIdleConns, "database-min-idle-conns", 0, "Minimum number of idle database connections kept ready; 0 uses the pgxpool default").
+
+	tf.Int32Var(
+		&cfg.DatabaseMinIdleConns,
+		"database-min-idle-conns",
+		0,
+		"Minimum number of idle database connections kept ready; 0 uses the pgxpool default",
+	).
 		Validate(func(n int32) error {
 			if n < 0 {
 				return errors.New("database minimum idle connections must not be negative")
 			}
+
 			return nil
 		}).
 		Value()
-	tf.StringVar(&cfg.PublicURL, "public-url", "http://localhost:8080", "Externally visible base URL").
+
+	tf.StringVar(
+		&cfg.PublicURL,
+		"public-url",
+		"http://localhost:8080",
+		"Externally visible base URL",
+	).
 		Placeholder("URL").
 		Value()
-	tf.StringVar(&cfg.PDFURL, "pdf-url", "", "Deployment override for the PDF service POST URL, including its path").
+
+	tf.StringVar(
+		&cfg.PDFURL,
+		"pdf-url",
+		"",
+		"Deployment override for the PDF service POST URL, including its path",
+	).
 		Placeholder("URL").
 		Validate(pdf.ValidateURL).
 		Value()
+
 	tf.DurationVar(
 		&cfg.PluginUpdateCheckInterval,
 		"plugin-update-check-interval",
@@ -161,24 +216,63 @@ func Parse(args []string, version string) (Config, error) {
 			return nil
 		}).
 		Value()
+
 	allowUserRegistrationFlag := tf.BoolVar(
 		ToPtr(false),
 		"allow-user-registration",
 		false,
 		"Deployment override for whether unknown OIDC or trusted-proxy identities may create accounts",
 	).Strict()
-	tf.BoolVar(&cfg.ReadOnly, "read-only", false, "Block state-changing application requests while keeping reads and authentication available").
+
+	tf.BoolVar(
+		&cfg.ReadOnly,
+		"read-only",
+		false,
+		"Block state-changing application requests while keeping reads and authentication available",
+	).
 		Value()
-	tf.BoolVar(&cfg.DisableMetrics, "disable-metrics", false, "Disable Prometheus metrics exposition and HTTP request instrumentation").
+
+	tf.BoolVar(
+		&cfg.DisableMetrics,
+		"disable-metrics",
+		false,
+		"Disable Prometheus metrics exposition and HTTP request instrumentation",
+	).
 		Value()
-	tf.BoolVar(&cfg.LocalLogin, "local-login", false, "Enable the local recovery login alongside the configured authentication mode").
+
+	tf.BoolVar(
+		&cfg.LocalLogin,
+		"local-login",
+		false,
+		"Enable the local recovery login alongside the configured authentication mode",
+	).
 		Value()
-	tf.StringVar(&cfg.ThemeDirectory, "theme-directory", "", "Directory containing custom theme TOML files that override or extend embedded themes").
+
+	tf.StringVar(
+		&cfg.ThemeDirectory,
+		"theme-directory",
+		"",
+		"Directory containing custom theme TOML files that override or extend embedded themes",
+	).
 		Placeholder("DIR").
 		Value()
 
-	// Auth
-	authModeFlag := tinyflags.Enum(tf, "auth-mode", domain.AuthModeNone, "Emergency override for the database-managed authentication mode",
+	return func() {
+		cfg.ListenAddress = (*listen).String()
+
+		if allowUserRegistrationFlag.Changed() {
+			cfg.AllowUserRegistrationOverride = allowUserRegistrationFlag.Value()
+		}
+	}
+}
+
+// registerAuthFlags registers flags for the authentication configuration.
+func registerAuthFlags(tf *tinyflags.FlagSet, cfg *Config) func() {
+	authModeFlag := tinyflags.Enum(
+		tf,
+		"auth-mode",
+		domain.AuthModeNone,
+		"Emergency override for the database-managed authentication mode",
 		domain.AuthModeNone,
 		domain.AuthModeLocal,
 		domain.AuthModeTrustedProxy,
@@ -186,37 +280,112 @@ func Parse(args []string, version string) (Config, error) {
 	).
 		Placeholder("MODE")
 
-	// Trusted-proxy
-	tf.StringSliceVar(&cfg.TrustedUsernameHeaders, "trusted-username-headers", trustedUsernameHeaders, "Trusted-proxy username headers used only with the authentication override").
-		Value()
-	tf.StringSliceVar(&cfg.TrustedEmailHeaders, "trusted-email-headers", trustedEmailHeaders, "Trusted-proxy email headers used only with the authentication override").
-		Value()
-	tf.StringSliceVar(&cfg.TrustedDisplayNameHeaders, "trusted-display-name-headers", trustedDisplayNameHeaders, "Trusted-proxy display-name headers used only with the authentication override").
-		Value()
-	tf.StringSliceVar(&cfg.TrustedGroupHeaders, "trusted-group-headers", trustedGroupHeaders, "Trusted-proxy group headers used only with the authentication override").
-		Value()
-	tf.StringVar(&cfg.TrustedAdminGroup, "trusted-admin-group", "", "Trusted-proxy group that grants administrator access with the authentication override").
+	return func() {
+		if authModeFlag.Changed() {
+			cfg.AuthModeOverride = *authModeFlag.Value()
+		}
+	}
+}
+
+// registerTrustedProxyFlags registers flags for the trusted-proxy configuration.
+func registerTrustedProxyFlags(tf *tinyflags.FlagSet, cfg *Config) {
+	tf.StringSliceVar(
+		&cfg.TrustedUsernameHeaders,
+		"trusted-username-headers",
+		trustedUsernameHeaders,
+		"Trusted-proxy username headers used only with the authentication override",
+	).
 		Value()
 
-	// OIDC
-	tf.StringVar(&cfg.OIDCIssuer, "oidc-issuer", "", "OIDC issuer used only with the authentication override").
+	tf.StringSliceVar(
+		&cfg.TrustedEmailHeaders,
+		"trusted-email-headers",
+		trustedEmailHeaders,
+		"Trusted-proxy email headers used only with the authentication override",
+	).
+		Value()
+
+	tf.StringSliceVar(
+		&cfg.TrustedDisplayNameHeaders,
+		"trusted-display-name-headers",
+		trustedDisplayNameHeaders,
+		"Trusted-proxy display-name headers used only with the authentication override",
+	).
+		Value()
+
+	tf.StringSliceVar(
+		&cfg.TrustedGroupHeaders,
+		"trusted-group-headers",
+		trustedGroupHeaders,
+		"Trusted-proxy group headers used only with the authentication override",
+	).
+		Value()
+
+	tf.StringVar(
+		&cfg.TrustedAdminGroup,
+		"trusted-admin-group",
+		"",
+		"Trusted-proxy group that grants administrator access with the authentication override",
+	).
+		Value()
+}
+
+// registerOIDCFlags registers flags for the OIDC configuration.
+func registerOIDCFlags(tf *tinyflags.FlagSet, cfg *Config) {
+	tf.StringVar(
+		&cfg.OIDCIssuer,
+		"oidc-issuer",
+		"",
+		"OIDC issuer used only with the authentication override",
+	).
 		Placeholder("URL").
 		Value()
-	tf.StringVar(&cfg.OIDCClientID, "oidc-client-id", "", "OIDC client ID used only with the authentication override").
+
+	tf.StringVar(
+		&cfg.OIDCClientID,
+		"oidc-client-id",
+		"",
+		"OIDC client ID used only with the authentication override",
+	).
 		Value()
-	tf.StringVar(&cfg.OIDCGroupClaim, "oidc-group-claim", "groups", "OIDC group-membership claim used only with the authentication override").
+
+	tf.StringVar(
+		&cfg.OIDCGroupClaim,
+		"oidc-group-claim",
+		"groups",
+		"OIDC group-membership claim used only with the authentication override",
+	).
 		Value()
-	tf.StringVar(&cfg.OIDCAdminGroup, "oidc-admin-group", "", "OIDC group that grants administrator access with the authentication override").
+
+	tf.StringVar(
+		&cfg.OIDCAdminGroup,
+		"oidc-admin-group",
+		"",
+		"OIDC group that grants administrator access with the authentication override",
+	).
 		Value()
-	tf.StringVar(&cfg.OIDCClientSecret, "oidc-client-secret", "", "OIDC client secret used when OIDC is enabled in the administration UI").
+
+	tf.StringVar(
+		&cfg.OIDCClientSecret,
+		"oidc-client-secret",
+		"",
+		"OIDC client secret used when OIDC is enabled in the administration UI",
+	).
 		OverriddenValueMaskFn(tinyflags.MaskFirstLast).
 		Value()
-	tf.StringVar(&cfg.OIDCSessionSecret, "oidc-session-secret", "", "Secret used to sign OIDC login state and session cookies").
+
+	tf.StringVar(
+		&cfg.OIDCSessionSecret,
+		"oidc-session-secret",
+		"",
+		"Secret used to sign OIDC login state and session cookies",
+	).
 		OverriddenValueMaskFn(tinyflags.MaskFirstLast).
 		Validate(func(s string) error {
 			if s == "" {
 				return nil
 			}
+
 			if len(s) < 32 {
 				return errors.New("oidc session secret must be at least 32 characters")
 			}
@@ -224,39 +393,58 @@ func Parse(args []string, version string) (Config, error) {
 			return nil
 		}).
 		Value()
-	tf.StringVar(&cfg.EncryptionKey, "encryption-key", "", "Base64-encoded 32-byte key used to encrypt sensitive application settings").
+
+	tf.StringVar(
+		&cfg.EncryptionKey,
+		"encryption-key",
+		"",
+		"Base64-encoded 32-byte key used to encrypt sensitive application settings",
+	).
 		OverriddenValueMaskFn(tinyflags.MaskFirstLast).
 		Validate(secrets.ValidateKey).
 		Value()
+}
 
-	// Logging
-	logFormat := tinyflags.Enum(tf, "log-format", logging.LogFormatJSON, "Log output format", logging.LogFormatText, logging.LogFormatJSON).
+// registerLoggingFlags registers flags for the logging configuration.
+func registerLoggingFlags(tf *tinyflags.FlagSet, cfg *Config) func() {
+	logFormat := tinyflags.Enum(
+		tf,
+		"log-format",
+		logging.LogFormatJSON,
+		"Log output format",
+		logging.LogFormatText,
+		logging.LogFormatJSON,
+	).
 		Short("l").
 		Placeholder("FORMAT").
 		Value()
-	tf.BoolVar(&cfg.Debug, "debug", false, "Enable verbose diagnostic logging").
+
+	tf.BoolVar(
+		&cfg.Debug,
+		"debug",
+		false,
+		"Enable verbose diagnostic logging",
+	).
 		Short("d").
 		Value()
-	tf.BoolVar(&cfg.DebugRenderTimings, "debug-render-timings", false, "Log detailed page handler, Markdown, and WASM timings").
+
+	tf.BoolVar(
+		&cfg.DebugRenderTimings,
+		"debug-render-timings",
+		false,
+		"Log detailed page handler, Markdown, and WASM timings",
+	).
 		Value()
-	tf.BoolVar(&cfg.AccessLog, "access-log", false, "Enable HTTP request access logging").
+
+	tf.BoolVar(
+		&cfg.AccessLog,
+		"access-log",
+		false,
+		"Enable HTTP request access logging",
+	).
 		Value()
 
-	if err := tf.Parse(args); err != nil {
-		return Config{}, err
+	return func() {
+		cfg.LogFormat = *logFormat
 	}
-
-	if authModeFlag.Changed() {
-		cfg.AuthModeOverride = *authModeFlag.Value()
-	}
-	if allowUserRegistrationFlag.Changed() {
-		cfg.AllowUserRegistrationOverride = allowUserRegistrationFlag.Value()
-	}
-
-	cfg.ListenAddress = (*listen).String()
-	cfg.LogFormat = *logFormat
-	cfg.Overrides = tf.OverriddenValues()
-	cfg.OverrideOrigins = tf.OverriddenOrigins()
-
-	return cfg, nil
 }
