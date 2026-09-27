@@ -142,7 +142,9 @@ func newDiscussionsForTest(repository *inlineSuggestionRepositoryStub) *Discussi
 
 // discussionCommentRepositoryStub provides reply context for comment notification tests.
 type discussionCommentRepositoryStub struct {
+	// discussionRepository is embedded to provide the default interface behavior for this fixture.
 	discussionRepository
+	// parent is the parent discussion comment returned by the fixture.
 	parent domain.PageComment
 }
 
@@ -174,8 +176,11 @@ func (*discussionCommentRepositoryStub) PageWatcherUserIDs(context.Context, int6
 	return nil, nil
 }
 
+// discussionNotificationSenderStub captures discussion notifications emitted by the application service.
 type discussionNotificationSenderStub struct {
+	// coreCalls counts core notification deliveries.
 	coreCalls int
+	// recipient captures the notification recipient user ID.
 	recipient int64
 }
 

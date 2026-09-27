@@ -243,9 +243,7 @@ func (s *Webhooks) webhookRequestHeaders(item domain.Webhook, event OutgoingEven
 	return headers, nil
 }
 
-// recordWebhookDelivery persists one delivery outcome and reports history failures.
-// Callers may preserve a more important primary delivery error while the log keeps
-// the secondary persistence failure observable.
+// recordWebhookDelivery persists one outcome while keeping any secondary history-write failure observable.
 func (s *Webhooks) recordWebhookDelivery(
 	ctx context.Context,
 	webhookID int64,

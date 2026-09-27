@@ -980,7 +980,9 @@ func validateEditorWidgetTabsPreview(preview EditorWidgetPreview, attributes map
 // previewHasOtherKind reports whether preview contains metadata for a different preview renderer.
 func previewHasOtherKind(preview EditorWidgetPreview, allowed EditorWidgetPreviewKind) bool {
 	kinds := []struct {
-		name    EditorWidgetPreviewKind
+		// name identifies the preview kind being inspected.
+		name EditorWidgetPreviewKind
+		// present reports whether metadata for that kind is configured.
 		present bool
 	}{
 		{name: EditorWidgetPreviewBadge, present: preview.Badge != nil},

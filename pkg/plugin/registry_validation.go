@@ -167,8 +167,10 @@ func validateContributionIDs(contributions Contributions) error {
 
 	validator := contributionIDValidator{seen: make(map[string]struct{})}
 	groups := []struct {
+		// kind labels the contribution category in validation errors.
 		kind string
-		ids  []string
+		// ids contains contribution identifiers in that category.
+		ids []string
 	}{
 		{kind: "code-highlighter", ids: contributionIDs(contributions.CodeHighlighters, func(module CodeHighlighterModule) string { return module.ID })},
 		{kind: "content-change", ids: contributionIDs(contributions.ContentChanges, func(module ContentChangeModule) string { return module.ID })},

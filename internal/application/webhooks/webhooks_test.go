@@ -253,8 +253,10 @@ func TestWebhooks(t *testing.T) {
 		t.Parallel()
 
 		type receivedWebhook struct {
+			// event captures the event observed by the fixture.
 			event string
-			body  []byte
+			// body captures the request or webhook body observed by the fixture.
+			body []byte
 		}
 		received := make(chan receivedWebhook, 1)
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -327,9 +329,12 @@ func TestWebhooks(t *testing.T) {
 		t.Parallel()
 
 		type receivedWebhook struct {
+			// authorization captures the Authorization header observed by the webhook fixture.
 			authorization string
-			event         string
-			body          []byte
+			// event captures the event observed by the fixture.
+			event string
+			// body captures the request or webhook body observed by the fixture.
+			body []byte
 		}
 		received := make(chan receivedWebhook, 1)
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

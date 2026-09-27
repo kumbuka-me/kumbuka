@@ -12,6 +12,7 @@ import (
 func TestDecodeRequestContract(t *testing.T) {
 	t.Parallel()
 	type request struct {
+		// Title is the JSON title value decoded by the test handler.
 		Title string `json:"title"`
 	}
 	t.Run("object", func(t *testing.T) {
@@ -117,6 +118,7 @@ func TestDecodeReturnsSafeUserMessages(t *testing.T) {
 	t.Parallel()
 
 	type request struct {
+		// Title is the JSON title value decoded by the test handler.
 		Title string `json:"title"`
 	}
 

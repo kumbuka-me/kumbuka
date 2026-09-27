@@ -17,11 +17,7 @@ type Range struct {
 	Username string
 }
 
-// Ranges returns mention references in source order. A mention begins at the
-// start of text or after a non-word character. Names contain ASCII letters,
-// digits, underscores, dots, and hyphens. Plugin-style {{...}} declarations
-// are ignored so option values such as task assignees are not treated as page
-// mentions.
+// Ranges returns source-ordered ASCII username mentions outside plugin-style {{...}} declarations.
 func Ranges(text string) []Range {
 	var result []Range
 	consumed := 0
@@ -81,8 +77,7 @@ func Usernames(text string) []string {
 	return usernames
 }
 
-// macroEnd reports whether an at sign is inside a plugin-style {{...}}
-// declaration and where scanning should resume.
+// macroEnd reports whether an at sign is inside a plugin-style {{...}} declaration and where scanning should resume.
 func macroEnd(text string, at int) (int, bool) {
 	open := strings.LastIndex(text[:at], "{{")
 	if open < 0 || strings.LastIndex(text[:at], "}}") > open {

@@ -10,13 +10,20 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// trustedProxyRepositoryStub provides controllable trusted-proxy persistence behavior for application tests.
 type trustedProxyRepositoryStub struct {
-	settings    domain.ApplicationSettings
-	existing    domain.User
-	refreshErr  error
-	created     domain.User
+	// settings is the application settings returned by the fixture.
+	settings domain.ApplicationSettings
+	// existing is the existing account returned by the fixture.
+	existing domain.User
+	// refreshErr is the error returned by the trusted-proxy refresh operation.
+	refreshErr error
+	// created is the account returned by the trusted-proxy create operation.
+	created domain.User
+	// createCalls counts trusted-proxy account creation attempts.
 	createCalls int
-	username    string
+	// username captures the username supplied to the exercised operation.
+	username string
 }
 
 func (s *trustedProxyRepositoryStub) ApplicationSettings(context.Context) (domain.ApplicationSettings, error) {

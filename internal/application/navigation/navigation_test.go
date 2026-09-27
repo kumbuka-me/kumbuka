@@ -29,6 +29,7 @@ type navigationPageRepositoryStub struct {
 	pages []domain.Page
 	// calls counts calls observed by the test double.
 	calls int
+	// navigationRepository is embedded to provide the default interface behavior for this fixture.
 	navigationRepository
 }
 
@@ -66,6 +67,7 @@ type navigationRepositoryStub struct {
 	setPath string
 	// setIcon records the icon passed to set operations.
 	setIcon string
+	// navigationRepository is embedded to provide the default interface behavior for this fixture.
 	navigationRepository
 }
 

@@ -14,6 +14,7 @@ import (
 
 // setupBrowserRepository provides test state for setup browser repository behavior.
 type setupBrowserRepository struct {
+	// browserRepository is embedded to provide the default interface behavior for this fixture.
 	browserRepository
 	// settings records the tings passed to set operations.
 	settings domain.ApplicationSettings

@@ -164,8 +164,7 @@ func (s *Notifications) SendCore(
 	return s.createCore(ctx, s.repository, recipient, actorID, kind, title, body, destination)
 }
 
-// SendMentions creates core-owned notifications for each distinct enabled user mentioned in text.
-// Self-mentions are intentionally delivered so testing and personal workflows behave like any other mention.
+// SendMentions creates core-owned notifications for each distinct enabled mention, including self-mentions.
 func (s *Notifications) SendMentions(ctx context.Context, actorID int64, text, title, destination string) error {
 	title = strings.TrimSpace(title)
 	destination = strings.TrimSpace(destination)

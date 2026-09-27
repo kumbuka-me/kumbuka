@@ -62,8 +62,10 @@ func TestXML(t *testing.T) {
 		t.Parallel()
 
 		type document struct {
+			// XMLName defines the XML root element used by the response fixture.
 			XMLName xml.Name `xml:"root"`
-			Value   string   `xml:"value"`
+			// Value is the XML element value emitted by the response fixture.
+			Value string `xml:"value"`
 		}
 
 		response := httptest.NewRecorder()

@@ -21,7 +21,9 @@ import (
 
 // restartOIDCRepository provides test state for restart OIDC repository behavior.
 type restartOIDCRepository struct {
+	// setupBrowserRepository is embedded to provide the default interface behavior for this fixture.
 	setupBrowserRepository
+	// oidcRepositoryStub is embedded to provide the default interface behavior for this fixture.
 	oidcRepositoryStub
 }
 

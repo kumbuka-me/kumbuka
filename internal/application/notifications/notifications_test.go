@@ -119,6 +119,7 @@ func (s *notificationRepositoryStub) EnabledAdministratorIDs(context.Context) ([
 
 // notificationEventSink records the most recent emitted event.
 type notificationEventSink struct {
+	// event captures the event observed by the fixture.
 	event webhooks.OutgoingEvent
 }
 

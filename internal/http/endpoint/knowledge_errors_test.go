@@ -110,6 +110,7 @@ func (s savedSearchErrorStub) DeleteSavedSearch(context.Context, int64, int64) e
 
 // membershipErrorStub provides controllable membership error behavior for tests.
 type membershipErrorStub struct {
+	// groupWriter is embedded to provide the default interface behavior for this fixture.
 	groupWriter
 	// err configures the error returned by the test double.
 	err error
@@ -211,6 +212,7 @@ func TestKnownServiceErrorsReachHTTPTranslators(t *testing.T) {
 
 // aliasFailureStub provides controllable alias failure behavior for tests.
 type aliasFailureStub struct {
+	// pageReportService is embedded to provide the default interface behavior for this fixture.
 	pageReportService
 	// err configures the error returned by the test double.
 	err error

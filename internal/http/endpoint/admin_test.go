@@ -18,6 +18,7 @@ import (
 
 // applicationSettingsStub provides controllable application settings behavior for tests.
 type applicationSettingsStub struct {
+	// settingsService is embedded to provide the default interface behavior for this fixture.
 	settingsService
 	// current configures or records the current value used by the fixture.
 	current domain.ApplicationSettings

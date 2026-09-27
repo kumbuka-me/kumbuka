@@ -20,6 +20,7 @@ import (
 
 // webhookAdminSaveStub provides controllable webhook admin save behavior for tests.
 type webhookAdminSaveStub struct {
+	// webhookAdminService is embedded to provide the default interface behavior for this fixture.
 	webhookAdminService
 	// id records the ID observed by the test double.
 	id int64
@@ -119,11 +120,16 @@ func TestWebhookRetryFromFormRejectsInvalidDuration(t *testing.T) {
 
 // webhookAdminTestStub records explicit webhook test deliveries.
 type webhookAdminTestStub struct {
+	// webhookAdminService is embedded to provide the default interface behavior for this fixture.
 	webhookAdminService
-	id    int64
+	// id captures the identifier supplied to the fixture.
+	id int64
+	// event captures the event observed by the fixture.
 	event string
+	// actor captures the actor supplied to the fixture.
 	actor domain.User
-	err   error
+	// err is the error returned by the fixture.
+	err error
 }
 
 func (s *webhookAdminTestStub) TestWebhook(_ context.Context, id int64, event string, actor domain.User) error {

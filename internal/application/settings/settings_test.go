@@ -15,6 +15,7 @@ import (
 
 // pdfSettingsRepositoryStub provides controllable PDF settings repository behavior for tests.
 type pdfSettingsRepositoryStub struct {
+	// settingsRepository is embedded to provide the default interface behavior for this fixture.
 	settingsRepository
 	// headers configures the headers used by the fixture.
 	headers []domain.PDFHeader
@@ -44,6 +45,7 @@ func (*pdfSettingsRepositoryStub) LogAudit(context.Context, int64, string, strin
 
 // applicationSettingsRepositoryStub provides controllable application settings repository behavior for tests.
 type applicationSettingsRepositoryStub struct {
+	// settingsRepository is embedded to provide the default interface behavior for this fixture.
 	settingsRepository
 	// saved configures or records the saved value used by the fixture.
 	saved domain.ApplicationSettings

@@ -18,6 +18,7 @@ type portableImportRepository interface {
 
 // portableImportRepositoryStub records the page mutation produced by portable import.
 type portableImportRepositoryStub struct {
+	// portableImportRepository is embedded to provide the default interface behavior for this fixture.
 	portableImportRepository
 	// Existing reports whether GetPage should return an existing target page.
 	Existing bool

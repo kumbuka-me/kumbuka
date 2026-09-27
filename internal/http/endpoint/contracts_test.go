@@ -18,10 +18,15 @@ import (
 
 // Unused capabilities remain embedded; an unexpected call fails the test.
 type emptyContractServices struct {
+	// navigationService is embedded to provide the default interface behavior for this fixture.
 	navigationService
+	// groupReader is embedded to provide the default interface behavior for this fixture.
 	groupReader
+	// userDirectoryService is embedded to provide the default interface behavior for this fixture.
 	userDirectoryService
+	// imageService is embedded to provide the default interface behavior for this fixture.
 	imageService
+	// attachmentService is embedded to provide the default interface behavior for this fixture.
 	attachmentService
 }
 

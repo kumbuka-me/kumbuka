@@ -77,6 +77,7 @@ func (f *viewAccessFake) FilterPages(_ context.Context, _ domain.User, pages []d
 
 // aliasReadFake supplies only the two reads an alias resolution needs.
 type aliasReadFake struct {
+	// viewRepository is embedded to provide the default interface behavior for this fixture.
 	viewRepository
 	// alias configures or records the alias value used by the fixture.
 	alias string

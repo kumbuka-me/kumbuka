@@ -46,6 +46,7 @@ func TestPendingOIDCIdentityID(t *testing.T) {
 
 // pendingIdentityStatusStub provides controllable pending identity status behavior for tests.
 type pendingIdentityStatusStub struct {
+	// oidcIdentityService is embedded to provide the default interface behavior for this fixture.
 	oidcIdentityService
 	// id records the ID observed by the test double.
 	id int64

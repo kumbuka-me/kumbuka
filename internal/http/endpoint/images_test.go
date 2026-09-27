@@ -44,6 +44,7 @@ func TestSanitizeImageFilename(t *testing.T) {
 
 // imageListHandlerStub provides controllable image list handler behavior for tests.
 type imageListHandlerStub struct {
+	// imageService is embedded to provide the default interface behavior for this fixture.
 	imageService
 	// images configures or records the images value used by the fixture.
 	images []domain.Image

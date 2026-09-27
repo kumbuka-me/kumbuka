@@ -42,7 +42,15 @@ func TestLocalPasswordSharedContract(t *testing.T) {
 	data, err := os.ReadFile("../../test/contracts/passwords.json")
 	require.NoError(t, err)
 
-	type sharedFixture struct{ Name, Password, Problem string }
+	// sharedFixture describes one password-validation fixture loaded from the shared contract.
+	type sharedFixture struct {
+		// Name identifies the shared fixture case.
+		Name string
+		// Password is the candidate password supplied to validation.
+		Password string
+		// Problem is the expected validation message.
+		Problem string
+	}
 	var fixtures []sharedFixture
 	require.NoError(t, json.Unmarshal(data, &fixtures))
 

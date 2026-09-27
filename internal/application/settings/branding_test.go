@@ -12,6 +12,7 @@ import (
 
 // brandLogoRepositoryStub provides controllable brand logo repository behavior for tests.
 type brandLogoRepositoryStub struct {
+	// settingsRepository is embedded to provide the default interface behavior for this fixture.
 	settingsRepository
 	// contentType configures or records the content type value used by the fixture.
 	contentType string

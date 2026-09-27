@@ -12,6 +12,7 @@ import (
 
 // personalRepositoryStub provides controllable personal repository behavior for tests.
 type personalRepositoryStub struct {
+	// personalRepository is embedded to provide the default interface behavior for this fixture.
 	personalRepository
 	// slug records the slug observed by the test double.
 	slug string

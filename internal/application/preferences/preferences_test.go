@@ -12,6 +12,7 @@ import (
 
 // preferenceRepositoryStub provides controllable preference repository behavior for tests.
 type preferenceRepositoryStub struct {
+	// preferenceRepository is embedded to provide the default interface behavior for this fixture.
 	preferenceRepository
 	// saved configures or records the saved value used by the fixture.
 	saved domain.UserPreferences

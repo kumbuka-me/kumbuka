@@ -14,6 +14,7 @@ import (
 
 // resolveDiscussionWriterStub captures page-bound discussion resolution from the HTTP adapter.
 type resolveDiscussionWriterStub struct {
+	// pageDiscussionWriter is embedded to provide the default interface behavior for this fixture.
 	pageDiscussionWriter
 	// slug is the page path supplied by the handler.
 	slug string

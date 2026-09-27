@@ -18,6 +18,7 @@ import (
 
 // localAuthSettingsStub provides controllable local auth settings behavior for tests.
 type localAuthSettingsStub struct {
+	// settingsService is embedded to provide the default interface behavior for this fixture.
 	settingsService
 	// settings records the tings passed to set operations.
 	settings domain.ApplicationSettings
@@ -30,6 +31,7 @@ func (s *localAuthSettingsStub) ApplicationSettings(context.Context) (domain.App
 
 // localAuthSystemStub provides controllable local auth system behavior for tests.
 type localAuthSystemStub struct {
+	// systemService is embedded to provide the default interface behavior for this fixture.
 	systemService
 	// setupRequired records the up required passed to set operations.
 	setupRequired bool

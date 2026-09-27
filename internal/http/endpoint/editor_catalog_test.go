@@ -15,6 +15,7 @@ import (
 
 // editorCatalogNavigationStub records actor-scoped page lookups from the editor catalog.
 type editorCatalogNavigationStub struct {
+	// navigationService is embedded to provide the default interface behavior for this fixture.
 	navigationService
 	// actor is the user supplied to VisiblePages.
 	actor domain.User

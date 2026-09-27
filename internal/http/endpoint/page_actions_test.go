@@ -16,6 +16,7 @@ import (
 
 // pageApprovalRouteStub captures review mutations received from route-bound handlers.
 type pageApprovalRouteStub struct {
+	// pageApprovalService is embedded to provide the default interface behavior for this fixture.
 	pageApprovalService
 	// update captures the last review update request.
 	update apppages.PageReviewUpdateInput

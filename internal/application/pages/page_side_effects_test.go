@@ -14,6 +14,7 @@ import (
 
 // failingPageSideEffects provides test state for failing page side effects behavior.
 type failingPageSideEffects struct {
+	// pageSaveRepositoryStub is embedded to provide the default interface behavior for this fixture.
 	pageSaveRepositoryStub
 	// auditCalls counts audit calls observed by the test double.
 	auditCalls int
@@ -33,8 +34,10 @@ func (s *failingPageSideEffects) PageWatcherUserIDs(context.Context, int64, stri
 
 // failingNotificationSender records notification calls and returns delivery failures.
 type failingNotificationSender struct {
+	// mentionCalls counts mention notification deliveries.
 	mentionCalls int
-	coreCalls    int
+	// coreCalls counts core notification deliveries.
+	coreCalls int
 }
 
 func (s *failingNotificationSender) SendMentions(context.Context, int64, string, string, string) error {
@@ -68,11 +71,17 @@ func TestPageSaveReportsSecondaryFailuresWithoutFailingMutation(t *testing.T) {
 	assert.NotContains(t, logs.String(), "private page content")
 }
 
+// notificationSenderStub captures page-side-effect notifications for assertions.
 type notificationSenderStub struct {
-	calls       int
-	actorID     int64
-	text        string
-	title       string
+	// calls counts calls made to the fixture.
+	calls int
+	// actorID captures the actor identifier supplied to the fixture.
+	actorID int64
+	// text captures the authored text supplied to the fixture.
+	text string
+	// title captures the title supplied to the fixture.
+	title string
+	// destination captures the destination URL supplied to the fixture.
 	destination string
 }
 

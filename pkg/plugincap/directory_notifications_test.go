@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// directoryCapabilityStub provides controllable directory lookups for plugin capability tests.
 type directoryCapabilityStub struct{}
 
 // SearchPublicUsers returns one safe fixture user.
@@ -24,9 +25,13 @@ func (directoryCapabilityStub) UserByUsername(context.Context, string) (domain.U
 	return domain.User{ID: 42, Username: "alice", Email: "private@example.test", DisplayName: "Alice", Enabled: true}, nil
 }
 
+// notificationCapabilityStub captures notification capability calls for assertions.
 type notificationCapabilityStub struct {
-	actorID    int64
-	sourceID   string
+	// actorID captures the actor identifier supplied to the fixture.
+	actorID int64
+	// sourceID captures the plugin source identifier supplied to the capability.
+	sourceID string
+	// sourceName captures the plugin source name supplied to the capability.
 	sourceName string
 }
 

@@ -10,6 +10,7 @@ import (
 
 // postgresStatsProviderStub supplies deterministic pool statistics to the collector.
 type postgresStatsProviderStub struct {
+	// stats is the PostgreSQL pool snapshot returned by the fixture.
 	stats postgres.PoolStats
 }
 

@@ -12,6 +12,7 @@ import (
 
 // pageConcurrencyRepositoryStub records whether a page save used the guarded persistence path.
 type pageConcurrencyRepositoryStub struct {
+	// pageContentRepository is embedded to provide the default interface behavior for this fixture.
 	pageContentRepository
 	// guarded controls or records whether guarded is active in the test.
 	guarded bool

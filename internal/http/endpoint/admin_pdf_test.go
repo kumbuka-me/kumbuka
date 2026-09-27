@@ -20,6 +20,7 @@ import (
 
 // pdfSettingsStub provides controllable PDF settings behavior for tests.
 type pdfSettingsStub struct {
+	// settingsService is embedded to provide the default interface behavior for this fixture.
 	settingsService
 	// url configures or records the URL value used by the fixture.
 	url string

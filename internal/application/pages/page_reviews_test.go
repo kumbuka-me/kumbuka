@@ -90,6 +90,7 @@ func TestNormalizeReviewerUsernames(t *testing.T) {
 
 // reviewTargetRepositoryStub provides controllable review target repository behavior for tests.
 type reviewTargetRepositoryStub struct {
+	// pageReviewRepository is embedded to provide the default interface behavior for this fixture.
 	pageReviewRepository
 	// active configures or records the active value used by the fixture.
 	active domain.PageReviewRequest

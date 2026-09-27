@@ -14,6 +14,7 @@ import (
 
 // pageSaveRepositoryStub provides controllable page save repository behavior for tests.
 type pageSaveRepositoryStub struct {
+	// pageContentRepository is embedded to provide the default interface behavior for this fixture.
 	pageContentRepository
 	// slug records the slug observed by the test double.
 	slug string
@@ -379,6 +380,7 @@ func TestBulkValidatesInputsBeforePersistence(t *testing.T) {
 
 // bulkMoveRepositoryStub provides controllable bulk move repository behavior for tests.
 type bulkMoveRepositoryStub struct {
+	// bulkRepository is embedded to provide the default interface behavior for this fixture.
 	bulkRepository
 	// calls counts calls observed by the test double.
 	calls int

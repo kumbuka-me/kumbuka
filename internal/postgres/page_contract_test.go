@@ -97,6 +97,7 @@ func TestScanPagePreservesPluginUsage(t *testing.T) {
 
 // propertyContractTx provides test state for property contract tx behavior.
 type propertyContractTx struct {
+	// pgx.Tx is embedded to provide the default interface behavior for this fixture.
 	pgx.Tx
 	// inserted configures or records the inserted value used by the fixture.
 	inserted [][]any

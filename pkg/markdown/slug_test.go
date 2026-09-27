@@ -35,7 +35,15 @@ func TestSlugContract(t *testing.T) {
 	data, err := os.ReadFile("../../test/contracts/slugs.json")
 	require.NoError(t, err)
 
-	type sharedFixture struct{ Name, Value, Slug string }
+	// sharedFixture describes one shared slug-contract fixture.
+	type sharedFixture struct {
+		// Name identifies the shared fixture case.
+		Name string
+		// Value is the source text supplied to slug normalization.
+		Value string
+		// Slug is the expected canonical result.
+		Slug string
+	}
 	var fixtures []sharedFixture
 	require.NoError(t, json.Unmarshal(data, &fixtures))
 

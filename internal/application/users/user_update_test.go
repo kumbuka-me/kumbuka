@@ -12,6 +12,7 @@ import (
 
 // accountRepositoryStub provides controllable account repository behavior for tests.
 type accountRepositoryStub struct {
+	// userRepository is embedded to provide the default interface behavior for this fixture.
 	userRepository
 	// update configures or records the update value used by the fixture.
 	update domain.UserAccountUpdate

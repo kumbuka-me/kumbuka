@@ -20,6 +20,7 @@ import (
 
 // draftContractService provides test state for draft contract service behavior.
 type draftContractService struct {
+	// editorDraftService is embedded to provide the default interface behavior for this fixture.
 	editorDraftService
 	// draft configures or records the draft value used by the fixture.
 	draft domain.PageDraft

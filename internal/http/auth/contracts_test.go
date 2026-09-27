@@ -24,7 +24,9 @@ var (
 
 // authenticationContractRepository provides test state for authentication contract repository behavior.
 type authenticationContractRepository struct {
+	// localRepository is embedded to provide the default interface behavior for this fixture.
 	localRepository
+	// oidcRepository is embedded to provide the default interface behavior for this fixture.
 	oidcRepository
 	// user records the user observed by the test double.
 	user domain.User

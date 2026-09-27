@@ -9,15 +9,24 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// oidcRepositoryStub provides controllable OIDC persistence behavior for application tests.
 type oidcRepositoryStub struct {
-	settings            domain.ApplicationSettings
+	// settings is the application settings returned by the fixture.
+	settings domain.ApplicationSettings
+	// registrationEnabled controls the persisted registration setting used by the fixture.
 	registrationEnabled bool
-	issuer              string
-	subject             string
-	username            string
-	email               string
-	displayName         string
-	existing            domain.User
+	// issuer captures the issuer supplied to the login persistence call.
+	issuer string
+	// subject captures the subject supplied to the login persistence call.
+	subject string
+	// username captures the username supplied to the exercised operation.
+	username string
+	// email captures the email supplied to the exercised operation.
+	email string
+	// displayName captures the display name supplied to the exercised operation.
+	displayName string
+	// existing is the existing account returned by the fixture.
+	existing domain.User
 }
 
 func (s *oidcRepositoryStub) ApplicationSettings(context.Context) (domain.ApplicationSettings, error) {
