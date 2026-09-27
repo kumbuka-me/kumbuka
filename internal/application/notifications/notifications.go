@@ -317,13 +317,13 @@ func validateCreateInput(input CreateInput) error {
 	if input.ActorID <= 0 || input.SourceID == "" || input.SourceName == "" {
 		validation.Fields = append(validation.Fields, domain.FieldError{Field: "source", Message: "Notification attribution is unavailable."})
 	}
-	if input.Title == "" || len(input.Title) > maxNotificationTitleBytes || !utf8.ValidString(input.Title) {
+	if !validNotificationTitle(input.Title) {
 		validation.Fields = append(validation.Fields, domain.FieldError{Field: "title", Message: "Use a valid notification title."})
 	}
-	if len(input.Body) > maxNotificationBodyBytes || !utf8.ValidString(input.Body) {
+	if !validNotificationBody(input.Body) {
 		validation.Fields = append(validation.Fields, domain.FieldError{Field: "body", Message: "Notification body is too long."})
 	}
-	if input.IdempotencyKey == "" || len(input.IdempotencyKey) > maxIdempotencyKeyBytes || !utf8.ValidString(input.IdempotencyKey) {
+	if !validIdempotencyKey(input.IdempotencyKey) {
 		validation.Fields = append(validation.Fields, domain.FieldError{Field: "idempotency_key", Message: "Use a valid idempotency key."})
 	}
 	if !validNotificationURL(input.URL) {
@@ -341,10 +341,10 @@ func validateCoreNotification(actorID int64, title, body, url string) error {
 	if actorID <= 0 {
 		validation.Fields = append(validation.Fields, domain.FieldError{Field: "actor_id", Message: "Notification attribution is unavailable."})
 	}
-	if title == "" || len(title) > maxNotificationTitleBytes || !utf8.ValidString(title) {
+	if !validNotificationTitle(title) {
 		validation.Fields = append(validation.Fields, domain.FieldError{Field: "title", Message: "Use a valid notification title."})
 	}
-	if len(body) > maxNotificationBodyBytes || !utf8.ValidString(body) {
+	if !validNotificationBody(body) {
 		validation.Fields = append(validation.Fields, domain.FieldError{Field: "body", Message: "Notification body is too long."})
 	}
 	if !validNotificationURL(url) {
@@ -368,10 +368,10 @@ func validateCoreDelivery(recipientUserID, actorID int64, kind domain.Notificati
 	if kind == "" || kind == domain.NotificationKindPlugin {
 		validation.Fields = append(validation.Fields, domain.FieldError{Field: "kind", Message: "Choose a valid core notification kind."})
 	}
-	if title == "" || len(title) > maxNotificationTitleBytes || !utf8.ValidString(title) {
+	if !validNotificationTitle(title) {
 		validation.Fields = append(validation.Fields, domain.FieldError{Field: "title", Message: "Use a valid notification title."})
 	}
-	if len(body) > maxNotificationBodyBytes || !utf8.ValidString(body) {
+	if !validNotificationBody(body) {
 		validation.Fields = append(validation.Fields, domain.FieldError{Field: "body", Message: "Notification body is too long."})
 	}
 	if !validNotificationURL(destination) {
@@ -381,6 +381,21 @@ func validateCoreDelivery(recipientUserID, actorID int64, kind domain.Notificati
 		return validation
 	}
 	return nil
+}
+
+// validNotificationTitle reports whether title is non-empty, bounded, and valid UTF-8.
+func validNotificationTitle(title string) bool {
+	return title != "" && len(title) <= maxNotificationTitleBytes && utf8.ValidString(title)
+}
+
+// validNotificationBody reports whether body is bounded and valid UTF-8.
+func validNotificationBody(body string) bool {
+	return len(body) <= maxNotificationBodyBytes && utf8.ValidString(body)
+}
+
+// validIdempotencyKey reports whether key is non-empty, bounded, and valid UTF-8.
+func validIdempotencyKey(key string) bool {
+	return key != "" && len(key) <= maxIdempotencyKeyBytes && utf8.ValidString(key)
 }
 
 // validNotificationURL reports whether value is empty or a bounded local absolute path.

@@ -118,9 +118,8 @@ func (s *Users) SearchPublicUsers(ctx context.Context, query string, limit int) 
 
 // ResolveMention resolves one canonical or case-insensitive @mention to an enabled account.
 func (s *Users) ResolveMention(ctx context.Context, mention string) (domain.User, error) {
-	mention = strings.TrimSpace(mention)
-	username, found := strings.CutPrefix(mention, "@")
-	if !found || username == "" || len(username) > 128 || strings.Contains(username, "@") {
+	username, ok := mentionUsername(mention)
+	if !ok {
 		return domain.User{}, domain.NewValidationError("mention", "Use an @-prefixed Kumbuka username.")
 	}
 	user, err := s.repository.UserByUsername(ctx, username)
@@ -128,6 +127,13 @@ func (s *Users) ResolveMention(ctx context.Context, mention string) (domain.User
 		return domain.User{}, cmp.Or(err, domain.ErrNotFound)
 	}
 	return user, nil
+}
+
+// mentionUsername extracts one bounded username from an @-prefixed mention.
+func mentionUsername(value string) (string, bool) {
+	value = strings.TrimSpace(value)
+	username, found := strings.CutPrefix(value, "@")
+	return username, found && username != "" && len(username) <= 128 && !strings.Contains(username, "@")
 }
 
 // OIDCIdentities returns the external identities linked to user accounts.

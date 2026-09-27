@@ -149,8 +149,7 @@ func (s *markdownURLScanner) scanLine(line string, offset int) {
 			index++
 			continue
 		}
-		if line[index] == ']' && index+1 < len(line) && line[index+1] == '(' &&
-			strings.LastIndexByte(line[:index], '[') >= 0 && !isEscapedMarkdownByte(line, index) {
+		if isInlineLinkDestinationStart(line, index) {
 			if location, ok := markdownDestination(line, offset, index+2); ok {
 				s.ranges = append(s.ranges, location)
 				index = location.end - offset
@@ -159,6 +158,15 @@ func (s *markdownURLScanner) scanLine(line string, offset int) {
 		}
 		index++
 	}
+}
+
+// isInlineLinkDestinationStart reports whether index closes a Markdown link label followed by a destination.
+func isInlineLinkDestinationStart(line string, index int) bool {
+	return line[index] == ']' &&
+		index+1 < len(line) &&
+		line[index+1] == '(' &&
+		strings.LastIndexByte(line[:index], '[') >= 0 &&
+		!isEscapedMarkdownByte(line, index)
 }
 
 // markdownFence identifies a backtick or tilde fence indented by at most three spaces.
@@ -332,12 +340,17 @@ func htmlAttributeValue(line string, index, end int) (int, int, int) {
 		if quote != 0 && line[index] == quote {
 			return start, index, index + 1
 		}
-		if quote == 0 && (line[index] == ' ' || line[index] == '\t' || line[index] == '\r' || line[index] == '>') {
+		if quote == 0 && isHTMLAttributeValueTerminator(line[index]) {
 			break
 		}
 		index++
 	}
 	return start, index, index
+}
+
+// isHTMLAttributeValueTerminator reports whether value ends an unquoted HTML attribute value.
+func isHTMLAttributeValueTerminator(value byte) bool {
+	return value == ' ' || value == '\t' || value == '\r' || value == '>'
 }
 
 // isHTMLCodeElement reports whether an element suppresses Markdown URL scanning in its body.
@@ -352,7 +365,14 @@ func isHTMLResourceElement(name string) bool {
 
 // isHTMLResourceAttribute reports whether an attribute contains the supported URL for its element.
 func isHTMLResourceAttribute(element, attribute string) bool {
-	return element == "img" && attribute == "src" || element == "a" && attribute == "href"
+	switch element {
+	case "img":
+		return attribute == "src"
+	case "a":
+		return attribute == "href"
+	default:
+		return false
+	}
 }
 
 // htmlTagEnd finds a closing angle bracket outside quoted attribute values.

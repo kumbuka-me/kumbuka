@@ -127,11 +127,21 @@ func (a *AdminPlugins) populatePluginDetails(data *webview.AdminPluginsView, _ s
 // manifestHasPluginSettings reports whether a manifest exposes settings or administration resources.
 func manifestHasPluginSettings(manifest pluginpackage.Manifest) bool {
 	for _, module := range manifest.Modules {
-		if plugin.ModuleType(module.Type) == plugin.ModuleTypeSettings || plugin.ModuleType(module.Type) == plugin.ModuleTypeAdminResource {
+		if isPluginSettingsModule(module.Type) {
 			return true
 		}
 	}
 	return false
+}
+
+// isPluginSettingsModule reports whether a module contributes settings or administration resources.
+func isPluginSettingsModule(moduleType string) bool {
+	switch plugin.ModuleType(moduleType) {
+	case plugin.ModuleTypeSettings, plugin.ModuleTypeAdminResource:
+		return true
+	default:
+		return false
+	}
 }
 
 // Install installs a plugin package from an administration request.

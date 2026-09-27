@@ -556,10 +556,20 @@ func (i *Instance) validateRenderResult(
 	if err := validateStageSpecificRenderResult(result, stage); err != nil {
 		return err
 	}
-	if stage == plugin.RenderStageAdminAction || stage == plugin.RenderStageWidgetCommand || stage == plugin.RenderStageExport || stage == plugin.RenderStageContentChange {
+	if isStageSpecificRenderResult(stage) {
 		return nil
 	}
 	return i.validateGeneralRenderResult(result, stage)
+}
+
+// isStageSpecificRenderResult reports whether a stage is fully validated by its dedicated response contract.
+func isStageSpecificRenderResult(stage plugin.RenderStage) bool {
+	switch stage {
+	case plugin.RenderStageAdminAction, plugin.RenderStageWidgetCommand, plugin.RenderStageExport, plugin.RenderStageContentChange:
+		return true
+	default:
+		return false
+	}
 }
 
 // validateStageSpecificRenderResult validates response shapes reserved for special invocation stages.

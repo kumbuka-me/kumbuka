@@ -101,11 +101,17 @@ func configurationValueLimit(field pluginpackage.ConfigurationField) int {
 	if field.Key {
 		return maxResourceKeyBytes
 	}
-	if ConfigurationFieldType(field.Type) == ConfigurationFieldTextarea || ConfigurationFieldType(field.Type) == ConfigurationFieldList {
+	if usesLargeConfigurationValue(field) {
 		return 48 << 10
 	}
 
 	return 4096
+}
+
+// usesLargeConfigurationValue reports whether a field type receives the larger text payload allowance.
+func usesLargeConfigurationValue(field pluginpackage.ConfigurationField) bool {
+	fieldType := ConfigurationFieldType(field.Type)
+	return fieldType == ConfigurationFieldTextarea || fieldType == ConfigurationFieldList
 }
 
 // validateConfigurationType validates type-specific syntax after shared text policy succeeds.
