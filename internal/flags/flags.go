@@ -2,7 +2,6 @@
 package flags
 
 import (
-	"errors"
 	"net"
 	"time"
 
