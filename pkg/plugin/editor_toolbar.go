@@ -5,9 +5,18 @@ import (
 	"sort"
 
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
+	"github.com/kumbuka-me/sdk/pluginpackage"
 )
 
-var editorToolbarGroups = []struct{ ID, Label string }{
+// editorToolbarGroupDefinition describes one host-owned toolbar slot.
+type editorToolbarGroupDefinition struct {
+	// ID is the stable semantic group identifier.
+	ID string
+	// Label is the accessible group name shown in administration.
+	Label string
+}
+
+var editorToolbarGroups = []editorToolbarGroupDefinition{
 	{ID: "text", Label: "Text formatting"},
 	{ID: "blocks", Label: "Blocks"},
 	{ID: "insert", Label: "Insert"},
@@ -66,48 +75,118 @@ func (m *Manager) ResolveEditorToolbar(overrides []domain.EditorToolbarOverride)
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	overrideByID := make(map[string]domain.EditorToolbarOverride, len(overrides))
-	for _, override := range overrides {
-		overrideByID[override.ID] = override
-	}
-	groups := make([]ToolbarGroup, len(editorToolbarGroups))
-	for index, group := range editorToolbarGroups {
-		groups[index] = ToolbarGroup{ID: group.ID, Label: group.Label, Contributions: []ToolbarContribution{}}
-	}
-
+	overrideByID := editorToolbarOverridesByID(overrides)
+	groups := newEditorToolbarGroups()
 	for pluginID, item := range m.loaded {
 		if !item.metadata.Enabled {
 			continue
 		}
-		actions := make(map[string]EditorInsertContribution)
-		menuChildren := map[string]bool{}
-		for _, module := range item.metadata.Manifest.Modules {
-			if ModuleType(module.Type) == ModuleTypeEditorMenu {
-				for _, child := range module.Children {
-					menuChildren[child] = true
-				}
+		for _, contribution := range resolvedEditorToolbarContributions(pluginID, item.metadata, overrideByID) {
+			appendToolbarContribution(groups, contribution)
+		}
+	}
+	sortEditorToolbarGroups(groups)
+
+	return groups
+}
+
+// editorToolbarOverridesByID indexes toolbar overrides by stable contribution identifier.
+func editorToolbarOverridesByID(overrides []domain.EditorToolbarOverride) map[string]domain.EditorToolbarOverride {
+	result := make(map[string]domain.EditorToolbarOverride, len(overrides))
+	for _, override := range overrides {
+		result[override.ID] = override
+	}
+	return result
+}
+
+// newEditorToolbarGroups creates empty host-owned toolbar groups in presentation order.
+func newEditorToolbarGroups() []ToolbarGroup {
+	groups := make([]ToolbarGroup, len(editorToolbarGroups))
+	for index, group := range editorToolbarGroups {
+		groups[index] = ToolbarGroup{
+			ID:            group.ID,
+			Label:         group.Label,
+			Contributions: []ToolbarContribution{},
+		}
+	}
+	return groups
+}
+
+// resolvedEditorToolbarContributions converts one enabled plugin manifest into visible toolbar contributions.
+func resolvedEditorToolbarContributions(
+	pluginID string,
+	metadata LoadedPlugin,
+	overrides map[string]domain.EditorToolbarOverride,
+) []ToolbarContribution {
+	actions, menuChildren := indexEditorToolbarActions(pluginID, metadata.Manifest)
+	contributions := make([]ToolbarContribution, 0)
+
+	for _, module := range metadata.Manifest.Modules {
+		switch ModuleType(module.Type) {
+		case ModuleTypeEditorInsert:
+			if menuChildren[module.ID] {
 				continue
 			}
-			if ModuleType(module.Type) == ModuleTypeEditorInsert {
-				actions[module.ID] = editorInsertView(pluginID, module)
+			contribution := toolbarContributionForModule(pluginID, metadata.Manifest.Name, module, overrides)
+			action := actions[module.ID]
+			contribution.Action = &action
+			contributions = append(contributions, contribution)
+		case ModuleTypeEditorMenu:
+			contribution := toolbarContributionForModule(pluginID, metadata.Manifest.Name, module, overrides)
+			for _, child := range module.Children {
+				contribution.Children = append(contribution.Children, actions[child])
 			}
+			contributions = append(contributions, contribution)
 		}
-		for _, module := range item.metadata.Manifest.Modules {
-			if ModuleType(module.Type) == ModuleTypeEditorInsert && !menuChildren[module.ID] {
-				action := actions[module.ID]
-				contribution := toolbarContribution(pluginID, item.metadata.Manifest.Name, module.ID, module.Name, module.Description, module.Icon, module.Group, module.AllowedGroups, module.Order, overrideByID[pluginID+":"+module.ID])
-				contribution.Action = &action
-				appendToolbarContribution(groups, contribution)
-			}
-			if ModuleType(module.Type) == ModuleTypeEditorMenu {
-				contribution := toolbarContribution(pluginID, item.metadata.Manifest.Name, module.ID, module.Name, module.Description, module.Icon, module.Group, module.AllowedGroups, module.Order, overrideByID[pluginID+":"+module.ID])
-				for _, child := range module.Children {
-					contribution.Children = append(contribution.Children, actions[child])
-				}
-				appendToolbarContribution(groups, contribution)
+	}
+
+	return contributions
+}
+
+// indexEditorToolbarActions indexes editor insert actions and records inserts consumed by menus.
+func indexEditorToolbarActions(
+	pluginID string,
+	manifest pluginpackage.Manifest,
+) (map[string]EditorInsertContribution, map[string]bool) {
+	actions := make(map[string]EditorInsertContribution)
+	menuChildren := make(map[string]bool)
+
+	for _, module := range manifest.Modules {
+		switch ModuleType(module.Type) {
+		case ModuleTypeEditorInsert:
+			actions[module.ID] = editorInsertView(pluginID, module)
+		case ModuleTypeEditorMenu:
+			for _, child := range module.Children {
+				menuChildren[child] = true
 			}
 		}
 	}
+
+	return actions, menuChildren
+}
+
+// toolbarContributionForModule resolves one manifest module and its optional administrator override.
+func toolbarContributionForModule(
+	pluginID, pluginName string,
+	module pluginpackage.Module,
+	overrides map[string]domain.EditorToolbarOverride,
+) ToolbarContribution {
+	return toolbarContribution(
+		pluginID,
+		pluginName,
+		module.ID,
+		module.Name,
+		module.Description,
+		module.Icon,
+		module.Group,
+		module.AllowedGroups,
+		module.Order,
+		overrides[pluginID+":"+module.ID],
+	)
+}
+
+// sortEditorToolbarGroups orders contributions by configured order and stable identifier.
+func sortEditorToolbarGroups(groups []ToolbarGroup) {
 	for index := range groups {
 		sort.Slice(groups[index].Contributions, func(i, j int) bool {
 			left, right := groups[index].Contributions[i], groups[index].Contributions[j]
@@ -117,7 +196,6 @@ func (m *Manager) ResolveEditorToolbar(overrides []domain.EditorToolbarOverride)
 			return left.ID < right.ID
 		})
 	}
-	return groups
 }
 
 // toolbarContribution resolves one contribution's defaults and valid administrator override.
