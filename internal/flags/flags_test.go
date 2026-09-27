@@ -1,6 +1,7 @@
 package flags
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -609,5 +610,36 @@ func TestLoggingFlags(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.True(t, cfg.DebugRenderTimings)
+	})
+}
+
+func TestRoutePrefix(t *testing.T) {
+	for _, value := range []string{"", "/", "/kumbuka", "/kumbuka/", "/tools/kumbuka/"} {
+		t.Run("valid "+value, func(t *testing.T) {
+			cfg, err := Parse([]string{"--database-url=postgres://example/db", "--route-prefix=" + value}, "test")
+			require.NoError(t, err)
+			assert.Equal(t, strings.TrimSuffix(value, "/"), cfg.RoutePrefix)
+		})
+	}
+	for _, value := range []string{"kumbuka", "https://example/kumbuka", "//kumbuka", "/a//b", "/a/../b", "/./a", "/a?b", "/a#b", "/a%2fb", "/a\\b", "/a b", " /a", "/a/ "} {
+		t.Run("invalid "+value, func(t *testing.T) {
+			_, err := Parse([]string{"--database-url=postgres://example/db", "--route-prefix=" + value}, "test")
+			require.Error(t, err)
+		})
+	}
+	t.Run("automatic environment and flag precedence", func(t *testing.T) {
+		t.Setenv("KUMBUKA__ROUTE_PREFIX", "/kumbuka/")
+		cfg, err := Parse([]string{"--database-url=postgres://example/db"}, "test")
+		require.NoError(t, err)
+		assert.Equal(t, "/kumbuka", cfg.RoutePrefix)
+		assert.Equal(t, "KUMBUKA__ROUTE_PREFIX", cfg.OverrideOrigins["route-prefix"].Key)
+		cfg, err = Parse([]string{"--database-url=postgres://example/db", "--route-prefix="}, "test")
+		require.NoError(t, err)
+		assert.Empty(t, cfg.RoutePrefix)
+	})
+	t.Run("invalid environment", func(t *testing.T) {
+		t.Setenv("KUMBUKA__ROUTE_PREFIX", "/../bad")
+		_, err := Parse([]string{"--database-url=postgres://example/db"}, "test")
+		require.Error(t, err)
 	})
 }

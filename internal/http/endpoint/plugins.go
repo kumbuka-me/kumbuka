@@ -7,6 +7,7 @@ import (
 	"path"
 	"regexp"
 
+	"github.com/kumbuka-me/kumbuka/internal/route"
 	"github.com/kumbuka-me/kumbuka/pkg/plugin"
 	"github.com/kumbuka-me/kumbuka/pkg/pluginbrowser"
 )
@@ -75,7 +76,7 @@ func PluginFrame(manager *plugin.Manager) http.HandlerFunc {
 			if !matchesPluginFrameRequest(r, module) {
 				continue
 			}
-			data, policy, err := pluginbrowser.Frame("/plugins", "/plugins/runtime.js", []string{"http://" + r.Host, "https://" + r.Host}, module)
+			data, policy, err := pluginbrowser.Frame(route.ForRequest(r, "/plugins"), route.ForRequest(r, "/plugins/runtime.js"), []string{"http://" + r.Host, "https://" + r.Host}, module)
 			if err != nil {
 				http.Error(w, "Plugin frame unavailable", 500)
 				return

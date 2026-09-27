@@ -16,6 +16,7 @@ import (
 
 	"github.com/coreos/go-oidc/v3/oidc"
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
+	"github.com/kumbuka-me/kumbuka/internal/route"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"golang.org/x/oauth2"
 )
@@ -216,7 +217,7 @@ func (o *OIDC) login(w http.ResponseWriter, r *http.Request) {
 		Expires:  time.Now().Add(oidcLoginStateTTL).Unix(),
 	}, int(oidcLoginStateTTL.Seconds()))
 
-	http.Redirect(
+	route.Redirect(
 		w,
 		r,
 		o.oauth.AuthCodeURL(
@@ -271,7 +272,7 @@ func (o *OIDC) callback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	o.setSessionCookie(w, profile, user.SessionVersion)
-	http.Redirect(w, r, callbackDestination(saved.Next), http.StatusFound)
+	route.Redirect(w, r, callbackDestination(saved.Next), http.StatusFound)
 }
 
 // consumeCallbackState expires transient and legacy callback cookies after state validation.
@@ -512,14 +513,14 @@ func Logout(local *Local) http.HandlerFunc {
 			SameSite: http.SameSiteLaxMode,
 		})
 
-		http.Redirect(w, r, "/", http.StatusFound)
+		route.Redirect(w, r, "/", http.StatusFound)
 	}
 }
 
 // LoginUnavailable redirects to the home page when the configured auth mode has no login flow.
 func LoginUnavailable() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, "/", http.StatusFound)
+		route.Redirect(w, r, "/", http.StatusFound)
 	}
 }
 

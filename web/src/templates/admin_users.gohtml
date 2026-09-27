@@ -50,7 +50,8 @@
               </div>
               <div class="admin-identity-request-actions">
                 {{ if eq .Status "rejected" }}
-                  <form action="/admin/oidc/pending/{{ .ID }}/reopen" method="post">
+                  <form action="{{ route "/admin/oidc/pending/" }}{{ .ID }}/reopen"
+                        method="post">
                     <button class="button compact" type="submit">Reopen</button>
                   </form>
                 {{ else }}
@@ -152,7 +153,7 @@
                       {{ end }}">
                       {{ icon "pencil-lucide" 15 }}<span>Edit</span>
                     </button>
-                    <form action="/admin/users/{{ .User.ID }}/sessions/revoke"
+                    <form action="{{ route "/admin/users/" }}{{ .User.ID }}/sessions/revoke"
                           method="post"
                           data-confirm="Sign out {{ .User.DisplayName }}? Local and OIDC browser sessions will be revoked. Trusted-proxy authentication resumes on the next request unless the account is disabled."
                           data-confirm-title="Sign out user"
@@ -197,7 +198,7 @@
                     <td><code>{{ .Issuer }}</code></td>
                     <td><code>{{ .Subject }}</code></td>
                     <td class="admin-user-action">
-                      <form action="/admin/users/{{ $user.ID }}/oidc/remove"
+                      <form action="{{ route "/admin/users/" }}{{ $user.ID }}/oidc/remove"
                             method="post"
                             data-confirm="Disconnect this OIDC identity from {{ $user.DisplayName }}? Existing sessions using it will stop working."
                             data-confirm-title="Disconnect OIDC identity"

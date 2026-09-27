@@ -29,6 +29,8 @@ import (
 
 // InfrastructureConfig contains HTTP transport and presentation infrastructure.
 type InfrastructureConfig struct {
+	// RoutePrefix is the normalized deployment path, empty at root.
+	RoutePrefix string
 	// Assets contains the embedded web application assets served by HTTP endpoints.
 	Assets fs.FS
 	// Views renders HTML responses and exposes the shared icon catalog.

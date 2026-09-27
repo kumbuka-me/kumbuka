@@ -5,6 +5,7 @@ import (
 
 	"github.com/kumbuka-me/kumbuka/internal/http/auth"
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
+	"github.com/kumbuka-me/kumbuka/internal/route"
 	md "github.com/kumbuka-me/kumbuka/pkg/markdown"
 	"github.com/kumbuka-me/kumbuka/pkg/plugin"
 	"github.com/kumbuka-me/kumbuka/pkg/plugincap"
@@ -100,7 +101,7 @@ func PluginWidgetCommand(
 // respondPluginWidgetCommand returns JSON to in-place browser controls and redirects regular widget forms.
 func respondPluginWidgetCommand(w http.ResponseWriter, r *http.Request, result sdk.WidgetCommandResult) {
 	if r.PostForm.Get("response") == "json" {
-		httpresponse.Respond(w, http.StatusOK, pluginWidgetCommandResponse{Redirect: result.Redirect})
+		httpresponse.Respond(w, http.StatusOK, pluginWidgetCommandResponse{Redirect: route.ForRequest(r, result.Redirect)})
 		return
 	}
 
@@ -111,7 +112,7 @@ func respondPluginWidgetCommand(w http.ResponseWriter, r *http.Request, result s
 	if next == "" {
 		next = "/"
 	}
-	http.Redirect(w, r, next, http.StatusSeeOther)
+	route.Redirect(w, r, next, http.StatusSeeOther)
 }
 
 // activePluginName returns the enabled plugin's host-validated display name.

@@ -1,3 +1,4 @@
+import { route, routePrefix } from "../core/route.ts";
 // Only core code runs in Kumbuka's document. Browser modules receive their own
 // marked block's text inside a sandboxed frame and cannot return host HTML.
 type Root = Document | HTMLElement;
@@ -67,7 +68,7 @@ function modules(): Module[] {
   }
   if (!Array.isArray(data) || !data.every(validModule)) return (catalog = []);
 
-  const basePath = document.body.dataset.staticBasePath || "/";
+  const basePath = document.body.dataset.staticBasePath || route("/");
   const pluginBase = new URL(
     basePath.replace(/\/?$/, "/") + "plugins/",
     location.origin,
@@ -112,7 +113,7 @@ async function submitPluginCommand(
 
   const fields = new URLSearchParams({
     surface: target.surface,
-    next: `${location.pathname}${location.search}`,
+    next: `${location.pathname.slice(routePrefix().length)}${location.search}`,
     response: "json",
   });
   if (pageSurfaces.has(target.surface)) fields.set("page", page);
@@ -120,7 +121,9 @@ async function submitPluginCommand(
   let response: Response;
   try {
     response = await fetch(
-      `/plugins/actions/${encodeURIComponent(pluginID)}/${encodeURIComponent(target.module_id)}/${encodeURIComponent(action)}`,
+      route(
+        `/plugins/actions/${encodeURIComponent(pluginID)}/${encodeURIComponent(target.module_id)}/${encodeURIComponent(action)}`,
+      ),
       {
         method: "POST",
         headers: {

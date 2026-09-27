@@ -1,3 +1,4 @@
+import { route } from "../core/route.ts";
 // Live global search behavior.
 
 import { createLatestRequest, isAbortError } from "../core/async.ts";
@@ -81,7 +82,7 @@ function setupLiveSearch(form: HTMLFormElement): void {
         const link = document.createElement("a");
 
         link.className = "search-suggestion";
-        link.href = `/pages/${page.slug}`;
+        link.href = route(`/pages/${page.slug}`);
         link.setAttribute("role", "option");
         link.setAttribute("aria-selected", "false");
 
@@ -108,7 +109,7 @@ function setupLiveSearch(form: HTMLFormElement): void {
 
     try {
       const payload = await requestJSON(
-        `/api/search?q=${encodeURIComponent(searchInput.value.trim())}`,
+        route(`/api/search?q=${encodeURIComponent(searchInput.value.trim())}`),
         { signal },
       );
 

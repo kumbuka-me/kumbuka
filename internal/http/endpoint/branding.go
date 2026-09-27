@@ -10,6 +10,7 @@ import (
 
 	appsettings "github.com/kumbuka-me/kumbuka/internal/application/settings"
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
+	"github.com/kumbuka-me/kumbuka/internal/route"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
@@ -116,7 +117,7 @@ func SaveAdminBrandLogo(settingsUseCases brandLogoService, logger *slog.Logger) 
 			return
 		}
 
-		http.Redirect(w, r, "/admin/branding", http.StatusSeeOther)
+		route.Redirect(w, r, "/admin/branding", http.StatusSeeOther)
 	}
 }
 
@@ -129,7 +130,7 @@ func ResetAdminBrandLogo(settingsUseCases brandLogoService, logger *slog.Logger)
 			return
 		}
 
-		http.Redirect(w, r, "/admin/branding", http.StatusSeeOther)
+		route.Redirect(w, r, "/admin/branding", http.StatusSeeOther)
 	}
 }
 

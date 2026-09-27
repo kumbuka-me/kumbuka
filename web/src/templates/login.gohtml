@@ -9,7 +9,7 @@
       <div class="auth-form-error" role="alert">{{ .AuthError }}</div>
     {{ end }}
     <form class="stacked-form auth-login-form"
-          action="/auth/local"
+          action="{{ route "/auth/local" }}"
           method="post">
       {{ if .AuthNext }}<input type="hidden" name="next" value="{{ .AuthNext }}" />{{ end }}
       <label>

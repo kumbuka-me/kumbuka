@@ -1,3 +1,4 @@
+import { route } from "../core/route.ts";
 // Lightweight page-edit presence for viewers and concurrent editors.
 
 import { isRecord } from "../core/guards.ts";
@@ -23,7 +24,7 @@ function pageSlug(): { slug: string; editing: boolean } | null {
   }
 
   if (!document.querySelector<HTMLElement>("[data-page-layout]")) return null;
-  const prefix = "/pages/";
+  const prefix = route("/pages/");
   if (!window.location.pathname.startsWith(prefix)) return null;
 
   const encoded = window.location.pathname.slice(prefix.length);
@@ -41,7 +42,7 @@ function presenceURL(slug: string): string {
     .split("/")
     .map((segment) => encodeURIComponent(segment))
     .join("/");
-  return `/api/page-presence/${path}`;
+  return route(`/api/page-presence/${path}`);
 }
 
 function parseEditors(value: unknown): PageEditorPresence[] {

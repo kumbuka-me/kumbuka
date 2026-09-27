@@ -7,7 +7,7 @@
     </div>
   </section>
   <form class="panel bulk-pages"
-        action="/admin/pages/bulk"
+        action="{{ route "/admin/pages/bulk" }}"
         method="post"
         data-bulk-pages>
     <div class="bulk-pages-toolbar">
@@ -62,7 +62,7 @@
                 <input type="checkbox" name="slug" value="{{ .Slug }}" data-bulk-page />
               </td>
               <td>
-                <a href="/pages/{{ .Slug }}"><strong>{{ .Title }}</strong><small>{{ .Slug }}</small></a>
+                <a href="{{ route "/pages/" }}{{ .Slug }}"><strong>{{ .Title }}</strong><small>{{ .Slug }}</small></a>
               </td>
               <td><span class="page-status-badge status-{{ .Status }}">{{ .Status }}</span></td>
               <td>{{ if .OwnerGroup }}{{ .OwnerGroup }}{{ else }}<span class="muted">—</span>{{ end }}</td>

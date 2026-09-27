@@ -9,6 +9,7 @@ import (
 
 	apppages "github.com/kumbuka-me/kumbuka/internal/application/pages"
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
+	"github.com/kumbuka-me/kumbuka/internal/route"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	md "github.com/kumbuka-me/kumbuka/pkg/markdown"
 )
@@ -33,7 +34,7 @@ func MovePageForm(pageUseCases pageMoveService, logger *slog.Logger) http.Handle
 			return
 		}
 
-		http.Redirect(w, r, "/pages/"+newSlug, http.StatusSeeOther)
+		route.Redirect(w, r, "/pages/"+newSlug, http.StatusSeeOther)
 	}
 }
 
@@ -47,7 +48,7 @@ func ReviewPageForm(pageUseCases pageReviewService, logger *slog.Logger) http.Ha
 			return
 		}
 
-		http.Redirect(w, r, "/pages/"+slug, http.StatusSeeOther)
+		route.Redirect(w, r, "/pages/"+slug, http.StatusSeeOther)
 	}
 }
 
@@ -77,7 +78,7 @@ func RequestPageReview(pageUseCases pageApprovalService, logger *slog.Logger) ht
 			return
 		}
 
-		http.Redirect(w, r, "/pages/"+slug, http.StatusSeeOther)
+		route.Redirect(w, r, "/pages/"+slug, http.StatusSeeOther)
 	}
 }
 
@@ -112,7 +113,7 @@ func UpdatePageReview(pageUseCases pageApprovalService, logger *slog.Logger) htt
 			return
 		}
 
-		http.Redirect(w, r, "/pages/"+slug, http.StatusSeeOther)
+		route.Redirect(w, r, "/pages/"+slug, http.StatusSeeOther)
 	}
 }
 
@@ -135,7 +136,7 @@ func CancelPageReview(pageUseCases pageApprovalService, logger *slog.Logger) htt
 			return
 		}
 
-		http.Redirect(w, r, "/pages/"+slug, http.StatusSeeOther)
+		route.Redirect(w, r, "/pages/"+slug, http.StatusSeeOther)
 	}
 }
 
@@ -165,7 +166,7 @@ func DecidePageReview(pageUseCases pageApprovalService, logger *slog.Logger) htt
 			return
 		}
 
-		http.Redirect(w, r, "/pages/"+slug, http.StatusSeeOther)
+		route.Redirect(w, r, "/pages/"+slug, http.StatusSeeOther)
 	}
 }
 

@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
+	"github.com/kumbuka-me/kumbuka/internal/route"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
 
@@ -26,7 +27,7 @@ func PagePermalink(catalogUseCases pagePermalinkService, logger *slog.Logger) ht
 		}
 
 		// The target may change when a page is moved, so this redirect must not be cached permanently.
-		http.Redirect(w, r, "/pages/"+slug, http.StatusFound)
+		route.Redirect(w, r, "/pages/"+slug, http.StatusFound)
 	}
 }
 

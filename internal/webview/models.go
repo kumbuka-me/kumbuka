@@ -143,6 +143,8 @@ type PageCommentThread struct {
 
 // Layout contains presentation data for layout.
 type Layout struct {
+	// RoutePrefix is the normalized deployment path, empty at root.
+	RoutePrefix string
 	// CurrentPage identifies contextual actions in shared browser chrome.
 	CurrentPage *PageSummary
 	// HasPageContents selects the reading-page layout.

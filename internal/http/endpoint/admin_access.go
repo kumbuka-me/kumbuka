@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
+	"github.com/kumbuka-me/kumbuka/internal/route"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
@@ -54,7 +55,7 @@ func SaveAdminPageAccess(accessUseCases pageAccessAdmin, logger *slog.Logger) ht
 			writeAdminProblem(logger, w, err, "Page access rule")
 			return
 		}
-		http.Redirect(w, r, "/admin/permissions", http.StatusSeeOther)
+		route.Redirect(w, r, "/admin/permissions", http.StatusSeeOther)
 	}
 }
 
@@ -70,6 +71,6 @@ func DeleteAdminPageAccess(accessUseCases pageAccessAdmin, logger *slog.Logger) 
 			writeAdminProblem(logger, w, err, "Page access rule")
 			return
 		}
-		http.Redirect(w, r, "/admin/permissions", http.StatusSeeOther)
+		route.Redirect(w, r, "/admin/permissions", http.StatusSeeOther)
 	}
 }

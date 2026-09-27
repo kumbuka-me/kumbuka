@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
+	"github.com/kumbuka-me/kumbuka/internal/route"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
@@ -28,6 +29,6 @@ func DeleteAdminAttachment(mediaUseCases attachmentAdminService, views *webview.
 			return
 		}
 
-		http.Redirect(w, r, "/admin/attachments", http.StatusSeeOther)
+		route.Redirect(w, r, "/admin/attachments", http.StatusSeeOther)
 	}
 }

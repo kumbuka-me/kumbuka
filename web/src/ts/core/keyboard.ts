@@ -1,3 +1,4 @@
+import { route } from "./route.ts";
 // Global keyboard shortcuts and shortcut help.
 
 function editableTarget(target: EventTarget | null): boolean {
@@ -56,8 +57,8 @@ export function initKeyboardWorkflow(): void {
 
       pendingG = false;
 
-      if (key === "h") window.location.assign("/");
-      else if (key === "g") window.location.assign("/graph");
+      if (key === "h") window.location.assign(route("/"));
+      else if (key === "g") window.location.assign(route("/graph"));
 
       return;
     }
@@ -73,8 +74,8 @@ export function initKeyboardWorkflow(): void {
       const parent = document.body.dataset.currentPage?.trim();
       window.location.assign(
         parent
-          ? `/pages/new?parent=${encodeURIComponent(parent)}`
-          : "/pages/new",
+          ? route(`/pages/new?parent=${encodeURIComponent(parent)}`)
+          : route("/pages/new"),
       );
       return;
     }
@@ -85,7 +86,9 @@ export function initKeyboardWorkflow(): void {
       document.body.dataset.currentPage
     ) {
       event.preventDefault();
-      window.location.assign(`/edit/${document.body.dataset.currentPage}`);
+      window.location.assign(
+        route(`/edit/${document.body.dataset.currentPage}`),
+      );
     }
   }
 

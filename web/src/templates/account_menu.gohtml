@@ -16,18 +16,22 @@
          data-account-menu-popover
          role="menu"
          hidden>
-      <a class="sidebar-account-item" href="/settings" role="menuitem">
+      <a class="sidebar-account-item"
+         href="{{ route "/settings" }}"
+         role="menuitem">
         {{ icon "settings-lucide" 17 }}
         <span>Settings</span>
       </a>
       {{ if eq .User.Role "admin" }}
-        <a class="sidebar-account-item" href="/admin" role="menuitem">
+        <a class="sidebar-account-item"
+           href="{{ route "/admin" }}"
+           role="menuitem">
           {{ icon "shield-lucide" 17 }}
           <span>Administration</span>
         </a>
       {{ end }}
       <div class="sidebar-account-separator" role="separator"></div>
-      <form action="/auth/logout" method="post">
+      <form action="{{ route "/auth/logout" }}" method="post">
         <button class="sidebar-account-item sidebar-account-signout"
                 type="submit"
                 role="menuitem">

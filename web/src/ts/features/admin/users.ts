@@ -1,3 +1,4 @@
+import { route } from "../../core/route.ts";
 // Administrator user access and external identity editors.
 
 import {
@@ -76,7 +77,7 @@ export function setupAdminUserEditor(dialog: HTMLDialogElement): void {
     const groups = selectedGroupIDs(button);
 
     editorForm.reset();
-    editorForm.action = `/admin/users/${encodeURIComponent(userID)}`;
+    editorForm.action = route(`/admin/users/${encodeURIComponent(userID)}`);
     editorName.textContent =
       button.dataset.userName || button.dataset.userUsername || "Edit user";
 
@@ -177,7 +178,7 @@ export function setupPendingOIDCEditor(dialog: HTMLDialogElement): void {
     identityIssuer.textContent = button.dataset.pendingIssuer || "";
     identitySubject.textContent = button.dataset.pendingSubject || "";
 
-    const base = `/admin/oidc/pending/${encodeURIComponent(pendingID)}`;
+    const base = route(`/admin/oidc/pending/${encodeURIComponent(pendingID)}`);
 
     identityLinkForm.action = `${base}/link`;
     identityApproveForm.action = `${base}/approve`;

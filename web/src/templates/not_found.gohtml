@@ -7,12 +7,12 @@
     {{ if or .PrimaryURL .SecondaryURL }}
       <div class="not-found-actions">
         {{ if .PrimaryURL }}
-          <a class="button primary" href="{{ .PrimaryURL }}">
+          <a class="button primary" href="{{ route .PrimaryURL }}">
             {{ if .PrimaryIcon }}{{ icon .PrimaryIcon 15 }}{{ end }}<span>{{ .PrimaryLabel }}</span>
           </a>
         {{ end }}
         {{ if .SecondaryURL }}
-          <a class="button" href="{{ .SecondaryURL }}">
+          <a class="button" href="{{ route .SecondaryURL }}">
             {{ if .SecondaryIcon }}{{ icon .SecondaryIcon 15 }}{{ end }}<span>{{ .SecondaryLabel }}</span>
           </a>
         {{ end }}

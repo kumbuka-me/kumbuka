@@ -9,6 +9,7 @@ import (
 
 	"github.com/kumbuka-me/kumbuka/internal/http/auth"
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
+	"github.com/kumbuka-me/kumbuka/internal/route"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
 
@@ -41,7 +42,7 @@ func CreateSavedSearch(knowledgeUseCases savedSearchService, logger *slog.Logger
 			next = "/settings#saved-searches"
 		}
 
-		http.Redirect(w, r, next, http.StatusSeeOther)
+		route.Redirect(w, r, next, http.StatusSeeOther)
 	}
 }
 
@@ -64,7 +65,7 @@ func DeleteSavedSearch(knowledgeUseCases savedSearchService, logger *slog.Logger
 			return
 		}
 
-		http.Redirect(w, r, "/settings#saved-searches", http.StatusSeeOther)
+		route.Redirect(w, r, "/settings#saved-searches", http.StatusSeeOther)
 	}
 }
 

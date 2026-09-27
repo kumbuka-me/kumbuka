@@ -1,3 +1,4 @@
+import { route } from "../core/route.ts";
 // Image upload, library, and Markdown insertion.
 
 import { createLatestRequest } from "../core/async.ts";
@@ -166,7 +167,7 @@ function setupMediaDialog(dialog: HTMLDialogElement): void {
 
       const preview = document.createElement("img");
 
-      preview.src = image.url;
+      preview.src = route(image.url);
       preview.alt = "";
       preview.loading = "lazy";
 
@@ -348,7 +349,7 @@ function managedImageRow(image: ImageItem, mode: string): HTMLElement {
 
   const preview = document.createElement("img");
 
-  preview.src = image.url;
+  preview.src = route(image.url);
   preview.alt = "";
   preview.loading = "lazy";
 
@@ -392,7 +393,7 @@ function managedImageRow(image: ImageItem, mode: string): HTMLElement {
     remove.className = "button danger";
     remove.dataset.mediaDelete = "";
     remove.dataset.mediaUsage = String(image.usage_count);
-    remove.dataset.deleteUrl = `/api/images/${image.id}`;
+    remove.dataset.deleteUrl = route(`/api/images/${image.id}`);
     remove.textContent = "Delete";
     remove.addEventListener("click", () => void deleteMediaImage(remove));
     actions.append(remove);

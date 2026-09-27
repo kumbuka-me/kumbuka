@@ -3,7 +3,7 @@
     <p class="eyebrow">Knowledge, without the noise</p>
     <h1>What do you need to know?</h1>
     <p>Search across technical notes, architecture decisions, and operational runbooks.</p>
-    <form class="hero-search" action="/search" data-live-search>
+    <form class="hero-search" action="{{ route "/search" }}" data-live-search>
       <input type="search"
              name="q"
              placeholder="Try “postgres restore” or tag:runbook"
@@ -19,22 +19,22 @@
       <section class="panel plugin-widget{{ if eq .Width "wide" }} wide{{ end }}"
                data-kumbuka-plugin="{{ .PluginID }}"
                data-kumbuka-module="{{ .ModuleID }}">
-        {{ .HTML }}
+        {{ routeHTML .HTML }}
         {{ if .Actions }}
           <div class="plugin-widget-actions">
             {{ range .Actions }}
               {{ if eq .Kind "link" }}
                 <a class="widget-action"
-                   href="{{ .URL }}">{{ if .Icon }}{{ icon .Icon 14 }}{{ end }}<span>{{ .Label }}</span></a>
+                   href="{{ route .URL }}">{{ if .Icon }}{{ icon .Icon 14 }}{{ end }}<span>{{ .Label }}</span></a>
               {{ else if eq .Kind "dialog" }}
                 <button class="widget-action"
                         type="button"
                         data-widget-dialog-open
-                        data-widget-dialog-url="{{ .URL }}"
+                        data-widget-dialog-url="{{ route .URL }}"
                         data-widget-dialog-title="{{ .Label }}">{{ if .Icon }}{{ icon .Icon 14 }}{{ end }}<span>{{ .Label }}</span>{{ icon "chevron-right-lucide" 13 }}</button>
               {{ else if eq .Kind "command" }}
                 <form method="post"
-                      action="{{ .URL }}"
+                      action="{{ route .URL }}"
                       {{ if .Confirm }}data-confirm="{{ .Confirm }}"
                       {{ end }}>
                   <input type="hidden" name="surface" value="{{ .Surface }}" />

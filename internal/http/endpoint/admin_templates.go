@@ -8,6 +8,7 @@ import (
 
 	apptemplates "github.com/kumbuka-me/kumbuka/internal/application/templates"
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
+	"github.com/kumbuka-me/kumbuka/internal/route"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
@@ -64,7 +65,7 @@ func CreateAdminPageTemplate(templateUseCases templateService, logger *slog.Logg
 			return
 		}
 
-		http.Redirect(w, r, "/admin/templates", http.StatusSeeOther)
+		route.Redirect(w, r, "/admin/templates", http.StatusSeeOther)
 	}
 }
 
@@ -90,7 +91,7 @@ func UpdateAdminPageTemplate(templateUseCases templateService, logger *slog.Logg
 			return
 		}
 
-		http.Redirect(w, r, "/admin/templates", http.StatusSeeOther)
+		route.Redirect(w, r, "/admin/templates", http.StatusSeeOther)
 	}
 }
 
@@ -184,6 +185,6 @@ func DeleteAdminPageTemplate(templateUseCases templateService, logger *slog.Logg
 			return
 		}
 
-		http.Redirect(w, r, "/admin/templates", http.StatusSeeOther)
+		route.Redirect(w, r, "/admin/templates", http.StatusSeeOther)
 	}
 }

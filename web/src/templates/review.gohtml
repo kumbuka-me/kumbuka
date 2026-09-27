@@ -2,7 +2,7 @@
   <section class="review-page">
     <header class="review-heading">
       <div>
-        <p class="breadcrumbs"><a href="/pages/{{ .Page.Slug }}">Pages / {{ .Page.Slug }}</a> / Review</p>
+        <p class="breadcrumbs"><a href="{{ route "/pages/" }}{{ .Page.Slug }}">Pages / {{ .Page.Slug }}</a> / Review</p>
         <div class="review-title-row">
           <h1>Review revision {{ .PageReviewRequest.RevisionNumber }}</h1>
           <span class="review-status status-{{ .PageReviewRequest.Status }}">{{ .PageReviewRequest.Status }}</span>
@@ -10,11 +10,11 @@
         <p class="muted">{{ .Page.Title }}</p>
       </div>
       <div class="review-heading-actions">
-        <a class="button compact" href="/pages/{{ .Page.Slug }}">
+        <a class="button compact" href="{{ route "/pages/" }}{{ .Page.Slug }}">
           {{ icon "arrow-left-lucide" 14 }}<span>Back to page</span>
         </a>
         {{ if and .CanApplyReviewSuggestions (gt .OpenReviewSuggestions 0) }}
-          <form action="/reviews/{{ .PageReviewRequest.ID }}/suggestions/apply-all/{{ .Page.Slug }}"
+          <form action="{{ route "/reviews/" }}{{ .PageReviewRequest.ID }}/suggestions/apply-all/{{ .Page.Slug }}"
                 method="post"
                 data-confirm="Apply all pending non-overlapping suggestions? Kumbuka will create one new page revision and supersede this review."
                 data-confirm-title="Apply review suggestions"
@@ -69,7 +69,7 @@
                     <summary class="button icon-only compact"
                              aria-label="Comment on line {{ .AnchorLine }}"
                              title="Comment on line {{ .AnchorLine }}">{{ icon "message-square-plus-lucide" 14 }}</summary>
-                    <form action="/reviews/{{ $.PageReviewRequest.ID }}/comments/{{ $.Page.Slug }}"
+                    <form action="{{ route "/reviews/" }}{{ $.PageReviewRequest.ID }}/comments/{{ $.Page.Slug }}"
                           method="post"
                           class="review-line-form">
                       <input type="hidden" name="side" value="{{ .AnchorSide }}" />
@@ -134,7 +134,7 @@
                         {{ icon "badge-check-lucide" 14 }}Applied{{ if .AppliedByName }} by {{ .AppliedByName }}{{ end }}
                       </span>
                     {{ else if $.CanApplyReviewSuggestions }}
-                      <form action="/reviews/{{ $.PageReviewRequest.ID }}/suggestions/apply/{{ .ID }}/{{ $.Page.Slug }}"
+                      <form action="{{ route "/reviews/" }}{{ $.PageReviewRequest.ID }}/suggestions/apply/{{ .ID }}/{{ $.Page.Slug }}"
                             method="post"
                             data-confirm="Apply this suggestion? Kumbuka will create a new page revision and supersede this review."
                             data-confirm-title="Apply review suggestion"

@@ -37,17 +37,17 @@
 {{ end }}
 {{ define "content" }}
 <form class="editor"
-      action="/pages"
+      action="{{ route "/pages" }}"
       method="post"
       data-editor-form
       data-validate-form
       data-error-title="Could not save page"
-      data-preview-url="/api/preview"
+      data-preview-url="{{ route "/api/preview" }}"
       data-draft-key="{{ if .Page }}page:{{ .Page.ID }}{{ else }}new{{ end }}"
-      data-draft-url="/api/drafts/{{ if .Page }}page:{{ .Page.ID }}{{ else }}new{{ end }}"
+      data-draft-url="{{ route "/api/drafts/" }}{{ if .Page }}page:{{ .Page.ID }}{{ else }}new{{ end }}"
       data-page-id="{{ if .Page }}{{ .Page.ID }}{{ else }}0{{ end }}"
       data-editor-new="{{ if .Page }} false {{ else }} true {{ end }}"
-      data-editor-exit-url="{{ if .Page }} /pages/{{ .Page.Slug }} {{ else }} / {{ end }}">
+      data-editor-exit-url="{{ if .Page }}{{ route "/pages/" }}{{ .Page.Slug }}{{ else }}{{ route "/" }}{{ end }}">
   <input type="hidden"
          name="original_slug"
          value="{{ if .Page }}{{ .Page.Slug }}{{ end }}" />
@@ -60,7 +60,7 @@
   <header class="editor-chrome">
     <div class="editor-chrome-left">
       <a class="editor-back"
-         href="{{ if .Page }} /pages/{{ .Page.Slug }} {{ else }} / {{ end }}"
+         href="{{ if .Page }}{{ route "/pages/" }}{{ .Page.Slug }}{{ else }}{{ route "/" }}{{ end }}"
          data-editor-leave
          aria-label="Leave editor"
          title="Leave editor">{{ icon "x-lucide" 18 }}</a>
@@ -132,9 +132,9 @@
       <div class="editor-template-strip">
         <span class="muted">Start from</span>
         <a class="editor-template-chip{{ if not .EditorTemplate }}active{{ end }}"
-           href="/pages/new{{ if .EditorInitialSlug }}?slug={{ .EditorInitialSlug | urlquery }}{{ else if .EditorParentPath }}?parent={{ .EditorParentPath | urlquery }}{{ end }}">Blank</a>
+           href="{{ route "/pages/new" }}{{ if .EditorInitialSlug }}?slug={{ .EditorInitialSlug | urlquery }}{{ else if .EditorParentPath }}?parent={{ .EditorParentPath | urlquery }}{{ end }}">Blank</a>
         {{ range .PageTemplates }}
-          <a class="editor-template-chip{{ if $.EditorTemplate }} {{ if eq $.EditorTemplate.ID .ID }}active{{ end }} {{ end }}" href="/pages/new?template={{ .ID }}{{ if $.EditorInitialSlug }}&slug={{ $.EditorInitialSlug | urlquery }}{{ else if $.EditorParentPath }}&parent={{ $.EditorParentPath | urlquery }}{{ end }}" title="{{ .Description }}">{{ .Name }}</a>
+          <a class="editor-template-chip{{ if $.EditorTemplate }} {{ if eq $.EditorTemplate.ID .ID }}active{{ end }} {{ end }}" href="{{ route "/pages/new?template=" }}{{ .ID }}{{ if $.EditorInitialSlug }}&slug={{ $.EditorInitialSlug | urlquery }}{{ else if $.EditorParentPath }}&parent={{ $.EditorParentPath | urlquery }}{{ end }}" title="{{ .Description }}">{{ .Name }}</a>
         {{ end }}
       </div>
     {{ end }}
@@ -214,7 +214,9 @@
       </div>
       <label>
         Tags
-        <span class="tag-editor" data-tag-editor data-tag-source="/api/tags">
+        <span class="tag-editor"
+              data-tag-editor
+              data-tag-source="{{ route "/api/tags" }}">
           <span class="tag-chips" data-tag-chips></span>
           <input class="tag-input"
                  type="text"
@@ -754,7 +756,7 @@
 </form>
 <dialog class="icon-picker-dialog"
         data-page-icon-picker-dialog
-        data-icons-url="/api/icons"
+        data-icons-url="{{ route "/api/icons" }}"
         aria-labelledby="page-icon-picker-title">
   <div class="app-dialog-header">
     <div>
@@ -779,8 +781,8 @@
 </dialog>
 <dialog class="media-dialog"
         data-attachment-dialog
-        data-attachment-list-url="/api/attachments"
-        data-attachment-upload-url="/api/attachments"
+        data-attachment-list-url="{{ route "/api/attachments" }}"
+        data-attachment-upload-url="{{ route "/api/attachments" }}"
         aria-labelledby="attachment-dialog-title">
   <div class="media-dialog-header">
     <div>
@@ -807,8 +809,8 @@
 </dialog>
 <dialog class="media-dialog"
         data-media-dialog
-        data-media-list-url="/api/images"
-        data-media-upload-url="/api/images">
+        data-media-list-url="{{ route "/api/images" }}"
+        data-media-upload-url="{{ route "/api/images" }}">
   <div class="media-dialog-header">
     <div>
       <p class="eyebrow">Media</p>

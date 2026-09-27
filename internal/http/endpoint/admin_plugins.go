@@ -10,6 +10,7 @@ import (
 
 	appplugins "github.com/kumbuka-me/kumbuka/internal/application/plugins"
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
+	"github.com/kumbuka-me/kumbuka/internal/route"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 	md "github.com/kumbuka-me/kumbuka/pkg/markdown"
 	"github.com/kumbuka-me/kumbuka/pkg/plugin"
@@ -54,7 +55,7 @@ func (a *AdminPlugins) CheckUpdates(w http.ResponseWriter, r *http.Request) {
 	}
 
 	a.views.Logger().Info("plugin update catalog checked", "event", "plugin.catalog_check", "actor_id", currentUser(r).ID)
-	http.Redirect(w, r, "/admin/plugins", http.StatusSeeOther)
+	route.Redirect(w, r, "/admin/plugins", http.StatusSeeOther)
 }
 
 // render renders the plugin administration page.
@@ -165,7 +166,7 @@ func (a *AdminPlugins) Install(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a.audit(r, "install", item.Manifest.ID)
-	http.Redirect(w, r, "/admin/plugins?plugin="+item.Manifest.ID, http.StatusSeeOther)
+	route.Redirect(w, r, "/admin/plugins?plugin="+item.Manifest.ID, http.StatusSeeOther)
 }
 
 // Action applies a plugin lifecycle action from an administration request.
@@ -188,7 +189,7 @@ func (a *AdminPlugins) Action(w http.ResponseWriter, r *http.Request) {
 	}
 
 	a.audit(r, action, id)
-	http.Redirect(w, r, pluginActionDestination(r, id, action), http.StatusSeeOther)
+	route.Redirect(w, r, pluginActionDestination(r, id, action), http.StatusSeeOther)
 }
 
 var errPluginActionHandled = errors.New("plugin action response already written")
@@ -204,7 +205,7 @@ func (a *AdminPlugins) handleBulkUpdate(w http.ResponseWriter, r *http.Request) 
 		a.render(w, r, "", http.StatusUnprocessableEntity, "Could not update all plugins from the Kumbuka catalog. Plugins updated before the failure remain on their new versions; the remaining plugins were left unchanged.")
 		return
 	}
-	http.Redirect(w, r, "/admin/plugins", http.StatusSeeOther)
+	route.Redirect(w, r, "/admin/plugins", http.StatusSeeOther)
 }
 
 // runPluginAction executes one lifecycle action and reports responses written during upload validation.

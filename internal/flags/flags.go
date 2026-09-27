@@ -5,6 +5,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/containeroo/httpprefix"
 	"github.com/containeroo/tinyflags"
 	"github.com/kumbuka-me/kumbuka/internal/pdf"
 	"github.com/kumbuka-me/kumbuka/internal/secrets"
@@ -41,6 +42,8 @@ var trustedGroupHeaders = []string{
 
 // Config contains deployment-level runtime configuration for Kumbuka.
 type Config struct {
+	// RoutePrefix is the normalized deployment path, empty at root.
+	RoutePrefix string
 	// ListenAddress is the TCP address used by the HTTP server.
 	ListenAddress string
 	// DatabaseURL is the PostgreSQL connection URL.
@@ -135,6 +138,11 @@ func Parse(args []string, version string) (Config, error) {
 
 // registerServerFlags registers flags for the server configuration.
 func registerServerFlags(tf *tinyflags.FlagSet, cfg *Config) func() {
+	tf.StringVar(&cfg.RoutePrefix, "route-prefix", "", "URL path prefix under which Kumbuka is served").
+		Validate(httpprefix.ValidateRoutePrefix).
+		Finalize(httpprefix.NormalizeRoutePrefix).
+		Value()
+
 	listen := tf.TCPAddr(
 		"listen-address",
 		&net.TCPAddr{

@@ -14,6 +14,7 @@ import (
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
 	"github.com/kumbuka-me/kumbuka/internal/importer"
 	"github.com/kumbuka-me/kumbuka/internal/portable"
+	"github.com/kumbuka-me/kumbuka/internal/route"
 )
 
 // portableArchivePageImportService combines legacy imports with portable archive page restoration.
@@ -83,7 +84,7 @@ func ImportPagesWithPortableArchive(
 			return
 		}
 
-		http.Redirect(w, r, "/admin/import?result="+strconv.Itoa(imported), http.StatusSeeOther)
+		route.Redirect(w, r, "/admin/import?result="+strconv.Itoa(imported), http.StatusSeeOther)
 	}
 }
 

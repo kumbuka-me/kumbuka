@@ -1,5 +1,5 @@
 {{ define "page-row" }}
-  <a class="page-row" href="/pages/{{ .Slug }}">
+  <a class="page-row" href="{{ route "/pages/" }}{{ .Slug }}">
     <span class="doc-icon">{{ if .Icon }}{{ icon .Icon 17 }}{{ else }}{{ icon "file-text-lucide" 17 }}{{ end }}</span>
     <span>
       <strong>{{ .Title }}</strong>
@@ -9,7 +9,7 @@
   </a>
 {{ end }}
 {{ define "compact-row" }}
-  <a class="compact-row" href="/pages/{{ .Slug }}">
+  <a class="compact-row" href="{{ route "/pages/" }}{{ .Slug }}">
     <span>{{ if .Icon }}{{ icon .Icon 15 }}{{ else }}{{ icon "file-text-lucide" 15 }}{{ end }}</span>
     <strong>{{ .Title }}</strong>
     <small>{{ .ViewCount }} views</small>

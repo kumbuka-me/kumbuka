@@ -14,6 +14,7 @@ import (
 func New(cfg flags.Config, encryptionKeyConfigured bool) webview.RuntimeInfo {
 	return webview.RuntimeInfo{
 		ListenAddress:                      cfg.ListenAddress,
+		RoutePrefix:                        cfg.RoutePrefix,
 		PublicURL:                          cfg.PublicURL,
 		PDFURL:                             cfg.PDFURL,
 		ReadOnly:                           cfg.ReadOnly,
@@ -49,6 +50,7 @@ func managedConfiguration(cfg flags.Config, encryptionKeyConfigured bool) []webv
 				managedConfigurationItem(cfg, "Database URL", "database-url", configuredLabel(cfg.DatabaseURL != "")),
 				managedConfigurationItem(cfg, "Database max connections", "database-max-conns", databaseConnectionCountLabel(cfg.DatabaseMaxConns)),
 				managedConfigurationItem(cfg, "Database minimum idle connections", "database-min-idle-conns", databaseConnectionCountLabel(cfg.DatabaseMinIdleConns)),
+				managedConfigurationItem(cfg, "Route prefix", "route-prefix", cfg.RoutePrefix),
 				managedConfigurationItem(cfg, "Public URL", "public-url", cfg.PublicURL),
 				managedConfigurationItem(cfg, "PDF URL override", "pdf-url", configuredValue(cfg.PDFURL)),
 				managedConfigurationItem(cfg, "Plugin update checks", "plugin-update-check-interval", pluginUpdateCheckIntervalLabel(cfg.PluginUpdateCheckInterval)),

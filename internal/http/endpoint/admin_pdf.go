@@ -13,6 +13,7 @@ import (
 	appsettings "github.com/kumbuka-me/kumbuka/internal/application/settings"
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
 	"github.com/kumbuka-me/kumbuka/internal/pdf"
+	"github.com/kumbuka-me/kumbuka/internal/route"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
 
@@ -55,7 +56,7 @@ func SaveAdminPDFSettings(settingsUseCases settingsService, logger *slog.Logger)
 			return
 		}
 
-		http.Redirect(w, r, "/admin/configuration#pdf-rendering", http.StatusSeeOther)
+		route.Redirect(w, r, "/admin/configuration#pdf-rendering", http.StatusSeeOther)
 	}
 }
 

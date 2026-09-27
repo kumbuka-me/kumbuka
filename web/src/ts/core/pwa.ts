@@ -1,6 +1,11 @@
+import { route, routePrefix } from "./route.ts";
 // Service worker setup and private-cache protection.
 
-const pageCachePrefix = "kumbuka-pages-";
+function pageCachePrefix(): string {
+  return routePrefix()
+    ? `kumbuka-scope-${encodeURIComponent(route("/"))}-pages-`
+    : "kumbuka-pages-";
+}
 
 function configureUserMessage(userID: string): ConfigureUserMessage {
   return { type: "configure-user", userID };
@@ -14,7 +19,7 @@ async function clearPrivatePageCaches(): Promise<void> {
 
   await Promise.all(
     names
-      .filter((name) => name.startsWith(pageCachePrefix))
+      .filter((name) => name.startsWith(pageCachePrefix()))
       .map((name) => caches.delete(name)),
   );
 }
@@ -31,7 +36,7 @@ function configureWorker(registration: ServiceWorkerRegistration): void {
 // Protects logout.
 function protectLogout(): void {
   const form = document.querySelector<HTMLFormElement>(
-    'form[action="/auth/logout"]',
+    `form[action="${route("/auth/logout")}"]`,
   );
   if (!form || !("caches" in window)) return;
 
@@ -41,9 +46,16 @@ function protectLogout(): void {
     event.preventDefault();
 
     try {
-      navigator.serviceWorker?.controller?.postMessage(
-        configureUserMessage(""),
+      const registration = await navigator.serviceWorker?.getRegistration(
+        route("/"),
       );
+      if (registration && new URL(registration.scope).pathname === route("/")) {
+        const worker =
+          registration.active ||
+          registration.waiting ||
+          registration.installing;
+        worker?.postMessage(configureUserMessage(""));
+      }
       await clearPrivatePageCaches();
     } catch {
       /* best effort */
@@ -61,14 +73,15 @@ function canRegisterServiceWorker(): boolean {
   return location.hostname === "localhost" || location.hostname === "127.0.0.1";
 }
 
-// Reuses the existing root registration so normal page loads do not fetch sw.js again.
+// Reuses the existing deployment registration so normal page loads do not fetch sw.js again.
 export async function ensureServiceWorkerRegistration(
   container: ServiceWorkerContainer,
 ): Promise<ServiceWorkerRegistration> {
-  const existing = await container.getRegistration("/");
-  if (existing) return existing;
+  const existing = await container.getRegistration(route("/"));
+  if (existing && new URL(existing.scope).pathname === route("/"))
+    return existing;
 
-  return container.register("/sw.js", { scope: "/" });
+  return container.register(route("/sw.js"), { scope: route("/") });
 }
 
 // Initializes pwa.
@@ -78,8 +91,10 @@ export function initPWA(): void {
 
   async function registerServiceWorker(): Promise<void> {
     try {
-      await ensureServiceWorkerRegistration(navigator.serviceWorker);
-      configureWorker(await navigator.serviceWorker.ready);
+      const registration = await ensureServiceWorkerRegistration(
+        navigator.serviceWorker,
+      );
+      configureWorker(registration);
     } catch {
       // Offline support is best effort and must never interfere with normal navigation.
     }

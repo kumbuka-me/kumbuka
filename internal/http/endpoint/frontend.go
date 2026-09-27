@@ -4,6 +4,8 @@ import (
 	"io/fs"
 	"net/http"
 	"strings"
+
+	"github.com/kumbuka-me/kumbuka/internal/route"
 )
 
 // Assets serves embedded browser assets with content-versioned cache semantics.
@@ -43,7 +45,7 @@ func validVersionedAssetPath(version, remainder string, separated bool) bool {
 	return separated && strings.HasPrefix(version, "v-") && len(version) > 2 && remainder != ""
 }
 
-// ServiceWorker serves the root-scoped progressive-web-app worker without long-lived caching.
+// ServiceWorker serves the deployment-scoped progressive-web-app worker without long-lived caching.
 func ServiceWorker(appFS fs.FS) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		data, err := fs.ReadFile(appFS, "sw.js")
@@ -54,7 +56,7 @@ func ServiceWorker(appFS fs.FS) http.Handler {
 
 		w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-cache")
-		w.Header().Set("Service-Worker-Allowed", "/")
+		w.Header().Set("Service-Worker-Allowed", route.ForRequest(r, "/"))
 
 		_, _ = w.Write(data)
 	})

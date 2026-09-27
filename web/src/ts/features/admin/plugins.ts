@@ -1,3 +1,4 @@
+import { route } from "../../core/route.ts";
 // Plugin package upload picker with drag-and-drop support.
 
 import { requiredElement } from "../../core/dom.ts";
@@ -565,7 +566,7 @@ function findPluginDialog(pluginID: string): HTMLDialogElement | null {
 // replacePluginURL keeps the address bar aligned with the currently open plugin modal.
 function replacePluginURL(pluginID = ""): void {
   const url = new URL(window.location.href);
-  url.pathname = "/admin/plugins";
+  url.pathname = route("/admin/plugins");
   if (pluginID) url.searchParams.set("plugin", pluginID);
   else url.searchParams.delete("plugin");
   history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);

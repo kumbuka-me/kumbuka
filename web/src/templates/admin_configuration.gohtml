@@ -52,7 +52,7 @@
           </div>
         </div>
         <form class="settings-form"
-              action="/admin/settings"
+              action="{{ route "/admin/settings" }}"
               method="post"
               data-validate-form
               novalidate>
@@ -281,7 +281,7 @@
           </div>
         {{ end }}
         <form class="stacked-form pdf-settings-form"
-              action="/admin/pdf"
+              action="{{ route "/admin/pdf" }}"
               method="post"
               data-pdf-settings
               data-validate-form
@@ -461,7 +461,7 @@
           </div>
         </div>
 <form class="stacked-form auth-settings-form"
-      action="/admin/authentication"
+      action="{{ route "/admin/authentication" }}"
       method="post"
       data-auth-settings
       data-auth-effective-mode="{{ if .Runtime.AuthModeOverride }}{{ .Runtime.AuthModeOverride }}{{ else }}{{ .ApplicationSettings.Authentication.Mode }}{{ end }}">
@@ -793,7 +793,7 @@
   </section>
   <dialog class="icon-picker-dialog"
           data-icon-picker-dialog
-          data-icons-url="/api/icons"
+          data-icons-url="{{ route "/api/icons" }}"
           aria-labelledby="external-link-icon-picker-title">
     <div class="app-dialog-header">
       <div>

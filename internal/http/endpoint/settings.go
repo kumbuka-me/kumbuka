@@ -9,6 +9,7 @@ import (
 
 	"github.com/kumbuka-me/kumbuka/internal/http/auth"
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
+	"github.com/kumbuka-me/kumbuka/internal/route"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/kumbuka-me/kumbuka/pkg/plugin"
@@ -126,7 +127,7 @@ func ChangeLocalPassword(local *auth.Local, logger *slog.Logger) http.HandlerFun
 		}
 
 		local.WriteSessionCookie(w, token)
-		http.Redirect(w, r, "/settings#password", http.StatusSeeOther)
+		route.Redirect(w, r, "/settings#password", http.StatusSeeOther)
 	}
 }
 
@@ -163,7 +164,7 @@ func SavePreferences(preferenceUseCases preferenceService, pluginManager *plugin
 			writePreferencesProblem(views.Logger(), w, err)
 			return
 		}
-		http.Redirect(w, r, "/settings#preferences", http.StatusSeeOther)
+		route.Redirect(w, r, "/settings#preferences", http.StatusSeeOther)
 	}
 }
 

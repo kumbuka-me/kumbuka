@@ -19,6 +19,7 @@ func (v *Views) PublicData(title string) (Layout, error) {
 	}
 
 	return Layout{
+		RoutePrefix:   v.runtime.RoutePrefix,
 		Title:         title,
 		Preferences:   preferences,
 		Version:       v.version,

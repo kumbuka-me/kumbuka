@@ -10,6 +10,7 @@ import (
 
 	apppages "github.com/kumbuka-me/kumbuka/internal/application/pages"
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
+	"github.com/kumbuka-me/kumbuka/internal/route"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	md "github.com/kumbuka-me/kumbuka/pkg/markdown"
 	"github.com/kumbuka-me/kumbuka/pkg/navigation"
@@ -102,7 +103,7 @@ func PreviewMarkdown(
 			return
 		}
 
-		httpresponse.Respond(w, http.StatusOK, map[string]string{"html": rendered.HTML})
+		httpresponse.Respond(w, http.StatusOK, map[string]string{"html": route.HTML(strings.TrimSuffix(route.ForRequest(r, "/"), "/"), rendered.HTML)})
 	}
 }
 
@@ -174,7 +175,7 @@ func GetPage(catalogUseCases visiblePageLookupService, logger *slog.Logger) http
 			return
 		}
 		if alias != "" {
-			w.Header().Set("Content-Location", "/api/pages/"+alias)
+			w.Header().Set("Content-Location", route.ForRequest(r, "/api/pages/"+alias))
 		}
 
 		httpresponse.Respond(w, http.StatusOK, page)
@@ -234,7 +235,7 @@ func SavePage(pageUseCases pageWriterService, logger *slog.Logger) http.HandlerF
 
 		if r.Method == http.MethodPost {
 			status = http.StatusCreated
-			w.Header().Set("Location", "/api/pages/"+page.Slug)
+			w.Header().Set("Location", route.ForRequest(r, "/api/pages/"+page.Slug))
 		}
 
 		httpresponse.Respond(w, status, page)

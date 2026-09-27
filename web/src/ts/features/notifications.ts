@@ -1,17 +1,21 @@
+import { route } from "../core/route.ts";
 // Notification inbox interactions.
 
 import { showNotice } from "../core/dialogs.ts";
 import { requestJSON } from "../core/http.ts";
 
 async function setReadState(id: string, read: boolean): Promise<void> {
-  await requestJSON(`/api/notifications/${id}/${read ? "read" : "unread"}`, {
-    method: "POST",
-    keepalive: true,
-  });
+  await requestJSON(
+    route(`/api/notifications/${id}/${read ? "read" : "unread"}`),
+    {
+      method: "POST",
+      keepalive: true,
+    },
+  );
 }
 
 async function removeNotification(id: string): Promise<void> {
-  await requestJSON(`/api/notifications/${id}`, {
+  await requestJSON(route(`/api/notifications/${id}`), {
     method: "DELETE",
     keepalive: true,
   });

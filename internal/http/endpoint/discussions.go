@@ -7,6 +7,7 @@ import (
 
 	"github.com/kumbuka-me/kumbuka/internal/http/auth"
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
+	"github.com/kumbuka-me/kumbuka/internal/route"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 )
 
@@ -49,7 +50,7 @@ func AddPageComment(pageUseCases pageDiscussionWriter, views *webview.Views) htt
 				return
 			}
 
-			http.Redirect(w, r, pageCommentTarget(slug, comment.ID), http.StatusSeeOther)
+			route.Redirect(w, r, pageCommentTarget(slug, comment.ID), http.StatusSeeOther)
 			return
 		}
 		if kind != "" && kind != "comment" {
@@ -65,7 +66,7 @@ func AddPageComment(pageUseCases pageDiscussionWriter, views *webview.Views) htt
 			return
 		}
 
-		http.Redirect(w, r, pageCommentTarget(slug, comment.ID), http.StatusSeeOther)
+		route.Redirect(w, r, pageCommentTarget(slug, comment.ID), http.StatusSeeOther)
 	}
 }
 
@@ -85,7 +86,7 @@ func ApplyPageCommentSuggestion(pageUseCases pageDiscussionWriter, views *webvie
 			return
 		}
 
-		http.Redirect(w, r, pageCommentTarget(page.Slug, id), http.StatusSeeOther)
+		route.Redirect(w, r, pageCommentTarget(page.Slug, id), http.StatusSeeOther)
 	}
 }
 
@@ -108,7 +109,7 @@ func ResolvePageComment(pageUseCases pageDiscussionWriter, views *webview.Views)
 		}
 
 		next := pageCommentReturnTarget(r.FormValue("next"))
-		http.Redirect(w, r, next, http.StatusSeeOther)
+		route.Redirect(w, r, next, http.StatusSeeOther)
 	}
 }
 

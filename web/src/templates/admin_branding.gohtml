@@ -14,7 +14,7 @@
       </div>
       <div class="branding-logo-preview" aria-label="Current application logo">{{ logo }}</div>
       <form class="stacked-form branding-upload-form"
-            action="/admin/branding/logo"
+            action="{{ route "/admin/branding/logo" }}"
             method="post"
             enctype="multipart/form-data">
         <label>
@@ -30,7 +30,7 @@
         </div>
       </form>
       <form class="branding-reset-form"
-            action="/admin/branding/logo/reset"
+            action="{{ route "/admin/branding/logo/reset" }}"
             method="post">
         <button class="button" type="submit">{{ icon "rotate-ccw-lucide" 16 }}<span>Use default logo</span></button>
       </form>

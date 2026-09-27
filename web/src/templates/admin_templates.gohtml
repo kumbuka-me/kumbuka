@@ -101,7 +101,7 @@
           <p>Define a consistent starting point for a recurring kind of documentation.</p>
         </div>
       </div>
-      <form action="/admin/templates"
+      <form action="{{ route "/admin/templates" }}"
             method="post"
             class="template-form template-create-form">
         {{ template "template-blueprint-fields" (blueprintcontext (blankblueprint) .Groups .PageStatuses) }}
@@ -126,7 +126,7 @@
             <span class="template-summary-chevron">{{ icon "chevron-down-lucide" 16 }}</span>
           </summary>
           <div class="template-admin-body">
-            <form action="/admin/templates/{{ .ID }}"
+            <form action="{{ route "/admin/templates/" }}{{ .ID }}"
                   method="post"
                   class="template-form">
               {{ template "template-blueprint-fields" (blueprintcontext . $.Groups $.PageStatuses) }}
@@ -137,7 +137,7 @@
               </div>
             </form>
             <form class="template-delete-form"
-                  action="/admin/templates/{{ .ID }}/delete"
+                  action="{{ route "/admin/templates/" }}{{ .ID }}/delete"
                   method="post"
                   data-confirm="Delete the {{ .Name }} page blueprint?"
                   data-confirm-title="Delete page blueprint"

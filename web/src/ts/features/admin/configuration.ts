@@ -1,3 +1,4 @@
+import { route } from "../../core/route.ts";
 // Administrator authentication, application, and PDF configuration behavior.
 
 import { requiredElement } from "../../core/dom.ts";
@@ -111,7 +112,7 @@ async function testPDFEndpoint(controls: PDFTestControls): Promise<void> {
   );
 
   try {
-    const response = await fetch("/admin/pdf/test", {
+    const response = await fetch(route("/admin/pdf/test"), {
       method: "POST",
       body: pdfFormBody(controls.form),
       credentials: "same-origin",
@@ -185,7 +186,7 @@ async function revealPDFHeader(
   button.disabled = true;
   try {
     const response = await fetch(
-      `/admin/pdf/headers/${encodeURIComponent(id)}/reveal`,
+      route(`/admin/pdf/headers/${encodeURIComponent(id)}/reveal`),
       {
         method: "POST",
         credentials: "same-origin",

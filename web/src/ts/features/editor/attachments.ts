@@ -1,3 +1,4 @@
+import { route } from "../../core/route.ts";
 // Editor attachment upload and insertion.
 
 import { requestConfirmation } from "../../core/dialogs.ts";
@@ -126,7 +127,9 @@ function setupAttachmentDialog(form: HTMLFormElement): void {
         return;
 
       try {
-        await requestJSON(`/api/attachments/${item.id}`, { method: "DELETE" });
+        await requestJSON(route(`/api/attachments/${item.id}`), {
+          method: "DELETE",
+        });
         element.remove();
       } catch (error) {
         console.error("attachment deletion failed", error);

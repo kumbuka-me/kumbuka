@@ -1,3 +1,4 @@
+import { route } from "../../core/route.ts";
 // Administrator webhook payload, header, and retry configuration behavior.
 
 import { showNotice, showProblemDialog } from "../../core/dialogs.ts";
@@ -241,7 +242,9 @@ async function revealWebhookHeader(
 
   try {
     const response = await fetch(
-      `/admin/webhooks/${encodeURIComponent(webhookID)}/headers/${encodeURIComponent(headerID)}/reveal`,
+      route(
+        `/admin/webhooks/${encodeURIComponent(webhookID)}/headers/${encodeURIComponent(headerID)}/reveal`,
+      ),
       {
         method: "POST",
         credentials: "same-origin",

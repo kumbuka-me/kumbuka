@@ -12,7 +12,7 @@
             <span class="audit-icon" aria-hidden="true">{{ icon "activity-lucide" 16 }}</span>
             <div>
               <strong>{{ .Actor }}</strong> <span>{{ .Action }}</span>{{ if .ObjectKey }}
-              <a href="{{ if eq .ObjectType "page" }}/pages/{{ .ObjectKey }}{{ else }}#{{ end }}">{{ .ObjectKey }}</a>
+              <a href="{{ if eq .ObjectType "page" }}{{ route "/pages/" }}{{ .ObjectKey }}{{ else }}#{{ end }}">{{ .ObjectKey }}</a>
               {{ end }}{{ if .Detail }}<small>{{ .Detail }}</small>{{ end }}
             </div>
             <time title="{{ .CreatedAt }}">{{ timeago .CreatedAt }}</time>

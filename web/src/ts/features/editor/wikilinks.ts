@@ -1,3 +1,4 @@
+import { route } from "../../core/route.ts";
 // Wiki-link autocomplete in the Markdown editor.
 
 import { isRecord, requireArrayOf } from "../../core/guards.ts";
@@ -161,7 +162,7 @@ function setupWikiLinks(form: HTMLFormElement): void {
 
     try {
       const payload = await requestJSON(
-        `/api/search?q=${encodeURIComponent(next.query)}`,
+        route(`/api/search?q=${encodeURIComponent(next.query)}`),
       );
       if (currentRequest !== request) return;
 

@@ -11,6 +11,7 @@ import (
 
 	appauthentication "github.com/kumbuka-me/kumbuka/internal/application/authentication"
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
+	"github.com/kumbuka-me/kumbuka/internal/route"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"golang.org/x/net/http/httpguts"
 )
@@ -143,7 +144,7 @@ func (b *browserAuthenticator) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if setupRequired {
-		http.Redirect(w, r, "/setup", http.StatusFound)
+		route.Redirect(w, r, "/setup", http.StatusFound)
 		return
 	}
 	switch settings.Mode {
@@ -155,7 +156,7 @@ func (b *browserAuthenticator) login(w http.ResponseWriter, r *http.Request) {
 			target += "?next=" + url.QueryEscape(next)
 		}
 
-		http.Redirect(w, r, target, http.StatusFound)
+		route.Redirect(w, r, target, http.StatusFound)
 		return
 	case domain.AuthModeOIDC:
 	case domain.AuthModeNone, domain.AuthModeTrustedProxy:

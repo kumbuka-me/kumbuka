@@ -21,10 +21,10 @@
               <small>{{ .Slug }} · deleted {{ timeago .DeletedAt }}{{ if .DeletedBy }}by {{ .DeletedBy }}{{ end }}</small>
             </span>
             <div class="recycle-bin-actions">
-              <form action="/admin/bin/restore/{{ .Slug }}" method="post">
+              <form action="{{ route "/admin/bin/restore/" }}{{ .Slug }}" method="post">
                 <button class="button" type="submit">{{ icon "rotate-ccw-lucide" 16 }}<span>Restore</span></button>
               </form>
-              <form action="/admin/bin/delete/{{ .Slug }}"
+              <form action="{{ route "/admin/bin/delete/" }}{{ .Slug }}"
                     method="post"
                     data-confirm="Permanently delete {{ .Title }}? Its content and revision history cannot be recovered."
                     data-confirm-title="Permanently delete page"

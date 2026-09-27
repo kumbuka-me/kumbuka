@@ -1,3 +1,4 @@
+import { route } from "./route.ts";
 // Reports whether an icon option request may start for the current picker state.
 function canLoadIconOptions(
   append: boolean,
@@ -65,7 +66,7 @@ export function setupIconPicker(dialog: HTMLDialogElement): void {
     "[data-icon-picker-empty]",
   );
 
-  const iconsURL = dialog.dataset.iconsUrl || "/api/icons";
+  const iconsURL = dialog.dataset.iconsUrl || route("/api/icons");
   const optionRequests = createLatestRequest();
   const searchDebouncer = createDebouncer(
     () => void loadOptions(searchInput.value.trim()),

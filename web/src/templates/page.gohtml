@@ -10,7 +10,7 @@
             </h1>
             <div class="page-labels">
               <span class="page-status-badge status-{{ .Page.Status }}">{{ .Page.Status }}</span>
-              <div class="tags">{{ range .Page.Tags }}<a href="/search?q=tag%3A{{ . }}">{{ . }}</a>{{ end }}</div>
+              <div class="tags">{{ range .Page.Tags }}<a href="{{ route "/search?q=tag%3A" }}{{ . }}">{{ . }}</a>{{ end }}</div>
               {{ if .Page.Groups }}
                 <div class="page-groups" aria-label="Page groups">
                   {{ range .Page.Groups }}
@@ -48,7 +48,7 @@
                   {{ icon "braces-lucide" 17 }}<span>{{ len .Items }}</span>
                 </button>
               {{ end }}
-              <form action="/pages/{{ .Page.Slug }}/favorite" method="post">
+              <form action="{{ route "/pages/" }}{{ .Page.Slug }}/favorite" method="post">
                 <input type="hidden"
                        name="on"
                        value="{{ if .PageFavorite }}false{{ else }}true{{ end }}" />
@@ -68,7 +68,7 @@
             </summary>
             <div class="page-watch-popover">
               <span class="page-watch-title">Watch</span>
-              <form action="/page-watch/{{ .Page.Slug }}" method="post">
+              <form action="{{ route "/page-watch/" }}{{ .Page.Slug }}" method="post">
                 <button class="page-watch-option{{ if eq .PageWatchScope "page" }} active{{ end }}"
                         name="scope"
                         value="page"
@@ -94,7 +94,7 @@
                 <summary class="button icon-only"
                          aria-label="Request review"
                          title="Request review">{{ icon "send-lucide" 17 }}</summary>
-                <form action="/pages/approval/request/{{ .Page.Slug }}"
+                <form action="{{ route "/pages/approval/request/" }}{{ .Page.Slug }}"
                       method="post"
                       class="page-review-request"
                       data-validate-form
@@ -138,13 +138,13 @@
                 <button class="button icon-only"
                         type="button"
                         data-widget-dialog-open
-                        data-widget-dialog-url="{{ .URL }}"
+                        data-widget-dialog-url="{{ route .URL }}"
                         data-widget-dialog-title="{{ .Name }}"
                         aria-label="{{ .Name }}"
                         title="{{ if .Description }}{{ .Description }}{{ else }}{{ .Name }}{{ end }}">{{ if .Icon }}{{ icon .Icon 17 }}{{ else }}{{ icon "puzzle-lucide" 17 }}{{ end }}</button>
               {{ else }}
                 <a class="button icon-only"
-                   href="{{ .URL }}"
+                   href="{{ route .URL }}"
                    aria-label="{{ .Name }}"
                    title="{{ if .Description }}{{ .Description }}{{ else }}{{ .Name }}{{ end }}">{{ if .Icon }}{{ icon .Icon 17 }}{{ else }}{{ icon "puzzle-lucide" 17 }}{{ end }}</a>
               {{ end }}
@@ -155,7 +155,7 @@
                     aria-label="Share or export page"
                     title="Share or export">{{ icon "share-2-lucide" 17 }}</button>
             <a class="button icon-only"
-               href="/graph?slug={{ .Page.Slug }}"
+               href="{{ route "/graph?slug=" }}{{ .Page.Slug }}"
                aria-label="Explore page relationships"
                title="Knowledge graph">{{ icon "network-lucide" 17 }}</a>
             {{ if .ApplicationSettings.DiscussionsEnabled }}
@@ -167,7 +167,7 @@
             {{ end }}
             {{ if .CanEdit }}
               <a class="button icon-only"
-                 href="/edit/{{ .Page.Slug }}"
+                 href="{{ route "/edit/" }}{{ .Page.Slug }}"
                  aria-label="Edit page"
                  title="Edit page">{{ icon "pencil-lucide" 17 }}</a>
               <button class="button icon-only"
@@ -177,7 +177,7 @@
                       title="Move page">{{ icon "folder-input-lucide" 17 }}</button>
             {{ end }}
             {{ if eq .User.Role "admin" }}
-              <form action="/pages/delete/{{ .Page.Slug }}"
+              <form action="{{ route "/pages/delete/" }}{{ .Page.Slug }}"
                     method="post"
                     data-confirm="Move {{ .Page.Title }} to the recycle bin? An administrator can restore it later."
                     data-confirm-title="Move page to recycle bin"
@@ -245,7 +245,7 @@
                 {{ icon "triangle-alert-lucide" 18 }}
                 <div>
                   <strong>This page is deprecated.</strong>{{ if .Page.DeprecatedTarget }}
-                  <span>Use <a href="/pages/{{ .Page.DeprecatedTarget }}">{{ .Page.DeprecatedTarget }}</a> instead.</span>
+                  <span>Use <a href="{{ route "/pages/" }}{{ .Page.DeprecatedTarget }}">{{ .Page.DeprecatedTarget }}</a> instead.</span>
             {{ else }}
               <span>Review it before following these instructions.</span>
             {{ end }}
@@ -286,14 +286,14 @@
               <div class="page-review-controls">
                 {{ if or .CanReviewPage .CanManageReview }}
                   <a class="button primary compact"
-                     href="/reviews/{{ .PageReviewRequest.ID }}/{{ .Page.Slug }}">
+                     href="{{ route "/reviews/" }}{{ .PageReviewRequest.ID }}/{{ .Page.Slug }}">
                     {{ icon "square-code-lucide" 13 }}<span>Review changes</span>
                   </a>
                 {{ end }}
                 {{ if .CanManageReview }}
                   <details class="page-review-edit">
                     <summary class="button compact">{{ icon "pencil-lucide" 13 }}<span>Edit request</span></summary>
-                    <form action="/pages/approval/update/{{ .PageReviewRequest.ID }}/{{ .Page.Slug }}"
+                    <form action="{{ route "/pages/approval/update/" }}{{ .PageReviewRequest.ID }}/{{ .Page.Slug }}"
                           method="post"
                           class="page-review-edit-form"
                           data-validate-form
@@ -330,7 +330,7 @@
                       </div>
                     </form>
                   </details>
-                  <form action="/pages/approval/cancel/{{ .PageReviewRequest.ID }}/{{ .Page.Slug }}"
+                  <form action="{{ route "/pages/approval/cancel/" }}{{ .PageReviewRequest.ID }}/{{ .Page.Slug }}"
                         method="post"
                         data-validate-form
                         data-error-title="Could not cancel review">
@@ -339,7 +339,7 @@
                   </form>
                 {{ end }}
                 {{ if .CanReviewPage }}
-                  <form action="/pages/approval/decide/{{ .PageReviewRequest.ID }}/{{ .Page.Slug }}"
+                  <form action="{{ route "/pages/approval/decide/" }}{{ .PageReviewRequest.ID }}/{{ .Page.Slug }}"
                         method="post"
                         class="page-review-decision"
                         data-validate-form
@@ -380,7 +380,7 @@
 <div class="page-reading{{ if .PageContents }} {{ if .Preferences.ShowPageContents }}with-contents{{ else }}contents-hidden{{ end }} {{ end }}">
     <div class="prose"
          lang="{{ .PageContentLanguage }}"
-         data-plugin-annotation-content>{{ .HTML }}</div>
+         data-plugin-annotation-content>{{ routeHTML .HTML }}</div>
     {{ template "page-contents" . }}
   </div>
   {{ if .ApplicationSettings.DiscussionsEnabled }}
@@ -443,7 +443,7 @@
                       data-comment-author="{{ .Author }}"
                       data-comment-body="{{ .Body }}">{{ icon "message-square-quote-lucide" 14 }}<span>Quote</span></button>
               {{ if $.CanEdit }}
-                <form action="/page-comments/resolve/{{ .ID }}/{{ $.Page.Slug }}"
+                <form action="{{ route "/page-comments/resolve/" }}{{ .ID }}/{{ $.Page.Slug }}"
                       method="post">
                   <input type="hidden" name="next" value="/pages/{{ $.Page.Slug }}" />
                   <input type="hidden"
@@ -520,7 +520,7 @@
                       </div>
                     </div>
                     {{ if and $.CanEdit (not .Suggestion.AppliedAt) }}
-                      <form action="/page-comments/suggestions/apply/{{ .ID }}/{{ $.Page.Slug }}"
+                      <form action="{{ route "/page-comments/suggestions/apply/" }}{{ .ID }}/{{ $.Page.Slug }}"
                             method="post"
                             data-validate-form
                             data-error-title="Could not apply suggestion">
@@ -546,7 +546,7 @@
                           data-comment-author="{{ .Author }}"
                           data-comment-body="{{ .Body }}">{{ icon "message-square-quote-lucide" 14 }}<span>Quote</span></button>
                   {{ if $.CanEdit }}
-                    <form action="/page-comments/resolve/{{ .ID }}/{{ $.Page.Slug }}"
+                    <form action="{{ route "/page-comments/resolve/" }}{{ .ID }}/{{ $.Page.Slug }}"
                           method="post">
                       <input type="hidden"
                              name="next"
@@ -601,22 +601,22 @@
           <section class="plugin-widget"
                    data-kumbuka-plugin="{{ .PluginID }}"
                    data-kumbuka-module="{{ .ModuleID }}">
-            {{ .HTML }}
+            {{ routeHTML .HTML }}
             {{ if .Actions }}
               <div class="plugin-widget-actions">
                 {{ range .Actions }}
                   {{ if eq .Kind "link" }}
                     <a class="widget-action"
-                       href="{{ .URL }}">{{ if .Icon }}{{ icon .Icon 14 }}{{ end }}<span>{{ .Label }}</span></a>
+                       href="{{ route .URL }}">{{ if .Icon }}{{ icon .Icon 14 }}{{ end }}<span>{{ .Label }}</span></a>
                   {{ else if eq .Kind "dialog" }}
                     <button class="widget-action"
                             type="button"
                             data-widget-dialog-open
-                            data-widget-dialog-url="{{ .URL }}"
+                            data-widget-dialog-url="{{ route .URL }}"
                             data-widget-dialog-title="{{ .Label }}">{{ if .Icon }}{{ icon .Icon 14 }}{{ end }}<span>{{ .Label }}</span>{{ icon "chevron-right-lucide" 13 }}</button>
                   {{ else if eq .Kind "command" }}
                     <form method="post"
-                          action="{{ .URL }}"
+                          action="{{ route .URL }}"
                           {{ if .Confirm }}data-confirm="{{ .Confirm }}"
                           {{ end }}>
                       <input type="hidden" name="surface" value="{{ .Surface }}" />
@@ -642,7 +642,7 @@
               {{ end }}{{ if .Page.OwnerGroup }}Owner: {{ .Page.OwnerGroup }}.{{ end }}
             </p>
             {{ if .CanEdit }}
-              <form action="/pages/review/{{ .Page.Slug }}" method="post">
+              <form action="{{ route "/pages/review/" }}{{ .Page.Slug }}" method="post">
                 <button class="button"
                         type="submit">{{ icon "badge-check-lucide" 15 }}<span>Mark reviewed</span></button>
               </form>
@@ -662,7 +662,7 @@
     <button class="contents-toggle"
             type="button"
             data-page-contents-toggle
-            data-preference-url="/settings/preferences/page-contents"
+            data-preference-url="{{ route "/settings/preferences/page-contents" }}"
             aria-controls="page-contents"
             aria-expanded="false"
             aria-pressed="{{ if .Preferences.ShowPageContents }}
@@ -683,7 +683,7 @@
   {{ end }}
   <dialog class="share-dialog"
           data-share-dialog
-          data-preview-url="/export/preview/{{ .Page.Slug }}"
+          data-preview-url="{{ route "/export/preview/" }}{{ .Page.Slug }}"
           aria-labelledby="share-dialog-title">
     <div class="app-dialog-header">
       <div>
@@ -721,7 +721,7 @@
       <button class="share-option"
               type="button"
               data-share-permalink
-              data-url="/p/{{ .Page.ID }}">
+              data-url="{{ route "/p/" }}{{ .Page.ID }}">
         <span class="share-option-icon">{{ icon "link-lucide" 22 }}</span>
         <span><strong>Copy permalink</strong><small data-share-permalink-status>Stable page link. Kumbuka sign-in is still required.</small></span>
       </button>
@@ -736,18 +736,18 @@
       <button class="share-option"
               type="button"
               data-share-pdf
-              data-url="/export/pdf/{{ .Page.Slug }}">
+              data-url="{{ route "/export/pdf/" }}{{ .Page.Slug }}">
         <span class="share-option-icon">{{ icon "file-down-lucide" 22 }}</span>
         <span><strong>Export PDF</strong><small>Generate a printable PDF on the server.</small></span>
       </button>
       <a class="share-option"
-         href="/export/markdown/{{ .Page.Slug }}"
+         href="{{ route "/export/markdown/" }}{{ .Page.Slug }}"
          data-share-markdown>
         <span class="share-option-icon">{{ icon "file-text-lucide" 22 }}</span>
         <span><strong>Export Markdown</strong><small>Download .md directly; a ZIP is used only when referenced images must be included.</small></span>
       </a>
       {{ range .PluginExporters }}
-        <form method="post" action="{{ .URL }}">
+        <form method="post" action="{{ route .URL }}">
           <button class="share-option" type="submit">
             <span class="share-option-icon">{{ if .Icon }}{{ icon .Icon 22 }}{{ else }}{{ icon "file-down-lucide" 22 }}{{ end }}</span>
             <span><strong>{{ .Name }}</strong><small>{{ if .Description }}{{ .Description }}{{ else }}Export with {{ .Name }}.{{ end }}</small></span>
@@ -789,7 +789,7 @@
               data-move-page-close
               aria-label="Close">{{ icon "x-lucide" 20 }}</button>
     </div>
-    <form action="/pages/move/{{ .Page.Slug }}"
+    <form action="{{ route "/pages/move/" }}{{ .Page.Slug }}"
           method="post"
           class="app-dialog-body stacked-form">
       <label>
@@ -827,7 +827,7 @@
                 data-comment-dialog-close
                 aria-label="Close">{{ icon "x-lucide" 20 }}</button>
       </div>
-      <form action="/page-comments/{{ .Page.Slug }}"
+      <form action="{{ route "/page-comments/" }}{{ .Page.Slug }}"
             method="post"
             class="app-dialog-body stacked-form"
             data-validate-form

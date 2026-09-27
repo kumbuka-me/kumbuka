@@ -1,3 +1,4 @@
+import { route } from "../core/route.ts";
 // Interactive knowledge graph rendering and inspection.
 
 import { requiredAttribute, requiredElement } from "../core/dom.ts";
@@ -174,7 +175,7 @@ function setupGraph(root: HTMLElement): void {
     inspectorStatus.textContent = node.status || "verified";
     inspectorStatus.className = `page-status-badge status-${node.status || "verified"}`;
     inspectorDegree.textContent = `${degree} linked page${degree === 1 ? "" : "s"}`;
-    inspectorOpen.href = `/pages/${node.slug}`;
+    inspectorOpen.href = route(`/pages/${node.slug}`);
 
     render();
   }
@@ -288,7 +289,7 @@ function setupGraph(root: HTMLElement): void {
         inspect(node, degrees.get(node.slug) || 0),
       );
       group.addEventListener("dblclick", () => {
-        window.location.href = `/pages/${node.slug}`;
+        window.location.href = route(`/pages/${node.slug}`);
       });
       group.addEventListener("keydown", (event: KeyboardEvent) => {
         if (event.key === "Enter") inspect(node, degrees.get(node.slug) || 0);

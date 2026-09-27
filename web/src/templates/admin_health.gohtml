@@ -1,6 +1,7 @@
 {{ define "health-page-list" }}
   {{ range . }}
-    <a class="health-page-row" href="/pages/{{ .Slug }}"><strong>{{ .Title }}</strong><small>{{ .Slug }}</small></a>
+    <a class="health-page-row"
+       href="{{ route "/pages/" }}{{ .Slug }}"><strong>{{ .Title }}</strong><small>{{ .Slug }}</small></a>
   {{ else }}
     <p class="muted health-empty">Nothing to fix.</p>
   {{ end }}
@@ -30,7 +31,7 @@
         <div class="health-page-list">
           {{ range .DocumentationHealth.BrokenLinks }}
             <a class="health-page-row"
-               href="/edit/{{ .SourceSlug }}"><strong>{{ .SourceTitle }}</strong><small>Missing → {{ .TargetSlug }}</small></a>
+               href="{{ route "/edit/" }}{{ .SourceSlug }}"><strong>{{ .SourceTitle }}</strong><small>Missing → {{ .TargetSlug }}</small></a>
           {{ else }}
             <p class="muted health-empty">No broken wiki links.</p>
           {{ end }}

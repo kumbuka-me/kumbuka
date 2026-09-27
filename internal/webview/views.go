@@ -10,12 +10,12 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/containeroo/httpprefix"
+	"github.com/kumbuka-me/kumbuka/internal/route"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/kumbuka-me/kumbuka/pkg/icons"
 	"github.com/kumbuka-me/kumbuka/pkg/themes"
 )
-
-const brandLogoHTML = template.HTML(`<img class="kumbuka-logo" src="/brand/logo" alt="" />`)
 
 var sharedTemplateFiles = []string{
 	"templates/layout.gohtml",
@@ -86,6 +86,8 @@ type ManagedConfigurationGroup struct {
 
 // RuntimeInfo contains non-secret runtime configuration safe to show to administrators.
 type RuntimeInfo struct {
+	// RoutePrefix is the normalized deployment path, empty at root.
+	RoutePrefix string
 	// ListenAddress is the configured HTTP listen address.
 	ListenAddress string
 	// PublicURL is the externally visible Kumbuka URL.
@@ -182,6 +184,10 @@ func New(
 	}
 
 	funcs := template.FuncMap{
+		"routeHTML": func(value template.HTML) template.HTML {
+			return template.HTML(route.HTML(runtime.RoutePrefix, string(value)))
+		},
+		"route":              func(target string) string { return httpprefix.RouteURL(runtime.RoutePrefix, target) },
 		"join":               strings.Join,
 		"timeago":            timeAgo,
 		"filesize":           fileSize,
@@ -199,7 +205,7 @@ func New(
 		},
 		"icon": catalog.SVG,
 		"logo": func() template.HTML {
-			return brandLogoHTML
+			return template.HTML(`<img class="kumbuka-logo" src="` + template.HTMLEscapeString(httpprefix.RouteURL(runtime.RoutePrefix, "/brand/logo")) + `" alt="" />`)
 		},
 	}
 	templates := make(map[string]*template.Template, len(pageTemplateNames))
@@ -337,4 +343,9 @@ func (v *Views) RenderHTML(page, name string, data Screen) (template.HTML, error
 	}
 
 	return template.HTML(output.String()), nil
+}
+
+// Route generates a deployment-local URL.
+func (v *Views) Route(target string) string {
+	return httpprefix.RouteURL(v.runtime.RoutePrefix, target)
 }

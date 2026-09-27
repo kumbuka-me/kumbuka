@@ -257,7 +257,7 @@
             <p class="muted">Configure an endpoint, payload, headers, retries, and matching events.</p>
           </div>
         </div>
-        <form action="/admin/webhooks"
+        <form action="{{ route "/admin/webhooks" }}"
               method="post"
               class="stacked-form"
               data-webhook-form
@@ -289,7 +289,7 @@
                 {{ icon "chevron-down-lucide" 15 }}
               </summary>
               <div class="admin-expand-body webhook-edit-body">
-                <form action="/admin/webhooks/{{ .ID }}"
+                <form action="{{ route "/admin/webhooks/" }}{{ .ID }}"
                       method="post"
                       class="stacked-form"
                       data-webhook-form
@@ -302,7 +302,7 @@
                   </div>
                 </form>
                 <div class="webhook-secondary-actions">
-                  <form action="/admin/webhooks/{{ .ID }}/test"
+                  <form action="{{ route "/admin/webhooks/" }}{{ .ID }}/test"
                         method="post"
                         class="webhook-test-form"
                         data-webhook-test-form>
@@ -316,7 +316,7 @@
                     </select>
                     <button class="button" type="submit">{{ icon "send-lucide" 15 }}<span>Send test</span></button>
                   </form>
-                  <form action="/admin/webhooks/{{ .ID }}/delete"
+                  <form action="{{ route "/admin/webhooks/" }}{{ .ID }}/delete"
                         method="post"
                         data-confirm="Delete webhook {{ .Name }}?"
                         data-confirm-title="Delete webhook"

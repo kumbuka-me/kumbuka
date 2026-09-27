@@ -8,6 +8,7 @@ import (
 
 	"github.com/kumbuka-me/kumbuka/internal/http/auth"
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
+	"github.com/kumbuka-me/kumbuka/internal/route"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
@@ -42,7 +43,7 @@ func LocalLogin(
 			return
 		}
 		if required && settings.Authentication.Mode == domain.AuthModeNone {
-			http.Redirect(w, r, "/setup", http.StatusFound)
+			route.Redirect(w, r, "/setup", http.StatusFound)
 			return
 		}
 
@@ -57,7 +58,7 @@ func LocalLogin(
 			_, token, err := browserAuth.Local.SignIn(r.Context(), r.FormValue("username"), r.FormValue("password"))
 			if err == nil {
 				browserAuth.Local.WriteSessionCookie(w, token)
-				http.Redirect(w, r, cmp.Or(next, "/"), http.StatusSeeOther)
+				route.Redirect(w, r, cmp.Or(next, "/"), http.StatusSeeOther)
 				return
 			}
 			writeLocalLoginProblem(views, w, err, next)
@@ -172,7 +173,7 @@ func submitSetup(
 		browserAuth.Local.WriteSessionCookie(w, token)
 	}
 	systemUseCases.RecordSetupCompleted(r.Context(), user)
-	http.Redirect(w, r, "/admin/configuration", http.StatusSeeOther)
+	route.Redirect(w, r, "/admin/configuration", http.StatusSeeOther)
 }
 
 // renderSetupForm renders the setup form with the requested browser status.

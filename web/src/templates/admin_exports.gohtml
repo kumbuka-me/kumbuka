@@ -11,7 +11,7 @@
         <code>metadata/</code>, referenced images under <code>media/</code>, and referenced files under <code>attachments/</code>.
         The archive can be imported into another Kumbuka instance.
       </p>
-      <form action="/admin/export" method="post" data-export-form>
+      <form action="{{ route "/admin/export" }}" method="post" data-export-form>
         <div class="export-actions">
           <button class="button primary" type="submit">Export selected</button>
           <button class="button" type="submit" name="all" value="true">Export all</button>

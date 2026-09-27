@@ -68,12 +68,12 @@
             {{ end }}
           </div>
           {{ if .PluginUpdateStatus.Available }}
-            <form method="post" action="/admin/plugins/check-updates">
+            <form method="post" action="{{ route "/admin/plugins/check-updates" }}">
               <button class="button compact" type="submit">Check for updates</button>
             </form>
             {{ if gt (len .PluginUpdates) 0 }}
               <form method="post"
-                    action="/admin/plugins/all/update"
+                    action="{{ route "/admin/plugins/all/update" }}"
                     data-plugin-update
                     data-plugin-update-pending="Updating plugins…">
                 <button class="button compact primary"
@@ -111,7 +111,7 @@
                   tabindex="0"
                   aria-label="Open {{ .Manifest.Name }} plugin details">
                 <td>
-                  <a href="/admin/plugins?plugin={{ .Manifest.ID | urlquery }}"><strong>{{ .Manifest.Name }}</strong></a>
+                  <a href="{{ route "/admin/plugins?plugin=" }}{{ .Manifest.ID | urlquery }}"><strong>{{ .Manifest.Name }}</strong></a>
                   <small>{{ .Manifest.Description }}</small>
                 </td>
                 <td>
@@ -131,7 +131,7 @@
                       <span class="muted">Required</span>
                     {{ else }}
                     <form method="post"
-                          action="/admin/plugins/{{ .Manifest.ID }}/{{ if .Enabled }}disable{{ else }}enable{{ end }}"
+                          action="{{ route "/admin/plugins/" }}{{ .Manifest.ID }}/{{ if .Enabled }}disable{{ else }}enable{{ end }}"
                           data-plugin-toggle="{{ .Manifest.ID }}">
                       <button class="button compact"
                               type="submit">{{ if .Enabled }}Disable{{ else }}Enable{{ end }}</button>
@@ -156,7 +156,7 @@
       <form class="plugin-upload-form"
             method="post"
             enctype="multipart/form-data"
-            action="/admin/plugins"
+            action="{{ route "/admin/plugins" }}"
             data-plugin-upload
             data-plugin-install>
         {{ template "plugin-upload-field" . }}
@@ -208,7 +208,7 @@
                 <span class="muted">Required system plugin</span>
               {{ else }}
               <form method="post"
-                    action="/admin/plugins/{{ .Manifest.ID }}/{{ if .Enabled }}disable{{ else }}enable{{ end }}?return=detail"
+                    action="{{ route "/admin/plugins/" }}{{ .Manifest.ID }}/{{ if .Enabled }}disable{{ else }}enable{{ end }}?return=detail"
                     data-plugin-toggle="{{ .Manifest.ID }}">
                 <button class="button compact"
                         type="submit">{{ if .Enabled }}Disable{{ else }}Enable{{ end }} plugin</button>
@@ -221,7 +221,7 @@
           <h3>Preview</h3>
           <figure class="plugin-preview">
             <object class="plugin-preview-image"
-                    data="/admin/plugins/{{ .Manifest.ID }}/preview.png"
+                    data="{{ route "/admin/plugins/" }}{{ .Manifest.ID }}/preview.png"
                     type="image/png"
                     aria-label="{{ .Manifest.Name }} plugin preview">
               <p class="plugin-preview-unavailable muted">No static preview provided by this plugin.</p>
@@ -230,7 +230,7 @@
         </section>
         {{ with index $.PluginREADMEs .Manifest.ID }}
           <section class="plugin-detail-section plugin-readme-section">
-            <div class="plugin-readme prose">{{ . }}</div>
+            <div class="plugin-readme prose">{{ routeHTML . }}</div>
           </section>
         {{ end }}
         {{ if index $.PluginHasSettings .Manifest.ID }}
@@ -239,7 +239,8 @@
               <h3>Settings</h3>
               <p class="muted">This plugin has its own administration settings.</p>
             </div>
-            <a class="button" href="/admin/plugin-settings/{{ .Manifest.ID }}">Open settings</a>
+            <a class="button"
+               href="{{ route "/admin/plugin-settings/" }}{{ .Manifest.ID }}">Open settings</a>
           </section>
         {{ end }}
         <details class="plugin-detail-section plugin-technical">
@@ -278,7 +279,7 @@
               <ul>
                 {{ range .Manifest.Requires }}
                   <li>
-                    <a href="/admin/plugins?plugin={{ . | urlquery }}"
+                    <a href="{{ route "/admin/plugins?plugin=" }}{{ . | urlquery }}"
                        data-plugin-detail-open="{{ . }}">{{ . }}</a>
                   </li>
                 {{ else }}
@@ -320,7 +321,7 @@
                 <p class="muted">Published {{ .ReleasedAt.Format "2006-01-02" }}. Kumbuka verifies the catalog checksum and package identity before switching versions.</p>
               </div>
               <form method="post"
-                    action="/admin/plugins/{{ $plugin.Manifest.ID }}/update?return=detail"
+                    action="{{ route "/admin/plugins/" }}{{ $plugin.Manifest.ID }}/update?return=detail"
                     data-plugin-update>
                 <button class="button primary" type="submit" data-plugin-update-submit>
                   <span class="plugin-update-spinner"
@@ -344,7 +345,7 @@
             <form class="plugin-upload-form"
                   method="post"
                   enctype="multipart/form-data"
-                  action="/admin/plugins/{{ .Manifest.ID }}/upgrade?return=detail"
+                  action="{{ route "/admin/plugins/" }}{{ .Manifest.ID }}/upgrade?return=detail"
                   data-plugin-upload
                   data-plugin-upgrade>
               {{ template "plugin-upload-field" . }}
@@ -359,7 +360,7 @@
             <h3>Uninstall</h3>
             <p class="settings-note">Plugin settings and data are retained. If Kumbuka includes a bundled copy, it remains disabled after removing the installed version.</p>
             <form method="post"
-                  action="/admin/plugins/{{ .Manifest.ID }}/uninstall"
+                  action="{{ route "/admin/plugins/" }}{{ .Manifest.ID }}/uninstall"
                   data-confirm="Uninstall {{ .Manifest.Name }}?"
                   data-confirm-label="Uninstall plugin">
               <button class="button danger" type="submit">Uninstall plugin</button>

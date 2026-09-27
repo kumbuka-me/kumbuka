@@ -237,6 +237,7 @@ func Run(
 	// Hand the completed application graph to the HTTP adapter for route construction.
 	serverConfig := httpserver.Config{
 		InfrastructureConfig: httpserver.InfrastructureConfig{
+			RoutePrefix:    cfg.RoutePrefix,
 			Assets:         appFS,
 			Views:          views,
 			Renderer:       renderer,

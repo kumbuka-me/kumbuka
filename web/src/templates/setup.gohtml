@@ -9,7 +9,7 @@
       <div class="auth-form-error" role="alert">{{ .AuthError }}</div>
     {{ end }}
     <form class="stacked-form auth-login-form"
-          action="/setup"
+          action="{{ route "/setup" }}"
           method="post"
           data-validate-form
           novalidate>

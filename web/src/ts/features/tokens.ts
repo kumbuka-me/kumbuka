@@ -1,3 +1,4 @@
+import { route } from "../core/route.ts";
 // Personal access token creation and revocation UI.
 
 import { setupCopyButton } from "../core/clipboard.ts";
@@ -114,8 +115,8 @@ function prependTokenRow(form: HTMLFormElement, token: TokenRecord): void {
   revoke.className = "button danger";
   revoke.dataset.tokenDelete = "";
   revoke.dataset.deleteUrl = admin
-    ? `/admin/tokens/${token.id}`
-    : `/settings/tokens/${token.id}`;
+    ? route(`/admin/tokens/${token.id}`)
+    : route(`/settings/tokens/${token.id}`);
   revoke.textContent = "Revoke";
   setupTokenDeleteButton(revoke);
   actionCell.append(revoke);

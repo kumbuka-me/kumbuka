@@ -11,6 +11,7 @@ import (
 	apppages "github.com/kumbuka-me/kumbuka/internal/application/pages"
 	"github.com/kumbuka-me/kumbuka/internal/http/auth"
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
+	"github.com/kumbuka-me/kumbuka/internal/route"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	md "github.com/kumbuka-me/kumbuka/pkg/markdown"
@@ -54,7 +55,7 @@ func SavePageForm(
 			return
 		}
 
-		http.Redirect(w, r, "/pages/"+page.Slug, http.StatusSeeOther)
+		route.Redirect(w, r, "/pages/"+page.Slug, http.StatusSeeOther)
 	}
 }
 
@@ -170,7 +171,7 @@ func DeletePageForm(
 			return
 		}
 
-		http.Redirect(w, r, "/", http.StatusSeeOther)
+		route.Redirect(w, r, "/", http.StatusSeeOther)
 	}
 }
 
@@ -192,7 +193,7 @@ func FavoritePage(catalogUseCases visiblePageActions, views *webview.Views) http
 			return
 		}
 
-		http.Redirect(w, r, "/pages/"+slug, http.StatusSeeOther)
+		route.Redirect(w, r, "/pages/"+slug, http.StatusSeeOther)
 	}
 }
 
@@ -208,7 +209,7 @@ func WatchPage(catalogUseCases visiblePageActions, views *webview.Views) http.Ha
 			return
 		}
 
-		http.Redirect(w, r, "/pages/"+slug, http.StatusSeeOther)
+		route.Redirect(w, r, "/pages/"+slug, http.StatusSeeOther)
 	}
 }
 

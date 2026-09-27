@@ -10,6 +10,7 @@ import (
 
 	"github.com/kumbuka-me/kumbuka/internal/application/viewer"
 	"github.com/kumbuka-me/kumbuka/internal/http/auth"
+	"github.com/kumbuka-me/kumbuka/internal/route"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	md "github.com/kumbuka-me/kumbuka/pkg/markdown"
@@ -99,6 +100,7 @@ func (l *BrowserContext) Load(r *http.Request, views *webview.Views, title strin
 		Version:                 views.Version(),
 		AssetVersion:            views.AssetVersion(),
 		Commit:                  views.Commit(),
+		RoutePrefix:             views.Runtime().RoutePrefix,
 		Runtime:                 views.Runtime(),
 		ThemeData:               template.JS(themeData),
 		Themes:                  views.Themes(),
@@ -212,7 +214,7 @@ func (l *BrowserContext) loadPluginData(
 		sidebarWidgets = webview.Widgets(rendered, "sidebar", "", r.URL.RequestURI())
 	}
 
-	modules, err := pluginModulesJSON(l.pluginManager, "/plugins")
+	modules, err := pluginModulesJSON(l.pluginManager, route.ForRequest(r, "/plugins"))
 	if err != nil {
 		return pluginData{}, err
 	}

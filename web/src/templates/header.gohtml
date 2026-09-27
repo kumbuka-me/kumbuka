@@ -6,8 +6,8 @@
             aria-label="Toggle navigation"
             aria-controls="kumbuka-sidebar"
             aria-expanded="false">{{ icon "menu-lucide" 20 }}</button>
-    <a class="brand" href="/" aria-label="Kumbuka home">{{ logo }}</a>
-    <form class="global-search" action="/search" data-live-search>
+    <a class="brand" href="{{ route "/" }}" aria-label="Kumbuka home">{{ logo }}</a>
+    <form class="global-search" action="{{ route "/search" }}" data-live-search>
       <span class="global-search-icon" aria-hidden="true">{{ icon "search-lucide" 15 }}</span>
       <input type="search"
              name="q"
@@ -23,7 +23,7 @@
       <nav class="external-links" aria-label="External links">
         {{ range .ApplicationSettings.ExternalLinks }}
           <a class="external-link hover-{{ externalhovereffect . }}{{ if .Icon }} has-icon{{ end }}"
-             href="{{ .URL }}"
+             href="{{ route .URL }}"
              aria-label="{{ .Label }}{{ if .Description }} — {{ .Description }}{{ end }}"
              title="{{ externalhover . }}">
             {{ if .Icon }}<span class="external-link-icon" aria-hidden="true">{{ icon .Icon 18 }}</span>{{ end }}
@@ -54,7 +54,7 @@
             <div class="notification-row{{ if not .ReadAt }} unread{{ end }}"
                  data-notification-id="{{ .ID }}">
               <form class="notification-open"
-                    action="/notifications/{{ .ID }}/open"
+                    action="{{ route "/notifications/" }}{{ .ID }}/open"
                     method="post">
                 <button type="submit"
                         class="notification-item{{ if not .ReadAt }} unread{{ end }}">
@@ -90,7 +90,7 @@
 </details>
 {{ if .CanEdit }}
   <a class="button primary"
-     href="/pages/new{{ if .NewPageParent }}?parent={{ .NewPageParent | urlquery }}{{ end }}"
+     href="{{ route "/pages/new" }}{{ if .NewPageParent }}?parent={{ .NewPageParent | urlquery }}{{ end }}"
      aria-label="New page">{{ icon "plus-lucide" 16 }}<span>New page</span></a>
 {{ end }}
 </header>

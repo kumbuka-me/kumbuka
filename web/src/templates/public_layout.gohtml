@@ -7,13 +7,14 @@
       <meta name="color-scheme" content="light" />
       <title>{{ .Title }} · Kumbuka</title>
       <link rel="icon"
-            href="/assets/v-{{ .AssetVersion }}/favicon.svg"
+            href="{{ route "/assets/v-" }}{{ .AssetVersion }}/favicon.svg"
             type="image/svg+xml" />
-      <link rel="stylesheet" href="/assets/v-{{ .AssetVersion }}/css/app.css" />
+      <link rel="stylesheet"
+            href="{{ route "/assets/v-" }}{{ .AssetVersion }}/css/app.css" />
       <script type="module"
-              src="/assets/v-{{ .AssetVersion }}/js/form-validation.js"></script>
+              src="{{ route "/assets/v-" }}{{ .AssetVersion }}/js/form-validation.js"></script>
     </head>
-    <body class="auth-page">
+    <body data-route-prefix="{{ .RoutePrefix }}" class="auth-page">
       <main class="auth-shell">
         <div class="auth-brand" aria-label="Kumbuka">{{ logo }}</div>
         {{ template "content" . }}

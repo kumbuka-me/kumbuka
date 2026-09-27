@@ -8,7 +8,7 @@
     <section class="panel settings-panel"
              id="images"
              data-media-settings-browser
-             data-media-list-url="/api/images"
+             data-media-list-url="{{ route "/api/images" }}"
              data-media-scope="all"
              data-media-mode="admin"
              data-media-page-size="30"
@@ -24,7 +24,7 @@
       </p>
       <form class="media-settings-search"
             method="get"
-            action="/admin/images#images"
+            action="{{ route "/admin/images#images" }}"
             data-media-settings-search>
         <input type="search"
                name="image_q"
@@ -35,7 +35,7 @@
                data-media-settings-search-input />
         <button class="button" type="submit">{{ icon "search-lucide" 16 }}<span>Search</span></button>
         <a class="button"
-           href="/admin/images#images"
+           href="{{ route "/admin/images#images" }}"
            data-media-settings-clear
            {{ if not .ImageQuery }}hidden{{ end }}>Clear</a>
       </form>
@@ -44,7 +44,7 @@
           <article class="media-settings-row"
                    data-media-settings-item
                    data-media-id="{{ .ID }}">
-            <img src="{{ .URL }}" alt="" loading="lazy" />
+            <img src="{{ route .URL }}" alt="" loading="lazy" />
             <div class="media-settings-info">
               <strong>{{ .Filename }}</strong>
               <small>{{ filesize .SizeBytes }} · {{ if .Uploader }}{{ .Uploader }}{{ else }}Unknown uploader{{ end }} · {{ timeago .CreatedAt }}</small>
@@ -60,7 +60,7 @@
                       type="button"
                       data-media-delete
                       data-media-usage="{{ .UsageCount }}"
-                      data-delete-url="/api/images/{{ .ID }}">Delete</button>
+                      data-delete-url="{{ route "/api/images/" }}{{ .ID }}">Delete</button>
             </div>
           </article>
         {{ else }}

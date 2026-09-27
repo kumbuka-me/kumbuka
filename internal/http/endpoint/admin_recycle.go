@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
+	"github.com/kumbuka-me/kumbuka/internal/route"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 )
 
@@ -52,7 +53,7 @@ func RestoreAdminPage(recycleBinUseCases recycleBinService, logger *slog.Logger)
 			return
 		}
 
-		http.Redirect(w, r, "/admin/bin", http.StatusSeeOther)
+		route.Redirect(w, r, "/admin/bin", http.StatusSeeOther)
 	}
 }
 
@@ -73,6 +74,6 @@ func PermanentlyDeleteAdminPage(recycleBinUseCases recycleBinService, logger *sl
 			return
 		}
 
-		http.Redirect(w, r, "/admin/bin", http.StatusSeeOther)
+		route.Redirect(w, r, "/admin/bin", http.StatusSeeOther)
 	}
 }

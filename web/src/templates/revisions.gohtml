@@ -56,7 +56,7 @@
             {{ end }} changes">{{ icon "chevron-right-lucide" 16 }}</button>
           {{ template "revision-item" $revision }}
           {{ if $root.CanEdit }}
-            <form action="/revisions/{{ $revision.Number }}/restore/{{ $root.RevisionSlug }}"
+            <form action="{{ route "/revisions/" }}{{ $revision.Number }}/restore/{{ $root.RevisionSlug }}"
                   method="post"
                   data-confirm="Restore revision {{ $revision.Number }}? Kumbuka will create a new revision with this content."
                   data-confirm-title="Restore revision"

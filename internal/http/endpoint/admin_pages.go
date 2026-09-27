@@ -9,6 +9,7 @@ import (
 	apppages "github.com/kumbuka-me/kumbuka/internal/application/pages"
 	"github.com/kumbuka-me/kumbuka/internal/application/portablearchive"
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
+	"github.com/kumbuka-me/kumbuka/internal/route"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
@@ -103,7 +104,7 @@ func BulkAdminPages(
 			return
 		}
 
-		http.Redirect(w, r, "/admin/pages", http.StatusSeeOther)
+		route.Redirect(w, r, "/admin/pages", http.StatusSeeOther)
 	}
 }
 

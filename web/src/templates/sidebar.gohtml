@@ -11,28 +11,28 @@
       <p data-tree-filter-status role="status" hidden></p>
     </div>
 <nav data-navigation
-     data-navigation-state-url="/settings/preferences/navigation-state"
+     data-navigation-state-url="{{ route "/settings/preferences/navigation-state" }}"
      data-navigation-remember="{{ if .Preferences.RememberNavigationState }}true{{ else }}false{{ end }}">
     {{ range .SidebarWidgets }}
       <section class="sidebar-shortcuts plugin-widget"
                data-kumbuka-plugin="{{ .PluginID }}"
                data-kumbuka-module="{{ .ModuleID }}">
-        {{ .HTML }}
+        {{ routeHTML .HTML }}
         {{ if .Actions }}
           <div class="plugin-widget-actions">
             {{ range .Actions }}
               {{ if eq .Kind "link" }}
                 <a class="widget-action"
-                   href="{{ .URL }}">{{ if .Icon }}{{ icon .Icon 14 }}{{ end }}<span>{{ .Label }}</span></a>
+                   href="{{ route .URL }}">{{ if .Icon }}{{ icon .Icon 14 }}{{ end }}<span>{{ .Label }}</span></a>
               {{ else if eq .Kind "dialog" }}
                 <button class="widget-action"
                         type="button"
                         data-widget-dialog-open
-                        data-widget-dialog-url="{{ .URL }}"
+                        data-widget-dialog-url="{{ route .URL }}"
                         data-widget-dialog-title="{{ .Label }}">{{ if .Icon }}{{ icon .Icon 14 }}{{ end }}<span>{{ .Label }}</span></button>
               {{ else if eq .Kind "command" }}
                 <form method="post"
-                      action="{{ .URL }}"
+                      action="{{ route .URL }}"
                       {{ if .Confirm }}data-confirm="{{ .Confirm }}"
                       {{ end }}>
                   <input type="hidden" name="surface" value="{{ .Surface }}" />
@@ -52,7 +52,7 @@
         {{ range .SavedSearches }}
           {{ if .Pinned }}
             <a class="sidebar-shortcut-link"
-               href="/search?q={{ .Query }}"
+               href="{{ route "/search?q=" }}{{ .Query }}"
                title="{{ .Query }}">{{ icon "search-lucide" 14 }}<span>{{ .Name }}</span></a>
           {{ end }}
         {{ end }}
@@ -82,7 +82,7 @@
   {{ template "account-menu" . }}
   <div class="sidebar-resizer"
        data-sidebar-resizer
-       data-sidebar-width-url="/settings/preferences/sidebar-width"
+       data-sidebar-width-url="{{ route "/settings/preferences/sidebar-width" }}"
        role="separator"
        aria-orientation="vertical"
        aria-label="Resize sidebar"

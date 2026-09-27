@@ -3,8 +3,14 @@
 
 // Offline asset caching and user-scoped private page caching.
 
-const assetCacheName = "kumbuka-assets-v1";
-const pageCachePrefix = "kumbuka-pages-v2-";
+const serviceWorker = self as unknown as ServiceWorkerGlobalScope;
+const scopePath = new URL(serviceWorker.registration.scope).pathname;
+const cacheNamespace =
+  scopePath === "/"
+    ? "kumbuka-"
+    : `kumbuka-scope-${encodeURIComponent(scopePath)}-`;
+const assetCacheName = `${cacheNamespace}assets-v1`;
+const pageCachePrefix = `${cacheNamespace}pages-v2-`;
 let pageCacheName = "";
 const clientCaches = new Map<string, string>();
 let generation = 0;
@@ -16,8 +22,6 @@ function privateOperation(work: () => Promise<unknown>): Promise<void> {
   privateOperations = result.catch(() => undefined);
   return result;
 }
-
-const serviceWorker = self as unknown as ServiceWorkerGlobalScope;
 
 function isConfigureUserMessage(value: unknown): value is ConfigureUserMessage {
   if (typeof value !== "object" || value === null) return false;
@@ -34,9 +38,10 @@ function handleInstall(): void {
 
 function staleCache(name: string): boolean {
   return (
-    name.startsWith("kumbuka-offline-") ||
-    (name.startsWith("kumbuka-pages-") && !name.startsWith(pageCachePrefix)) ||
-    (name.startsWith("kumbuka-assets-") && name !== assetCacheName)
+    name.startsWith(`${cacheNamespace}offline-`) ||
+    (name.startsWith(`${cacheNamespace}pages-`) &&
+      !name.startsWith(pageCachePrefix)) ||
+    (name.startsWith(`${cacheNamespace}assets-`) && name !== assetCacheName)
   );
 }
 
@@ -91,7 +96,8 @@ function handleMessage(event: ExtendableMessageEvent): void {
 function cacheablePage(url: URL): boolean {
   return (
     url.origin === serviceWorker.location.origin &&
-    (url.pathname === "/" || url.pathname.startsWith("/pages/"))
+    (url.pathname === scopePath ||
+      url.pathname.startsWith(scopePath + "pages/"))
   );
 }
 
@@ -205,7 +211,7 @@ function handleFetch(event: FetchEvent): void {
   const url = new URL(request.url);
   if (url.origin !== serviceWorker.location.origin) return;
 
-  if (url.pathname.startsWith("/assets/")) {
+  if (url.pathname.startsWith(scopePath + "assets/")) {
     event.respondWith(fetchAsset(request));
     return;
   }

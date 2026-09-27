@@ -25,7 +25,7 @@
         </div>
         <form class="plugin-settings-form"
               method="post"
-              action="/admin/plugin-settings/{{ $plugin.Manifest.ID }}/settings"
+              action="{{ route "/admin/plugin-settings/" }}{{ $plugin.Manifest.ID }}/settings"
               data-validate-form
               data-error-title="Could not save {{ $plugin.Manifest.Name }} settings">
           {{ range $plugin.Manifest.Modules }}
@@ -60,7 +60,7 @@
         </div>
         <form class="stacked-form plugin-settings-form"
               method="post"
-              action="/admin/plugin-settings/{{ $plugin.Manifest.ID }}/settings-group"
+              action="{{ route "/admin/plugin-settings/" }}{{ $plugin.Manifest.ID }}/settings-group"
               data-validate-form
               data-error-title="Could not save {{ .Module.Name }}">
           <input type="hidden" name="settings_id" value="{{ .Module.ID }}" />
@@ -118,7 +118,7 @@
             </div>
           </div>
           <form method="post"
-                action="/admin/plugin-settings/{{ $plugin.Manifest.ID }}/admin-action"
+                action="{{ route "/admin/plugin-settings/" }}{{ $plugin.Manifest.ID }}/admin-action"
                 data-validate-form
                 data-error-title="Could not run {{ .Name }}">
             <input type="hidden" name="action_id" value="{{ .ID }}" />
@@ -150,7 +150,7 @@
           <summary>Add {{ .Module.Name }}</summary>
           <form class="stacked-form plugin-resource-form"
                 method="post"
-                action="/admin/plugin-settings/{{ $plugin.Manifest.ID }}/resource-save"
+                action="{{ route "/admin/plugin-settings/" }}{{ $plugin.Manifest.ID }}/resource-save"
                 data-validate-form
                 data-error-title="Could not add {{ .Module.Name }}">
             <input type="hidden" name="resource_id" value="{{ .Module.ID }}" />
@@ -264,7 +264,7 @@
               <summary>{{ .Key }}</summary>
               <form class="stacked-form plugin-resource-form"
                     method="post"
-                    action="/admin/plugin-settings/{{ $plugin.Manifest.ID }}/resource-save"
+                    action="{{ route "/admin/plugin-settings/" }}{{ $plugin.Manifest.ID }}/resource-save"
                     data-validate-form
                     data-error-title="Could not save {{ $resource.Module.Name }}">
                 <input type="hidden" name="resource_id" value="{{ $resource.Module.ID }}" />
@@ -376,7 +376,7 @@
                   <button class="button primary compact" type="submit">Save</button>
                   <button class="button danger compact"
                           type="submit"
-                          formaction="/admin/plugin-settings/{{ $plugin.Manifest.ID }}/resource-delete"
+                          formaction="{{ route "/admin/plugin-settings/" }}{{ $plugin.Manifest.ID }}/resource-delete"
                           data-confirm="Delete {{ .Key }}?"
                           data-confirm-label="Delete">Delete</button>
                 </div>

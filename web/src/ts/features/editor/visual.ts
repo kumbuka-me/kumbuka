@@ -1,3 +1,4 @@
+import { route } from "../../core/route.ts";
 import { visualPane } from "./visual-pane.ts";
 import { loadEditorCatalog, type CatalogCompletion } from "./catalog.ts";
 import { openCompletionPicker } from "./completion-picker.ts";
@@ -1225,7 +1226,17 @@ export function setupVisualEditor(form: HTMLFormElement): void {
             TableKit.configure({
               table: { resizable: true, cellMinWidth: 40 },
             }),
-            Image.configure({ allowBase64: false }),
+            Image.extend({
+              renderHTML({ HTMLAttributes }) {
+                const attributes = {
+                  ...this.options.HTMLAttributes,
+                  ...HTMLAttributes,
+                };
+                if (typeof attributes.src === "string")
+                  attributes.src = route(attributes.src);
+                return ["img", attributes];
+              },
+            }).configure({ allowBase64: false }),
             visualCodeLanguages(),
             visualTableStyles(() => markdownSource.value),
             ...visualWidgetNodes(widgets, widgetCompletions),

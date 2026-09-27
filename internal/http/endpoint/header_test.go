@@ -20,6 +20,7 @@ func TestNotificationHeaderUnreadClass(t *testing.T) {
 	require.NoError(t, err)
 
 	tmpl, err := template.New("header").Funcs(template.FuncMap{
+		"route":         func(s string) string { return s },
 		"icon":          func(string, int) template.HTML { return "" },
 		"logo":          func() template.HTML { return "" },
 		"timeago":       func(time.Time) string { return "now" },

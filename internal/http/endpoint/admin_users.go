@@ -9,6 +9,7 @@ import (
 
 	appusers "github.com/kumbuka-me/kumbuka/internal/application/users"
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
+	"github.com/kumbuka-me/kumbuka/internal/route"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
@@ -135,7 +136,7 @@ func UpdateAdminUser(
 			return
 		}
 
-		http.Redirect(w, r, "/admin/users", http.StatusSeeOther)
+		route.Redirect(w, r, "/admin/users", http.StatusSeeOther)
 	}
 }
 
@@ -153,7 +154,7 @@ func RevokeAdminUserSessions(userUseCases userManagementService, logger *slog.Lo
 			return
 		}
 
-		http.Redirect(w, r, "/admin/users", http.StatusSeeOther)
+		route.Redirect(w, r, "/admin/users", http.StatusSeeOther)
 	}
 }
 
@@ -173,7 +174,7 @@ func ApprovePendingOIDCIdentity(userUseCases oidcIdentityService, logger *slog.L
 			return
 		}
 
-		http.Redirect(w, r, "/admin/users#pending-identities", http.StatusSeeOther)
+		route.Redirect(w, r, "/admin/users#pending-identities", http.StatusSeeOther)
 	}
 }
 
@@ -207,7 +208,7 @@ func LinkPendingOIDCIdentity(userUseCases oidcIdentityService, logger *slog.Logg
 			return
 		}
 
-		http.Redirect(w, r, "/admin/users#pending-identities", http.StatusSeeOther)
+		route.Redirect(w, r, "/admin/users#pending-identities", http.StatusSeeOther)
 	}
 }
 
@@ -244,7 +245,7 @@ func pendingOIDCIdentityStatusHandler(
 			return
 		}
 
-		http.Redirect(w, r, "/admin/users#pending-identities", http.StatusSeeOther)
+		route.Redirect(w, r, "/admin/users#pending-identities", http.StatusSeeOther)
 	}
 }
 
@@ -289,7 +290,7 @@ func RemoveAdminOIDCIdentity(userUseCases oidcIdentityService, logger *slog.Logg
 			return
 		}
 
-		http.Redirect(w, r, "/admin/users#oidc-identities", http.StatusSeeOther)
+		route.Redirect(w, r, "/admin/users#oidc-identities", http.StatusSeeOther)
 	}
 }
 

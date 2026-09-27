@@ -12,7 +12,7 @@
       </p>
       <form class="token-create-form"
             data-token-form
-            action="/admin/tokens"
+            action="{{ route "/admin/tokens" }}"
             method="post">
         <label>
           Name<input name="name" required maxlength="120" placeholder="automation" />
@@ -61,7 +61,7 @@
                   <button class="button danger"
                           type="button"
                           data-token-delete
-                          data-delete-url="/admin/tokens/{{ .ID }}">Revoke</button>
+                          data-delete-url="{{ route "/admin/tokens/" }}{{ .ID }}">Revoke</button>
                 </td>
               </tr>
             {{ else }}

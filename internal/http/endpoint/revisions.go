@@ -6,6 +6,7 @@ import (
 
 	"github.com/kumbuka-me/kumbuka/internal/http/auth"
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
+	"github.com/kumbuka-me/kumbuka/internal/route"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/revision"
 )
@@ -45,6 +46,6 @@ func RestoreRevision(pageUseCases pageRevisionWriter, views *webview.Views) http
 			return
 		}
 
-		http.Redirect(w, r, "/pages/"+page.Slug, http.StatusSeeOther)
+		route.Redirect(w, r, "/pages/"+page.Slug, http.StatusSeeOther)
 	}
 }

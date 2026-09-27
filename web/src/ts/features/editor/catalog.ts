@@ -1,3 +1,4 @@
+import { route } from "../../core/route.ts";
 // Runtime-checked metadata returned by GET /api/editor/catalog.
 
 import { isRecord, isStringRecord, requireArrayOf } from "../../core/guards.ts";
@@ -194,7 +195,7 @@ export function invalidateEditorCatalog(): void {
 export function loadEditorCatalog(): Promise<EditorCatalog> {
   if (catalogLoad) return catalogLoad;
 
-  catalogLoad = requestJSON("/api/editor/catalog")
+  catalogLoad = requestJSON(route("/api/editor/catalog"))
     .then(parseEditorCatalog)
     .catch((error) => {
       catalogLoad = null;

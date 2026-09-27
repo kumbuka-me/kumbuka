@@ -10,6 +10,7 @@ import (
 	apppages "github.com/kumbuka-me/kumbuka/internal/application/pages"
 	"github.com/kumbuka-me/kumbuka/internal/http/auth"
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
+	"github.com/kumbuka-me/kumbuka/internal/route"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	md "github.com/kumbuka-me/kumbuka/pkg/markdown"
@@ -46,7 +47,7 @@ func ViewPage(
 			return
 		}
 		if alias != "" {
-			http.Redirect(w, r, "/pages/"+alias, http.StatusPermanentRedirect)
+			route.Redirect(w, r, "/pages/"+alias, http.StatusPermanentRedirect)
 			return
 		}
 

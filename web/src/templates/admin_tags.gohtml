@@ -14,7 +14,7 @@
         {{ range .AdminTags }}
           <div class="admin-list-row">
             <span><strong>{{ .Name }}</strong><small>{{ .PageCount }} page{{ if ne .PageCount 1 }}s{{ end }}</small></span>
-            <form action="/admin/tags/{{ .ID }}/delete"
+            <form action="{{ route "/admin/tags/" }}{{ .ID }}/delete"
                   method="post"
                   data-confirm="Delete tag {{ .Name }} from all pages?">
               <button class="button danger" type="submit">Delete</button>

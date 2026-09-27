@@ -1,3 +1,4 @@
+import { route } from "../core/route.ts";
 // User mention detection and autocomplete.
 
 import { isRecord, requireArrayOf } from "../core/guards.ts";
@@ -167,7 +168,7 @@ export async function searchMentionUsers(
   query: string,
 ): Promise<MentionUser[]> {
   const payload = await requestJSON(
-    `/api/mentions/users?q=${encodeURIComponent(query)}`,
+    route(`/api/mentions/users?q=${encodeURIComponent(query)}`),
   );
 
   return mentionUsers(payload);

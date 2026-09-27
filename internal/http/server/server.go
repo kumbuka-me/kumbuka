@@ -4,8 +4,10 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/containeroo/httpprefix"
 	"github.com/kumbuka-me/kumbuka/internal/http/endpoint"
 	"github.com/kumbuka-me/kumbuka/internal/http/middleware"
+	"github.com/kumbuka-me/kumbuka/internal/route"
 )
 
 // Config groups the capabilities used to construct HTTP routes.
@@ -78,7 +80,7 @@ func New(config Config) http.Handler {
 		application.ServeHTTP(response, request)
 	}))
 
-	return root
+	return httpprefix.MountUnderPrefix(route.WithPrefix(root, config.RoutePrefix), config.RoutePrefix)
 }
 
 // methodNotAllowed rejects unsupported methods on operational endpoints without falling through to application routes.

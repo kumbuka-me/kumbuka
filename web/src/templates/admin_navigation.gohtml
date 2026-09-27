@@ -13,7 +13,7 @@
         {{ range .AdminNavigation }}
           {{ $item := . }}
           <form class="navigation-icon-form"
-                action="/admin/navigation"
+                action="{{ route "/admin/navigation" }}"
                 method="post"
                 data-icon-picker-owner>
             <input type="hidden" name="path" value="{{ $item.Path }}" />
@@ -42,7 +42,7 @@
   </section>
   <dialog class="icon-picker-dialog"
           data-icon-picker-dialog
-          data-icons-url="/api/icons"
+          data-icons-url="{{ route "/api/icons" }}"
           aria-labelledby="icon-picker-title">
     <div class="app-dialog-header">
       <div>

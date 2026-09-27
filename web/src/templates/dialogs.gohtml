@@ -123,13 +123,13 @@
     <h2 class="sr-only" id="command-palette-title">Command palette</h2>
     <div class="command-palette-options" role="listbox">
       <div class="command-palette-static">
-        <a href="/"
+        <a href="{{ route "/" }}"
            class="command-palette-option"
            data-command-option
            data-command-static
            role="option">{{ icon "house-lucide" 17 }}<span><strong>Home</strong><small>Open dashboard</small></span></a>
         {{ if .CanEdit }}
-          <a href="/pages/new{{ if .NewPageParent }}?parent={{ .NewPageParent | urlquery }}{{ end }}"
+          <a href="{{ route "/pages/new" }}{{ if .NewPageParent }}?parent={{ .NewPageParent | urlquery }}{{ end }}"
              class="command-palette-option"
              data-command-option
              data-command-static
@@ -137,14 +137,14 @@
         {{ end }}
         {{ if .CurrentPage }}
           {{ if .CanEdit }}
-            <a href="/edit/{{ .CurrentPage.Slug }}"
+            <a href="{{ route "/edit/" }}{{ .CurrentPage.Slug }}"
                class="command-palette-option"
                data-command-option
                data-command-static
                role="option">{{ icon "pencil-lucide" 17 }}<span><strong>Edit current page</strong><small>{{ .CurrentPage.Title }}</small></span></a>
           {{ end }}
         {{ end }}
-        <a href="/graph{{ if .CurrentPage }}?slug={{ .CurrentPage.Slug }}{{ end }}"
+        <a href="{{ route "/graph" }}{{ if .CurrentPage }}?slug={{ .CurrentPage.Slug }}{{ end }}"
            class="command-palette-option"
            data-command-option
            data-command-static
@@ -157,13 +157,13 @@
                 role="option">
           {{ icon "keyboard-lucide" 17 }}<span><strong>Keyboard shortcuts</strong><small>Show navigation and editor shortcuts</small></span>
         </button>
-        <a href="/settings"
+        <a href="{{ route "/settings" }}"
            class="command-palette-option"
            data-command-option
            data-command-static
            role="option">{{ icon "settings-lucide" 17 }}<span><strong>Settings</strong><small>Personal preferences</small></span></a>
         {{ if eq .User.Role "admin" }}
-          <a href="/admin"
+          <a href="{{ route "/admin" }}"
              class="command-palette-option"
              data-command-option
              data-command-static

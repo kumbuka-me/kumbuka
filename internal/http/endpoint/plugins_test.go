@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/kumbuka-me/kumbuka/internal/route"
 	"github.com/kumbuka-me/kumbuka/pkg/plugin"
 	"github.com/kumbuka-me/kumbuka/pkg/plugin/wasm"
 	"github.com/kumbuka-me/kumbuka/pkg/pluginbrowser"
@@ -111,6 +112,14 @@ func TestBrowserPluginLifecycleAndAssetBoundary(t *testing.T) {
 	assert.Contains(t, w.Header().Get("Content-Security-Policy"), "connect-src 'none'")
 	assert.NotContains(t, w.Header().Get("Content-Security-Policy"), "allow-same-origin")
 	assert.Contains(t, w.Body.String(), "/plugins/runtime.js")
+	for _, prefix := range []string{"", "/kumbuka"} {
+		response := httptest.NewRecorder()
+		route.WithPrefix(PluginFrame(manager), prefix).ServeHTTP(response, r)
+		require.Equal(t, http.StatusOK, response.Code)
+		assert.Contains(t, response.Body.String(), prefix+"/plugins/runtime.js")
+		assert.Contains(t, response.Body.String(), prefix+"/plugins/"+module.PluginID+"/"+module.Digest+"/assets/plugin.js")
+	}
+
 	require.NoError(t, manager.Disable(ctx, module.PluginID))
 	assert.Len(t, manager.BrowserModules(), 1)
 	assert.Equal(t, 404, asset("plugin.js", module.Digest).Code)

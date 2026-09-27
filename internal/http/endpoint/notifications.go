@@ -8,6 +8,7 @@ import (
 
 	"github.com/kumbuka-me/kumbuka/internal/http/auth"
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
+	"github.com/kumbuka-me/kumbuka/internal/route"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
 
@@ -60,7 +61,7 @@ func OpenNotification(notificationUseCases notificationService, logger *slog.Log
 		}
 
 		w.Header().Set("Cache-Control", "private, no-store")
-		http.Redirect(w, r, destination, http.StatusSeeOther)
+		route.Redirect(w, r, destination, http.StatusSeeOther)
 	}
 }
 

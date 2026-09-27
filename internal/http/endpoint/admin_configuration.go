@@ -8,6 +8,7 @@ import (
 
 	"github.com/kumbuka-me/kumbuka/internal/http/auth"
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
+	"github.com/kumbuka-me/kumbuka/internal/route"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
@@ -139,7 +140,7 @@ func SaveAdminAuthentication(
 			return
 		}
 
-		http.Redirect(w, r, "/admin/configuration", http.StatusSeeOther)
+		route.Redirect(w, r, "/admin/configuration", http.StatusSeeOther)
 	}
 }
 
@@ -282,7 +283,7 @@ func SaveAdminSettings(settingsUseCases settingsService, views *webview.Views, l
 			return
 		}
 
-		http.Redirect(w, r, "/admin/configuration", http.StatusSeeOther)
+		route.Redirect(w, r, "/admin/configuration", http.StatusSeeOther)
 	}
 }
 

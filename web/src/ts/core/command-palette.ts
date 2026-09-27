@@ -1,3 +1,4 @@
+import { route } from "./route.ts";
 // Global command palette search and keyboard interaction.
 
 import { requiredElement } from "./dom.ts";
@@ -68,7 +69,7 @@ function setupCommandPalette(dialog: HTMLDialogElement): void {
     pages.forEach((page) => {
       const anchor = document.createElement("a");
 
-      anchor.href = `/pages/${page.slug}`;
+      anchor.href = route(`/pages/${page.slug}`);
       anchor.dataset.commandOption = "";
       anchor.className = "command-palette-option";
       anchor.setAttribute("role", "option");
@@ -112,7 +113,7 @@ function setupCommandPalette(dialog: HTMLDialogElement): void {
 
     try {
       const value = await requestJSON(
-        `/api/search?q=${encodeURIComponent(query)}`,
+        route(`/api/search?q=${encodeURIComponent(query)}`),
       );
       if (current !== requestID) return;
 

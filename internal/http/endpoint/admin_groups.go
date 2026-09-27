@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
+	"github.com/kumbuka-me/kumbuka/internal/route"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 )
 
@@ -47,7 +48,7 @@ func CreateAdminGroup(groupUseCases groupWriter, logger *slog.Logger) http.Handl
 			return
 		}
 
-		http.Redirect(w, r, "/admin/groups", http.StatusSeeOther)
+		route.Redirect(w, r, "/admin/groups", http.StatusSeeOther)
 	}
 }
 
@@ -68,7 +69,7 @@ func DeleteAdminGroup(groupUseCases groupWriter, logger *slog.Logger) http.Handl
 			return
 		}
 
-		http.Redirect(w, r, "/admin/groups", http.StatusSeeOther)
+		route.Redirect(w, r, "/admin/groups", http.StatusSeeOther)
 	}
 }
 

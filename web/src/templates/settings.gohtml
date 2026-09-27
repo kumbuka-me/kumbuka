@@ -50,7 +50,7 @@
           Identity information comes from the configured authentication source and is read-only here.
         </p>
         {{ if eq .User.Role "admin" }}
-          <p><a class="button" href="/admin">Open administration</a></p>
+          <p><a class="button" href="{{ route "/admin" }}">Open administration</a></p>
         {{ end }}
       </section>
       {{ if .LocalCredentialAuthenticated }}
@@ -59,7 +59,7 @@
             <h2>Change password</h2>
           </div>
           <form class="stacked-form"
-                action="/settings/local-password"
+                action="{{ route "/settings/local-password" }}"
                 method="post"
                 data-validate-form
                 novalidate>
@@ -104,7 +104,9 @@
         <div class="panel-title">
           <h2>Preferences</h2>
         </div>
-        <form class="preferences-form" action="/settings/preferences" method="post">
+        <form class="preferences-form"
+              action="{{ route "/settings/preferences" }}"
+              method="post">
           <label>
             Theme
             <select name="theme" data-theme-select>
@@ -271,7 +273,7 @@
           </div>
         </div>
         <form class="saved-search-create"
-              action="/settings/saved-searches"
+              action="{{ route "/settings/saved-searches" }}"
               method="post">
           <label>
             Name<input name="name" required placeholder="Production databases" />
@@ -290,8 +292,9 @@
         <div class="saved-search-list">
           {{ range .SavedSearches }}
             <article>
-              <a href="/search?q={{ .Query }}"><span>{{ icon "search-lucide" 15 }}</span><span><strong>{{ .Name }}</strong><small>{{ .Query }}</small></span></a>
-              <form action="/settings/saved-searches/{{ .ID }}/delete" method="post">
+              <a href="{{ route "/search?q=" }}{{ .Query }}"><span>{{ icon "search-lucide" 15 }}</span><span><strong>{{ .Name }}</strong><small>{{ .Query }}</small></span></a>
+              <form action="{{ route "/settings/saved-searches/" }}{{ .ID }}/delete"
+                    method="post">
                 <button class="icon-button"
                         type="submit"
                         data-confirm="Delete saved search {{ .Name }}?"
@@ -313,7 +316,7 @@
         </p>
         <form class="token-create-form"
               data-token-form
-              action="/settings/tokens"
+              action="{{ route "/settings/tokens" }}"
               method="post">
           <label>
             Name<input name="name" required maxlength="120" placeholder="laptop curl" />
@@ -352,7 +355,7 @@
                     <button class="button danger"
                             type="button"
                             data-token-delete
-                            data-delete-url="/settings/tokens/{{ .ID }}">Revoke</button>
+                            data-delete-url="{{ route "/settings/tokens/" }}{{ .ID }}">Revoke</button>
                   </td>
                 </tr>
               {{ else }}
@@ -368,7 +371,7 @@
         <section class="panel settings-panel settings-wide"
                  id="media"
                  data-media-settings-browser
-                 data-media-list-url="/api/images"
+                 data-media-list-url="{{ route "/api/images" }}"
                  data-media-scope="mine"
                  data-media-mode="user"
                  data-media-page-size="30"
@@ -384,7 +387,7 @@
           </p>
           <form class="media-settings-search"
                 method="get"
-                action="/settings#media"
+                action="{{ route "/settings#media" }}"
                 data-media-settings-search>
             <input type="search"
                    name="image_q"
@@ -395,7 +398,7 @@
                    data-media-settings-search-input />
             <button class="button" type="submit">{{ icon "search-lucide" 16 }}<span>Search</span></button>
             <a class="button"
-               href="/settings#media"
+               href="{{ route "/settings#media" }}"
                data-media-settings-clear
                {{ if not .ImageQuery }}hidden{{ end }}>Clear</a>
           </form>
@@ -404,7 +407,7 @@
               <article class="media-settings-row"
                        data-media-settings-item
                        data-media-id="{{ .ID }}">
-                <img src="{{ .URL }}" alt="" loading="lazy" />
+                <img src="{{ route .URL }}" alt="" loading="lazy" />
                 <div class="media-settings-info">
                   <strong>{{ .Filename }}</strong>
                   <small>{{ filesize .SizeBytes }} · {{ timeago .CreatedAt }}</small>
@@ -421,7 +424,7 @@
                             type="button"
                             data-media-delete
                             data-media-usage="0"
-                            data-delete-url="/api/images/{{ .ID }}">Delete</button>
+                            data-delete-url="{{ route "/api/images/" }}{{ .ID }}">Delete</button>
                   {{ end }}
                 </div>
               </article>

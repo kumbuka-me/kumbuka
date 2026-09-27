@@ -1,3 +1,4 @@
+import { route } from "../../core/route.ts";
 // Searchable visual-editor picker for resource-backed plugin completions.
 
 import { errorMessage, responseProblem } from "../../core/http.ts";
@@ -302,7 +303,9 @@ async function saveCompletionResource(
 ): Promise<CatalogCompletion | undefined> {
   const label = formLabelValue(form, provider);
   const response = await fetch(
-    `/admin/plugin-settings/${encodeURIComponent(provider.plugin_id)}/resource-save`,
+    route(
+      `/admin/plugin-settings/${encodeURIComponent(provider.plugin_id)}/resource-save`,
+    ),
     {
       method: "POST",
       credentials: "same-origin",

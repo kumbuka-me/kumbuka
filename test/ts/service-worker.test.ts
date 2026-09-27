@@ -3,11 +3,12 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { runInNewContext } from "node:vm";
 
-function worker() {
+function worker(prefix = "") {
   const listeners = new Map<string, (event: any) => void>();
   const stored = new Map<string, Map<string, Response>>();
   const runtime = {
     self: {
+      registration: { scope: `https://wiki.example${prefix}/` },
       location: { origin: "https://wiki.example" },
       addEventListener: (type: string, listener: (event: any) => void) =>
         listeners.set(type, listener),
@@ -141,4 +142,36 @@ test("malformed configure-user messages are ignored instead of coerced", async (
   assert.ok(response);
   await response;
   assert.equal(w.stored.get("kumbuka-pages-v2-7")?.size, 1);
+});
+
+test("a prefixed worker caches only its deployment's pages and assets", async () => {
+  const w = worker("/kumbuka");
+  await w.configure("7");
+  w.runtime.fetch = async () =>
+    new Response("scoped", { headers: { "X-Kumbuka-User-ID": "7" } });
+  for (const path of [
+    "/",
+    "/pages/start",
+    "/assets/app.js",
+    "/other/pages/start",
+    "/kumbuka-other/pages/start",
+    "/kumbuka/api/pages",
+  ]) {
+    assert.equal(w.request("tab-1", path), undefined);
+  }
+  for (const path of [
+    "/kumbuka/",
+    "/kumbuka/pages/start",
+    "/kumbuka/assets/v-test/app.js",
+  ]) {
+    assert.equal(await (await w.request("tab-1", path))?.text(), "scoped");
+  }
+  assert.equal(w.stored.get("kumbuka-scope-%2Fkumbuka%2F-pages-v2-7")?.size, 2);
+  assert.equal(w.stored.get("kumbuka-scope-%2Fkumbuka%2F-assets-v1")?.size, 1);
+  w.stored.set("kumbuka-pages-v2-8", new Map());
+  w.stored.set("kumbuka-scope-%2Fother%2F-pages-v2-8", new Map());
+  await w.configure("");
+  assert.equal(w.stored.has("kumbuka-scope-%2Fkumbuka%2F-pages-v2-7"), false);
+  assert.equal(w.stored.has("kumbuka-pages-v2-8"), true);
+  assert.equal(w.stored.has("kumbuka-scope-%2Fother%2F-pages-v2-8"), true);
 });

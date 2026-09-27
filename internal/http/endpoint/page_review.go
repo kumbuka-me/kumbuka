@@ -8,6 +8,7 @@ import (
 
 	apppages "github.com/kumbuka-me/kumbuka/internal/application/pages"
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
+	"github.com/kumbuka-me/kumbuka/internal/route"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/kumbuka-me/kumbuka/pkg/revision"
@@ -94,7 +95,7 @@ func AddPageReviewComment(pageUseCases pageReviewDiscussionService, views *webvi
 		}
 
 		target := fmt.Sprintf("/reviews/%d/%s#review-comment-%d", reviewID, slug, comment.ID)
-		http.Redirect(w, r, target, http.StatusSeeOther)
+		route.Redirect(w, r, target, http.StatusSeeOther)
 	}
 }
 
@@ -117,7 +118,7 @@ func ApplyPageReviewSuggestion(pageUseCases pageReviewDiscussionService, views *
 			return
 		}
 
-		http.Redirect(w, r, "/pages/"+page.Slug, http.StatusSeeOther)
+		route.Redirect(w, r, "/pages/"+page.Slug, http.StatusSeeOther)
 	}
 }
 
@@ -136,7 +137,7 @@ func ApplyAllPageReviewSuggestions(pageUseCases pageReviewDiscussionService, vie
 			return
 		}
 
-		http.Redirect(w, r, "/pages/"+page.Slug, http.StatusSeeOther)
+		route.Redirect(w, r, "/pages/"+page.Slug, http.StatusSeeOther)
 	}
 }
 
