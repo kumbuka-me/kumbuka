@@ -391,62 +391,99 @@ func preparePageDerivedData(
 
 // savePageRecord creates or updates the pages row and records aliases for renames.
 func savePageRecord(ctx context.Context, tx pgx.Tx, record pageSaveRecord) (int64, error) {
-	lookupSlug := strings.TrimSpace(record.previousSlug)
-	if lookupSlug == "" {
-		lookupSlug = record.slug
+	lookupSlug := pageRecordLookupSlug(record)
+	id, deleted, found, err := loadPageRecordForUpdate(ctx, tx, lookupSlug)
+	if err != nil {
+		return 0, err
+	}
+	if !found {
+		return insertPageRecord(ctx, tx, record)
+	}
+	if deleted {
+		return 0, domain.ErrPageInBin
+	}
+	if err := renamePageRecord(ctx, tx, id, lookupSlug, record.slug); err != nil {
+		return 0, err
+	}
+	if err := updatePageRecord(ctx, tx, id, record); err != nil {
+		return 0, err
+	}
+
+	return id, nil
+}
+
+// pageRecordLookupSlug selects the existing path used to lock an edit or the destination path for a create.
+func pageRecordLookupSlug(record pageSaveRecord) string {
+	if previous := strings.TrimSpace(record.previousSlug); previous != "" {
+		return previous
+	}
+	return record.slug
+}
+
+// loadPageRecordForUpdate locks an existing page row and reports whether it is deleted.
+func loadPageRecordForUpdate(ctx context.Context, tx pgx.Tx, slug string) (id int64, deleted, found bool, err error) {
+	err = tx.QueryRow(ctx, `
+SELECT id,deleted_at IS NOT NULL
+FROM pages
+WHERE slug=$1
+FOR UPDATE`, slug).Scan(&id, &deleted)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, false, false, nil
+	}
+	if err != nil {
+		return 0, false, false, err
+	}
+
+	return id, deleted, true, nil
+}
+
+// insertPageRecord creates one page after rejecting aliases that already own the destination path.
+func insertPageRecord(ctx context.Context, tx pgx.Tx, record pageSaveRecord) (int64, error) {
+	var aliasExists bool
+	if err := tx.QueryRow(ctx, `
+SELECT EXISTS(
+  SELECT 1
+  FROM page_aliases
+  WHERE alias=$1
+)`, record.slug).Scan(&aliasExists); err != nil {
+		return 0, err
+	}
+	if aliasExists {
+		return 0, domain.ErrAlreadyExists
 	}
 
 	var id int64
-	var deleted bool
 	err := tx.QueryRow(ctx, `
-SELECT id,deleted_at IS NOT NULL
-FROM pages
-WHERE slug=$1 FOR UPDATE`, lookupSlug).Scan(&id, &deleted)
-
-	switch {
-	case errors.Is(err, pgx.ErrNoRows):
-		var aliasExists bool
-		if err := tx.QueryRow(ctx, `
-SELECT EXISTS(SELECT 1 FROM page_aliases WHERE alias=$1)`, record.slug).Scan(&aliasExists); err != nil {
-			return 0, err
-		}
-		if aliasExists {
-			return 0, domain.ErrAlreadyExists
-		}
-
-		err = tx.QueryRow(ctx, `
 INSERT INTO pages(
   slug,title,content_language,markdown_content,created_by,updated_by,status,owner_group_id,last_reviewed_at,review_interval_days,deprecated_target,plugin_usage,
   rendered_html,rendered_contents,render_fingerprint,rendered_at
 ) VALUES(
   $1,$2,$3,$4,$5,$5,$6,NULLIF($7,0),CASE WHEN $8 THEN now() ELSE NULL END,$9,$10,$11::jsonb,
   $12,$13::jsonb,$14,CASE WHEN $14<>'' THEN now() ELSE NULL END
-) RETURNING id`,
-			record.slug,
-			record.title,
-			record.language,
-			record.markdown,
-			record.userID,
-			record.metadata.Status,
-			record.metadata.OwnerGroupID,
-			record.metadata.MarkReviewed,
-			record.metadata.ReviewIntervalDays,
-			record.metadata.DeprecatedTarget,
-			record.pluginUsage,
-			record.render.HTML,
-			record.renderedContents,
-			record.render.Fingerprint,
-		).Scan(&id)
-	case err != nil:
-		return 0, err
-	case deleted:
-		return 0, domain.ErrPageInBin
-	default:
-		if err := renamePageRecord(ctx, tx, id, lookupSlug, record.slug); err != nil {
-			return 0, err
-		}
+)
+RETURNING id`,
+		record.slug,
+		record.title,
+		record.language,
+		record.markdown,
+		record.userID,
+		record.metadata.Status,
+		record.metadata.OwnerGroupID,
+		record.metadata.MarkReviewed,
+		record.metadata.ReviewIntervalDays,
+		record.metadata.DeprecatedTarget,
+		record.pluginUsage,
+		record.render.HTML,
+		record.renderedContents,
+		record.render.Fingerprint,
+	).Scan(&id)
 
-		_, err = tx.Exec(ctx, `
+	return id, err
+}
+
+// updatePageRecord replaces the mutable columns of one existing page row.
+func updatePageRecord(ctx context.Context, tx pgx.Tx, id int64, record pageSaveRecord) error {
+	_, err := tx.Exec(ctx, `
 UPDATE pages
 SET title=$2,content_language=$3,markdown_content=$4,updated_by=$5,updated_at=now(),
     status=$6,owner_group_id=NULLIF($7,0),
@@ -455,27 +492,23 @@ SET title=$2,content_language=$3,markdown_content=$4,updated_by=$5,updated_at=no
     rendered_html=$12,rendered_contents=$13::jsonb,render_fingerprint=$14,
     rendered_at=CASE WHEN $14<>'' THEN now() ELSE NULL END
 WHERE id=$1`,
-			id,
-			record.title,
-			record.language,
-			record.markdown,
-			record.userID,
-			record.metadata.Status,
-			record.metadata.OwnerGroupID,
-			record.metadata.MarkReviewed,
-			record.metadata.ReviewIntervalDays,
-			record.metadata.DeprecatedTarget,
-			record.pluginUsage,
-			record.render.HTML,
-			record.renderedContents,
-			record.render.Fingerprint,
-		)
-	}
-	if err != nil {
-		return 0, err
-	}
+		id,
+		record.title,
+		record.language,
+		record.markdown,
+		record.userID,
+		record.metadata.Status,
+		record.metadata.OwnerGroupID,
+		record.metadata.MarkReviewed,
+		record.metadata.ReviewIntervalDays,
+		record.metadata.DeprecatedTarget,
+		record.pluginUsage,
+		record.render.HTML,
+		record.renderedContents,
+		record.render.Fingerprint,
+	)
 
-	return id, nil
+	return err
 }
 
 // renamePageRecord changes a page slug and preserves the previous slug as an alias.
