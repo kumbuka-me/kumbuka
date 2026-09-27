@@ -160,13 +160,7 @@ func registerServerFlags(tf *tinyflags.FlagSet, cfg *Config) func() {
 		0,
 		"Maximum number of database connections; 0 uses the pgxpool default",
 	).
-		Validate(func(n int32) error {
-			if n < 0 {
-				return errors.New("database max connections must not be negative")
-			}
-
-			return nil
-		}).
+		Validate(tinyflags.NonNegative[int32]()).
 		Value()
 
 	tf.Int32Var(
@@ -175,13 +169,7 @@ func registerServerFlags(tf *tinyflags.FlagSet, cfg *Config) func() {
 		0,
 		"Minimum number of idle database connections kept ready; 0 uses the pgxpool default",
 	).
-		Validate(func(n int32) error {
-			if n < 0 {
-				return errors.New("database minimum idle connections must not be negative")
-			}
-
-			return nil
-		}).
+		Validate(tinyflags.NonNegative[int32]()).
 		Value()
 
 	tf.StringVar(
@@ -209,13 +197,7 @@ func registerServerFlags(tf *tinyflags.FlagSet, cfg *Config) func() {
 		DefaultPluginUpdateCheckInterval,
 		"How often Kumbuka checks the first-party plugin update catalog; set to 0 to disable scheduled checks",
 	).
-		Validate(func(interval time.Duration) error {
-			if interval < 0 {
-				return errors.New("plugin update check interval must not be negative")
-			}
-
-			return nil
-		}).
+		Validate(tinyflags.NonNegative[time.Duration]()).
 		Value()
 
 	allowUserRegistrationFlag := tf.BoolVar(
@@ -382,17 +364,9 @@ func registerOIDCFlags(tf *tinyflags.FlagSet, cfg *Config) {
 		"Secret used to sign OIDC login state and session cookies",
 	).
 		OverriddenValueMaskFn(tinyflags.MaskFirstLast).
-		Validate(func(s string) error {
-			if s == "" {
-				return nil
-			}
-
-			if len(s) < 32 {
-				return errors.New("oidc session secret must be at least 32 characters")
-			}
-
-			return nil
-		}).
+		Validate(tinyflags.Optional(
+			tinyflags.MinLength(32),
+		)).
 		Value()
 
 	tf.StringVar(
