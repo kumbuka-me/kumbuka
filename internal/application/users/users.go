@@ -3,7 +3,6 @@ package users
 import (
 	"cmp"
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -22,6 +21,8 @@ type userRepository interface {
 	UserGroups(context.Context, int64) ([]domain.Group, error)
 	RevokeUserSessions(context.Context, int64) error
 	SearchUsers(context.Context, string, int) ([]domain.User, error)
+	SearchPublicUsers(context.Context, string, int) ([]domain.User, error)
+	UserByUsername(context.Context, string) (domain.User, error)
 	OIDCIdentities(context.Context) ([]domain.OIDCIdentity, error)
 	OIDCGroupMappings(context.Context) ([]domain.OIDCGroupMapping, error)
 	PendingOIDCIdentities(context.Context) ([]domain.PendingOIDCIdentity, error)
@@ -112,13 +113,7 @@ func (s *Users) SearchUsers(ctx context.Context, query string, limit int) ([]dom
 
 // SearchPublicUsers returns enabled accounts matching a mention or display-name query without email matching.
 func (s *Users) SearchPublicUsers(ctx context.Context, query string, limit int) ([]domain.User, error) {
-	source, ok := s.repository.(interface {
-		SearchPublicUsers(context.Context, string, int) ([]domain.User, error)
-	})
-	if !ok {
-		return nil, errors.New("public user directory unavailable")
-	}
-	return source.SearchPublicUsers(ctx, query, limit)
+	return s.repository.SearchPublicUsers(ctx, query, limit)
 }
 
 // ResolveMention resolves one canonical or case-insensitive @mention to an enabled account.
@@ -128,13 +123,7 @@ func (s *Users) ResolveMention(ctx context.Context, mention string) (domain.User
 	if !found || username == "" || len(username) > 128 || strings.Contains(username, "@") {
 		return domain.User{}, domain.NewValidationError("mention", "Use an @-prefixed Kumbuka username.")
 	}
-	source, ok := s.repository.(interface {
-		UserByUsername(context.Context, string) (domain.User, error)
-	})
-	if !ok {
-		return domain.User{}, errors.New("public user directory unavailable")
-	}
-	user, err := source.UserByUsername(ctx, username)
+	user, err := s.repository.UserByUsername(ctx, username)
 	if err != nil || !user.Enabled {
 		return domain.User{}, cmp.Or(err, domain.ErrNotFound)
 	}

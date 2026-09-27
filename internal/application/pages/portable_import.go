@@ -73,14 +73,8 @@ func (s *Bulk) RunPortableImport(
 	actor domain.User,
 	run func(context.Context) (int, error),
 ) (int, error) {
-	runner, ok := s.repository.(interface {
-		WithImportTransaction(context.Context, func(context.Context) error) error
-	})
-	if !ok {
-		return 0, fmt.Errorf("portable import repository does not support transactions")
-	}
 	count := 0
-	err := runner.WithImportTransaction(ctx, func(transactionContext context.Context) error {
+	err := s.repository.WithImportTransaction(ctx, func(transactionContext context.Context) error {
 		var importErr error
 		count, importErr = run(transactionContext)
 		return importErr

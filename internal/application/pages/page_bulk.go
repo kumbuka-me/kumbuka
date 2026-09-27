@@ -72,6 +72,7 @@ type pageBulkRepository interface {
 type bulkRepository interface {
 	pageBulkRepository
 	GetPage(context.Context, string) (domain.Page, error)
+	WithImportTransaction(context.Context, func(context.Context) error) error
 }
 
 // Bulk owns administrative bulk mutations and imports.
