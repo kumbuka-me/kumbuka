@@ -218,7 +218,7 @@ func registerServerFlags(tf *tinyflags.FlagSet, cfg *Config) func() {
 		Value()
 
 	allowUserRegistrationFlag := tf.BoolVar(
-		ToPtr(false),
+		new(bool),
 		"allow-user-registration",
 		false,
 		"Deployment override for whether unknown OIDC or trusted-proxy identities may create accounts",
