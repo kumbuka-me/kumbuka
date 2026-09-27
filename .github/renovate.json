@@ -47,7 +47,9 @@
   ],
   "packageRules": [
     {
-      "matchPackageNames": ["/^(?:github\\.com\\/)?kumbuka-me\\//"],
+      "description": "Automerge Kumbuka Go dependencies",
+      "matchManagers": ["gomod"],
+      "matchPackageNames": ["/^github\\.com\\/kumbuka-me\\//"],
       "matchUpdateTypes": ["minor", "patch"],
       "automerge": true
     },
