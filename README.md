@@ -7,13 +7,9 @@
   A small, self-hosted, Markdown-first wiki for documentation.
 </p>
 
-Kumbuka is the PostgreSQL-backed server and web application. It includes authentication, revision history, search, media, collaboration, administration, themes, and the plugin runtime.
+Kumbuka is a self-hosted knowledge platform backed by PostgreSQL. It provides a clean place for documentation, notes, and team knowledge while keeping your data under your control.
 
-Project-oriented tooling lives in the separate [Kumbuka CLI](https://github.com/kumbuka-me/cli). Use `kumbuka-cli` for static-site builds, Markdown mirrors, and `.kumbukaplugins` management.
-
-## Plugin development
-
-Create, test, and build Go/WASI plugins with the [Kumbuka Plugin SDK and CLI](https://github.com/kumbuka-me/sdk). First-party plugins live in [kumbuka-me/plugins](https://github.com/kumbuka-me/plugins); bundled and installed packages use the same public API and sandboxed runtime.
+For installation, configuration, authentication, plugins, and administration, see the **[Kumbuka documentation](https://kumbuka.me/)**.
 
 ## Quick start
 
@@ -23,15 +19,17 @@ Start Kumbuka with Docker Compose:
 docker compose -f deploy/compose.yaml up -d
 ```
 
-By default, Kumbuka is available at:
+Then open:
 
 ```text
 http://localhost:8080
 ```
 
-On a fresh database, open Kumbuka and create the first administrator through the setup page.
+On a fresh database, Kumbuka will guide you through creating the first administrator.
 
-The server binary has no subcommands. Running `kumbuka` starts the server directly:
+Example Kubernetes manifests are available in [`deploy/kubernetes`](deploy/kubernetes).
+
+You can also run the server directly:
 
 ```sh
 kumbuka \
@@ -40,29 +38,26 @@ kumbuka \
   --public-url http://localhost:8080
 ```
 
-## Common settings
+## Configuration
 
-Environment variables use the `KUMBUKA__` prefix.
+Kumbuka can be configured using command-line flags or environment variables. Environment variables use the `KUMBUKA__` prefix.
 
-| Setting                                 | Default                                    | What it changes                                                                                                             |
-| --------------------------------------- | ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------- |
-| `KUMBUKA__LISTEN_ADDRESS`               | `127.0.0.1:8080`                           | Address and port Kumbuka listens on.                                                                                        |
-| `KUMBUKA__ROUTE_PREFIX`                  | empty                                      | Mount all endpoints below an absolute path such as `/kumbuka`.                                                              |
-| `KUMBUKA__PUBLIC_URL`                   | `http://localhost:8080`                    | Externally visible URL of the Kumbuka installation.                                                                         |
-| `KUMBUKA__DATABASE_URL`                 | —                                          | PostgreSQL connection URL.                                                                                                  |
-| `KUMBUKA__DATABASE_MAX_CONNS`           | `0`                                        | Maximum PostgreSQL pool connections; `0` uses pgxpool automatic sizing.                                                     |
-| `KUMBUKA__DATABASE_MIN_IDLE_CONNS`      | `0`                                        | Minimum idle PostgreSQL pool connections kept ready; `0` uses the pgxpool default.                                          |
-| `KUMBUKA__PLUGIN_UPDATE_CHECK_INTERVAL` | `1h`                                       | Checks the first-party plugin catalog on this interval; `0` disables scheduled checks while manual checks remain available. |
-| `KUMBUKA__READ_ONLY`                    | `false`                                    | Blocks state-changing application requests while keeping reads and authentication available.                                |
-| `KUMBUKA__DISABLE_METRICS`              | `false`                                    | Disables the `/metrics` endpoint and HTTP request instrumentation.                                                          |
-| `KUMBUKA__ALLOW_USER_REGISTRATION`      | —                                          | Overrides whether unknown OIDC or trusted-proxy identities may create accounts.                                             |
-| `KUMBUKA__LOCAL_LOGIN`                  | `false`                                    | Enables the local recovery login alongside the configured authentication mode.                                              |
-| `KUMBUKA__TRUSTED_GROUP_HEADERS`        | `X-Forwarded-Groups,X-Auth-Request-Groups` | Trusted-proxy group headers used with the trusted-proxy authentication override.                                            |
-| `KUMBUKA__TRUSTED_ADMIN_GROUP`          | —                                          | Trusted-proxy group that grants administrator access with the authentication override.                                      |
-| `KUMBUKA__OIDC_GROUP_CLAIM`             | `groups`                                   | OIDC group-membership claim used with the OIDC authentication override.                                                     |
-| `KUMBUKA__OIDC_ADMIN_GROUP`             | —                                          | OIDC group that grants administrator access with the authentication override.                                               |
+| Flag                | Environment variable       | Default                 |
+| ------------------- | -------------------------- | ----------------------- |
+| `--listen-address`  | `KUMBUKA__LISTEN_ADDRESS`  | `127.0.0.1:8080`        |
+| `--public-url`      | `KUMBUKA__PUBLIC_URL`      | `http://localhost:8080` |
+| `--route-prefix`    | `KUMBUKA__ROUTE_PREFIX`    | empty                   |
+| `--database-url`    | `KUMBUKA__DATABASE_URL`    | —                       |
+| `--read-only`       | `KUMBUKA__READ_ONLY`       | `false`                 |
+| `--disable-metrics` | `KUMBUKA__DISABLE_METRICS` | `false`                 |
 
-See the [documentation](https://kumbuka.me/) for all settings and authentication options.
+For all available settings and deployment options, see **[kumbuka.me](https://kumbuka.me/)**.
+
+## Ecosystem
+
+- [Kumbuka CLI](https://github.com/kumbuka-me/cli) — builds, Markdown mirrors, and plugin management
+- [Plugin SDK](https://github.com/kumbuka-me/sdk) — build Go/WASI plugins for Kumbuka
+- [Official plugins](https://github.com/kumbuka-me/plugins) — first-party Kumbuka plugins
 
 ## License
 
