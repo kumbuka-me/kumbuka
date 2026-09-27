@@ -96,15 +96,6 @@ RETURNING id,user_id,kind,title,body,url,coalesce(actor_id,0),source_type,source
 	return item, created, err
 }
 
-// AddNotification creates a notification for one user.
-func (s *Store) AddNotification(ctx context.Context, userID int64, kind, title, body, url string) error {
-	_, err := s.pool.Exec(ctx, `
-INSERT INTO notifications(user_id,kind,title,body,url)
-VALUES($1,$2,$3,$4,$5)`, userID, kind, title, body, url)
-
-	return err
-}
-
 // MarkNotificationRead marks one owned notification read without exposing foreign identifiers.
 func (s *Store) MarkNotificationRead(ctx context.Context, userID, id int64) error {
 	_, err := s.pool.Exec(ctx, `

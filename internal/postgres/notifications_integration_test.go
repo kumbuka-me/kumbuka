@@ -19,7 +19,7 @@ func TestOpenNotificationOwnershipAndReadState(t *testing.T) {
 	var owner, other, id int64
 	require.NoError(t, database.pool.QueryRow(ctx, `INSERT INTO users(username) VALUES('owner') RETURNING id`).Scan(&owner))
 	require.NoError(t, database.pool.QueryRow(ctx, `INSERT INTO users(username) VALUES('other') RETURNING id`).Scan(&other))
-	require.NoError(t, database.AddNotification(ctx, owner, "mention", "Mention", "Body", "/pages/example#comments"))
+	require.NoError(t, addIntegrationNotification(ctx, database, owner, "Mention", "Body", "/pages/example#comments"))
 	require.NoError(t, database.pool.QueryRow(ctx, `SELECT id FROM notifications WHERE user_id=$1`, owner).Scan(&id))
 	_, err = database.OpenNotification(ctx, other, id)
 	require.ErrorIs(t, err, domain.ErrNotFound)
@@ -52,8 +52,8 @@ func TestMarkNotificationsRead(t *testing.T) {
 	var owner, other int64
 	require.NoError(t, database.pool.QueryRow(ctx, `INSERT INTO users(username) VALUES('notification-owner') RETURNING id`).Scan(&owner))
 	require.NoError(t, database.pool.QueryRow(ctx, `INSERT INTO users(username) VALUES('notification-other') RETURNING id`).Scan(&other))
-	require.NoError(t, database.AddNotification(ctx, owner, "mention", "First", "", "/pages/first"))
-	require.NoError(t, database.AddNotification(ctx, owner, "mention", "Second", "", "/pages/second"))
+	require.NoError(t, addIntegrationNotification(ctx, database, owner, "First", "", "/pages/first"))
+	require.NoError(t, addIntegrationNotification(ctx, database, owner, "Second", "", "/pages/second"))
 
 	var firstID int64
 	require.NoError(t, database.pool.QueryRow(ctx, `SELECT id FROM notifications WHERE user_id=$1 ORDER BY id LIMIT 1`, owner).Scan(&firstID))
@@ -92,7 +92,7 @@ func TestNotificationUnreadAndDelete(t *testing.T) {
 	var owner, other int64
 	require.NoError(t, database.pool.QueryRow(ctx, `INSERT INTO users(username) VALUES('notification-toggle-owner') RETURNING id`).Scan(&owner))
 	require.NoError(t, database.pool.QueryRow(ctx, `INSERT INTO users(username) VALUES('notification-toggle-other') RETURNING id`).Scan(&other))
-	require.NoError(t, database.AddNotification(ctx, owner, "mention", "Mutable", "", "/pages/mutable"))
+	require.NoError(t, addIntegrationNotification(ctx, database, owner, "Mutable", "", "/pages/mutable"))
 
 	var id int64
 	require.NoError(t, database.pool.QueryRow(ctx, `SELECT id FROM notifications WHERE user_id=$1`, owner).Scan(&id))
@@ -131,4 +131,18 @@ func TestNotificationUnreadAndDelete(t *testing.T) {
 		require.Empty(t, items)
 		require.Zero(t, unread)
 	})
+}
+
+// addIntegrationNotification seeds one core notification through the production persistence primitive.
+func addIntegrationNotification(ctx context.Context, database *Store, userID int64, title, body, destination string) error {
+	_, _, err := database.CreateNotification(ctx, domain.Notification{
+		Kind:            domain.NotificationKindMention,
+		Title:           title,
+		Body:            body,
+		URL:             destination,
+		RecipientUserID: userID,
+		SourceType:      domain.NotificationSourceCore,
+		SourceName:      "Kumbuka",
+	})
+	return err
 }
