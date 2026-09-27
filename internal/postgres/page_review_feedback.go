@@ -53,6 +53,36 @@ ORDER BY c.start_line,c.created_at,c.id`, requestID)
 	return comments, rows.Err()
 }
 
+// reviewRevisionState contains the locked workflow state used to validate review mutations.
+type reviewRevisionState struct {
+	// status is the current persisted review lifecycle state.
+	status domain.PageReviewStatus
+	// revision is the page revision captured when the review was requested.
+	revision int
+}
+
+// pageReviewCommentRecord contains the values persisted for one review comment or suggestion.
+type pageReviewCommentRecord struct {
+	// requestID identifies the review request receiving the comment.
+	requestID int64
+	// userID identifies the authenticated comment author.
+	userID int64
+	// side selects the previous or reviewed side of the diff.
+	side domain.PageReviewCommentSide
+	// startLine is the first one-based line covered by the comment.
+	startLine int
+	// endLine is the last one-based line covered by the comment.
+	endLine int
+	// body contains the optional explanatory comment text.
+	body string
+	// suggestion reports whether replacement is an applicable source change.
+	suggestion bool
+	// original contains the reviewed source covered by a suggestion.
+	original string
+	// replacement contains the proposed replacement source.
+	replacement string
+}
+
 // AddPageReviewComment persists one validated line comment or suggestion on a locked pending review.
 func (s *Store) AddPageReviewComment(
 	ctx context.Context,
@@ -75,25 +105,64 @@ func (s *Store) AddPageReviewComment(
 	if err != nil {
 		return domain.PageReviewComment{}, err
 	}
+	state, err := lockReviewRevisionState(ctx, tx, requestID)
+	if err != nil {
+		return domain.PageReviewComment{}, mutationError(err)
+	}
+	if err := validateCurrentReviewRevision(state, currentRevision); err != nil {
+		return domain.PageReviewComment{}, err
+	}
 
-	var status domain.PageReviewStatus
-	var requestedRevision int
-	if err := tx.QueryRow(ctx, `
+	comment, err := insertPageReviewComment(ctx, tx, pageReviewCommentRecord{
+		requestID:   requestID,
+		userID:      userID,
+		side:        side,
+		startLine:   startLine,
+		endLine:     endLine,
+		body:        body,
+		suggestion:  suggestion,
+		original:    original,
+		replacement: replacement,
+	})
+	if err != nil {
+		return domain.PageReviewComment{}, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return domain.PageReviewComment{}, mutationError(err)
+	}
+
+	return comment, nil
+}
+
+// lockReviewRevisionState locks and returns the lifecycle state of one review request.
+func lockReviewRevisionState(ctx context.Context, tx pgx.Tx, requestID int64) (reviewRevisionState, error) {
+	var state reviewRevisionState
+	err := tx.QueryRow(ctx, `
 SELECT status,revision_number
 FROM page_review_requests
 WHERE id=$1
-FOR UPDATE`, requestID).Scan(&status, &requestedRevision); err != nil {
-		return domain.PageReviewComment{}, mutationError(err)
+FOR UPDATE`, requestID).Scan(&state.status, &state.revision)
+	if err != nil {
+		return reviewRevisionState{}, err
 	}
-	if status != domain.PageReviewStatusPending {
-		return domain.PageReviewComment{}, domain.ErrReviewClosed
-	}
-	if requestedRevision != currentRevision {
-		return domain.PageReviewComment{}, domain.ErrStaleReview
-	}
+	return state, nil
+}
 
+// validateCurrentReviewRevision requires a locked review to remain pending on the current page revision.
+func validateCurrentReviewRevision(state reviewRevisionState, currentRevision int) error {
+	if state.status != domain.PageReviewStatusPending {
+		return domain.ErrReviewClosed
+	}
+	if state.revision != currentRevision {
+		return domain.ErrStaleReview
+	}
+	return nil
+}
+
+// insertPageReviewComment inserts one review feedback row and returns its presentation projection.
+func insertPageReviewComment(ctx context.Context, tx pgx.Tx, record pageReviewCommentRecord) (domain.PageReviewComment, error) {
 	var comment domain.PageReviewComment
-	err = tx.QueryRow(ctx, `
+	err := tx.QueryRow(ctx, `
 WITH inserted AS (
   INSERT INTO page_review_comments(
     request_id,user_id,side,start_line,end_line,body,is_suggestion,original_text,replacement_text
@@ -107,15 +176,15 @@ SELECT i.id,i.request_id,coalesce(i.user_id,0),coalesce(u.display_name,u.usernam
        coalesce(i.applied_by,0),'',i.applied_at,i.created_at
 FROM inserted i
 LEFT JOIN users u ON u.id=i.user_id`,
-		requestID,
-		userID,
-		string(side),
-		startLine,
-		endLine,
-		body,
-		suggestion,
-		original,
-		replacement,
+		record.requestID,
+		record.userID,
+		string(record.side),
+		record.startLine,
+		record.endLine,
+		record.body,
+		record.suggestion,
+		record.original,
+		record.replacement,
 	).Scan(
 		&comment.ID,
 		&comment.ReviewRequestID,
@@ -136,10 +205,6 @@ LEFT JOIN users u ON u.id=i.user_id`,
 	if err != nil {
 		return domain.PageReviewComment{}, mutationError(err)
 	}
-	if err := tx.Commit(ctx); err != nil {
-		return domain.PageReviewComment{}, mutationError(err)
-	}
-
 	return comment, nil
 }
 
@@ -242,19 +307,14 @@ WHERE id=$1`, pageID).Scan(&currentMarkdown); err != nil {
 
 // validateReviewRevision locks the review request and requires the pending request and page to share the expected revision.
 func validateReviewRevision(ctx context.Context, tx pgx.Tx, requestID int64, currentRevision, expectedRevision int) error {
-	var status domain.PageReviewStatus
-	var requestedRevision int
-	if err := tx.QueryRow(ctx, `
-SELECT status,revision_number
-FROM page_review_requests
-WHERE id=$1
-FOR UPDATE`, requestID).Scan(&status, &requestedRevision); err != nil {
+	state, err := lockReviewRevisionState(ctx, tx, requestID)
+	if err != nil {
 		return err
 	}
-	if status != domain.PageReviewStatusPending {
+	if state.status != domain.PageReviewStatusPending {
 		return domain.ErrReviewClosed
 	}
-	if requestedRevision != expectedRevision || currentRevision != expectedRevision {
+	if state.revision != expectedRevision || currentRevision != expectedRevision {
 		return domain.ErrStaleReview
 	}
 	return nil
