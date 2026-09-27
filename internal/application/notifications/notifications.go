@@ -46,7 +46,7 @@ type CreateInput struct {
 	IdempotencyKey string
 }
 
-// notificationRepository contains persistence operations for the notification inbox.
+// notificationRepository contains all persistence required by notification inbox and delivery use cases.
 type notificationRepository interface {
 	Notifications(context.Context, int64, int) (notifications []domain.Notification, unread int, err error)
 	MarkNotificationRead(context.Context, int64, int64) error
@@ -54,22 +54,9 @@ type notificationRepository interface {
 	MarkAllNotificationsRead(context.Context, int64) error
 	DeleteNotification(context.Context, int64, int64) error
 	OpenNotification(context.Context, int64, int64) (string, error)
-}
-
-// notificationCreator contains persistence required only for plugin-created notifications.
-type notificationCreator interface {
 	User(context.Context, int64) (domain.User, error)
-	CreateNotification(context.Context, domain.Notification) (domain.Notification, bool, error)
-}
-
-// mentionNotificationCreator provides persistence and account lookup for core mention notifications.
-type mentionNotificationCreator interface {
 	UserByUsername(context.Context, string) (domain.User, error)
 	CreateNotification(context.Context, domain.Notification) (domain.Notification, bool, error)
-}
-
-// pluginUpdateNotificationRepository owns durable update-announcement deduplication and administrator lookup.
-type pluginUpdateNotificationRepository interface {
 	ClaimPluginUpdateAnnouncements(context.Context, []domain.PluginUpdateNotice) ([]domain.PluginUpdateNotice, error)
 	EnabledAdministratorIDs(context.Context) ([]int64, error)
 }
@@ -101,11 +88,7 @@ func (s *Notifications) Send(ctx context.Context, input CreateInput) (domain.Not
 	if err := validateCreateInput(input); err != nil {
 		return domain.Notification{}, err
 	}
-	creator, ok := s.repository.(notificationCreator)
-	if !ok {
-		return domain.Notification{}, errors.New("notification creation unavailable")
-	}
-	recipient, err := creator.User(ctx, input.RecipientUserID)
+	recipient, err := s.repository.User(ctx, input.RecipientUserID)
 	if err != nil {
 		return domain.Notification{}, err
 	}
@@ -113,7 +96,7 @@ func (s *Notifications) Send(ctx context.Context, input CreateInput) (domain.Not
 		return domain.Notification{}, domain.ErrNotFound
 	}
 
-	item, created, err := creator.CreateNotification(ctx, domain.Notification{
+	item, created, err := s.repository.CreateNotification(ctx, domain.Notification{
 		Kind:            domain.NotificationKindPlugin,
 		Title:           input.Title,
 		Body:            input.Body,
@@ -167,11 +150,7 @@ func (s *Notifications) SendCore(
 	if err := validateCoreDelivery(recipientUserID, actorID, kind, title, body, destination); err != nil {
 		return err
 	}
-	creator, ok := s.repository.(notificationCreator)
-	if !ok {
-		return errors.New("notification creation unavailable")
-	}
-	recipient, err := creator.User(ctx, recipientUserID)
+	recipient, err := s.repository.User(ctx, recipientUserID)
 	if errors.Is(err, domain.ErrNotFound) {
 		return nil
 	}
@@ -182,7 +161,7 @@ func (s *Notifications) SendCore(
 		return nil
 	}
 
-	return s.createCore(ctx, creator, recipient, actorID, kind, title, body, destination)
+	return s.createCore(ctx, s.repository, recipient, actorID, kind, title, body, destination)
 }
 
 // SendMentions creates core-owned notifications for each distinct enabled user mentioned in text.
@@ -194,13 +173,8 @@ func (s *Notifications) SendMentions(ctx context.Context, actorID int64, text, t
 	if err := validateCoreNotification(actorID, title, body, destination); err != nil {
 		return err
 	}
-	creator, ok := s.repository.(mentionNotificationCreator)
-	if !ok {
-		return errors.New("mention notification creation unavailable")
-	}
-
 	for _, username := range mention.Usernames(text) {
-		recipient, err := creator.UserByUsername(ctx, username)
+		recipient, err := s.repository.UserByUsername(ctx, username)
 		if errors.Is(err, domain.ErrNotFound) {
 			continue
 		}
@@ -210,7 +184,7 @@ func (s *Notifications) SendMentions(ctx context.Context, actorID int64, text, t
 		if !recipient.Enabled {
 			continue
 		}
-		if err := s.createCore(ctx, creator, recipient, actorID, domain.NotificationKindMention, title, body, destination); err != nil {
+		if err := s.createCore(ctx, s.repository, recipient, actorID, domain.NotificationKindMention, title, body, destination); err != nil {
 			return err
 		}
 	}
@@ -220,15 +194,11 @@ func (s *Notifications) SendMentions(ctx context.Context, actorID int64, text, t
 
 // NotifyPluginUpdates creates one deduplicated core notification for each enabled administrator.
 func (s *Notifications) NotifyPluginUpdates(ctx context.Context, updates []domain.PluginUpdateNotice) error {
-	repository, ok := s.repository.(pluginUpdateNotificationRepository)
-	if !ok {
-		return errors.New("plugin update notification persistence unavailable")
-	}
-	administratorIDs, err := repository.EnabledAdministratorIDs(ctx)
+	administratorIDs, err := s.repository.EnabledAdministratorIDs(ctx)
 	if err != nil || len(administratorIDs) == 0 {
 		return err
 	}
-	pending, err := repository.ClaimPluginUpdateAnnouncements(ctx, updates)
+	pending, err := s.repository.ClaimPluginUpdateAnnouncements(ctx, updates)
 	if err != nil || len(pending) == 0 {
 		return err
 	}
