@@ -20,7 +20,7 @@ type trustedProxyRepositoryStub struct {
 	admin bool
 }
 
-func (r *trustedProxyRepositoryStub) TrustedProxyUser(context.Context, string, string, string) (domain.User, error) {
+func (r *trustedProxyRepositoryStub) Login(context.Context, string, string, string) (domain.User, error) {
 	return r.user, nil
 }
 
@@ -35,7 +35,7 @@ func TestTrustedProxyExternalAdministrator(t *testing.T) {
 	t.Parallel()
 
 	repository := &trustedProxyRepositoryStub{user: domain.User{ID: 7, Role: "viewer", Enabled: true}}
-	authenticator := NewTrustedProxy(repository, TrustedProxyHeaders{
+	authenticator := NewTrustedProxy(repository, repository, TrustedProxyHeaders{
 		Username:   []string{"X-User"},
 		Groups:     []string{"X-Groups"},
 		AdminGroup: "/kumbuka-admins",
@@ -57,8 +57,10 @@ func TestTrustedProxyExternalAdministrator(t *testing.T) {
 func TestTrustedProxyDisabledAccount(t *testing.T) {
 	t.Parallel()
 
+	repository := &trustedProxyRepositoryStub{user: domain.User{ID: 7, Enabled: false}}
 	authenticator := NewTrustedProxy(
-		&trustedProxyRepositoryStub{user: domain.User{ID: 7, Enabled: false}},
+		repository,
+		repository,
 		TrustedProxyHeaders{Username: []string{"X-User"}},
 	)
 	request := httptest.NewRequest("GET", "/", nil)
@@ -110,7 +112,7 @@ func TestFirstHeader(t *testing.T) {
 func TestTrustedProxyClearsReturnedExternalAdminStatus(t *testing.T) {
 	t.Parallel()
 	repository := &trustedProxyRepositoryStub{user: domain.User{ID: 7, Role: "viewer", Enabled: true, ExternalAdmin: true}}
-	authenticator := NewTrustedProxy(repository, TrustedProxyHeaders{Username: []string{"X-User"}, Groups: []string{"X-Groups"}, AdminGroup: "/admins"})
+	authenticator := NewTrustedProxy(repository, repository, TrustedProxyHeaders{Username: []string{"X-User"}, Groups: []string{"X-Groups"}, AdminGroup: "/admins"})
 	request := httptest.NewRequest("GET", "/", nil)
 	request.Header.Set("X-User", "example")
 	request.Header.Set("X-Groups", "/readers")

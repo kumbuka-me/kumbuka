@@ -45,28 +45,18 @@ func TestOpenAppliesOptions(t *testing.T) {
 	dsn := integrationDatabase(t)
 	ctx := context.Background()
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	allowRegistration := true
-
 	database, err := Open(
 		ctx,
 		dsn,
 		logger,
 		WithMaxConns(7),
 		WithMinIdleConns(3),
-		WithUserRegistrationOverride(allowRegistration),
 	)
 	require.NoError(t, err)
 	defer database.Close()
 
 	require.Equal(t, int32(7), database.PoolStats().MaxConnections)
 	require.Equal(t, int32(3), database.pool.Config().MinIdleConns)
-	enabled, configured := database.userRegistrationOverride()
-	require.True(t, configured)
-	require.True(t, enabled)
-
-	enabled, configured = database.userRegistrationOverride()
-	require.True(t, configured)
-	require.True(t, enabled)
 }
 
 func TestConcurrentStartupMigrations(t *testing.T) {

@@ -15,8 +15,6 @@ type config struct {
 	maxConns int32
 	// minIdleConns sets the minimum number of idle pool connections when positive.
 	minIdleConns int32
-	// allowUserRegistrationOverride replaces persisted external-registration policy when configured.
-	allowUserRegistrationOverride *bool
 }
 
 // Option configures PostgreSQL store construction.
@@ -36,20 +34,10 @@ func WithMinIdleConns(minIdleConns int32) Option {
 	}
 }
 
-// WithUserRegistrationOverride forces the effective external-user registration policy.
-func WithUserRegistrationOverride(allowed bool) Option {
-	return func(config *config) {
-		value := allowed
-		config.allowUserRegistrationOverride = &value
-	}
-}
-
 // Store provides PostgreSQL-backed persistence for Kumbuka data.
 type Store struct {
 	// pool is the PostgreSQL connection pool used by store operations.
 	pool *pgxpool.Pool
-	// allowUserRegistrationOverride optionally replaces the persisted registration policy.
-	allowUserRegistrationOverride *bool
 }
 
 // PoolStats is a transport-neutral snapshot of the PostgreSQL connection pool.
@@ -115,10 +103,7 @@ func Open(ctx context.Context, url string, logger *slog.Logger, options ...Optio
 		return nil, err
 	}
 
-	s := &Store{
-		pool:                          pool,
-		allowUserRegistrationOverride: settings.allowUserRegistrationOverride,
-	}
+	s := &Store{pool: pool}
 	if err := pool.Ping(ctx); err != nil {
 		pool.Close()
 		return nil, err
@@ -129,15 +114,6 @@ func Open(ctx context.Context, url string, logger *slog.Logger, options ...Optio
 	}
 
 	return s, nil
-}
-
-// userRegistrationOverride returns the deployment-managed registration value when configured.
-func (s *Store) userRegistrationOverride() (bool, bool) {
-	if s.allowUserRegistrationOverride == nil {
-		return false, false
-	}
-
-	return *s.allowUserRegistrationOverride, true
 }
 
 // PoolStats returns a point-in-time snapshot of PostgreSQL connection-pool activity.

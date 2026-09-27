@@ -38,8 +38,8 @@ RETURNING id,username,email,display_name,role,enabled,session_version`, username
 	return user, err
 }
 
-// TrustedProxyUser refreshes a trusted-proxy user by username or creates one when registration is enabled.
-func (s *Store) TrustedProxyUser(ctx context.Context, username, email, displayName string) (domain.User, error) {
+// RefreshTrustedProxyUser refreshes one existing trusted-proxy account by exact username.
+func (s *Store) RefreshTrustedProxyUser(ctx context.Context, username, email, displayName string) (domain.User, error) {
 	displayName = cmp.Or(displayName, username)
 
 	var user domain.User
@@ -49,33 +49,41 @@ SET email=$2,
     display_name=$3,
     last_login=CASE WHEN enabled THEN now() ELSE last_login END
 WHERE username=$1
-RETURNING id,username,email,display_name,role,enabled,session_version`, username, email, displayName).Scan(&user.ID, &user.Username, &user.Email, &user.DisplayName, &user.Role, &user.Enabled, &user.SessionVersion)
-	if err == nil {
-		return user, nil
-	}
-	if !errors.Is(err, pgx.ErrNoRows) {
-		return domain.User{}, err
-	}
-
-	registrationEnabled, overridden := s.userRegistrationOverride()
-	if !overridden {
-		settings, err := s.ApplicationSettings(ctx)
-		if err != nil {
-			return domain.User{}, err
-		}
-
-		registrationEnabled = settings.AllowUserRegistration
-	}
-	if !registrationEnabled {
-		return domain.User{}, domain.ErrRegistrationDisabled
+RETURNING id,username,email,display_name,role,enabled,session_version`, username, email, displayName).Scan(
+		&user.ID,
+		&user.Username,
+		&user.Email,
+		&user.DisplayName,
+		&user.Role,
+		&user.Enabled,
+		&user.SessionVersion,
+	)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return domain.User{}, domain.ErrNotFound
 	}
 
-	err = s.pool.QueryRow(ctx, `
+	return user, err
+}
+
+// CreateTrustedProxyUser creates or refreshes one trusted-proxy account after application registration approval.
+func (s *Store) CreateTrustedProxyUser(ctx context.Context, username, email, displayName string) (domain.User, error) {
+	displayName = cmp.Or(displayName, username)
+
+	var user domain.User
+	err := s.pool.QueryRow(ctx, `
 INSERT INTO users(username,email,display_name,last_login)
 VALUES($1,$2,$3,now())
 ON CONFLICT(username) DO UPDATE
 SET email=EXCLUDED.email,display_name=EXCLUDED.display_name,last_login=now()
-RETURNING id,username,email,display_name,role,enabled,session_version`, username, email, displayName).Scan(&user.ID, &user.Username, &user.Email, &user.DisplayName, &user.Role, &user.Enabled, &user.SessionVersion)
+RETURNING id,username,email,display_name,role,enabled,session_version`, username, email, displayName).Scan(
+		&user.ID,
+		&user.Username,
+		&user.Email,
+		&user.DisplayName,
+		&user.Role,
+		&user.Enabled,
+		&user.SessionVersion,
+	)
 
 	return user, err
 }

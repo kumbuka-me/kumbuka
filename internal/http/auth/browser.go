@@ -31,6 +31,8 @@ type browserAuthenticator struct {
 	local *Local
 	// oidcLogin applies application-level OIDC login policy.
 	oidcLogin oidcLoginService
+	// trustedProxyLogin applies application-level trusted-proxy registration policy.
+	trustedProxyLogin trustedProxyLoginService
 	// localLoginEnabled exposes local recovery login alongside another effective mode.
 	localLoginEnabled bool
 
@@ -56,6 +58,7 @@ func ConfigureBrowserAuth(
 		none:              NewNone(repository),
 		local:             NewLocal(repository, config.OIDC.PublicURL),
 		oidcLogin:         appauthentication.NewOIDC(repository, config.AllowUserRegistrationOverride),
+		trustedProxyLogin: appauthentication.NewTrustedProxy(repository, config.AllowUserRegistrationOverride),
 		localLoginEnabled: config.LocalLoginEnabled,
 	}
 
@@ -292,7 +295,7 @@ func (b *browserAuthenticator) authenticatorForSettings(
 	case domain.AuthModeLocal:
 		return b.local, nil
 	case domain.AuthModeTrustedProxy:
-		return NewTrustedProxy(b.repository, TrustedProxyHeaders{
+		return NewTrustedProxy(b.repository, b.trustedProxyLogin, TrustedProxyHeaders{
 			Username:    settings.TrustedUsernameHeaders,
 			Email:       settings.TrustedEmailHeaders,
 			DisplayName: settings.TrustedDisplayNameHeaders,

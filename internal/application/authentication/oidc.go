@@ -10,22 +10,25 @@ import (
 
 // oidcRepository contains persistence and settings reads required for OIDC login resolution.
 type oidcRepository interface {
-	ApplicationSettings(context.Context) (domain.ApplicationSettings, error)
+	registrationSettingsRepository
 	OIDCUser(context.Context, string, string) (domain.User, error)
 	ResolveOIDCLogin(context.Context, string, string, string, string, string, bool) (domain.User, error)
 }
 
 // OIDC coordinates verified OIDC identity login policy with atomic persistence.
 type OIDC struct {
-	// repository provides identity lookup, settings, and atomic login persistence.
+	// repository provides identity lookup and atomic login persistence.
 	repository oidcRepository
-	// registrationOverride replaces the persisted registration setting when configured by deployment policy.
-	registrationOverride *bool
+	// registration resolves whether unknown external identities may create accounts.
+	registration registrationPolicy
 }
 
 // NewOIDC constructs the OIDC login application service.
 func NewOIDC(repository oidcRepository, registrationOverride *bool) *OIDC {
-	return &OIDC{repository: repository, registrationOverride: registrationOverride}
+	return &OIDC{
+		repository:   repository,
+		registration: newRegistrationPolicy(repository, registrationOverride),
+	}
 }
 
 // Login normalizes a verified provider identity, resolves registration policy, and delegates the atomic account mutation.
@@ -44,22 +47,10 @@ func (s *OIDC) Login(ctx context.Context, issuer, subject, username, email, disp
 		if !errors.Is(err, domain.ErrNotFound) {
 			return domain.User{}, err
 		}
-		registrationEnabled, err = s.registrationEnabled(ctx)
+		registrationEnabled, err = s.registration.enabled(ctx)
 		if err != nil {
 			return domain.User{}, err
 		}
 	}
 	return s.repository.ResolveOIDCLogin(ctx, issuer, subject, username, email, displayName, registrationEnabled)
-}
-
-// registrationEnabled resolves the deployment override before the persisted registration setting.
-func (s *OIDC) registrationEnabled(ctx context.Context) (bool, error) {
-	if s.registrationOverride != nil {
-		return *s.registrationOverride, nil
-	}
-	settings, err := s.repository.ApplicationSettings(ctx)
-	if err != nil {
-		return false, err
-	}
-	return settings.AllowUserRegistration, nil
 }

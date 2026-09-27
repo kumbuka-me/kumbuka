@@ -103,15 +103,13 @@ func Run(
 
 	}
 
-	databaseOptions := []postgres.Option{
+	database, err := postgres.Open(
+		ctx,
+		cfg.DatabaseURL,
+		logger,
 		postgres.WithMaxConns(cfg.DatabaseMaxConns),
 		postgres.WithMinIdleConns(cfg.DatabaseMinIdleConns),
-	}
-	if cfg.AllowUserRegistrationOverride != nil {
-		databaseOptions = append(databaseOptions, postgres.WithUserRegistrationOverride(*cfg.AllowUserRegistrationOverride))
-	}
-
-	database, err := postgres.Open(ctx, cfg.DatabaseURL, logger, databaseOptions...)
+	)
 	if err != nil {
 		setupLogger.Error("open database", "event", "database_open_failed", "error", err)
 		return errors.New("database_open_failed")

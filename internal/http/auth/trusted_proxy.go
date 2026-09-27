@@ -10,8 +10,10 @@ import (
 
 // TrustedProxy authenticates requests using identity headers from a trusted proxy.
 type TrustedProxy struct {
-	// repository persists and resolves trusted-proxy users.
+	// repository persists trusted-proxy authorization state.
 	repository trustedProxyRepository
+	// login resolves trusted identities through application registration policy.
+	login trustedProxyLoginService
 	// headers maps trusted proxy headers to Kumbuka identity fields.
 	headers TrustedProxyHeaders
 }
@@ -31,8 +33,12 @@ type TrustedProxyHeaders struct {
 }
 
 // NewTrustedProxy creates a trusted-proxy authenticator.
-func NewTrustedProxy(repository trustedProxyRepository, headers TrustedProxyHeaders) *TrustedProxy {
-	return &TrustedProxy{repository: repository, headers: headers}
+func NewTrustedProxy(
+	repository trustedProxyRepository,
+	login trustedProxyLoginService,
+	headers TrustedProxyHeaders,
+) *TrustedProxy {
+	return &TrustedProxy{repository: repository, login: login, headers: headers}
 }
 
 // Authenticate resolves the first populated trusted identity header.
@@ -42,7 +48,7 @@ func (a *TrustedProxy) Authenticate(r *http.Request) (domain.User, error) {
 		return domain.User{}, ErrUnauthenticated
 	}
 
-	user, err := a.repository.TrustedProxyUser(
+	user, err := a.login.Login(
 		r.Context(),
 		username,
 		firstHeader(r, a.headers.Email),
