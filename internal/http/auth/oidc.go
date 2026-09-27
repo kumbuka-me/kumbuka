@@ -92,6 +92,30 @@ type loginState struct {
 	Expires int64 `json:"x"`
 }
 
+// oidcCallbackProfile contains the verified identity values needed to complete one login.
+type oidcCallbackProfile struct {
+	// issuer is the verified provider namespace for the callback subject.
+	issuer string
+	// subject is the stable provider identifier for the user.
+	subject string
+	// username is the normalized Kumbuka username asserted by the provider.
+	username string
+	// email is the provider email claim forwarded to the application login service.
+	email string
+	// displayName is the provider display-name claim forwarded to the application login service.
+	displayName string
+	// groups contains normalized external groups used for authorization synchronization.
+	groups []string
+}
+
+// oidcCallbackProblem contains the stable browser response for a callback validation failure.
+type oidcCallbackProblem struct {
+	// status is the HTTP status returned to the browser.
+	status int
+	// message is the safe problem detail returned to the browser.
+	message string
+}
+
 // NewOIDC creates an OIDC authenticator and authorization-flow handler.
 func NewOIDC(
 	ctx context.Context,
@@ -211,90 +235,123 @@ func (o *OIDC) callback(w http.ResponseWriter, r *http.Request) {
 		httpresponse.Problem(w, http.StatusBadRequest, "Invalid login state.")
 		return
 	}
+	o.consumeCallbackState(w)
 
-	// Consume transient browser state on both successful and failed callbacks.
-	o.setCookie(w, oidcStateCookie, loginState{}, -1)
-	// Clear the legacy redirect cookie left by pre-login-state deployments.
-	o.setCookie(w, oidcLegacyNextCookie, struct{}{}, -1)
-
-	token, err := o.oauth.Exchange(
-		r.Context(),
-		r.URL.Query().Get("code"),
-		oauth2.VerifierOption(saved.Verifier),
-	)
-	if err != nil {
-		httpresponse.Problem(w, http.StatusUnauthorized, "Login failed.")
+	idToken, problem := o.callbackToken(r.Context(), r.URL.Query().Get("code"), saved.Verifier)
+	if problem != nil {
+		problem.write(w)
 		return
 	}
 
-	raw, _ := token.Extra("id_token").(string)
-
-	idToken, err := o.verifier.Verify(r.Context(), raw)
-	if err != nil {
-		httpresponse.Problem(w, http.StatusUnauthorized, "Invalid identity.")
-		return
-	}
-
-	issuer, subject, ok := o.callbackIdentity(idToken, saved.State)
-	if !ok {
-		httpresponse.Problem(w, http.StatusUnauthorized, "Invalid identity.")
-		return
-	}
-
-	var identity claims
-	if err := idToken.Claims(&identity); err != nil {
-		httpresponse.Problem(w, http.StatusUnauthorized, "Invalid claims.")
-		return
-	}
-
-	username := strings.TrimSpace(identity.PreferredUsername)
-	if username == "" {
-		httpresponse.Problem(w, http.StatusUnauthorized, "The preferred_username claim is required.")
-		return
-	}
-
-	groups, err := o.callbackGroups(idToken)
-	if err != nil {
-		httpresponse.Problem(w, http.StatusUnauthorized, "Invalid group claim.")
+	profile, problem := o.callbackProfile(idToken, saved.State)
+	if problem != nil {
+		problem.write(w)
 		return
 	}
 
 	user, err := o.loginService.Login(
 		r.Context(),
-		issuer,
-		subject,
-		username,
-		identity.Email,
-		identity.Name,
+		profile.issuer,
+		profile.subject,
+		profile.username,
+		profile.email,
+		profile.displayName,
 	)
 	if err != nil {
 		writeOIDCLoginProblem(w, err)
 		return
 	}
-
 	if !user.Enabled {
 		httpresponse.Problem(w, http.StatusForbidden, "This account is disabled.")
 		return
 	}
-
-	if err := o.syncAuthorization(r.Context(), user.ID, groups); err != nil {
+	if err := o.syncAuthorization(r.Context(), user.ID, profile.groups); err != nil {
 		httpresponse.Problem(w, http.StatusInternalServerError, "The request could not be processed.")
 		return
 	}
 
-	o.setCookie(w, oidcSessionCookie, session{
-		Issuer:  issuer,
-		Subject: subject,
-		Expires: time.Now().Add(oidcSessionTTL).Unix(),
-		Version: user.SessionVersion,
-	}, int(oidcSessionTTL.Seconds()))
+	o.setSessionCookie(w, profile, user.SessionVersion)
+	http.Redirect(w, r, callbackDestination(saved.Next), http.StatusFound)
+}
 
-	next := "/"
-	if httpresponse.IsLocalPath(saved.Next) {
-		next = saved.Next
+// consumeCallbackState expires transient and legacy callback cookies after state validation.
+func (o *OIDC) consumeCallbackState(w http.ResponseWriter) {
+	o.setCookie(w, oidcStateCookie, loginState{}, -1)
+	o.setCookie(w, oidcLegacyNextCookie, struct{}{}, -1)
+}
+
+// callbackToken exchanges the authorization code and verifies the returned ID token.
+func (o *OIDC) callbackToken(ctx context.Context, code, verifier string) (*oidc.IDToken, *oidcCallbackProblem) {
+	token, err := o.oauth.Exchange(ctx, code, oauth2.VerifierOption(verifier))
+	if err != nil {
+		return nil, &oidcCallbackProblem{status: http.StatusUnauthorized, message: "Login failed."}
 	}
 
-	http.Redirect(w, r, next, http.StatusFound)
+	raw, _ := token.Extra("id_token").(string)
+	idToken, err := o.verifier.Verify(ctx, raw)
+	if err != nil {
+		return nil, &oidcCallbackProblem{status: http.StatusUnauthorized, message: "Invalid identity."}
+	}
+
+	return idToken, nil
+}
+
+// callbackProfile validates identity claims and extracts the application login profile.
+func (o *OIDC) callbackProfile(idToken *oidc.IDToken, expectedNonce string) (oidcCallbackProfile, *oidcCallbackProblem) {
+	issuer, subject, ok := o.callbackIdentity(idToken, expectedNonce)
+	if !ok {
+		return oidcCallbackProfile{}, &oidcCallbackProblem{status: http.StatusUnauthorized, message: "Invalid identity."}
+	}
+
+	var identity claims
+	if err := idToken.Claims(&identity); err != nil {
+		return oidcCallbackProfile{}, &oidcCallbackProblem{status: http.StatusUnauthorized, message: "Invalid claims."}
+	}
+
+	username := strings.TrimSpace(identity.PreferredUsername)
+	if username == "" {
+		return oidcCallbackProfile{}, &oidcCallbackProblem{
+			status:  http.StatusUnauthorized,
+			message: "The preferred_username claim is required.",
+		}
+	}
+
+	groups, err := o.callbackGroups(idToken)
+	if err != nil {
+		return oidcCallbackProfile{}, &oidcCallbackProblem{status: http.StatusUnauthorized, message: "Invalid group claim."}
+	}
+
+	return oidcCallbackProfile{
+		issuer:      issuer,
+		subject:     subject,
+		username:    username,
+		email:       identity.Email,
+		displayName: identity.Name,
+		groups:      groups,
+	}, nil
+}
+
+// setSessionCookie writes the authenticated OIDC browser session.
+func (o *OIDC) setSessionCookie(w http.ResponseWriter, profile oidcCallbackProfile, version int64) {
+	o.setCookie(w, oidcSessionCookie, session{
+		Issuer:  profile.issuer,
+		Subject: profile.subject,
+		Expires: time.Now().Add(oidcSessionTTL).Unix(),
+		Version: version,
+	}, int(oidcSessionTTL.Seconds()))
+}
+
+// callbackDestination returns a safe local redirect destination for a completed login.
+func callbackDestination(next string) string {
+	if httpresponse.IsLocalPath(next) {
+		return next
+	}
+	return "/"
+}
+
+// write sends the callback validation problem to the browser.
+func (p *oidcCallbackProblem) write(w http.ResponseWriter) {
+	httpresponse.Problem(w, p.status, p.message)
 }
 
 // callbackGroups extracts external groups only when authorization settings require them.
