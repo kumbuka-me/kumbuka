@@ -89,75 +89,135 @@ func markdownResourceURLRanges(source string) []markdownURLRange {
 	return scanner.ranges
 }
 
-// scanLine ignores fenced and indented code before scanning one ordinary Markdown line.
+// scanLine ignores block code before scanning one ordinary Markdown line for resource destinations.
 func (s *markdownURLScanner) scanLine(line string, offset int) {
-	marker, width, after := markdownFence(line)
-	if s.fenceWidth != 0 {
-		if marker == s.fence && width >= s.fenceWidth && strings.TrimSpace(line[after:]) == "" {
-			s.fenceWidth = 0
-		}
+	if s.consumeFenceLine(line) || isIndentedCodeLine(line) {
 		return
 	}
-	if width != 0 && s.codeWidth == 0 && !s.inComment && !s.inHTMLCode {
-		s.fence, s.fenceWidth = marker, width
-		return
-	}
-	if strings.HasPrefix(line, "\t") || strings.HasPrefix(line, "    ") {
-		return
-	}
-
 	if s.scanReferenceDefinition(line, offset) {
 		return
 	}
+	s.scanInlineLine(line, offset)
+}
+
+// consumeFenceLine updates fenced-code state and reports whether the line is entirely consumed by that state.
+func (s *markdownURLScanner) consumeFenceLine(line string) bool {
+	marker, width, after := markdownFence(line)
+	if s.fenceWidth != 0 {
+		if closesMarkdownFence(line, marker, width, after, s.fence, s.fenceWidth) {
+			s.fenceWidth = 0
+		}
+		return true
+	}
+	if !opensMarkdownFence(width, s.codeWidth, s.inComment, s.inHTMLCode) {
+		return false
+	}
+
+	s.fence, s.fenceWidth = marker, width
+	return true
+}
+
+// closesMarkdownFence reports whether one fence marker closes the currently open fenced block.
+func closesMarkdownFence(line string, marker byte, width, after int, openMarker byte, openWidth int) bool {
+	return marker == openMarker && width >= openWidth && strings.TrimSpace(line[after:]) == ""
+}
+
+// opensMarkdownFence reports whether a parsed fence may start outside inline code, comments, and raw HTML code.
+func opensMarkdownFence(width, codeWidth int, inComment, inHTMLCode bool) bool {
+	return width != 0 && codeWidth == 0 && !inComment && !inHTMLCode
+}
+
+// isIndentedCodeLine reports whether Markdown treats line as an indented code block line.
+func isIndentedCodeLine(line string) bool {
+	return strings.HasPrefix(line, "\t") || strings.HasPrefix(line, "    ")
+}
+
+// scanInlineLine walks one non-block-code line while preserving inline parser state across HTML constructs.
+func (s *markdownURLScanner) scanInlineLine(line string, offset int) {
 	for index := 0; index < len(line); {
-		if s.inComment {
-			end := strings.Index(line[index:], "-->")
-			if end < 0 {
+		if next, handled, stop := s.consumeHTMLComment(line, index); handled {
+			if stop {
 				return
 			}
-			s.inComment = false
-			index += end + len("-->")
+			index = next
 			continue
 		}
-		if strings.HasPrefix(line[index:], "<!--") && s.codeWidth == 0 {
-			s.inComment = true
-			index += len("<!--")
-			continue
-		}
-		if line[index] == '`' {
-			width := markerWidth(line[index:], '`')
-			switch s.codeWidth {
-			case 0:
-				s.codeWidth = width
-			case width:
-				s.codeWidth = 0
-			}
-			index += width
+		if next, handled := s.consumeInlineCodeDelimiter(line, index); handled {
+			index = next
 			continue
 		}
 		if s.codeWidth != 0 {
 			index++
 			continue
 		}
-		if line[index] == '<' {
-			if end, ok := s.scanHTMLTag(line, offset, index); ok {
-				index = end
-				continue
-			}
+		if next, handled := s.consumeHTMLTag(line, offset, index); handled {
+			index = next
+			continue
 		}
 		if s.inHTMLCode {
 			index++
 			continue
 		}
-		if isInlineLinkDestinationStart(line, index) {
-			if location, ok := markdownDestination(line, offset, index+2); ok {
-				s.ranges = append(s.ranges, location)
-				index = location.end - offset
-				continue
-			}
+		if next, handled := s.consumeInlineLink(line, offset, index); handled {
+			index = next
+			continue
 		}
 		index++
 	}
+}
+
+// consumeHTMLComment advances comment state at index and reports whether scanning should stop at the line end.
+func (s *markdownURLScanner) consumeHTMLComment(line string, index int) (next int, handled, stop bool) {
+	if s.inComment {
+		end := strings.Index(line[index:], "-->")
+		if end < 0 {
+			return index, true, true
+		}
+		s.inComment = false
+		return index + end + len("-->"), true, false
+	}
+	if s.codeWidth == 0 && strings.HasPrefix(line[index:], "<!--") {
+		s.inComment = true
+		return index + len("<!--"), true, false
+	}
+	return index, false, false
+}
+
+// consumeInlineCodeDelimiter toggles inline-code state when index starts a backtick delimiter run.
+func (s *markdownURLScanner) consumeInlineCodeDelimiter(line string, index int) (int, bool) {
+	if line[index] != '`' {
+		return index, false
+	}
+
+	width := markerWidth(line[index:], '`')
+	switch s.codeWidth {
+	case 0:
+		s.codeWidth = width
+	case width:
+		s.codeWidth = 0
+	}
+	return index + width, true
+}
+
+// consumeHTMLTag scans one raw HTML tag at index when present.
+func (s *markdownURLScanner) consumeHTMLTag(line string, offset, index int) (int, bool) {
+	if line[index] != '<' {
+		return index, false
+	}
+	return s.scanHTMLTag(line, offset, index)
+}
+
+// consumeInlineLink records one Markdown inline-link destination beginning at index when present.
+func (s *markdownURLScanner) consumeInlineLink(line string, offset, index int) (int, bool) {
+	if !isInlineLinkDestinationStart(line, index) {
+		return index, false
+	}
+	location, ok := markdownDestination(line, offset, index+2)
+	if !ok {
+		return index, false
+	}
+	s.ranges = append(s.ranges, location)
+	return location.end - offset, true
 }
 
 // isInlineLinkDestinationStart reports whether index closes a Markdown link label followed by a destination.
