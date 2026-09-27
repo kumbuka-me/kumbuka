@@ -14,7 +14,7 @@ import (
 func TestDiscussionValidationBeforePersistence(t *testing.T) {
 	t.Parallel()
 
-	_, err := NewDiscussions(nil, nil, nil, nil, slog.Default()).AddComment(
+	_, err := NewDiscussions(nil, nil, nil, slog.Default()).AddComment(
 		context.Background(),
 		"page",
 		0,

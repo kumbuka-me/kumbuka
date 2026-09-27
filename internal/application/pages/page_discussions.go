@@ -56,7 +56,6 @@ type Discussions struct {
 func NewDiscussions(
 	repository discussionRepository,
 	access appaccess.Policy,
-	content pageContentPreparer,
 	sideEffects pageSideEffectRepository,
 	logger *slog.Logger,
 	eventSinks ...webhooks.EventSink,
@@ -67,7 +66,6 @@ func NewDiscussions(
 	return &Discussions{
 		repository:    repository,
 		authorization: pageAuthorization{policy: access},
-		content:       content,
 		effects:       newPageEffects(sideEffects, logger, eventSinks...),
 		logger:        logger,
 	}

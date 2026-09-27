@@ -79,9 +79,6 @@ func Run(
 		"version", version,
 		"commit", commit,
 	)
-
-	metricsRegistry := appmetrics.NewRegistry(!cfg.DisableMetrics, version, commit)
-
 	if len(cfg.Overrides) > 0 {
 		setupLogger.Info("CLI Overrides", "event", "cli_overrides", "overrides", cfg.Overrides)
 	}
@@ -114,18 +111,16 @@ func Run(
 		setupLogger.Error("open database", "event", "database_open_failed", "error", err)
 		return errors.New("database_open_failed")
 	}
-
 	defer database.Close()
-	metricsRegistry.RegisterPostgres(database)
 
 	// Construct page mutation and collaboration capabilities that other workflows depend on.
 	webhooks := appwebhooks.NewWebhooks(database, secretCipher, logger.With("component", "webhooks"), cfg.PublicURL).WithUserDirectory(database)
 	access := appaccess.NewAccess(database)
 	mutations := apppages.NewMutations(database, access, database, logger, webhooks)
 	presence := apppages.NewPresence(database, access)
-	discussions := apppages.NewDiscussions(database, access, nil, database, logger, webhooks)
+	discussions := apppages.NewDiscussions(database, access, database, logger, webhooks)
 	reviews := apppages.NewReviews(database, access, database, logger, webhooks)
-	reviewDiscussions := apppages.NewReviewDiscussions(database, access, reviews, nil, database, logger, webhooks)
+	reviewDiscussions := apppages.NewReviewDiscussions(database, access, reviews, database, logger, webhooks)
 	bulk := apppages.NewBulk(database, mutations, database, logger, webhooks)
 
 	// Construct the remaining application capabilities around their narrow repository ports.
@@ -162,12 +157,19 @@ func Run(
 	editorSave := apppages.NewEditorSave(mutations, drafts, templates, serverLogger)
 	viewPage := apppages.NewView(database, access, reviews, serverLogger)
 
+	// Construct bearer-token authentication for API requests.
+	bearerAuth := auth.NewBearer(database)
+
 	// Configure browser authentication.
 	browserAuth, err := auth.ConfigureBrowserAuth(ctx, browserAuthConfig(cfg), database)
 	if err != nil {
 		setupLogger.Error("configure browser auth", "event", "browser_auth_failed", "error", err)
 		return err
 	}
+
+	// Construct the metrics registry and register database metrics.
+	metricsRegistry := appmetrics.NewRegistry(!cfg.DisableMetrics, version, commit)
+	metricsRegistry.RegisterPostgres(database)
 
 	// Construct the plugin runtime.
 	renderer, err := pluginruntime.NewRenderer(
@@ -184,10 +186,8 @@ func Run(
 		setupLogger.Error("create plugin runtime", "event", "plugin_runtime_failed", "error", err)
 		return err
 	}
-
 	defer closeRenderer(renderer, setupLogger)
 	metricsRegistry.RegisterPluginProvider(renderer.PluginManager())
-	bearerAuth := auth.NewBearer(database)
 
 	// Inject runtime-derived content and icon capabilities into application services.
 	iconCatalog := renderer.IconCatalog()
@@ -300,11 +300,15 @@ func Run(
 		},
 	}
 
+	// Start the content-change worker after the runtime dependencies are fully configured.
 	go contentChanges.Run(ctx)
+
+	// Start scheduled plugin update checks when they are enabled.
 	if cfg.PluginUpdateCheckInterval > 0 {
 		go pluginUpdates.Run(ctx)
 	}
 
+	// Construct the HTTP handler and run the server until shutdown.
 	handler := httpserver.New(serverConfig)
 	if err := server.Run(ctx, cfg.ListenAddress, handler, logger, server.WithMaxHeaderValueCount(100)); err != nil {
 		setupLogger.Error("run server", "event", "server_run_failed", "error", err)

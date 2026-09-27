@@ -137,7 +137,7 @@ func (*inlineSuggestionRepositoryStub) PageWatcherUserIDs(context.Context, int64
 }
 
 func newDiscussionsForTest(repository *inlineSuggestionRepositoryStub) *Discussions {
-	return NewDiscussions(repository, nil, nil, repository, slog.Default())
+	return NewDiscussions(repository, nil, repository, slog.Default())
 }
 
 // discussionCommentRepositoryStub provides reply context for comment notification tests.
@@ -207,7 +207,7 @@ func TestAddCommentReplyNotificationUsesParentAuthorID(t *testing.T) {
 
 		repository := &discussionCommentRepositoryStub{parent: domain.PageComment{ID: 9, AuthorID: 7}}
 		sender := &discussionNotificationSenderStub{}
-		discussions := NewDiscussions(repository, nil, nil, repository, slog.Default()).WithNotifications(sender)
+		discussions := NewDiscussions(repository, nil, repository, slog.Default()).WithNotifications(sender)
 
 		_, err := discussions.AddComment(
 			context.Background(),
@@ -229,7 +229,7 @@ func TestAddCommentReplyNotificationUsesParentAuthorID(t *testing.T) {
 
 		repository := &discussionCommentRepositoryStub{parent: domain.PageComment{ID: 9}}
 		sender := &discussionNotificationSenderStub{}
-		discussions := NewDiscussions(repository, nil, nil, repository, slog.Default()).WithNotifications(sender)
+		discussions := NewDiscussions(repository, nil, repository, slog.Default()).WithNotifications(sender)
 
 		_, err := discussions.AddComment(
 			context.Background(),

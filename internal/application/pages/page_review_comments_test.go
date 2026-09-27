@@ -142,7 +142,7 @@ func (*reviewDiscussionRepositoryStub) PageWatcherUserIDs(context.Context, int64
 
 func newReviewDiscussionsForTest(repository *reviewDiscussionRepositoryStub) *ReviewDiscussions {
 	reviews := NewReviews(repository, nil, nil, slog.Default())
-	return NewReviewDiscussions(repository, nil, reviews, nil, nil, slog.Default())
+	return NewReviewDiscussions(repository, nil, reviews, nil, slog.Default())
 }
 
 // TestAddReviewCommentCapturesReviewedSource verifies suggestions persist the exact reviewed Markdown range rather than browser text.

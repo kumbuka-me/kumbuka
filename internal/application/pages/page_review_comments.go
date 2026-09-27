@@ -101,7 +101,6 @@ func NewReviewDiscussions(
 	repository reviewDiscussionRepository,
 	access appaccess.Policy,
 	reviews reviewPolicy,
-	content pageContentPreparer,
 	sideEffects pageSideEffectRepository,
 	logger *slog.Logger,
 	eventSinks ...webhooks.EventSink,
@@ -110,7 +109,6 @@ func NewReviewDiscussions(
 		repository:    repository,
 		authorization: pageAuthorization{policy: access},
 		reviews:       reviews,
-		content:       content,
 		effects:       newPageEffects(sideEffects, logger, eventSinks...),
 	}
 }
