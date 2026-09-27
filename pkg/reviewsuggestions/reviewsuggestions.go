@@ -61,6 +61,7 @@ func LineRange(markdown string, startLine, endLine int) (string, bool) {
 	return strings.Join(lines[startLine-1:endLine], "\n"), true
 }
 
+// replacementLines converts replacement Markdown into lines while treating an empty replacement as deletion.
 func replacementLines(replacement string) []string {
 	if replacement == "" {
 		return nil

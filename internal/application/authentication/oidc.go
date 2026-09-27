@@ -17,7 +17,9 @@ type oidcRepository interface {
 
 // OIDC coordinates verified OIDC identity login policy with atomic persistence.
 type OIDC struct {
-	repository           oidcRepository
+	// repository provides identity lookup, settings, and atomic login persistence.
+	repository oidcRepository
+	// registrationOverride replaces the persisted registration setting when configured by deployment policy.
 	registrationOverride *bool
 }
 
@@ -50,6 +52,7 @@ func (s *OIDC) Login(ctx context.Context, issuer, subject, username, email, disp
 	return s.repository.ResolveOIDCLogin(ctx, issuer, subject, username, email, displayName, registrationEnabled)
 }
 
+// registrationEnabled resolves the deployment override before the persisted registration setting.
 func (s *OIDC) registrationEnabled(ctx context.Context) (bool, error) {
 	if s.registrationOverride != nil {
 		return *s.registrationOverride, nil

@@ -16,6 +16,7 @@ var kindUserMention = ast.NewNodeKind("KumbukaUserMention")
 
 // userMentionNode wraps one authored @username reference.
 type userMentionNode struct {
+	// BaseInline provides Goldmark inline-node linkage and source-segment behavior.
 	ast.BaseInline
 }
 
@@ -35,6 +36,7 @@ func (n *userMentionNode) Dump(_ []byte) *ast.NodeDump { return ast.NewNodeDump(
 // mentionTransformer wraps authored mention ranges while leaving code spans and
 // image alt text literal.
 type mentionTransformer struct {
+	// ranges contains authored mention source spans in document order.
 	ranges []mention.Range
 }
 

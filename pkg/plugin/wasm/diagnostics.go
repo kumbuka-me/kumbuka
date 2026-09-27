@@ -12,6 +12,7 @@ const (
 
 // guestDiagnostics captures a bounded prefix of guest stderr for crash diagnostics.
 type guestDiagnostics struct {
+	// data stores the bounded guest stderr prefix captured for the current invocation.
 	data []byte
 }
 

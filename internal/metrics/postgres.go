@@ -12,15 +12,25 @@ type postgresStatsProvider interface {
 
 // postgresCollector exports PostgreSQL connection-pool state.
 type postgresCollector struct {
-	provider             postgresStatsProvider
-	connections          *prometheus.Desc
-	maxConnections       *prometheus.Desc
-	acquires             *prometheus.Desc
-	emptyAcquires        *prometheus.Desc
-	canceledAcquires     *prometheus.Desc
-	acquireDuration      *prometheus.Desc
+	// provider supplies the current PostgreSQL pool statistics at scrape time.
+	provider postgresStatsProvider
+	// connections describes current pool connections partitioned by state.
+	connections *prometheus.Desc
+	// maxConnections describes the configured PostgreSQL pool connection limit.
+	maxConnections *prometheus.Desc
+	// acquires describes successful PostgreSQL pool acquisitions.
+	acquires *prometheus.Desc
+	// emptyAcquires describes successful acquisitions that had to wait for capacity.
+	emptyAcquires *prometheus.Desc
+	// canceledAcquires describes acquisitions canceled by their context.
+	canceledAcquires *prometheus.Desc
+	// acquireDuration describes cumulative successful acquisition wait time.
+	acquireDuration *prometheus.Desc
+	// emptyAcquireWaitTime describes cumulative wait time caused by an empty pool.
 	emptyAcquireWaitTime *prometheus.Desc
-	newConnections       *prometheus.Desc
+	// newConnections describes connections opened by the PostgreSQL pool.
+	newConnections *prometheus.Desc
+	// destroyedConnections describes pool connections destroyed by reason.
 	destroyedConnections *prometheus.Desc
 }
 

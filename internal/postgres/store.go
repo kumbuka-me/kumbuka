@@ -11,8 +11,11 @@ import (
 
 // config controls PostgreSQL store construction before the pool is created.
 type config struct {
-	maxConns                      int32
-	minIdleConns                  int32
+	// maxConns overrides pgxpool's automatically selected maximum when positive.
+	maxConns int32
+	// minIdleConns sets the minimum number of idle pool connections when positive.
+	minIdleConns int32
+	// allowUserRegistrationOverride replaces persisted external-registration policy when configured.
 	allowUserRegistrationOverride *bool
 }
 
