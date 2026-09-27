@@ -66,8 +66,13 @@ func (a *Admin) Refresh(ctx context.Context) error {
 	return a.catalog.Refresh(ctx)
 }
 
-// Status returns the latest catalog refresh state.
-func (a *Admin) Status() PluginUpdateStatus { return a.catalog.Status() }
+// Status returns the latest catalog refresh state or an empty status when no catalog is configured.
+func (a *Admin) Status() PluginUpdateStatus {
+	if a.catalog == nil {
+		return PluginUpdateStatus{}
+	}
+	return a.catalog.Status()
+}
 
 // Available returns compatible updates when catalog access succeeds.
 func (a *Admin) Available() (map[string]domain.PluginRelease, error) {
