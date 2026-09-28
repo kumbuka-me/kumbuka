@@ -68,6 +68,7 @@ func (l *BrowserContext) Load(r *http.Request, views *webview.Views, title strin
 	}
 	preferences := context.Preferences
 	applicationSettings := context.Settings
+	locale := views.Localizer(preferences.Locale, r.Header.Get("Accept-Language"))
 	pageNavigation := presentNavigation(context, r.URL.Path)
 	typographySize := effectiveTypographySize(preferences, applicationSettings)
 	activeTheme := selectedTheme(views, preferences.Theme)
@@ -86,6 +87,9 @@ func (l *BrowserContext) Load(r *http.Request, views *webview.Views, title strin
 	}
 
 	return webview.Layout{
+		Locale:              locale,
+		LocaleOptions:       views.LocaleOptions(),
+		BrowserTranslations: views.BrowserTranslations(locale),
 		Title:               title,
 		User:                user,
 		Preferences:         preferences,

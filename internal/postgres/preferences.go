@@ -14,6 +14,7 @@ func (s *Store) Preferences(ctx context.Context, userID int64) (domain.UserPrefe
 	preferences := domain.DefaultUserPreferences()
 	err := s.pool.QueryRow(ctx, `
 SELECT
+  locale,
   theme,
   show_page_contents,
   navigation_style,
@@ -27,6 +28,7 @@ SELECT
   hidden_plugin_widgets
 FROM user_preferences
 WHERE user_id=$1`, userID).Scan(
+		&preferences.Locale,
 		&preferences.Theme,
 		&preferences.ShowPageContents,
 		&preferences.NavigationStyle,
@@ -51,6 +53,7 @@ func (s *Store) SavePreferences(ctx context.Context, userID int64, preferences d
 	_, err := s.pool.Exec(ctx, `
 INSERT INTO user_preferences(
   user_id,
+  locale,
   theme,
   show_page_contents,
   navigation_style,
@@ -64,9 +67,10 @@ INSERT INTO user_preferences(
   hidden_plugin_widgets,
   updated_at
 )
-VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,now())
+VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,now())
 ON CONFLICT(user_id) DO UPDATE
-SET theme=EXCLUDED.theme,
+SET locale=EXCLUDED.locale,
+    theme=EXCLUDED.theme,
     show_page_contents=EXCLUDED.show_page_contents,
     navigation_style=EXCLUDED.navigation_style,
     navigation_density=EXCLUDED.navigation_density,
@@ -77,7 +81,7 @@ SET theme=EXCLUDED.theme,
     show_navigation_page_counts=EXCLUDED.show_navigation_page_counts,
     expanded_navigation=EXCLUDED.expanded_navigation,
     hidden_plugin_widgets=EXCLUDED.hidden_plugin_widgets,
-    updated_at=now()`, userID, preferences.Theme, preferences.ShowPageContents, preferences.NavigationStyle, preferences.NavigationDensity, preferences.TypographySize, preferences.SidebarWidth, preferences.ShowNavigationGuides, preferences.RememberNavigationState, preferences.ShowNavigationPageCounts, normalizeNavigationPaths(preferences.ExpandedNavigation), preferences.HiddenPluginWidgets)
+    updated_at=now()`, userID, preferences.Locale, preferences.Theme, preferences.ShowPageContents, preferences.NavigationStyle, preferences.NavigationDensity, preferences.TypographySize, preferences.SidebarWidth, preferences.ShowNavigationGuides, preferences.RememberNavigationState, preferences.ShowNavigationPageCounts, normalizeNavigationPaths(preferences.ExpandedNavigation), preferences.HiddenPluginWidgets)
 	return err
 }
 

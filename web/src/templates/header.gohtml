@@ -1,26 +1,30 @@
 {{ define "header" }}
+  {{ $locale := .Locale }}
   <header class="topbar">
     <button class="menu-button"
             type="button"
             data-menu
-            aria-label="Toggle navigation"
+            aria-label="{{ $locale.Text "header.toggle_navigation" }}"
             aria-controls="kumbuka-sidebar"
             aria-expanded="false">{{ icon "menu-lucide" 20 }}</button>
-    <a class="brand" href="{{ route "/" }}" aria-label="Kumbuka home">{{ logo }}</a>
+    <a class="brand"
+       href="{{ route "/" }}"
+       aria-label="{{ $locale.Text "header.home" }}">{{ logo }}</a>
     <form class="global-search" action="{{ route "/search" }}" data-live-search>
       <span class="global-search-icon" aria-hidden="true">{{ icon "search-lucide" 15 }}</span>
       <input type="search"
              name="q"
              value="{{ .SearchQuery }}"
-             placeholder="Search pages, tags, runbooks…"
+             placeholder="{{ $locale.Text "header.search_placeholder" }}"
              autocomplete="off"
-             aria-label="Search Kumbuka"
+             aria-label="{{ $locale.Text "header.search_label" }}"
              aria-autocomplete="list"
              aria-expanded="false" />
       <kbd>/</kbd>
     </form>
     {{ if .ApplicationSettings.ExternalLinks }}
-      <nav class="external-links" aria-label="External links">
+      <nav class="external-links"
+           aria-label="{{ $locale.Text "header.external_links" }}">
         {{ range .ApplicationSettings.ExternalLinks }}
           <a class="external-link hover-{{ externalhovereffect . }}{{ if .Icon }} has-icon{{ end }}"
              href="{{ route .URL }}"
@@ -36,7 +40,9 @@
       </nav>
     {{ end }}
     <details class="notification-menu" data-notification-menu>
-      <summary class="icon-button" aria-label="Notifications" title="Notifications">
+      <summary class="icon-button"
+               aria-label="{{ $locale.Text "header.notifications" }}"
+               title="{{ $locale.Text "header.notifications" }}">
         {{ icon "bell-lucide" 18 }}
         <span class="notification-badge"
               data-notification-badge{{ if eq .UnreadNotifications 0 }}
@@ -44,10 +50,10 @@
       </summary>
       <div class="notification-popover">
         <div class="notification-heading">
-          <strong>Notifications</strong>
+          <strong>{{ $locale.Text "header.notifications" }}</strong>
           <button type="button"
                   data-notifications-read-all{{ if eq .UnreadNotifications 0 }}
-                  hidden{{ end }}>Mark all read</button>
+                  hidden{{ end }}>{{ $locale.Text "header.mark_all_read" }}</button>
         </div>
         <div class="notification-list" data-notification-list>
           {{ range .Notifications }}
@@ -68,22 +74,22 @@
         <span>
           <strong>{{ .Title }}</strong>
           {{ if .Body }}<small>{{ .Body }}</small>{{ end }}
-          {{ if .SourceName }}<small>From {{ .SourceName }}</small>{{ end }}
-          <time>{{ timeago .CreatedAt }}</time>
+          {{ if .SourceName }}<small>{{ $locale.Text "header.from" }} {{ .SourceName }}</small>{{ end }}
+          <time>{{ $locale.TimeAgo .CreatedAt }}</time>
         </span>
       </button>
     </form>
     <div class="notification-actions">
       <button type="button"
               data-notification-toggle-read
-              aria-label="{{ if .ReadAt }}Mark notification unread{{ else }}Mark notification read{{ end }}">{{ if .ReadAt }}Unread{{ else }}Read{{ end }}</button>
+              aria-label="{{ if .ReadAt }}{{ $locale.Text "header.mark_unread" }}{{ else }}{{ $locale.Text "header.mark_read" }}{{ end }}">{{ if .ReadAt }}{{ $locale.Text "header.unread" }}{{ else }}{{ $locale.Text "header.read" }}{{ end }}</button>
       <button type="button"
               data-notification-delete
-              aria-label="Delete notification">Delete</button>
+              aria-label="{{ $locale.Text "header.delete_notification" }}">{{ $locale.Text "header.delete" }}</button>
     </div>
   </div>
 {{ else }}
-  <p class="muted notification-empty">Nothing new.</p>
+  <p class="muted notification-empty">{{ $locale.Text "header.nothing_new" }}</p>
 {{ end }}
 </div>
 </div>
@@ -91,7 +97,7 @@
 {{ if .CanEdit }}
   <a class="button primary"
      href="{{ route "/pages/new" }}{{ if .NewPageParent }}?parent={{ .NewPageParent | urlquery }}{{ end }}"
-     aria-label="New page">{{ icon "plus-lucide" 16 }}<span>New page</span></a>
+     aria-label="{{ $locale.Text "header.new_page" }}">{{ icon "plus-lucide" 16 }}<span>{{ $locale.Text "header.new_page" }}</span></a>
 {{ end }}
 </header>
 {{ end }}

@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/kumbuka-me/kumbuka/internal/i18n"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/kumbuka-me/kumbuka/pkg/markdown"
 	"github.com/kumbuka-me/kumbuka/pkg/navigation"
@@ -143,6 +144,13 @@ type PageCommentThread struct {
 
 // Layout contains presentation data for layout.
 type Layout struct {
+	// Locale contains the request-localized interface messages.
+	Locale i18n.Localizer
+	// LocaleOptions lists interface languages available for explicit user selection.
+	LocaleOptions []i18n.Option
+	// BrowserTranslations contains the request locale messages consumed by browser code.
+	BrowserTranslations template.JS
+
 	// RoutePrefix is the normalized deployment path, empty at root.
 	RoutePrefix string
 	// CurrentPage identifies contextual actions in shared browser chrome.

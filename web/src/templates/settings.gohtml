@@ -1,62 +1,62 @@
 {{ define "content" }}
+  {{ $locale := .Locale }}
   <section class="settings-page">
     <div class="settings-heading">
-      <p class="eyebrow">Account</p>
-      <h1>Settings</h1>
-      <p class="muted">Review your account information, manage access tokens, and personalize how Kumbuka is displayed.</p>
+      <p class="eyebrow">{{ $locale.Text "settings.account" }}</p>
+      <h1>{{ $locale.Text "settings.title" }}</h1>
+      <p class="muted">{{ $locale.Text "settings.intro" }}</p>
     </div>
     <div class="settings-grid">
       <section class="panel settings-panel" id="user">
         <div class="panel-title">
-          <h2>User information</h2>
+          <h2>{{ $locale.Text "settings.user.title" }}</h2>
         </div>
         <dl class="user-details">
           <div>
-            <dt>Display name</dt>
+            <dt>{{ $locale.Text "settings.user.display_name" }}</dt>
             <dd>
               {{ .User.DisplayName }}
             </dd>
           </div>
           <div>
-            <dt>Username</dt>
+            <dt>{{ $locale.Text "settings.user.username" }}</dt>
             <dd>
               {{ .User.Username }}
             </dd>
           </div>
           <div>
-            <dt>Email</dt>
+            <dt>{{ $locale.Text "settings.user.email" }}</dt>
             <dd>
-              {{ if .User.Email }}{{ .User.Email }}{{ else }}<span class="muted">Not provided</span>{{ end }}
+              {{ if .User.Email }}{{ .User.Email }}{{ else }}<span class="muted">{{ $locale.Text "settings.user.not_provided" }}</span>{{ end }}
             </dd>
           </div>
           <div>
-            <dt>Role</dt>
+            <dt>{{ $locale.Text "settings.user.role" }}</dt>
             <dd>
-              <span class="role-badge">{{ .User.Role }}</span>
+              <span class="role-badge">{{ $locale.Text (printf "role.%s" .User.Role) }}</span>
             </dd>
           </div>
           <div>
-            <dt>Groups</dt>
+            <dt>{{ $locale.Text "settings.user.groups" }}</dt>
             <dd>
               {{ if .Groups }}
                 <span class="settings-group-list">{{ range .Groups }}<span class="page-group-badge">{{ .Name }}</span>{{ end }}</span>
               {{ else }}
-                <span class="muted">None</span>
+                <span class="muted">{{ $locale.Text "settings.user.none" }}</span>
               {{ end }}
             </dd>
           </div>
         </dl>
-        <p class="settings-note">
-          Identity information comes from the configured authentication source and is read-only here.
-        </p>
+        <p class="settings-note">{{ $locale.Text "settings.user.identity_note" }}</p>
         {{ if eq .User.Role "admin" }}
-          <p><a class="button" href="{{ route "/admin" }}">Open administration</a></p>
+          <p><a class="button"
+   href="{{ route "/admin" }}">{{ $locale.Text "settings.user.open_administration" }}</a></p>
         {{ end }}
       </section>
       {{ if .LocalCredentialAuthenticated }}
         <section class="panel settings-panel" id="password">
           <div class="panel-title">
-            <h2>Change password</h2>
+            <h2>{{ $locale.Text "settings.password.title" }}</h2>
           </div>
           <form class="stacked-form"
                 action="{{ route "/settings/local-password" }}"
@@ -64,88 +64,100 @@
                 data-validate-form
                 novalidate>
             <label>
-              Current password
+              {{ $locale.Text "settings.password.current" }}
               <input type="password"
                      name="current_password"
                      autocomplete="current-password"
-                     data-error-required="Enter your current password."
+                     data-error-required="{{ $locale.Text "settings.password.current_required" }}"
                      required />
             </label>
             <label>
-              New password
+              {{ $locale.Text "settings.password.new" }}
               <input type="password"
                      name="new_password"
                      autocomplete="new-password"
                      minlength="12"
                      data-validate-password
-                     data-error-required="Enter a new password."
-                     data-error-minlength="Use at least 12 characters."
+                     data-error-required="{{ $locale.Text "settings.password.new_required" }}"
+                     data-error-minlength="{{ $locale.Text "settings.password.minimum" }}"
                      required />
-              <small>At least 12 characters.</small>
+              <small>{{ $locale.Text "settings.password.minimum_hint" }}</small>
             </label>
             <label>
-              Confirm new password
+              {{ $locale.Text "settings.password.confirm" }}
               <input type="password"
                      name="new_password_confirm"
                      autocomplete="new-password"
                      data-validate-match="new_password"
-                     data-error-required="Confirm your new password."
-                     data-error-match="Passwords do not match."
+                     data-error-required="{{ $locale.Text "settings.password.confirm_required" }}"
+                     data-error-match="{{ $locale.Text "settings.password.mismatch" }}"
                      required />
             </label>
             <div class="settings-actions">
-              <button class="button primary" type="submit">Change password</button>
+              <button class="button primary" type="submit">{{ $locale.Text "settings.password.submit" }}</button>
             </div>
           </form>
-          <p class="settings-note">This form is available because you signed in with a local password. Changing it signs out your other local sessions while keeping this browser signed in.</p>
+          <p class="settings-note">{{ $locale.Text "settings.password.note" }}</p>
         </section>
       {{ end }}
       <section class="panel settings-panel" id="preferences">
         <div class="panel-title">
-          <h2>Preferences</h2>
+          <h2>{{ $locale.Text "settings.preferences.title" }}</h2>
         </div>
         <form class="preferences-form"
               action="{{ route "/settings/preferences" }}"
               method="post">
           <label>
-            Theme
+            {{ $locale.Text "settings.preferences.language" }}
+            <select name="locale">
+              <option value=""
+                      {{ if eq .Preferences.Locale "" }}selected{{ end }}>{{ $locale.Text "settings.preferences.language_browser" }}</option>
+              {{ range .LocaleOptions }}
+                <option value="{{ .Code }}"
+                        {{ if eq $.Preferences.Locale .Code }}selected{{ end }}>{{ .Label }}</option>
+              {{ end }}
+            </select>
+            <small>{{ $locale.Text "settings.preferences.language_hint" }}</small>
+          </label>
+          <label>
+            {{ $locale.Text "settings.preferences.theme" }}
             <select name="theme" data-theme-select>
               {{ range .Themes }}
                 <option value="{{ .Title }}"
                         {{ if eq $.ActiveTheme .Title }}selected{{ end }}>{{ .Title }}</option>
               {{ end }}
             </select>
-            <small>Theme changes are previewed immediately and saved to your user account.</small>
+            <small>{{ $locale.Text "settings.preferences.theme_hint" }}</small>
           </label>
           <label>
-            Typography size
+            {{ $locale.Text "settings.preferences.typography" }}
             <select name="typography_size"
                     data-typography-size-setting
                     data-default-typography-size="{{ .ApplicationSettings.Rendering.DefaultTypographySize }}">
-              <option value="" {{ if eq .Preferences.TypographySize "" }}selected{{ end }}>Application default</option>
+              <option value=""
+                      {{ if eq .Preferences.TypographySize "" }}selected{{ end }}>{{ $locale.Text "settings.preferences.application_default" }}</option>
               <option value="compact"
-                      {{ if eq .Preferences.TypographySize "compact" }}selected{{ end }}>Compact</option>
+                      {{ if eq .Preferences.TypographySize "compact" }}selected{{ end }}>{{ $locale.Text "settings.preferences.compact" }}</option>
               <option value="standard"
-                      {{ if eq .Preferences.TypographySize "standard" }}selected{{ end }}>Standard</option>
+                      {{ if eq .Preferences.TypographySize "standard" }}selected{{ end }}>{{ $locale.Text "settings.preferences.standard" }}</option>
               <option value="large"
-                      {{ if eq .Preferences.TypographySize "large" }}selected{{ end }}>Large</option>
+                      {{ if eq .Preferences.TypographySize "large" }}selected{{ end }}>{{ $locale.Text "settings.preferences.large" }}</option>
             </select>
-            <small>Controls page titles, Markdown headings, and body text. Application default: {{ .ApplicationSettings.Rendering.DefaultTypographySize }}.</small>
+            <small>{{ $locale.Text "settings.preferences.typography_hint" }} {{ $locale.Label "settings.preferences" (printf "%s" .ApplicationSettings.Rendering.DefaultTypographySize) }}.</small>
           </label>
           <label class="toggle-row">
             <span>
-              <strong>Show page contents</strong>
-              <small>Display a table of contents from Markdown headings when viewing a page. The page toggle updates this
-              preference too.</small>
+              <strong>{{ $locale.Text "settings.preferences.show_contents" }}</strong>
+              <small>{{ $locale.Text "settings.preferences.show_contents_hint" }}</small>
             </span>
             <input type="checkbox"
                    name="show_page_contents"
                    {{ if .Preferences.ShowPageContents }}checked{{ end }} />
           </label>
           <fieldset class="preference-group">
-            <legend>Navigation</legend>
+            <legend>{{ $locale.Text "settings.preferences.navigation" }}</legend>
             <fieldset class="navigation-style-setting">
-              <legend>Style</legend>
+              <legend>{{ $locale.Text "settings.preferences.style" }}</legend>
               <div class="navigation-style-options">
                 <label class="navigation-style-option">
                   <input type="radio"
@@ -154,7 +166,7 @@
                          {{ if eq .Preferences.NavigationStyle "sidebar" }}checked{{ end }} />
                   <span class="navigation-style-preview navigation-style-preview-sidebar"
                         aria-hidden="true"><i></i><b></b></span>
-                  <span><strong>Sidebar</strong><small>Full navigation with shortcuts and page hierarchy.</small></span>
+                  <span><strong>{{ $locale.Text "settings.preferences.sidebar" }}</strong><small>{{ $locale.Text "settings.preferences.sidebar_hint" }}</small></span>
                 </label>
                 <label class="navigation-style-option">
                   <input type="radio"
@@ -163,7 +175,7 @@
                          {{ if eq .Preferences.NavigationStyle "topbar" }}checked{{ end }} />
                   <span class="navigation-style-preview navigation-style-preview-topbar"
                         aria-hidden="true"><i></i><b></b></span>
-                  <span><strong>Top bar</strong><small>Horizontal page navigation with more room for content.</small></span>
+                  <span><strong>{{ $locale.Text "settings.preferences.topbar" }}</strong><small>{{ $locale.Text "settings.preferences.topbar_hint" }}</small></span>
                 </label>
                 <label class="navigation-style-option">
                   <input type="radio"
@@ -172,36 +184,36 @@
                          {{ if eq .Preferences.NavigationStyle "tree" }}checked{{ end }} />
                   <span class="navigation-style-preview navigation-style-preview-tree"
                         aria-hidden="true"><i></i><b></b></span>
-                  <span><strong>Page tree</strong><small>Filterable explorer with hierarchy guides and current-page reveal.</small></span>
+                  <span><strong>{{ $locale.Text "settings.preferences.tree" }}</strong><small>{{ $locale.Text "settings.preferences.tree_hint" }}</small></span>
                 </label>
               </div>
             </fieldset>
-            <small>Style and density preview immediately. Save preferences to keep your changes.</small>
+            <small>{{ $locale.Text "settings.preferences.preview_hint" }}</small>
             <label>
-              Density
+              {{ $locale.Text "settings.preferences.density" }}
               <select name="navigation_density">
                 <option value="comfortable"
-                        {{ if eq .Preferences.NavigationDensity "comfortable" }}selected{{ end }}>Comfortable</option>
+                        {{ if eq .Preferences.NavigationDensity "comfortable" }}selected{{ end }}>{{ $locale.Text "settings.preferences.comfortable" }}</option>
                 <option value="compact"
-                        {{ if eq .Preferences.NavigationDensity "compact" }}selected{{ end }}>Compact</option>
+                        {{ if eq .Preferences.NavigationDensity "compact" }}selected{{ end }}>{{ $locale.Text "settings.preferences.compact" }}</option>
               </select>
-              <small>Compact mode reduces vertical spacing when Kumbuka contains many pages.</small>
+              <small>{{ $locale.Text "settings.preferences.density_hint" }}</small>
             </label>
             <fieldset class="sidebar-width-setting">
-              <legend>Sidebar width</legend>
+              <legend>{{ $locale.Text "settings.preferences.sidebar_width" }}</legend>
               <input type="hidden"
                      name="sidebar_width"
                      value="{{ .Preferences.SidebarWidth }}"
                      data-sidebar-width-setting />
               <div class="sidebar-width-presets"
                    role="group"
-                   aria-label="Sidebar width presets">
+                   aria-label="{{ $locale.Text "settings.preferences.sidebar_width_presets" }}">
                 <button type="button"
                         class="sidebar-width-preset"
                         data-sidebar-width-preset="240"
                         aria-pressed="false">
                   <span class="sidebar-width-preset-preview" aria-hidden="true"></span>
-                  <span class="sidebar-width-preset-name">Narrow</span>
+                  <span class="sidebar-width-preset-name">{{ $locale.Text "settings.preferences.narrow" }}</span>
                   <span class="sidebar-width-preset-value">240 px</span>
                 </button>
                 <button type="button"
@@ -209,7 +221,7 @@
                         data-sidebar-width-preset="280"
                         aria-pressed="false">
                   <span class="sidebar-width-preset-preview" aria-hidden="true"></span>
-                  <span class="sidebar-width-preset-name">Standard</span>
+                  <span class="sidebar-width-preset-name">{{ $locale.Text "settings.preferences.standard" }}</span>
                   <span class="sidebar-width-preset-value">280 px</span>
                 </button>
                 <button type="button"
@@ -217,28 +229,28 @@
                         data-sidebar-width-preset="360"
                         aria-pressed="false">
                   <span class="sidebar-width-preset-preview" aria-hidden="true"></span>
-                  <span class="sidebar-width-preset-name">Wide</span>
+                  <span class="sidebar-width-preset-name">{{ $locale.Text "settings.preferences.wide" }}</span>
                   <span class="sidebar-width-preset-value">360 px</span>
                 </button>
               </div>
               <output class="sidebar-width-current"
-                      data-sidebar-width-output>Current · {{ .Preferences.SidebarWidth }} px</output>
-              <small>Choose a preset or drag the sidebar edge directly for a custom width.</small>
+                      data-sidebar-width-output>{{ $locale.Text "settings.preferences.current" }} · {{ .Preferences.SidebarWidth }} px</output>
+              <small>{{ $locale.Text "settings.preferences.sidebar_width_hint" }}</small>
             </fieldset>
             <label class="toggle-row">
-              <span><strong>Show indentation guides</strong><small>Draw subtle tree lines so deeply nested folders are easier to follow.</small></span>
+              <span><strong>{{ $locale.Text "settings.preferences.guides" }}</strong><small>{{ $locale.Text "settings.preferences.guides_hint" }}</small></span>
               <input type="checkbox"
                      name="show_navigation_guides"
                      {{ if .Preferences.ShowNavigationGuides }}checked{{ end }} />
             </label>
             <label class="toggle-row">
-              <span><strong>Remember expanded folders</strong><small>Keep your open and closed navigation folders across browsers and sessions.</small></span>
+              <span><strong>{{ $locale.Text "settings.preferences.remember" }}</strong><small>{{ $locale.Text "settings.preferences.remember_hint" }}</small></span>
               <input type="checkbox"
                      name="remember_navigation_state"
                      {{ if .Preferences.RememberNavigationState }}checked{{ end }} />
             </label>
             <label class="toggle-row">
-              <span><strong>Show page counts</strong><small>Display the number of pages contained in each navigation folder.</small></span>
+              <span><strong>{{ $locale.Text "settings.preferences.page_counts" }}</strong><small>{{ $locale.Text "settings.preferences.page_counts_hint" }}</small></span>
               <input type="checkbox"
                      name="show_navigation_page_counts"
                      {{ if .Preferences.ShowNavigationPageCounts }}checked{{ end }} />
@@ -246,12 +258,12 @@
           </fieldset>
           {{ if .PluginWidgetPreferences }}
             <fieldset class="preference-group">
-              <legend>Plugin widgets</legend>
-              <small>Choose which optional widgets appear on your Home page, sidebar, and page details.</small>
+              <legend>{{ $locale.Text "settings.preferences.plugin_widgets" }}</legend>
+              <small>{{ $locale.Text "settings.preferences.plugin_widgets_hint" }}</small>
               {{ range .PluginWidgetPreferences }}
                 <input type="hidden" name="plugin_widget" value="{{ .Key }}" />
                 <label class="toggle-row">
-                  <span><strong>{{ .Label }}</strong><small>{{ .Surface }}{{ if .Description }} · {{ .Description }}{{ end }}</small></span>
+                  <span><strong>{{ .Label }}</strong><small>{{ $locale.SurfaceLabel .Surface }}{{ if .Description }} · {{ .Description }}{{ end }}</small></span>
                   <input type="checkbox"
                          name="visible_plugin_widget"
                          value="{{ .Key }}"
@@ -261,33 +273,36 @@
             </fieldset>
           {{ end }}
           <div class="settings-actions">
-            <button class="button primary" type="submit">Save preferences</button>
+            <button class="button primary" type="submit">{{ $locale.Text "settings.preferences.save" }}</button>
           </div>
         </form>
       </section>
       <section class="panel settings-panel settings-wide" id="saved-searches">
         <div class="panel-title">
           <div>
-            <h2>Saved searches</h2>
-            <p class="muted">Create smart collections from any Kumbuka search query and pin them to the sidebar.</p>
+            <h2>{{ $locale.Text "settings.saved_searches.title" }}</h2>
+            <p class="muted">{{ $locale.Text "settings.saved_searches.intro" }}</p>
           </div>
         </div>
         <form class="saved-search-create"
               action="{{ route "/settings/saved-searches" }}"
               method="post">
           <label>
-            Name<input name="name" required placeholder="Production databases" />
+            {{ $locale.Text "settings.saved_searches.name" }}<input name="name"
+       required
+       placeholder="{{ $locale.Text "settings.saved_searches.name_placeholder" }}" />
           </label>
           <label>
-            Query<input name="query"
+            {{ $locale.Text "settings.saved_searches.query" }}<input name="query"
        required
-       placeholder="property:Environment=Production tag:database" />
+       placeholder="{{ $locale.Text "settings.saved_searches.query_placeholder" }}" />
           </label>
           <label class="toggle-row compact">
-            <span><strong>Pin to sidebar</strong></span><input type="checkbox" name="pinned" checked />
+            <span><strong>{{ $locale.Text "settings.saved_searches.pin" }}</strong></span><input type="checkbox"
+       name="pinned"
+       checked />
           </label>
-          <button class="button primary"
-                  type="submit">{{ icon "bookmark-plus-lucide" 15 }}<span>Save search</span></button>
+          <button class="button primary" type="submit">{{ icon "bookmark-plus-lucide" 15 }}<span>{{ $locale.Text "settings.saved_searches.save" }}</span></button>
         </form>
         <div class="saved-search-list">
           {{ range .SavedSearches }}
@@ -297,44 +312,46 @@
                     method="post">
                 <button class="icon-button"
                         type="submit"
-                        data-confirm="Delete saved search {{ .Name }}?"
-                        aria-label="Delete saved search">{{ icon "trash-2-lucide" 15 }}</button>
+                        data-confirm="{{ $locale.Textf "settings.saved_searches.delete_confirm" .Name }}"
+                        aria-label="{{ $locale.Text "settings.saved_searches.delete_label" }}">{{ icon "trash-2-lucide" 15 }}</button>
               </form>
             </article>
           {{ else }}
-            <p class="muted">No saved searches yet.</p>
+            <p class="muted">{{ $locale.Text "settings.saved_searches.empty" }}</p>
           {{ end }}
         </div>
       </section>
       <section class="panel settings-panel settings-wide" id="tokens">
         <div class="panel-title">
-          <h2>Personal access tokens</h2>
+          <h2>{{ $locale.Text "settings.tokens.title" }}</h2>
         </div>
         <p class="settings-note">
-          Use a token as <code>Authorization: Bearer TOKEN</code> with the JSON API. Tokens inherit your current Kumbuka
-          role. The secret is shown only once.
+          {{ $locale.Text "settings.tokens.intro_before" }} <code>Authorization: Bearer TOKEN</code> {{ $locale.Text "settings.tokens.intro_after" }}
         </p>
         <form class="token-create-form"
               data-token-form
               action="{{ route "/settings/tokens" }}"
               method="post">
           <label>
-            Name<input name="name" required maxlength="120" placeholder="laptop curl" />
+            {{ $locale.Text "settings.tokens.name" }}<input name="name"
+       required
+       maxlength="120"
+       placeholder="{{ $locale.Text "settings.tokens.name_placeholder" }}" />
           </label>
           <label>
-            Expires <span class="optional">optional</span><input type="date" name="expires" />
+            {{ $locale.Text "settings.tokens.expires" }} <span class="optional">{{ $locale.Text "settings.tokens.optional" }}</span><input type="date" name="expires" />
           </label>
-          <button class="button primary" type="submit">Create token</button>
+          <button class="button primary" type="submit">{{ $locale.Text "settings.tokens.create" }}</button>
         </form>
         <div class="token-secret" data-token-secret hidden></div>
         <div class="admin-table-wrap">
           <table class="admin-table token-table">
             <thead>
               <tr>
-                <th>Name</th>
-                <th>Created</th>
-                <th>Last used</th>
-                <th>Expires</th>
+                <th>{{ $locale.Text "settings.tokens.name" }}</th>
+                <th>{{ $locale.Text "settings.tokens.created" }}</th>
+                <th>{{ $locale.Text "settings.tokens.last_used" }}</th>
+                <th>{{ $locale.Text "settings.tokens.expires" }}</th>
                 <th></th>
               </tr>
             </thead>
@@ -342,25 +359,25 @@
               {{ range .UserTokens }}
                 <tr data-token-row>
                   <td><strong>{{ .Name }}</strong></td>
-                  <td>{{ timeago .CreatedAt }}</td>
+                  <td>{{ $locale.TimeAgo .CreatedAt }}</td>
                   <td>
                     {{ if .LastUsed }}
                       {{ .LastUsed.Format "2006-01-02 15:04" }}
                     {{ else }}
-                      <span class="muted">Never</span>
+                      <span class="muted">{{ $locale.Text "settings.tokens.never" }}</span>
                     {{ end }}
                   </td>
-                  <td>{{ if .ExpiresAt }}{{ .ExpiresAt.Format "2006-01-02" }}{{ else }}Never{{ end }}</td>
+                  <td>{{ if .ExpiresAt }}{{ .ExpiresAt.Format "2006-01-02" }}{{ else }}{{ $locale.Text "settings.tokens.never" }}{{ end }}</td>
                   <td>
                     <button class="button danger"
                             type="button"
                             data-token-delete
-                            data-delete-url="{{ route "/settings/tokens/" }}{{ .ID }}">Revoke</button>
+                            data-delete-url="{{ route "/settings/tokens/" }}{{ .ID }}">{{ $locale.Text "settings.tokens.revoke" }}</button>
                   </td>
                 </tr>
               {{ else }}
                 <tr data-token-empty>
-                  <td colspan="5" class="muted">No personal access tokens yet.</td>
+                  <td colspan="5" class="muted">{{ $locale.Text "settings.tokens.empty" }}</td>
                 </tr>
               {{ end }}
             </tbody>
@@ -377,14 +394,10 @@
                  data-media-page-size="30"
                  data-media-offset="{{ len .Images }}">
           <div class="panel-title">
-            <h2>Your images</h2>
-            <span class="muted"
-                  data-media-settings-count>{{ len .Images }} shown{{ if .ImagesHasMore }} · more available{{ end }}</span>
+            <h2>{{ $locale.Text "settings.images.title" }}</h2>
+            <span class="muted" data-media-settings-count>{{ len .Images }} {{ $locale.Text "settings.images.shown" }}{{ if .ImagesHasMore }} · {{ $locale.Text "settings.images.more_available" }}{{ end }}</span>
           </div>
-          <p class="settings-note">
-            Images are stored in PostgreSQL. You can delete your own unused images here. Administrators can manage every
-            image from Administration.
-          </p>
+          <p class="settings-note">{{ $locale.Text "settings.images.intro" }}</p>
           <form class="media-settings-search"
                 method="get"
                 action="{{ route "/settings#media" }}"
@@ -393,14 +406,15 @@
                    name="image_q"
                    value="{{ .ImageQuery }}"
                    maxlength="200"
-                   placeholder="Search your images…"
-                   aria-label="Search your images"
+                   placeholder="{{ $locale.Text "settings.images.search_placeholder" }}"
+                   aria-label="{{ $locale.Text "settings.images.search_label" }}"
                    data-media-settings-search-input />
-            <button class="button" type="submit">{{ icon "search-lucide" 16 }}<span>Search</span></button>
+            <button class="button"
+                    type="submit">{{ icon "search-lucide" 16 }}<span>{{ $locale.Text "settings.images.search" }}</span></button>
             <a class="button"
                href="{{ route "/settings#media" }}"
                data-media-settings-clear
-               {{ if not .ImageQuery }}hidden{{ end }}>Clear</a>
+               {{ if not .ImageQuery }}hidden{{ end }}>{{ $locale.Text "settings.images.clear" }}</a>
           </form>
           <div class="media-settings-list" data-media-settings-list>
             {{ range .Images }}
@@ -410,11 +424,11 @@
                 <img src="{{ route .URL }}" alt="" loading="lazy" />
                 <div class="media-settings-info">
                   <strong>{{ .Filename }}</strong>
-                  <small>{{ filesize .SizeBytes }} · {{ timeago .CreatedAt }}</small>
+                  <small>{{ filesize .SizeBytes }} · {{ $locale.TimeAgo .CreatedAt }}</small>
                   {{ if gt .UsageCount 0 }}
-                    <small class="media-used">Referenced {{ .UsageCount }} time{{ if ne .UsageCount 1 }}s{{ end }}</small>
+                    <small class="media-used">{{ $locale.Text "settings.images.referenced" }} {{ .UsageCount }} {{ if eq .UsageCount 1 }}{{ $locale.Text "settings.images.time" }}{{ else }}{{ $locale.Text "settings.images.times" }}{{ end }}</small>
                   {{ else }}
-                    <small class="media-unused">Unused</small>
+                    <small class="media-unused">{{ $locale.Text "settings.images.unused" }}</small>
                   {{ end }}
                   <code>{{ .URL }}</code>
                 </div>
@@ -424,13 +438,13 @@
                             type="button"
                             data-media-delete
                             data-media-usage="0"
-                            data-delete-url="{{ route "/api/images/" }}{{ .ID }}">Delete</button>
+                            data-delete-url="{{ route "/api/images/" }}{{ .ID }}">{{ $locale.Text "settings.images.delete" }}</button>
                   {{ end }}
                 </div>
               </article>
             {{ else }}
               <p class="muted" data-media-settings-empty>
-                {{ if .ImageQuery }}No images match your search.{{ else }}No images uploaded yet. Upload one from the page editor.{{ end }}
+                {{ if .ImageQuery }}{{ $locale.Text "settings.images.no_match" }}{{ else }}{{ $locale.Text "settings.images.empty" }}{{ end }}
               </p>
             {{ end }}
           </div>
@@ -438,7 +452,7 @@
             <button class="button"
                     type="button"
                     data-media-load-more
-                    {{ if not .ImagesHasMore }}hidden{{ end }}>Load more</button>
+                    {{ if not .ImagesHasMore }}hidden{{ end }}>{{ $locale.Text "settings.images.load_more" }}</button>
             <span class="muted" data-media-load-status></span>
           </div>
         </section>

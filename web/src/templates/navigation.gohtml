@@ -42,9 +42,12 @@
   {{ end }}
 {{ end }}
 {{ define "top-navigation" }}
-  <nav class="desktop-top-navigation" aria-label="Page navigation">
+  {{ $locale := .Locale }}
+  <nav class="desktop-top-navigation"
+       aria-label="{{ $locale.Text "navigation.page_navigation" }}">
     <div class="desktop-top-navigation-inner">
-      <a class="top-navigation-home" href="{{ route "/" }}">{{ icon "house-lucide" 15 }}<span>Home</span></a>
+      <a class="top-navigation-home"
+         href="{{ route "/" }}">{{ icon "house-lucide" 15 }}<span>{{ $locale.Text "navigation.home" }}</span></a>
       {{ range .Navigation }}
         {{ if .Children }}
           <details class="top-navigation-group">

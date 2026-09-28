@@ -1,13 +1,14 @@
 // Sidebar, navigation tree, and account-menu behavior.
 
 import { requiredAttribute } from "../core/dom.ts";
+import { t } from "../core/i18n.ts";
 
 const MIN_SIDEBAR_WIDTH = 220;
 const MAX_SIDEBAR_WIDTH = 420;
-const SIDEBAR_WIDTH_PRESETS = new Map<number, string>([
-  [240, "Narrow"],
-  [280, "Standard"],
-  [360, "Wide"],
+const SIDEBAR_WIDTH_PRESETS = new Map<number, [string, string]>([
+  [240, ["browser.layout.sidebar.narrow", "Narrow"]],
+  [280, ["browser.layout.sidebar.standard", "Standard"]],
+  [360, ["browser.layout.sidebar.wide", "Wide"]],
 ]);
 
 const MOBILE_SIDEBAR_QUERY = "(max-width: 800px)";
@@ -35,7 +36,11 @@ function clampSidebarWidth(width: number): number {
 
 export function sidebarWidthStatus(width: number): string {
   const next = clampSidebarWidth(Math.round(width));
-  return `${SIDEBAR_WIDTH_PRESETS.get(next) ?? "Custom"} · ${next} px`;
+  const preset = SIDEBAR_WIDTH_PRESETS.get(next);
+  const label = preset
+    ? t(preset[0], preset[1])
+    : t("browser.layout.sidebar.custom", "Custom");
+  return `${label} · ${next} px`;
 }
 
 function syncSidebarWidthSetting(width: number): number {
@@ -131,8 +136,16 @@ function initNavigationTree(): void {
     if (status) {
       status.hidden = !query;
       status.textContent = matches
-        ? `${matches} matching ${matches === 1 ? "entry" : "entries"}`
-        : "No matching pages";
+        ? t(
+            matches === 1
+              ? "browser.layout.filter.one"
+              : "browser.layout.filter.many",
+            matches === 1
+              ? "{count} matching entry"
+              : "{count} matching entries",
+            { count: matches },
+          )
+        : t("browser.layout.filter.none", "No matching pages");
     }
   }
   filter?.addEventListener("input", filterTree);
@@ -457,7 +470,9 @@ function initSidebarVisibility(): void {
 
     visibilityToggle.setAttribute("aria-expanded", String(!hidden));
 
-    const label = hidden ? "Show navigation" : "Hide navigation";
+    const label = hidden
+      ? t("browser.layout.show_navigation", "Show navigation")
+      : t("browser.layout.hide_navigation", "Hide navigation");
 
     visibilityToggle.setAttribute("aria-label", label);
     visibilityToggle.title = label;

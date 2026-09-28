@@ -1,6 +1,7 @@
 // Reusable confirmation and notice dialog helpers.
 
 import { requiredElement, requiredElements } from "./dom.ts";
+import { t } from "./i18n.ts";
 import type { ProblemPayload } from "./http.ts";
 
 interface ConfirmationOptions {
@@ -107,11 +108,16 @@ export function requestConfirmation(
     "[data-confirm-dialog-cancel]",
   );
 
-  eyebrow.textContent = options.eyebrow || "Confirmation";
-  title.textContent = options.title || "Confirm action";
-  body.textContent = message || "Continue?";
-  accept.textContent = options.confirmLabel || "Continue";
-  cancelLabel.textContent = options.cancelLabel || "Cancel";
+  eyebrow.textContent =
+    options.eyebrow || t("browser.dialog.confirmation", "Confirmation");
+  title.textContent =
+    options.title || t("browser.dialog.confirm_action", "Confirm action");
+  body.textContent =
+    message || t("browser.dialog.continue_question", "Continue?");
+  accept.textContent =
+    options.confirmLabel || t("browser.dialog.continue", "Continue");
+  cancelLabel.textContent =
+    options.cancelLabel || t("browser.dialog.cancel", "Cancel");
 
   accept.classList.toggle("danger", options.danger !== false);
   accept.classList.toggle("primary", options.danger === false);
@@ -144,7 +150,7 @@ export function requestConfirmation(
 // Converts a request field name into readable fallback copy for the error dialog.
 export function problemFieldLabel(field: string): string {
   const normalized = field.trim().replaceAll("_", " ").replaceAll("-", " ");
-  if (!normalized) return "Field";
+  if (!normalized) return t("browser.dialog.field", "Field");
 
   return normalized.charAt(0).toUpperCase() + normalized.slice(1);
 }
@@ -174,9 +180,12 @@ export function showProblemDialog(
     "[data-problem-dialog-close]",
   );
 
-  title.textContent = options.title || "Could not complete this action";
+  title.textContent =
+    options.title ||
+    t("browser.dialog.action_failed", "Could not complete this action");
   body.textContent =
-    problem.error?.trim() || "The request could not be processed.";
+    problem.error?.trim() ||
+    t("browser.dialog.request_failed", "The request could not be processed.");
   details.replaceChildren();
 
   const entries =
@@ -243,7 +252,7 @@ export function showNotice(
     "[data-notice-dialog-close]",
   );
 
-  title.textContent = options.title || "Notice";
+  title.textContent = options.title || t("browser.dialog.notice", "Notice");
   body.textContent = message || "";
 
   return new Promise<void>((resolve) => {
@@ -312,12 +321,21 @@ export function initConfirmForms(): void {
       event.preventDefault();
 
       const accepted = await requestConfirmation(
-        source.dataset.confirm || "Continue?",
+        source.dataset.confirm ||
+          t("browser.dialog.continue_question", "Continue?"),
         {
-          title: source.dataset.confirmTitle || "Confirm action",
-          confirmLabel: source.dataset.confirmLabel || "Continue",
-          cancelLabel: source.dataset.confirmCancelLabel || "Cancel",
-          eyebrow: source.dataset.confirmEyebrow || "Confirmation",
+          title:
+            source.dataset.confirmTitle ||
+            t("browser.dialog.confirm_action", "Confirm action"),
+          confirmLabel:
+            source.dataset.confirmLabel ||
+            t("browser.dialog.continue", "Continue"),
+          cancelLabel:
+            source.dataset.confirmCancelLabel ||
+            t("browser.dialog.cancel", "Cancel"),
+          eyebrow:
+            source.dataset.confirmEyebrow ||
+            t("browser.dialog.confirmation", "Confirmation"),
           danger: source.dataset.confirmDanger !== "false",
         },
       );

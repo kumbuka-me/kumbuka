@@ -3,6 +3,7 @@ import { route } from "../core/route.ts";
 
 import { showNotice } from "../core/dialogs.ts";
 import { requestJSON } from "../core/http.ts";
+import { t } from "../core/i18n.ts";
 
 async function setReadState(id: string, read: boolean): Promise<void> {
   await requestJSON(
@@ -60,7 +61,7 @@ function syncEmptyState(menu: HTMLElement): void {
   if (items.length === 0 && !empty) {
     const message = document.createElement("p");
     message.className = "muted notification-empty";
-    message.textContent = "Nothing new.";
+    message.textContent = t("browser.notifications.empty", "Nothing new.");
     list.append(message);
   } else if (items.length > 0) {
     empty?.remove();
@@ -78,10 +79,14 @@ function setRowReadState(row: HTMLElement, read: boolean): void {
   );
   if (!trigger) return;
 
-  trigger.textContent = read ? "Unread" : "Read";
+  trigger.textContent = read
+    ? t("browser.notifications.unread", "Unread")
+    : t("browser.notifications.read", "Read");
   trigger.setAttribute(
     "aria-label",
-    read ? "Mark notification unread" : "Mark notification read",
+    read
+      ? t("browser.notifications.mark_unread", "Mark notification unread")
+      : t("browser.notifications.mark_read", "Mark notification read"),
   );
 }
 
@@ -95,9 +100,13 @@ async function readAllNotifications(
     await setReadState("all", true);
   } catch {
     trigger.disabled = false;
-    await showNotice("Notifications could not be marked as read. Try again.", {
-      title: "Notifications",
-    });
+    await showNotice(
+      t(
+        "browser.notifications.read_all_failed",
+        "Notifications could not be marked as read. Try again.",
+      ),
+      { title: t("browser.notifications.title", "Notifications") },
+    );
     return;
   }
 
@@ -124,8 +133,16 @@ async function toggleNotification(
     setUnreadCount(menu, unreadCount(menu) + (read ? -1 : 1));
   } catch {
     await showNotice(
-      `The notification could not be marked as ${read ? "read" : "unread"}. Try again.`,
-      { title: "Notifications" },
+      read
+        ? t(
+            "browser.notifications.mark_read_failed",
+            "The notification could not be marked as read. Try again.",
+          )
+        : t(
+            "browser.notifications.mark_unread_failed",
+            "The notification could not be marked as unread. Try again.",
+          ),
+      { title: t("browser.notifications.title", "Notifications") },
     );
   } finally {
     trigger.disabled = false;
@@ -150,9 +167,13 @@ async function deleteNotification(
     syncEmptyState(menu);
   } catch {
     trigger.disabled = false;
-    await showNotice("The notification could not be deleted. Try again.", {
-      title: "Notifications",
-    });
+    await showNotice(
+      t(
+        "browser.notifications.delete_failed",
+        "The notification could not be deleted. Try again.",
+      ),
+      { title: t("browser.notifications.title", "Notifications") },
+    );
   }
 }
 

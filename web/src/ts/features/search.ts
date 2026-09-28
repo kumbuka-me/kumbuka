@@ -4,6 +4,7 @@ import { route } from "../core/route.ts";
 import { createLatestRequest, isAbortError } from "../core/async.ts";
 import { isRecord, requireArrayOf } from "../core/guards.ts";
 import { requestJSON } from "../core/http.ts";
+import { t } from "../core/i18n.ts";
 
 interface SearchPage {
   slug: string;
@@ -74,7 +75,7 @@ function setupLiveSearch(form: HTMLFormElement): void {
       const empty = document.createElement("div");
 
       empty.className = "search-suggestion-empty";
-      empty.textContent = "No pages found.";
+      empty.textContent = t("browser.search.no_pages", "No pages found.");
       results.append(empty);
       resultLinks = [];
     } else {

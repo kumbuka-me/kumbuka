@@ -261,6 +261,7 @@ func TestRenderTemplateHTML(t *testing.T) {
 
 func testViewFS() fstest.MapFS {
 	appFS := fstest.MapFS{}
+	appFS["locales/en.toml"] = &fstest.MapFile{Data: []byte("language = \"en\"\nlabel = \"English\"\n[messages]\n\"settings.title\" = \"Settings\"\n")}
 
 	for _, filename := range sharedTemplateFiles {
 		appFS[filename] = &fstest.MapFile{}

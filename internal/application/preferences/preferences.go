@@ -2,6 +2,7 @@ package preferences
 
 import (
 	"context"
+	"strings"
 
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
@@ -37,6 +38,7 @@ func (s *Preferences) SavePreferences(
 	userID int64,
 	preferences domain.UserPreferences,
 ) error {
+	preferences.Locale = strings.TrimSpace(preferences.Locale)
 	if !domain.ValidNavigationStyle(preferences.NavigationStyle) {
 		return domain.NewValidationError("navigation_style", "Choose a valid navigation style.")
 	}

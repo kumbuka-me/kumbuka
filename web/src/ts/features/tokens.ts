@@ -6,6 +6,7 @@ import { requestConfirmation, showNotice } from "../core/dialogs.ts";
 import { requiredAttribute } from "../core/dom.ts";
 import { isRecord } from "../core/guards.ts";
 import { errorMessage, requestJSON } from "../core/http.ts";
+import { t } from "../core/i18n.ts";
 
 interface TokenRecord {
   id: number;
@@ -48,7 +49,10 @@ function renderTokenSecret(container: HTMLElement, secret: string): void {
 
   const message = document.createElement("p");
 
-  message.textContent = "This token is shown only once.";
+  message.textContent = t(
+    "browser.tokens.once",
+    "This token is shown only once.",
+  );
 
   const block = document.createElement("div");
 
@@ -64,7 +68,11 @@ function renderTokenSecret(container: HTMLElement, secret: string): void {
 
   copy.type = "button";
   copy.className = "code-copy-button";
-  setupCopyButton(copy, () => secret, "Copy token to clipboard");
+  setupCopyButton(
+    copy,
+    () => secret,
+    t("browser.tokens.copy", "Copy token to clipboard"),
+  );
   block.append(pre, copy);
   container.append(message, block);
 }
@@ -81,14 +89,16 @@ function prependTokenRow(form: HTMLFormElement, token: TokenRecord): void {
 
   row.dataset.tokenRow = "";
 
-  const expires = token.expires_at ? token.expires_at.slice(0, 10) : "Never";
+  const expires = token.expires_at
+    ? token.expires_at.slice(0, 10)
+    : t("browser.tokens.never", "Never");
   const admin = form.action.includes("/admin/tokens");
 
   row.innerHTML = admin
-    ? `<td><strong></strong><small></small></td><td></td><td>just now</td>` +
-      `<td><span class="muted">Never</span></td><td></td><td></td>`
-    : `<td><strong></strong></td><td>just now</td>` +
-      `<td><span class="muted">Never</span></td><td></td><td></td>`;
+    ? `<td><strong></strong><small></small></td><td></td><td>${t("browser.tokens.just_now", "just now")}</td>` +
+      `<td><span class="muted">${t("browser.tokens.never", "Never")}</span></td><td></td><td></td>`
+    : `<td><strong></strong></td><td>${t("browser.tokens.just_now", "just now")}</td>` +
+      `<td><span class="muted">${t("browser.tokens.never", "Never")}</span></td><td></td><td></td>`;
 
   const strong = row.querySelector<HTMLElement>("strong");
 
@@ -99,7 +109,10 @@ function prependTokenRow(form: HTMLFormElement, token: TokenRecord): void {
   if (admin) {
     const small = row.querySelector<HTMLElement>("small");
 
-    if (small) small.textContent = `issued by ${token.creator}`;
+    if (small)
+      small.textContent = t("browser.tokens.issued_by", "issued by {creator}", {
+        creator: token.creator,
+      });
     if (cells[1]) cells[1].textContent = token.username;
     if (cells[4]) cells[4].textContent = expires;
   } else if (cells[3]) {
@@ -117,7 +130,7 @@ function prependTokenRow(form: HTMLFormElement, token: TokenRecord): void {
   revoke.dataset.deleteUrl = admin
     ? route(`/admin/tokens/${token.id}`)
     : route(`/settings/tokens/${token.id}`);
-  revoke.textContent = "Revoke";
+  revoke.textContent = t("browser.tokens.revoke", "Revoke");
   setupTokenDeleteButton(revoke);
   actionCell.append(revoke);
   list.prepend(row);
@@ -151,16 +164,22 @@ async function createToken(form: HTMLFormElement): Promise<void> {
       body: formBody(form),
     });
     if (!isCreateTokenResponse(payload))
-      throw new Error("Invalid token response.");
+      throw new Error(
+        t("browser.tokens.invalid_response", "Invalid token response."),
+      );
 
     renderTokenSecret(secret, payload.secret);
     prependTokenRow(form, payload.token);
     form.reset();
   } catch (error) {
     console.error("token creation failed", error);
-    await showNotice(errorMessage(error) || "Token could not be created.", {
-      title: "Token creation failed",
-    });
+    await showNotice(
+      errorMessage(error) ||
+        t("browser.tokens.create_failed", "Token could not be created."),
+      {
+        title: t("browser.tokens.create_failed_title", "Token creation failed"),
+      },
+    );
   } finally {
     submit.disabled = false;
   }
@@ -182,8 +201,14 @@ function setupTokenForms(): void {
 async function revokeToken(button: HTMLButtonElement): Promise<void> {
   if (
     !(await requestConfirmation(
-      "Revoke this token? Requests using it will stop working immediately.",
-      { title: "Revoke access token", confirmLabel: "Revoke token" },
+      t(
+        "browser.tokens.revoke_confirm",
+        "Revoke this token? Requests using it will stop working immediately.",
+      ),
+      {
+        title: t("browser.tokens.revoke_title", "Revoke access token"),
+        confirmLabel: t("browser.tokens.revoke_label", "Revoke token"),
+      },
     ))
   )
     return;
@@ -198,9 +223,16 @@ async function revokeToken(button: HTMLButtonElement): Promise<void> {
     button.closest("[data-token-row]")?.remove();
   } catch (error) {
     console.error("token revocation failed", error);
-    await showNotice(errorMessage(error) || "Token could not be revoked.", {
-      title: "Token revocation failed",
-    });
+    await showNotice(
+      errorMessage(error) ||
+        t("browser.tokens.revoke_failed", "Token could not be revoked."),
+      {
+        title: t(
+          "browser.tokens.revoke_failed_title",
+          "Token revocation failed",
+        ),
+      },
+    );
     button.disabled = false;
   }
 }

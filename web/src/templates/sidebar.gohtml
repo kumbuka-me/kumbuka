@@ -1,13 +1,14 @@
 {{ define "sidebar" }}
+  {{ $locale := .Locale }}
   <aside class="sidebar" id="kumbuka-sidebar" data-sidebar>
     <div class="tree-explorer-tools">
-      <strong>Page explorer</strong>
+      <strong>{{ $locale.Text "sidebar.page_explorer" }}</strong>
       <input type="search"
              data-tree-filter
-             aria-label="Filter page tree"
-             placeholder="Filter pages…"
+             aria-label="{{ $locale.Text "sidebar.filter_label" }}"
+             placeholder="{{ $locale.Text "sidebar.filter_placeholder" }}"
              autocomplete="off" />
-      <button type="button" data-tree-reveal>Reveal current page</button>
+      <button type="button" data-tree-reveal>{{ $locale.Text "sidebar.reveal_current" }}</button>
       <p data-tree-filter-status role="status" hidden></p>
     </div>
 <nav data-navigation
@@ -48,7 +49,7 @@
     {{ end }}
     {{ if .SavedSearches }}
       <section class="sidebar-shortcuts" aria-labelledby="sidebar-collections-label">
-        <p class="nav-label" id="sidebar-collections-label">Collections</p>
+        <p class="nav-label" id="sidebar-collections-label">{{ $locale.Text "sidebar.collections" }}</p>
         {{ range .SavedSearches }}
           {{ if .Pinned }}
             <a class="sidebar-shortcut-link"
@@ -60,23 +61,24 @@
     {{ end }}
     {{ if .Navigation }}
       <div class="nav-section-heading">
-        <p class="nav-label">Pages</p>
-        <div class="nav-tree-actions" aria-label="Navigation tree controls">
+        <p class="nav-label">{{ $locale.Text "sidebar.pages" }}</p>
+        <div class="nav-tree-actions"
+             aria-label="{{ $locale.Text "sidebar.tree_controls" }}">
           <button class="nav-tree-action"
                   type="button"
                   data-navigation-collapse-all
-                  title="Collapse all folders"
-                  aria-label="Collapse all folders">{{ icon "chevrons-up-lucide" 14 }}</button>
+                  title="{{ $locale.Text "sidebar.collapse_all" }}"
+                  aria-label="{{ $locale.Text "sidebar.collapse_all" }}">{{ icon "chevrons-up-lucide" 14 }}</button>
           <button class="nav-tree-action"
                   type="button"
                   data-navigation-expand-all
-                  title="Expand all folders"
-                  aria-label="Expand all folders">{{ icon "chevrons-down-lucide" 14 }}</button>
+                  title="{{ $locale.Text "sidebar.expand_all" }}"
+                  aria-label="{{ $locale.Text "sidebar.expand_all" }}">{{ icon "chevrons-down-lucide" 14 }}</button>
         </div>
       </div>
       <div class="navigation-tree">{{ range .Navigation }}{{ template "nav-entry" . }}{{ end }}</div>
     {{ else }}
-      <p class="sidebar-empty">No pages yet.</p>
+      <p class="sidebar-empty">{{ $locale.Text "sidebar.no_pages" }}</p>
     {{ end }}
   </nav>
   {{ template "account-menu" . }}
@@ -85,7 +87,7 @@
        data-sidebar-width-url="{{ route "/settings/preferences/sidebar-width" }}"
        role="separator"
        aria-orientation="vertical"
-       aria-label="Resize sidebar"
+       aria-label="{{ $locale.Text "sidebar.resize" }}"
        tabindex="0"></div>
   <span data-navigation-scroll-ready hidden></span>
   </aside>

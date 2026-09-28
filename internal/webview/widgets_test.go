@@ -35,10 +35,10 @@ func TestPluginWidgetPreferencesExposeEnabledWidgets(t *testing.T) {
 
 	require.Len(t, preferences, 2)
 	assert.Equal(t, "Example", preferences[0].Label)
-	assert.Equal(t, "Home", preferences[0].Surface)
+	assert.Equal(t, "home", preferences[0].Surface)
 	assert.True(t, preferences[0].Visible)
 	assert.Equal(t, "Example · Shortcut", preferences[1].Label)
-	assert.Equal(t, "Sidebar", preferences[1].Surface)
+	assert.Equal(t, "sidebar", preferences[1].Surface)
 	assert.Equal(t, "Sidebar shortcut.", preferences[1].Description)
 	assert.False(t, preferences[1].Visible)
 }

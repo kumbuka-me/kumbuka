@@ -44,6 +44,7 @@ func Settings(
 			httpresponse.InternalServerError(views.Logger(), w, err)
 			return
 		}
+		data.Title = data.Locale.Text("settings.title")
 
 		data.Groups, err = userUseCases.UserGroups(r.Context(), data.User.ID)
 		if err != nil {
@@ -170,6 +171,10 @@ func SavePreferences(preferenceUseCases preferenceService, pluginManager *plugin
 
 // preferencesFromForm validates scalar presentation preferences and returns their normalized value.
 func preferencesFromForm(r *http.Request, views *webview.Views) (domain.UserPreferences, string) {
+	locale := strings.TrimSpace(r.FormValue("locale"))
+	if locale != "" && !views.ValidLocale(locale) {
+		return domain.UserPreferences{}, "Unknown interface language."
+	}
 	selectedTheme, ok := themes.Find(views.Themes(), r.FormValue("theme"))
 	if !ok {
 		return domain.UserPreferences{}, "Unknown theme."
@@ -192,7 +197,7 @@ func preferencesFromForm(r *http.Request, views *webview.Views) (domain.UserPref
 	}
 
 	return domain.UserPreferences{
-		Theme: selectedTheme.Title, ShowPageContents: r.FormValue("show_page_contents") == "on",
+		Locale: locale, Theme: selectedTheme.Title, ShowPageContents: r.FormValue("show_page_contents") == "on",
 		NavigationStyle: domain.NavigationStyle(navigationStyle), NavigationDensity: domain.NavigationDensity(density), TypographySize: domain.TypographySize(typographySize), SidebarWidth: sidebarWidth,
 		ShowNavigationGuides:     r.FormValue("show_navigation_guides") == "on",
 		RememberNavigationState:  r.FormValue("remember_navigation_state") == "on",

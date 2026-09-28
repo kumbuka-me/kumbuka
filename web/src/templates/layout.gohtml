@@ -1,6 +1,6 @@
 {{ define "layout" }}
   <!DOCTYPE html>
-  <html lang="en" data-theme="{{ .ActiveTheme }}">
+  <html lang="{{ .Locale.Code }}" data-theme="{{ .ActiveTheme }}">
     <head>
       <meta charset="utf-8" />
       <meta name="viewport"
@@ -17,6 +17,7 @@
       <link rel="stylesheet"
             href="{{ route "/plugins/styles.css?v=" }}{{ .PluginStylesVersion }}"
             data-plugin-styles />
+      <script id="kumbuka-i18n" type="application/json">{{ .BrowserTranslations }}</script>
       <script type="module"
               src="{{ route "/assets/v-" }}{{ .AssetVersion }}/js/form-validation.js"></script>
       <script src="{{ route "/assets/v-" }}{{ .AssetVersion }}/js/navigation-scroll-restore.js"></script>
@@ -46,7 +47,7 @@
       <button class="sidebar-backdrop"
               type="button"
               data-sidebar-backdrop
-              aria-label="Close navigation"
+              aria-label="{{ .Locale.Text "layout.close_navigation" }}"
               hidden></button>
       {{ if not .AdminSection }}
         <button class="sidebar-visibility-toggle"
@@ -54,8 +55,8 @@
                 data-sidebar-visibility-toggle
                 aria-controls="kumbuka-sidebar"
                 aria-expanded="true"
-                aria-label="Hide navigation"
-                title="Hide navigation">
+                aria-label="{{ .Locale.Text "layout.hide_navigation" }}"
+                title="{{ .Locale.Text "layout.hide_navigation" }}">
           <span class="sidebar-visibility-hide" aria-hidden="true">{{ icon "panel-left-close-lucide" 17 }}</span>
           <span class="sidebar-visibility-show" aria-hidden="true">{{ icon "panel-left-open-lucide" 17 }}</span>
         </button>
@@ -71,12 +72,13 @@
   <footer class="app-footer{{ if .AdminSection }} admin-app-footer{{ end }}">
     <div class="app-footer-inner">
       <span>Kumbuka {{ .Version }}</span>
-      <nav class="app-footer-links" aria-label="Kumbuka links">
-        <a href="https://kumbuka.me/" target="_blank" rel="noopener noreferrer">Docs</a>
+      <nav class="app-footer-links"
+           aria-label="{{ .Locale.Text "layout.links" }}">
+        <a href="https://kumbuka.me/" target="_blank" rel="noopener noreferrer">{{ .Locale.Text "layout.docs" }}</a>
         <a href="https://github.com/kumbuka-me/kumbuka"
            target="_blank"
            rel="noopener noreferrer">GitHub</a>
-        <button type="button" data-about-open aria-haspopup="dialog">About</button>
+        <button type="button" data-about-open aria-haspopup="dialog">{{ .Locale.Text "layout.about" }}</button>
       </nav>
     </div>
   </footer>

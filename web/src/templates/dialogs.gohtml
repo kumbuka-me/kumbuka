@@ -1,16 +1,17 @@
 {{ define "app-dialogs" }}
+  {{ $locale := .Locale }}
   <dialog class="app-dialog"
           data-confirm-dialog
           aria-labelledby="confirm-dialog-title">
     <div class="app-dialog-header">
       <div>
-        <p class="eyebrow" data-confirm-dialog-eyebrow>Confirmation</p>
-        <h2 id="confirm-dialog-title" data-confirm-dialog-title>Confirm action</h2>
+        <p class="eyebrow" data-confirm-dialog-eyebrow>{{ $locale.Text "dialog.confirmation" }}</p>
+        <h2 id="confirm-dialog-title" data-confirm-dialog-title>{{ $locale.Text "dialog.confirm_action" }}</h2>
       </div>
       <button class="icon-button app-dialog-close"
               type="button"
               data-confirm-dialog-cancel
-              aria-label="Close">{{ icon "x-lucide" 20 }}</button>
+              aria-label="{{ $locale.Text "dialog.close" }}">{{ icon "x-lucide" 20 }}</button>
     </div>
     <div class="app-dialog-body">
       <p data-confirm-dialog-message></p>
@@ -19,8 +20,10 @@
       <button class="button"
               type="button"
               data-confirm-dialog-cancel
-              data-confirm-dialog-cancel-label>Cancel</button>
-      <button class="button danger" type="button" data-confirm-dialog-accept>Continue</button>
+              data-confirm-dialog-cancel-label>{{ $locale.Text "dialog.cancel" }}</button>
+      <button class="button danger"
+              type="button"
+              data-confirm-dialog-accept>{{ $locale.Text "dialog.continue" }}</button>
     </div>
   </dialog>
   <dialog class="app-dialog problem-dialog"
@@ -28,13 +31,13 @@
           aria-labelledby="problem-dialog-title">
     <div class="app-dialog-header">
       <div>
-        <p class="eyebrow problem-dialog-eyebrow">{{ icon "triangle-alert-lucide" 14 }} Error</p>
-        <h2 id="problem-dialog-title" data-problem-dialog-title>Something went wrong</h2>
+        <p class="eyebrow problem-dialog-eyebrow">{{ icon "triangle-alert-lucide" 14 }} {{ $locale.Text "dialog.error" }}</p>
+        <h2 id="problem-dialog-title" data-problem-dialog-title>{{ $locale.Text "dialog.something_wrong" }}</h2>
       </div>
       <button class="icon-button app-dialog-close"
               type="button"
               data-problem-dialog-close
-              aria-label="Close">{{ icon "x-lucide" 20 }}</button>
+              aria-label="{{ $locale.Text "dialog.close" }}">{{ icon "x-lucide" 20 }}</button>
     </div>
     <div class="app-dialog-body problem-dialog-body">
       <p data-problem-dialog-message></p>
@@ -42,7 +45,7 @@
       </dl>
     </div>
     <div class="app-dialog-actions">
-      <button class="button primary" type="button" data-problem-dialog-close>Close</button>
+      <button class="button primary" type="button" data-problem-dialog-close>{{ $locale.Text "dialog.close" }}</button>
     </div>
   </dialog>
   <dialog class="app-dialog"
@@ -51,18 +54,18 @@
     <div class="app-dialog-header">
       <div>
         <p class="eyebrow">Kumbuka</p>
-        <h2 id="notice-dialog-title" data-notice-dialog-title>Notice</h2>
+        <h2 id="notice-dialog-title" data-notice-dialog-title>{{ $locale.Text "dialog.notice" }}</h2>
       </div>
       <button class="icon-button app-dialog-close"
               type="button"
               data-notice-dialog-close
-              aria-label="Close">{{ icon "x-lucide" 20 }}</button>
+              aria-label="{{ $locale.Text "dialog.close" }}">{{ icon "x-lucide" 20 }}</button>
     </div>
     <div class="app-dialog-body">
       <p data-notice-dialog-message></p>
     </div>
     <div class="app-dialog-actions">
-      <button class="button primary" type="button" data-notice-dialog-close>OK</button>
+      <button class="button primary" type="button" data-notice-dialog-close>{{ $locale.Text "dialog.ok" }}</button>
     </div>
   </dialog>
   <dialog class="app-dialog about-dialog"
@@ -71,31 +74,34 @@
     <div class="app-dialog-header">
       <div>
         <p class="eyebrow">Kumbuka</p>
-        <h2 id="about-dialog-title">About Kumbuka</h2>
+        <h2 id="about-dialog-title">{{ $locale.Text "dialog.about_kumbuka" }}</h2>
       </div>
       <button class="icon-button app-dialog-close"
               type="button"
               data-about-close
-              aria-label="Close">{{ icon "x-lucide" 20 }}</button>
+              aria-label="{{ $locale.Text "dialog.close" }}">{{ icon "x-lucide" 20 }}</button>
     </div>
     <div class="app-dialog-body about-dialog-body">
-      <p>A self-hosted, Markdown-first knowledge base.</p>
+      <p>{{ $locale.Text "dialog.about_description" }}</p>
       <dl class="about-dialog-details">
         <div>
-          <dt>Version</dt>
+          <dt>{{ $locale.Text "dialog.version" }}</dt>
           <dd>
             {{ .Version }}
           </dd>
         </div>
         <div>
-          <dt>Commit</dt>
+          <dt>{{ $locale.Text "dialog.commit" }}</dt>
           <dd>
             <code>{{ .Commit }}</code>
           </dd>
         </div>
       </dl>
-      <nav class="about-dialog-links" aria-label="Kumbuka project links">
-        <a href="https://kumbuka.me/" target="_blank" rel="noopener noreferrer">Documentation</a>
+      <nav class="about-dialog-links"
+           aria-label="{{ $locale.Text "dialog.project_links" }}">
+        <a href="https://kumbuka.me/"
+           target="_blank"
+           rel="noopener noreferrer">{{ $locale.Text "dialog.documentation" }}</a>
         <a href="https://github.com/kumbuka-me/kumbuka"
            target="_blank"
            rel="noopener noreferrer">GitHub</a>
@@ -105,7 +111,7 @@
       </nav>
     </div>
     <div class="app-dialog-actions">
-      <button class="button primary" type="button" data-about-close>Close</button>
+      <button class="button primary" type="button" data-about-close>{{ $locale.Text "dialog.close" }}</button>
     </div>
   </dialog>
   <dialog class="app-dialog command-palette"
@@ -115,25 +121,25 @@
       {{ icon "search-lucide" 18 }}
       <input type="search"
              data-command-palette-input
-             placeholder="Search pages or commands…"
+             placeholder="{{ $locale.Text "dialog.command_search_placeholder" }}"
              autocomplete="off"
-             aria-label="Search pages or commands" />
+             aria-label="{{ $locale.Text "dialog.command_search_label" }}" />
       <kbd>Esc</kbd>
     </div>
-    <h2 class="sr-only" id="command-palette-title">Command palette</h2>
+    <h2 class="sr-only" id="command-palette-title">{{ $locale.Text "dialog.command_palette" }}</h2>
     <div class="command-palette-options" role="listbox">
       <div class="command-palette-static">
         <a href="{{ route "/" }}"
            class="command-palette-option"
            data-command-option
            data-command-static
-           role="option">{{ icon "house-lucide" 17 }}<span><strong>Home</strong><small>Open dashboard</small></span></a>
+           role="option">{{ icon "house-lucide" 17 }}<span><strong>{{ $locale.Text "dialog.home" }}</strong><small>{{ $locale.Text "dialog.open_dashboard" }}</small></span></a>
         {{ if .CanEdit }}
           <a href="{{ route "/pages/new" }}{{ if .NewPageParent }}?parent={{ .NewPageParent | urlquery }}{{ end }}"
              class="command-palette-option"
              data-command-option
              data-command-static
-             role="option">{{ icon "plus-lucide" 17 }}<span><strong>New page</strong><small>Create a page</small></span></a>
+             role="option">{{ icon "plus-lucide" 17 }}<span><strong>{{ $locale.Text "dialog.new_page" }}</strong><small>{{ $locale.Text "dialog.create_page" }}</small></span></a>
         {{ end }}
         {{ if .CurrentPage }}
           {{ if .CanEdit }}
@@ -141,61 +147,63 @@
                class="command-palette-option"
                data-command-option
                data-command-static
-               role="option">{{ icon "pencil-lucide" 17 }}<span><strong>Edit current page</strong><small>{{ .CurrentPage.Title }}</small></span></a>
+               role="option">{{ icon "pencil-lucide" 17 }}<span><strong>{{ $locale.Text "dialog.edit_current_page" }}</strong><small>{{ .CurrentPage.Title }}</small></span></a>
           {{ end }}
         {{ end }}
         <a href="{{ route "/graph" }}{{ if .CurrentPage }}?slug={{ .CurrentPage.Slug }}{{ end }}"
            class="command-palette-option"
            data-command-option
            data-command-static
-           role="option">{{ icon "network-lucide" 17 }}<span><strong>Knowledge graph</strong><small>Explore page relationships</small></span></a>
+           role="option">{{ icon "network-lucide" 17 }}<span><strong>{{ $locale.Text "dialog.knowledge_graph" }}</strong><small>{{ $locale.Text "dialog.explore_relationships" }}</small></span></a>
         <button type="button"
                 class="command-palette-option"
                 data-command-option
                 data-command-static
                 data-shortcuts-open
                 role="option">
-          {{ icon "keyboard-lucide" 17 }}<span><strong>Keyboard shortcuts</strong><small>Show navigation and editor shortcuts</small></span>
+          {{ icon "keyboard-lucide" 17 }}<span><strong>{{ $locale.Text "dialog.keyboard_shortcuts" }}</strong><small>{{ $locale.Text "dialog.show_shortcuts" }}</small></span>
         </button>
         <a href="{{ route "/settings" }}"
            class="command-palette-option"
            data-command-option
            data-command-static
-           role="option">{{ icon "settings-lucide" 17 }}<span><strong>Settings</strong><small>Personal preferences</small></span></a>
+           role="option">{{ icon "settings-lucide" 17 }}<span><strong>{{ $locale.Text "dialog.settings" }}</strong><small>{{ $locale.Text "dialog.personal_preferences" }}</small></span></a>
         {{ if eq .User.Role "admin" }}
           <a href="{{ route "/admin" }}"
              class="command-palette-option"
              data-command-option
              data-command-static
-             role="option">{{ icon "shield-lucide" 17 }}<span><strong>Administration</strong><small>Manage Kumbuka</small></span></a>
+             role="option">{{ icon "shield-lucide" 17 }}<span><strong>{{ $locale.Text "dialog.administration" }}</strong><small>{{ $locale.Text "dialog.manage_kumbuka" }}</small></span></a>
         {{ end }}
       </div>
       <div data-command-palette-results></div>
     </div>
-    <button class="sr-only" type="button" data-command-palette-close>Close command palette</button>
+    <button class="sr-only"
+            type="button"
+            data-command-palette-close>{{ $locale.Text "dialog.close_command_palette" }}</button>
   </dialog>
   <dialog class="app-dialog shortcuts-dialog"
           data-shortcuts-dialog
           aria-labelledby="shortcuts-dialog-title">
     <div class="app-dialog-header">
       <div>
-        <p class="eyebrow">Keyboard</p>
-        <h2 id="shortcuts-dialog-title">Keyboard shortcuts</h2>
+        <p class="eyebrow">{{ $locale.Text "dialog.keyboard" }}</p>
+        <h2 id="shortcuts-dialog-title">{{ $locale.Text "dialog.keyboard_shortcuts" }}</h2>
       </div>
       <button class="icon-button app-dialog-close"
               type="button"
               data-shortcuts-close
-              aria-label="Close">{{ icon "x-lucide" 20 }}</button>
+              aria-label="{{ $locale.Text "dialog.close" }}">{{ icon "x-lucide" 20 }}</button>
     </div>
     <div class="app-dialog-body shortcut-grid">
-      <div><kbd>⌘/Ctrl K</kbd><span>Command palette</span></div>
-      <div><kbd>/</kbd><span>Focus global search</span></div>
-      <div><kbd>G H</kbd><span>Go home</span></div>
-      <div><kbd>G G</kbd><span>Knowledge graph</span></div>
-      <div><kbd>C</kbd><span>Create page</span></div>
-      <div><kbd>E</kbd><span>Edit current page</span></div>
-      <div><kbd>?</kbd><span>Show this dialog</span></div>
-      <div><kbd>Esc</kbd><span>Close dialogs / focus mode</span></div>
+      <div><kbd>⌘/Ctrl K</kbd><span>{{ $locale.Text "dialog.command_palette" }}</span></div>
+      <div><kbd>/</kbd><span>{{ $locale.Text "dialog.focus_search" }}</span></div>
+      <div><kbd>G H</kbd><span>{{ $locale.Text "dialog.go_home" }}</span></div>
+      <div><kbd>G G</kbd><span>{{ $locale.Text "dialog.knowledge_graph" }}</span></div>
+      <div><kbd>C</kbd><span>{{ $locale.Text "dialog.create_page_shortcut" }}</span></div>
+      <div><kbd>E</kbd><span>{{ $locale.Text "dialog.edit_current_page" }}</span></div>
+      <div><kbd>?</kbd><span>{{ $locale.Text "dialog.show_dialog" }}</span></div>
+      <div><kbd>Esc</kbd><span>{{ $locale.Text "dialog.close_dialogs" }}</span></div>
     </div>
   </dialog>
 {{ end }}

@@ -67,7 +67,7 @@ func PluginWidgetPreferences(items []plugin.LoadedPlugin, hidden []string) []Wid
 			preferences = append(preferences, WidgetPreference{
 				Key:         key,
 				Label:       label,
-				Surface:     widgetSurfaceLabel(module.Surface),
+				Surface:     module.Surface,
 				Description: description,
 				Visible:     !hiddenSet[key],
 			})
@@ -75,20 +75,6 @@ func PluginWidgetPreferences(items []plugin.LoadedPlugin, hidden []string) []Wid
 	}
 
 	return preferences
-}
-
-// widgetSurfaceLabel returns the human-readable label for a widget surface.
-func widgetSurfaceLabel(surface string) string {
-	switch surface {
-	case "home":
-		return "Home"
-	case "sidebar":
-		return "Sidebar"
-	case "page.details":
-		return "Page details"
-	default:
-		return surface
-	}
 }
 
 // stringSet builds a membership set from string values.

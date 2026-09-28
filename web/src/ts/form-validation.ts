@@ -10,6 +10,7 @@ import {
   parseProblemPayload,
   type ProblemPayload,
 } from "./core/http.ts";
+import { t } from "./core/i18n.ts";
 import { localPasswordProblem } from "./core/password.ts";
 
 type FormControl = HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
@@ -112,7 +113,10 @@ function clearFieldError(control: FormControl): void {
 
 function localMessage(control: FormControl): string {
   if (control.validity.valueMissing) {
-    return control.dataset.errorRequired || "This field is required.";
+    return (
+      control.dataset.errorRequired ||
+      t("browser.validation.required", "This field is required.")
+    );
   }
   if (control.hasAttribute("data-validate-password") && control.value !== "") {
     const problem = localPasswordProblem(control.value);
@@ -133,10 +137,16 @@ function localMessage(control: FormControl): string {
   if (match) {
     const expected = controlFor(control.form!, match);
     if (expected && expected.value !== "" && control.value === "") {
-      return control.dataset.errorRequired || "Confirm the value.";
+      return (
+        control.dataset.errorRequired ||
+        t("browser.validation.confirm", "Confirm the value.")
+      );
     }
     if (expected && control.value !== expected.value) {
-      return control.dataset.errorMatch || "Values do not match.";
+      return (
+        control.dataset.errorMatch ||
+        t("browser.validation.mismatch", "Values do not match.")
+      );
     }
   }
 
@@ -337,17 +347,28 @@ async function submitForm(
     const contentType = response.headers.get("Content-Type") || "";
     const problem = contentType.includes("application/json")
       ? parseProblemPayload(await response.json())
-      : { error: "The form could not be submitted." };
+      : {
+          error: t(
+            "browser.validation.form_failed",
+            "The form could not be submitted.",
+          ),
+        };
     const { firstInvalid, details } = showServerProblems(form, problem);
     const shown = await showProblemDialog(problem, {
-      title: form.dataset.errorTitle || "Could not submit form",
+      title:
+        form.dataset.errorTitle ||
+        t("browser.validation.form_failed_title", "Could not submit form"),
       details,
     });
 
     if (!shown && !firstInvalid) {
       showFormMessage(
         form,
-        problem.error || "The form could not be submitted.",
+        problem.error ||
+          t(
+            "browser.validation.form_failed",
+            "The form could not be submitted.",
+          ),
       );
     }
 
@@ -355,11 +376,15 @@ async function submitForm(
     firstInvalid?.focus({ preventScroll: true });
   } catch {
     const problem = {
-      error:
+      error: t(
+        "browser.validation.connection_failed",
         "The form could not be submitted. Check your connection and try again.",
+      ),
     };
     const shown = await showProblemDialog(problem, {
-      title: form.dataset.errorTitle || "Could not submit form",
+      title:
+        form.dataset.errorTitle ||
+        t("browser.validation.form_failed_title", "Could not submit form"),
     });
     if (!shown) showFormMessage(form, problem.error);
   } finally {

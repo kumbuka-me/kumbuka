@@ -6,6 +6,7 @@ import { requestConfirmation, showNotice } from "../core/dialogs.ts";
 import { requiredAttribute, requiredElement } from "../core/dom.ts";
 import { isRecord, requireArrayOf } from "../core/guards.ts";
 import { errorMessage, requestJSON } from "../core/http.ts";
+import { t } from "../core/i18n.ts";
 import { insertMarkdownAtSelection } from "./editor/toolbar.ts";
 
 export type ImageItem = {
@@ -56,11 +57,13 @@ function formatMediaAge(value: string): string {
   if (!Number.isFinite(milliseconds)) return "";
 
   const minutes = Math.floor(milliseconds / 60_000);
-  if (minutes < 1) return "just now";
-  if (minutes < 60) return `${minutes}m ago`;
+  if (minutes < 1) return t("browser.media.just_now", "just now");
+  if (minutes < 60)
+    return t("browser.media.minutes_ago", "{count}m ago", { count: minutes });
 
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
+  if (hours < 24)
+    return t("browser.media.hours_ago", "{count}h ago", { count: hours });
 
   return timestamp.toISOString().slice(0, 10);
 }
@@ -334,10 +337,14 @@ function setupMediaDialog(dialog: HTMLDialogElement): void {
 }
 
 function managedImageEmptyText(mode: string, query: string): string {
-  if (query) return "No images match your search.";
-  if (mode === "admin") return "No images uploaded yet.";
+  if (query) return t("browser.media.no_match", "No images match your search.");
+  if (mode === "admin")
+    return t("browser.media.empty_admin", "No images uploaded yet.");
 
-  return "No images uploaded yet. Upload one from the page editor.";
+  return t(
+    "browser.media.empty_user",
+    "No images uploaded yet. Upload one from the page editor.",
+  );
 }
 
 function managedImageRow(image: ImageItem, mode: string): HTMLElement {
@@ -364,7 +371,10 @@ function managedImageRow(image: ImageItem, mode: string): HTMLElement {
   const meta = document.createElement("small");
   const parts = [formatMediaSize(image.size_bytes)];
 
-  if (mode === "admin") parts.push(image.uploader || "Unknown uploader");
+  if (mode === "admin")
+    parts.push(
+      image.uploader || t("browser.media.unknown_uploader", "Unknown uploader"),
+    );
   parts.push(formatMediaAge(image.created_at));
   meta.textContent = parts.filter(Boolean).join(" · ");
 
@@ -372,10 +382,18 @@ function managedImageRow(image: ImageItem, mode: string): HTMLElement {
 
   if (image.usage_count > 0) {
     usage.className = "media-used";
-    usage.textContent = `Referenced ${image.usage_count} time${image.usage_count === 1 ? "" : "s"}`;
+    usage.textContent = t(
+      image.usage_count === 1
+        ? "browser.media.referenced_one"
+        : "browser.media.referenced_many",
+      image.usage_count === 1
+        ? "Referenced {count} time"
+        : "Referenced {count} times",
+      { count: image.usage_count },
+    );
   } else {
     usage.className = "media-unused";
-    usage.textContent = "Unused";
+    usage.textContent = t("browser.media.unused", "Unused");
   }
 
   const url = document.createElement("code");
@@ -394,7 +412,7 @@ function managedImageRow(image: ImageItem, mode: string): HTMLElement {
     remove.dataset.mediaDelete = "";
     remove.dataset.mediaUsage = String(image.usage_count);
     remove.dataset.deleteUrl = route(`/api/images/${image.id}`);
-    remove.textContent = "Delete";
+    remove.textContent = t("browser.media.delete", "Delete");
     remove.addEventListener("click", () => void deleteMediaImage(remove));
     actions.append(remove);
   }
@@ -412,7 +430,9 @@ function updateManagedImageSummary(root: HTMLElement, hasMore: boolean): void {
   root.dataset.mediaOffset = String(count);
   root.dataset.mediaHasMore = String(hasMore);
   if (summary)
-    summary.textContent = `${count} shown${hasMore ? " · more available" : ""}`;
+    summary.textContent = `${t("browser.media.shown", "{count} shown", { count })}${
+      hasMore ? ` · ${t("browser.media.more_available", "more available")}` : ""
+    }`;
 }
 
 function renderManagedImageEmpty(root: HTMLElement): void {
@@ -476,7 +496,9 @@ function setupManagedImageBrowser(root: HTMLElement): void {
     const signal = requests.next();
     loading = true;
     loadMore.disabled = true;
-    status.textContent = reset ? "Searching…" : "Loading…";
+    status.textContent = reset
+      ? t("browser.media.searching", "Searching…")
+      : t("browser.media.loading", "Loading…");
 
     const query = reset ? input.value.trim() : activeQuery;
     const offset = reset ? 0 : Number(root.dataset.mediaOffset || 0);
@@ -512,9 +534,13 @@ function setupManagedImageBrowser(root: HTMLElement): void {
 
       console.error("managed image list failed", error);
       status.textContent = "";
-      await showNotice(errorMessage(error) || "Images could not be loaded.", {
-        title: "Image search failed",
-      });
+      await showNotice(
+        errorMessage(error) ||
+          t("browser.media.load_failed", "Images could not be loaded."),
+        {
+          title: t("browser.media.search_failed_title", "Image search failed"),
+        },
+      );
     } finally {
       if (!signal.aborted) {
         loading = false;
@@ -544,12 +570,23 @@ async function deleteMediaImage(button: HTMLButtonElement): Promise<void> {
   const usage = Number(button.dataset.mediaUsage || 0);
   const message =
     usage > 0
-      ? `Delete this image permanently? It is still referenced ${usage} time${usage === 1 ? "" : "s"} and those references will break.`
-      : "Delete this unused image permanently?";
+      ? t(
+          usage === 1
+            ? "browser.media.delete_used_one"
+            : "browser.media.delete_used_many",
+          usage === 1
+            ? "Delete this image permanently? It is still referenced {count} time and that reference will break."
+            : "Delete this image permanently? It is still referenced {count} times and those references will break.",
+          { count: usage },
+        )
+      : t(
+          "browser.media.delete_unused",
+          "Delete this unused image permanently?",
+        );
   if (
     !(await requestConfirmation(message, {
-      title: "Delete image",
-      confirmLabel: "Delete image",
+      title: t("browser.media.delete_title", "Delete image"),
+      confirmLabel: t("browser.media.delete_label", "Delete image"),
     }))
   )
     return;
@@ -578,9 +615,13 @@ async function deleteMediaImage(button: HTMLButtonElement): Promise<void> {
     }
   } catch (error) {
     console.error("image deletion failed", error);
-    await showNotice(errorMessage(error) || "Image could not be deleted.", {
-      title: "Image deletion failed",
-    });
+    await showNotice(
+      errorMessage(error) ||
+        t("browser.media.delete_failed", "Image could not be deleted."),
+      {
+        title: t("browser.media.delete_failed_title", "Image deletion failed"),
+      },
+    );
     button.disabled = false;
   }
 }

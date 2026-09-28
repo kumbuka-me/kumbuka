@@ -18,17 +18,22 @@ func (v *Views) PublicData(title string) (Layout, error) {
 		return Layout{}, err
 	}
 
+	locale := v.Localizer("", "")
+
 	return Layout{
-		RoutePrefix:   v.runtime.RoutePrefix,
-		Title:         title,
-		Preferences:   preferences,
-		Version:       v.version,
-		AssetVersion:  v.assetVersion,
-		Commit:        v.commit,
-		Runtime:       v.runtime,
-		ThemeData:     template.JS(themeData),
-		PluginModules: template.JS("[]"),
-		Themes:        v.themes,
-		ActiveTheme:   activeTheme,
+		Locale:              locale,
+		LocaleOptions:       v.LocaleOptions(),
+		BrowserTranslations: v.BrowserTranslations(locale),
+		RoutePrefix:         v.runtime.RoutePrefix,
+		Title:               title,
+		Preferences:         preferences,
+		Version:             v.version,
+		AssetVersion:        v.assetVersion,
+		Commit:              v.commit,
+		Runtime:             v.runtime,
+		ThemeData:           template.JS(themeData),
+		PluginModules:       template.JS("[]"),
+		Themes:              v.themes,
+		ActiveTheme:         activeTheme,
 	}, nil
 }

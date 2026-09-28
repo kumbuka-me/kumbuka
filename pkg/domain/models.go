@@ -881,6 +881,8 @@ type PageTemplate struct {
 
 // UserPreferences contains presentation preferences for one wiki user.
 type UserPreferences struct {
+	// Locale is the optional BCP 47 interface language; empty follows the browser language.
+	Locale string
 	// Theme is the filename-derived title of the user's selected theme.
 	Theme string
 	// ShowPageContents controls whether wiki pages render a heading table of contents.

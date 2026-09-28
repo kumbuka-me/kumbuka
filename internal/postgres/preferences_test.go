@@ -12,6 +12,7 @@ func TestDefaultUserPreferences(t *testing.T) {
 
 	preferences := domain.DefaultUserPreferences()
 
+	assert.Empty(t, preferences.Locale)
 	assert.True(t, preferences.ShowPageContents)
 	assert.Equal(t, domain.NavigationStyleSidebar, preferences.NavigationStyle)
 	assert.Equal(t, domain.NavigationDensityComfortable, preferences.NavigationDensity)

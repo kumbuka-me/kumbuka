@@ -2,6 +2,7 @@ package webview
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"io/fs"
@@ -11,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/containeroo/httpprefix"
+	"github.com/kumbuka-me/kumbuka/internal/i18n"
 	"github.com/kumbuka-me/kumbuka/internal/route"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/kumbuka-me/kumbuka/pkg/icons"
@@ -161,6 +163,12 @@ type Views struct {
 	assetVersion string
 	// iconCatalog combines built-in icons with resources from enabled plugins.
 	iconCatalog *icons.Catalog
+	// translations contains immutable interface-language catalogs.
+	translations *i18n.Catalog
+	// localeOptions contains the immutable, presentation-ready language selector options.
+	localeOptions []i18n.Option
+	// browserTranslations contains pre-serialized browser message payloads by locale.
+	browserTranslations map[string]template.JS
 	// renderError maps template failures to transport responses without importing the HTTP adapter.
 	renderError RenderErrorHandler
 }
@@ -182,6 +190,13 @@ func New(
 	if err != nil {
 		return nil, fmt.Errorf("fingerprint web assets: %w", err)
 	}
+
+	translations, err := i18n.Load(appFS)
+	if err != nil {
+		return nil, fmt.Errorf("load interface translations: %w", err)
+	}
+	localeOptions := translations.Options()
+	browserTranslations := precomputeBrowserTranslations(translations, localeOptions)
 
 	funcs := template.FuncMap{
 		"routeHTML": func(value template.HTML) template.HTML {
@@ -224,14 +239,17 @@ func New(
 	}
 
 	return &Views{
-		templates:    templates,
-		logger:       logger,
-		version:      version,
-		commit:       commit,
-		themes:       availableThemes,
-		runtime:      runtime,
-		assetVersion: assetVersion,
-		iconCatalog:  catalog,
+		templates:           templates,
+		logger:              logger,
+		version:             version,
+		commit:              commit,
+		themes:              availableThemes,
+		runtime:             runtime,
+		assetVersion:        assetVersion,
+		iconCatalog:         catalog,
+		translations:        translations,
+		localeOptions:       localeOptions,
+		browserTranslations: browserTranslations,
 	}, nil
 }
 
@@ -258,6 +276,39 @@ func (v *Views) Themes() []themes.Theme { return v.themes }
 
 // Runtime returns non-secret runtime configuration exposed to administrators.
 func (v *Views) Runtime() RuntimeInfo { return v.runtime }
+
+// Localizer resolves one request interface language from the user preference and browser header.
+func (v *Views) Localizer(preference, acceptLanguage string) i18n.Localizer {
+	return v.translations.Resolve(preference, acceptLanguage)
+}
+
+// LocaleOptions returns interface languages available for explicit user selection.
+func (v *Views) LocaleOptions() []i18n.Option { return v.localeOptions }
+
+// ValidLocale reports whether code names an explicitly selectable interface language.
+func (v *Views) ValidLocale(code string) bool { return v.translations.Has(code) }
+
+// BrowserTranslations returns the pre-serialized browser.* messages for the request locale.
+func (v *Views) BrowserTranslations(locale i18n.Localizer) template.JS {
+	if payload, ok := v.browserTranslations[locale.Code]; ok {
+		return payload
+	}
+	return v.browserTranslations[i18n.DefaultCode]
+}
+
+// precomputeBrowserTranslations serializes immutable browser messages once at startup.
+func precomputeBrowserTranslations(catalog *i18n.Catalog, options []i18n.Option) map[string]template.JS {
+	result := make(map[string]template.JS, len(options))
+	for _, option := range options {
+		locale := catalog.Resolve(option.Code, "")
+		payload, _ := json.Marshal(struct {
+			Locale   string            `json:"locale"`
+			Messages map[string]string `json:"messages"`
+		}{Locale: locale.Code, Messages: locale.BrowserMessages()})
+		result[locale.Code] = template.JS(payload)
+	}
+	return result
+}
 
 // AssetVersion returns the fingerprint used for cache-safe embedded assets.
 func (v *Views) AssetVersion() string { return v.assetVersion }
