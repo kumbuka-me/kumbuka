@@ -16,6 +16,9 @@ func (v *Views) EnablePageTimings(logger *slog.Logger) {
 
 // StartPageTiming attaches one handler trace to the request so nested view-data loading can contribute detailed stages without changing service interfaces.
 func (v *Views) StartPageTiming(r *http.Request) (*http.Request, *renderprofile.Trace) {
+	if trace := renderprofile.FromContext(r.Context()); trace != nil {
+		return r, trace
+	}
 	if v == nil || v.pageTimingLogger == nil {
 		return r, nil
 	}

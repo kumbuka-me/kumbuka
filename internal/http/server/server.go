@@ -47,6 +47,7 @@ func New(config Config) http.Handler {
 		middlewares,
 		middleware.RecoverPanics(config.Logger),
 		middleware.RejectCrossSiteWrites(config.Logger),
+		middleware.ServerTiming(),
 	)
 	if config.ReadOnly {
 		middlewares = append(middlewares, middleware.ReadOnly())

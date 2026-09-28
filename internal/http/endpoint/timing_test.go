@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/kumbuka-me/kumbuka/internal/webview"
+	"github.com/kumbuka-me/kumbuka/pkg/renderprofile"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -44,4 +45,16 @@ func TestPageTimingDisabledDoesNotAttachTrace(t *testing.T) {
 	profiled, trace := views.StartPageTiming(request)
 	assert.Nil(t, trace, "page timing trace was created while diagnostics were disabled")
 	assert.Same(t, request, profiled, "disabled page timing replaced the request")
+}
+
+func TestPageTimingReusesRequestTrace(t *testing.T) {
+	views := testHandlerViews(t, webview.RuntimeInfo{})
+	request := httptest.NewRequest("GET", "/pages/example", nil)
+	trace := renderprofile.New()
+	request = request.WithContext(renderprofile.WithContext(request.Context(), trace))
+
+	profiled, attached := views.StartPageTiming(request)
+
+	assert.Same(t, request, profiled)
+	assert.Same(t, trace, attached)
 }
