@@ -19,6 +19,10 @@ func registerPageRoutes(mux *http.ServeMux, config Config) {
 		browserAuthn(endpoint.PluginWidgetCommand(config.PageReports, config.Navigation, config.Renderer, config.Notifications)),
 	)
 	mux.Handle(
+		"GET /api/plugin-fragments/{pluginID}/{moduleID}/{index}/{slug...}",
+		browserAuthn(endpoint.PluginMacroFragment(config.PageReports, config.Navigation, config.Renderer, config.Logger)),
+	)
+	mux.Handle(
 		"GET /export/markdown/{slug...}",
 		browserAuthn(endpoint.ExportPageMarkdown(config.PageLookup, config.Media, config.Logger)),
 	)

@@ -111,5 +111,9 @@ function setupCodeCopyButtons(root: MarkdownRoot = document): void {
 // Initializes markdown.
 export async function initMarkdown(): Promise<void> {
   setupMarkdownEnhancements(document);
+  document.addEventListener("kumbuka:fragment-loaded", (event) => {
+    if (event instanceof CustomEvent && event.detail instanceof HTMLElement)
+      setupMarkdownEnhancements(event.detail);
+  });
   await renderPluginModules(document);
 }

@@ -24,3 +24,42 @@
   max-width: 100%;
   vertical-align: middle;
 }
+
+.kumbuka-deferred-fragment {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-height: 4rem;
+  padding: 1rem;
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: var(--surface-elevated);
+}
+
+.kumbuka-deferred-spinner {
+  width: 1rem;
+  height: 1rem;
+  flex: 0 0 auto;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: kumbuka-deferred-spin 650ms linear infinite;
+}
+
+.kumbuka-deferred-fragment-error {
+  color: var(--text);
+  border-color: var(--danger);
+}
+
+@keyframes kumbuka-deferred-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kumbuka-deferred-spinner {
+    animation: none;
+  }
+}

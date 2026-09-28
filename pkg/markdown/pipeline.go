@@ -352,7 +352,7 @@ func macroInvocationName(line string) (string, bool) {
 func (p *renderPipeline) expandMacros(source string, invocations []macroInvocation, ctx plugin.Context) (string, error) {
 	for index, invocation := range invocations {
 		if p.deferMacro != nil && p.deferMacro(invocation.owner, invocation.module) {
-			replacement := deferredMacroPlaceholder(invocation, index, p.deferredVersion)
+			replacement := deferredMacroPlaceholder(invocation, index, p.deferredVersion, p.locale)
 			source = strings.Replace(source, invocation.placeholder, replacement, 1)
 			continue
 		}
@@ -369,12 +369,13 @@ func (p *renderPipeline) expandMacros(source string, invocations []macroInvocati
 
 // deferredMacroPlaceholder emits only bounded host metadata. The invocation
 // remains on the server and is re-derived from authorized canonical Markdown.
-func deferredMacroPlaceholder(invocation macroInvocation, index int, version string) string {
+func deferredMacroPlaceholder(invocation macroInvocation, index int, version, locale string) string {
 	return `<div class="kumbuka-deferred-fragment" role="status" aria-live="polite"` +
 		` data-kumbuka-deferred-plugin="` + invocation.owner + `"` +
 		` data-kumbuka-deferred-module="` + invocation.module + `"` +
 		` data-kumbuka-deferred-index="` + strconv.Itoa(index) + `"` +
-		` data-kumbuka-deferred-version="` + version + `">` +
+		` data-kumbuka-deferred-version="` + version + `"` +
+		` data-kumbuka-deferred-locale="` + locale + `">` +
 		`<span class="kumbuka-deferred-spinner" aria-hidden="true"></span>` +
 		`<span>Loading external content…</span></div>`
 }

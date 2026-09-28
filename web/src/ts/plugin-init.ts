@@ -3,5 +3,7 @@
 // editor and administration module graph before interactive content appears.
 
 import { renderPluginModules } from "./plugins/loader.ts";
+import { hydrateDeferredFragments } from "./plugins/deferred.ts";
 
+hydrateDeferredFragments(document);
 await renderPluginModules(document);
