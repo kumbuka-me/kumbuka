@@ -273,6 +273,7 @@ function mount(block: HTMLElement, module: Module): Promise<void> {
           token,
           source: source.textContent || "",
           html: content,
+          locale: document.documentElement.lang || "en",
           colors: themeColors(),
           theme: document.documentElement.style.colorScheme,
         },

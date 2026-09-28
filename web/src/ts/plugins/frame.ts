@@ -20,11 +20,15 @@
     token: string;
     source: string;
     html?: string;
+    locale?: string;
   } =>
     input.type === "kumbuka-plugin-render" &&
     typeof input.token === "string" &&
     typeof input.source === "string" &&
     input.source.length <= 1_000_000 &&
+    (input.locale === undefined ||
+      (typeof input.locale === "string" &&
+        /^[A-Za-z0-9-]{1,35}$/.test(input.locale))) &&
     (input.html === undefined ||
       (typeof input.html === "string" && input.html.length <= 1_000_000));
 
@@ -148,6 +152,7 @@
       await module.render(root, {
         source: input.source,
         html: input.html || "",
+        locale: input.locale || "en",
         theme: input.theme === "dark" ? "dark" : "light",
       });
       const measure = () =>

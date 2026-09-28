@@ -21,6 +21,7 @@ func (m exporterModule) Export(ctx plugin.Context, request plugin.ExportRequest)
 		execution = context.Background()
 	}
 	execution = context.WithValue(execution, capabilitiesKey{}, ctx.Capabilities)
+	execution = withInvocationLocale(execution, ctx)
 
 	result, err := m.instance.invoke(execution, sdk.RenderRequest{
 		APIVersion: sdk.Version,

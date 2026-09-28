@@ -62,6 +62,8 @@ type RenderedPage struct {
 
 // Functions supplies request-local plugin capabilities and export data. Bindings cannot activate an unregistered macro.
 type Functions struct {
+	// Locale is the canonical interface locale selected for this render.
+	Locale string
 	// Capabilities maps keys to capabilities values used by functions.
 	Capabilities map[string]plugin.Capability
 	// Context stores the context value used by functions.

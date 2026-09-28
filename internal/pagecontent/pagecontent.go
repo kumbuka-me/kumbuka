@@ -33,6 +33,7 @@ func (p *Preparer) Prepare(ctx context.Context, source string) (*pluginusage.Ind
 	options := md.DefaultOptions()
 	rendered, err := p.renderer.RenderPageResolvedWithFunctions(source, md.Slug, options, md.Functions{
 		Context:     ctx,
+		Locale:      "en",
 		PluginUsage: &usage,
 	})
 	if err != nil {

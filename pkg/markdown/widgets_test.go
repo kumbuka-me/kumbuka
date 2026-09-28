@@ -51,7 +51,7 @@ func TestRenderWidgetsUsesSurfaceAndCentralSanitizer(t *testing.T) {
 	renderer := NewWithRegistry(registry)
 	page := sdk.Page{Slug: "guide"}
 
-	widgets, err := renderer.RenderWidgets(context.Background(), "page.details", &page, nil, nil, nil)
+	widgets, err := renderer.RenderWidgets(context.Background(), "", "page.details", &page, nil, nil, nil)
 
 	require.NoError(t, err)
 	require.Len(t, widgets, 2)
@@ -71,7 +71,7 @@ func TestRenderWidgetsRejectsUnknownSurface(t *testing.T) {
 	t.Parallel()
 
 	renderer := NewWithRegistry(&plugin.Registry{})
-	_, err := renderer.RenderWidgets(context.Background(), "unknown", nil, nil, nil, nil)
+	_, err := renderer.RenderWidgets(context.Background(), "", "unknown", nil, nil, nil, nil)
 	require.Error(t, err)
 }
 
@@ -90,6 +90,7 @@ func TestRenderWidgetsSkipsHiddenPluginWidgets(t *testing.T) {
 
 	widgets, err := renderer.RenderWidgets(
 		context.Background(),
+		"",
 		"page.details",
 		&page,
 		nil,
@@ -112,7 +113,7 @@ func TestRenderWidgetsAddsPluginContextToFailures(t *testing.T) {
 		}))
 		renderer := NewWithRegistry(registry)
 
-		_, err := renderer.RenderWidgets(context.Background(), "page.details", nil, nil, nil, nil)
+		_, err := renderer.RenderWidgets(context.Background(), "", "page.details", nil, nil, nil, nil)
 
 		require.ErrorContains(t, err, "plugin io.example.widget: widget failed")
 	})
@@ -124,7 +125,7 @@ func TestRenderWidgetsAddsPluginContextToFailures(t *testing.T) {
 		}))
 		renderer := NewWithRegistry(registry)
 
-		_, err := renderer.RenderWidgets(context.Background(), "page.details", nil, nil, nil, nil)
+		_, err := renderer.RenderWidgets(context.Background(), "", "page.details", nil, nil, nil, nil)
 
 		require.ErrorContains(t, err, "plugin io.example.widget panicked")
 	})

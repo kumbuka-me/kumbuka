@@ -22,6 +22,7 @@ func (m codeHighlighterModule) Highlight(ctx plugin.Context, language, source st
 		execution = context.Background()
 	}
 	execution = context.WithValue(execution, capabilitiesKey{}, ctx.Capabilities)
+	execution = withInvocationLocale(execution, ctx)
 
 	result, err := m.instance.invoke(execution, sdk.RenderRequest{
 		APIVersion: sdk.Version,

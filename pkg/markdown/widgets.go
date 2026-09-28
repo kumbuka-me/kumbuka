@@ -25,6 +25,7 @@ type RenderedWidget struct {
 // RenderWidgets invokes active widgets for one surface and sanitizes every guest fragment.
 func (r *Renderer) RenderWidgets(
 	ctx context.Context,
+	locale string,
 	surface string,
 	page *sdk.Page,
 	features map[string]bool,
@@ -43,6 +44,7 @@ func (r *Renderer) RenderWidgets(
 
 	widgetContext := plugin.Context{
 		Context:      ctx,
+		Locale:       locale,
 		Capabilities: capabilities,
 		Features:     plan.RenderFeatures(features),
 	}

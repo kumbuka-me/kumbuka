@@ -22,6 +22,7 @@ func (m widgetModule) Render(ctx plugin.Context, request plugin.WidgetRequest) (
 		execution = context.Background()
 	}
 	execution = context.WithValue(execution, capabilitiesKey{}, ctx.Capabilities)
+	execution = withInvocationLocale(execution, ctx)
 
 	result, err := m.instance.invoke(execution, sdk.RenderRequest{
 		APIVersion: sdk.Version,
@@ -55,6 +56,7 @@ func (m widgetModule) Command(ctx plugin.Context, request plugin.WidgetCommandRe
 		execution = context.Background()
 	}
 	execution = context.WithValue(execution, capabilitiesKey{}, ctx.Capabilities)
+	execution = withInvocationLocale(execution, ctx)
 
 	result, err := m.instance.invoke(execution, sdk.RenderRequest{
 		APIVersion: sdk.Version,

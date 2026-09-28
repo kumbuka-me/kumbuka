@@ -58,5 +58,6 @@ func (m macroModule) invoke(ctx plugin.Context, stage, source string, invocation
 		execution = context.Background()
 	}
 	execution = context.WithValue(execution, capabilitiesKey{}, ctx.Capabilities)
+	execution = withInvocationLocale(execution, ctx)
 	return m.instance.invoke(execution, sdk.RenderRequest{APIVersion: sdk.Version, Module: m.module.ID, Stage: stage, Source: source, Invocation: invocation})
 }

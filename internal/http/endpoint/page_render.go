@@ -13,6 +13,7 @@ import (
 // renderPageContent reuses a matching render artifact or renders and persists a fresh artifact.
 func renderPageContent(
 	ctx context.Context,
+	locale string,
 	page domain.Page,
 	options md.Options,
 	capabilities map[string]plugin.Capability,
@@ -21,7 +22,7 @@ func renderPageContent(
 	logger *slog.Logger,
 ) (md.RenderedPage, error) {
 	fingerprint := renderer.RenderFingerprint(options)
-	persistable := renderer.CanPersist(page.Markdown, page.PluginUsage)
+	persistable := (locale == "" || locale == "en") && renderer.CanPersist(page.Markdown, page.PluginUsage)
 	if persistable && page.Render.Fingerprint == fingerprint {
 		stop := measurePageStage(ctx, "render_artifact_hit")
 		rendered := renderedPageFromArtifact(page.Render)
@@ -36,6 +37,7 @@ func renderPageContent(
 		options,
 		md.Functions{
 			Context:      ctx,
+			Locale:       locale,
 			PluginUsage:  page.PluginUsage,
 			Capabilities: capabilities,
 		},

@@ -399,7 +399,7 @@ func (i *Instance) call(
 	metrics *renderprofile.WASMCall,
 	profiled bool,
 ) (sdk.RenderResult, error) {
-	input, err := i.encodeRequest(request, metrics, profiled)
+	input, err := i.encodeRequest(ctx, request, metrics, profiled)
 	if err != nil {
 		return sdk.RenderResult{}, err
 	}
@@ -427,12 +427,16 @@ func (i *Instance) call(
 
 // encodeRequest serializes one guest request and enforces the wire-size limit.
 func (i *Instance) encodeRequest(
+	ctx context.Context,
 	request sdk.RenderRequest,
 	metrics *renderprofile.WASMCall,
 	profiled bool,
 ) ([]byte, error) {
 	started := timingStarted(profiled)
-	input, err := json.Marshal(request)
+	input, err := json.Marshal(struct {
+		sdk.RenderRequest
+		Locale string `json:"locale,omitempty"`
+	}{RenderRequest: request, Locale: invocationLocale(ctx)})
 	if profiled {
 		metrics.Encode = time.Since(started)
 		metrics.RequestBytes = len(input)
@@ -782,6 +786,7 @@ func (m rendererModule) render(ctx plugin.Context, source string) (string, error
 	}
 
 	execution = context.WithValue(execution, capabilitiesKey{}, ctx.Capabilities)
+	execution = withInvocationLocale(execution, ctx)
 	result, err := m.instance.invoke(execution, sdk.RenderRequest{
 		APIVersion: sdk.Version, Module: m.module.ID, Stage: m.module.Stage, Source: source, Features: ctx.Features,
 	})

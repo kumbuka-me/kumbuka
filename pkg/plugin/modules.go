@@ -57,6 +57,8 @@ type SourceUsageProvider interface {
 type Context struct {
 	// Context carries cancellation and request-scoped values.
 	Context context.Context
+	// Locale is the canonical interface locale selected for this request.
+	Locale string
 	// Capabilities exposes request-scoped host capabilities.
 	Capabilities map[string]Capability
 	// Features contains request-scoped feature flags.

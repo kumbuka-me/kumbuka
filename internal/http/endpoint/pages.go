@@ -32,7 +32,7 @@ func Home(
 			plugincap.PageListCapabilities(source),
 			plugincap.DraftCapabilities(source),
 		)
-		widgets, err := renderer.RenderWidgets(r.Context(), "home", nil, data.PluginFeatures, capabilities, data.Preferences.HiddenPluginWidgets)
+		widgets, err := renderer.RenderWidgets(r.Context(), data.Locale.Code, "home", nil, data.PluginFeatures, capabilities, data.Preferences.HiddenPluginWidgets)
 		if err != nil {
 			httpresponse.InternalServerError(views.Logger(), w, err)
 			return

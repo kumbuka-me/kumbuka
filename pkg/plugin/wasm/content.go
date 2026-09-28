@@ -39,6 +39,7 @@ func (m contentPreprocessorModule) PreprocessContent(ctx plugin.Context, source 
 		execution = context.Background()
 	}
 	execution = context.WithValue(execution, capabilitiesKey{}, ctx.Capabilities)
+	execution = withInvocationLocale(execution, ctx)
 	result, err := m.instance.invoke(execution, sdk.RenderRequest{
 		APIVersion: sdk.Version,
 		Module:     m.module.ID,

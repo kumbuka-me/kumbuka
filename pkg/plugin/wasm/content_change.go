@@ -20,6 +20,7 @@ func (m contentChangeModule) Changed(ctx plugin.Context, request plugin.ContentC
 		execution = context.Background()
 	}
 	execution = context.WithValue(execution, capabilitiesKey{}, ctx.Capabilities)
+	execution = withInvocationLocale(execution, ctx)
 
 	_, err := m.instance.invoke(execution, sdk.RenderRequest{
 		APIVersion: sdk.Version,

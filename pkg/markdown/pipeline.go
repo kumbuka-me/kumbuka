@@ -20,6 +20,8 @@ import (
 type renderPipeline struct {
 	// context carries cancellation through the complete render.
 	context context.Context
+	// locale is the canonical interface locale selected for this render.
+	locale string
 	// trace collects optional per-render diagnostics.
 	trace *renderprofile.Trace
 	// capabilities contains request-local host capabilities exposed to plugins.
@@ -73,6 +75,7 @@ func newRenderPipeline(plan *plugin.RenderPlan, features map[string]bool, functi
 
 	return &renderPipeline{
 		context:          functions.Context,
+		locale:           functions.Locale,
 		trace:            trace,
 		capabilities:     capabilities,
 		plan:             plan,
@@ -88,6 +91,7 @@ func newRenderPipeline(plan *plugin.RenderPlan, features map[string]bool, functi
 func (r *Renderer) moduleContext(resolve func(string) string, options Options) plugin.Context {
 	return plugin.Context{
 		Context:          options.pipeline.context,
+		Locale:           options.pipeline.locale,
 		Capabilities:     maps.Clone(options.pipeline.capabilities),
 		Features:         maps.Clone(options.pipeline.features),
 		Macros:           maps.Clone(options.pipeline.macros),

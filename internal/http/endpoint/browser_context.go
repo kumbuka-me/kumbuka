@@ -81,7 +81,7 @@ func (l *BrowserContext) Load(r *http.Request, views *webview.Views, title strin
 		return webview.Layout{}, err
 	}
 
-	plugins, err := l.loadPluginData(r, user, preferences, applicationSettings)
+	plugins, err := l.loadPluginData(r, user, preferences, applicationSettings, locale.Code)
 	if err != nil {
 		return webview.Layout{}, err
 	}
@@ -181,6 +181,7 @@ func (l *BrowserContext) loadPluginData(
 	user domain.User,
 	preferences domain.UserPreferences,
 	applicationSettings domain.ApplicationSettings,
+	locale string,
 ) (pluginData, error) {
 	stop := measurePageStage(r.Context(), "view_plugin_features")
 	features := make(map[string]bool)
@@ -205,6 +206,7 @@ func (l *BrowserContext) loadPluginData(
 		)
 		rendered, err := l.renderer.RenderWidgets(
 			r.Context(),
+			locale,
 			"sidebar",
 			nil,
 			features,

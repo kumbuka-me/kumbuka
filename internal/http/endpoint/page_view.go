@@ -77,7 +77,7 @@ func ViewPage(
 		capabilities := plugincap.Capabilities(securedCatalog, pageNavigation, renderer.IconCatalog())
 		stop()
 
-		rendered, err := renderPageContent(r.Context(), page, md.DefaultOptions(), capabilities, renderer, renderArtifacts, views.Logger())
+		rendered, err := renderPageContent(r.Context(), data.Locale.Code, page, md.DefaultOptions(), capabilities, renderer, renderArtifacts, views.Logger())
 		if err != nil {
 			httpresponse.InternalServerError(views.Logger(), w, err)
 			return
@@ -108,6 +108,7 @@ func ViewPage(
 		stop = measurePageStage(r.Context(), "page_detail_widgets")
 		widgets, err := renderer.RenderWidgets(
 			r.Context(),
+			data.Locale.Code,
 			"page.details",
 			utils.ToPtr(plugincap.PageValue(page)),
 			data.PluginFeatures,
