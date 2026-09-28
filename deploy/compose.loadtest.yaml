@@ -14,6 +14,7 @@ services:
       KUMBUKA__ALLOW_USER_REGISTRATION: "true"
       KUMBUKA__TRUSTED_ADMIN_GROUP: loadtest-admins
       KUMBUKA__PLUGIN_UPDATE_CHECK_INTERVAL: "0"
+      KUMBUKA__DATABASE_MAX_CONNS: ${KUMBUKA__DATABASE_MAX_CONNS:-18}
     depends_on:
       postgres:
         condition: service_healthy

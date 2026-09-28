@@ -4,6 +4,9 @@ set -eu
 compose_file=${1:?compose file is required}
 profile=${2:?profile name is required}
 k6_script=${3:?k6 script is required}
+
+export KUMBUKA__DATABASE_MAX_CONNS="${KUMBUKA__DATABASE_MAX_CONNS:-18}"
+
 interval=${LOADTEST_MONITOR_INTERVAL:-5}
 restart_app=${LOADTEST_RESTART_APP:-true}
 results_root=${LOADTEST_RESULTS_DIR:-build/loadtest}
@@ -57,6 +60,8 @@ cleanup() {
   compose --profile loadtest rm -f metrics-sampler >/dev/null 2>&1
 
   "$script_dir/summarize-monitoring.sh" "$stats_file" "$metrics_file"
+  printf '\nLoad test configuration\n'
+  printf '  PostgreSQL max conns: %s\n' "$KUMBUKA__DATABASE_MAX_CONNS"
   printf '\nMonitoring data: %s\n' "$output_dir"
   printf '  Docker stats: %s\n' "$stats_file"
   printf '  Prometheus:   %s\n' "$metrics_file"
@@ -67,24 +72,28 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 
 if [ "$restart_app" != "false" ]; then
-  printf 'Restarting Kumbuka for a clean process baseline...\n'
-  compose restart kumbuka >/dev/null
+  printf 'Recreating Kumbuka for a clean process baseline...\n'
+  compose up -d --no-deps --force-recreate kumbuka
   wait_for_kumbuka
 fi
 
 export LOADTEST_MONITOR_INTERVAL="$interval"
+
 compose --profile loadtest rm -sf metrics-sampler >/dev/null 2>&1 || true
 compose --profile loadtest up -d --no-deps metrics-sampler
-compose --profile loadtest logs --no-color --no-log-prefix -f metrics-sampler > "$metrics_file" 2>&1 &
+compose --profile loadtest logs --no-color --no-log-prefix -f metrics-sampler >"$metrics_file" 2>&1 &
 metrics_log_pid=$!
+
 "$script_dir/docker-stats.sh" "$compose_file" "$interval" "$stats_file" &
 stats_pid=$!
 
 printf 'Monitoring every %ss in %s\n' "$interval" "$output_dir"
+printf 'PostgreSQL max conns: %s\n' "$KUMBUKA__DATABASE_MAX_CONNS"
 printf 'Running %s\n\n' "$profile"
 
 set +e
 compose --profile loadtest run --rm k6 run "$k6_script"
 status=$?
 set -e
+
 exit "$status"
