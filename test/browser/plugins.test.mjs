@@ -65,6 +65,10 @@ test("real Mermaid is isolated and plugin changes require a page reload", async 
       await page.locator("iframe").getAttribute("sandbox"),
       "allow-scripts",
     );
+    assert.equal(
+      await page.locator("iframe").getAttribute("allow"),
+      "camera 'none'; microphone 'none'; geolocation 'none'",
+    );
     enabled = false;
     const stopped = assetRequests;
     await page.waitForTimeout(3200);

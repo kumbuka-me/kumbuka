@@ -44,7 +44,7 @@ func PluginPreview(manager *plugin.Manager) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "private, no-store")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
-		w.Header().Set("X-Frame-Options", "SAMEORIGIN")
+		w.Header().Del("X-Frame-Options")
 		w.Header().Set("Content-Security-Policy", "default-src 'none'; sandbox; frame-ancestors 'self'")
 		if manager == nil {
 			http.NotFound(w, r)
@@ -83,7 +83,7 @@ func PluginFrame(manager *plugin.Manager) http.HandlerFunc {
 			}
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
 			w.Header().Set("Content-Security-Policy", policy+"; frame-ancestors 'self'")
-			w.Header().Set("X-Frame-Options", "SAMEORIGIN")
+			w.Header().Del("X-Frame-Options")
 			w.Header().Set("Referrer-Policy", "no-referrer")
 			_, _ = w.Write(data)
 			return

@@ -19,6 +19,7 @@ func TestFrameEscapesAssetNamesAndKeepsExecutionIsolated(t *testing.T) {
 	assert.Contains(t, policy, "connect-src 'none'")
 	assert.NotContains(t, html, `type="module"`)
 	assert.NotContains(t, html, "crossorigin")
+	assert.NotContains(t, html, "http-equiv=\"Content-Security-Policy\"")
 	assert.Contains(t, html, "[data-kumbuka-mention]")
 	assert.Contains(t, html, "var(--accent)")
 }

@@ -245,7 +245,7 @@ function mount(block: HTMLElement, module: Module): Promise<void> {
   frame.setAttribute("referrerpolicy", "no-referrer");
   frame.setAttribute(
     "allow",
-    "camera 'none'; microphone 'none'; geolocation 'none'; clipboard-read 'none'; clipboard-write 'none'",
+    "camera 'none'; microphone 'none'; geolocation 'none'",
   );
   frame.src = module.frame_url;
   const token = Array.from(crypto.getRandomValues(new Uint8Array(16)), (byte) =>

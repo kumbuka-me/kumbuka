@@ -62,7 +62,7 @@ func TestPluginPreviewAllowsSameOriginEmbedding(t *testing.T) {
 	PluginPreview(nil)(response, request)
 
 	assert.Equal(t, http.StatusNotFound, response.Code)
-	assert.Equal(t, "SAMEORIGIN", response.Header().Get("X-Frame-Options"))
+	assert.Empty(t, response.Header().Get("X-Frame-Options"))
 	assert.Equal(t, "default-src 'none'; sandbox; frame-ancestors 'self'", response.Header().Get("Content-Security-Policy"))
 }
 
@@ -111,6 +111,8 @@ func TestBrowserPluginLifecycleAndAssetBoundary(t *testing.T) {
 	assert.Contains(t, w.Header().Get("Content-Security-Policy"), "sandbox allow-scripts")
 	assert.Contains(t, w.Header().Get("Content-Security-Policy"), "connect-src 'none'")
 	assert.NotContains(t, w.Header().Get("Content-Security-Policy"), "allow-same-origin")
+	assert.Empty(t, w.Header().Get("X-Frame-Options"))
+	assert.NotContains(t, w.Body.String(), `http-equiv="Content-Security-Policy"`)
 	assert.Contains(t, w.Body.String(), "/plugins/runtime.js")
 	for _, prefix := range []string{"", "/kumbuka"} {
 		response := httptest.NewRecorder()

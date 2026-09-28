@@ -100,7 +100,6 @@ func Frame(prefix, runtimeURL string, origins []string, m plugin.BrowserContribu
 	var output bytes.Buffer
 	err := frameTemplate.Execute(&output, frameData{
 		Name:       m.Name,
-		Policy:     policy,
 		Runtime:    runtimeURL,
 		JavaScript: assetURL(base + m.JavaScript),
 		CSS:        css,
@@ -120,8 +119,6 @@ func assetURL(name string) string { return (&url.URL{Path: name}).EscapedPath() 
 type frameData struct {
 	// Name is the browser module's display name.
 	Name string
-	// Policy is the content security policy embedded in the frame.
-	Policy string
 	// Runtime is the URL of the core-owned browser bridge.
 	Runtime string
 	// JavaScript is the escaped URL of the plugin's entry script.
