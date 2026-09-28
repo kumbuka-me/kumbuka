@@ -383,6 +383,16 @@ func isAnnotationElement(node *xhtml.Node) bool {
 		htmlAttribute(node, "data-plugin-annotation") != ""
 }
 
+// htmlAttribute returns one HTML node attribute by key.
+func htmlAttribute(node *xhtml.Node, key string) string {
+	for _, attribute := range node.Attr {
+		if attribute.Key == key {
+			return attribute.Val
+		}
+	}
+	return ""
+}
+
 // unwrapElement replaces an element with its children in the original order.
 func unwrapElement(parent, element *xhtml.Node) {
 	for element.FirstChild != nil {

@@ -6,6 +6,7 @@ import (
 	"github.com/kumbuka-me/kumbuka/pkg/plugin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	xhtml "golang.org/x/net/html"
 )
 
 func TestPluginReplacementAnnotations(t *testing.T) {
@@ -23,4 +24,19 @@ func TestPluginReplacementValuesAreNotRescanned(t *testing.T) {
 	}
 	resolved, _ := resolvePluginReplacements("opaque-one", replacements)
 	assert.Equal(t, "opaque-two", resolved)
+}
+
+func TestIsAnnotationElement(t *testing.T) {
+	node := &xhtml.Node{
+		Type: xhtml.ElementNode,
+		Data: "span",
+		Attr: []xhtml.Attribute{
+			{Key: "class", Val: "plugin-annotation"},
+			{Key: "data-plugin-annotation", Val: "a-0123456789abcdef"},
+		},
+	}
+
+	assert.True(t, isAnnotationElement(node))
+	node.Attr[1].Val = ""
+	assert.False(t, isAnnotationElement(node))
 }

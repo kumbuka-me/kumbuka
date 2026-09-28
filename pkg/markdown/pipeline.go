@@ -61,10 +61,11 @@ func newRenderPipeline(plan *plugin.RenderPlan, features map[string]bool, functi
 	exportParameters := cloneExportParameters(functions.ExportParameters)
 
 	trace := renderprofile.FromContext(functions.Context)
+	sourceHash := usageSourceHash(source)
 	index := functions.PluginUsage
-	if !currentUsageIndex(index, plan, source) {
+	if !currentUsageIndexHash(index, plan, sourceHash) {
 		stop := trace.Measure("usage_analysis")
-		derived := analyzeUsage(source, plan)
+		derived := analyzeUsageHashed(source, plan, sourceHash)
 		stop()
 		index = &derived
 	}
@@ -246,7 +247,26 @@ func (p *renderPipeline) postprocess(source string, ctx plugin.Context, page pag
 
 // preprocessMacros protects code using CommonMark's own parser, including long fences, blockquote/list fences, and indented code. Macro names are globally unique, so candidate lines dispatch directly through the page plan's name map.
 func (p *renderPipeline) preprocessMacros(source string, ctx plugin.Context, page pageRenderPlan) (string, []macroInvocation, error) {
+	if len(page.macros) == 0 || !strings.Contains(source, "{{") {
+		return source, nil, nil
+	}
+
 	lines := strings.Split(source, "\n")
+	hasCandidate := false
+	for _, line := range lines {
+		name, ok := macroInvocationName(line)
+		if !ok {
+			continue
+		}
+		if _, ok := page.macros[name]; ok {
+			hasCandidate = true
+			break
+		}
+	}
+	if !hasCandidate {
+		return source, nil, nil
+	}
+
 	protected := codeLines(source)
 
 	var invocations []macroInvocation
