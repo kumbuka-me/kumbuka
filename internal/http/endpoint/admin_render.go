@@ -30,6 +30,8 @@ type AdminRenderRebuilds struct {
 	dirty   bool
 	running bool
 	reason  string
+
+	renderMu sync.Mutex
 }
 
 // NewAdminRenderRebuilds constructs page render rebuild coordination around existing application capabilities.
@@ -58,11 +60,21 @@ func (c *AdminRenderRebuilds) Available() bool {
 }
 
 // RebuildPage renders one page from canonical Markdown and replaces its reusable artifact.
+// Administrator-triggered rebuilds are serialized so a manual rebuild cannot overlap
+// a potentially memory-heavy all-pages rebuild.
 func (c *AdminRenderRebuilds) RebuildPage(ctx context.Context, slug string) error {
 	if !c.Available() {
 		return errors.New("page render rebuild is unavailable")
 	}
 
+	c.renderMu.Lock()
+	defer c.renderMu.Unlock()
+
+	return c.rebuildPage(ctx, slug)
+}
+
+// rebuildPage performs one rebuild while the caller owns renderMu.
+func (c *AdminRenderRebuilds) rebuildPage(ctx context.Context, slug string) error {
 	slug = strings.Trim(strings.TrimSpace(slug), "/")
 	if slug == "" {
 		return domain.ErrNotFound
@@ -110,12 +122,18 @@ func (c *AdminRenderRebuilds) RebuildAll(ctx context.Context) (completed, failed
 		return 0, 1
 	}
 
+	// Hold the rebuild lock for the complete batch. This guarantees that pages are
+	// rendered one at a time and prevents manual rebuilds from increasing render
+	// concurrency while a Render all job is running.
+	c.renderMu.Lock()
+	defer c.renderMu.Unlock()
+
 	for _, page := range pages {
 		if err := ctx.Err(); err != nil {
 			c.logger.Warn("page render rebuild canceled", "event", "page_render_rebuild_canceled", "error", err)
 			return completed, failed + 1
 		}
-		if err := c.RebuildPage(ctx, page.Slug); err != nil {
+		if err := c.rebuildPage(ctx, page.Slug); err != nil {
 			failed++
 			c.logger.Error(
 				"rebuild page render",

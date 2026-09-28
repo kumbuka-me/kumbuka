@@ -241,11 +241,7 @@ function mount(block: HTMLElement, module: Module): Promise<void> {
   const restoreSource = () => {
     source.hidden = false;
     if (sourceDisplay)
-      source.style.setProperty(
-        "display",
-        sourceDisplay,
-        sourceDisplayPriority,
-      );
+      source.style.setProperty("display", sourceDisplay, sourceDisplayPriority);
     else source.style.removeProperty("display");
   };
   const frame = document.createElement("iframe");

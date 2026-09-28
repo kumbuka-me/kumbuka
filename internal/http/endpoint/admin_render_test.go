@@ -135,3 +135,61 @@ func TestAdminRenderRebuildUnavailable(t *testing.T) {
 	require.ErrorContains(t, err, "page render rebuild is unavailable")
 	assert.False(t, rebuilds.Available())
 }
+
+type blockingAdminRenderArtifactStoreStub struct {
+	entered chan struct{}
+	release chan struct{}
+}
+
+func (s *blockingAdminRenderArtifactStoreStub) SavePageRender(context.Context, int64, time.Time, domain.PageRender) error {
+	s.entered <- struct{}{}
+	<-s.release
+	return nil
+}
+
+func TestAdminRenderRebuildAllHoldsExclusiveRenderLock(t *testing.T) {
+	page := domain.Page{ID: 1, Slug: "one", Markdown: "# One", UpdatedAt: time.Now()}
+	artifacts := &blockingAdminRenderArtifactStoreStub{
+		entered: make(chan struct{}, 1),
+		release: make(chan struct{}),
+	}
+	renderer := md.NewWithRegistry(&plugin.Registry{})
+	renderer.SetArtifactBuild("test", "abc")
+	rebuilds := NewAdminRenderRebuilds(
+		adminRenderCatalogStub{pages: []domain.Page{{Slug: page.Slug}}},
+		adminRenderPageStoreStub{pages: map[string]domain.Page{page.Slug: page}},
+		artifacts,
+		renderer,
+		slog.Default(),
+	)
+
+	type result struct {
+		completed int
+		failed    int
+	}
+	done := make(chan result, 1)
+	go func() {
+		completed, failed := rebuilds.RebuildAll(context.Background())
+		done <- result{completed: completed, failed: failed}
+	}()
+
+	select {
+	case <-artifacts.entered:
+	case <-time.After(time.Second):
+		t.Fatal("render-all did not reach artifact persistence")
+	}
+
+	if rebuilds.renderMu.TryLock() {
+		rebuilds.renderMu.Unlock()
+		t.Fatal("render-all must hold the exclusive render lock for the complete batch")
+	}
+
+	close(artifacts.release)
+	select {
+	case result := <-done:
+		assert.Equal(t, 1, result.completed)
+		assert.Zero(t, result.failed)
+	case <-time.After(time.Second):
+		t.Fatal("render-all did not finish after releasing artifact persistence")
+	}
+}
