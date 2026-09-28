@@ -282,6 +282,13 @@ test-browser: check-web ## Run browser regressions in Chrome.
 test: test-web vet ## Run frontend and backend unit tests.
 	go test -count=1 -timeout=3m ./...
 
+.PHONY: bench
+bench: web plugins ## Run Go benchmark tests.
+	go test ./... \
+		-run '^$$' \
+		-bench '^Benchmark' \
+		-benchmem
+
 .PHONY: test-race
 test-race: ## Run concurrency-sensitive Go tests with the race detector.
 	go test -race -count=1 -timeout=1m $(GO_TEST_RACE_FLAGS) $(RACE_TEST_PACKAGES) -run '$(RACE_TEST_PATTERN)'
