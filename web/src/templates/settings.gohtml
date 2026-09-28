@@ -247,7 +247,7 @@
           {{ if .PluginWidgetPreferences }}
             <fieldset class="preference-group">
               <legend>Plugin widgets</legend>
-              <small>Choose which widgets from enabled plugins appear in your interface.</small>
+              <small>Choose which optional widgets appear on your Home page, sidebar, and page details.</small>
               {{ range .PluginWidgetPreferences }}
                 <input type="hidden" name="plugin_widget" value="{{ .Key }}" />
                 <label class="toggle-row">
