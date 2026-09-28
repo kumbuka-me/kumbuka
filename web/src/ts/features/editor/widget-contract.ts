@@ -2,192 +2,39 @@
 
 import { isRecord, isStringRecord } from "../../core/guards.ts";
 
-export type WidgetAttributeType =
-  "string" | "identifier" | "enum" | "list" | "color-list";
+import type {
+  CatalogWidget,
+  CatalogWidgetAttribute,
+  CatalogWidgetBadgePreview,
+  CatalogWidgetCalloutPreview,
+  CatalogWidgetCardPreview,
+  CatalogWidgetConstraint,
+  CatalogWidgetDetailsPreview,
+  CatalogWidgetLineAnnotations,
+  CatalogWidgetPreview,
+  CatalogWidgetProblem,
+  CatalogWidgetReferencePreview,
+  CatalogWidgetSetting,
+  CatalogWidgetSettingColumn,
+  CatalogWidgetTabsPreview,
+  CatalogWidgetTreeField,
+  MatchedWidgetSource,
+  ParsedMacro,
+  ParsedMacroAttribute,
+  WidgetSyntaxKind,
+} from "./widget-contract-types.ts";
+import { splitWidgetList } from "./widget-contract-validation.ts";
 
-export type WidgetSyntaxKind =
-  "macro" | "substitution" | "callout" | "details" | "tabs";
-
-export interface CatalogWidgetAttribute {
-  name: string;
-  type: WidgetAttributeType;
-  default?: string;
-  required?: boolean;
-  max_bytes?: number;
-  max_items?: number;
-  values?: string[];
-  separator?: string;
-  fallback_separator?: string;
-  unique?: boolean;
-  repeat?: boolean;
-  emit_empty?: boolean;
-  aliases?: Record<string, string>;
-}
-
-export interface CatalogWidgetSettingColumn {
-  label: string;
-  type: "text" | "textarea" | "color";
-}
-
-export interface CatalogWidgetTreeField {
-  attribute: string;
-  label: string;
-  type: "text" | "textarea" | "mention" | "date";
-  placeholder?: string;
-  suggestions?: string[];
-}
-
-export interface CatalogWidgetSetting {
-  type:
-    | "text"
-    | "textarea"
-    | "select"
-    | "resource"
-    | "mention"
-    | "date"
-    | "table"
-    | "tree";
-  label: string;
-  attribute?: string;
-  attributes?: string[];
-  columns?: CatalogWidgetSettingColumn[];
-  row_separator?: string;
-  placeholder?: string;
-  suggestions?: string[];
-  completion_module_id?: string;
-  fields?: CatalogWidgetTreeField[];
-  id_attribute?: string;
-  parent_attribute?: string;
-  title_attribute?: string;
-  description_attribute?: string;
-  empty_value?: string;
-  id_prefix?: string;
-  max_depth?: number;
-}
-
-export interface CatalogWidgetLineAnnotations {
-  attribute: string;
-  line_class: string;
-  line_number_class: string;
-}
-
-export interface CatalogWidgetConstraint {
-  kind: "exactly-one" | "same-length" | "member-of";
-  attributes: string[];
-  optional?: boolean;
-}
-
-export interface CatalogWidgetBadgePreview {
-  class: string;
-  solid_class?: string;
-  outline_class?: string;
-  prefix_class?: string;
-  value_class?: string;
-  prefix_attribute?: string;
-  label_attribute?: string;
-  labels_attribute?: string;
-  fallback_attribute?: string;
-  colors_attribute?: string;
-  style_attribute?: string;
-  default_label?: string;
-  default_colors?: string[];
-  tone_classes?: Record<string, string>;
-}
-
-export interface CatalogWidgetReferencePreview {
-  class: string;
-  prefix: string;
-  value_attribute: string;
-  default_value?: string;
-}
-
-export interface CatalogWidgetCardPreview {
-  class: string;
-  title: string;
-  title_class?: string;
-  subtitle_attribute?: string;
-  subtitle_class?: string;
-  metadata_attributes?: string[];
-  metadata_class?: string;
-  body_text?: string;
-  rendered?: boolean;
-  line_annotations?: CatalogWidgetLineAnnotations;
-}
-
-export interface CatalogWidgetCalloutPreview {
-  class: string;
-  body_class?: string;
-  kind_attribute: string;
-  body_attribute: string;
-}
-
-export interface CatalogWidgetDetailsPreview {
-  class: string;
-  body_class?: string;
-  title_attribute: string;
-  open_attribute: string;
-  body_attribute: string;
-}
-
-export interface CatalogWidgetTabsPreview {
-  class: string;
-  list_class: string;
-  tab_class: string;
-  active_class?: string;
-  panels_class: string;
-  panel_class: string;
-  hidden_class?: string;
-  titles_attribute: string;
-  bodies_attribute: string;
-}
-
-export type CatalogWidgetPreview =
-  | { kind: "badge"; badge: CatalogWidgetBadgePreview }
-  | { kind: "reference"; reference: CatalogWidgetReferencePreview }
-  | { kind: "card"; card: CatalogWidgetCardPreview }
-  | { kind: "callout"; callout: CatalogWidgetCalloutPreview }
-  | { kind: "details"; details: CatalogWidgetDetailsPreview }
-  | { kind: "tabs"; tabs: CatalogWidgetTabsPreview };
-
-export interface CatalogWidget {
-  plugin_id: string;
-  id: string;
-  name: string;
-  inline: boolean;
-  syntax: { kind: WidgetSyntaxKind; name?: string; multiline?: boolean };
-  attributes: CatalogWidgetAttribute[];
-  settings: CatalogWidgetSetting[];
-  constraints?: CatalogWidgetConstraint[];
-  preview: CatalogWidgetPreview;
-}
-
-export interface CatalogWidgetProblem {
-  plugin_id: string;
-  message: string;
-}
-
-export interface ParsedMacroAttribute {
-  name: string;
-  value: string;
-}
-
-export interface ParsedMacro {
-  name: string;
-  raw: string;
-  attributes: ParsedMacroAttribute[];
-}
-
-export interface MatchedWidgetSource {
-  raw: string;
-  widget: CatalogWidget;
-}
+export * from "./widget-contract-types.ts";
+export {
+  normalizeWidgetColor,
+  splitWidgetList,
+  validateWidgetValues,
+} from "./widget-contract-validation.ts";
 
 const identifier = /^[a-z0-9][a-z0-9._-]{0,127}$/;
 const attributeName = /^[A-Za-z][A-Za-z0-9._-]{0,127}$/;
 const widgetIdentifier = /^[A-Za-z0-9][A-Za-z0-9._:/-]*$/;
-const color = /^#[0-9a-fA-F]{6}$/;
-const canonicalMention = /^@[A-Za-z0-9_.-]+$/;
-const calendarDate = /^\d{4}-\d{2}-\d{2}$/;
 
 function strings(value: unknown): value is string[] {
   return (
@@ -846,207 +693,6 @@ export function widgetValues(
   return result;
 }
 
-export function splitWidgetList(
-  value: string,
-  attribute: CatalogWidgetAttribute,
-): string[] {
-  if (!value.trim()) return [];
-  let separator = attribute.separator || ";";
-  if (
-    attribute.fallback_separator &&
-    !value.includes(separator) &&
-    value.includes(attribute.fallback_separator)
-  ) {
-    separator = attribute.fallback_separator;
-  }
-  return value.split(separator).map((item) => item.trim());
-}
-
-export function normalizeWidgetColor(
-  value: string,
-  attribute?: CatalogWidgetAttribute,
-): string | null {
-  const normalized = value.trim().toLowerCase();
-  const alias = attribute?.aliases?.[normalized];
-  if (alias && color.test(alias)) return alias.toLowerCase();
-  return color.test(normalized) ? normalized : null;
-}
-
-function encodedLength(value: string): number {
-  return new TextEncoder().encode(value).length;
-}
-
-// validCalendarDate reports whether a value is a real canonical YYYY-MM-DD date.
-function validCalendarDate(value: string): boolean {
-  if (!calendarDate.test(value)) return false;
-  const parsed = new Date(`${value}T00:00:00Z`);
-  return (
-    !Number.isNaN(parsed.valueOf()) &&
-    parsed.toISOString().slice(0, 10) === value
-  );
-}
-
-// validateWidgetValues applies contract validation before a NodeView transaction changes source.
-export function validateWidgetValues(
-  values: Record<string, string>,
-  widget: CatalogWidget,
-): string[] {
-  const errors: string[] = [];
-  const treeAttributes = new Set(
-    widget.settings
-      .filter((setting) => setting.type === "tree")
-      .flatMap((setting) => setting.attributes || []),
-  );
-  for (const attribute of widget.attributes) {
-    const value = values[attribute.name] ?? attribute.default ?? "";
-    if (attribute.required && !value.trim()) {
-      errors.push(`${attribute.name} is required.`);
-      continue;
-    }
-    if (!value) continue;
-
-    if (attribute.type === "identifier" && !widgetIdentifier.test(value))
-      errors.push(`${attribute.name} contains unsupported characters.`);
-    if (attribute.type === "enum" && !(attribute.values || []).includes(value))
-      errors.push(`${attribute.name} has an unsupported value.`);
-
-    if (attribute.type === "list" || attribute.type === "color-list") {
-      const items = splitWidgetList(value, attribute);
-      if (attribute.max_items && items.length > attribute.max_items)
-        errors.push(`${attribute.name} has too many items.`);
-      for (const item of items) {
-        if (!item && !treeAttributes.has(attribute.name))
-          errors.push(`${attribute.name} contains an empty item.`);
-        if (attribute.max_bytes && encodedLength(item) > attribute.max_bytes)
-          errors.push(`${attribute.name} contains an item that is too long.`);
-        if (
-          attribute.type === "color-list" &&
-          !normalizeWidgetColor(item, attribute)
-        )
-          errors.push(`${attribute.name} contains an invalid color.`);
-      }
-      if (attribute.unique && new Set(items).size !== items.length)
-        errors.push(`${attribute.name} contains a duplicate item.`);
-      continue;
-    }
-
-    if (attribute.max_bytes && encodedLength(value) > attribute.max_bytes)
-      errors.push(`${attribute.name} is too long.`);
-  }
-
-  for (const setting of widget.settings) {
-    if (setting.type === "tree") {
-      const idAttribute = widgetAttribute(widget, setting.id_attribute || "");
-      const parentAttribute = widgetAttribute(
-        widget,
-        setting.parent_attribute || "",
-      );
-      const titleAttribute = widgetAttribute(
-        widget,
-        setting.title_attribute || "",
-      );
-      const ids = idAttribute
-        ? splitWidgetList(values[setting.id_attribute || ""] || "", idAttribute)
-        : [];
-      const parents = parentAttribute
-        ? splitWidgetList(
-            values[setting.parent_attribute || ""] || "",
-            parentAttribute,
-          )
-        : [];
-      const titles = titleAttribute
-        ? splitWidgetList(
-            values[setting.title_attribute || ""] || "",
-            titleAttribute,
-          )
-        : [];
-      const known = new Map<string, number>();
-      ids.forEach((id, index) => {
-        if (!id) errors.push("Every tree item needs an internal identity.");
-        if (known.has(id)) errors.push("Tree item identities must be unique.");
-        const parent = parents[index] || "";
-        let depth = 0;
-        if (parent) {
-          const parentDepth = known.get(parent);
-          if (parentDepth === undefined)
-            errors.push("A parent tree item must appear before its child.");
-          else depth = parentDepth + 1;
-        }
-        if (depth > (setting.max_depth || 16))
-          errors.push(
-            `Tree nesting may not exceed ${setting.max_depth || 16} levels.`,
-          );
-        known.set(id, depth);
-        if (!(titles[index] || "").trim())
-          errors.push("Every tree item needs a title.");
-      });
-      const emptyValue = setting.empty_value || "";
-      for (const field of setting.fields || []) {
-        if (field.type !== "mention" && field.type !== "date") continue;
-        const attribute = widgetAttribute(widget, field.attribute);
-        if (!attribute) continue;
-        for (const item of splitWidgetList(
-          values[field.attribute] || "",
-          attribute,
-        )) {
-          if (!item || (emptyValue && item === emptyValue)) continue;
-          if (field.type === "mention" && !canonicalMention.test(item))
-            errors.push(`${field.attribute} contains an invalid @mention.`);
-          if (field.type === "date" && !validCalendarDate(item))
-            errors.push(
-              `${field.attribute} contains an invalid YYYY-MM-DD date.`,
-            );
-        }
-      }
-      continue;
-    }
-    const value = setting.attribute ? values[setting.attribute] || "" : "";
-    if (!value) continue;
-    if (setting.type === "mention" && !canonicalMention.test(value))
-      errors.push(`${setting.attribute} must be a canonical @mention.`);
-    if (setting.type === "date" && !validCalendarDate(value))
-      errors.push(`${setting.attribute} must use YYYY-MM-DD.`);
-  }
-
-  for (const constraint of widget.constraints || []) {
-    const present = constraint.attributes.filter((name) =>
-      Boolean((values[name] || "").trim()),
-    );
-    if (constraint.kind === "exactly-one" && present.length !== 1)
-      errors.push(`Use exactly one of ${constraint.attributes.join(" or ")}.`);
-    if (constraint.kind === "same-length") {
-      const lengths = constraint.attributes.map((name) => {
-        const attribute = widgetAttribute(widget, name);
-        const value = values[name] || "";
-        return attribute && value
-          ? splitWidgetList(value, attribute).length
-          : 0;
-      });
-      if (constraint.optional && lengths[lengths.length - 1] === 0) continue;
-      if (new Set(lengths).size > 1)
-        errors.push(
-          `${constraint.attributes.join(" and ")} must have the same number of items.`,
-        );
-    }
-    if (constraint.kind === "member-of") {
-      const [valueName, listName] = constraint.attributes;
-      const value = values[valueName] || "";
-      const listAttribute = widgetAttribute(widget, listName);
-      const listValue = values[listName] || "";
-      if (!value) continue;
-      if (!listValue && constraint.optional) continue;
-      const allowed =
-        listAttribute && listValue
-          ? splitWidgetList(listValue, listAttribute)
-          : [];
-      if (!allowed.includes(value))
-        errors.push(
-          `${valueName} must match one of the configured ${listName}.`,
-        );
-    }
-  }
-  return [...new Set(errors)];
-}
 
 function quoteAttribute(value: string): string {
   return JSON.stringify(value);

@@ -8,7 +8,7 @@ import { initSlashCommands } from "./commands.ts";
 import { initEditorPreview } from "./preview.ts";
 import { initEditorSearch } from "./search.ts";
 import { initTags } from "./tags.ts";
-import { initTablePalette } from "./tables.ts";
+import { initTablePalette } from "./table-palette.ts";
 import { initTablePaste } from "./paste-table.ts";
 import { initMarkdownListContinuation } from "./lists.ts";
 import { initMarkdownToolbar } from "./toolbar.ts";
