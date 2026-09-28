@@ -28,6 +28,7 @@
               src="{{ route "/assets/v-" }}{{ .AssetVersion }}/js/main.js"></script>
     </head>
 <body data-route-prefix="{{ .RoutePrefix }}"
+      data-performance-diagnostics="{{ if .Runtime.PerformanceDiagnostics }}true{{ else }}false{{ end }}"
       data-navigation-style="{{ .Preferences.NavigationStyle }}"
       data-navigation-density="{{ .Preferences.NavigationDensity }}"
       data-typography-size="{{ .TypographySize }}"

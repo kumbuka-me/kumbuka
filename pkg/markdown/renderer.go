@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"io"
-	"log/slog"
 	"strings"
 	"time"
 
@@ -30,8 +29,6 @@ type Renderer struct {
 	registry *plugin.Registry
 	// manager stores the manager value used by renderer.
 	manager *plugin.Manager
-	// timingLogger stores the timing logger value used by renderer.
-	timingLogger *slog.Logger
 	// artifactBuild stores the artifact build value used by renderer.
 	artifactBuild string
 	// iconCatalog stores the icon catalog value used by renderer.
@@ -231,7 +228,6 @@ func (r *Renderer) RenderPageResolvedWithFunctions(
 	options Options,
 	functions Functions,
 ) (rendered RenderedPage, err error) {
-	sourceBytes := len(source)
 	execution := functions.Context
 	if execution == nil {
 		execution = context.Background()
@@ -239,14 +235,7 @@ func (r *Renderer) RenderPageResolvedWithFunctions(
 	execution, cancel := context.WithTimeout(execution, 30*time.Second)
 	defer cancel()
 
-	var trace *renderprofile.Trace
-	if r.timingLogger != nil {
-		trace = renderprofile.New()
-		execution = renderprofile.WithContext(execution, trace)
-		defer func() {
-			r.logRenderTimings(trace, sourceBytes, len(rendered.HTML), err)
-		}()
-	}
+	trace := renderprofile.FromContext(execution)
 	functions.Context = execution
 
 	stop := trace.Measure("render_plan_acquire")

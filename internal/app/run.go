@@ -237,15 +237,16 @@ func Run(
 	// Hand the completed application graph to the HTTP adapter for route construction.
 	serverConfig := httpserver.Config{
 		InfrastructureConfig: httpserver.InfrastructureConfig{
-			RoutePrefix:    cfg.RoutePrefix,
-			Assets:         appFS,
-			Views:          views,
-			Renderer:       renderer,
-			Logger:         serverLogger,
-			AccessLog:      cfg.AccessLog,
-			ReadOnly:       cfg.ReadOnly,
-			MetricsEnabled: !cfg.DisableMetrics,
-			Metrics:        metricsRegistry,
+			RoutePrefix:            cfg.RoutePrefix,
+			Assets:                 appFS,
+			Views:                  views,
+			Renderer:               renderer,
+			Logger:                 serverLogger,
+			AccessLog:              cfg.AccessLog,
+			ReadOnly:               cfg.ReadOnly,
+			MetricsEnabled:         !cfg.DisableMetrics,
+			Metrics:                metricsRegistry,
+			PerformanceDiagnostics: cfg.PerformanceDiagnostics,
 		},
 
 		AuthenticationConfig: httpserver.AuthenticationConfig{
@@ -319,7 +320,7 @@ func Run(
 	return nil
 }
 
-// createRunViews constructs views and enables optional render diagnostics.
+// createRunViews constructs the server-rendered view set.
 func createRunViews(
 	appFS fs.FS,
 	logger *slog.Logger,
@@ -343,10 +344,6 @@ func createRunViews(
 		return nil, err
 	}
 	views.WithRenderErrorHandler(httpresponse.InternalServerError)
-	if cfg.DebugRenderTimings {
-		renderer.EnableRenderTimings(logger.With("component", "markdown"))
-		views.EnablePageTimings(logger.With("component", "handler"))
-	}
 	return views, nil
 }
 

@@ -51,9 +51,6 @@ func NewContentChanges(
 	notifications plugincap.NotificationSender,
 	logger *slog.Logger,
 ) *ContentChanges {
-	if logger == nil {
-		logger = slog.Default()
-	}
 	return &ContentChanges{
 		repository:    repository,
 		manager:       manager,

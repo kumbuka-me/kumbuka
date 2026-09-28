@@ -47,6 +47,8 @@ type InfrastructureConfig struct {
 	MetricsEnabled bool
 	// Metrics supplies Prometheus exposition and HTTP request instrumentation when enabled.
 	Metrics endpoint.Metrics
+	// PerformanceDiagnostics enables request tracing and browser-facing timing diagnostics.
+	PerformanceDiagnostics bool
 }
 
 // AuthenticationConfig contains browser and API authentication adapters.

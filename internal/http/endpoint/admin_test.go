@@ -412,3 +412,41 @@ func TestAdminConfigurationShowsManagedDeploymentConfiguration(t *testing.T) {
 	assert.NotContains(t, body, "<h2>Runtime</h2>")
 	assert.NotContains(t, body, "Database size")
 }
+
+func TestAdminConfigurationShowsPerformanceDiagnosticsControls(t *testing.T) {
+	t.Parallel()
+
+	runtime := webview.RuntimeInfo{PerformanceDiagnostics: true}
+	views := testHandlerViews(t, runtime)
+	data := webview.AdminConfigurationView{Layout: webview.Layout{Runtime: runtime}}
+
+	html, err := views.RenderHTML("admin_configuration", "content", data)
+	require.NoError(t, err)
+
+	body := string(html)
+	assert.Contains(t, body, "Performance diagnostics")
+	assert.Contains(t, body, "Enabled by deployment")
+	assert.Contains(t, body, "--performance-diagnostics")
+	assert.Contains(t, body, "KUMBUKA__PERFORMANCE_DIAGNOSTICS")
+	assert.Contains(t, body, `data-performance-available="true"`)
+	assert.Contains(t, body, "data-performance-browser-toggle")
+	assert.Contains(t, body, "Show report")
+	assert.Contains(t, body, "Clear measurements")
+	assert.NotContains(t, body, `data-performance-browser-toggle disabled`)
+}
+
+func TestAdminConfigurationDisablesBrowserPerformanceWithoutDeploymentGate(t *testing.T) {
+	t.Parallel()
+
+	runtime := webview.RuntimeInfo{}
+	views := testHandlerViews(t, runtime)
+	data := webview.AdminConfigurationView{Layout: webview.Layout{Runtime: runtime}}
+
+	html, err := views.RenderHTML("admin_configuration", "content", data)
+	require.NoError(t, err)
+
+	body := string(html)
+	assert.Contains(t, body, "Disabled by deployment")
+	assert.Contains(t, body, `data-performance-available="false"`)
+	assert.Contains(t, body, "Unavailable while deployment diagnostics are disabled.")
+}

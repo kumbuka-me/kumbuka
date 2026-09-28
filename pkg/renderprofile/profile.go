@@ -1,5 +1,5 @@
-// Package renderprofile collects opt-in render timing diagnostics without
-// coupling the Markdown renderer and WASM runtime to each other's logging.
+// Package renderprofile collects opt-in request and render timing diagnostics without
+// coupling HTTP, Markdown, and WASM instrumentation to each other's logging.
 package renderprofile
 
 import (
@@ -18,7 +18,7 @@ type contextKey struct{}
 var nextTraceID atomic.Uint64
 var noopMeasure = func() {}
 
-// Trace collects cumulative stage and WASM timing data for one top-level page render.
+// Trace collects cumulative stage and WASM timing data for one profiled request or standalone render.
 type Trace struct {
 	// id identifies trace.
 	id uint64
@@ -119,7 +119,7 @@ type Snapshot struct {
 	DroppedWASMCalls int
 }
 
-// New starts one render trace.
+// New starts one performance trace.
 func New() *Trace {
 	return &Trace{
 		id:      nextTraceID.Add(1),
@@ -128,7 +128,7 @@ func New() *Trace {
 	}
 }
 
-// WithContext makes trace available to lower-level guest invocation code.
+// WithContext makes trace available to lower-level request, render, and guest code.
 func WithContext(ctx context.Context, trace *Trace) context.Context {
 	if trace == nil {
 		return ctx
@@ -136,7 +136,7 @@ func WithContext(ctx context.Context, trace *Trace) context.Context {
 	return context.WithValue(ctx, contextKey{}, trace)
 }
 
-// FromContext returns the render trace attached to ctx, if any.
+// FromContext returns the performance trace attached to ctx, if any.
 func FromContext(ctx context.Context) *Trace {
 	if ctx == nil {
 		return nil

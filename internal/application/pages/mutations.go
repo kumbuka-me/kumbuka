@@ -114,10 +114,6 @@ func NewMutations(
 	logger *slog.Logger,
 	eventSinks ...webhooks.EventSink,
 ) *Mutations {
-	if logger == nil {
-		logger = slog.Default()
-	}
-
 	return &Mutations{
 		repository:    repository,
 		authorization: pageAuthorization{policy: access},

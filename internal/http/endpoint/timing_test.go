@@ -1,60 +1,24 @@
 package endpoint
 
 import (
-	"bytes"
-	"log/slog"
-	"net/http/httptest"
+	"context"
 	"testing"
 
-	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/renderprofile"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
-func TestPageTimingLogsStructuredSummary(t *testing.T) {
-	var logs bytes.Buffer
-	views := testHandlerViews(t, webview.RuntimeInfo{})
-	views.EnablePageTimings(slog.New(slog.NewTextHandler(&logs, nil)))
-
-	request := httptest.NewRequest("GET", "/pages/example", nil)
-	request, trace := views.StartPageTiming(request)
-	require.NotNil(t, trace, "page timing trace was not created")
-
-	stop := measurePageStage(request.Context(), "view_data")
+func TestMeasurePageStageWithoutRequestTraceIsNoop(t *testing.T) {
+	stop := measurePageStage(context.Background(), "view_data")
 	stop()
-	views.LogPageTiming(trace, request, "example")
-
-	output := logs.String()
-	for _, want := range []string{
-		"event=page_handler_timing",
-		"method=GET",
-		"path=/pages/example",
-		"slug=example",
-		"duration_ms=",
-		"stages.view_data_ms=",
-	} {
-		assert.Contains(t, output, want)
-	}
 }
 
-func TestPageTimingDisabledDoesNotAttachTrace(t *testing.T) {
-	views := testHandlerViews(t, webview.RuntimeInfo{})
-	request := httptest.NewRequest("GET", "/pages/example", nil)
-
-	profiled, trace := views.StartPageTiming(request)
-	assert.Nil(t, trace, "page timing trace was created while diagnostics were disabled")
-	assert.Same(t, request, profiled, "disabled page timing replaced the request")
-}
-
-func TestPageTimingReusesRequestTrace(t *testing.T) {
-	views := testHandlerViews(t, webview.RuntimeInfo{})
-	request := httptest.NewRequest("GET", "/pages/example", nil)
+func TestMeasurePageStageUsesSharedRequestTrace(t *testing.T) {
 	trace := renderprofile.New()
-	request = request.WithContext(renderprofile.WithContext(request.Context(), trace))
+	ctx := renderprofile.WithContext(context.Background(), trace)
 
-	profiled, attached := views.StartPageTiming(request)
+	stop := measurePageStage(ctx, "view_data")
+	stop()
 
-	assert.Same(t, request, profiled)
-	assert.Same(t, trace, attached)
+	assert.Contains(t, trace.Snapshot().Stages, "view_data")
 }

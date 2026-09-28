@@ -60,9 +60,6 @@ func NewDiscussions(
 	logger *slog.Logger,
 	eventSinks ...webhooks.EventSink,
 ) *Discussions {
-	if logger == nil {
-		logger = slog.Default()
-	}
 	return &Discussions{
 		repository:    repository,
 		authorization: pageAuthorization{policy: access},

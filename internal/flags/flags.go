@@ -98,8 +98,8 @@ type Config struct {
 	LogFormat logging.LogFormat
 	// Debug enables verbose diagnostic logging.
 	Debug bool
-	// DebugRenderTimings enables detailed page handler, Markdown, and WASM timing logs.
-	DebugRenderTimings bool
+	// PerformanceDiagnostics enables deployment-level request tracing and browser diagnostics.
+	PerformanceDiagnostics bool
 	// AccessLog enables HTTP request logging.
 	AccessLog bool
 	// Overrides records configuration values explicitly overridden by flags or environment variables.
@@ -227,6 +227,14 @@ func registerServerFlags(tf *tinyflags.FlagSet, cfg *Config) func() {
 		"disable-metrics",
 		false,
 		"Disable Prometheus metrics exposition and HTTP request instrumentation",
+	).
+		Value()
+
+	tf.BoolVar(
+		&cfg.PerformanceDiagnostics,
+		"performance-diagnostics",
+		false,
+		"Enable request and browser performance diagnostics",
 	).
 		Value()
 
@@ -408,14 +416,6 @@ func registerLoggingFlags(tf *tinyflags.FlagSet, cfg *Config) func() {
 		"Enable verbose diagnostic logging",
 	).
 		Short("d").
-		Value()
-
-	tf.BoolVar(
-		&cfg.DebugRenderTimings,
-		"debug-render-timings",
-		false,
-		"Log detailed page handler, Markdown, and WASM timings",
-	).
 		Value()
 
 	tf.BoolVar(

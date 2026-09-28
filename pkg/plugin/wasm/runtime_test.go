@@ -18,6 +18,7 @@ import (
 	"github.com/kumbuka-me/kumbuka/pkg/markdown"
 	"github.com/kumbuka-me/kumbuka/pkg/plugin"
 	"github.com/kumbuka-me/kumbuka/pkg/plugin/wasm"
+	"github.com/kumbuka-me/kumbuka/pkg/renderprofile"
 	"github.com/kumbuka-me/kumbuka/plugins"
 	"github.com/kumbuka-me/sdk/pluginpackage"
 	"github.com/stretchr/testify/assert"
@@ -337,27 +338,30 @@ func TestWASMOutputCannotBypassSanitizer(t *testing.T) {
 	require.ErrorContains(t, err, "nesting limit")
 }
 
-func TestRenderTimingsIncludeWASMBoundary(t *testing.T) {
+func TestRequestTraceIncludesWASMBoundary(t *testing.T) {
 	instance, _ := runtimeFixture(t, "preprocess", wasm.Limits{})
 	registry := &plugin.Registry{}
 	require.NoError(t, registry.Register(plugin.Descriptor{ID: "fixture", Name: "Fixture"}, instance.Contributions()))
 	renderer := markdown.NewWithRegistry(registry)
+	trace := renderprofile.New()
 
-	var logs bytes.Buffer
-	renderer.EnableRenderTimings(slog.New(slog.NewJSONHandler(&logs, nil)))
-
-	_, err := renderer.Render("healthy")
+	_, err := renderer.RenderPageResolvedWithFunctions(
+		"healthy",
+		markdown.Slug,
+		markdown.DefaultOptions(),
+		markdown.Functions{Context: renderprofile.WithContext(context.Background(), trace)},
+	)
 	require.NoError(t, err)
 
-	output := logs.String()
-	assert.Contains(t, output, `"event":"wasm_render_timing"`)
-	assert.Contains(t, output, `"plugin_id":"io.example.fixture"`)
-	assert.Contains(t, output, `"module_id":"fixture"`)
-	assert.Contains(t, output, `"request_bytes":`)
-	assert.Contains(t, output, `"response_bytes":`)
-	assert.Contains(t, output, `"guest_execute_ms":`)
-	assert.Contains(t, output, `"event":"render_timing"`)
-	assert.Contains(t, output, `"wasm_calls":1`)
+	snapshot := trace.Snapshot()
+	require.Len(t, snapshot.WASMCalls, 1)
+	call := snapshot.WASMCalls[0]
+	assert.Equal(t, "io.example.fixture", call.PluginID)
+	assert.Equal(t, "fixture", call.ModuleID)
+	assert.Greater(t, call.RequestBytes, 0)
+	assert.Greater(t, call.ResponseBytes, 0)
+	assert.Equal(t, 1, snapshot.WASMSummary.Calls)
+	assert.Contains(t, snapshot.Stages, "content_preprocess")
 }
 
 // TestWASMRequestsAreIsolatedAndSerialized verifies wasmrequests are isolated and serialized behavior.

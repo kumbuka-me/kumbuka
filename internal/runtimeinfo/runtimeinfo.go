@@ -36,6 +36,7 @@ func New(cfg flags.Config, encryptionKeyConfigured bool) webview.RuntimeInfo {
 		LocalLoginEnabled:                  cfg.LocalLogin,
 		ThemeDirectory:                     cfg.ThemeDirectory,
 		PluginUpdateCheckInterval:          pluginUpdateCheckIntervalLabel(cfg.PluginUpdateCheckInterval),
+		PerformanceDiagnostics:             cfg.PerformanceDiagnostics,
 		ManagedConfiguration:               managedConfiguration(cfg, encryptionKeyConfigured),
 	}
 }
@@ -84,7 +85,7 @@ func managedConfiguration(cfg flags.Config, encryptionKeyConfigured bool) []webv
 			Items: []webview.ManagedConfigurationItem{
 				managedConfigurationItem(cfg, "Log format", "log-format", string(cfg.LogFormat)),
 				managedConfigurationItem(cfg, "Debug logging", "debug", enabledLabel(cfg.Debug)),
-				managedConfigurationItem(cfg, "Render timing diagnostics", "debug-render-timings", enabledLabel(cfg.DebugRenderTimings)),
+				managedConfigurationItem(cfg, "Performance diagnostics", "performance-diagnostics", enabledLabel(cfg.PerformanceDiagnostics)),
 				managedConfigurationItem(cfg, "Access log", "access-log", enabledLabel(cfg.AccessLog)),
 			},
 		},

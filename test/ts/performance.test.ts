@@ -1,12 +1,17 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { initPerformance, measure } from "../../web/src/ts/core/performance.ts";
+import {
+  initPerformance,
+  measure,
+  performanceStatus,
+  setPerformanceEnabled,
+} from "../../web/src/ts/core/performance.ts";
 
 interface PerformanceAPI {
-  enable(): void;
-  disable(): void;
-  status(): { enabled: boolean; serverTiming: boolean };
+  enable(): boolean;
+  disable(): boolean;
+  status(): { available: boolean; enabled: boolean; serverTiming: boolean };
 }
 
 class MemoryStorage implements Storage {
@@ -37,7 +42,7 @@ class MemoryStorage implements Storage {
   }
 }
 
-test("performance diagnostics install the console API and record named work", () => {
+test("deployment-gated performance diagnostics expose browser controls", () => {
   const descriptors = new Map(
     ["window", "localStorage", "document", "location", "kumbuka"].map(
       (name) =>
@@ -57,7 +62,12 @@ test("performance diagnostics install the console API and record named work", ()
   Object.defineProperty(globalThis, "document", {
     configurable: true,
     value: {
-      body: { dataset: { routePrefix: "/kumbuka" } },
+      body: {
+        dataset: {
+          routePrefix: "/kumbuka",
+          performanceDiagnostics: "true",
+        },
+      },
       get cookie() {
         return cookie;
       },
@@ -77,6 +87,12 @@ test("performance diagnostics install the console API and record named work", ()
 
   try {
     initPerformance();
+    assert.deepEqual(performanceStatus(), {
+      available: true,
+      enabled: false,
+      serverTiming: false,
+    });
+
     const api = (
       globalThis as typeof globalThis & {
         kumbuka?: { perf?: PerformanceAPI };
@@ -84,7 +100,7 @@ test("performance diagnostics install the console API and record named work", ()
     ).kumbuka?.perf;
     assert.ok(api);
 
-    api.enable();
+    assert.equal(setPerformanceEnabled(true), true);
     assert.equal(api.status().enabled, true);
     assert.ok(/kumbuka_perf=1/.test(cookie));
     assert.ok(/Path=\/kumbuka\//.test(cookie));
@@ -97,7 +113,7 @@ test("performance diagnostics install the console API and record named work", ()
         .some((entry) => entry.name === "kumbuka:unit-test"),
     );
 
-    api.disable();
+    assert.equal(api.disable(), true);
     assert.equal(api.status().enabled, false);
     assert.ok(/Max-Age=0/.test(cookie));
   } finally {

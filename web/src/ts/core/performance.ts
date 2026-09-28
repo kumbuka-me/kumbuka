@@ -1,4 +1,5 @@
-// Opt-in browser performance diagnostics exposed through `kumbuka.perf`.
+// Deployment-gated browser performance diagnostics exposed through the
+// administration UI and, when available, `kumbuka.perf`.
 
 const storageKey = "kumbuka.performance.enabled";
 const timingCookie = "kumbuka_perf";
@@ -33,7 +34,14 @@ interface NavigationReport {
   serverTiming: string;
 }
 
+export interface PerformanceStatus {
+  available: boolean;
+  enabled: boolean;
+  serverTiming: boolean;
+}
+
 export interface PerformanceReport {
+  available: boolean;
   enabled: boolean;
   navigation: NavigationReport | null;
   initialization: TimingRow[];
@@ -43,11 +51,11 @@ export interface PerformanceReport {
 }
 
 interface PerformanceConsole {
-  enable(): void;
-  disable(): void;
+  enable(): boolean;
+  disable(): boolean;
   clear(): void;
   report(): PerformanceReport;
-  status(): { enabled: boolean; serverTiming: boolean };
+  status(): PerformanceStatus;
 }
 
 type KumbukaGlobal = typeof globalThis & {
@@ -58,6 +66,7 @@ type KumbukaGlobal = typeof globalThis & {
 };
 
 let initialized = false;
+let available = false;
 let enabled = false;
 let sequence = 0;
 let largestContentfulPaintMs: number | null = null;
@@ -65,22 +74,28 @@ let longTaskObserver: PerformanceObserver | null = null;
 let paintObserver: PerformanceObserver | null = null;
 const longTasks: TimingRow[] = [];
 
-// initPerformance installs the console helper and starts collection when it was
-// enabled on a previous page load.
+// initPerformance reads the deployment gate rendered by the server. Browser
+// collection and the console helper do not exist when diagnostics are disabled.
 export function initPerformance(): void {
   if (initialized || typeof window === "undefined") return;
   initialized = true;
+  available = document.body?.dataset.performanceDiagnostics === "true";
+
+  if (!available) {
+    enabled = false;
+    return;
+  }
+
   enabled = storedEnabled();
   installConsole();
-
   if (enabled) {
     setTimingCookie(true);
     startObservers();
   }
 }
 
-// measure records one synchronous Kumbuka initialization step when diagnostics
-// are enabled. Disabled diagnostics execute the callback directly.
+// measure records one synchronous Kumbuka initialization step when browser
+// diagnostics are enabled. Disabled diagnostics execute the callback directly.
 export function measure<T>(name: string, operation: () => T): T {
   if (!enabled || typeof performance === "undefined") return operation();
 
@@ -95,7 +110,7 @@ export function measure<T>(name: string, operation: () => T): T {
 }
 
 // measureAsync records one asynchronous Kumbuka initialization step when
-// diagnostics are enabled.
+// browser diagnostics are enabled.
 export async function measureAsync<T>(
   name: string,
   operation: () => Promise<T> | T,
@@ -112,37 +127,25 @@ export async function measureAsync<T>(
   }
 }
 
-function installConsole(): void {
-  const root = globalThis as KumbukaGlobal;
-  const namespace = (root.kumbuka ??= {});
-  namespace.perf = Object.freeze({
-    enable: enablePerformance,
-    disable: disablePerformance,
-    clear: clearPerformance,
-    report: reportPerformance,
-    status: performanceStatus,
-  });
+// setPerformanceEnabled changes diagnostics for the current browser. The
+// deployment flag remains authoritative; enabling fails while it is off.
+export function setPerformanceEnabled(value: boolean): boolean {
+  if (!available) {
+    enabled = false;
+    setTimingCookie(false);
+    return false;
+  }
+
+  enabled = value;
+  storeEnabled(value);
+  setTimingCookie(value);
+  if (value) startObservers();
+  else stopObservers();
+  return true;
 }
 
-function enablePerformance(): void {
-  enabled = true;
-  storeEnabled(true);
-  setTimingCookie(true);
-  startObservers();
-  console.info(
-    "Kumbuka performance diagnostics enabled. Reload once to capture the full navigation and backend Server-Timing data.",
-  );
-}
-
-function disablePerformance(): void {
-  enabled = false;
-  storeEnabled(false);
-  setTimingCookie(false);
-  stopObservers();
-  console.info("Kumbuka performance diagnostics disabled.");
-}
-
-function clearPerformance(): void {
+// clearPerformance clears browser-side measurements collected on this page.
+export function clearPerformance(): void {
   if (typeof performance !== "undefined") {
     for (const entry of performance.getEntriesByType("measure")) {
       if (entry.name.startsWith(measurePrefix)) {
@@ -152,12 +155,14 @@ function clearPerformance(): void {
   }
   longTasks.length = 0;
   largestContentfulPaintMs = null;
-  console.info("Kumbuka performance measurements cleared.");
 }
 
-function performanceStatus(): { enabled: boolean; serverTiming: boolean } {
+// performanceStatus reports the deployment gate, browser preference, and
+// whether the current navigation received backend Server-Timing data.
+export function performanceStatus(): PerformanceStatus {
   const navigation = navigationEntry();
   return {
+    available,
     enabled,
     serverTiming: Boolean(
       navigation?.serverTiming.some((timing) => timing.name === "kumbuka"),
@@ -165,88 +170,20 @@ function performanceStatus(): { enabled: boolean; serverTiming: boolean } {
   };
 }
 
-function reportPerformance(): PerformanceReport {
-  const report = collectReport();
-
-  console.group("Kumbuka performance");
-  console.info(
-    report.enabled
-      ? "Diagnostics are enabled."
-      : "Diagnostics are disabled; enable them with kumbuka.perf.enable().",
-  );
-
-  if (report.navigation) {
-    console.group("Navigation");
-    console.table([
-      { phase: "DNS", durationMs: report.navigation.dnsMs },
-      { phase: "Connect", durationMs: report.navigation.connectMs },
-      { phase: "TLS", durationMs: report.navigation.tlsMs },
-      {
-        phase: "Request → first byte",
-        durationMs: report.navigation.requestToFirstByteMs,
-      },
-      {
-        phase: "Response download",
-        durationMs: report.navigation.responseDownloadMs,
-      },
-      {
-        phase: "DOM interactive",
-        durationMs: report.navigation.domInteractiveMs,
-      },
-      {
-        phase: "DOMContentLoaded",
-        durationMs: report.navigation.domContentLoadedMs,
-      },
-      { phase: "Load", durationMs: report.navigation.loadMs },
-      {
-        phase: "First contentful paint",
-        durationMs: report.navigation.firstContentfulPaintMs,
-      },
-      {
-        phase: "Largest contentful paint",
-        durationMs: report.largestContentfulPaintMs,
-      },
-    ]);
-    if (report.navigation.serverTiming) {
-      console.info("Backend:", report.navigation.serverTiming);
-    }
-    if (report.enabled && !performanceStatus().serverTiming) {
-      console.info(
-        "No navigation Server-Timing data. Reload after enabling diagnostics to include backend timings.",
-      );
-    }
-    console.groupEnd();
+// collectPerformanceReport returns the same structured report used by the
+// administration page and console helper.
+export function collectPerformanceReport(): PerformanceReport {
+  if (typeof performance === "undefined") {
+    return emptyReport();
   }
 
-  if (report.initialization.length > 0) {
-    console.group("Kumbuka initialization (slowest first)");
-    console.table(report.initialization);
-    console.groupEnd();
-  }
-
-  if (report.resources.length > 0) {
-    console.group("Resources (25 slowest)");
-    console.table(report.resources.slice(0, 25));
-    console.groupEnd();
-  }
-
-  if (report.longTasks.length > 0) {
-    console.group("Long tasks");
-    console.table(report.longTasks);
-    console.groupEnd();
-  }
-
-  console.groupEnd();
-  return report;
-}
-
-function collectReport(): PerformanceReport {
   const navigation = navigationEntry();
   const firstContentfulPaint = performance
     .getEntriesByName("first-contentful-paint", "paint")
     .at(0);
 
   return {
+    available,
     enabled,
     navigation: navigation
       ? {
@@ -298,6 +235,121 @@ function collectReport(): PerformanceReport {
     longTasks: [...longTasks].sort(
       (left, right) => right.durationMs - left.durationMs,
     ),
+    largestContentfulPaintMs,
+  };
+}
+
+function installConsole(): void {
+  const root = globalThis as KumbukaGlobal;
+  const namespace = (root.kumbuka ??= {});
+  namespace.perf = Object.freeze({
+    enable: (): boolean => {
+      const changed = setPerformanceEnabled(true);
+      if (changed) {
+        console.info(
+          "Kumbuka browser performance diagnostics enabled. Reload once to capture the full navigation and backend Server-Timing data.",
+        );
+      }
+      return changed;
+    },
+    disable: (): boolean => {
+      const changed = setPerformanceEnabled(false);
+      if (changed)
+        console.info("Kumbuka browser performance diagnostics disabled.");
+      return changed;
+    },
+    clear: (): void => {
+      clearPerformance();
+      console.info("Kumbuka performance measurements cleared.");
+    },
+    report: reportPerformance,
+    status: performanceStatus,
+  });
+}
+
+function reportPerformance(): PerformanceReport {
+  const report = collectPerformanceReport();
+
+  console.group("Kumbuka performance");
+  console.info(
+    report.enabled
+      ? "Browser diagnostics are enabled."
+      : "Browser diagnostics are disabled. They can be enabled under Administration → Configuration while deployment diagnostics are available.",
+  );
+
+  if (report.navigation) {
+    console.group("Navigation");
+    console.table([
+      { phase: "DNS", durationMs: report.navigation.dnsMs },
+      { phase: "Connect", durationMs: report.navigation.connectMs },
+      { phase: "TLS", durationMs: report.navigation.tlsMs },
+      {
+        phase: "Request → first byte",
+        durationMs: report.navigation.requestToFirstByteMs,
+      },
+      {
+        phase: "Response download",
+        durationMs: report.navigation.responseDownloadMs,
+      },
+      {
+        phase: "DOM interactive",
+        durationMs: report.navigation.domInteractiveMs,
+      },
+      {
+        phase: "DOMContentLoaded",
+        durationMs: report.navigation.domContentLoadedMs,
+      },
+      { phase: "Load", durationMs: report.navigation.loadMs },
+      {
+        phase: "First contentful paint",
+        durationMs: report.navigation.firstContentfulPaintMs,
+      },
+      {
+        phase: "Largest contentful paint",
+        durationMs: report.largestContentfulPaintMs,
+      },
+    ]);
+    if (report.navigation.serverTiming) {
+      console.info("Backend:", report.navigation.serverTiming);
+    }
+    if (report.enabled && !performanceStatus().serverTiming) {
+      console.info(
+        "No navigation Server-Timing data. Reload after enabling browser diagnostics to include backend timings.",
+      );
+    }
+    console.groupEnd();
+  }
+
+  if (report.initialization.length > 0) {
+    console.group("Kumbuka initialization (slowest first)");
+    console.table(report.initialization);
+    console.groupEnd();
+  }
+
+  if (report.resources.length > 0) {
+    console.group("Resources (25 slowest)");
+    console.table(report.resources.slice(0, 25));
+    console.groupEnd();
+  }
+
+  if (report.longTasks.length > 0) {
+    console.group("Long tasks");
+    console.table(report.longTasks);
+    console.groupEnd();
+  }
+
+  console.groupEnd();
+  return report;
+}
+
+function emptyReport(): PerformanceReport {
+  return {
+    available,
+    enabled,
+    navigation: null,
+    initialization: [],
+    resources: [],
+    longTasks: [],
     largestContentfulPaintMs,
   };
 }

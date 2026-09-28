@@ -81,10 +81,6 @@ func NewPluginUpdates(
 	interval time.Duration,
 	logger *slog.Logger,
 ) *PluginUpdates {
-	if logger == nil {
-		logger = slog.Default()
-	}
-
 	return &PluginUpdates{
 		client:   client,
 		catalog:  catalog,

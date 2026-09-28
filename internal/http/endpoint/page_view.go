@@ -30,9 +30,6 @@ func ViewPage(
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		slug := r.PathValue("slug")
-		r, timingTrace := views.StartPageTiming(r)
-		defer views.LogPageTiming(timingTrace, r, slug)
-
 		stop := measurePageStage(r.Context(), "page_lookup")
 		user, _ := auth.User(r)
 		result, err := viewPage.Execute(r.Context(), user, slug)

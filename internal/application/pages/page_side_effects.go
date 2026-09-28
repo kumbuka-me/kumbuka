@@ -39,10 +39,11 @@ func newPageEffects(
 	logger *slog.Logger,
 	eventSinks ...webhooks.EventSink,
 ) *pageEffects {
-	if logger == nil {
-		logger = slog.Default()
+	return &pageEffects{
+		repository: repository,
+		logger:     logger,
+		eventSinks: eventSinks,
 	}
-	return &pageEffects{repository: repository, logger: logger, eventSinks: eventSinks}
 }
 
 // withNotifications routes page notifications through the shared notification service.

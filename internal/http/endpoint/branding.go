@@ -64,12 +64,7 @@ func BrandLogo(
 
 		data, err := fs.ReadFile(appFS, "kumbuka.svg")
 		if err != nil {
-			if logger == nil {
-				httpresponse.Problem(w, http.StatusInternalServerError, "The request could not be processed.")
-				return
-			}
-
-			httpresponse.InternalServerError(logger, w, err)
+			httpresponse.Problem(w, http.StatusInternalServerError, "The request could not be processed.")
 			return
 		}
 

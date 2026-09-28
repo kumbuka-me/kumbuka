@@ -163,3 +163,29 @@ func TestManagedConfigurationReportsDisabledMetrics(t *testing.T) {
 
 	assert.Fail(t, "Prometheus metrics configuration item not found")
 }
+
+func TestNewReportsPerformanceDiagnostics(t *testing.T) {
+	t.Parallel()
+
+	cfg := flags.Config{
+		PerformanceDiagnostics: true,
+		OverrideOrigins: map[string]tinyflags.ValueOrigin{
+			"performance-diagnostics": {Source: tinyflags.ValueSourceFlag, Key: "--performance-diagnostics"},
+		},
+	}
+	info := New(cfg, false)
+
+	assert.True(t, info.PerformanceDiagnostics)
+	logging := info.ManagedConfiguration[2]
+	for _, item := range logging.Items {
+		if item.Name != "Performance diagnostics" {
+			continue
+		}
+
+		assert.Equal(t, "Enabled", item.Value)
+		assert.Equal(t, "Flag · --performance-diagnostics", item.Source)
+		return
+	}
+
+	assert.Fail(t, "Performance diagnostics configuration item not found")
+}

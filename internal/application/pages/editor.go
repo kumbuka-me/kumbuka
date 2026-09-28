@@ -132,10 +132,12 @@ func NewEditorSave(
 	templates editorTemplateReader,
 	logger *slog.Logger,
 ) *EditorSave {
-	if logger == nil {
-		logger = slog.Default()
+	return &EditorSave{
+		pages:     pages,
+		drafts:    drafts,
+		templates: templates,
+		logger:    logger,
 	}
-	return &EditorSave{pages: pages, drafts: drafts, templates: templates, logger: logger}
 }
 
 // Execute saves one editor submission and discards the superseded private draft.

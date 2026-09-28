@@ -1,8 +1,14 @@
-import { route } from "../../core/route.ts";
-// Administrator authentication, application, and PDF configuration behavior.
+// Administrator authentication, application, PDF, and diagnostics behavior.
 
 import { requiredElement } from "../../core/dom.ts";
 import { errorMessage, responseProblem } from "../../core/http.ts";
+import {
+  clearPerformance,
+  collectPerformanceReport,
+  performanceStatus,
+  setPerformanceEnabled,
+} from "../../core/performance.ts";
+import { route } from "../../core/route.ts";
 
 const sensitivePDFHeaderNames = new Set([
   "authorization",
@@ -468,8 +474,81 @@ function setupAuthenticationSettings(): void {
   refreshGroupSync();
 }
 
+// Wires the deployment-gated browser performance controls.
+function setupPerformanceDiagnostics(): void {
+  const panel = document.querySelector<HTMLElement>(
+    "[data-performance-diagnostics]",
+  );
+  if (!panel) return;
+
+  const toggle = requiredElement<HTMLInputElement>(
+    panel,
+    "[data-performance-browser-toggle]",
+  );
+  const state = requiredElement<HTMLElement>(
+    panel,
+    "[data-performance-browser-state]",
+  );
+  const report = requiredElement<HTMLButtonElement>(
+    panel,
+    "[data-performance-report]",
+  );
+  const clear = requiredElement<HTMLButtonElement>(
+    panel,
+    "[data-performance-clear]",
+  );
+  const output = requiredElement<HTMLElement>(
+    panel,
+    "[data-performance-report-output]",
+  );
+
+  const refresh = (): void => {
+    const status = performanceStatus();
+    toggle.checked = status.enabled;
+    toggle.disabled = !status.available;
+    report.disabled = !status.available;
+    clear.disabled = !status.available;
+
+    if (!status.available) {
+      state.textContent =
+        "Unavailable while deployment diagnostics are disabled.";
+    } else if (!status.enabled) {
+      state.textContent = "Disabled in this browser.";
+    } else if (status.serverTiming) {
+      state.textContent =
+        "Enabled in this browser · backend timing captured for this navigation.";
+    } else {
+      state.textContent =
+        "Enabled in this browser · reload to capture backend timing.";
+    }
+  };
+
+  toggle.addEventListener("change", () => {
+    if (!setPerformanceEnabled(toggle.checked)) {
+      refresh();
+      return;
+    }
+    window.location.reload();
+  });
+
+  report.addEventListener("click", () => {
+    output.textContent = JSON.stringify(collectPerformanceReport(), null, 2);
+    output.hidden = false;
+  });
+
+  clear.addEventListener("click", () => {
+    clearPerformance();
+    output.textContent = "";
+    output.hidden = true;
+    refresh();
+  });
+
+  refresh();
+}
+
 // Initializes administrator configuration controls present on the current page.
 export function initAdminConfiguration(): void {
+  setupPerformanceDiagnostics();
   setupExternalLinks();
   setupAuthenticationSettings();
   setupPDFSettings();

@@ -1,6 +1,8 @@
 package middleware
 
 import (
+	"bytes"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -10,20 +12,29 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestServerTimingDisabled(t *testing.T) {
-	handler := ServerTiming()(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
-		assert.Nil(t, renderprofile.FromContext(request.Context()))
+func TestPerformanceDiagnosticsTraceRequestWithoutBrowserTiming(t *testing.T) {
+	var logs bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&logs, nil))
+	handler := PerformanceDiagnostics(logger)(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		trace := renderprofile.FromContext(request.Context())
+		require.NotNil(t, trace)
+		stop := trace.Measure("page_lookup")
+		stop()
 		_, _ = response.Write([]byte("ok"))
 	}))
 
 	response := httptest.NewRecorder()
-	handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/", nil))
+	handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/pages/example", nil))
 
 	assert.Empty(t, response.Header().Values("Server-Timing"))
+	assert.Contains(t, logs.String(), "event=performance_timing")
+	assert.Contains(t, logs.String(), "stages.page_lookup_ms=")
 }
 
-func TestServerTimingEnabled(t *testing.T) {
-	handler := ServerTiming()(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+func TestPerformanceDiagnosticsExposeServerTimingForEnabledBrowser(t *testing.T) {
+	var logs bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&logs, nil))
+	handler := PerformanceDiagnostics(logger)(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
 		trace := renderprofile.FromContext(request.Context())
 		require.NotNil(t, trace)
 		stop := trace.Measure("page_lookup")
@@ -39,10 +50,11 @@ func TestServerTimingEnabled(t *testing.T) {
 	timing := response.Header().Get("Server-Timing")
 	assert.Contains(t, timing, "kumbuka;dur=")
 	assert.Contains(t, timing, "page_lookup;dur=")
+	assert.Contains(t, logs.String(), "event=performance_timing")
 }
 
-func TestServerTimingPreservesExistingHeader(t *testing.T) {
-	handler := ServerTiming()(http.HandlerFunc(func(response http.ResponseWriter, _ *http.Request) {
+func TestPerformanceDiagnosticsPreservesExistingServerTimingHeader(t *testing.T) {
+	handler := PerformanceDiagnostics(slog.New(slog.NewTextHandler(&bytes.Buffer{}, nil)))(http.HandlerFunc(func(response http.ResponseWriter, _ *http.Request) {
 		response.Header().Add("Server-Timing", "proxy;dur=1.000")
 		response.WriteHeader(http.StatusNoContent)
 	}))

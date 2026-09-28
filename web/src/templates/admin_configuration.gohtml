@@ -44,422 +44,466 @@
           {{ end }}
         </div>
       </section>
-      <section class="panel settings-panel settings-wide configuration-application">
-        <div class="panel-title configuration-panel-title">
+<section class="panel settings-panel settings-wide configuration-performance"
+         data-performance-diagnostics
+         data-performance-available="{{ if .Runtime.PerformanceDiagnostics }}true{{ else }}false{{ end }}">
+    <div class="panel-title configuration-panel-title">
+      <div>
+        <h2>Performance diagnostics</h2>
+        <p class="muted">Temporarily profile request, render, plugin, browser initialization, resource, and paint performance.</p>
+      </div>
+      {{ if .Runtime.PerformanceDiagnostics }}
+        <span class="config-status configured">Enabled by deployment</span>
+      {{ else }}
+        <span class="config-status missing">Disabled by deployment</span>
+      {{ end }}
+    </div>
+    <p class="configuration-managed-note">
+      The deployment gate is controlled by <code>--performance-diagnostics</code> / <code>KUMBUKA__PERFORMANCE_DIAGNOSTICS</code> and requires a restart. When enabled, backend request/render traces are written to the server log. When disabled, Kumbuka does not install performance middleware or collect backend traces.
+    </p>
+    <label class="toggle-row configuration-performance-toggle">
+      <span>
+        <strong>Browser performance diagnostics</strong>
+        <small>Enable diagnostics only for this browser. Kumbuka stores the preference locally and reloads the page so the next navigation includes frontend measurements and backend <code>Server-Timing</code>.</small>
+      </span>
+      <input type="checkbox"
+             data-performance-browser-toggle
+             {{ if not .Runtime.PerformanceDiagnostics }}disabled{{ end }} />
+    </label>
+    <div class="settings-actions configuration-performance-actions">
+      <span class="configuration-performance-browser-state"
+            data-performance-browser-state>
+        {{ if .Runtime.PerformanceDiagnostics }}Disabled in this browser.{{ else }}Unavailable while deployment diagnostics are disabled.{{ end }}
+      </span>
+      <button class="button compact"
+              type="button"
+              data-performance-report
+              {{ if not .Runtime.PerformanceDiagnostics }}disabled{{ end }}>Show report</button>
+      <button class="button compact"
+              type="button"
+              data-performance-clear
+              {{ if not .Runtime.PerformanceDiagnostics }}disabled{{ end }}>Clear measurements</button>
+    </div>
+    <pre class="configuration-performance-report"
+         data-performance-report-output
+         hidden></pre>
+  </section>
+  <section class="panel settings-panel settings-wide configuration-application">
+    <div class="panel-title configuration-panel-title">
+      <div>
+        <h2>Application</h2>
+        <p class="muted">General behavior shared by all Kumbuka users.</p>
+      </div>
+    </div>
+    <form class="settings-form"
+          action="{{ route "/admin/settings" }}"
+          method="post"
+          data-validate-form
+          novalidate>
+      <label class="toggle-row">
+        <span>
+          <strong>
+            Allow new users
+            {{ if .Runtime.UserRegistrationOverrideConfigured }}
+              <span class="config-status managed">Managed by deployment</span>
+            {{ end }}
+          </strong>
+          <small>
+            {{ if .Runtime.UserRegistrationOverrideConfigured }}
+              Configured by <code>--allow-user-registration</code> / <code>KUMBUKA__ALLOW_USER_REGISTRATION</code>.
+            {{ else }}
+              Allow unknown OIDC or trusted-proxy identities to create Kumbuka accounts automatically.
+            {{ end }}
+          </small>
+        </span>
+        <input type="checkbox" name="allow_user_registration" {{ if .Runtime.UserRegistrationOverrideConfigured }} {{ if .Runtime.AllowUserRegistrationOverride }}checked{{ end }} disabled {{ else if .ApplicationSettings.AllowUserRegistration }} checked {{ end }} />
+      </label>
+      <label class="toggle-row">
+        <span>
+          <strong>Page discussions</strong>
+          <small>Allow users to add anchored comments to wiki pages.</small>
+        </span>
+        <input type="checkbox"
+               name="discussions_enabled"
+               {{ if .ApplicationSettings.DiscussionsEnabled }}checked{{ end }} />
+      </label>
+      <label class="configuration-choice-row">
+        <span class="configuration-choice-copy">
+          <strong>Content language</strong>
+          <small>Default language for pages, spell checking, accessibility, search, and PDF exports.</small>
+        </span>
+        <select name="content_language" aria-label="Content language">
+          {{ range .ContentLanguages }}
+            <option value="{{ .Code }}"
+                    {{ if eq $.ApplicationSettings.ContentLanguage .Code }}selected{{ end }}>{{ .Label }}</option>
+          {{ end }}
+        </select>
+      </label>
+      <label class="configuration-choice-row">
+        <span class="configuration-choice-copy">
+          <strong>robots.txt</strong>
+          <small>Controls public crawler discovery. Allowing crawling also publishes <code>/sitemap.xml</code> with verified and deprecated page paths. Kumbuka defaults to disallowing crawling.</small>
+        </span>
+        <select name="robots_policy" aria-label="robots.txt policy">
+          <option value="disallow"
+                  {{ if eq .ApplicationSettings.RobotsPolicy "disallow" }}selected{{ end }}>Disallow crawling</option>
+          <option value="allow"
+                  {{ if eq .ApplicationSettings.RobotsPolicy "allow" }}selected{{ end }}>Allow crawling</option>
+          <option value="none"
+                  {{ if eq .ApplicationSettings.RobotsPolicy "none" }}selected{{ end }}>Disabled</option>
+        </select>
+      </label>
+      <label class="configuration-choice-row">
+        <span class="configuration-choice-copy">
+          <strong>Default typography size</strong>
+          <small>Used when a user has not selected a personal typography size. New installations default to Compact.</small>
+        </span>
+        <select name="default_typography_size" aria-label="Default typography size">
+          <option value="compact"
+                  {{ if eq .ApplicationSettings.Rendering.DefaultTypographySize "compact" }}selected{{ end }}>Compact</option>
+          <option value="standard"
+                  {{ if eq .ApplicationSettings.Rendering.DefaultTypographySize "standard" }}selected{{ end }}>Standard</option>
+          <option value="large"
+                  {{ if eq .ApplicationSettings.Rendering.DefaultTypographySize "large" }}selected{{ end }}>Large</option>
+        </select>
+      </label>
+      <div class="external-link-settings" data-external-link-settings>
+        <div class="external-link-settings-title">
           <div>
-            <h2>Application</h2>
-            <p class="muted">General behavior shared by all Kumbuka users.</p>
+            <strong>External links</strong>
+            <small>Add links beside search. Hover feedback and tooltip text can be configured per link; tooltip templates support <code>{{ "{{label}}" }}</code> and <code>{{ "{{description}}" }}</code>.</small>
           </div>
+          <button class="button compact"
+                  type="button"
+                  data-external-link-add>{{ icon "plus-lucide" 14 }}<span>Add link</span></button>
         </div>
-        <form class="settings-form"
-              action="{{ route "/admin/settings" }}"
-              method="post"
-              data-validate-form
-              novalidate>
-          <label class="toggle-row">
-            <span>
-              <strong>
-                Allow new users
-                {{ if .Runtime.UserRegistrationOverrideConfigured }}
-                  <span class="config-status managed">Managed by deployment</span>
-                {{ end }}
-              </strong>
-              <small>
-                {{ if .Runtime.UserRegistrationOverrideConfigured }}
-                  Configured by <code>--allow-user-registration</code> / <code>KUMBUKA__ALLOW_USER_REGISTRATION</code>.
-                {{ else }}
-                  Allow unknown OIDC or trusted-proxy identities to create Kumbuka accounts automatically.
-                {{ end }}
-              </small>
-            </span>
-            <input type="checkbox" name="allow_user_registration" {{ if .Runtime.UserRegistrationOverrideConfigured }} {{ if .Runtime.AllowUserRegistrationOverride }}checked{{ end }} disabled {{ else if .ApplicationSettings.AllowUserRegistration }} checked {{ end }} />
-          </label>
-          <label class="toggle-row">
-            <span>
-              <strong>Page discussions</strong>
-              <small>Allow users to add anchored comments to wiki pages.</small>
-            </span>
-            <input type="checkbox"
-                   name="discussions_enabled"
-                   {{ if .ApplicationSettings.DiscussionsEnabled }}checked{{ end }} />
-          </label>
-          <label class="configuration-choice-row">
-            <span class="configuration-choice-copy">
-              <strong>Content language</strong>
-              <small>Default language for pages, spell checking, accessibility, search, and PDF exports.</small>
-            </span>
-            <select name="content_language" aria-label="Content language">
-              {{ range .ContentLanguages }}
-                <option value="{{ .Code }}"
-                        {{ if eq $.ApplicationSettings.ContentLanguage .Code }}selected{{ end }}>{{ .Label }}</option>
-              {{ end }}
-            </select>
-          </label>
-          <label class="configuration-choice-row">
-            <span class="configuration-choice-copy">
-              <strong>robots.txt</strong>
-              <small>Controls public crawler discovery. Allowing crawling also publishes <code>/sitemap.xml</code> with verified and deprecated page paths. Kumbuka defaults to disallowing crawling.</small>
-            </span>
-            <select name="robots_policy" aria-label="robots.txt policy">
-              <option value="disallow"
-                      {{ if eq .ApplicationSettings.RobotsPolicy "disallow" }}selected{{ end }}>Disallow crawling</option>
-              <option value="allow"
-                      {{ if eq .ApplicationSettings.RobotsPolicy "allow" }}selected{{ end }}>Allow crawling</option>
-              <option value="none"
-                      {{ if eq .ApplicationSettings.RobotsPolicy "none" }}selected{{ end }}>Disabled</option>
-            </select>
-          </label>
-          <label class="configuration-choice-row">
-            <span class="configuration-choice-copy">
-              <strong>Default typography size</strong>
-              <small>Used when a user has not selected a personal typography size. New installations default to Compact.</small>
-            </span>
-            <select name="default_typography_size" aria-label="Default typography size">
-              <option value="compact"
-                      {{ if eq .ApplicationSettings.Rendering.DefaultTypographySize "compact" }}selected{{ end }}>Compact</option>
-              <option value="standard"
-                      {{ if eq .ApplicationSettings.Rendering.DefaultTypographySize "standard" }}selected{{ end }}>Standard</option>
-              <option value="large"
-                      {{ if eq .ApplicationSettings.Rendering.DefaultTypographySize "large" }}selected{{ end }}>Large</option>
-            </select>
-          </label>
-          <div class="external-link-settings" data-external-link-settings>
-            <div class="external-link-settings-title">
-              <div>
-                <strong>External links</strong>
-                <small>Add links beside search. Hover feedback and tooltip text can be configured per link; tooltip templates support <code>{{ "{{label}}" }}</code> and <code>{{ "{{description}}" }}</code>.</small>
+        <div class="external-link-settings-list" data-external-link-list>
+          {{ range .ApplicationSettings.ExternalLinks }}
+            <div class="external-link-settings-row"
+                 data-external-link-row
+                 data-icon-picker-owner>
+              <label>
+                <span>Label</span>
+                <input type="text"
+                       name="external_link_label"
+                       value="{{ .Label }}"
+                       placeholder="Repository"
+                       data-error-required="Enter a label."
+                       required />
+              </label>
+              <label>
+                <span>URL</span>
+                <input type="url"
+                       name="external_link_url"
+                       value="{{ .URL }}"
+                       placeholder="https://github.com/example/project"
+                       data-error-required="Enter a URL."
+                       data-error-type="Enter a valid URL."
+                       required />
+              </label>
+              <label>
+                <span>Description</span>
+                <input type="text"
+                       name="external_link_description"
+                       value="{{ .Description }}"
+                       placeholder="v2.4.1" />
+              </label>
+              <label>
+                <span>Hover effect</span>
+                <select name="external_link_hover_effect">
+                  <option value="highlight"
+                          {{ if or (eq .HoverEffect "") (eq .HoverEffect "highlight") }}selected{{ end }}>Highlight</option>
+                  <option value="lift" {{ if eq .HoverEffect "lift" }}selected{{ end }}>Lift</option>
+                  <option value="none" {{ if eq .HoverEffect "none" }}selected{{ end }}>None</option>
+                </select>
+              </label>
+              <label class="external-link-hover-text">
+                <span>Hover text</span>
+                <input type="text" name="external_link_hover_text" value="{{ .HoverText }}" placeholder="{{ "{{label}} — {{description}}" }}" />
+              </label>
+              <div class="external-link-settings-actions">
+                <input type="hidden"
+                       name="external_link_icon"
+                       value="{{ .Icon }}"
+                       data-icon-picker-value />
+                <button class="button compact external-link-icon-button"
+                        type="button"
+                        data-icon-picker-open>
+                  <span class="external-link-icon-preview"
+                        data-icon-picker-preview
+                        data-icon-picker-empty="plus">{{ if .Icon }}{{ icon .Icon 18 }}{{ else }}{{ icon "plus-lucide" 18 }}{{ end }}</span>
+                  <span data-icon-picker-label>{{ if .Icon }}{{ .Icon }}{{ else }}No icon{{ end }}</span>
+                </button>
+                <button class="icon-button"
+                        type="button"
+                        data-external-link-remove
+                        aria-label="Remove external link">{{ icon "trash-2-lucide" 15 }}</button>
               </div>
-              <button class="button compact"
-                      type="button"
-                      data-external-link-add>{{ icon "plus-lucide" 14 }}<span>Add link</span></button>
             </div>
-            <div class="external-link-settings-list" data-external-link-list>
-              {{ range .ApplicationSettings.ExternalLinks }}
-                <div class="external-link-settings-row"
-                     data-external-link-row
-                     data-icon-picker-owner>
-                  <label>
-                    <span>Label</span>
-                    <input type="text"
-                           name="external_link_label"
-                           value="{{ .Label }}"
-                           placeholder="Repository"
-                           data-error-required="Enter a label."
-                           required />
-                  </label>
-                  <label>
-                    <span>URL</span>
-                    <input type="url"
-                           name="external_link_url"
-                           value="{{ .URL }}"
-                           placeholder="https://github.com/example/project"
-                           data-error-required="Enter a URL."
-                           data-error-type="Enter a valid URL."
-                           required />
-                  </label>
-                  <label>
-                    <span>Description</span>
-                    <input type="text"
-                           name="external_link_description"
-                           value="{{ .Description }}"
-                           placeholder="v2.4.1" />
-                  </label>
-                  <label>
-                    <span>Hover effect</span>
-                    <select name="external_link_hover_effect">
-                      <option value="highlight"
-                              {{ if or (eq .HoverEffect "") (eq .HoverEffect "highlight") }}selected{{ end }}>Highlight</option>
-                      <option value="lift" {{ if eq .HoverEffect "lift" }}selected{{ end }}>Lift</option>
-                      <option value="none" {{ if eq .HoverEffect "none" }}selected{{ end }}>None</option>
-                    </select>
-                  </label>
-                  <label class="external-link-hover-text">
-                    <span>Hover text</span>
-                    <input type="text" name="external_link_hover_text" value="{{ .HoverText }}" placeholder="{{ "{{label}} — {{description}}" }}" />
-                  </label>
-                  <div class="external-link-settings-actions">
-                    <input type="hidden"
-                           name="external_link_icon"
-                           value="{{ .Icon }}"
-                           data-icon-picker-value />
-                    <button class="button compact external-link-icon-button"
-                            type="button"
-                            data-icon-picker-open>
-                      <span class="external-link-icon-preview"
-                            data-icon-picker-preview
-                            data-icon-picker-empty="plus">{{ if .Icon }}{{ icon .Icon 18 }}{{ else }}{{ icon "plus-lucide" 18 }}{{ end }}</span>
-                      <span data-icon-picker-label>{{ if .Icon }}{{ .Icon }}{{ else }}No icon{{ end }}</span>
-                    </button>
-                    <button class="icon-button"
-                            type="button"
-                            data-external-link-remove
-                            aria-label="Remove external link">{{ icon "trash-2-lucide" 15 }}</button>
-                  </div>
-                </div>
-              {{ end }}
-            </div>
-            <template data-external-link-template>
-              <div class="external-link-settings-row"
-                   data-external-link-row
-                   data-icon-picker-owner>
-                <label>
-                  <span>Label</span>
-                  <input type="text"
-                         name="external_link_label"
-                         placeholder="Repository"
-                         data-error-required="Enter a label."
-                         required />
-                </label>
-                <label>
-                  <span>URL</span>
-                  <input type="url"
-                         name="external_link_url"
-                         placeholder="https://github.com/example/project"
-                         data-error-required="Enter a URL."
-                         data-error-type="Enter a valid URL."
-                         required />
-                </label>
-                <label>
-                  <span>Description</span>
-                  <input type="text" name="external_link_description" placeholder="v2.4.1" />
-                </label>
-                <label>
-                  <span>Hover effect</span>
-                  <select name="external_link_hover_effect">
-                    <option value="highlight" selected>Highlight</option>
-                    <option value="lift">Lift</option>
-                    <option value="none">None</option>
-                  </select>
-                </label>
-                <label class="external-link-hover-text">
-                  <span>Hover text</span>
-                  <input type="text" name="external_link_hover_text" placeholder="{{ "{{label}} — {{description}}" }}" />
-                </label>
-                <div class="external-link-settings-actions">
-                  <input type="hidden" name="external_link_icon" data-icon-picker-value />
-                  <button class="button compact external-link-icon-button"
-                          type="button"
-                          data-icon-picker-open>
-                    <span class="external-link-icon-preview"
-                          data-icon-picker-preview
-                          data-icon-picker-empty="plus">{{ icon "plus-lucide" 18 }}</span>
-                    <span data-icon-picker-label>No icon</span>
-                  </button>
-                  <button class="icon-button"
-                          type="button"
-                          data-external-link-remove
-                          aria-label="Remove external link">{{ icon "trash-2-lucide" 15 }}</button>
-                </div>
-              </div>
-            </template>
-          </div>
-          <div class="settings-actions">
-            <button class="button primary" type="submit">Save application settings</button>
-          </div>
-        </form>
-      </section>
-      <section class="panel settings-panel configuration-pdf" id="pdf-rendering">
-        <div class="panel-title configuration-panel-title">
-          <div>
-            <h2>PDF rendering</h2>
-            <p class="muted">Connect Kumbuka to a generic HTML-to-PDF service.</p>
-          </div>
-          {{ if .Runtime.PDFURL }}
-            <span class="config-status warning">Runtime override</span>
-          {{ else if .ApplicationSettings.PDFURL }}
-            <span class="config-status configured">Configured</span>
-          {{ else }}
-            <span class="config-status missing">Not configured</span>
           {{ end }}
         </div>
-        {{ if .Runtime.PDFURL }}
-          <div class="configuration-override-note">
-            <strong>Runtime PDF override active</strong>
-            <span>
-              A deployment-level <code>--pdf-url</code> / <code>KUMBUKA__PDF_URL</code> override is currently used for exports: <code>{{ .Runtime.PDFURL }}</code>. The saved endpoint below becomes active after the override is removed and Kumbuka is restarted.
-            </span>
-          </div>
-        {{ end }}
-        <form class="stacked-form pdf-settings-form"
-              action="{{ route "/admin/pdf" }}"
-              method="post"
-              data-pdf-settings
-              data-validate-form
-              novalidate>
-          <label>
-            {{ if .Runtime.PDFURL }}Saved endpoint{{ else }}Endpoint{{ end }}
-            <input type="url"
-                   name="pdf_url"
-                   value="{{ .ApplicationSettings.PDFURL }}"
-                   placeholder="http://html2pdf:8080/render"
-                   autocomplete="off"
-                   data-error-type="Enter a valid HTTP or HTTPS URL." />
-            <small>Complete <code>POST</code> endpoint including the render path. Leave empty to disable PDF export.</small>
-          </label>
-          <div class="pdf-header-settings">
-            <div class="pdf-header-settings-title">
-              <div>
-                <strong>Request headers</strong>
-                <small>Add headers sent with every PDF render and service-test request.</small>
-              </div>
-              <button class="button compact"
+        <template data-external-link-template>
+          <div class="external-link-settings-row"
+               data-external-link-row
+               data-icon-picker-owner>
+            <label>
+              <span>Label</span>
+              <input type="text"
+                     name="external_link_label"
+                     placeholder="Repository"
+                     data-error-required="Enter a label."
+                     required />
+            </label>
+            <label>
+              <span>URL</span>
+              <input type="url"
+                     name="external_link_url"
+                     placeholder="https://github.com/example/project"
+                     data-error-required="Enter a URL."
+                     data-error-type="Enter a valid URL."
+                     required />
+            </label>
+            <label>
+              <span>Description</span>
+              <input type="text" name="external_link_description" placeholder="v2.4.1" />
+            </label>
+            <label>
+              <span>Hover effect</span>
+              <select name="external_link_hover_effect">
+                <option value="highlight" selected>Highlight</option>
+                <option value="lift">Lift</option>
+                <option value="none">None</option>
+              </select>
+            </label>
+            <label class="external-link-hover-text">
+              <span>Hover text</span>
+              <input type="text" name="external_link_hover_text" placeholder="{{ "{{label}} — {{description}}" }}" />
+            </label>
+            <div class="external-link-settings-actions">
+              <input type="hidden" name="external_link_icon" data-icon-picker-value />
+              <button class="button compact external-link-icon-button"
                       type="button"
-                      data-pdf-header-add>{{ icon "plus-lucide" 14 }}<span>Add header</span></button>
-            </div>
-            {{ if .Runtime.EncryptionKeyConfigured }}
-              <p class="pdf-header-encryption-note">Sensitive values are encrypted at rest with <code>KUMBUKA__ENCRYPTION_KEY</code> and hidden until explicitly revealed.</p>
-            {{ else }}
-              <p class="pdf-header-encryption-note warning">Configure <code>KUMBUKA__ENCRYPTION_KEY</code> before saving, revealing, or reusing stored sensitive headers. Non-sensitive headers do not require an encryption key.</p>
-            {{ end }}
-            <div class="pdf-header-list" data-pdf-header-list>
-              {{ range .PDFHeaders }}
-                <div class="pdf-header-row"
-                     data-pdf-header-row
-                     data-pdf-header-existing="true">
-                  <input type="hidden" name="pdf_header_row" value="h{{ .ID }}" />
-                  <input type="hidden" name="pdf_header_h{{ .ID }}_id" value="{{ .ID }}" />
-                  <label class="pdf-header-name">
-                    <span>Name</span>
-                    <input type="text"
-                           name="pdf_header_h{{ .ID }}_name"
-                           value="{{ .Name }}"
-                           autocomplete="off"
-                           placeholder="Authorization"
-                           data-pdf-header-name />
-                  </label>
-                  <label class="pdf-header-value">
-                    <span>Value</span>
-                    <input type="{{ if .Sensitive }}password{{ else }}text{{ end }}"
-                           name="pdf_header_h{{ .ID }}_value"
-                           value="{{ if not .Sensitive }}{{ .Value }}{{ end }}"
-                           {{ if and .Sensitive .Configured }}placeholder="•••••••• configured"
-                           {{ else }}placeholder="Bearer token"
-                           {{ end }}
-                           autocomplete="off"
-                           data-pdf-header-value />
-                  </label>
-                  <div class="pdf-header-actions">
-                    <label class="pdf-header-sensitive"
-                           title="Sensitive: encrypt this header value at rest">
-                      <input type="checkbox"
-                             name="pdf_header_h{{ .ID }}_sensitive"
-                             {{ if .Sensitive }}checked{{ end }}
-                             data-pdf-header-sensitive
-                             aria-label="Encrypt this header value at rest" />
-                      <span class="pdf-header-sensitive-icon" aria-hidden="true">{{ icon "key-round-lucide" 14 }}</span>
-                    </label>
-                    {{ if and .Sensitive .Configured }}
-                      <button class="button compact"
-                              type="button"
-                              data-pdf-header-reveal
-                              data-pdf-header-id="{{ .ID }}"
-                              {{ if not $.Runtime.EncryptionKeyConfigured }}disabled{{ end }}>Reveal</button>
-                    {{ end }}
-                    <button class="icon-button"
-                            type="button"
-                            data-pdf-header-remove
-                            aria-label="Remove PDF request header">{{ icon "trash-2-lucide" 15 }}</button>
-                  </div>
-                </div>
-              {{ end }}
-            </div>
-            <template data-pdf-header-template>
-              <div class="pdf-header-row"
-                   data-pdf-header-row
-                   data-pdf-header-existing="false">
-                <input type="hidden" data-pdf-header-row-key />
-                <input type="hidden" data-pdf-header-id />
-                <label class="pdf-header-name">
-                  <span>Name</span>
-                  <input type="text"
-                         autocomplete="off"
-                         placeholder="Authorization"
-                         data-pdf-header-name />
-                </label>
-                <label class="pdf-header-value">
-                  <span>Value</span>
-                  <input type="text"
-                         autocomplete="off"
-                         placeholder="Bearer token"
-                         data-pdf-header-value />
-                </label>
-                <div class="pdf-header-actions">
-                  <label class="pdf-header-sensitive"
-                         title="Sensitive: encrypt this header value at rest">
-                    <input type="checkbox"
-                           data-pdf-header-sensitive
-                           aria-label="Encrypt this header value at rest" />
-                    <span class="pdf-header-sensitive-icon" aria-hidden="true">{{ icon "key-round-lucide" 14 }}</span>
-                  </label>
-                  <button class="icon-button"
-                          type="button"
-                          data-pdf-header-remove
-                          aria-label="Remove PDF request header">{{ icon "trash-2-lucide" 15 }}</button>
-                </div>
-              </div>
-            </template>
-          </div>
-          <div class="pdf-settings-actions">
-            <button class="button"
-                    type="button"
-                    data-pdf-test>{{ icon "activity-lucide" 15 }}<span>Test endpoint</span></button>
-            <button class="button primary" type="submit">Save PDF settings</button>
-          </div>
-          <p class="pdf-test-status" data-pdf-test-status aria-live="polite"></p>
-        </form>
-        <dialog class="app-dialog pdf-test-dialog"
-                data-pdf-test-dialog
-                aria-labelledby="pdf-test-dialog-title">
-          <div class="app-dialog-header">
-            <div>
-              <p class="eyebrow">PDF rendering</p>
-              <h2 id="pdf-test-dialog-title">PDF service test</h2>
-            </div>
-            <button class="icon-button app-dialog-close"
-                    type="button"
-                    data-pdf-test-close
-                    aria-label="Close">{{ icon "x-lucide" 18 }}</button>
-          </div>
-          <div class="app-dialog-body pdf-test-dialog-body">
-            <div class="pdf-test-summary">
-              <strong>PDF service is working.</strong>
-              <span>Review the generated document below to confirm that fonts, colors, images, tables, code, and page breaks look acceptable.</span>
-            </div>
-            <div class="pdf-test-checks" aria-label="PDF service checks">
-              <div class="pdf-test-check" data-state="success">
-                <span class="pdf-test-check-mark" aria-hidden="true">✓</span>
-                <span><strong>Endpoint</strong><small>Reachable</small></span>
-              </div>
-              <div class="pdf-test-check" data-state="success">
-                <span class="pdf-test-check-mark" aria-hidden="true">✓</span>
-                <span><strong>PDF</strong><small>Valid response</small></span>
-              </div>
-              <div class="pdf-test-check" data-pdf-test-pages-check>
-                <span class="pdf-test-check-mark" aria-hidden="true">✓</span>
-                <span><strong>Pages</strong><small data-pdf-test-pages>2 pages</small></span>
-              </div>
-              <div class="pdf-test-check" data-state="success">
-                <span class="pdf-test-check-mark" aria-hidden="true">✓</span>
-                <span><strong>Size</strong><small data-pdf-test-size>—</small></span>
-              </div>
-            </div>
-            <div class="pdf-test-preview-shell">
-              <iframe data-pdf-test-preview title="Generated PDF service test document"></iframe>
+                      data-icon-picker-open>
+                <span class="external-link-icon-preview"
+                      data-icon-picker-preview
+                      data-icon-picker-empty="plus">{{ icon "plus-lucide" 18 }}</span>
+                <span data-icon-picker-label>No icon</span>
+              </button>
+              <button class="icon-button"
+                      type="button"
+                      data-external-link-remove
+                      aria-label="Remove external link">{{ icon "trash-2-lucide" 15 }}</button>
             </div>
           </div>
-          <div class="app-dialog-actions">
-            <a class="button" data-pdf-test-open target="_blank" rel="noopener">Open PDF</a>
-            <button class="button primary" type="button" data-pdf-test-close>Close</button>
-          </div>
-        </dialog>
-      </section>
-      <section class="panel settings-panel settings-wide configuration-authentication">
-        <div class="panel-title configuration-panel-title">
+        </template>
+      </div>
+      <div class="settings-actions">
+        <button class="button primary" type="submit">Save application settings</button>
+      </div>
+    </form>
+  </section>
+  <section class="panel settings-panel configuration-pdf" id="pdf-rendering">
+    <div class="panel-title configuration-panel-title">
+      <div>
+        <h2>PDF rendering</h2>
+        <p class="muted">Connect Kumbuka to a generic HTML-to-PDF service.</p>
+      </div>
+      {{ if .Runtime.PDFURL }}
+        <span class="config-status warning">Runtime override</span>
+      {{ else if .ApplicationSettings.PDFURL }}
+        <span class="config-status configured">Configured</span>
+      {{ else }}
+        <span class="config-status missing">Not configured</span>
+      {{ end }}
+    </div>
+    {{ if .Runtime.PDFURL }}
+      <div class="configuration-override-note">
+        <strong>Runtime PDF override active</strong>
+        <span>
+          A deployment-level <code>--pdf-url</code> / <code>KUMBUKA__PDF_URL</code> override is currently used for exports: <code>{{ .Runtime.PDFURL }}</code>. The saved endpoint below becomes active after the override is removed and Kumbuka is restarted.
+        </span>
+      </div>
+    {{ end }}
+    <form class="stacked-form pdf-settings-form"
+          action="{{ route "/admin/pdf" }}"
+          method="post"
+          data-pdf-settings
+          data-validate-form
+          novalidate>
+      <label>
+        {{ if .Runtime.PDFURL }}Saved endpoint{{ else }}Endpoint{{ end }}
+        <input type="url"
+               name="pdf_url"
+               value="{{ .ApplicationSettings.PDFURL }}"
+               placeholder="http://html2pdf:8080/render"
+               autocomplete="off"
+               data-error-type="Enter a valid HTTP or HTTPS URL." />
+        <small>Complete <code>POST</code> endpoint including the render path. Leave empty to disable PDF export.</small>
+      </label>
+      <div class="pdf-header-settings">
+        <div class="pdf-header-settings-title">
           <div>
-            <h2>Authentication</h2>
-            <p class="muted">Choose how people sign in and configure provider-specific identity settings.</p>
+            <strong>Request headers</strong>
+            <small>Add headers sent with every PDF render and service-test request.</small>
+          </div>
+          <button class="button compact"
+                  type="button"
+                  data-pdf-header-add>{{ icon "plus-lucide" 14 }}<span>Add header</span></button>
+        </div>
+        {{ if .Runtime.EncryptionKeyConfigured }}
+          <p class="pdf-header-encryption-note">Sensitive values are encrypted at rest with <code>KUMBUKA__ENCRYPTION_KEY</code> and hidden until explicitly revealed.</p>
+        {{ else }}
+          <p class="pdf-header-encryption-note warning">Configure <code>KUMBUKA__ENCRYPTION_KEY</code> before saving, revealing, or reusing stored sensitive headers. Non-sensitive headers do not require an encryption key.</p>
+        {{ end }}
+        <div class="pdf-header-list" data-pdf-header-list>
+          {{ range .PDFHeaders }}
+            <div class="pdf-header-row"
+                 data-pdf-header-row
+                 data-pdf-header-existing="true">
+              <input type="hidden" name="pdf_header_row" value="h{{ .ID }}" />
+              <input type="hidden" name="pdf_header_h{{ .ID }}_id" value="{{ .ID }}" />
+              <label class="pdf-header-name">
+                <span>Name</span>
+                <input type="text"
+                       name="pdf_header_h{{ .ID }}_name"
+                       value="{{ .Name }}"
+                       autocomplete="off"
+                       placeholder="Authorization"
+                       data-pdf-header-name />
+              </label>
+              <label class="pdf-header-value">
+                <span>Value</span>
+                <input type="{{ if .Sensitive }}password{{ else }}text{{ end }}"
+                       name="pdf_header_h{{ .ID }}_value"
+                       value="{{ if not .Sensitive }}{{ .Value }}{{ end }}"
+                       {{ if and .Sensitive .Configured }}placeholder="•••••••• configured"
+                       {{ else }}placeholder="Bearer token"
+                       {{ end }}
+                       autocomplete="off"
+                       data-pdf-header-value />
+              </label>
+              <div class="pdf-header-actions">
+                <label class="pdf-header-sensitive"
+                       title="Sensitive: encrypt this header value at rest">
+                  <input type="checkbox"
+                         name="pdf_header_h{{ .ID }}_sensitive"
+                         {{ if .Sensitive }}checked{{ end }}
+                         data-pdf-header-sensitive
+                         aria-label="Encrypt this header value at rest" />
+                  <span class="pdf-header-sensitive-icon" aria-hidden="true">{{ icon "key-round-lucide" 14 }}</span>
+                </label>
+                {{ if and .Sensitive .Configured }}
+                  <button class="button compact"
+                          type="button"
+                          data-pdf-header-reveal
+                          data-pdf-header-id="{{ .ID }}"
+                          {{ if not $.Runtime.EncryptionKeyConfigured }}disabled{{ end }}>Reveal</button>
+                {{ end }}
+                <button class="icon-button"
+                        type="button"
+                        data-pdf-header-remove
+                        aria-label="Remove PDF request header">{{ icon "trash-2-lucide" 15 }}</button>
+              </div>
+            </div>
+          {{ end }}
+        </div>
+        <template data-pdf-header-template>
+          <div class="pdf-header-row"
+               data-pdf-header-row
+               data-pdf-header-existing="false">
+            <input type="hidden" data-pdf-header-row-key />
+            <input type="hidden" data-pdf-header-id />
+            <label class="pdf-header-name">
+              <span>Name</span>
+              <input type="text"
+                     autocomplete="off"
+                     placeholder="Authorization"
+                     data-pdf-header-name />
+            </label>
+            <label class="pdf-header-value">
+              <span>Value</span>
+              <input type="text"
+                     autocomplete="off"
+                     placeholder="Bearer token"
+                     data-pdf-header-value />
+            </label>
+            <div class="pdf-header-actions">
+              <label class="pdf-header-sensitive"
+                     title="Sensitive: encrypt this header value at rest">
+                <input type="checkbox"
+                       data-pdf-header-sensitive
+                       aria-label="Encrypt this header value at rest" />
+                <span class="pdf-header-sensitive-icon" aria-hidden="true">{{ icon "key-round-lucide" 14 }}</span>
+              </label>
+              <button class="icon-button"
+                      type="button"
+                      data-pdf-header-remove
+                      aria-label="Remove PDF request header">{{ icon "trash-2-lucide" 15 }}</button>
+            </div>
+          </div>
+        </template>
+      </div>
+      <div class="pdf-settings-actions">
+        <button class="button"
+                type="button"
+                data-pdf-test>{{ icon "activity-lucide" 15 }}<span>Test endpoint</span></button>
+        <button class="button primary" type="submit">Save PDF settings</button>
+      </div>
+      <p class="pdf-test-status" data-pdf-test-status aria-live="polite"></p>
+    </form>
+    <dialog class="app-dialog pdf-test-dialog"
+            data-pdf-test-dialog
+            aria-labelledby="pdf-test-dialog-title">
+      <div class="app-dialog-header">
+        <div>
+          <p class="eyebrow">PDF rendering</p>
+          <h2 id="pdf-test-dialog-title">PDF service test</h2>
+        </div>
+        <button class="icon-button app-dialog-close"
+                type="button"
+                data-pdf-test-close
+                aria-label="Close">{{ icon "x-lucide" 18 }}</button>
+      </div>
+      <div class="app-dialog-body pdf-test-dialog-body">
+        <div class="pdf-test-summary">
+          <strong>PDF service is working.</strong>
+          <span>Review the generated document below to confirm that fonts, colors, images, tables, code, and page breaks look acceptable.</span>
+        </div>
+        <div class="pdf-test-checks" aria-label="PDF service checks">
+          <div class="pdf-test-check" data-state="success">
+            <span class="pdf-test-check-mark" aria-hidden="true">✓</span>
+            <span><strong>Endpoint</strong><small>Reachable</small></span>
+          </div>
+          <div class="pdf-test-check" data-state="success">
+            <span class="pdf-test-check-mark" aria-hidden="true">✓</span>
+            <span><strong>PDF</strong><small>Valid response</small></span>
+          </div>
+          <div class="pdf-test-check" data-pdf-test-pages-check>
+            <span class="pdf-test-check-mark" aria-hidden="true">✓</span>
+            <span><strong>Pages</strong><small data-pdf-test-pages>2 pages</small></span>
+          </div>
+          <div class="pdf-test-check" data-state="success">
+            <span class="pdf-test-check-mark" aria-hidden="true">✓</span>
+            <span><strong>Size</strong><small data-pdf-test-size>—</small></span>
           </div>
         </div>
+        <div class="pdf-test-preview-shell">
+          <iframe data-pdf-test-preview title="Generated PDF service test document"></iframe>
+        </div>
+      </div>
+      <div class="app-dialog-actions">
+        <a class="button" data-pdf-test-open target="_blank" rel="noopener">Open PDF</a>
+        <button class="button primary" type="button" data-pdf-test-close>Close</button>
+      </div>
+    </dialog>
+  </section>
+  <section class="panel settings-panel settings-wide configuration-authentication">
+    <div class="panel-title configuration-panel-title">
+      <div>
+        <h2>Authentication</h2>
+        <p class="muted">Choose how people sign in and configure provider-specific identity settings.</p>
+      </div>
+    </div>
 <form class="stacked-form auth-settings-form"
       action="{{ route "/admin/authentication" }}"
       method="post"

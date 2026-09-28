@@ -601,15 +601,24 @@ func TestOIDCFlags(t *testing.T) {
 	})
 }
 
-func TestLoggingFlags(t *testing.T) {
-	t.Run("render timings from environment", func(t *testing.T) {
+func TestPerformanceDiagnostics(t *testing.T) {
+	t.Run("disabled by default", func(t *testing.T) {
+		t.Setenv("KUMBUKA__PERFORMANCE_DIAGNOSTICS", "")
+
+		cfg, err := parseTestConfig([]string{"--database-url", "postgres://example/kumbuka"})
+
+		require.NoError(t, err)
+		assert.False(t, cfg.PerformanceDiagnostics)
+	})
+
+	t.Run("enabled from environment", func(t *testing.T) {
 		t.Setenv("KUMBUKA__DATABASE_URL", "postgres://example/kumbuka")
-		t.Setenv("KUMBUKA__DEBUG_RENDER_TIMINGS", "true")
+		t.Setenv("KUMBUKA__PERFORMANCE_DIAGNOSTICS", "true")
 
 		cfg, err := parseTestConfig(nil)
 
 		require.NoError(t, err)
-		assert.True(t, cfg.DebugRenderTimings)
+		assert.True(t, cfg.PerformanceDiagnostics)
 	})
 }
 
