@@ -34,6 +34,10 @@ type renderPipeline struct {
 	macros map[string]plugin.MacroRenderer
 	// exportParameters contains request-local plugin export overrides.
 	exportParameters map[string]map[string]map[string]string
+	// deferMacro selects macro modules expanded by the authenticated fragment endpoint.
+	deferMacro func(pluginID, moduleID string) bool
+	// deferredVersion binds fragment requests to one saved page revision.
+	deferredVersion string
 	// usageSource is the Markdown source represented by pagePlan.
 	usageSource string
 	// pagePlan contains only modules selected for usageSource.
@@ -46,6 +50,8 @@ type renderPipeline struct {
 type macroInvocation struct {
 	// owner identifies the plugin that recognized this invocation.
 	owner string
+	// module identifies the plugin module that recognized this invocation.
+	module string
 	// macro is the contribution that will render the deferred invocation.
 	macro plugin.Macro
 	// arguments contains serialized macro arguments.
@@ -83,6 +89,8 @@ func newRenderPipeline(plan *plugin.RenderPlan, features map[string]bool, functi
 		features:         plan.RenderFeatures(features),
 		macros:           maps.Clone(functions.Macros),
 		exportParameters: exportParameters,
+		deferMacro:       functions.DeferMacro,
+		deferredVersion:  functions.DeferredVersion,
 		usageSource:      source,
 		pagePlan:         pagePlan,
 	}
@@ -311,7 +319,10 @@ func (p *renderPipeline) preprocessMacros(source string, ctx plugin.Context, pag
 		}
 
 		placeholder := `<div data-kumbuka-macro="` + nonce + "-" + strconv.Itoa(len(invocations)) + `"></div>`
-		invocations = append(invocations, macroInvocation{binding.Selector.PluginID, binding.Module, invocation.arguments, placeholder})
+		invocations = append(invocations, macroInvocation{
+			owner: binding.Selector.PluginID, module: binding.Selector.ModuleID,
+			macro: binding.Module, arguments: invocation.arguments, placeholder: placeholder,
+		})
 		lines[index] = placeholder
 	}
 
@@ -339,7 +350,12 @@ func macroInvocationName(line string) (string, bool) {
 
 // expandMacros renders deferred macros and replaces their placeholders in order.
 func (p *renderPipeline) expandMacros(source string, invocations []macroInvocation, ctx plugin.Context) (string, error) {
-	for _, invocation := range invocations {
+	for index, invocation := range invocations {
+		if p.deferMacro != nil && p.deferMacro(invocation.owner, invocation.module) {
+			replacement := deferredMacroPlaceholder(invocation, index, p.deferredVersion)
+			source = strings.Replace(source, invocation.placeholder, replacement, 1)
+			continue
+		}
 		replacement, err := plugin.Guard(invocation.owner, func() (string, error) {
 			return invocation.macro.Render(ctx, invocation.arguments)
 		})
@@ -349,6 +365,18 @@ func (p *renderPipeline) expandMacros(source string, invocations []macroInvocati
 		source = strings.Replace(source, invocation.placeholder, replacement, 1)
 	}
 	return source, nil
+}
+
+// deferredMacroPlaceholder emits only bounded host metadata. The invocation
+// remains on the server and is re-derived from authorized canonical Markdown.
+func deferredMacroPlaceholder(invocation macroInvocation, index int, version string) string {
+	return `<div class="kumbuka-deferred-fragment" role="status" aria-live="polite"` +
+		` data-kumbuka-deferred-plugin="` + invocation.owner + `"` +
+		` data-kumbuka-deferred-module="` + invocation.module + `"` +
+		` data-kumbuka-deferred-index="` + strconv.Itoa(index) + `"` +
+		` data-kumbuka-deferred-version="` + version + `">` +
+		`<span class="kumbuka-deferred-spinner" aria-hidden="true"></span>` +
+		`<span>Loading external content…</span></div>`
 }
 
 // codeLines records code body lines, not fences themselves, whose delimiters cannot match a standalone macro invocation.

@@ -3,6 +3,7 @@ package endpoint
 import (
 	"context"
 	"log/slog"
+	"strconv"
 	"strings"
 
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
@@ -36,10 +37,12 @@ func renderPageContent(
 		md.Slug,
 		options,
 		md.Functions{
-			Context:      ctx,
-			Locale:       locale,
-			PluginUsage:  page.PluginUsage,
-			Capabilities: capabilities,
+			Context:         ctx,
+			Locale:          locale,
+			PluginUsage:     page.PluginUsage,
+			Capabilities:    capabilities,
+			DeferMacro:      renderer.ShouldDeferMacro,
+			DeferredVersion: strconv.FormatInt(page.UpdatedAt.UnixNano(), 10),
 		},
 	)
 	stop()

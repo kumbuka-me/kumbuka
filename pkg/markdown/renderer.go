@@ -71,6 +71,13 @@ type Functions struct {
 	ExportParameters map[string]map[string]map[string]string
 	// PluginUsage is derived persisted metadata for saved pages. Nil requests transient analysis.
 	PluginUsage *pluginusage.Index
+	// DeferMacro selects slow macro modules whose expansion should happen after
+	// the initial page response. It is used only by the interactive page view;
+	// exports and previews continue to render complete documents synchronously.
+	DeferMacro func(pluginID, moduleID string) bool
+	// DeferredVersion identifies the exact saved page revision represented by
+	// deferred macro placeholders.
+	DeferredVersion string
 }
 
 // Close releases the attached plugin manager, if any. Renderers created with NewWithRegistry alone do not own plugin runtime resources.
