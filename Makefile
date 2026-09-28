@@ -95,7 +95,6 @@ LOGO_PNG_WIDTH ?= 1280
 
 PRETTIER_MD_SOURCES := README.md "**/*.md"
 
-
 ## Migration
 
 MIGRATION_DIR := internal/postgres/migrations
@@ -113,7 +112,6 @@ merge-migrations: $(MIGRATION_MERGE) $(MIGRATION_HELPERS) ## Merge all migration
 .PHONY: cleanup-migrations
 cleanup-migrations: merge-migrations $(MIGRATION_CLEANUP) $(MIGRATION_HELPERS) ## Replace existing migrations with the validated generated baseline.
 	$(MIGRATION_CLEANUP) --migrations "$(MIGRATION_DIR)" --generated-dir "$(MIGRATION_OUTPUT_DIR)"
-
 
 ##@ Development
 
@@ -216,7 +214,7 @@ loadtest-up: ## Start the isolated Kumbuka and PostgreSQL load-test stack.
 	$(LOADTEST_COMPOSE) up --build --wait --wait-timeout 120 kumbuka postgres
 
 .PHONY: loadtest-seed
-loadtest-seed: ## Create or verify the dedicated load-test pages.
+loadtest-seed: loadtest-up ## Create or verify the dedicated load-test pages.
 	$(LOADTEST_COMPOSE) --profile loadtest run --rm k6 run /scripts/seed.js
 
 .PHONY: loadtest-prepare
@@ -243,7 +241,7 @@ loadtest-render-stress: loadtest-prepare ## Run the rendered-page stress test wi
 	@LOADTEST_MONITOR_INTERVAL=$(LOADTEST_MONITOR_INTERVAL) $(LOADTEST_STRESS_RUNNER) "$(LOADTEST_COMPOSE_FILE)" render-stress /scripts/render-stress.js
 
 .PHONY: loadtest-down
-loadtest-down: ## Stop the isolated load-test stack and retain its data.
+loadtest-down: ## Stop the isolated Kumbuka and PostgreSQL load-test stack.
 	$(LOADTEST_COMPOSE) down
 
 .PHONY: loadtest-reset
@@ -256,7 +254,7 @@ build: generate web ## Build the Kumbuka binary.
 	go build -ldflags="$(LDFLAGS)" -o $(BINARY) $(COMMAND)
 
 .PHONY: vet
-vet: generate web ## Run Go static analysis.
+vet: web ## Run Go static analysis.
 	go vet ./...
 
 .PHONY: clean
@@ -293,7 +291,6 @@ cover: test-web plugins ## Display Go test coverage.
 	go test -coverprofile=coverage.out -covermode=set -count=1 -timeout=3m ./...
 	go tool cover -html=coverage.out
 
-
 ##@ plugins
 
 .PHONY: plugins
@@ -320,13 +317,12 @@ plugins-update: $(PLUGIN_UPDATE) $(PLUGIN_DOWNLOAD) ## Update pinned plugins to 
 ##@ Assets
 
 .PHONY: favicon
-favicon: $(FAVICON_GENERATE) $(FAVICON_SOURCE) ## Generate PNG favicons from the canonical SVG.
+favicon: $(FAVICON_GENERATE) ## Generate PNG favicons from the canonical SVG.
 	$(call run-tool,$(FAVICON_GENERATE),--apple-touch "$(FAVICON_SOURCE)" "$(FAVICON_OUTPUT)" $(FAVICON_SIZES))
 
 .PHONY: logo-png
-logo-png: $(SVG_TO_PNG) $(LOGO_SOURCE) ## Generate a PNG version of the Kumbuka logo.
+logo-png: $(SVG_TO_PNG) ## Generate a PNG version of the Kumbuka logo.
 	$(call run-tool,$(SVG_TO_PNG),--width "$(LOGO_PNG_WIDTH)" "$(LOGO_SOURCE)" "$(LOGO_PNG)")
-
 
 ##@ Formatting
 
@@ -334,7 +330,7 @@ logo-png: $(SVG_TO_PNG) $(LOGO_SOURCE) ## Generate a PNG version of the Kumbuka 
 fmt: fmt-web fmt-templates fmt-go fmt-md ## Format all supported files.
 
 .PHONY: fmt-web
-fmt-web: $(NODE_MODULES) ## Format CSS and TypeScript source files.
+fmt-web: $(NODE_MODULES) ## Format CSS and TypeScript source.
 	$(NPX) prettier --write \
 		"web/src/**/*.css" \
 		"web/src/**/*.ts" \
@@ -345,7 +341,7 @@ fmt-templates: ## Format Go HTML templates.
 	djlint web/src/templates --reformat
 
 .PHONY: fmt-go
-fmt-go: generate web ## Format Go code.
+fmt-go: ## Format Go code.
 	go fmt ./...
 
 .PHONY: fmt-md
@@ -360,13 +356,16 @@ check-templates: ## Check Go HTML template formatting.
 lint: typecheck check-web lint-go ## Run all linters and formatting checks.
 
 .PHONY: lint-go
-lint-go: generate web golangci-lint ## Run golangci-lint.
-	$(call run-tool,$(GOLANGCI_LINT),run)
+lint-go: web golangci-lint ## Run golangci-lint.
+	@$(GO_INSTALL_TOOL) \
+		--target "$(GOLANGCI_LINT)" \
+		--package github.com/golangci/golangci-lint/v2/cmd/golangci-lint \
+		--tool-version "$(GOLANGCI_LINT_VERSION)"
+	$(GOLANGCI_LINT) run
 
 .PHONY: lint-fix
-lint-fix: generate web golangci-lint ## Run golangci-lint and apply fixes.
-	$(call run-tool,$(GOLANGCI_LINT),run --fix)
-
+lint-fix: web golangci-lint ## Run golangci-lint and apply fixes.
+	$(GOLANGCI_LINT) run --fix
 
 ##@ Dependencies
 
@@ -388,5 +387,3 @@ golangci-lint: $(GO_INSTALL_TOOL) ## Download golangci-lint locally if necessary
 		--target "$(GOLANGCI_LINT)" \
 		--package github.com/golangci/golangci-lint/v2/cmd/golangci-lint \
 		--tool-version "$(GOLANGCI_LINT_VERSION)"
-
-
