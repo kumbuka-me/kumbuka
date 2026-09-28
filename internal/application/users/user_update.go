@@ -3,7 +3,10 @@ package users
 import (
 	"context"
 	"fmt"
+	"net/mail"
+	"strings"
 
+	"github.com/kumbuka-me/kumbuka/internal/application/audit"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/kumbuka-me/kumbuka/pkg/utils"
 )
@@ -14,6 +17,18 @@ type UserUpdateInput struct {
 	UserID int64
 	// Actor is the administrator requesting the account change.
 	Actor domain.User
+	// Username optionally replaces the administrator-managed username.
+	Username *string
+	// Email optionally replaces the administrator-managed email address.
+	Email *string
+	// DisplayName optionally replaces the administrator-managed display name.
+	DisplayName *string
+	// RevertUsername restores the latest provider-managed username.
+	RevertUsername bool
+	// RevertEmail restores the latest provider-managed email.
+	RevertEmail bool
+	// RevertDisplayName restores the latest provider-managed display name.
+	RevertDisplayName bool
 	// Role is the requested account role.
 	Role domain.UserRole
 	// Enabled is the requested account-enabled state.
@@ -42,6 +57,19 @@ func (s *Users) UpdateAccount(ctx context.Context, input UserUpdateInput) error 
 		Enabled:  input.Enabled,
 		GroupIDs: input.GroupIDs,
 	}
+	profileChanged := input.Username != nil || input.Email != nil || input.DisplayName != nil ||
+		input.RevertUsername || input.RevertEmail || input.RevertDisplayName
+	var profile domain.UserProfile
+	if profileChanged {
+		var err error
+		profile, err = s.repository.UserProfile(ctx, input.UserID)
+		if err != nil {
+			return fmt.Errorf("load account profile: %w", err)
+		}
+	}
+	if err := prepareProfileUpdate(input, profile, &update); err != nil {
+		return err
+	}
 	if err := s.prepareLocalCredentialUpdate(ctx, input, &update); err != nil {
 		return err
 	}
@@ -50,6 +78,9 @@ func (s *Users) UpdateAccount(ctx context.Context, input UserUpdateInput) error 
 	}
 	if err := s.repository.UpdateUserAccount(ctx, update); err != nil {
 		return fmt.Errorf("update account: %w", err)
+	}
+	if profileChanged {
+		s.recordProfileAudit(ctx, input.Actor.ID, profile, update)
 	}
 	return nil
 }
@@ -79,6 +110,92 @@ func validateAccountUpdate(input UserUpdateInput) error {
 		}
 	}
 	return nil
+}
+
+// prepareProfileUpdate validates and normalizes an administrator-managed account profile.
+func prepareProfileUpdate(input UserUpdateInput, current domain.UserProfile, update *domain.UserAccountUpdate) error {
+	requested := input.Username != nil || input.Email != nil || input.DisplayName != nil
+	if !requested && !input.RevertUsername && !input.RevertEmail && !input.RevertDisplayName {
+		return nil
+	}
+	if current.Source == domain.ProfileSourceTrustedProxy && input.Username != nil {
+		return domain.NewValidationError("username", "Use the trusted-proxy relink action to change this identity.")
+	}
+	if current.Source == domain.ProfileSourceTrustedProxy && input.RevertUsername {
+		return domain.NewValidationError("username", "Trusted-proxy usernames are changed only by relinking the identity.")
+	}
+	if current.Source == domain.ProfileSourceLocal && (input.RevertUsername || input.RevertEmail || input.RevertDisplayName) {
+		return domain.NewValidationError("profile", "Local profile fields are not provider-managed.")
+	}
+
+	if input.Username != nil && !input.RevertUsername {
+		username := strings.TrimSpace(*input.Username)
+		if username == "" {
+			return domain.NewValidationError("username", "Username is required.")
+		}
+		if len([]rune(username)) > 128 {
+			return domain.NewValidationError("username", "Use at most 128 characters.")
+		}
+		if username != current.Username {
+			update.Username = utils.ToPtr(username)
+		}
+	}
+	if input.Email != nil && !input.RevertEmail {
+		email := strings.TrimSpace(*input.Email)
+		if email != "" && !validAccountEmail(email) {
+			return domain.NewValidationError("email", "Enter a valid email address.")
+		}
+		if email != current.Email {
+			update.Email = utils.ToPtr(email)
+		}
+	}
+	if input.DisplayName != nil && !input.RevertDisplayName {
+		displayName := strings.TrimSpace(*input.DisplayName)
+		if displayName == "" {
+			displayName = current.Username
+			if update.Username != nil {
+				displayName = *update.Username
+			}
+		}
+		if displayName != current.DisplayName {
+			update.DisplayName = utils.ToPtr(displayName)
+		}
+	}
+
+	update.RevertUsername = input.RevertUsername
+	update.RevertEmail = input.RevertEmail
+	update.RevertDisplayName = input.RevertDisplayName
+	return nil
+}
+
+// recordProfileAudit records each field whose ownership or local value changed.
+func (s *Users) recordProfileAudit(ctx context.Context, actorID int64, current domain.UserProfile, update domain.UserAccountUpdate) {
+	fields := []struct {
+		name     string
+		value    *string
+		reverted bool
+	}{
+		{"username", update.Username, update.RevertUsername},
+		{"email", update.Email, update.RevertEmail},
+		{"display name", update.DisplayName, update.RevertDisplayName},
+	}
+	for _, field := range fields {
+		action, detail := "user.profile_updated", "Updated local "+field.name
+		if field.reverted {
+			action, detail = "user.profile_override_reverted", "Restored provider-managed "+field.name
+		} else if field.value != nil && current.Source != domain.ProfileSourceLocal {
+			action, detail = "user.profile_overridden", "Locally overrode provider-managed "+field.name
+		} else if field.value == nil {
+			continue
+		}
+		audit.Record(ctx, s.logger, s.repository, actorID, action, "user", fmt.Sprint(current.UserID), detail)
+	}
+}
+
+// validAccountEmail reports whether value is one plain mailbox address.
+func validAccountEmail(value string) bool {
+	address, err := mail.ParseAddress(value)
+	return err == nil && address.Address == value
 }
 
 // prepareLocalCredentialUpdate resolves authentication mode and applies the requested recovery-credential state.

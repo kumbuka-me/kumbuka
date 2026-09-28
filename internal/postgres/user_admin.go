@@ -25,12 +25,30 @@ SELECT
   coalesce(lc.enabled,false),
   coalesce(u.last_login, u.created_at),
   u.last_login IS NOT NULL,
-  coalesce(array_agg(g.name ORDER BY g.name) FILTER (WHERE g.id IS NOT NULL),'{}')
+  coalesce(memberships.names,'{}'),
+  u.profile_source,
+  u.username_overridden,
+  u.email_overridden,
+  u.display_name_overridden,
+  CASE WHEN u.profile_source='oidc' THEN coalesce(oi.username,'') WHEN u.profile_source='trusted-proxy' THEN coalesce(tp.username,'') ELSE '' END,
+  CASE WHEN u.profile_source='oidc' THEN coalesce(oi.email,'') WHEN u.profile_source='trusted-proxy' THEN coalesce(tp.email,'') ELSE '' END,
+  CASE WHEN u.profile_source='oidc' THEN coalesce(oi.display_name,'') WHEN u.profile_source='trusted-proxy' THEN coalesce(tp.display_name,'') ELSE '' END,
+  coalesce(tp.username,'')
 FROM users u
 LEFT JOIN local_credentials lc ON lc.user_id=u.id
-LEFT JOIN user_groups ug ON ug.user_id=u.id
-LEFT JOIN wiki_groups g ON g.id=ug.group_id
-GROUP BY u.id,lc.user_id,lc.enabled
+LEFT JOIN LATERAL (
+  SELECT array_agg(g.name ORDER BY g.name) AS names
+  FROM user_groups ug JOIN wiki_groups g ON g.id=ug.group_id
+  WHERE ug.user_id=u.id
+) memberships ON true
+LEFT JOIN LATERAL (
+  SELECT username,email,display_name
+  FROM oidc_identities
+  WHERE user_id=u.id
+  ORDER BY last_seen_at DESC,created_at DESC
+  LIMIT 1
+) oi ON true
+LEFT JOIN trusted_proxy_identities tp ON tp.user_id=u.id
 ORDER BY lower(u.display_name),lower(u.username),u.id`)
 	if err != nil {
 		return nil, err
@@ -56,17 +74,93 @@ ORDER BY lower(u.display_name),lower(u.username),u.id`)
 			&user.LastLogin,
 			&user.HasLoggedIn,
 			&user.Groups,
+			&user.Profile.Source,
+			&user.Profile.UsernameOverridden,
+			&user.Profile.EmailOverridden,
+			&user.Profile.DisplayNameOverridden,
+			&user.Profile.ProviderUsername,
+			&user.Profile.ProviderEmail,
+			&user.Profile.ProviderDisplayName,
+			&user.Profile.TrustedProxyUsername,
 		); err != nil {
 			return nil, err
 		}
 
+		user.Profile.UserID = user.User.ID
+		user.Profile.Username = user.User.Username
+		user.Profile.Email = user.User.Email
+		user.Profile.DisplayName = user.User.DisplayName
 		users = append(users, user)
 	}
 
 	return users, rows.Err()
 }
 
-// UpdateUserAccount commits account, membership, credential, and session changes together.
+// UserProfile returns the profile source, current values, override state, and latest provider values.
+func (s *Store) UserProfile(ctx context.Context, userID int64) (domain.UserProfile, error) {
+	return userProfile(ctx, s.pool, userID, false)
+}
+
+// RelinkTrustedProxyIdentity atomically replaces one proxy key and the account username.
+func (s *Store) RelinkTrustedProxyIdentity(ctx context.Context, userID int64, username string) error {
+	username = strings.TrimSpace(username)
+	if username == "" {
+		return domain.NewValidationError("trusted_proxy_username", "Enter a trusted-proxy username.")
+	}
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	profile, err := userProfile(ctx, tx, userID, true)
+	if err != nil {
+		return err
+	}
+	if profile.Source != domain.ProfileSourceTrustedProxy || profile.TrustedProxyUsername == "" {
+		return domain.NewValidationError("trusted_proxy_username", "This account has no trusted-proxy identity to relink.")
+	}
+	available, err := usernameAvailable(ctx, tx, username, userID)
+	if err != nil {
+		return err
+	}
+	if !available {
+		return domain.ErrAlreadyExists
+	}
+	var bound bool
+	if err := tx.QueryRow(ctx, `
+SELECT EXISTS(SELECT 1 FROM trusted_proxy_identities WHERE username=$1 AND user_id<>$2)`, username, userID).Scan(&bound); err != nil {
+		return err
+	}
+	if bound {
+		return domain.ErrAlreadyExists
+	}
+	if _, err := tx.Exec(ctx, `
+DELETE FROM retired_trusted_proxy_identities WHERE username=$1`, username); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx, `
+INSERT INTO retired_trusted_proxy_identities(username,user_id)
+VALUES($1,$2)
+ON CONFLICT(username) DO UPDATE SET user_id=EXCLUDED.user_id,retired_at=now()`, profile.TrustedProxyUsername, userID); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx, `
+UPDATE trusted_proxy_identities
+SET username=$2
+WHERE user_id=$1`, userID, username); err != nil {
+		return mutationError(err)
+	}
+	if _, err := tx.Exec(ctx, `
+UPDATE users
+SET username=$2,username_overridden=false
+WHERE id=$1`, userID, username); err != nil {
+		return mutationError(err)
+	}
+	return mutationError(tx.Commit(ctx))
+}
+
+// UpdateUserAccount commits profile, account, membership, credential, and session changes together.
 func (s *Store) UpdateUserAccount(ctx context.Context, input domain.UserAccountUpdate) error {
 	if !domain.ValidUserRole(input.Role) {
 		return domain.NewValidationError("role", "Choose a valid user role.")
@@ -95,14 +189,74 @@ func (s *Store) UpdateUserAccount(ctx context.Context, input domain.UserAccountU
 	return mutationError(tx.Commit(ctx))
 }
 
-// updateUserAccountRecord updates role/enabled state and invalidates sessions on disable.
+// updateUserAccountRecord updates optional profile fields, role/enabled state, and invalidates sessions on disable.
 func updateUserAccountRecord(ctx context.Context, tx pgx.Tx, input domain.UserAccountUpdate) error {
+	profile, err := userProfile(ctx, tx, input.UserID, true)
+	if err != nil {
+		return err
+	}
+	if profile.Source == domain.ProfileSourceTrustedProxy && (input.Username != nil || input.RevertUsername) {
+		return domain.NewValidationError("username", "Relink the trusted-proxy identity to change its username.")
+	}
+	if profile.Source == domain.ProfileSourceLocal && (input.RevertUsername || input.RevertEmail || input.RevertDisplayName) {
+		return domain.NewValidationError("profile", "Local profile fields are not provider-managed.")
+	}
+
+	username, email, displayName := profile.Username, profile.Email, profile.DisplayName
+	usernameOverridden := profile.UsernameOverridden
+	emailOverridden := profile.EmailOverridden
+	displayNameOverridden := profile.DisplayNameOverridden
+	if input.RevertUsername {
+		username, usernameOverridden = profile.ProviderUsername, false
+	} else if input.Username != nil {
+		username = strings.TrimSpace(*input.Username)
+		usernameOverridden = profile.Source != domain.ProfileSourceLocal
+	}
+	if input.RevertEmail {
+		email, emailOverridden = profile.ProviderEmail, false
+	} else if input.Email != nil {
+		email = strings.TrimSpace(*input.Email)
+		emailOverridden = profile.Source != domain.ProfileSourceLocal
+	}
+	if input.RevertDisplayName {
+		displayName, displayNameOverridden = profile.ProviderDisplayName, false
+	} else if input.DisplayName != nil {
+		displayName = strings.TrimSpace(*input.DisplayName)
+		displayNameOverridden = profile.Source != domain.ProfileSourceLocal
+	}
+	if username == "" {
+		return domain.NewValidationError("username", "Username is required.")
+	}
+	available, err := usernameAvailable(ctx, tx, username, input.UserID)
+	if err != nil {
+		return err
+	}
+	if !available {
+		return domain.ErrAlreadyExists
+	}
+
 	tag, err := tx.Exec(ctx, `
 UPDATE users
-SET role=$2,
-    enabled=$3,
-    session_version=CASE WHEN enabled AND NOT $3 THEN session_version+1 ELSE session_version END
-WHERE id=$1`, input.UserID, string(input.Role), input.Enabled)
+SET username=$2,
+    email=$3,
+    display_name=$4,
+    username_overridden=$5,
+    email_overridden=$6,
+    display_name_overridden=$7,
+    role=$8,
+    enabled=$9,
+    session_version=CASE WHEN enabled AND NOT $9 THEN session_version+1 ELSE session_version END
+WHERE id=$1`,
+		input.UserID,
+		username,
+		email,
+		displayName,
+		usernameOverridden,
+		emailOverridden,
+		displayNameOverridden,
+		string(input.Role),
+		input.Enabled,
+	)
 	if err != nil {
 		return err
 	}
@@ -113,6 +267,42 @@ WHERE id=$1`, input.UserID, string(input.Role), input.Enabled)
 		return nil
 	}
 	return deleteLocalSessions(ctx, tx, input.UserID)
+}
+
+type userProfileQuerier interface {
+	QueryRow(context.Context, string, ...any) pgx.Row
+}
+
+// userProfile reads one account and the latest metadata from its active external profile source.
+func userProfile(ctx context.Context, queryer userProfileQuerier, userID int64, lock bool) (domain.UserProfile, error) {
+	query := `
+SELECT u.id,u.profile_source,u.username,u.email,u.display_name,
+       u.username_overridden,u.email_overridden,u.display_name_overridden,
+       CASE WHEN u.profile_source='oidc' THEN coalesce(oi.username,'') WHEN u.profile_source='trusted-proxy' THEN coalesce(tp.username,'') ELSE '' END,
+       CASE WHEN u.profile_source='oidc' THEN coalesce(oi.email,'') WHEN u.profile_source='trusted-proxy' THEN coalesce(tp.email,'') ELSE '' END,
+       CASE WHEN u.profile_source='oidc' THEN coalesce(oi.display_name,'') WHEN u.profile_source='trusted-proxy' THEN coalesce(tp.display_name,'') ELSE '' END,
+       coalesce(tp.username,'')
+FROM users u
+LEFT JOIN LATERAL (
+  SELECT username,email,display_name FROM oidc_identities
+  WHERE user_id=u.id ORDER BY last_seen_at DESC,created_at DESC LIMIT 1
+) oi ON true
+LEFT JOIN trusted_proxy_identities tp ON tp.user_id=u.id
+WHERE u.id=$1`
+	if lock {
+		query += " FOR UPDATE OF u"
+	}
+	var profile domain.UserProfile
+	err := queryer.QueryRow(ctx, query, userID).Scan(
+		&profile.UserID, &profile.Source, &profile.Username, &profile.Email, &profile.DisplayName,
+		&profile.UsernameOverridden, &profile.EmailOverridden, &profile.DisplayNameOverridden,
+		&profile.ProviderUsername, &profile.ProviderEmail, &profile.ProviderDisplayName,
+		&profile.TrustedProxyUsername,
+	)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return domain.UserProfile{}, domain.ErrNotFound
+	}
+	return profile, err
 }
 
 // updateUserCredentialState updates the optional local-credential enablement and sessions.

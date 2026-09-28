@@ -16,6 +16,8 @@ type userRepository interface {
 	audit.Repository
 	ApplicationSettings(context.Context) (domain.ApplicationSettings, error)
 	UpdateUserAccount(context.Context, domain.UserAccountUpdate) error
+	UserProfile(context.Context, int64) (domain.UserProfile, error)
+	RelinkTrustedProxyIdentity(context.Context, int64, string) error
 	Users(context.Context) ([]domain.AdminUser, error)
 	User(context.Context, int64) (domain.User, error)
 	UserGroups(context.Context, int64) ([]domain.Group, error)
@@ -31,6 +33,32 @@ type userRepository interface {
 	SetPendingOIDCIdentityRejected(context.Context, int64, bool) error
 	RemoveOIDCIdentity(context.Context, int64, string, string) error
 	HasLocalCredential(context.Context, int64) (bool, error)
+}
+
+// RelinkTrustedProxyIdentity changes the external username bound to an existing proxy account.
+func (s *Users) RelinkTrustedProxyIdentity(ctx context.Context, userID int64, username string, actor domain.User) error {
+	if !actor.IsAdministrator() {
+		return domain.ErrForbidden
+	}
+	username = strings.TrimSpace(username)
+	if userID <= 0 || username == "" {
+		return domain.NewValidationError("trusted_proxy_username", "Enter a trusted-proxy username.")
+	}
+	if len([]rune(username)) > 128 {
+		return domain.NewValidationError("trusted_proxy_username", "Use at most 128 characters.")
+	}
+	profile, err := s.repository.UserProfile(ctx, userID)
+	if err != nil {
+		return fmt.Errorf("load trusted-proxy identity: %w", err)
+	}
+	if profile.Source == domain.ProfileSourceTrustedProxy && profile.TrustedProxyUsername == username {
+		return nil
+	}
+	if err := s.repository.RelinkTrustedProxyIdentity(ctx, userID, username); err != nil {
+		return fmt.Errorf("relink trusted-proxy identity: %w", err)
+	}
+	audit.Record(ctx, s.logger, s.repository, actor.ID, "identity.trusted_proxy_relinked", "user", fmt.Sprint(userID), "Relinked trusted-proxy identity to "+username)
+	return nil
 }
 
 type passwordService interface {

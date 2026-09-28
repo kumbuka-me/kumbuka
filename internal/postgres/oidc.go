@@ -15,7 +15,7 @@ type oidcIdentityProfile struct {
 	issuer string
 	// subject is the stable provider-assigned user identifier.
 	subject string
-	// username is the normalized Kumbuka username asserted by the provider.
+	// username is the normalized username asserted by the provider.
 	username string
 	// email is the normalized email asserted by the provider.
 	email string
@@ -76,7 +76,7 @@ WHERE oi.issuer=$1 AND oi.subject=$2 AND u.enabled`, issuer, subject).Scan(&user
 // OIDCIdentities returns all persisted OIDC bindings grouped by their Kumbuka user identifier.
 func (s *Store) OIDCIdentities(ctx context.Context) ([]domain.OIDCIdentity, error) {
 	rows, err := s.pool.Query(ctx, `
-SELECT user_id,issuer,subject,created_at
+SELECT user_id,issuer,subject,username,email,display_name,last_seen_at,created_at
 FROM oidc_identities
 ORDER BY user_id,issuer,created_at`)
 	if err != nil {
@@ -89,7 +89,16 @@ ORDER BY user_id,issuer,created_at`)
 
 	for rows.Next() {
 		var identity domain.OIDCIdentity
-		if err := rows.Scan(&identity.UserID, &identity.Issuer, &identity.Subject, &identity.CreatedAt); err != nil {
+		if err := rows.Scan(
+			&identity.UserID,
+			&identity.Issuer,
+			&identity.Subject,
+			&identity.Username,
+			&identity.Email,
+			&identity.DisplayName,
+			&identity.LastSeenAt,
+			&identity.CreatedAt,
+		); err != nil {
 			return nil, err
 		}
 
@@ -339,21 +348,14 @@ func (s *Store) ResolveOIDCLogin(
 	return completeOIDCLogin(ctx, tx, user, identity)
 }
 
-// refreshAndCompleteOIDCLogin updates a bound account and commits the successful login.
+// refreshAndCompleteOIDCLogin refreshes provider metadata without overwriting the administrator-managed Kumbuka profile.
 func refreshAndCompleteOIDCLogin(
 	ctx context.Context,
 	tx pgx.Tx,
 	user domain.User,
 	identity oidcIdentityProfile,
 ) (domain.User, error) {
-	user, err := refreshOIDCUser(
-		ctx,
-		tx,
-		user,
-		identity.username,
-		identity.email,
-		identity.displayName,
-	)
+	user, err := refreshOIDCLogin(ctx, tx, user, identity)
 	if err != nil {
 		return domain.User{}, err
 	}
@@ -548,8 +550,24 @@ RETURNING subject`, user.ID, pending.Issuer).Scan(&previousSubject)
 	}
 
 	_, err = tx.Exec(ctx, `
-INSERT INTO oidc_identities(issuer,subject,user_id)
-VALUES($1,$2,$3)`, pending.Issuer, pending.Subject, user.ID)
+INSERT INTO oidc_identities(issuer,subject,user_id,username,email,display_name,last_seen_at)
+VALUES($1,$2,$3,$4,$5,$6,now())`,
+		pending.Issuer,
+		pending.Subject,
+		user.ID,
+		pending.Username,
+		pending.Email,
+		pending.DisplayName,
+	)
+	if err == nil {
+		_, err = tx.Exec(ctx, `
+UPDATE users
+SET profile_source='oidc',
+    username_overridden=(username<>$2),
+    email_overridden=(email<>$3),
+    display_name_overridden=(display_name<>$4)
+WHERE id=$1`, user.ID, pending.Username, pending.Email, pending.DisplayName)
+	}
 	return err
 }
 
@@ -703,29 +721,56 @@ RETURNING status`, issuer, subject, username, email, displayName).Scan(&status)
 	return status, err
 }
 
-// refreshOIDCUser updates mutable profile fields for an already-bound OIDC identity.
-func refreshOIDCUser(
+// refreshOIDCLogin records the latest provider profile while preserving the administrator-managed Kumbuka profile.
+func refreshOIDCLogin(
 	ctx context.Context,
 	tx pgx.Tx,
 	user domain.User,
-	username, email, displayName string,
+	identity oidcIdentityProfile,
 ) (domain.User, error) {
-	if available, err := usernameAvailable(ctx, tx, username, user.ID); err != nil {
+	profile, err := userProfile(ctx, tx, user.ID, false)
+	if err != nil {
 		return domain.User{}, err
-	} else if !available {
-		return domain.User{}, domain.ErrAlreadyExists
+	}
+	if !profile.UsernameOverridden {
+		available, err := usernameAvailable(ctx, tx, identity.username, user.ID)
+		if err != nil {
+			return domain.User{}, err
+		}
+		if !available {
+			return domain.User{}, domain.ErrAlreadyExists
+		}
+	}
+	tag, err := tx.Exec(ctx, `
+UPDATE oidc_identities
+SET username=$4,
+    email=$5,
+    display_name=$6,
+    last_seen_at=now()
+WHERE issuer=$1 AND subject=$2 AND user_id=$3`,
+		identity.issuer,
+		identity.subject,
+		user.ID,
+		identity.username,
+		identity.email,
+		identity.displayName,
+	)
+	if err != nil {
+		return domain.User{}, err
+	}
+	if tag.RowsAffected() == 0 {
+		return domain.User{}, domain.ErrNotFound
 	}
 
-	user.Username = username
-
-	err := tx.QueryRow(ctx, `
+	err = tx.QueryRow(ctx, `
 UPDATE users
-SET username=$2,
-    email=$3,
-    display_name=$4,
+SET username=CASE WHEN username_overridden THEN username ELSE $2 END,
+    email=CASE WHEN email_overridden THEN email ELSE $3 END,
+    display_name=CASE WHEN display_name_overridden THEN display_name ELSE $4 END,
+    profile_source='oidc',
     last_login=CASE WHEN enabled THEN now() ELSE last_login END
 WHERE id=$1
-RETURNING id,username,email,display_name,role,enabled,session_version`, user.ID, user.Username, email, displayName).Scan(
+RETURNING id,username,email,display_name,role,enabled,session_version`, user.ID, identity.username, identity.email, identity.displayName).Scan(
 		&user.ID,
 		&user.Username,
 		&user.Email,
@@ -759,8 +804,8 @@ func createOIDCUser(
 
 	var user domain.User
 	if err := tx.QueryRow(ctx, `
-INSERT INTO users(username,email,display_name,last_login)
-VALUES($1,$2,$3,now())
+INSERT INTO users(username,email,display_name,profile_source,last_login)
+VALUES($1,$2,$3,'oidc',now())
 RETURNING id,username,email,display_name,role,enabled,session_version`, username, email, displayName).Scan(
 		&user.ID,
 		&user.Username,
@@ -773,8 +818,8 @@ RETURNING id,username,email,display_name,role,enabled,session_version`, username
 		return domain.User{}, err
 	}
 	if _, err := tx.Exec(ctx, `
-INSERT INTO oidc_identities(issuer,subject,user_id)
-VALUES($1,$2,$3)`, issuer, subject, user.ID); err != nil {
+INSERT INTO oidc_identities(issuer,subject,user_id,username,email,display_name,last_seen_at)
+VALUES($1,$2,$3,$4,$5,$6,now())`, issuer, subject, user.ID, username, email, displayName); err != nil {
 		return domain.User{}, err
 	}
 

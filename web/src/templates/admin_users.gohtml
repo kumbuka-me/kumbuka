@@ -3,7 +3,7 @@
     <div class="settings-heading">
       <p class="eyebrow">Administration</p>
       <h1>Users</h1>
-      <p class="muted">Manage roles, group memberships, and external identities.</p>
+      <p class="muted">Manage profiles, roles, group memberships, and external identities.</p>
     </div>
     <section class="panel settings-panel" id="pending-identities">
       <div class="panel-title">
@@ -112,6 +112,11 @@
                       {{ len .OIDCIdentities }} OIDC {{ if eq (len .OIDCIdentities) 1 }}identity{{ else }}identities{{ end }}
                     </small>
                   {{ end }}
+                  {{ if eq .Profile.Source "trusted-proxy" }}
+                    <small class="admin-user-identity-state">
+                      {{ icon "key-round-lucide" 12 }} Trusted proxy: {{ .Profile.TrustedProxyUsername }}
+                    </small>
+                  {{ end }}
                   {{ if .HasLocalCredential }}
                     <small class="admin-user-identity-state">
                       {{ icon "key-round-lucide" 12 }}
@@ -148,11 +153,21 @@
                 </td>
                 <td class="admin-user-action">
                   <div class="admin-user-actions">
-                    <button class="button compact" type="button" data-admin-user-edit data-user-id="{{ .User.ID }}" data-user-name="{{ .User.DisplayName }}" data-user-username="{{ .User.Username }}" data-user-email="{{ .User.Email }}" data-user-role="{{ .User.Role }}" data-user-enabled="{{ .User.Enabled }}" data-user-has-local-credential="{{ .HasLocalCredential }}" data-user-local-credential-enabled="{{ .LocalCredentialEnabled }}" data-group-ids="{{ range $.Groups }}
+                    <button class="button compact" type="button" data-admin-user-edit data-user-id="{{ .User.ID }}" data-user-name="{{ .User.DisplayName }}" data-user-username="{{ .User.Username }}" data-user-email="{{ .User.Email }}" data-user-role="{{ .User.Role }}" data-user-enabled="{{ .User.Enabled }}" data-user-has-local-credential="{{ .HasLocalCredential }}" data-user-local-credential-enabled="{{ .LocalCredentialEnabled }}" data-profile-source="{{ .Profile.Source }}" data-provider-username="{{ .Profile.ProviderUsername }}" data-provider-email="{{ .Profile.ProviderEmail }}" data-provider-display-name="{{ .Profile.ProviderDisplayName }}" data-username-overridden="{{ .Profile.UsernameOverridden }}" data-email-overridden="{{ .Profile.EmailOverridden }}" data-display-name-overridden="{{ .Profile.DisplayNameOverridden }}" data-group-ids="{{ range $.Groups }}
                         {{ if hasgroup $adminUser.Groups .Name }}{{ .ID }}{{ end }}
                       {{ end }}">
                       {{ icon "pencil-lucide" 15 }}<span>Edit</span>
                     </button>
+                    {{ if eq .Profile.Source "trusted-proxy" }}
+                      <button class="button compact"
+                              type="button"
+                              data-trusted-proxy-relink
+                              data-user-id="{{ .User.ID }}"
+                              data-user-name="{{ .User.DisplayName }}"
+                              data-trusted-proxy-username="{{ .Profile.TrustedProxyUsername }}">
+                        {{ icon "link-lucide" 15 }}<span class="sr-only">Relink trusted-proxy identity</span>
+                      </button>
+                    {{ end }}
                     <form action="{{ route "/admin/users/" }}{{ .User.ID }}/sessions/revoke"
                           method="post"
                           data-confirm="Sign out {{ .User.DisplayName }}? Local and OIDC browser sessions will be revoked. Trusted-proxy authentication resumes on the next request unless the account is disabled."
@@ -184,6 +199,7 @@
             <thead>
               <tr>
                 <th>User</th>
+                <th>Latest provider profile</th>
                 <th>Issuer</th>
                 <th>Subject</th>
                 <th><span class="sr-only">Actions</span></th>
@@ -195,6 +211,7 @@
                 {{ range .OIDCIdentities }}
                   <tr>
                     <td><strong>{{ $user.DisplayName }}</strong><small>{{ $user.Username }}</small></td>
+                    <td><strong>{{ if .DisplayName }}{{ .DisplayName }}{{ else }}{{ .Username }}{{ end }}</strong><small>{{ .Username }}{{ if .Email }} · {{ .Email }}{{ end }} · {{ timeago .LastSeenAt }}</small></td>
                     <td><code>{{ .Issuer }}</code></td>
                     <td><code>{{ .Subject }}</code></td>
                     <td class="admin-user-action">
@@ -226,7 +243,7 @@
   <form method="post" data-admin-user-form data-validate-form novalidate>
     <div class="app-dialog-header">
       <div>
-        <p class="eyebrow">User access</p>
+        <p class="eyebrow">User account</p>
         <h2 id="admin-user-dialog-title" data-admin-user-name>Edit user</h2>
         <p class="admin-user-dialog-identity" data-admin-user-identity></p>
       </div>
@@ -236,6 +253,57 @@
               aria-label="Close user editor">{{ icon "x-lucide" 20 }}</button>
     </div>
     <div class="app-dialog-body admin-user-dialog-body">
+      <div class="form-grid">
+        <div class="admin-user-field">
+          <label for="admin-user-username">Username <em class="admin-profile-source"
+     data-admin-user-username-state></em></label>
+          <small data-admin-user-username-help>Used for local sign-in, mentions, and account lookup.</small>
+          <input type="text"
+                 name="username"
+                 autocomplete="username"
+                 maxlength="128"
+                 required
+                 id="admin-user-username"
+                 data-error-required="Username is required."
+                 data-admin-user-username />
+          <span class="admin-profile-provider" data-admin-user-username-provider></span>
+          <label class="admin-profile-revert" data-admin-user-username-revert hidden>
+            <input type="checkbox" name="revert_username" value="true" />
+            Restore provider value
+          </label>
+        </div>
+        <div class="admin-user-field">
+          <label for="admin-user-email">Email <em class="admin-profile-source" data-admin-user-email-state></em></label>
+          <small>May be changed or cleared by an administrator.</small>
+          <input type="email"
+                 id="admin-user-email"
+                 name="email"
+                 autocomplete="email"
+                 data-admin-user-email />
+          <span class="admin-profile-provider" data-admin-user-email-provider></span>
+          <label class="admin-profile-revert" data-admin-user-email-revert hidden>
+            <input type="checkbox" name="revert_email" value="true" />
+            Restore provider value
+          </label>
+        </div>
+      </div>
+      <div class="admin-user-field">
+        <label for="admin-user-display-name">Display name <em class="admin-profile-source"
+     data-admin-user-display-name-state></em></label>
+        <small>Human-readable name shown throughout Kumbuka. Empty falls back to the username.</small>
+        <input type="text"
+               id="admin-user-display-name"
+               name="display_name"
+               data-admin-user-display-name />
+        <span class="admin-profile-provider" data-admin-user-display-name-provider></span>
+        <label class="admin-profile-revert"
+               data-admin-user-display-name-revert
+               hidden>
+          <input type="checkbox" name="revert_display_name" value="true" />
+          Restore provider value
+        </label>
+      </div>
+      <p class="muted" data-admin-user-profile-note></p>
       <label class="admin-user-field">
         <span>Role</span>
         <small>Controls the account's application-wide permissions.</small>
@@ -321,6 +389,41 @@
       <button class="button primary" type="submit">{{ icon "save-lucide" 15 }}<span>Save changes</span></button>
     </div>
   </form>
+  </dialog>
+  <dialog class="app-dialog admin-identity-dialog"
+          data-trusted-proxy-relink-dialog
+          aria-labelledby="trusted-proxy-relink-title">
+    <form method="post"
+          data-trusted-proxy-relink-form
+          data-validate-form
+          novalidate>
+      <div class="app-dialog-header">
+        <div>
+          <p class="eyebrow">Trusted-proxy identity</p>
+          <h2 id="trusted-proxy-relink-title" data-trusted-proxy-relink-name>Relink identity</h2>
+          <p class="admin-user-dialog-identity">This changes the external identity key used to find the existing Kumbuka account.</p>
+        </div>
+        <button class="icon-button app-dialog-close"
+                type="button"
+                data-trusted-proxy-relink-close
+                aria-label="Close relink dialog">{{ icon "x-lucide" 20 }}</button>
+      </div>
+      <div class="app-dialog-body admin-identity-dialog-body">
+        <label class="admin-user-field">
+          <span>Trusted-proxy username</span>
+          <small>Must exactly match the future <code>X-Forwarded-User</code> value. Email is never used to link accounts.</small>
+          <input type="text"
+                 name="trusted_proxy_username"
+                 maxlength="128"
+                 required
+                 data-trusted-proxy-relink-username />
+        </label>
+      </div>
+      <div class="app-dialog-actions">
+        <button class="button" type="button" data-trusted-proxy-relink-close>Cancel</button>
+        <button class="button primary" type="submit">Relink identity</button>
+      </div>
+    </form>
   </dialog>
   <dialog class="app-dialog admin-identity-dialog"
           data-pending-oidc-dialog

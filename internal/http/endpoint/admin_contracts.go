@@ -106,3 +106,8 @@ type adminUserOverviewService interface {
 type userAccountWriter interface {
 	UpdateAccount(context.Context, appusers.UserUpdateInput) error
 }
+
+// trustedProxyIdentityWriter changes the external key bound to a proxy account.
+type trustedProxyIdentityWriter interface {
+	RelinkTrustedProxyIdentity(context.Context, int64, string, domain.User) error
+}

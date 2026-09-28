@@ -14,7 +14,35 @@ function selectedGroupIDs(button: HTMLElement): Set<string> {
   );
 }
 
-// Wires role and group editing for registered users.
+type ProfileSource = "local" | "oidc" | "trusted-proxy";
+type ProfileField = "username" | "email" | "displayName";
+
+// Describes the ownership controls rendered for one administrator profile field.
+export function profileFieldPresentation(
+  source: ProfileSource,
+  field: ProfileField,
+  overridden: boolean,
+): {
+  state: string;
+  providerVisible: boolean;
+  revertVisible: boolean;
+  editable: boolean;
+} {
+  const external = source !== "local";
+  const editable = source !== "trusted-proxy" || field !== "username";
+  return {
+    state: external
+      ? overridden
+        ? "Locally overridden"
+        : "Provider-managed"
+      : "Local",
+    providerVisible: external,
+    revertVisible: external && overridden && editable,
+    editable,
+  };
+}
+
+// Wires profile, role, and group editing for registered users.
 export function setupAdminUserEditor(dialog: HTMLDialogElement): void {
   const editorForm = requiredElement<HTMLFormElement>(
     dialog,
@@ -27,6 +55,26 @@ export function setupAdminUserEditor(dialog: HTMLDialogElement): void {
   const editorIdentity = requiredElement<HTMLElement>(
     dialog,
     "[data-admin-user-identity]",
+  );
+  const editorUsername = requiredElement<HTMLInputElement>(
+    dialog,
+    "[data-admin-user-username]",
+  );
+  const editorEmail = requiredElement<HTMLInputElement>(
+    dialog,
+    "[data-admin-user-email]",
+  );
+  const editorDisplayName = requiredElement<HTMLInputElement>(
+    dialog,
+    "[data-admin-user-display-name]",
+  );
+  const profileNote = requiredElement<HTMLElement>(
+    dialog,
+    "[data-admin-user-profile-note]",
+  );
+  const usernameHelp = requiredElement<HTMLElement>(
+    dialog,
+    "[data-admin-user-username-help]",
   );
   const editorRole = requiredElement<HTMLSelectElement>(
     dialog,
@@ -63,6 +111,59 @@ export function setupAdminUserEditor(dialog: HTMLDialogElement): void {
   const groupInputs = [
     ...dialog.querySelectorAll<HTMLInputElement>('input[name="group_id"]'),
   ];
+  const profileFields = [
+    {
+      input: editorUsername,
+      state: requiredElement<HTMLElement>(
+        dialog,
+        "[data-admin-user-username-state]",
+      ),
+      provider: requiredElement<HTMLElement>(
+        dialog,
+        "[data-admin-user-username-provider]",
+      ),
+      revert: requiredElement<HTMLElement>(
+        dialog,
+        "[data-admin-user-username-revert]",
+      ),
+      providerKey: "providerUsername",
+      overrideKey: "usernameOverridden",
+    },
+    {
+      input: editorEmail,
+      state: requiredElement<HTMLElement>(
+        dialog,
+        "[data-admin-user-email-state]",
+      ),
+      provider: requiredElement<HTMLElement>(
+        dialog,
+        "[data-admin-user-email-provider]",
+      ),
+      revert: requiredElement<HTMLElement>(
+        dialog,
+        "[data-admin-user-email-revert]",
+      ),
+      providerKey: "providerEmail",
+      overrideKey: "emailOverridden",
+    },
+    {
+      input: editorDisplayName,
+      state: requiredElement<HTMLElement>(
+        dialog,
+        "[data-admin-user-display-name-state]",
+      ),
+      provider: requiredElement<HTMLElement>(
+        dialog,
+        "[data-admin-user-display-name-provider]",
+      ),
+      revert: requiredElement<HTMLElement>(
+        dialog,
+        "[data-admin-user-display-name-revert]",
+      ),
+      providerKey: "providerDisplayName",
+      overrideKey: "displayNameOverridden",
+    },
+  ] as const;
 
   localPassword.addEventListener("toggle", () => {
     for (const input of [localPasswordInput, localPasswordConfirm]) {
@@ -78,13 +179,53 @@ export function setupAdminUserEditor(dialog: HTMLDialogElement): void {
 
     editorForm.reset();
     editorForm.action = route(`/admin/users/${encodeURIComponent(userID)}`);
-    editorName.textContent =
-      button.dataset.userName || button.dataset.userUsername || "Edit user";
 
     const username = button.dataset.userUsername || "";
     const email = button.dataset.userEmail || "";
+    const displayName = button.dataset.userName || username;
+    const sourceValue = button.dataset.profileSource;
+    const profileSource: ProfileSource =
+      sourceValue === "oidc" || sourceValue === "trusted-proxy"
+        ? sourceValue
+        : "local";
+    const externalProfile = profileSource !== "local";
 
+    editorName.textContent = displayName || username || "Edit user";
     editorIdentity.textContent = email ? `${username} · ${email}` : username;
+    editorUsername.value = username;
+    editorEmail.value = email;
+    editorDisplayName.value = displayName;
+
+    editorUsername.disabled = !profileFieldPresentation(
+      profileSource,
+      "username",
+      false,
+    ).editable;
+    if (editorUsername.disabled) editorUsername.removeAttribute("name");
+    else editorUsername.name = "username";
+    usernameHelp.textContent = editorUsername.disabled
+      ? "This is the trusted external identity key. Use Relink identity to change it."
+      : "Used for local sign-in, mentions, and account lookup.";
+
+    for (const [index, field] of profileFields.entries()) {
+      const overridden = button.dataset[field.overrideKey] === "true";
+      const providerValue = button.dataset[field.providerKey] || "";
+      const fieldName = (["username", "email", "displayName"] as const)[index];
+      const presentation = profileFieldPresentation(
+        profileSource,
+        fieldName,
+        overridden,
+      );
+      field.state.textContent = presentation.state;
+      field.provider.hidden = !presentation.providerVisible;
+      field.provider.textContent = externalProfile
+        ? `Latest provider value: ${providerValue || "(empty)"}`
+        : "";
+      field.revert.hidden = !presentation.revertVisible;
+    }
+    profileNote.textContent = externalProfile
+      ? "Provider-managed fields keep syncing at login. Editing a field overrides only that field; restoring it immediately applies the latest observed provider value."
+      : "Local profile fields are managed entirely by Kumbuka administrators.";
     editorRole.value = button.dataset.userRole || "viewer";
 
     accountEnabled.checked = button.dataset.userEnabled === "true";
@@ -108,7 +249,9 @@ export function setupAdminUserEditor(dialog: HTMLDialogElement): void {
     for (const input of groupInputs) input.checked = groups.has(input.value);
 
     dialog.showModal();
-    requestAnimationFrame(() => editorRole.focus());
+    requestAnimationFrame(() =>
+      (editorUsername.disabled ? editorEmail : editorUsername).focus(),
+    );
   }
 
   for (const button of document.querySelectorAll<HTMLButtonElement>(
@@ -124,6 +267,52 @@ export function setupAdminUserEditor(dialog: HTMLDialogElement): void {
     button.addEventListener("click", () => dialog.close());
   }
 
+  dialog.addEventListener("click", (event: MouseEvent) => {
+    if (event.target === dialog) dialog.close();
+  });
+
+  setupTrustedProxyRelinkEditor();
+}
+
+// Wires the explicit trusted-proxy identity-key mutation separately from profile editing.
+function setupTrustedProxyRelinkEditor(): void {
+  const dialog = requiredElement<HTMLDialogElement>(
+    document,
+    "[data-trusted-proxy-relink-dialog]",
+  );
+  const form = requiredElement<HTMLFormElement>(
+    dialog,
+    "[data-trusted-proxy-relink-form]",
+  );
+  const name = requiredElement<HTMLElement>(
+    dialog,
+    "[data-trusted-proxy-relink-name]",
+  );
+  const username = requiredElement<HTMLInputElement>(
+    dialog,
+    "[data-trusted-proxy-relink-username]",
+  );
+
+  for (const button of document.querySelectorAll<HTMLButtonElement>(
+    "[data-trusted-proxy-relink]",
+  )) {
+    button.addEventListener("click", () => {
+      const userID = requiredAttribute(button, "data-user-id");
+      form.action = route(
+        `/admin/users/${encodeURIComponent(userID)}/trusted-proxy/relink`,
+      );
+      name.textContent = `Relink ${button.dataset.userName || "user"}`;
+      username.value = button.dataset.trustedProxyUsername || "";
+      dialog.showModal();
+      requestAnimationFrame(() => username.focus());
+    });
+  }
+  for (const button of requiredElements<HTMLButtonElement>(
+    dialog,
+    "[data-trusted-proxy-relink-close]",
+  )) {
+    button.addEventListener("click", () => dialog.close());
+  }
   dialog.addEventListener("click", (event: MouseEvent) => {
     if (event.target === dialog) dialog.close();
   });

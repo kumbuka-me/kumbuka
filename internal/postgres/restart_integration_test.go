@@ -23,6 +23,12 @@ func integrationDatabase(t *testing.T) string {
 	if dsn == "" {
 		t.Skip("set KUMBUKA_TEST_DATABASE_URL for PostgreSQL integration tests")
 	}
+	// Consolidated pg_dump baselines target public explicitly. A caller that
+	// provisions a disposable database can opt out of per-schema isolation so
+	// later unqualified migrations run in the same schema as the baseline.
+	if os.Getenv("KUMBUKA_TEST_DATABASE_DIRECT") == "true" {
+		return dsn
+	}
 	ctx := context.Background()
 	conn, err := pgx.Connect(ctx, dsn)
 	require.NoError(t, err)

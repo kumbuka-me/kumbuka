@@ -22,6 +22,12 @@ type accountRepositoryStub struct {
 	mode domain.AuthMode
 	// failure configures or records the failure value used by the fixture.
 	failure error
+	// profile is the current profile returned to profile mutations.
+	profile domain.UserProfile
+	// audits records emitted audit actions.
+	audits []string
+	// relinked records a trusted-proxy identity mutation.
+	relinked string
 }
 
 // passwordServiceStub provides controllable password service behavior for tests.
@@ -43,6 +49,22 @@ func (s *accountRepositoryStub) ApplicationSettings(context.Context) (domain.App
 func (s *accountRepositoryStub) UpdateUserAccount(_ context.Context, input domain.UserAccountUpdate) error {
 	s.calls++
 	s.update = input
+	return s.failure
+}
+func (s *accountRepositoryStub) UserProfile(context.Context, int64) (domain.UserProfile, error) {
+	profile := s.profile
+	if profile.UserID == 0 {
+		profile.UserID = 7
+		profile.Source = domain.ProfileSourceLocal
+	}
+	return profile, s.failure
+}
+func (s *accountRepositoryStub) LogAudit(_ context.Context, _ int64, action, _, _, _ string) error {
+	s.audits = append(s.audits, action)
+	return nil
+}
+func (s *accountRepositoryStub) RelinkTrustedProxyIdentity(_ context.Context, _ int64, username string) error {
+	s.relinked = username
 	return s.failure
 }
 func accountInput() UserUpdateInput {
@@ -154,4 +176,62 @@ func TestAccountUpdatePreservesPasswordHashFailure(t *testing.T) {
 
 	require.ErrorIs(t, err, failure)
 	assert.Zero(t, repo.calls)
+}
+
+func TestAccountUpdateOverridesOnlyChangedOIDCField(t *testing.T) {
+	t.Parallel()
+	repo := &accountRepositoryStub{profile: domain.UserProfile{
+		UserID: 7, Source: domain.ProfileSourceOIDC, Username: "provider-user",
+		Email: "provider@example.test", DisplayName: "Provider User",
+	}}
+	input := accountInput()
+	username, email, displayName := "provider-user", "local@example.test", "Provider User"
+	input.Username, input.Email, input.DisplayName = &username, &email, &displayName
+
+	require.NoError(t, NewUsers(repo, nil).UpdateAccount(context.Background(), input))
+	assert.Nil(t, repo.update.Username)
+	require.NotNil(t, repo.update.Email)
+	assert.Equal(t, "local@example.test", *repo.update.Email)
+	assert.Nil(t, repo.update.DisplayName)
+	assert.Equal(t, []string{"user.profile_overridden"}, repo.audits)
+}
+
+func TestAccountUpdateRevertsOIDCField(t *testing.T) {
+	t.Parallel()
+	repo := &accountRepositoryStub{profile: domain.UserProfile{
+		UserID: 7, Source: domain.ProfileSourceOIDC, Username: "alice",
+		Email: "local@example.test", ProviderEmail: "provider@example.test", EmailOverridden: true,
+	}}
+	input := accountInput()
+	input.RevertEmail = true
+
+	require.NoError(t, NewUsers(repo, nil).UpdateAccount(context.Background(), input))
+	assert.True(t, repo.update.RevertEmail)
+	assert.Equal(t, []string{"user.profile_override_reverted"}, repo.audits)
+}
+
+func TestAccountUpdateRejectsGenericTrustedProxyUsername(t *testing.T) {
+	t.Parallel()
+	repo := &accountRepositoryStub{profile: domain.UserProfile{
+		UserID: 7, Source: domain.ProfileSourceTrustedProxy, Username: "proxy-user",
+	}}
+	input := accountInput()
+	username := "renamed"
+	input.Username = &username
+
+	err := NewUsers(repo, nil).UpdateAccount(context.Background(), input)
+	validation, ok := errors.AsType[*domain.ValidationError](err)
+	require.True(t, ok)
+	assert.Equal(t, "username", validation.Fields[0].Field)
+	assert.Zero(t, repo.calls)
+}
+
+func TestRelinkTrustedProxyIdentityAuditsChange(t *testing.T) {
+	t.Parallel()
+	repo := &accountRepositoryStub{}
+	actor := domain.User{ID: 3, Role: domain.UserRoleAdmin}
+
+	require.NoError(t, NewUsers(repo, nil).RelinkTrustedProxyIdentity(context.Background(), 7, " proxy-new ", actor))
+	assert.Equal(t, "proxy-new", repo.relinked)
+	assert.Equal(t, []string{"identity.trusted_proxy_relinked"}, repo.audits)
 }

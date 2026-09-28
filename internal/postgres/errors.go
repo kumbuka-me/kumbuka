@@ -8,15 +8,18 @@ import (
 )
 
 var uniqueConstraintErrors = map[string]error{
-	"pages_slug_key":                   domain.ErrAlreadyExists,
-	"page_aliases_pkey":                domain.ErrAlreadyExists,
-	"wiki_groups_name_key":             domain.ErrAlreadyExists,
-	"wiki_groups_name_ci_idx":          domain.ErrAlreadyExists,
-	"page_templates_name_key":          domain.ErrAlreadyExists,
-	"page_templates_name_ci_idx":       domain.ErrAlreadyExists,
-	"saved_searches_user_id_name_key":  domain.ErrAlreadyExists,
-	"saved_searches_user_name_ci_idx":  domain.ErrAlreadyExists,
-	"page_review_requests_pending_idx": domain.ErrReviewPending,
+	"pages_slug_key":                       domain.ErrAlreadyExists,
+	"page_aliases_pkey":                    domain.ErrAlreadyExists,
+	"wiki_groups_name_key":                 domain.ErrAlreadyExists,
+	"wiki_groups_name_ci_idx":              domain.ErrAlreadyExists,
+	"page_templates_name_key":              domain.ErrAlreadyExists,
+	"page_templates_name_ci_idx":           domain.ErrAlreadyExists,
+	"saved_searches_user_id_name_key":      domain.ErrAlreadyExists,
+	"saved_searches_user_name_ci_idx":      domain.ErrAlreadyExists,
+	"page_review_requests_pending_idx":     domain.ErrReviewPending,
+	"users_username_key":                   domain.ErrAlreadyExists,
+	"trusted_proxy_identities_pkey":        domain.ErrAlreadyExists,
+	"trusted_proxy_identities_user_id_key": domain.ErrAlreadyExists,
 }
 
 var foreignKeyValidationFields = map[string]string{

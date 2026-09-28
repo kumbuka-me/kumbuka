@@ -98,6 +98,7 @@ func registerAdminRoutes(mux *http.ServeMux, config Config) {
 	)
 
 	mux.Handle("POST /admin/users/{id}", browserAuthn(adminAuthz(endpoint.UpdateAdminUser(config.Users, config.Views, config.Logger))))
+	mux.Handle("POST /admin/users/{id}/trusted-proxy/relink", browserAuthn(adminAuthz(endpoint.RelinkAdminTrustedProxyIdentity(config.Users, config.Logger))))
 	mux.Handle("POST /admin/users/{id}/sessions/revoke", browserAuthn(adminAuthz(endpoint.RevokeAdminUserSessions(config.Users, config.Logger))))
 	mux.Handle("POST /admin/users/{id}/oidc/remove", browserAuthn(adminAuthz(endpoint.RemoveAdminOIDCIdentity(config.Users, config.Logger))))
 	mux.Handle("POST /admin/oidc/pending/{id}/approve", browserAuthn(adminAuthz(endpoint.ApprovePendingOIDCIdentity(config.Users, config.Logger))))

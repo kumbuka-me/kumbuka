@@ -72,7 +72,7 @@ func AdminUsers(
 	}
 }
 
-// UpdateAdminUser updates one user's role, group memberships, and optional recovery login state.
+// UpdateAdminUser updates one user's administrator-managed profile, role, groups, and optional recovery login state.
 func UpdateAdminUser(
 	userUseCases userAccountWriter,
 	views *webview.Views,
@@ -127,7 +127,13 @@ func UpdateAdminUser(
 		}
 
 		if err := userUseCases.UpdateAccount(r.Context(), appusers.UserUpdateInput{
-			UserID: userID, Actor: admin, Role: role, Enabled: enabled, GroupIDs: groupIDs,
+			UserID: userID, Actor: admin,
+			Username: optionalProfileFormValue(r, "username"), Email: optionalProfileFormValue(r, "email"),
+			DisplayName:       optionalProfileFormValue(r, "display_name"),
+			RevertUsername:    r.FormValue("revert_username") == "true",
+			RevertEmail:       r.FormValue("revert_email") == "true",
+			RevertDisplayName: r.FormValue("revert_display_name") == "true",
+			Role:              role, Enabled: enabled, GroupIDs: groupIDs,
 			Password: password, UpdateLocalCredential: updateLocalCredential,
 			LocalCredentialEnabled: r.FormValue("local_credential_enabled") == "on",
 			AuthModeOverride:       views.Runtime().AuthModeOverride,
@@ -136,6 +142,38 @@ func UpdateAdminUser(
 			return
 		}
 
+		route.Redirect(w, r, "/admin/users", http.StatusSeeOther)
+	}
+}
+
+// optionalProfileFormValue distinguishes a deliberately submitted empty value from an omitted field.
+func optionalProfileFormValue(r *http.Request, name string) *string {
+	if !r.Form.Has(name) {
+		return nil
+	}
+	value := strings.TrimSpace(r.FormValue(name))
+	return &value
+}
+
+// RelinkAdminTrustedProxyIdentity replaces the trusted username bound to one account.
+func RelinkAdminTrustedProxyIdentity(userUseCases trustedProxyIdentityWriter, logger *slog.Logger) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		admin := currentUser(r)
+		userID, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+		if err != nil || userID <= 0 {
+			httpresponse.Problem(w, http.StatusBadRequest, "Invalid user.")
+			return
+		}
+		if err := r.ParseForm(); err != nil {
+			httpresponse.Problem(w, http.StatusBadRequest, "Invalid identity form.")
+			return
+		}
+		if err := userUseCases.RelinkTrustedProxyIdentity(
+			r.Context(), userID, r.FormValue("trusted_proxy_username"), admin,
+		); err != nil {
+			writeAdminProblem(logger, w, err, "Trusted-proxy identity")
+			return
+		}
 		route.Redirect(w, r, "/admin/users", http.StatusSeeOther)
 	}
 }

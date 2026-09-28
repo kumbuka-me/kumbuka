@@ -329,6 +329,29 @@ func TestEffectiveTrustedProxyAuthenticationSettings(t *testing.T) {
 	assert.Equal(t, "runtime-admins", effective.TrustedAdminGroup)
 }
 
+func TestAdminUserTemplateExposesProfileOwnershipAndTrustedProxyRelink(t *testing.T) {
+	t.Parallel()
+	views := testHandlerViews(t, webview.RuntimeInfo{})
+	data := webview.AdminUsersView{AdminUsers: []domain.AdminUser{{
+		User: domain.User{ID: 7, Username: "proxy-alice", Email: "local@example.test", DisplayName: "Alice", Role: domain.UserRoleViewer, Enabled: true},
+		Profile: domain.UserProfile{
+			UserID: 7, Source: domain.ProfileSourceTrustedProxy, TrustedProxyUsername: "proxy-alice",
+			ProviderUsername: "proxy-alice", ProviderEmail: "provider@example.test", ProviderDisplayName: "Provider Alice",
+			EmailOverridden: true,
+		},
+	}}}
+
+	html, err := views.RenderHTML("admin_users", "content", data)
+	require.NoError(t, err)
+	rendered := string(html)
+	assert.Contains(t, rendered, `data-profile-source="trusted-proxy"`)
+	assert.Contains(t, rendered, `data-email-overridden="true"`)
+	assert.Contains(t, rendered, `data-provider-email="provider@example.test"`)
+	assert.Contains(t, rendered, `data-trusted-proxy-relink`)
+	assert.Contains(t, rendered, `name="trusted_proxy_username"`)
+	assert.Contains(t, rendered, `name="revert_email"`)
+}
+
 func TestAdminTrustedProxyRuntimeTemplate(t *testing.T) {
 	t.Parallel()
 

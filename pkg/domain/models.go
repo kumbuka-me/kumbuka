@@ -72,10 +72,37 @@ type AdminUser struct {
 	Groups []string
 	// OIDCIdentities contains external OIDC identities bound to the user.
 	OIDCIdentities []OIDCIdentity
+	// Profile describes the source and override state of mutable profile fields.
+	Profile UserProfile
 	// LastLogin is the most recent successful authentication time.
 	LastLogin time.Time
 	// HasLoggedIn reports whether LastLogin represents an actual login.
 	HasLoggedIn bool
+}
+
+// ProfileSource identifies the authority that supplies an account's profile by default.
+type ProfileSource string
+
+const (
+	ProfileSourceLocal        ProfileSource = "local"
+	ProfileSourceOIDC         ProfileSource = "oidc"
+	ProfileSourceTrustedProxy ProfileSource = "trusted-proxy"
+)
+
+// UserProfile contains local values and the latest external values used by administration.
+type UserProfile struct {
+	UserID                int64
+	Source                ProfileSource
+	Username              string
+	Email                 string
+	DisplayName           string
+	ProviderUsername      string
+	ProviderEmail         string
+	ProviderDisplayName   string
+	UsernameOverridden    bool
+	EmailOverridden       bool
+	DisplayNameOverridden bool
+	TrustedProxyUsername  string
 }
 
 // Group describes one administratively managed user group.
@@ -787,6 +814,14 @@ type OIDCIdentity struct {
 	Issuer string
 	// Subject stores the subject value used by OIDC identity.
 	Subject string
+	// Username is the most recently observed provider username.
+	Username string
+	// Email is the most recently observed provider email.
+	Email string
+	// DisplayName is the most recently observed provider display name.
+	DisplayName string
+	// LastSeenAt records the latest successful provider login.
+	LastSeenAt time.Time
 	// CreatedAt records the created at timestamp for OIDC identity.
 	CreatedAt time.Time
 }
