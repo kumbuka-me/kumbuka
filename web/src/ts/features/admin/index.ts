@@ -6,6 +6,7 @@ import { initAdminImport } from "./import.ts";
 import { setupNavigationIconPicker } from "./navigation.ts";
 import { initAdminPages } from "./pages.ts";
 import { initAdminPlugins } from "./plugins.ts";
+import { initPluginUpdateProgress } from "./plugin_updates.ts";
 import { setupAdminUserEditor, setupPendingOIDCEditor } from "./users.ts";
 import { initAdminWebhooks } from "./webhooks.ts";
 
@@ -35,6 +36,7 @@ export function initAdmin(): void {
   initAdminConfiguration();
   initAdminImport();
   initAdminPages();
+  initPluginUpdateProgress();
   initAdminPlugins();
   initAdminWebhooks();
 }
