@@ -109,9 +109,10 @@ func TestPageUseCasesEnforceResourceAccessBeforePersistence(t *testing.T) {
 func TestPagesOptionalDependenciesAreSafe(t *testing.T) {
 	t.Parallel()
 
-	pages := NewMutations(nil, nil, nil, nil)
+	logger := slog.Default()
+	pages := NewMutations(nil, nil, nil, logger)
 
-	assert.NotNil(t, pages.effects.logger)
+	assert.Same(t, logger, pages.effects.logger)
 	assert.Nil(t, pages.content)
 	assert.Nil(t, pages.icons)
 }

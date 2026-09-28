@@ -3,6 +3,8 @@ package pluginruntime
 import (
 	"context"
 	"errors"
+	"io"
+	"log/slog"
 	"testing"
 	"time"
 
@@ -86,12 +88,17 @@ func contentChangeManagerForTest(t *testing.T, handler plugin.ContentChange) *pl
 	return plugin.NewManager(registry, nil)
 }
 
+// contentChangeTestLogger returns a logger that discards runtime diagnostics.
+func contentChangeTestLogger() *slog.Logger {
+	return slog.New(slog.NewTextHandler(io.Discard, nil))
+}
+
 // TestContentChangedQueuesCommittedMutation verifies page requests persist one event for each active target.
 func TestContentChangedQueuesCommittedMutation(t *testing.T) {
 	t.Parallel()
 	queue := &contentChangeQueueStub{}
 	handler := &runtimeContentChangeStub{}
-	service := NewContentChanges(queue, contentChangeManagerForTest(t, handler), nil, nil)
+	service := NewContentChanges(queue, contentChangeManagerForTest(t, handler), nil, contentChangeTestLogger())
 
 	err := service.ContentChanged(context.Background(), pages.PageContentChange{
 		Page:             domain.Page{Slug: "guide", Title: "Guide", Markdown: "new"},
@@ -123,7 +130,7 @@ func TestProcessPendingAcknowledgesSuccessfulDelivery(t *testing.T) {
 		Attempts:         1,
 	}}}
 	handler := &runtimeContentChangeStub{}
-	service := NewContentChanges(queue, contentChangeManagerForTest(t, handler), nil, nil)
+	service := NewContentChanges(queue, contentChangeManagerForTest(t, handler), nil, contentChangeTestLogger())
 
 	service.processPending(context.Background())
 
@@ -146,7 +153,7 @@ func TestProcessPendingRetriesFailedDelivery(t *testing.T) {
 		Attempts:         3,
 	}}}
 	handler := &runtimeContentChangeStub{failures: 1}
-	service := NewContentChanges(queue, contentChangeManagerForTest(t, handler), nil, nil)
+	service := NewContentChanges(queue, contentChangeManagerForTest(t, handler), nil, contentChangeTestLogger())
 
 	before := time.Now()
 	service.processPending(context.Background())
@@ -168,7 +175,7 @@ func TestProcessPendingAcknowledgesMissingPlugin(t *testing.T) {
 		ActorID:  7,
 		Attempts: 1,
 	}}}
-	service := NewContentChanges(queue, contentChangeManagerForTest(t, &runtimeContentChangeStub{}), nil, nil)
+	service := NewContentChanges(queue, contentChangeManagerForTest(t, &runtimeContentChangeStub{}), nil, contentChangeTestLogger())
 
 	service.processPending(context.Background())
 
