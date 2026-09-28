@@ -79,14 +79,16 @@ type Settings struct {
 }
 
 // NewSettings constructs the application settings service.
-func NewSettings(repository settingsRepository, secretCodec secretCodec) *Settings {
-	return &Settings{repository: repository, secrets: secretCodec, logger: audit.Logger(nil)}
-}
-
-// WithLogger uses logger for best-effort service side-effect failures.
-func (s *Settings) WithLogger(logger *slog.Logger) *Settings {
-	s.logger = audit.Logger(logger)
-	return s
+func NewSettings(
+	repository settingsRepository,
+	secretCodec secretCodec,
+	logger *slog.Logger,
+) *Settings {
+	return &Settings{
+		repository: repository,
+		secrets:    secretCodec,
+		logger:     logger,
+	}
 }
 
 // WithIconValidator uses the active icon capability for settings validation.

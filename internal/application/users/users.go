@@ -77,14 +77,12 @@ type Users struct {
 }
 
 // NewUsers constructs the account administration service.
-func NewUsers(repository userRepository, passwords passwordService) *Users {
-	return &Users{repository: repository, passwords: passwords, logger: audit.Logger(nil)}
-}
-
-// WithLogger uses logger for best-effort service side-effect failures.
-func (s *Users) WithLogger(logger *slog.Logger) *Users {
-	s.logger = audit.Logger(logger)
-	return s
+func NewUsers(repository userRepository, passwords passwordService, logger *slog.Logger) *Users {
+	return &Users{
+		repository: repository,
+		passwords:  passwords,
+		logger:     logger,
+	}
 }
 
 // Users returns accounts with administration metadata.

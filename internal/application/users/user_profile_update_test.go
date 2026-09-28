@@ -3,6 +3,7 @@ package users
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"testing"
 
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
@@ -22,7 +23,7 @@ func TestAccountUpdateNormalizesAdminManagedProfile(t *testing.T) {
 	input.Email = &email
 	input.DisplayName = &displayName
 
-	err := NewUsers(repo, nil).UpdateAccount(context.Background(), input)
+	err := NewUsers(repo, nil, slog.Default()).UpdateAccount(context.Background(), input)
 
 	require.NoError(t, err)
 	require.NotNil(t, repo.update.Username)
@@ -45,7 +46,7 @@ func TestAccountUpdateUsesUsernameAsEmptyDisplayNameFallback(t *testing.T) {
 	input.Email = &email
 	input.DisplayName = &displayName
 
-	err := NewUsers(repo, nil).UpdateAccount(context.Background(), input)
+	err := NewUsers(repo, nil, slog.Default()).UpdateAccount(context.Background(), input)
 
 	require.NoError(t, err)
 	require.NotNil(t, repo.update.DisplayName)
@@ -74,7 +75,7 @@ func TestAccountUpdateRejectsInvalidAdminManagedProfile(t *testing.T) {
 			input.Email = &tc.email
 			input.DisplayName = &tc.displayName
 
-			err := NewUsers(repo, nil).UpdateAccount(context.Background(), input)
+			err := NewUsers(repo, nil, slog.Default()).UpdateAccount(context.Background(), input)
 
 			validation, ok := errors.AsType[*domain.ValidationError](err)
 			require.True(t, ok)
@@ -97,7 +98,7 @@ func TestAccountUpdateRejectsProfileChangeFromNonAdministrator(t *testing.T) {
 	input.Email = &email
 	input.DisplayName = &displayName
 
-	err := NewUsers(repo, nil).UpdateAccount(context.Background(), input)
+	err := NewUsers(repo, nil, slog.Default()).UpdateAccount(context.Background(), input)
 
 	require.ErrorIs(t, err, domain.ErrForbidden)
 	assert.Zero(t, repo.calls)

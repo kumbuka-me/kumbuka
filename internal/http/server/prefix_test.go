@@ -49,7 +49,7 @@ func TestDeploymentPrefix(t *testing.T) {
 			config := Config{
 				InfrastructureConfig: InfrastructureConfig{RoutePrefix: prefix, Assets: web.Assets, Views: views, Renderer: markdown.NewWithRegistry(nil), Logger: logger, MetricsEnabled: true, Metrics: prefixMetrics{}},
 				AuthenticationConfig: AuthenticationConfig{BrowserAuth: auth.BrowserAuth{Authenticator: prefixAuthenticator{}, Login: http.NotFoundHandler()}, BearerAuth: prefixAuthenticator{}},
-				AdministrationConfig: AdministrationConfig{System: appsystem.NewSystem(prefixSystemRepository{})},
+				AdministrationConfig: AdministrationConfig{System: appsystem.NewSystem(prefixSystemRepository{}, slog.Default())},
 			}
 			handler := New(config)
 			for _, path := range []string{"/healthz", "/metrics", "/assets/v-test/favicon.svg", "/plugins/runtime.js", "/sw.js"} {

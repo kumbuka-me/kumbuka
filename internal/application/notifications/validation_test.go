@@ -3,6 +3,7 @@ package notifications
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"testing"
 
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
@@ -17,7 +18,7 @@ func TestNotificationValidationBeforePersistence(t *testing.T) {
 	t.Run("mark read rejects missing notification id", func(t *testing.T) {
 		t.Parallel()
 
-		err := NewNotifications(nil).MarkNotificationRead(ctx, 1, 0)
+		err := NewNotifications(nil, slog.Default()).MarkNotificationRead(ctx, 1, 0)
 
 		validation, ok := errors.AsType[*domain.ValidationError](err)
 		require.True(t, ok)
@@ -28,7 +29,7 @@ func TestNotificationValidationBeforePersistence(t *testing.T) {
 	t.Run("mark unread rejects missing notification id", func(t *testing.T) {
 		t.Parallel()
 
-		err := NewNotifications(nil).MarkNotificationUnread(ctx, 1, 0)
+		err := NewNotifications(nil, slog.Default()).MarkNotificationUnread(ctx, 1, 0)
 
 		validation, ok := errors.AsType[*domain.ValidationError](err)
 		require.True(t, ok)
@@ -39,7 +40,7 @@ func TestNotificationValidationBeforePersistence(t *testing.T) {
 	t.Run("delete rejects missing notification id", func(t *testing.T) {
 		t.Parallel()
 
-		err := NewNotifications(nil).DeleteNotification(ctx, 1, 0)
+		err := NewNotifications(nil, slog.Default()).DeleteNotification(ctx, 1, 0)
 
 		validation, ok := errors.AsType[*domain.ValidationError](err)
 		require.True(t, ok)
@@ -50,7 +51,7 @@ func TestNotificationValidationBeforePersistence(t *testing.T) {
 	t.Run("open rejects missing notification id", func(t *testing.T) {
 		t.Parallel()
 
-		_, err := NewNotifications(nil).OpenNotification(ctx, 1, 0)
+		_, err := NewNotifications(nil, slog.Default()).OpenNotification(ctx, 1, 0)
 
 		validation, ok := errors.AsType[*domain.ValidationError](err)
 		require.True(t, ok)

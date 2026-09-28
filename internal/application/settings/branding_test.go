@@ -3,6 +3,7 @@ package settings
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"testing"
 
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
@@ -54,7 +55,7 @@ func TestBrandLogoRoundTrip(t *testing.T) {
 	t.Parallel()
 
 	repository := &brandLogoRepositoryStub{}
-	settings := NewSettings(repository, nil)
+	settings := NewSettings(repository, nil, slog.Default())
 	data := []byte("\x89PNG\r\n\x1a\nlogo")
 
 	err := settings.SaveBrandLogo(context.Background(), "logo.png", data, 7)
@@ -72,7 +73,7 @@ func TestSaveBrandLogoAcceptsPassiveSVG(t *testing.T) {
 	t.Parallel()
 
 	repository := &brandLogoRepositoryStub{}
-	settings := NewSettings(repository, nil)
+	settings := NewSettings(repository, nil, slog.Default())
 	data := []byte(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><path d="M0 0h10v10H0z" /></svg>`)
 
 	err := settings.SaveBrandLogo(context.Background(), "logo.svg", data, 7)
@@ -99,7 +100,7 @@ func TestSaveBrandLogoRejectsActiveSVG(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
-			settings := NewSettings(&brandLogoRepositoryStub{}, nil)
+			settings := NewSettings(&brandLogoRepositoryStub{}, nil, slog.Default())
 			err := settings.SaveBrandLogo(context.Background(), "logo.svg", []byte(test.data), 7)
 
 			validation, ok := errors.AsType[*domain.ValidationError](err)
@@ -112,7 +113,7 @@ func TestSaveBrandLogoRejectsActiveSVG(t *testing.T) {
 func TestSaveBrandLogoRejectsUnsupportedContent(t *testing.T) {
 	t.Parallel()
 
-	settings := NewSettings(&brandLogoRepositoryStub{}, nil)
+	settings := NewSettings(&brandLogoRepositoryStub{}, nil, slog.Default())
 	err := settings.SaveBrandLogo(context.Background(), "logo.txt", []byte("not an image"), 7)
 
 	validation, ok := errors.AsType[*domain.ValidationError](err)
@@ -124,7 +125,7 @@ func TestClearBrandLogoRestoresDefault(t *testing.T) {
 	t.Parallel()
 
 	repository := &brandLogoRepositoryStub{contentType: "image/png", data: []byte("logo")}
-	settings := NewSettings(repository, nil)
+	settings := NewSettings(repository, nil, slog.Default())
 
 	err := settings.ClearBrandLogo(context.Background(), 7)
 

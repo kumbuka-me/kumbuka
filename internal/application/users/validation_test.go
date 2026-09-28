@@ -3,6 +3,7 @@ package users
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"testing"
 
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
@@ -13,7 +14,7 @@ import (
 func TestUserValidationBeforePersistence(t *testing.T) {
 	t.Parallel()
 
-	err := NewUsers(nil, nil).UpdateUser(context.Background(), 1, "invalid", true, nil, nil)
+	err := NewUsers(nil, nil, slog.Default()).UpdateUser(context.Background(), 1, "invalid", true, nil, nil)
 
 	validation, ok := errors.AsType[*domain.ValidationError](err)
 	require.True(t, ok)

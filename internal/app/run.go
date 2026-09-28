@@ -135,7 +135,7 @@ func Run(
 	drafts := apppages.NewDrafts(database)
 	groups := appgroups.NewGroups(database)
 	knowledge := appsearch.NewKnowledge(database, access)
-	notifications := appnotifications.NewNotifications(database, webhooks).WithLogger(logger.With("component", "notifications"))
+	notifications := appnotifications.NewNotifications(database, logger.With("component", "notifications"), webhooks)
 	mutations.WithNotifications(notifications)
 	discussions.WithNotifications(notifications)
 	reviews.WithNotifications(notifications)
@@ -144,11 +144,11 @@ func Run(
 	navigation := appnavigation.NewNavigation(database, access)
 	preferences := apppreferences.NewPreferences(database)
 	recycleBin := apprecyclebin.NewRecycleBin(database)
-	settings := appsettings.NewSettings(database, secretCipher).WithLogger(logger.With("component", "settings"))
-	system := appsystem.NewSystem(database).WithLogger(logger.With("component", "system"))
+	settings := appsettings.NewSettings(database, secretCipher, logger.With("component", "settings"))
+	system := appsystem.NewSystem(database, logger.With("component", "system"))
 	templates := apptemplates.NewTemplates(database)
 	tokens := apptokens.NewTokens(database)
-	users := appusers.NewUsers(database, credential.Passwords{}).WithLogger(logger.With("component", "users"))
+	users := appusers.NewUsers(database, credential.Passwords{}, logger.With("component", "users"))
 
 	// Compose higher-level page workflows from the capabilities they coordinate.
 	serverLogger := logger.With("component", "server")

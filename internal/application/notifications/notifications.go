@@ -10,7 +10,6 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/kumbuka-me/kumbuka/internal/application/audit"
 	"github.com/kumbuka-me/kumbuka/internal/application/webhooks"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/kumbuka-me/kumbuka/pkg/mention"
@@ -72,14 +71,16 @@ type Notifications struct {
 }
 
 // NewNotifications constructs the notification inbox service.
-func NewNotifications(repository notificationRepository, eventSinks ...webhooks.EventSink) *Notifications {
-	return &Notifications{repository: repository, logger: audit.Logger(nil), eventSinks: eventSinks}
-}
-
-// WithLogger uses logger for best-effort notification event diagnostics.
-func (s *Notifications) WithLogger(logger *slog.Logger) *Notifications {
-	s.logger = audit.Logger(logger)
-	return s
+func NewNotifications(
+	repository notificationRepository,
+	logger *slog.Logger,
+	eventSinks ...webhooks.EventSink,
+) *Notifications {
+	return &Notifications{
+		repository: repository,
+		logger:     logger,
+		eventSinks: eventSinks,
+	}
 }
 
 // Send validates, attributes, and persists one plugin-created in-app notification.
@@ -183,7 +184,16 @@ func (s *Notifications) SendMentions(ctx context.Context, actorID int64, text, t
 		if !recipient.Enabled {
 			continue
 		}
-		if err := s.createCore(ctx, s.repository, recipient, actorID, domain.NotificationKindMention, title, body, destination); err != nil {
+		if err := s.createCore(
+			ctx,
+			s.repository,
+			recipient,
+			actorID,
+			domain.NotificationKindMention,
+			title,
+			body,
+			destination,
+		); err != nil {
 			return err
 		}
 	}

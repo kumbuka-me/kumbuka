@@ -3,6 +3,7 @@ package users
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"testing"
 
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
@@ -93,7 +94,7 @@ func TestAccountUpdateValidatesBeforeWriting(t *testing.T) {
 			if tc.name == "password" {
 				passwords.problem = "Use at least 12 characters."
 			}
-			err := NewUsers(repo, passwords).UpdateAccount(context.Background(), input)
+			err := NewUsers(repo, passwords, slog.Default()).UpdateAccount(context.Background(), input)
 			validation, ok := errors.AsType[*domain.ValidationError](err)
 			require.True(t, ok)
 			assert.Equal(t, tc.field, validation.Fields[0].Field)
@@ -107,7 +108,7 @@ func TestAccountUpdateHashesPasswordAndWritesOnce(t *testing.T) {
 		input := accountInput()
 		input.Password = "a-long-password-123"
 		input.UpdateLocalCredential = toggle
-		require.NoError(t, NewUsers(repo, passwordServiceStub{hash: "hashed-password"}).UpdateAccount(context.Background(), input))
+		require.NoError(t, NewUsers(repo, passwordServiceStub{hash: "hashed-password"}, slog.Default()).UpdateAccount(context.Background(), input))
 		assert.Equal(t, 1, repo.calls)
 		assert.Equal(t, "hashed-password", repo.update.PasswordHash)
 		if toggle {
@@ -121,7 +122,7 @@ func TestAccountUpdateHashesPasswordAndWritesOnce(t *testing.T) {
 func TestAccountUpdatePreservesPersistenceFailure(t *testing.T) {
 	failure := errors.New("database unavailable")
 	repo := &accountRepositoryStub{failure: failure}
-	require.ErrorIs(t, NewUsers(repo, nil).UpdateAccount(context.Background(), accountInput()), failure)
+	require.ErrorIs(t, NewUsers(repo, nil, slog.Default()).UpdateAccount(context.Background(), accountInput()), failure)
 	assert.Equal(t, 1, repo.calls)
 }
 
@@ -130,7 +131,7 @@ func TestUpdateUserUsesAccountMutationBoundary(t *testing.T) {
 
 	enabled := true
 	repo := &accountRepositoryStub{}
-	err := NewUsers(repo, nil).UpdateUser(
+	err := NewUsers(repo, nil, slog.Default()).UpdateUser(
 		context.Background(),
 		7,
 		"editor",
@@ -158,7 +159,7 @@ func TestAccountUpdatePreservesAuthenticationSettingsFailure(t *testing.T) {
 	input := accountInput()
 	input.UpdateLocalCredential = true
 
-	err := NewUsers(repo, passwordServiceStub{}).UpdateAccount(context.Background(), input)
+	err := NewUsers(repo, passwordServiceStub{}, slog.Default()).UpdateAccount(context.Background(), input)
 
 	require.ErrorIs(t, err, failure)
 	assert.Zero(t, repo.calls)
@@ -172,7 +173,7 @@ func TestAccountUpdatePreservesPasswordHashFailure(t *testing.T) {
 	input := accountInput()
 	input.Password = "a-long-password-123"
 
-	err := NewUsers(repo, passwordServiceStub{err: failure}).UpdateAccount(context.Background(), input)
+	err := NewUsers(repo, passwordServiceStub{err: failure}, slog.Default()).UpdateAccount(context.Background(), input)
 
 	require.ErrorIs(t, err, failure)
 	assert.Zero(t, repo.calls)
@@ -188,7 +189,7 @@ func TestAccountUpdateOverridesOnlyChangedOIDCField(t *testing.T) {
 	username, email, displayName := "provider-user", "local@example.test", "Provider User"
 	input.Username, input.Email, input.DisplayName = &username, &email, &displayName
 
-	require.NoError(t, NewUsers(repo, nil).UpdateAccount(context.Background(), input))
+	require.NoError(t, NewUsers(repo, nil, slog.Default()).UpdateAccount(context.Background(), input))
 	assert.Nil(t, repo.update.Username)
 	require.NotNil(t, repo.update.Email)
 	assert.Equal(t, "local@example.test", *repo.update.Email)
@@ -205,7 +206,7 @@ func TestAccountUpdateRevertsOIDCField(t *testing.T) {
 	input := accountInput()
 	input.RevertEmail = true
 
-	require.NoError(t, NewUsers(repo, nil).UpdateAccount(context.Background(), input))
+	require.NoError(t, NewUsers(repo, nil, slog.Default()).UpdateAccount(context.Background(), input))
 	assert.True(t, repo.update.RevertEmail)
 	assert.Equal(t, []string{"user.profile_override_reverted"}, repo.audits)
 }
@@ -219,7 +220,7 @@ func TestAccountUpdateRejectsGenericTrustedProxyUsername(t *testing.T) {
 	username := "renamed"
 	input.Username = &username
 
-	err := NewUsers(repo, nil).UpdateAccount(context.Background(), input)
+	err := NewUsers(repo, nil, slog.Default()).UpdateAccount(context.Background(), input)
 	validation, ok := errors.AsType[*domain.ValidationError](err)
 	require.True(t, ok)
 	assert.Equal(t, "username", validation.Fields[0].Field)
@@ -231,7 +232,7 @@ func TestRelinkTrustedProxyIdentityAuditsChange(t *testing.T) {
 	repo := &accountRepositoryStub{}
 	actor := domain.User{ID: 3, Role: domain.UserRoleAdmin}
 
-	require.NoError(t, NewUsers(repo, nil).RelinkTrustedProxyIdentity(context.Background(), 7, " proxy-new ", actor))
+	require.NoError(t, NewUsers(repo, nil, slog.Default()).RelinkTrustedProxyIdentity(context.Background(), 7, " proxy-new ", actor))
 	assert.Equal(t, "proxy-new", repo.relinked)
 	assert.Equal(t, []string{"identity.trusted_proxy_relinked"}, repo.audits)
 }

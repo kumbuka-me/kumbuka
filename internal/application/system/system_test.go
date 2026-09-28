@@ -2,6 +2,7 @@ package system
 
 import (
 	"context"
+	"log/slog"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -34,7 +35,7 @@ func TestDatabaseSize(t *testing.T) {
 	t.Run("returns repository size", func(t *testing.T) {
 		t.Parallel()
 
-		system := NewSystem(systemRepositoryStub{databaseSize: 192 * 1024 * 1024})
+		system := NewSystem(systemRepositoryStub{databaseSize: 192 * 1024 * 1024}, slog.Default())
 
 		size, err := system.DatabaseSize(context.Background())
 

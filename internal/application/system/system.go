@@ -25,14 +25,11 @@ type System struct {
 }
 
 // NewSystem constructs the application health and setup service.
-func NewSystem(repository systemRepository) *System {
-	return &System{repository: repository, logger: audit.Logger(nil)}
-}
-
-// WithLogger uses logger for best-effort service side-effect failures.
-func (s *System) WithLogger(logger *slog.Logger) *System {
-	s.logger = audit.Logger(logger)
-	return s
+func NewSystem(repository systemRepository, logger *slog.Logger) *System {
+	return &System{
+		repository: repository,
+		logger:     logger,
+	}
 }
 
 // DatabaseSize returns the current PostgreSQL database size in bytes.

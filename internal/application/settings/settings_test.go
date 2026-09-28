@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"errors"
+	"log/slog"
 	"testing"
 
 	"github.com/kumbuka-me/kumbuka/internal/secrets"
@@ -77,7 +78,7 @@ func TestSaveEditorToolbarOverrides(t *testing.T) {
 	t.Parallel()
 
 	repository := &applicationSettingsRepositoryStub{}
-	settings := NewSettings(repository, nil)
+	settings := NewSettings(repository, nil, slog.Default())
 	overrides := []domain.EditorToolbarOverride{{ID: "io.example.editor:action", Group: "tools", Hidden: true, Order: -4}}
 
 	err := settings.SaveEditorToolbarOverrides(context.Background(), overrides, 7)
@@ -93,7 +94,7 @@ func TestSaveApplicationSettingsValidatesExternalLinks(t *testing.T) {
 		t.Parallel()
 
 		repository := &applicationSettingsRepositoryStub{}
-		settings := NewSettings(repository, nil).WithIconValidator(icons.Builtin())
+		settings := NewSettings(repository, nil, slog.Default()).WithIconValidator(icons.Builtin())
 
 		err := settings.SaveApplicationSettings(context.Background(), domain.ApplicationSettings{
 			Rendering:    domain.RenderingSettings{DefaultTypographySize: domain.TypographySizeCompact},
@@ -119,7 +120,7 @@ func TestSaveApplicationSettingsValidatesExternalLinks(t *testing.T) {
 	t.Run("rejects non HTTP URL", func(t *testing.T) {
 		t.Parallel()
 
-		settings := NewSettings(&applicationSettingsRepositoryStub{}, nil)
+		settings := NewSettings(&applicationSettingsRepositoryStub{}, nil, slog.Default())
 
 		err := settings.SaveApplicationSettings(context.Background(), domain.ApplicationSettings{
 			Rendering:     domain.RenderingSettings{DefaultTypographySize: domain.TypographySizeCompact},
@@ -136,7 +137,7 @@ func TestSaveApplicationSettingsValidatesExternalLinks(t *testing.T) {
 	t.Run("rejects unknown icon", func(t *testing.T) {
 		t.Parallel()
 
-		settings := NewSettings(&applicationSettingsRepositoryStub{}, nil)
+		settings := NewSettings(&applicationSettingsRepositoryStub{}, nil, slog.Default())
 
 		err := settings.SaveApplicationSettings(context.Background(), domain.ApplicationSettings{
 			Rendering:     domain.RenderingSettings{DefaultTypographySize: domain.TypographySizeCompact},
@@ -152,7 +153,7 @@ func TestSaveApplicationSettingsValidatesExternalLinks(t *testing.T) {
 	t.Run("rejects unknown hover effect", func(t *testing.T) {
 		t.Parallel()
 
-		settings := NewSettings(&applicationSettingsRepositoryStub{}, nil)
+		settings := NewSettings(&applicationSettingsRepositoryStub{}, nil, slog.Default())
 
 		err := settings.SaveApplicationSettings(context.Background(), domain.ApplicationSettings{
 			Rendering:     domain.RenderingSettings{DefaultTypographySize: domain.TypographySizeCompact},
@@ -169,7 +170,7 @@ func TestSaveApplicationSettingsValidatesExternalLinks(t *testing.T) {
 func TestSaveApplicationSettingsValidatesRobotsPolicy(t *testing.T) {
 	t.Parallel()
 
-	settings := NewSettings(&applicationSettingsRepositoryStub{}, nil)
+	settings := NewSettings(&applicationSettingsRepositoryStub{}, nil, slog.Default())
 	err := settings.SaveApplicationSettings(context.Background(), domain.ApplicationSettings{
 		RobotsPolicy: "invalid",
 		Rendering:    domain.RenderingSettings{DefaultTypographySize: domain.TypographySizeCompact},
@@ -184,7 +185,7 @@ func TestSaveApplicationSettingsValidatesRobotsPolicy(t *testing.T) {
 func TestSaveApplicationSettingsValidatesTypographySize(t *testing.T) {
 	t.Parallel()
 
-	settings := NewSettings(&applicationSettingsRepositoryStub{}, nil)
+	settings := NewSettings(&applicationSettingsRepositoryStub{}, nil, slog.Default())
 	err := settings.SaveApplicationSettings(context.Background(), domain.ApplicationSettings{
 		Rendering: domain.RenderingSettings{DefaultTypographySize: "huge"},
 	}, 7)
@@ -202,7 +203,7 @@ func TestPDFHeadersMaskSensitiveValues(t *testing.T) {
 		{ID: 1, Name: "Authorization", Value: "v1:ciphertext", Sensitive: true},
 		{ID: 2, Name: "X-Tenant", Value: "documentation"},
 	}}
-	settings := NewSettings(repository, nil)
+	settings := NewSettings(repository, nil, slog.Default())
 
 	headers, err := settings.PDFHeaders(context.Background())
 
@@ -219,7 +220,7 @@ func TestSavePDFSettingsEncryptsSensitiveValues(t *testing.T) {
 
 	cipher := testSecretCipher(t)
 	repository := &pdfSettingsRepositoryStub{}
-	settings := NewSettings(repository, cipher)
+	settings := NewSettings(repository, cipher, slog.Default())
 
 	err := settings.SavePDFSettings(context.Background(), "http://pdf/render", []PDFHeaderInput{
 		{Name: "authorization", Value: "Bearer secret-token", Sensitive: true},
@@ -251,7 +252,7 @@ func TestResolvePDFRequestHeadersUsesStoredSensitiveValue(t *testing.T) {
 	repository := &pdfSettingsRepositoryStub{headers: []domain.PDFHeader{
 		{ID: 12, Name: "Authorization", Value: encrypted, Sensitive: true},
 	}}
-	settings := NewSettings(repository, cipher)
+	settings := NewSettings(repository, cipher, slog.Default())
 
 	headers, err := settings.ResolvePDFRequestHeaders(context.Background(), []PDFHeaderInput{
 		{ID: 12, Name: "Authorization", Sensitive: true},
@@ -266,7 +267,7 @@ func TestSavePDFSettingsRequiresEncryptionKeyForSensitiveValues(t *testing.T) {
 
 	cipher, err := secrets.New("")
 	require.NoError(t, err)
-	settings := NewSettings(&pdfSettingsRepositoryStub{}, cipher)
+	settings := NewSettings(&pdfSettingsRepositoryStub{}, cipher, slog.Default())
 
 	err = settings.SavePDFSettings(context.Background(), "http://pdf/render", []PDFHeaderInput{
 		{Name: "Authorization", Value: "Bearer secret-token", Sensitive: true},
@@ -280,7 +281,7 @@ func TestSavePDFSettingsRequiresEncryptionKeyForSensitiveValues(t *testing.T) {
 func TestSavePDFSettingsRejectsUnsafeAndDuplicateHeaders(t *testing.T) {
 	t.Parallel()
 
-	settings := NewSettings(&pdfSettingsRepositoryStub{}, nil)
+	settings := NewSettings(&pdfSettingsRepositoryStub{}, nil, slog.Default())
 
 	t.Run("unsafe request header", func(t *testing.T) {
 		err := settings.SavePDFSettings(context.Background(), "http://pdf/render", []PDFHeaderInput{
@@ -313,7 +314,7 @@ func TestRevealPDFHeaderDecryptsSensitiveValue(t *testing.T) {
 
 	settings := NewSettings(&pdfSettingsRepositoryStub{headers: []domain.PDFHeader{
 		{ID: 9, Name: "X-API-Key", Value: encrypted, Sensitive: true},
-	}}, cipher)
+	}}, cipher, slog.Default())
 
 	value, err := settings.RevealPDFHeader(context.Background(), 9)
 

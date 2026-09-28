@@ -13,11 +13,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestWithLoggerNormalizesNil verifies notification diagnostics always retain a usable logger.
-func TestWithLoggerNormalizesNil(t *testing.T) {
-	service := NewNotifications(nil).WithLogger(nil)
+func TestNewNotificationsUsesLogger(t *testing.T) {
+	logger := slog.Default()
+	service := NewNotifications(nil, logger)
 
-	assert.Same(t, slog.Default(), service.logger)
+	assert.Same(t, logger, service.logger)
 }
 
 // notificationRepositoryStub provides controllable notification repository behavior for tests.
@@ -134,7 +134,7 @@ func TestSendPluginCreatesAttributedNotificationAndEvent(t *testing.T) {
 	t.Parallel()
 	repository := &notificationRepositoryStub{createNew: true}
 	sink := &notificationEventSink{}
-	service := NewNotifications(repository, sink)
+	service := NewNotifications(repository, slog.Default(), sink)
 
 	receipt, err := service.SendPlugin(context.Background(), 9, "me.example.tasks", "Tasks", sdk.NotificationInput{
 		RecipientUserID: 42,
@@ -162,7 +162,7 @@ func TestSendMentionsCreatesCoreNotificationAndEvent(t *testing.T) {
 	repository := &notificationRepositoryStub{createNew: true}
 	sink := &notificationEventSink{}
 
-	err := NewNotifications(repository, sink).SendMentions(
+	err := NewNotifications(repository, slog.Default(), sink).SendMentions(
 		context.Background(),
 		42,
 		"Please review, @alice.",
@@ -186,7 +186,7 @@ func TestSendCoreCreatesAttributedCoreNotification(t *testing.T) {
 	repository := &notificationRepositoryStub{createNew: true}
 	sink := &notificationEventSink{}
 
-	err := NewNotifications(repository, sink).SendCore(
+	err := NewNotifications(repository, slog.Default(), sink).SendCore(
 		context.Background(),
 		42,
 		9,
@@ -215,7 +215,7 @@ func TestNotifyPluginUpdatesClaimsBeforeSending(t *testing.T) {
 		}},
 	}
 
-	err := NewNotifications(repository).NotifyPluginUpdates(context.Background(), repository.claimed)
+	err := NewNotifications(repository, slog.Default()).NotifyPluginUpdates(context.Background(), repository.claimed)
 
 	require.NoError(t, err)
 	require.Len(t, repository.createdItems, 2)
@@ -231,7 +231,7 @@ func TestSendPluginDoesNotEmitForIdempotentReplay(t *testing.T) {
 	t.Parallel()
 	repository := &notificationRepositoryStub{createNew: false}
 	sink := &notificationEventSink{}
-	_, err := NewNotifications(repository, sink).SendPlugin(context.Background(), 9, "me.example.tasks", "Tasks", sdk.NotificationInput{
+	_, err := NewNotifications(repository, slog.Default(), sink).SendPlugin(context.Background(), 9, "me.example.tasks", "Tasks", sdk.NotificationInput{
 		RecipientUserID: 42,
 		Title:           "Task assigned",
 		IdempotencyKey:  "task:one:assigned",
@@ -244,7 +244,7 @@ func TestSendPluginDoesNotEmitForIdempotentReplay(t *testing.T) {
 func TestSendPluginRejectsExternalDestinations(t *testing.T) {
 	t.Parallel()
 	repository := &notificationRepositoryStub{createNew: true}
-	_, err := NewNotifications(repository).SendPlugin(context.Background(), 9, "me.example.tasks", "Tasks", sdk.NotificationInput{
+	_, err := NewNotifications(repository, slog.Default()).SendPlugin(context.Background(), 9, "me.example.tasks", "Tasks", sdk.NotificationInput{
 		RecipientUserID: 42,
 		Title:           "Task assigned",
 		URL:             "https://example.test/phishing",
@@ -261,7 +261,7 @@ func TestNotificationsLimit(t *testing.T) {
 		t.Parallel()
 
 		repository := &notificationRepositoryStub{}
-		_, _, err := NewNotifications(repository).Notifications(context.Background(), 7, 30)
+		_, _, err := NewNotifications(repository, slog.Default()).Notifications(context.Background(), 7, 30)
 
 		require.NoError(t, err)
 		assert.Equal(t, 30, repository.limit)
@@ -271,7 +271,7 @@ func TestNotificationsLimit(t *testing.T) {
 		t.Parallel()
 
 		repository := &notificationRepositoryStub{}
-		_, _, err := NewNotifications(repository).Notifications(context.Background(), 7, 0)
+		_, _, err := NewNotifications(repository, slog.Default()).Notifications(context.Background(), 7, 0)
 
 		require.NoError(t, err)
 		assert.Equal(t, defaultNotificationListSize, repository.limit)
@@ -281,7 +281,7 @@ func TestNotificationsLimit(t *testing.T) {
 		t.Parallel()
 
 		repository := &notificationRepositoryStub{}
-		_, _, err := NewNotifications(repository).Notifications(context.Background(), 7, maxNotificationListSize+1)
+		_, _, err := NewNotifications(repository, slog.Default()).Notifications(context.Background(), 7, maxNotificationListSize+1)
 
 		require.NoError(t, err)
 		assert.Equal(t, maxNotificationListSize, repository.limit)
@@ -295,7 +295,7 @@ func TestNotificationMutationsDelegateExplicitly(t *testing.T) {
 		t.Parallel()
 
 		repository := &notificationRepositoryStub{}
-		require.NoError(t, NewNotifications(repository).MarkNotificationRead(context.Background(), 42, 7))
+		require.NoError(t, NewNotifications(repository, slog.Default()).MarkNotificationRead(context.Background(), 42, 7))
 
 		assert.Equal(t, int64(7), repository.markedID)
 		assert.Zero(t, repository.markedAllID)
@@ -305,7 +305,7 @@ func TestNotificationMutationsDelegateExplicitly(t *testing.T) {
 		t.Parallel()
 
 		repository := &notificationRepositoryStub{}
-		require.NoError(t, NewNotifications(repository).MarkNotificationUnread(context.Background(), 42, 8))
+		require.NoError(t, NewNotifications(repository, slog.Default()).MarkNotificationUnread(context.Background(), 42, 8))
 
 		assert.Equal(t, int64(8), repository.unreadID)
 		assert.Zero(t, repository.markedID)
@@ -315,7 +315,7 @@ func TestNotificationMutationsDelegateExplicitly(t *testing.T) {
 		t.Parallel()
 
 		repository := &notificationRepositoryStub{}
-		require.NoError(t, NewNotifications(repository).MarkAllNotificationsRead(context.Background(), 42))
+		require.NoError(t, NewNotifications(repository, slog.Default()).MarkAllNotificationsRead(context.Background(), 42))
 
 		assert.Equal(t, int64(42), repository.markedAllID)
 		assert.Zero(t, repository.markedID)
@@ -325,7 +325,7 @@ func TestNotificationMutationsDelegateExplicitly(t *testing.T) {
 		t.Parallel()
 
 		repository := &notificationRepositoryStub{}
-		require.NoError(t, NewNotifications(repository).DeleteNotification(context.Background(), 42, 9))
+		require.NoError(t, NewNotifications(repository, slog.Default()).DeleteNotification(context.Background(), 42, 9))
 
 		assert.Equal(t, int64(9), repository.deletedID)
 	})
@@ -334,7 +334,7 @@ func TestNotificationMutationsDelegateExplicitly(t *testing.T) {
 		t.Parallel()
 
 		repository := &notificationRepositoryStub{}
-		destination, err := NewNotifications(repository).OpenNotification(context.Background(), 42, 7)
+		destination, err := NewNotifications(repository, slog.Default()).OpenNotification(context.Background(), 42, 7)
 
 		require.NoError(t, err)
 		assert.Equal(t, "/pages/example", destination)
