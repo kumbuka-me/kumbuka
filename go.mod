@@ -4,7 +4,7 @@ go 1.27.0
 
 require (
 	github.com/aymerick/douceur v0.2.0
-	github.com/containeroo/httpgrace v0.2.0
+	github.com/containeroo/httpgrace v0.2.1
 	github.com/containeroo/httpprefix v0.1.1
 	github.com/containeroo/notifykit v0.7.0
 	github.com/containeroo/tinyflags v0.2.0
