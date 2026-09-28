@@ -130,6 +130,20 @@ async function requestPluginUpdate(url: string): Promise<{
   return { response, result };
 }
 
+// flushPendingPageRenders starts one deferred render rebuild after a bulk plugin update sequence.
+async function flushPendingPageRenders(): Promise<void> {
+  try {
+    await fetch(route("/admin/pages/render-pending"), {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { Accept: "text/html" },
+    });
+  } catch {
+    // A failed flush is safe: changed render plugins also change the render
+    // fingerprint, so affected pages still rebuild lazily on their next read.
+  }
+}
+
 // updateSinglePlugin keeps the spinner visible for the complete blocking request and navigates only after success.
 async function updateSinglePlugin(form: HTMLFormElement): Promise<void> {
   if (form.dataset.pluginUpdateRunning === "true") return;
@@ -256,9 +270,11 @@ function markPluginUpdated(update: PluginUpdateProgress): void {
   setPluginRowProgress(update, "updated", `Updated to ${update.targetVersion}`);
 }
 
-// pluginUpdateURL returns the prefix-aware single-plugin catalog update route.
+// pluginUpdateURL returns the prefix-aware single-plugin catalog update route used by Update all.
 function pluginUpdateURL(pluginID: string): string {
-  return route(`/admin/plugins/${encodeURIComponent(pluginID)}/update`);
+  return route(
+    `/admin/plugins/${encodeURIComponent(pluginID)}/update?defer_render=1`,
+  );
 }
 
 // updateAllPlugins runs updates sequentially so each row can expose real progress.
@@ -333,6 +349,8 @@ async function updateAllPlugins(form: HTMLFormElement): Promise<void> {
       completed++;
     }
   } finally {
+    if (completed > 0) await flushPendingPageRenders();
+
     delete form.dataset.pluginUpdateRunning;
     form.removeAttribute("aria-busy");
     controls.spinner.hidden = true;

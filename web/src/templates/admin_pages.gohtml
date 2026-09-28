@@ -3,7 +3,7 @@
     <div>
       <p class="eyebrow">Administration</p>
       <h1>Pages</h1>
-      <p>Apply lifecycle, ownership, movement, export, and cleanup actions to multiple pages.</p>
+      <p>Apply lifecycle, ownership, movement, export, cleanup, and render-cache actions to pages.</p>
     </div>
   </section>
   <form class="panel bulk-pages"
@@ -42,6 +42,10 @@
              hidden
              placeholder="archive/2026" />
       <button class="button primary" type="submit" data-bulk-submit disabled>Apply</button>
+      <button class="button"
+              type="submit"
+              formaction="{{ route "/admin/pages/render-all" }}"
+              formnovalidate>Re-render all</button>
     </div>
     <div class="admin-page-table-wrap">
       <table class="admin-page-table">
@@ -53,6 +57,7 @@
             <th>Owner</th>
             <th>Review</th>
             <th>Updated</th>
+            <th>Render</th>
           </tr>
         </thead>
         <tbody>
@@ -75,10 +80,16 @@
                 {{ end }}
               </td>
               <td>{{ timeago .UpdatedAt }}</td>
+              <td>
+                <button class="button compact"
+                        type="submit"
+                        formaction="{{ route "/admin/pages/render/" }}{{ .Slug }}"
+                        formnovalidate>Re-render</button>
+              </td>
             </tr>
           {{ else }}
             <tr>
-              <td colspan="6">No pages.</td>
+              <td colspan="7">No pages.</td>
             </tr>
           {{ end }}
         </tbody>

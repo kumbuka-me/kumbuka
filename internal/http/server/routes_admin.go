@@ -15,7 +15,15 @@ func registerAdminRoutes(mux *http.ServeMux, config Config) {
 	adminAuthz := middleware.RequireRole(domain.UserRoleAdmin)
 
 	pluginManager := config.Renderer.PluginManager()
-	pluginsAdmin := endpoint.NewAdminPlugins(config.PluginAdmin, config.BrowserContext, config.Views)
+	renderRebuilds := endpoint.NewAdminRenderRebuilds(
+		config.PageDirectory,
+		config.PageReports,
+		config.PageRender,
+		config.Renderer,
+		config.Logger,
+	)
+	pluginsAdmin := endpoint.NewAdminPlugins(config.PluginAdmin, config.BrowserContext, config.Views).
+		WithRenderRebuilds(renderRebuilds)
 	mux.Handle("GET /admin/plugins", browserAuthn(adminAuthz(http.HandlerFunc(pluginsAdmin.List))))
 	mux.Handle("GET /admin/plugins/{pluginID}/preview.png", browserAuthn(adminAuthz(endpoint.PluginPreview(pluginManager))))
 	mux.Handle("POST /admin/plugins", browserAuthn(adminAuthz(http.HandlerFunc(pluginsAdmin.Install))))
@@ -61,6 +69,9 @@ func registerAdminRoutes(mux *http.ServeMux, config Config) {
 		"POST /admin/pages/bulk",
 		browserAuthn(adminAuthz(endpoint.BulkAdminPages(config.PageBulk, config.PageLookup, config.Media, config.Logger))),
 	)
+	mux.Handle("POST /admin/pages/render-all", browserAuthn(adminAuthz(endpoint.QueueAllAdminPageRenders(renderRebuilds))))
+	mux.Handle("POST /admin/pages/render-pending", browserAuthn(adminAuthz(endpoint.FlushPendingAdminPageRenders(renderRebuilds))))
+	mux.Handle("POST /admin/pages/render/{slug...}", browserAuthn(adminAuthz(endpoint.RebuildAdminPageRender(renderRebuilds, config.Logger))))
 	mux.Handle("GET /admin/import", browserAuthn(adminAuthz(endpoint.AdminImport(config.BrowserContext, config.Views))))
 	mux.Handle(
 		"POST /admin/import",

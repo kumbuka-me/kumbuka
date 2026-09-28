@@ -5,6 +5,7 @@ import (
 	"html/template"
 	"io"
 	"net/http"
+	"reflect"
 	"sort"
 	"strings"
 
@@ -30,11 +31,19 @@ type AdminPlugins struct {
 	data browserContextLoader
 	// views renders plugin administration responses.
 	views *webview.Views
+	// renders coordinates background rebuilds of persisted page-render artifacts.
+	renders *AdminRenderRebuilds
 }
 
 // NewAdminPlugins constructs the plugin administration handler.
 func NewAdminPlugins(manager *appplugins.Admin, data browserContextLoader, views *webview.Views) *AdminPlugins {
 	return &AdminPlugins{manager: manager, data: data, views: views}
+}
+
+// WithRenderRebuilds enables page render-cache rebuilds after render-affecting plugin lifecycle changes.
+func (a *AdminPlugins) WithRenderRebuilds(rebuilds *AdminRenderRebuilds) *AdminPlugins {
+	a.renders = rebuilds
+	return a
 }
 
 // List renders the plugin inventory and optionally opens one plugin detail modal.
@@ -165,6 +174,9 @@ func (a *AdminPlugins) Install(w http.ResponseWriter, r *http.Request) {
 		a.failure(w, r, "", "install", err)
 		return
 	}
+	if item.Enabled && md.PluginAffectsArtifact(item.Manifest) && a.renders != nil {
+		a.renders.QueueAll("render-affecting plugin installed: " + item.Manifest.ID)
+	}
 	a.audit(r, "install", item.Manifest.ID)
 	route.Redirect(w, r, "/admin/plugins?plugin="+item.Manifest.ID, http.StatusSeeOther)
 }
@@ -180,12 +192,18 @@ func (a *AdminPlugins) Action(w http.ResponseWriter, r *http.Request) {
 		a.handleBulkUpdate(w, r)
 		return
 	}
+
+	before, beforeOK := a.pluginSnapshot(id)
 	if err := a.runPluginAction(w, r, id, action); err != nil {
 		if errors.Is(err, errPluginActionHandled) {
 			return
 		}
 		a.failure(w, r, id, action, err)
 		return
+	}
+	after, afterOK := a.pluginSnapshot(id)
+	if pluginRenderStateChanged(before, beforeOK, after, afterOK) {
+		a.scheduleRenderRebuild(r, "render-affecting plugin "+action+": "+id)
 	}
 
 	a.audit(r, action, id)
@@ -196,10 +214,24 @@ var errPluginActionHandled = errors.New("plugin action response already written"
 
 // handleBulkUpdate applies all catalog updates and renders the partial-success failure contract.
 func (a *AdminPlugins) handleBulkUpdate(w http.ResponseWriter, r *http.Request) {
+	before := pluginInventoryByID(a.manager.Plugins())
 	updated, err := a.manager.UpdateAll(r.Context())
 	for _, pluginID := range updated {
 		a.audit(r, "update", pluginID)
 	}
+
+	after := pluginInventoryByID(a.manager.Plugins())
+	for _, pluginID := range updated {
+		previous, previousOK := before[pluginID]
+		current, currentOK := after[pluginID]
+		if pluginRenderStateChanged(previous, previousOK, current, currentOK) {
+			if a.renders != nil {
+				a.renders.QueueAll("render-affecting plugin update batch")
+			}
+			break
+		}
+	}
+
 	if err != nil {
 		a.views.Logger().Error("bulk plugin update failed", "event", "plugin.update_all_failed", "error", err, "actor_id", currentUser(r).ID)
 		a.render(w, r, "", http.StatusUnprocessableEntity, "Could not update all plugins from the Kumbuka catalog. Plugins updated before the failure remain on their new versions; the remaining plugins were left unchanged.")
@@ -252,6 +284,55 @@ func pluginActionDestination(r *http.Request, id, action string) string {
 		return "/admin/plugins?plugin=" + id
 	}
 	return "/admin/plugins"
+}
+
+// pluginSnapshot returns one loaded plugin from the current manager inventory.
+func (a *AdminPlugins) pluginSnapshot(id string) (plugin.LoadedPlugin, bool) {
+	if a == nil || a.manager == nil {
+		return plugin.LoadedPlugin{}, false
+	}
+	for _, item := range a.manager.Plugins() {
+		if item.Manifest.ID == id {
+			return item, true
+		}
+	}
+	return plugin.LoadedPlugin{}, false
+}
+
+// pluginInventoryByID indexes one plugin inventory by stable plugin ID.
+func pluginInventoryByID(items []plugin.LoadedPlugin) map[string]plugin.LoadedPlugin {
+	result := make(map[string]plugin.LoadedPlugin, len(items))
+	for _, item := range items {
+		result[item.Manifest.ID] = item
+	}
+	return result
+}
+
+// pluginRenderStateChanged reports whether a lifecycle operation changed an enabled render-affecting plugin.
+func pluginRenderStateChanged(before plugin.LoadedPlugin, beforeOK bool, after plugin.LoadedPlugin, afterOK bool) bool {
+	beforeAffects := beforeOK && before.Enabled && md.PluginAffectsArtifact(before.Manifest)
+	afterAffects := afterOK && after.Enabled && md.PluginAffectsArtifact(after.Manifest)
+	if !beforeAffects && !afterAffects {
+		return false
+	}
+	if beforeOK != afterOK {
+		return true
+	}
+	return before.Enabled != after.Enabled ||
+		before.Manifest.Version != after.Manifest.Version ||
+		!reflect.DeepEqual(before.Digest, after.Digest)
+}
+
+// scheduleRenderRebuild either defers a bulk-progress rebuild or starts the background rebuild immediately.
+func (a *AdminPlugins) scheduleRenderRebuild(r *http.Request, reason string) {
+	if a.renders == nil {
+		return
+	}
+	if r.URL.Query().Get("defer_render") == "1" {
+		a.renders.MarkAllDirty(reason)
+		return
+	}
+	a.renders.QueueAll(reason)
 }
 
 // renderPluginREADME renders package documentation without activating plugin macros.

@@ -12,6 +12,7 @@ import (
 	"github.com/kumbuka-me/kumbuka/pkg/pluginusage"
 	"github.com/kumbuka-me/kumbuka/pkg/utils"
 	"github.com/kumbuka-me/sdk"
+	"github.com/kumbuka-me/sdk/pluginpackage"
 )
 
 const renderArtifactVersion = 1
@@ -46,7 +47,7 @@ func (r *Renderer) RenderFingerprint(options Options) string {
 	plugins := r.manager.Plugins()
 	sort.Slice(plugins, func(i, j int) bool { return plugins[i].Manifest.ID < plugins[j].Manifest.ID })
 	for _, item := range plugins {
-		if !item.Enabled {
+		if !item.Enabled || !PluginAffectsArtifact(item.Manifest) {
 			continue
 		}
 		_, _ = fmt.Fprintf(hash, "plugin=%s\nversion=%s\ndigest=%x\n", item.Manifest.ID, item.Manifest.Version, item.Digest)
@@ -60,6 +61,16 @@ func (r *Renderer) RenderFingerprint(options Options) string {
 		}
 	}
 	return hex.EncodeToString(hash.Sum(nil))
+}
+
+// PluginAffectsArtifact reports whether a plugin can change persisted page HTML or render metadata.
+func PluginAffectsArtifact(manifest pluginpackage.Manifest) bool {
+	for _, module := range manifest.Modules {
+		if staticRenderModule(plugin.ModuleType(module.Type)) {
+			return true
+		}
+	}
+	return false
 }
 
 // CanPersist reports whether a page can be rendered once without capturing request-local authorization or mutable plugin resource data.

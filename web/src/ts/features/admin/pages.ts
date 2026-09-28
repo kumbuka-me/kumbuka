@@ -43,6 +43,14 @@ export function initAdminPages(): void {
   });
   action.addEventListener("change", refresh);
   bulk.addEventListener("submit", async (event: SubmitEvent) => {
+    // Per-page and all-page render actions share this form to avoid nested forms.
+    // They are independent admin actions and must not inherit the selected bulk action.
+    if (
+      event.submitter instanceof HTMLButtonElement &&
+      event.submitter !== submit
+    ) {
+      return;
+    }
     if (bulk.dataset.confirming === "true" || action.value !== "delete") {
       return;
     }

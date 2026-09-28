@@ -1,0 +1,137 @@
+package endpoint
+
+import (
+	"context"
+	"log/slog"
+	"testing"
+	"time"
+
+	"github.com/kumbuka-me/kumbuka/pkg/domain"
+	md "github.com/kumbuka-me/kumbuka/pkg/markdown"
+	"github.com/kumbuka-me/kumbuka/pkg/plugin"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+type adminRenderCatalogStub struct {
+	pages []domain.Page
+	err   error
+}
+
+func (s adminRenderCatalogStub) PageInventory(context.Context) ([]domain.Page, error) {
+	return s.pages, s.err
+}
+
+type adminRenderPageStoreStub struct {
+	pages map[string]domain.Page
+	err   error
+}
+
+func (s adminRenderPageStoreStub) GetPage(_ context.Context, slug string) (domain.Page, error) {
+	if s.err != nil {
+		return domain.Page{}, s.err
+	}
+	page, ok := s.pages[slug]
+	if !ok {
+		return domain.Page{}, domain.ErrNotFound
+	}
+	return page, nil
+}
+
+type adminRenderArtifactStoreStub struct {
+	pageID    int64
+	updatedAt time.Time
+	render    domain.PageRender
+	calls     int
+	err       error
+}
+
+func (s *adminRenderArtifactStoreStub) SavePageRender(_ context.Context, pageID int64, updatedAt time.Time, render domain.PageRender) error {
+	s.calls++
+	s.pageID = pageID
+	s.updatedAt = updatedAt
+	s.render = render
+	return s.err
+}
+
+func TestAdminRenderRebuildPageStoresStableArtifact(t *testing.T) {
+	t.Parallel()
+
+	updatedAt := time.Date(2026, time.September, 28, 12, 0, 0, 0, time.UTC)
+	page := domain.Page{ID: 7, Slug: "guide", Markdown: "# Guide\n\nStatic content.", UpdatedAt: updatedAt}
+	artifacts := &adminRenderArtifactStoreStub{}
+	renderer := md.NewWithRegistry(&plugin.Registry{})
+	renderer.SetArtifactBuild("test", "abc")
+	rebuilds := NewAdminRenderRebuilds(
+		adminRenderCatalogStub{},
+		adminRenderPageStoreStub{pages: map[string]domain.Page{"guide": page}},
+		artifacts,
+		renderer,
+		slog.Default(),
+	)
+
+	err := rebuilds.RebuildPage(context.Background(), "guide")
+
+	require.NoError(t, err)
+	assert.Equal(t, 1, artifacts.calls)
+	assert.Equal(t, page.ID, artifacts.pageID)
+	assert.Equal(t, updatedAt, artifacts.updatedAt)
+	assert.Contains(t, artifacts.render.HTML, `<h1 id="guide">Guide</h1>`)
+	assert.NotEmpty(t, artifacts.render.Fingerprint)
+	require.Len(t, artifacts.render.Contents, 1)
+	assert.Equal(t, "guide", artifacts.render.Contents[0].ID)
+}
+
+func TestAdminRenderRebuildPageClearsUnpersistableArtifact(t *testing.T) {
+	t.Parallel()
+
+	page := domain.Page{ID: 8, Slug: "dynamic", Markdown: "{{var:environment}}", UpdatedAt: time.Now()}
+	artifacts := &adminRenderArtifactStoreStub{}
+	renderer := md.NewWithRegistry(&plugin.Registry{})
+	renderer.SetArtifactBuild("test", "abc")
+	rebuilds := NewAdminRenderRebuilds(
+		adminRenderCatalogStub{},
+		adminRenderPageStoreStub{pages: map[string]domain.Page{"dynamic": page}},
+		artifacts,
+		renderer,
+		slog.Default(),
+	)
+
+	err := rebuilds.RebuildPage(context.Background(), "dynamic")
+
+	require.NoError(t, err)
+	assert.Equal(t, 1, artifacts.calls)
+	assert.Empty(t, artifacts.render.HTML)
+	assert.Empty(t, artifacts.render.Fingerprint)
+	assert.Empty(t, artifacts.render.Contents)
+}
+
+func TestAdminRenderRebuildAllContinuesPastPageFailure(t *testing.T) {
+	t.Parallel()
+
+	pages := []domain.Page{{Slug: "one"}, {Slug: "missing"}, {Slug: "two"}}
+	store := adminRenderPageStoreStub{pages: map[string]domain.Page{
+		"one": {ID: 1, Slug: "one", Markdown: "# One", UpdatedAt: time.Now()},
+		"two": {ID: 2, Slug: "two", Markdown: "# Two", UpdatedAt: time.Now()},
+	}}
+	artifacts := &adminRenderArtifactStoreStub{}
+	renderer := md.NewWithRegistry(&plugin.Registry{})
+	renderer.SetArtifactBuild("test", "abc")
+	rebuilds := NewAdminRenderRebuilds(adminRenderCatalogStub{pages: pages}, store, artifacts, renderer, slog.Default())
+
+	completed, failed := rebuilds.RebuildAll(context.Background())
+
+	assert.Equal(t, 2, completed)
+	assert.Equal(t, 1, failed)
+	assert.Equal(t, 2, artifacts.calls)
+}
+
+func TestAdminRenderRebuildUnavailable(t *testing.T) {
+	t.Parallel()
+
+	rebuilds := NewAdminRenderRebuilds(nil, nil, nil, nil, slog.Default())
+	err := rebuilds.RebuildPage(context.Background(), "guide")
+
+	require.ErrorContains(t, err, "page render rebuild is unavailable")
+	assert.False(t, rebuilds.Available())
+}
