@@ -54,7 +54,7 @@ func registerAdminRoutes(mux *http.ServeMux, config Config) {
 		"GET /admin/templates",
 		browserAuthn(adminAuthz(endpoint.AdminPageTemplates(config.BrowserContext, config.Templates, config.Groups, config.Views))),
 	)
-	mux.Handle("GET /admin/permissions", browserAuthn(adminAuthz(endpoint.AdminPageAccess(config.BrowserContext, config.Access, config.Groups, config.Views))))
+	mux.Handle("GET /admin/permissions", browserAuthn(adminAuthz(endpoint.AdminPageAccess(config.BrowserContext, config.Access, config.Groups, config.Navigation, config.Views))))
 	mux.Handle("GET /admin/webhooks", browserAuthn(adminAuthz(endpoint.AdminWebhooks(config.BrowserContext, config.Webhooks, config.Views))))
 	mux.Handle("POST /admin/webhooks", browserAuthn(adminAuthz(endpoint.SaveAdminWebhook(config.Webhooks, config.Logger))))
 	mux.Handle("POST /admin/webhooks/{id}", browserAuthn(adminAuthz(endpoint.SaveAdminWebhook(config.Webhooks, config.Logger))))

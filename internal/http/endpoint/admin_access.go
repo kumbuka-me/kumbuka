@@ -9,6 +9,7 @@ import (
 	"github.com/kumbuka-me/kumbuka/internal/route"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
+	"github.com/kumbuka-me/kumbuka/pkg/navigation"
 )
 
 // AdminPageAccess renders inherited page-path access rules.
@@ -16,6 +17,7 @@ func AdminPageAccess(
 	browserContext browserContextLoader,
 	accessUseCases pageAccessAdmin,
 	groupUseCases groupReader,
+	navigationUseCases navigationService,
 	views *webview.Views,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -35,8 +37,30 @@ func AdminPageAccess(
 			httpresponse.InternalServerError(views.Logger(), w, err)
 			return
 		}
+
+		pages, err := navigationUseCases.NavigationPages(r.Context())
+		if err != nil {
+			httpresponse.InternalServerError(views.Logger(), w, err)
+			return
+		}
+		data.PagePathOptions = webview.PagePathOptions(pageAccessNavigation(pages), "")
+
 		views.Render(w, "admin_permissions", data)
 	}
+}
+
+// pageAccessNavigation builds the path tree used by the shared breadcrumb picker.
+func pageAccessNavigation(pages []domain.Page) []navigation.Node {
+	items := make([]navigation.Page, 0, len(pages))
+	for _, page := range pages {
+		items = append(items, navigation.Page{
+			Slug:  page.Slug,
+			Title: page.Title,
+			Icon:  page.Icon,
+		})
+	}
+
+	return navigation.Build(items, navigation.Options{})
 }
 
 // SaveAdminPageAccess creates or replaces one inherited path rule.
