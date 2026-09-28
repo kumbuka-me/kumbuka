@@ -29,9 +29,24 @@ export interface CatalogWidgetSettingColumn {
   type: "text" | "textarea" | "color";
 }
 
+export interface CatalogWidgetTreeField {
+  attribute: string;
+  label: string;
+  type: "text" | "textarea" | "mention" | "date";
+  placeholder?: string;
+  suggestions?: string[];
+}
+
 export interface CatalogWidgetSetting {
   type:
-    "text" | "textarea" | "select" | "resource" | "mention" | "date" | "table";
+    | "text"
+    | "textarea"
+    | "select"
+    | "resource"
+    | "mention"
+    | "date"
+    | "table"
+    | "tree";
   label: string;
   attribute?: string;
   attributes?: string[];
@@ -40,6 +55,14 @@ export interface CatalogWidgetSetting {
   placeholder?: string;
   suggestions?: string[];
   completion_module_id?: string;
+  fields?: CatalogWidgetTreeField[];
+  id_attribute?: string;
+  parent_attribute?: string;
+  title_attribute?: string;
+  description_attribute?: string;
+  empty_value?: string;
+  id_prefix?: string;
+  max_depth?: number;
 }
 
 export interface CatalogWidgetLineAnnotations {
@@ -216,15 +239,28 @@ function isWidgetColumn(value: unknown): value is CatalogWidgetSettingColumn {
   );
 }
 
-function isWidgetSetting(value: unknown): value is CatalogWidgetSetting {
-  const resourceSetting =
-    isRecord(value) &&
-    (value.type === "resource"
-      ? typeof value.completion_module_id === "string" &&
-        identifier.test(value.completion_module_id)
-      : value.completion_module_id === undefined);
+function isWidgetTreeField(value: unknown): value is CatalogWidgetTreeField {
   return (
     isRecord(value) &&
+    typeof value.attribute === "string" &&
+    typeof value.label === "string" &&
+    (value.type === "text" ||
+      value.type === "textarea" ||
+      value.type === "mention" ||
+      value.type === "date") &&
+    optionalString(value.placeholder) &&
+    (value.suggestions === undefined || strings(value.suggestions))
+  );
+}
+
+function isWidgetSetting(value: unknown): value is CatalogWidgetSetting {
+  if (!isRecord(value)) return false;
+  const resourceSetting =
+    value.type === "resource"
+      ? typeof value.completion_module_id === "string" &&
+        identifier.test(value.completion_module_id)
+      : value.completion_module_id === undefined;
+  return (
     resourceSetting &&
     (value.type === "text" ||
       value.type === "textarea" ||
@@ -232,7 +268,8 @@ function isWidgetSetting(value: unknown): value is CatalogWidgetSetting {
       value.type === "resource" ||
       value.type === "mention" ||
       value.type === "date" ||
-      value.type === "table") &&
+      value.type === "table" ||
+      value.type === "tree") &&
     typeof value.label === "string" &&
     optionalString(value.attribute) &&
     (value.attributes === undefined || strings(value.attributes)) &&
@@ -240,7 +277,16 @@ function isWidgetSetting(value: unknown): value is CatalogWidgetSetting {
       (Array.isArray(value.columns) && value.columns.every(isWidgetColumn))) &&
     optionalString(value.row_separator) &&
     optionalString(value.placeholder) &&
-    (value.suggestions === undefined || strings(value.suggestions))
+    (value.suggestions === undefined || strings(value.suggestions)) &&
+    (value.fields === undefined ||
+      (Array.isArray(value.fields) && value.fields.every(isWidgetTreeField))) &&
+    optionalString(value.id_attribute) &&
+    optionalString(value.parent_attribute) &&
+    optionalString(value.title_attribute) &&
+    optionalString(value.description_attribute) &&
+    optionalString(value.empty_value) &&
+    optionalString(value.id_prefix) &&
+    optionalNumber(value.max_depth)
   );
 }
 
@@ -846,6 +892,11 @@ export function validateWidgetValues(
   widget: CatalogWidget,
 ): string[] {
   const errors: string[] = [];
+  const treeAttributes = new Set(
+    widget.settings
+      .filter((setting) => setting.type === "tree")
+      .flatMap((setting) => setting.attributes || []),
+  );
   for (const attribute of widget.attributes) {
     const value = values[attribute.name] ?? attribute.default ?? "";
     if (attribute.required && !value.trim()) {
@@ -864,7 +915,8 @@ export function validateWidgetValues(
       if (attribute.max_items && items.length > attribute.max_items)
         errors.push(`${attribute.name} has too many items.`);
       for (const item of items) {
-        if (!item) errors.push(`${attribute.name} contains an empty item.`);
+        if (!item && !treeAttributes.has(attribute.name))
+          errors.push(`${attribute.name} contains an empty item.`);
         if (attribute.max_bytes && encodedLength(item) > attribute.max_bytes)
           errors.push(`${attribute.name} contains an item that is too long.`);
         if (
@@ -883,6 +935,71 @@ export function validateWidgetValues(
   }
 
   for (const setting of widget.settings) {
+    if (setting.type === "tree") {
+      const idAttribute = widgetAttribute(widget, setting.id_attribute || "");
+      const parentAttribute = widgetAttribute(
+        widget,
+        setting.parent_attribute || "",
+      );
+      const titleAttribute = widgetAttribute(
+        widget,
+        setting.title_attribute || "",
+      );
+      const ids = idAttribute
+        ? splitWidgetList(values[setting.id_attribute || ""] || "", idAttribute)
+        : [];
+      const parents = parentAttribute
+        ? splitWidgetList(
+            values[setting.parent_attribute || ""] || "",
+            parentAttribute,
+          )
+        : [];
+      const titles = titleAttribute
+        ? splitWidgetList(
+            values[setting.title_attribute || ""] || "",
+            titleAttribute,
+          )
+        : [];
+      const known = new Map<string, number>();
+      ids.forEach((id, index) => {
+        if (!id) errors.push("Every tree item needs an internal identity.");
+        if (known.has(id)) errors.push("Tree item identities must be unique.");
+        const parent = parents[index] || "";
+        let depth = 0;
+        if (parent) {
+          const parentDepth = known.get(parent);
+          if (parentDepth === undefined)
+            errors.push("A parent tree item must appear before its child.");
+          else depth = parentDepth + 1;
+        }
+        if (depth > (setting.max_depth || 16))
+          errors.push(
+            `Tree nesting may not exceed ${setting.max_depth || 16} levels.`,
+          );
+        known.set(id, depth);
+        if (!(titles[index] || "").trim())
+          errors.push("Every tree item needs a title.");
+      });
+      const emptyValue = setting.empty_value || "";
+      for (const field of setting.fields || []) {
+        if (field.type !== "mention" && field.type !== "date") continue;
+        const attribute = widgetAttribute(widget, field.attribute);
+        if (!attribute) continue;
+        for (const item of splitWidgetList(
+          values[field.attribute] || "",
+          attribute,
+        )) {
+          if (!item || (emptyValue && item === emptyValue)) continue;
+          if (field.type === "mention" && !canonicalMention.test(item))
+            errors.push(`${field.attribute} contains an invalid @mention.`);
+          if (field.type === "date" && !validCalendarDate(item))
+            errors.push(
+              `${field.attribute} contains an invalid YYYY-MM-DD date.`,
+            );
+        }
+      }
+      continue;
+    }
     const value = setting.attribute ? values[setting.attribute] || "" : "";
     if (!value) continue;
     if (setting.type === "mention" && !canonicalMention.test(value))

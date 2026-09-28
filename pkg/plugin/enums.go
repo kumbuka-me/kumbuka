@@ -120,6 +120,7 @@ const (
 	EditorWidgetSettingSelect   EditorWidgetSettingType = "select"
 	EditorWidgetSettingResource EditorWidgetSettingType = "resource"
 	EditorWidgetSettingTable    EditorWidgetSettingType = "table"
+	EditorWidgetSettingTree     EditorWidgetSettingType = "tree"
 	EditorWidgetSettingMention  EditorWidgetSettingType = "mention"
 	EditorWidgetSettingDate     EditorWidgetSettingType = "date"
 )

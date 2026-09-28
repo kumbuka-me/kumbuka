@@ -10,17 +10,25 @@ type WidgetControl = HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
 
 // formSignature returns the editable state used to detect unapplied form changes.
 function formSignature(form: HTMLFormElement): string {
-  return JSON.stringify(
-    Array.from(
-      form.querySelectorAll<WidgetControl>("input, select, textarea"),
-    ).map((control) => ({
-      tag: control.tagName,
-      type: control instanceof HTMLInputElement ? control.type : "",
-      attribute: control.dataset.widgetAttribute || "",
-      tableAttribute: control.dataset.widgetTableAttribute || "",
-      value: control.value,
-    })),
-  );
+  const controls = Array.from(
+    form.querySelectorAll<WidgetControl>("input, select, textarea"),
+  ).map((control) => ({
+    tag: control.tagName,
+    type: control instanceof HTMLInputElement ? control.type : "",
+    attribute: control.dataset.widgetAttribute || "",
+    tableAttribute: control.dataset.widgetTableAttribute || "",
+    treeAttribute: control.dataset.widgetTreeAttribute || "",
+    value: control.value,
+  }));
+  const tree = Array.from(
+    form.querySelectorAll<HTMLElement>(".visual-widget-tree-item"),
+  ).map((item) => ({
+    id: item.dataset.widgetTreeId || "",
+    parent:
+      item.parentElement?.closest<HTMLElement>(".visual-widget-tree-item")
+        ?.dataset.widgetTreeId || "",
+  }));
+  return JSON.stringify({ controls, tree });
 }
 
 // resizeLongformTextarea grows a table textarea with its content up to a bounded height.

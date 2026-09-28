@@ -73,6 +73,20 @@ type EditorWidgetSettingColumn struct {
 	Type EditorWidgetColumnType `json:"type"`
 }
 
+// EditorWidgetTreeField declares one visible field in a hierarchical tree-item editor.
+type EditorWidgetTreeField struct {
+	// Attribute identifies the parallel list attribute storing this field for every item.
+	Attribute string `json:"attribute"`
+	// Label is the human-readable field label.
+	Label string `json:"label"`
+	// Type selects a text, textarea, mention, or date control.
+	Type EditorWidgetSettingType `json:"type"`
+	// Placeholder is optional helper text shown by the field control.
+	Placeholder string `json:"placeholder,omitempty"`
+	// Suggestions supplies optional text-input choices without restricting custom values.
+	Suggestions []string `json:"suggestions,omitempty"`
+}
+
 // EditorWidgetSetting declares one generic control rendered by the visual editor.
 type EditorWidgetSetting struct {
 	// Type selects text, textarea, select, resource, mention, date, or table behavior.
@@ -93,6 +107,22 @@ type EditorWidgetSetting struct {
 	Suggestions []string `json:"suggestions,omitempty"`
 	// CompletionModuleID identifies the owning plugin's editor-completion module for a resource control.
 	CompletionModuleID string `json:"completion_module_id,omitempty"`
+	// Fields declares visible controls for one hierarchical tree item.
+	Fields []EditorWidgetTreeField `json:"fields,omitempty"`
+	// IDAttribute identifies the hidden parallel list containing stable item IDs.
+	IDAttribute string `json:"id_attribute,omitempty"`
+	// ParentAttribute identifies the hidden parallel list containing parent item IDs.
+	ParentAttribute string `json:"parent_attribute,omitempty"`
+	// TitleAttribute identifies the visible item title used in collapsed tree rows.
+	TitleAttribute string `json:"title_attribute,omitempty"`
+	// DescriptionAttribute optionally identifies the visible item description used in collapsed rows.
+	DescriptionAttribute string `json:"description_attribute,omitempty"`
+	// EmptyValue is the non-empty sentinel used to preserve blank cells in parallel list attributes.
+	EmptyValue string `json:"empty_value,omitempty"`
+	// IDPrefix is prepended to automatically generated stable item IDs.
+	IDPrefix string `json:"id_prefix,omitempty"`
+	// MaxDepth bounds tree nesting created by the editor.
+	MaxDepth int `json:"max_depth,omitempty"`
 }
 
 // EditorWidgetLineAnnotations describes direct line-range annotation controls for a rendered card preview.
@@ -367,6 +397,10 @@ func cloneEditorWidget(widget EditorWidgetContribution) EditorWidgetContribution
 		clone.Settings[index].Attributes = append([]string(nil), widget.Settings[index].Attributes...)
 		clone.Settings[index].Columns = append([]EditorWidgetSettingColumn(nil), widget.Settings[index].Columns...)
 		clone.Settings[index].Suggestions = append([]string(nil), widget.Settings[index].Suggestions...)
+		clone.Settings[index].Fields = append([]EditorWidgetTreeField(nil), widget.Settings[index].Fields...)
+		for fieldIndex := range clone.Settings[index].Fields {
+			clone.Settings[index].Fields[fieldIndex].Suggestions = append([]string(nil), widget.Settings[index].Fields[fieldIndex].Suggestions...)
+		}
 	}
 	clone.Constraints = append([]EditorWidgetConstraint(nil), widget.Constraints...)
 	for index := range clone.Constraints {
@@ -675,9 +709,84 @@ func validateEditorWidgetSetting(setting EditorWidgetSetting, attributes map[str
 		return validateEditorWidgetResourceSettingDeclaration(setting, attributes)
 	case EditorWidgetSettingTable:
 		return validateEditorWidgetTableSettingDeclaration(setting, attributes)
+	case EditorWidgetSettingTree:
+		return validateEditorWidgetTreeSettingDeclaration(setting, attributes)
 	default:
 		return fmt.Errorf("unsupported visual editor setting type %q", setting.Type)
 	}
+}
+
+// validateEditorWidgetTreeSettingDeclaration validates one hierarchical list editor and its hidden identity fields.
+func validateEditorWidgetTreeSettingDeclaration(setting EditorWidgetSetting, attributes map[string]EditorWidgetAttribute) error {
+	if setting.Attribute != "" || len(setting.Attributes) < 3 || len(setting.Attributes) > 16 || len(setting.Columns) != 0 ||
+		len(setting.Fields) == 0 || len(setting.Fields) > 12 || setting.CompletionModuleID != "" || len(setting.Suggestions) != 0 {
+		return fmt.Errorf("tree setting %q has invalid shape", setting.Label)
+	}
+	if setting.IDAttribute == "" || setting.ParentAttribute == "" || setting.TitleAttribute == "" ||
+		setting.IDAttribute == setting.ParentAttribute || setting.MaxDepth < 1 || setting.MaxDepth > 32 ||
+		len(setting.EmptyValue) > 16 ||
+		len(setting.IDPrefix) > 64 || (setting.IDPrefix != "" && !validTreeIDPrefix(setting.IDPrefix)) {
+		return fmt.Errorf("tree setting %q has invalid identity or nesting metadata", setting.Label)
+	}
+
+	bound := make(map[string]bool, len(setting.Attributes))
+	separator := ""
+	for _, name := range setting.Attributes {
+		attribute, ok := attributes[name]
+		if !ok || attribute.Type != EditorWidgetAttributeList || bound[name] {
+			return fmt.Errorf("tree setting %q references invalid list attribute %q", setting.Label, name)
+		}
+		if separator == "" {
+			separator = attribute.Separator
+		} else if attribute.Separator != separator {
+			return fmt.Errorf("tree setting %q requires one shared list separator", setting.Label)
+		}
+		if setting.EmptyValue != "" && strings.Contains(setting.EmptyValue, attribute.Separator) {
+			return fmt.Errorf("tree setting %q empty sentinel conflicts with its list separator", setting.Label)
+		}
+		bound[name] = true
+	}
+	for _, name := range []string{setting.IDAttribute, setting.ParentAttribute, setting.TitleAttribute, setting.DescriptionAttribute} {
+		if name != "" && !bound[name] {
+			return fmt.Errorf("tree setting %q references unbound tree attribute %q", setting.Label, name)
+		}
+	}
+
+	visible := make(map[string]bool, len(setting.Fields))
+	for _, field := range setting.Fields {
+		if !bound[field.Attribute] || field.Attribute == setting.IDAttribute || field.Attribute == setting.ParentAttribute || visible[field.Attribute] ||
+			strings.TrimSpace(field.Label) == "" || len(field.Label) > 128 || len(field.Placeholder) > 256 || len(field.Suggestions) > 16 {
+			return fmt.Errorf("tree setting %q has invalid field %q", setting.Label, field.Attribute)
+		}
+		if field.Type != EditorWidgetSettingText && field.Type != EditorWidgetSettingTextarea && field.Type != EditorWidgetSettingMention && field.Type != EditorWidgetSettingDate {
+			return fmt.Errorf("tree setting %q field %q has unsupported type %q", setting.Label, field.Attribute, field.Type)
+		}
+		for _, suggestion := range field.Suggestions {
+			if strings.TrimSpace(suggestion) == "" || len(suggestion) > 128 {
+				return fmt.Errorf("tree setting %q field %q has invalid suggestion", setting.Label, field.Attribute)
+			}
+		}
+		visible[field.Attribute] = true
+	}
+	if !visible[setting.TitleAttribute] {
+		return fmt.Errorf("tree setting %q title attribute must be editable", setting.Label)
+	}
+	if setting.DescriptionAttribute != "" && !visible[setting.DescriptionAttribute] {
+		return fmt.Errorf("tree setting %q description attribute must be editable", setting.Label)
+	}
+	return nil
+}
+
+// validTreeIDPrefix reports whether an automatically generated tree-ID prefix is safe for identifier-like values.
+func validTreeIDPrefix(value string) bool {
+	for _, character := range value {
+		if character >= 'a' && character <= 'z' || character >= 'A' && character <= 'Z' ||
+			character >= '0' && character <= '9' || character == '-' || character == '_' || character == '.' || character == ':' || character == '/' {
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 // validateEditorWidgetResourceSettingDeclaration validates a resource picker and its completion-module reference.
@@ -1059,17 +1168,17 @@ func validEditorWidgetSettingMetadata(setting EditorWidgetSetting) bool {
 
 // validEditorWidgetTextSetting reports whether a text control targets one scalar attribute.
 func validEditorWidgetTextSetting(setting EditorWidgetSetting, attribute EditorWidgetAttribute, found bool) bool {
-	return found && (attribute.Type == EditorWidgetAttributeString || attribute.Type == EditorWidgetAttributeIdentifier) && len(setting.Attributes) == 0 && len(setting.Columns) == 0 && setting.CompletionModuleID == ""
+	return found && (attribute.Type == EditorWidgetAttributeString || attribute.Type == EditorWidgetAttributeIdentifier) && len(setting.Attributes) == 0 && len(setting.Columns) == 0 && len(setting.Fields) == 0 && setting.CompletionModuleID == "" && setting.IDAttribute == "" && setting.ParentAttribute == "" && setting.TitleAttribute == "" && setting.DescriptionAttribute == "" && setting.EmptyValue == "" && setting.IDPrefix == "" && setting.MaxDepth == 0
 }
 
 // validEditorWidgetSelectSetting reports whether a select control targets one enum attribute without extra control data.
 func validEditorWidgetSelectSetting(setting EditorWidgetSetting, attribute EditorWidgetAttribute, found bool) bool {
-	return found && attribute.Type == EditorWidgetAttributeEnum && len(setting.Attributes) == 0 && len(setting.Columns) == 0 && len(setting.Suggestions) == 0 && setting.CompletionModuleID == ""
+	return found && attribute.Type == EditorWidgetAttributeEnum && len(setting.Attributes) == 0 && len(setting.Columns) == 0 && len(setting.Fields) == 0 && len(setting.Suggestions) == 0 && setting.CompletionModuleID == "" && setting.IDAttribute == "" && setting.ParentAttribute == "" && setting.TitleAttribute == "" && setting.DescriptionAttribute == "" && setting.EmptyValue == "" && setting.IDPrefix == "" && setting.MaxDepth == 0
 }
 
 // validEditorWidgetResourceSetting reports whether a resource control targets one scalar attribute without unrelated control data.
 func validEditorWidgetResourceSetting(setting EditorWidgetSetting, attribute EditorWidgetAttribute, found bool) bool {
-	return found && (attribute.Type == EditorWidgetAttributeString || attribute.Type == EditorWidgetAttributeIdentifier) && len(setting.Attributes) == 0 && len(setting.Columns) == 0 && len(setting.Suggestions) == 0
+	return found && (attribute.Type == EditorWidgetAttributeString || attribute.Type == EditorWidgetAttributeIdentifier) && len(setting.Attributes) == 0 && len(setting.Columns) == 0 && len(setting.Fields) == 0 && len(setting.Suggestions) == 0 && setting.IDAttribute == "" && setting.ParentAttribute == "" && setting.TitleAttribute == "" && setting.DescriptionAttribute == "" && setting.EmptyValue == "" && setting.IDPrefix == "" && setting.MaxDepth == 0
 }
 
 // validEditorWidgetTableShape reports whether a table control has a bounded one-to-one attribute and column layout.
@@ -1077,7 +1186,9 @@ func validEditorWidgetTableShape(setting EditorWidgetSetting) bool {
 	compound := setting.RowSeparator != "" && len(setting.Attributes) == 1 && len(setting.Columns) >= 2
 	parallel := setting.RowSeparator == "" && len(setting.Attributes) == len(setting.Columns)
 	return setting.Attribute == "" && len(setting.Attributes) > 0 && (compound || parallel) &&
-		len(setting.Columns) <= 4 && len(setting.Suggestions) == 0 && setting.CompletionModuleID == "" &&
+		len(setting.Columns) <= 4 && len(setting.Fields) == 0 && len(setting.Suggestions) == 0 && setting.CompletionModuleID == "" &&
+		setting.IDAttribute == "" && setting.ParentAttribute == "" && setting.TitleAttribute == "" && setting.DescriptionAttribute == "" &&
+		setting.EmptyValue == "" && setting.IDPrefix == "" && setting.MaxDepth == 0 &&
 		(setting.RowSeparator == "" || setting.RowSeparator == ":")
 }
 
