@@ -21,6 +21,7 @@ type Active = {
   finish: () => void;
   ready: Promise<void>;
   cleanup: () => void;
+  restoreSource: () => void;
 };
 const active = new Map<HTMLElement, Active>();
 let catalog: Module[] | undefined;
@@ -172,7 +173,7 @@ function remove(block: HTMLElement): void {
   if (!state) return;
   state.cleanup();
   state.frame.remove();
-  state.source.hidden = false;
+  state.restoreSource();
   state.finish();
   active.delete(block);
 }
@@ -235,8 +236,22 @@ function mount(block: HTMLElement, module: Module): Promise<void> {
   const html = htmlInput
     ? prepareHTML(source, transfer.signal).catch(() => null)
     : Promise.resolve("");
+  const sourceDisplay = source.style.getPropertyValue("display");
+  const sourceDisplayPriority = source.style.getPropertyPriority("display");
+  const restoreSource = () => {
+    source.hidden = false;
+    if (sourceDisplay)
+      source.style.setProperty(
+        "display",
+        sourceDisplay,
+        sourceDisplayPriority,
+      );
+    else source.style.removeProperty("display");
+  };
   const frame = document.createElement("iframe");
-  const inline = block instanceof HTMLSpanElement;
+  // Render according to the plugin block's declared presentation. Some block
+  // plugins use a span as their sanitizer-safe host but style it as a block.
+  const inline = getComputedStyle(block).display.startsWith("inline");
   frame.className = inline
     ? "kumbuka-plugin-frame kumbuka-plugin-frame-inline"
     : "kumbuka-plugin-frame";
@@ -248,6 +263,7 @@ function mount(block: HTMLElement, module: Module): Promise<void> {
     "camera 'none'; microphone 'none'; geolocation 'none'",
   );
   frame.src = module.frame_url;
+  frame.style.visibility = "hidden";
   const token = Array.from(crypto.getRandomValues(new Uint8Array(16)), (byte) =>
     byte.toString(16).padStart(2, "0"),
   ).join("");
@@ -314,6 +330,8 @@ function mount(block: HTMLElement, module: Module): Promise<void> {
       )
         frame.style.width = `${Math.min(480, Math.max(72, data.width))}px`;
       source.hidden = true;
+      source.style.setProperty("display", "none", "important");
+      frame.style.visibility = "visible";
       frame.dataset.pluginReady = "true";
       clearTimeout(timeout);
       finish();
@@ -333,6 +351,7 @@ function mount(block: HTMLElement, module: Module): Promise<void> {
       clearTimeout(timeout);
       window.removeEventListener("message", message);
     },
+    restoreSource,
   });
   block.append(frame);
   return ready;
@@ -439,7 +458,12 @@ async function prepareHTML(
       reader.readAsDataURL(blob);
     });
   }
-  const html = copy.innerHTML;
+  // Tasks 1.3.x validates its fallback root before reading the sanitized
+  // metadata below it. Preserve that root while keeping the established inner
+  // HTML contract for all other browser modules.
+  const html = copy.classList.contains("kumbuka-task-fallback")
+    ? copy.outerHTML
+    : copy.innerHTML;
   if (html.length > 1_000_000) throw new Error("HTML input too large");
   return html;
 }

@@ -3,6 +3,7 @@ package markdown
 import (
 	"context"
 	"errors"
+	"sync"
 
 	"github.com/kumbuka-me/kumbuka/pkg/plugin"
 	"github.com/kumbuka-me/sdk"
@@ -49,22 +50,42 @@ func (r *Renderer) RenderWidgets(
 		Features:     plan.RenderFeatures(features),
 	}
 	request := plugin.WidgetRequest{Surface: surface, Page: page}
-	result := make([]RenderedWidget, 0, len(plan.Widgets))
 	hidden := make(map[string]bool, len(hiddenWidgets))
 	for _, key := range hiddenWidgets {
 		hidden[key] = true
 	}
 
+	bindings := make([]plugin.WidgetBinding, 0, len(plan.Widgets))
 	for _, binding := range plan.Widgets {
 		if binding.Surface != surface || hidden[plugin.WidgetKey(binding.PluginID, binding.ModuleID)] {
 			continue
 		}
-		rendered, err := plugin.Guard(binding.PluginID, func() (plugin.WidgetResult, error) {
-			return binding.Module.Render(widgetContext, request)
-		})
-		if err != nil {
-			return nil, err
+		bindings = append(bindings, binding)
+	}
+
+	// Widgets are independent contributions. Render them concurrently, then
+	// sanitize and collect them in registry order for deterministic output.
+	rendered := make([]plugin.WidgetResult, len(bindings))
+	renderErrors := make([]error, len(bindings))
+	var wait sync.WaitGroup
+	wait.Add(len(bindings))
+	for index := range bindings {
+		go func() {
+			defer wait.Done()
+			binding := bindings[index]
+			rendered[index], renderErrors[index] = plugin.Guard(binding.PluginID, func() (plugin.WidgetResult, error) {
+				return binding.Module.Render(widgetContext, request)
+			})
+		}()
+	}
+	wait.Wait()
+
+	result := make([]RenderedWidget, 0, len(bindings))
+	for index, binding := range bindings {
+		if renderErrors[index] != nil {
+			return nil, renderErrors[index]
 		}
+		rendered := rendered[index]
 		html := r.sanitizer.Sanitize(rendered.HTML)
 		if html == "" && len(rendered.Actions) == 0 {
 			continue

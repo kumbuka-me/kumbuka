@@ -25,6 +25,8 @@
       <script src="{{ route "/assets/v-" }}{{ .AssetVersion }}/js/theme-init.js"></script>
       <script id="kumbuka-plugin-modules" type="application/json">{{ .PluginModules }}</script>
       <script type="module"
+              src="{{ route "/assets/v-" }}{{ .AssetVersion }}/js/plugin-init.js"></script>
+      <script type="module"
               src="{{ route "/assets/v-" }}{{ .AssetVersion }}/js/main.js"></script>
     </head>
 <body data-route-prefix="{{ .RoutePrefix }}"

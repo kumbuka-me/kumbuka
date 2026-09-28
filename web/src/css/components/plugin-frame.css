@@ -12,6 +12,12 @@
   display: none;
 }
 
+/* Plugin presentation styles can assign display to their static fallback. The
+   host owns the handoff to the interactive frame, so hidden must win. */
+[data-kumbuka-fallback][hidden] {
+  display: none !important;
+}
+
 .kumbuka-plugin-frame-inline {
   display: inline-block;
   width: 20rem;

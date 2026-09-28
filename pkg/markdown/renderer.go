@@ -324,10 +324,13 @@ func (r *Renderer) renderPage(
 		return RenderedPage{}, err
 	}
 	// Preserve the established contents list: generated macro headings are not
-	// part of the source page's navigation. Heading fragments are sanitized
-	// individually during extraction, avoiding a second full-document sanitize.
+	// part of the source page's navigation. Sanitize the document once before
+	// extracting all headings; per-heading sanitization scales poorly.
+	stop = options.pipeline.trace.Measure("heading_sanitize")
+	headingHTML := r.sanitizer.Sanitize(raw)
+	stop()
 	stop = options.pipeline.trace.Measure("heading_extract")
-	contents := extractHeadings(raw, r.sanitizer)
+	contents := extractHeadings(headingHTML)
 	stop()
 	stop = options.pipeline.trace.Measure("macro_expand")
 	raw, err = options.pipeline.expandMacros(raw, invocations, r.moduleContext(resolve, options))
@@ -622,128 +625,63 @@ func rewriteWikiLinksLine(
 	return output.String()
 }
 
-// htmlHeadingLevel returns the numeric level of an h1-h6 tag name.
-func htmlHeadingLevel(name string) (level int, ok bool) {
-	if len(name) != 2 || name[0] != 'h' {
+// htmlHeadingLevel returns the numeric level of an h1-h6 element.
+func htmlHeadingLevel(node *xhtml.Node) (level int, ok bool) {
+	if node.Type != xhtml.ElementNode || len(node.Data) != 2 || node.Data[0] != 'h' {
 		return 0, false
 	}
-	digit := name[1]
+	digit := node.Data[1]
 	if digit < '1' || digit > '6' {
 		return 0, false
 	}
 	return int(digit - '0'), true
 }
 
-// extractHeadings extracts rendered heading IDs and labels for page navigation.
-// It scans the complete document without building a DOM and sanitizes only the
-// small heading fragments before reading their IDs and text.
-func extractHeadings(rendered string, sanitizer *bluemonday.Policy) []Heading {
-	tokenizer := xhtml.NewTokenizer(strings.NewReader(rendered))
+// extractHeadings extracts heading IDs and labels from already sanitized HTML.
+func extractHeadings(rendered string) []Heading {
+	document, err := xhtml.Parse(strings.NewReader(rendered))
+	if err != nil {
+		return nil
+	}
+
 	var contents []Heading
-	offset := 0
-	headingStart := -1
-	headingTag := ""
-
-	for {
-		tokenType := tokenizer.Next()
-		if tokenType == xhtml.ErrorToken {
-			if headingStart >= 0 && tokenizer.Err() == io.EOF {
-				if heading, ok := sanitizedHeading(rendered[headingStart:offset], sanitizer); ok {
-					contents = append(contents, heading)
-				}
+	var walk func(*xhtml.Node)
+	walk = func(node *xhtml.Node) {
+		if level, ok := htmlHeadingLevel(node); ok {
+			if id := htmlAttribute(node, "id"); id != "" {
+				contents = append(contents, Heading{Level: level, ID: id, Title: strings.TrimSpace(htmlText(node))})
 			}
-			return contents
 		}
-
-		raw := tokenizer.Raw()
-		start := offset
-		offset += len(raw)
-
-		switch tokenType {
-		case xhtml.StartTagToken:
-			name, _ := tokenizer.TagName()
-			tag := string(name)
-			if _, ok := htmlHeadingLevel(tag); !ok {
-				continue
-			}
-			if headingStart >= 0 {
-				if heading, ok := sanitizedHeading(rendered[headingStart:start], sanitizer); ok {
-					contents = append(contents, heading)
-				}
-			}
-			headingStart = start
-			headingTag = tag
-
-		case xhtml.EndTagToken:
-			if headingStart < 0 {
-				continue
-			}
-			name, _ := tokenizer.TagName()
-			if string(name) != headingTag {
-				continue
-			}
-			if heading, ok := sanitizedHeading(rendered[headingStart:offset], sanitizer); ok {
-				contents = append(contents, heading)
-			}
-			headingStart = -1
-			headingTag = ""
+		for child := node.FirstChild; child != nil; child = child.NextSibling {
+			walk(child)
 		}
 	}
+	walk(document)
+	return contents
 }
 
-// sanitizedHeading sanitizes one heading fragment and extracts its ID and text.
-func sanitizedHeading(fragment string, sanitizer *bluemonday.Policy) (Heading, bool) {
-	if sanitizer == nil || fragment == "" {
-		return Heading{}, false
-	}
-
-	tokenizer := xhtml.NewTokenizer(strings.NewReader(sanitizer.Sanitize(fragment)))
-	level := 0
-	id := ""
-	tag := ""
-	var title strings.Builder
-
-	for {
-		switch tokenType := tokenizer.Next(); tokenType {
-		case xhtml.ErrorToken:
-			return Heading{}, false
-
-		case xhtml.StartTagToken:
-			token := tokenizer.Token()
-			if level != 0 {
-				continue
-			}
-			var ok bool
-			level, ok = htmlHeadingLevel(token.Data)
-			if !ok {
-				level = 0
-				continue
-			}
-			tag = token.Data
-			for _, attribute := range token.Attr {
-				if attribute.Key == "id" {
-					id = attribute.Val
-					break
-				}
-			}
-
-		case xhtml.TextToken:
-			if level != 0 {
-				title.WriteString(tokenizer.Token().Data)
-			}
-
-		case xhtml.EndTagToken:
-			if level == 0 {
-				continue
-			}
-			name, _ := tokenizer.TagName()
-			if string(name) != tag {
-				continue
-			}
-			if id == "" {
-				return Heading{}, false
-			}
-			return Heading{Level: level, ID: id, Title: strings.TrimSpace(title.String())}, true
+// htmlAttribute returns one HTML node attribute by key.
+func htmlAttribute(node *xhtml.Node, key string) string {
+	for _, attribute := range node.Attr {
+		if attribute.Key == key {
+			return attribute.Val
 		}
 	}
+	return ""
+}
+
+// htmlText returns the concatenated text content below an HTML node.
+func htmlText(node *xhtml.Node) string {
+	var output strings.Builder
+	var walk func(*xhtml.Node)
+	walk = func(current *xhtml.Node) {
+		if current.Type == xhtml.TextNode {
+			output.WriteString(current.Data)
+		}
+		for child := current.FirstChild; child != nil; child = child.NextSibling {
+			walk(child)
+		}
+	}
+	walk(node)
+	return output.String()
 }

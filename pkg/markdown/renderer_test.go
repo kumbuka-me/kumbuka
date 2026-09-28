@@ -175,11 +175,11 @@ func TestRenderPageExtractsHeadingTextWithoutHTMLMarkup(t *testing.T) {
 	assert.Equal(t, "Child code", rendered.Contents[1].Title)
 }
 
-func TestExtractHeadingsSanitizesFragmentsWithoutParsingWholeDocument(t *testing.T) {
+func TestExtractHeadingsReadsSanitizedDocument(t *testing.T) {
 	t.Parallel()
 
-	rendered := `<p>before</p><h2 id="safe" onclick="bad()">Visible <em>title</em></h2><p>after</p>`
-	contents := extractHeadings(rendered, newSanitizer())
+	rendered := newSanitizer().Sanitize(`<p>before</p><h2 id="safe" onclick="bad()">Visible <em>title</em></h2><p>after</p>`)
+	contents := extractHeadings(rendered)
 
 	require.Len(t, contents, 1)
 	assert.Equal(t, Heading{Level: 2, ID: "safe", Title: "Visible title"}, contents[0])

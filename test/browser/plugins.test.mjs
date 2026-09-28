@@ -9,6 +9,57 @@ import {
   pluginRoute,
 } from "./plugin-fixture.mjs";
 
+test("plugin frames swap atomically and respect block presentation", async () => {
+  const browser = await chromium.launch({
+    channel: process.env.BROWSER_CHANNEL || "chrome",
+    headless: true,
+  });
+  try {
+    const page = await browser.newPage();
+    const module = {
+      plugin_id: "me.kumbuka.tasks",
+      module_id: "task-ui",
+      name: "Tasks",
+      digest: "b".repeat(64),
+    };
+    await page.route("http://task.test/**", async (route) => {
+      const path = new URL(route.request().url()).pathname;
+      if (
+        await pluginRoute(route, {
+          module,
+          fakeJavaScript: `globalThis.kumbukaPlugin={async render(root,context){const template=document.createElement('template');template.innerHTML=context.html;if(!template.content.querySelector('.kumbuka-task-fallback'))throw new Error('missing task fallback root');await new Promise(resolve=>setTimeout(resolve,150));root.textContent='Interactive task';}};`,
+        })
+      )
+        return;
+      if (path.startsWith("/assets/")) {
+        await route.fulfill({
+          contentType: path.endsWith(".css") ? "text/css" : "text/javascript",
+          body: await readFile(
+            new URL("../../web/dist/" + path.slice(8), import.meta.url),
+          ),
+        });
+        return;
+      }
+      await route.fulfill({
+        contentType: "text/html",
+        body: `<link rel="stylesheet" href="/assets/css/app.css"><style>.prose [data-kumbuka-fallback]{display:flex}</style><body><main class="prose">${pluginCatalog(module)}<span style="display:block" data-kumbuka-plugin="me.kumbuka.tasks" data-kumbuka-module="task-ui" data-kumbuka-input="html"><span class="kumbuka-task-fallback" data-kumbuka-fallback>Task fallback</span></span></main><script type="module">import {renderPluginModules} from '/assets/js/plugins/loader.js';void renderPluginModules();</script></body>`,
+      });
+    });
+
+    await page.goto("http://task.test/");
+    const frame = page.locator("iframe");
+    await frame.waitFor({ state: "attached" });
+    assert.equal(await frame.evaluate((node) => getComputedStyle(node).visibility), "hidden");
+    assert.equal(await page.getByText("Task fallback").isVisible(), true);
+    await page.locator("iframe[data-plugin-ready]").waitFor();
+    assert.equal(await frame.evaluate((node) => getComputedStyle(node).visibility), "visible");
+    assert.equal(await page.getByText("Task fallback").isVisible(), false);
+    assert.equal(await frame.evaluate((node) => node.classList.contains("kumbuka-plugin-frame-inline")), false);
+  } finally {
+    await browser.close();
+  }
+});
+
 test("real Mermaid is isolated and plugin changes require a page reload", async () => {
   const browser = await chromium.launch({
     channel: process.env.BROWSER_CHANNEL || "chrome",

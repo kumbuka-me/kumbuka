@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/kumbuka-me/kumbuka/pkg/plugin"
 	"github.com/kumbuka-me/sdk"
@@ -36,6 +37,19 @@ type panickingWidget struct{}
 // Render panics so the shared plugin guard can convert it into an error.
 func (panickingWidget) Render(_ plugin.Context, _ plugin.WidgetRequest) (plugin.WidgetResult, error) {
 	panic("widget panic")
+}
+
+// coordinatedWidget blocks until its peer has also started rendering.
+type coordinatedWidget struct {
+	id      string
+	started chan<- string
+	release <-chan struct{}
+}
+
+func (w coordinatedWidget) Render(_ plugin.Context, _ plugin.WidgetRequest) (plugin.WidgetResult, error) {
+	w.started <- w.id
+	<-w.release
+	return plugin.WidgetResult{HTML: `<p>` + w.id + `</p>`}, nil
 }
 
 func TestRenderWidgetsUsesSurfaceAndCentralSanitizer(t *testing.T) {
@@ -101,6 +115,48 @@ func TestRenderWidgetsSkipsHiddenPluginWidgets(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, widgets, 1)
 	assert.Equal(t, "second", widgets[0].ModuleID)
+}
+
+func TestRenderWidgetsRunsIndependentWidgetsConcurrentlyAndPreservesOrder(t *testing.T) {
+	t.Parallel()
+
+	started := make(chan string, 2)
+	release := make(chan struct{})
+	registry := &plugin.Registry{}
+	require.NoError(t, registry.Register(plugin.Descriptor{ID: "io.example.widget", Name: "Widget"}, plugin.Contributions{
+		Widgets: []plugin.WidgetModule{
+			{ID: "first", Surface: "page.details", Order: 10, Widget: coordinatedWidget{id: "first", started: started, release: release}},
+			{ID: "second", Surface: "page.details", Order: 20, Widget: coordinatedWidget{id: "second", started: started, release: release}},
+		},
+	}))
+	renderer := NewWithRegistry(registry)
+
+	done := make(chan struct{})
+	var widgets []RenderedWidget
+	var renderErr error
+	go func() {
+		widgets, renderErr = renderer.RenderWidgets(context.Background(), "", "page.details", nil, nil, nil, nil)
+		close(done)
+	}()
+
+	firstStarted := <-started
+	var secondStarted string
+	select {
+	case secondStarted = <-started:
+	case <-time.After(time.Second):
+		close(release)
+		<-done
+		t.Fatal("second widget did not start while the first widget was blocked")
+	}
+	seen := map[string]bool{firstStarted: true, secondStarted: true}
+	close(release)
+	<-done
+
+	require.NoError(t, renderErr)
+	assert.Equal(t, map[string]bool{"first": true, "second": true}, seen)
+	require.Len(t, widgets, 2)
+	assert.Equal(t, "first", widgets[0].ModuleID)
+	assert.Equal(t, "second", widgets[1].ModuleID)
 }
 
 func TestRenderWidgetsAddsPluginContextToFailures(t *testing.T) {

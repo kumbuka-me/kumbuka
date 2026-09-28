@@ -477,7 +477,7 @@ function setupAuthenticationSettings(): void {
 // Wires the deployment-gated browser performance controls.
 function setupPerformanceDiagnostics(): void {
   const panel = document.querySelector<HTMLElement>(
-    "[data-performance-diagnostics]",
+    ".configuration-performance[data-performance-diagnostics]",
   );
   if (!panel) return;
 

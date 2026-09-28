@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestPrepareMaterializesStableMarkdown(t *testing.T) {
+func TestPrepareAnalyzesStaticMarkdownWithoutRenderingOnSave(t *testing.T) {
 	t.Parallel()
 
 	renderer := md.NewWithRegistry(&plugin.Registry{})
@@ -20,10 +20,9 @@ func TestPrepareMaterializesStableMarkdown(t *testing.T) {
 
 	require.NoError(t, err)
 	require.NotNil(t, usage)
-	assert.Contains(t, render.HTML, `<h1 id="guide">Guide</h1>`)
-	assert.NotEmpty(t, render.Fingerprint)
-	require.Len(t, render.Contents, 1)
-	assert.Equal(t, "guide", render.Contents[0].ID)
+	assert.Empty(t, render.HTML)
+	assert.Empty(t, render.Fingerprint)
+	assert.Empty(t, render.Contents)
 }
 
 func TestPrepareLeavesDynamicMarkdownUnmaterialized(t *testing.T) {

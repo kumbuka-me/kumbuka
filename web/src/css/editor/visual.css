@@ -844,6 +844,12 @@
   font-size: 0.82rem;
 }
 
+.visual-widget-mention-menu {
+  top: calc(100% + 4px);
+  right: 0;
+  left: 0;
+}
+
 .visual-widget-node-block > .callout,
 .visual-widget-node-block > .markdown-tabs,
 .visual-widget-node-block > .subpage-toc,
