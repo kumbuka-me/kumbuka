@@ -27,7 +27,7 @@ test("plugin frames swap atomically and respect block presentation", async () =>
       if (
         await pluginRoute(route, {
           module,
-          fakeJavaScript: `globalThis.kumbukaPlugin={async render(root,context){const template=document.createElement('template');template.innerHTML=context.html;if(!template.content.querySelector('.kumbuka-task-fallback'))throw new Error('missing task fallback root');await new Promise(resolve=>setTimeout(resolve,150));root.textContent='Interactive task';}};`,
+          fakeJavaScript: `globalThis.kumbukaPlugin={async render(root,context){const template=document.createElement('template');template.innerHTML=context.html;if(!template.content.querySelector('.kumbuka-task-list'))throw new Error('missing task list root');await new Promise(resolve=>setTimeout(resolve,150));root.textContent='Interactive task';}};`,
         })
       )
         return;
@@ -42,7 +42,7 @@ test("plugin frames swap atomically and respect block presentation", async () =>
       }
       await route.fulfill({
         contentType: "text/html",
-        body: `<link rel="stylesheet" href="/assets/css/app.css"><style>.prose [data-kumbuka-fallback]{display:flex}</style><body><main class="prose">${pluginCatalog(module)}<span style="display:block" data-kumbuka-plugin="me.kumbuka.tasks" data-kumbuka-module="task-ui" data-kumbuka-input="html"><span class="kumbuka-task-fallback" data-kumbuka-fallback>Task fallback</span></span></main><script type="module">import {renderPluginModules} from '/assets/js/plugins/loader.js';void renderPluginModules();</script></body>`,
+        body: `<link rel="stylesheet" href="/assets/css/app.css"><style>.prose [data-kumbuka-fallback]{display:flex}</style><body><main class="prose">${pluginCatalog(module)}<span style="display:block" data-kumbuka-plugin="me.kumbuka.tasks" data-kumbuka-module="task-ui" data-kumbuka-input="html"><span class="kumbuka-task-list" data-kumbuka-fallback><span class="kumbuka-task-fallback">Task fallback</span></span></span></main><script type="module">import {renderPluginModules} from '/assets/js/plugins/loader.js';void renderPluginModules();</script></body>`,
       });
     });
 

@@ -454,10 +454,11 @@ async function prepareHTML(
       reader.readAsDataURL(blob);
     });
   }
-  // Tasks 1.3.x validates its fallback root before reading the sanitized
-  // metadata below it. Preserve that root while keeping the established inner
-  // HTML contract for all other browser modules.
-  const html = copy.classList.contains("kumbuka-task-fallback")
+  // Tasks validates its fallback root before reading the sanitized metadata
+  // below it. Preserve both the legacy single-task root and the current task
+  // list root while keeping the established inner HTML contract for all other
+  // browser modules.
+  const html = copy.matches(".kumbuka-task-fallback, .kumbuka-task-list")
     ? copy.outerHTML
     : copy.innerHTML;
   if (html.length > 1_000_000) throw new Error("HTML input too large");
