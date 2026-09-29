@@ -14,6 +14,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -32,6 +33,7 @@ import (
 
 // pluginUpdateServiceStub provides controllable plugin update service behavior for tests.
 type pluginUpdateServiceStub struct {
+	mu sync.Mutex
 	// updates configures or records the updates value used by the fixture.
 	updates map[string]domain.PluginRelease
 	// archive configures or records the archive value used by the fixture.
@@ -60,6 +62,8 @@ type pluginUpdateServiceStub struct {
 
 // Refresh supports plugin administration regression coverage.
 func (s *pluginUpdateServiceStub) Refresh(context.Context) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.refreshes++
 	return s.refreshErr
 }
@@ -71,18 +75,24 @@ func (s *pluginUpdateServiceStub) Available() (map[string]domain.PluginRelease, 
 
 // Download records the requested release and returns the configured archive.
 func (s *pluginUpdateServiceStub) Download(ctx context.Context, id, version string) ([]byte, error) {
+	s.mu.Lock()
 	s.downloadedID = id
 	s.downloadedVer = version
 	s.downloads = append(s.downloads, id+"@"+version)
-	if s.onDownload != nil {
-		if err := s.onDownload(ctx, id); err != nil {
+	onDownload := s.onDownload
+	downloadErr := s.downloadErr
+	archive, ok := s.archives[id]
+	if !ok {
+		archive = s.archive
+	}
+	s.mu.Unlock()
+
+	if onDownload != nil {
+		if err := onDownload(ctx, id); err != nil {
 			return nil, err
 		}
 	}
-	if archive, ok := s.archives[id]; ok {
-		return archive, s.downloadErr
-	}
-	return s.archive, s.downloadErr
+	return archive, downloadErr
 }
 
 // Status supports plugin administration regression coverage.
@@ -478,7 +488,7 @@ func TestAdminPluginCatalogUpdateAllContinuesAfterOnePluginFails(t *testing.T) {
 	assert.NotContains(t, logs.String(), "event=plugin.update plugin_id="+second.Manifest.ID)
 	assert.Contains(t, logs.String(), "event=plugin.update plugin_id="+third.Manifest.ID)
 	assert.Contains(t, logs.String(), "event=plugin.update_all_partial")
-	assert.Equal(t, []string{
+	assert.ElementsMatch(t, []string{
 		first.Manifest.ID + "@9.9.9",
 		second.Manifest.ID + "@8.8.8",
 		third.Manifest.ID + "@7.7.7",
@@ -529,7 +539,7 @@ func TestAdminPluginCatalogUpdateAllContinuesPastInvalidPackage(t *testing.T) {
 	assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
 	assert.Contains(t, w.Body.String(), "1 update(s) failed")
 	assert.Contains(t, logs.String(), "event=plugin.update plugin_id="+details.Manifest.ID)
-	assert.Equal(t, []string{callouts.Manifest.ID + "@9.9.9", details.Manifest.ID + "@8.8.8"}, updates.downloads)
+	assert.ElementsMatch(t, []string{callouts.Manifest.ID + "@9.9.9", details.Manifest.ID + "@8.8.8"}, updates.downloads)
 	require.Len(t, manager.Plugins(), 2)
 }
 

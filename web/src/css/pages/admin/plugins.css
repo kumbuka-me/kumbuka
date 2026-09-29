@@ -456,6 +456,16 @@
   font-weight: 700;
 }
 
+.plugin-update-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 5px;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+}
+
 [data-plugin-update-progress][data-plugin-update-state="updated"] {
   color: var(--success);
 }

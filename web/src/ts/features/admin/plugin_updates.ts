@@ -10,9 +10,9 @@ type PluginUpdateProgress = {
   label: HTMLElement;
 };
 
-type PluginUpdateRowState =
-  "queued" | "updating" | "updated" | "failed" | "approval";
+type PluginUpdateRowState = "updating" | "updated" | "failed" | "approval";
 
+const pluginUpdateConcurrency = 4;
 const boundPluginUpdateForms = new WeakSet<HTMLFormElement>();
 
 // pluginUpdateForms returns the catalog update forms rendered below one DOM root.
@@ -165,10 +165,15 @@ function pluginPermissionApproval(
   return null;
 }
 
-// staticPermissionApprovalCount returns server-rendered approval markers already present on the plugin list.
-function staticPermissionApprovalCount(): number {
-  return document.querySelectorAll("[data-plugin-permission-approval-required]")
-    .length;
+// permissionApprovalCount returns both server-rendered and in-page approval states currently visible on the plugin list.
+function permissionApprovalCount(): number {
+  return (
+    document.querySelectorAll("[data-plugin-permission-approval-required]")
+      .length +
+    document.querySelectorAll(
+      '[data-plugin-update-progress][data-plugin-update-state="approval"]',
+    ).length
+  );
 }
 
 // pluginDetailDialog returns one plugin detail dialog without relying on a CSS-escaped plugin ID.
@@ -237,7 +242,7 @@ async function updateSinglePlugin(form: HTMLFormElement): Promise<void> {
           setPluginRowProgress(
             rowUpdate,
             "approval",
-            "Permission approval required",
+            "Permission approval required · Review permissions",
           );
         }
         terminal = true;
@@ -263,7 +268,7 @@ async function updateSinglePlugin(form: HTMLFormElement): Promise<void> {
   }
 }
 
-// availablePluginUpdates returns updateable rows in stable plugin-ID order.
+// availablePluginUpdates returns updateable rows in stable plugin-ID order. Rows already waiting for permission approval remain untouched until the administrator reviews them.
 function availablePluginUpdates(): PluginUpdateProgress[] {
   const updates: PluginUpdateProgress[] = [];
 
@@ -272,27 +277,33 @@ function availablePluginUpdates(): PluginUpdateProgress[] {
   )) {
     const id = row.dataset.pluginDetailOpen?.trim();
     if (!id) continue;
+    if (row.querySelector("[data-plugin-permission-approval-required]"))
+      continue;
 
     const availableVersion = row.querySelector<HTMLElement>(
-      ".plugin-update-version:not([data-plugin-update-progress]):not([data-plugin-permission-approval-required])",
+      "[data-plugin-update-available]",
     );
-    const versionCell = availableVersion?.closest<HTMLTableCellElement>("td");
-    const installedVersion = versionCell?.querySelector<HTMLSpanElement>(
-      "span:not(.plugin-update-spinner)",
+    const installedVersion = row.querySelector<HTMLSpanElement>(
+      "[data-plugin-installed-version]",
     );
-    if (!availableVersion || !versionCell || !installedVersion) continue;
+    const nameCell = row.querySelector<HTMLTableCellElement>(
+      "[data-plugin-name-cell]",
+    );
+    if (!availableVersion || !installedVersion || !nameCell) continue;
 
-    const targetVersion = (availableVersion.textContent || "")
-      .trim()
-      .replace(/\s+available$/i, "");
+    const targetVersion =
+      availableVersion.dataset.pluginUpdateVersion?.trim() ||
+      (availableVersion.textContent || "").trim().replace(/\s+available$/i, "");
     if (!targetVersion) continue;
 
-    let progress = versionCell.querySelector<HTMLElement>(
+    let progress = nameCell.querySelector<HTMLElement>(
       "[data-plugin-update-progress]",
     );
+    if (progress?.dataset.pluginUpdateState === "approval") continue;
+
     if (!progress) {
       progress = document.createElement("small");
-      progress.className = "plugin-update-version";
+      progress.className = "plugin-update-status";
       progress.dataset.pluginUpdateProgress = "";
       progress.setAttribute("role", "status");
       progress.setAttribute("aria-live", "polite");
@@ -307,8 +318,8 @@ function availablePluginUpdates(): PluginUpdateProgress[] {
       const label = document.createElement("span");
       label.dataset.pluginUpdateProgressLabel = "";
 
-      progress.append(spinner, document.createTextNode(" "), label);
-      versionCell.append(progress);
+      progress.append(spinner, label);
+      nameCell.append(progress);
     }
 
     const spinner = progress.querySelector<HTMLElement>(
@@ -334,7 +345,7 @@ function availablePluginUpdates(): PluginUpdateProgress[] {
   return updates;
 }
 
-// setPluginRowProgress updates the visible state for one plugin in a bulk update.
+// setPluginRowProgress updates the visible state below the plugin name and description.
 function setPluginRowProgress(
   update: PluginUpdateProgress,
   state: PluginUpdateRowState,
@@ -360,7 +371,50 @@ function pluginUpdateURL(pluginID: string): string {
   );
 }
 
-// updateAllPlugins runs every update sequentially so one plugin failure cannot prevent later plugins from being attempted and each row can expose real progress.
+// updatePluginInBulk applies one independent catalog update. Its terminal state never throws into another worker.
+async function updatePluginInBulk(
+  update: PluginUpdateProgress,
+): Promise<"updated" | "approval" | "failed"> {
+  setPluginRowProgress(
+    update,
+    "updating",
+    `Updating to ${update.targetVersion}…`,
+  );
+
+  let response: Response;
+  let result: Document;
+  try {
+    ({ response, result } = await requestPluginUpdate(
+      pluginUpdateURL(update.id),
+    ));
+  } catch {
+    setPluginRowProgress(update, "failed", "Update failed · Retry available");
+    return "failed";
+  }
+
+  if (
+    response.status === 409 &&
+    pluginPermissionApproval(result, update.id) !== null
+  ) {
+    syncPermissionApprovalDetail(update.id, result);
+    setPluginRowProgress(
+      update,
+      "approval",
+      "Permission approval required · Review permissions",
+    );
+    return "approval";
+  }
+
+  if (!response.ok || !response.redirected) {
+    setPluginRowProgress(update, "failed", "Update failed · Retry available");
+    return "failed";
+  }
+
+  markPluginUpdated(update);
+  return "updated";
+}
+
+// updateAllPlugins runs up to four independent updates at once. Package downloads and validation overlap; the server-side plugin manager serializes the final lifecycle publication. A failed or approval-blocked plugin never stops another worker.
 async function updateAllPlugins(form: HTMLFormElement): Promise<void> {
   if (form.dataset.pluginUpdateRunning === "true") return;
 
@@ -369,7 +423,7 @@ async function updateAllPlugins(form: HTMLFormElement): Promise<void> {
 
   const updates = availablePluginUpdates();
   if (updates.length === 0) {
-    const approvals = staticPermissionApprovalCount();
+    const approvals = permissionApprovalCount();
     setPluginUpdatePending(
       form,
       false,
@@ -383,68 +437,35 @@ async function updateAllPlugins(form: HTMLFormElement): Promise<void> {
 
   form.dataset.pluginUpdateRunning = "true";
   clearPluginUpdateProblem(form);
-
-  for (const update of updates) {
-    setPluginRowProgress(
-      update,
-      "queued",
-      `Queued for ${update.targetVersion}`,
-    );
-  }
-
   controls.submit.disabled = true;
   form.setAttribute("aria-busy", "true");
   controls.spinner.hidden = false;
+  controls.label.textContent = `Updating 0/${updates.length}…`;
 
+  let nextIndex = 0;
+  let finished = 0;
   let completed = 0;
   let approvals = 0;
   let failed = 0;
 
-  try {
-    for (let index = 0; index < updates.length; index++) {
-      const update = updates[index]!;
-      controls.label.textContent = `Updating ${index + 1}/${updates.length}…`;
-      setPluginRowProgress(
-        update,
-        "updating",
-        `Updating to ${update.targetVersion}…`,
-      );
+  const worker = async (): Promise<void> => {
+    while (true) {
+      const index = nextIndex++;
+      if (index >= updates.length) return;
 
-      let response: Response;
-      let result: Document;
-      try {
-        ({ response, result } = await requestPluginUpdate(
-          pluginUpdateURL(update.id),
-        ));
-      } catch {
-        failed++;
-        setPluginRowProgress(update, "failed", "Update failed");
-        continue;
-      }
+      const outcome = await updatePluginInBulk(updates[index]!);
+      if (outcome === "updated") completed++;
+      else if (outcome === "approval") approvals++;
+      else failed++;
 
-      if (
-        response.status === 409 &&
-        pluginPermissionApproval(result, update.id) !== null
-      ) {
-        approvals++;
-        syncPermissionApprovalDetail(update.id, result);
-        setPluginRowProgress(
-          update,
-          "approval",
-          "Permission approval required",
-        );
-        continue;
-      }
-
-      if (!response.ok || !response.redirected) {
-        failed++;
-        setPluginRowProgress(update, "failed", "Update failed");
-        continue;
-      }
-
-      markPluginUpdated(update);
-      completed++;
+      finished++;
+      controls.label.textContent = `Updating ${finished}/${updates.length}…`;
     }
+  };
+
+  try {
+    const workerCount = Math.min(pluginUpdateConcurrency, updates.length);
+    await Promise.all(Array.from({ length: workerCount }, () => worker()));
   } finally {
     if (completed > 0) await flushPendingPageRenders();
 
@@ -452,36 +473,30 @@ async function updateAllPlugins(form: HTMLFormElement): Promise<void> {
     form.removeAttribute("aria-busy");
     controls.spinner.hidden = true;
 
-    const retryableRemaining = availablePluginUpdates().length;
-    const staticApprovals = staticPermissionApprovalCount();
-    const remaining = retryableRemaining + staticApprovals;
-    if (remaining === 0) {
-      controls.label.textContent = `Updated all (${completed})`;
-      controls.submit.disabled = true;
-    } else if (
-      failed === 0 &&
-      retryableRemaining === approvals &&
-      remaining === approvals + staticApprovals
-    ) {
-      controls.label.textContent = `Review approvals (${remaining})`;
+    const pendingApprovals = permissionApprovalCount();
+    if (failed > 0) {
+      controls.label.textContent = `Retry failed (${failed})`;
+      controls.submit.disabled = false;
+    } else if (pendingApprovals > 0) {
+      controls.label.textContent = `Review approvals (${pendingApprovals})`;
       controls.submit.disabled = true;
     } else {
-      controls.label.textContent = `Retry remaining (${remaining})`;
-      controls.submit.disabled = false;
+      controls.label.textContent = `Updated all (${completed})`;
+      controls.submit.disabled = true;
     }
 
-    const problems: string[] = [];
-    if (approvals > 0) {
-      problems.push(
-        `${approvals} update(s) need permission approval. Open the marked plugins to review the permission changes.`,
-      );
+    if (approvals > 0 || failed > 0) {
+      const summary = [
+        `${completed} updated`,
+        `${approvals} approval required`,
+        `${failed} failed`,
+      ].join(" · ");
+      const guidance =
+        failed > 0
+          ? "Failed updates can be retried; successful updates were kept."
+          : "Open the marked plugins to review their permission changes.";
+      showPluginUpdateProblem(form, `${summary}. ${guidance}`);
     }
-    if (failed > 0) {
-      problems.push(
-        `${failed} update(s) failed. Other plugins were still attempted and successful updates were kept.`,
-      );
-    }
-    if (problems.length > 0) showPluginUpdateProblem(form, problems.join(" "));
   }
 }
 

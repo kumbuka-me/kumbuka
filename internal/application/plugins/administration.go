@@ -212,7 +212,15 @@ func (a *Admin) Update(ctx context.Context, id string, approvals ...UpdateApprov
 	return a.updateRelease(ctx, installed, release, approvals)
 }
 
-// UpdateAll applies every independent compatible update in sorted order. One download, permission approval, validation, or activation failure never prevents later plugins from being attempted.
+const pluginUpdateConcurrency = 4
+
+// updateOutcome contains the terminal result for one independent catalog update.
+type updateOutcome struct {
+	pluginID string
+	err      error
+}
+
+// UpdateAll applies every independent compatible update with bounded concurrency. Downloads and package validation may run four at a time, while the plugin manager keeps final lifecycle publication serialized. One download, permission approval, validation, or activation failure never prevents another plugin from being attempted.
 func (a *Admin) UpdateAll(ctx context.Context) (UpdateAllResult, error) {
 	updates, err := a.Available()
 	if err != nil {
@@ -220,18 +228,48 @@ func (a *Admin) UpdateAll(ctx context.Context) (UpdateAllResult, error) {
 	}
 
 	installed := a.manager.Plugins()
-	result := UpdateAllResult{}
-	for _, id := range installedUpdateIDs(installed, updates) {
-		item, ok := installedPlugin(installed, id)
-		if !ok {
-			continue
-		}
-		if err := a.updateRelease(ctx, item, updates[id], nil); err != nil {
-			result.Failed = append(result.Failed, UpdateFailure{PluginID: id, Err: err})
-			continue
-		}
-		result.Updated = append(result.Updated, id)
+	ids := installedUpdateIDs(installed, updates)
+	if len(ids) == 0 {
+		return UpdateAllResult{}, nil
 	}
+
+	jobs := make(chan string, len(ids))
+	outcomes := make(chan updateOutcome, len(ids))
+	for _, id := range ids {
+		jobs <- id
+	}
+	close(jobs)
+
+	workers := min(pluginUpdateConcurrency, len(ids))
+	for range workers {
+		go func() {
+			for id := range jobs {
+				item, ok := installedPlugin(installed, id)
+				if !ok {
+					outcomes <- updateOutcome{pluginID: id, err: errors.New("plugin is not installed")}
+					continue
+				}
+
+				outcomes <- updateOutcome{
+					pluginID: id,
+					err:      a.updateRelease(ctx, item, updates[id], nil),
+				}
+			}
+		}()
+	}
+
+	result := UpdateAllResult{}
+	for range ids {
+		outcome := <-outcomes
+		if outcome.err != nil {
+			result.Failed = append(result.Failed, UpdateFailure{PluginID: outcome.pluginID, Err: outcome.err})
+			continue
+		}
+		result.Updated = append(result.Updated, outcome.pluginID)
+	}
+
+	sort.Strings(result.Updated)
+	sort.Slice(result.Failed, func(i, j int) bool { return result.Failed[i].PluginID < result.Failed[j].PluginID })
 	return result, nil
 }
 

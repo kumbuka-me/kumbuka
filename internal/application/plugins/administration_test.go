@@ -6,7 +6,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/kumbuka-me/kumbuka/pkg/plugin"
@@ -23,6 +25,7 @@ func TestAdminStatusWithoutCatalog(t *testing.T) {
 
 // administrationLifecycleStub provides deterministic lifecycle behavior without constructing a WASM runtime.
 type administrationLifecycleStub struct {
+	mu       sync.Mutex
 	plugins  []plugin.LoadedPlugin
 	installs []string
 	upgrades []string
@@ -30,6 +33,8 @@ type administrationLifecycleStub struct {
 }
 
 func (s *administrationLifecycleStub) Plugins() []plugin.LoadedPlugin {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	return append([]plugin.LoadedPlugin(nil), s.plugins...)
 }
 func (*administrationLifecycleStub) IsRequired(string) bool { return false }
@@ -38,17 +43,21 @@ func (s *administrationLifecycleStub) Install(_ context.Context, archive []byte)
 	if err != nil {
 		return plugin.LoadedPlugin{}, err
 	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	item := plugin.LoadedPlugin{Manifest: pkg.Manifest(), Enabled: true}
 	s.plugins = append(s.plugins, item)
 	s.installs = append(s.installs, item.Manifest.ID)
 	return item, nil
 }
 func (s *administrationLifecycleStub) Upgrade(_ context.Context, id string, archive []byte) (plugin.LoadedPlugin, error) {
-	if err := s.failures[id]; err != nil {
-		return plugin.LoadedPlugin{}, err
-	}
 	pkg, err := pluginpackage.Read(archive)
 	if err != nil {
+		return plugin.LoadedPlugin{}, err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if err := s.failures[id]; err != nil {
 		return plugin.LoadedPlugin{}, err
 	}
 	for index := range s.plugins {
@@ -67,22 +76,32 @@ func (*administrationLifecycleStub) Uninstall(context.Context, string) error { r
 
 // administrationCatalogStub provides release bytes and independent download failures.
 type administrationCatalogStub struct {
+	mu        sync.Mutex
 	updates   map[string]domain.PluginRelease
 	archives  map[string][]byte
 	failures  map[string]error
 	downloads []string
+	download  func(context.Context, string, string) ([]byte, error)
 }
 
 func (*administrationCatalogStub) Refresh(context.Context) error { return nil }
 func (s *administrationCatalogStub) Available() (map[string]domain.PluginRelease, error) {
 	return s.updates, nil
 }
-func (s *administrationCatalogStub) Download(_ context.Context, id, version string) ([]byte, error) {
+func (s *administrationCatalogStub) Download(ctx context.Context, id, version string) ([]byte, error) {
+	s.mu.Lock()
 	s.downloads = append(s.downloads, id+"@"+version)
-	if err := s.failures[id]; err != nil {
-		return nil, err
+	download := s.download
+	failure := s.failures[id]
+	archive := s.archives[id]
+	s.mu.Unlock()
+	if download != nil {
+		return download(ctx, id, version)
 	}
-	return s.archives[id], nil
+	if failure != nil {
+		return nil, failure
+	}
+	return archive, nil
 }
 func (*administrationCatalogStub) Status() PluginUpdateStatus { return PluginUpdateStatus{} }
 
@@ -292,8 +311,70 @@ func TestUpdateAllContinuesPastApprovalAndDownloadFailures(t *testing.T) {
 	require.ErrorAs(t, result.Failed[0].Err, &approval)
 	assert.Equal(t, failureID, result.Failed[1].PluginID)
 	assert.ErrorContains(t, result.Failed[1].Err, "catalog download failed")
-	assert.Equal(t, []string{approvalID + "@1.1.0", failureID + "@1.1.0", successID + "@1.1.0"}, catalog.downloads)
-	assert.Equal(t, []string{successID}, manager.upgrades)
+	assert.ElementsMatch(t, []string{approvalID + "@1.1.0", failureID + "@1.1.0", successID + "@1.1.0"}, catalog.downloads)
+	assert.ElementsMatch(t, []string{successID}, manager.upgrades)
+}
+
+func TestUpdateAllUsesFourConcurrentWorkers(t *testing.T) {
+	t.Parallel()
+
+	const pluginCount = 7
+	manager := &administrationLifecycleStub{}
+	catalog := &administrationCatalogStub{
+		updates:  make(map[string]domain.PluginRelease, pluginCount),
+		archives: make(map[string][]byte, pluginCount),
+	}
+	started := make(chan string, pluginCount)
+	release := make(chan struct{})
+	catalog.download = func(ctx context.Context, id, _ string) ([]byte, error) {
+		started <- id
+		select {
+		case <-release:
+			return catalog.archives[id], nil
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}
+
+	for index := range pluginCount {
+		id := fmt.Sprintf("io.example.parallel-%02d", index)
+		manager.plugins = append(manager.plugins, plugin.LoadedPlugin{Manifest: pluginpackage.Manifest{ID: id, Version: "1.0.0"}})
+		catalog.updates[id] = domain.PluginRelease{Version: "1.1.0"}
+		catalog.archives[id] = administrationPluginArchive(t, id, "1.1.0", nil)
+	}
+
+	type updateResult struct {
+		result UpdateAllResult
+		err    error
+	}
+	done := make(chan updateResult, 1)
+	go func() {
+		result, err := NewAdmin(manager, catalog).UpdateAll(context.Background())
+		done <- updateResult{result: result, err: err}
+	}()
+
+	for range pluginUpdateConcurrency {
+		select {
+		case <-started:
+		case <-time.After(time.Second):
+			t.Fatal("bulk update did not start four downloads concurrently")
+		}
+	}
+	select {
+	case id := <-started:
+		t.Fatalf("bulk update exceeded the four-worker limit with %s", id)
+	case <-time.After(50 * time.Millisecond):
+	}
+
+	close(release)
+	select {
+	case got := <-done:
+		require.NoError(t, got.err)
+		require.Len(t, got.result.Updated, pluginCount)
+		assert.Empty(t, got.result.Failed)
+	case <-time.After(3 * time.Second):
+		t.Fatal("bulk update did not finish after releasing downloads")
+	}
 }
 
 // administrationPluginArchive creates a minimal valid declarative plugin package for update-policy tests.

@@ -180,19 +180,21 @@
                   data-plugin-detail-open="{{ .Manifest.ID }}"
                   tabindex="0"
                   aria-label="Open {{ .Manifest.Name }} plugin details">
-                <td>
+                <td data-plugin-name-cell>
                   <a href="{{ route "/admin/plugins?plugin=" }}{{ .Manifest.ID | urlquery }}"><strong>{{ .Manifest.Name }}</strong></a>
                   <small>{{ .Manifest.Description }}</small>
+                  {{ with index $.PluginPermissionApprovals .Manifest.ID }}
+                    <small class="plugin-update-status plugin-permission-required"
+                           data-plugin-permission-approval-required
+                           role="status">Permission approval required · Review permissions</small>
+                  {{ end }}
                 </td>
                 <td>
-                  <span>{{ .Manifest.Version }}</span>
-                  {{ with index $.PluginPermissionApprovals .Manifest.ID }}
-                    <small class="plugin-update-version plugin-permission-required"
-                           data-plugin-permission-approval-required>Permission approval required</small>
-                  {{ else }}
-                    {{ with index $.PluginUpdates .Manifest.ID }}
-                      <small class="plugin-update-version">{{ .Version }} available</small>
-                    {{ end }}
+                  <span data-plugin-installed-version>{{ .Manifest.Version }}</span>
+                  {{ with index $.PluginUpdates .Manifest.ID }}
+                    <small class="plugin-update-version"
+                           data-plugin-update-available
+                           data-plugin-update-version="{{ .Version }}">{{ .Version }} available</small>
                   {{ end }}
                 </td>
                 <td>{{ if .Manifest.Provider }}{{ .Manifest.Provider }}{{ else }}Not specified{{ end }}</td>
