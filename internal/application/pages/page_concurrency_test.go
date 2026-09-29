@@ -20,6 +20,14 @@ type pageConcurrencyRepositoryStub struct {
 	unguarded bool
 	// expectedUpdatedAt holds the updated at expected by the test.
 	expectedUpdatedAt time.Time
+	// page is returned to metadata-preserving content updates.
+	page domain.Page
+	// markdown records the body passed to guarded persistence.
+	markdown string
+}
+
+func (r *pageConcurrencyRepositoryStub) GetPage(context.Context, string) (domain.Page, error) {
+	return r.page, nil
 }
 
 // SavePage records an unconditional page save.
@@ -41,7 +49,7 @@ func (r *pageConcurrencyRepositoryStub) SavePage(
 func (r *pageConcurrencyRepositoryStub) SavePageIfUnchanged(
 	_ context.Context,
 	expectedUpdatedAt time.Time,
-	_, slug, title, _, _, _, _ string,
+	_, slug, title, _, _, markdown, _ string,
 	_, _ []string,
 	_ []int64,
 	_ domain.PageMetadata,
@@ -51,7 +59,29 @@ func (r *pageConcurrencyRepositoryStub) SavePageIfUnchanged(
 ) (domain.Page, error) {
 	r.guarded = true
 	r.expectedUpdatedAt = expectedUpdatedAt
+	r.markdown = markdown
 	return domain.Page{Slug: slug, Title: title}, nil
+}
+
+func TestUpdateContentPreservesPageAndUsesGuardedSave(t *testing.T) {
+	t.Parallel()
+	expected := time.Date(2026, time.September, 29, 14, 30, 0, 123000000, time.UTC)
+	repository := &pageConcurrencyRepositoryStub{page: domain.Page{
+		Slug: "guide", Title: "Guide", UpdatedAt: expected, Status: domain.PageStatusVerified,
+		Tags: []string{"docs"}, Groups: []domain.Group{{ID: 7}},
+	}}
+	mutations := NewMutations(repository, nil, nil, nil)
+
+	_, err := mutations.UpdateContent(context.Background(), PageContentUpdateInput{
+		Slug: "guide", Markdown: "- [x] done", Message: "Toggle checklist item",
+		ExpectedUpdatedAt: expected, Actor: domain.User{ID: 9},
+	})
+
+	require.NoError(t, err)
+	assert.True(t, repository.guarded)
+	assert.False(t, repository.unguarded)
+	assert.True(t, repository.expectedUpdatedAt.Equal(expected))
+	assert.Equal(t, "- [x] done", repository.markdown)
 }
 
 func TestSaveUsesOptimisticConcurrencyForEditorUpdates(t *testing.T) {

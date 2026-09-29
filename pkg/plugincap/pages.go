@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
 
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/kumbuka-me/kumbuka/pkg/icons"
@@ -72,7 +73,26 @@ func (p Pages) Content(ctx context.Context, slug string) (sdk.PageContent, error
 	if err != nil {
 		return sdk.PageContent{}, err
 	}
-	return sdk.PageContent{Slug: page.Slug, Markdown: page.Markdown}, nil
+	return sdk.PageContent{Slug: page.Slug, Markdown: page.Markdown, UpdatedAt: page.UpdatedAt}, nil
+}
+
+// PageContentUpdateCapability exposes one current-page-scoped content updater.
+// The host-provided operation remains responsible for edit authorization.
+func PageContentUpdateCapability(
+	slug string,
+	operation func(context.Context, sdk.PageContentUpdate) (sdk.PageContent, error),
+) map[string]plugin.Capability {
+	return map[string]plugin.Capability{
+		"pages.update-content": func(ctx context.Context, data json.RawMessage) (any, error) {
+			var request sdk.PageContentUpdate
+			if err := json.Unmarshal(data, &request); err != nil ||
+				request.Slug != slug || request.ExpectedUpdatedAt.IsZero() ||
+				strings.TrimSpace(request.Message) == "" {
+				return nil, errors.New("invalid page content update")
+			}
+			return operation(ctx, request)
+		},
+	}
 }
 
 // Links returns authorized incoming and outgoing wiki-link relationships.

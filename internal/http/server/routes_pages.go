@@ -16,7 +16,7 @@ func registerPageRoutes(mux *http.ServeMux, config Config) {
 
 	mux.Handle(
 		"POST /plugins/actions/{pluginID}/{moduleID}/{actionID}",
-		browserAuthn(endpoint.PluginWidgetCommand(config.PageReports, config.Navigation, config.Renderer, config.Notifications)),
+		browserAuthn(endpoint.PluginWidgetCommand(config.PageReports, config.PageMutations, config.Navigation, config.Renderer, config.Notifications)),
 	)
 	mux.Handle(
 		"GET /api/plugin-fragments/{pluginID}/{moduleID}/{index}/{slug...}",

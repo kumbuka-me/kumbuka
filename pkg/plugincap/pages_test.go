@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"testing"
+	"time"
 
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/kumbuka-me/sdk"
@@ -51,4 +52,30 @@ func TestSharedCapabilitiesRestrictScopeAndFields(t *testing.T) {
 		require.Error(t, err)
 	}
 	assert.Equal(t, 1, source.searches)
+}
+
+func TestPageContentUpdateCapabilityRestrictsCurrentPage(t *testing.T) {
+	t.Parallel()
+	expected := time.Date(2026, time.September, 29, 12, 0, 0, 0, time.UTC)
+	called := false
+	capability := PageContentUpdateCapability("guide", func(_ context.Context, request sdk.PageContentUpdate) (sdk.PageContent, error) {
+		called = true
+		return sdk.PageContent{Slug: request.Slug, Markdown: request.Markdown, UpdatedAt: expected}, nil
+	})["pages.update-content"]
+
+	data, err := json.Marshal(sdk.PageContentUpdate{
+		Slug: "guide", Markdown: "- [x] done", Message: "Toggle checklist item", ExpectedUpdatedAt: expected,
+	})
+	require.NoError(t, err)
+	value, err := capability(context.Background(), data)
+	require.NoError(t, err)
+	assert.True(t, called)
+	assert.Equal(t, sdk.PageContent{Slug: "guide", Markdown: "- [x] done", UpdatedAt: expected}, value)
+
+	data, err = json.Marshal(sdk.PageContentUpdate{
+		Slug: "private", Markdown: "changed", Message: "Toggle checklist item", ExpectedUpdatedAt: expected,
+	})
+	require.NoError(t, err)
+	_, err = capability(context.Background(), data)
+	require.Error(t, err)
 }

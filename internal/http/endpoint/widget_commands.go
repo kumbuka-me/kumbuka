@@ -1,8 +1,10 @@
 package endpoint
 
 import (
+	"context"
 	"net/http"
 
+	apppages "github.com/kumbuka-me/kumbuka/internal/application/pages"
 	"github.com/kumbuka-me/kumbuka/internal/http/auth"
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
 	"github.com/kumbuka-me/kumbuka/internal/route"
@@ -24,6 +26,7 @@ type pluginWidgetCommandResponse struct {
 // PluginWidgetCommand executes one host-mediated command from an active plugin widget.
 func PluginWidgetCommand(
 	catalog pageReportService,
+	pageUpdates pageContentUpdater,
 	navigation navigationService,
 	renderer *md.Renderer,
 	notifications plugincap.NotificationSender,
@@ -78,6 +81,16 @@ func PluginWidgetCommand(
 			}
 			capabilities = plugincap.MergeCapabilities(
 				plugincap.Capabilities(securedCatalog, pageNavigation, renderer.IconCatalog()),
+				plugincap.PageContentUpdateCapability(page.Slug, func(ctx context.Context, update sdk.PageContentUpdate) (sdk.PageContent, error) {
+					updated, updateErr := pageUpdates.UpdateContent(ctx, apppages.PageContentUpdateInput{
+						Slug: update.Slug, Markdown: update.Markdown, Message: update.Message,
+						ExpectedUpdatedAt: update.ExpectedUpdatedAt, Actor: user,
+					})
+					if updateErr != nil {
+						return sdk.PageContent{}, updateErr
+					}
+					return sdk.PageContent{Slug: updated.Slug, Markdown: updated.Markdown, UpdatedAt: updated.UpdatedAt}, nil
+				}),
 				plugincap.NotificationCapabilities(notifications, user.ID, pluginID, pluginName),
 			)
 		}

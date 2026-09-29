@@ -120,6 +120,12 @@ type pageWriterService interface {
 	Delete(context.Context, string, domain.User) error
 }
 
+// pageContentUpdater exposes the narrow metadata-preserving write used by
+// page-scoped plugin commands.
+type pageContentUpdater interface {
+	UpdateContent(context.Context, apppages.PageContentUpdateInput) (domain.Page, error)
+}
+
 // pageMoveService moves a page subtree after application authorization.
 type pageMoveService interface {
 	Move(context.Context, string, string, domain.MovePageOptions, domain.User) error
