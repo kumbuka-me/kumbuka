@@ -437,31 +437,31 @@ func TestAdminPluginCatalogUpdateAllContinuesAfterOnePluginFails(t *testing.T) {
 	manager := plugin.NewManager(&plugin.Registry{}, runtime)
 	defer func() { require.NoError(t, manager.Close(ctx)) }()
 
-	firstArchive, err := plugins.Packages.ReadFile("callouts.kumbukaplugin")
-	require.NoError(t, err)
+	firstArchive := endpointPluginArchive(t, "io.example.bulk-first", "1.0.0", nil)
 	first, err := manager.Install(ctx, firstArchive)
 	require.NoError(t, err)
 
-	secondArchive, err := plugins.Packages.ReadFile("details.kumbukaplugin")
-	require.NoError(t, err)
+	secondArchive := endpointPluginArchive(t, "io.example.bulk-second", "1.0.0", nil)
 	second, err := manager.Install(ctx, secondArchive)
 	require.NoError(t, err)
 
-	thirdArchive, err := plugins.Packages.ReadFile("tables.kumbukaplugin")
-	require.NoError(t, err)
+	thirdArchive := endpointPluginArchive(t, "io.example.bulk-third", "1.0.0", nil)
 	third, err := manager.Install(ctx, thirdArchive)
 	require.NoError(t, err)
 
+	firstUpdate := endpointPluginArchive(t, first.Manifest.ID, "1.1.0", nil)
+	secondUpdate := endpointPluginArchive(t, second.Manifest.ID, "1.1.0", nil)
+	thirdUpdate := endpointPluginArchive(t, third.Manifest.ID, "1.1.0", nil)
 	updates := &pluginUpdateServiceStub{
 		updates: map[string]domain.PluginRelease{
-			first.Manifest.ID:  {Version: "9.9.9"},
-			second.Manifest.ID: {Version: "8.8.8"},
-			third.Manifest.ID:  {Version: "7.7.7"},
+			first.Manifest.ID:  {Version: "1.1.0"},
+			second.Manifest.ID: {Version: "1.1.0"},
+			third.Manifest.ID:  {Version: "1.1.0"},
 		},
 		archives: map[string][]byte{
-			first.Manifest.ID:  firstArchive,
-			second.Manifest.ID: secondArchive,
-			third.Manifest.ID:  thirdArchive,
+			first.Manifest.ID:  firstUpdate,
+			second.Manifest.ID: secondUpdate,
+			third.Manifest.ID:  thirdUpdate,
 		},
 		onDownload: func(ctx context.Context, id string) error {
 			if id == second.Manifest.ID {
@@ -489,9 +489,9 @@ func TestAdminPluginCatalogUpdateAllContinuesAfterOnePluginFails(t *testing.T) {
 	assert.Contains(t, logs.String(), "event=plugin.update plugin_id="+third.Manifest.ID)
 	assert.Contains(t, logs.String(), "event=plugin.update_all_partial")
 	assert.ElementsMatch(t, []string{
-		first.Manifest.ID + "@9.9.9",
-		second.Manifest.ID + "@8.8.8",
-		third.Manifest.ID + "@7.7.7",
+		first.Manifest.ID + "@1.1.0",
+		second.Manifest.ID + "@1.1.0",
+		third.Manifest.ID + "@1.1.0",
 	}, updates.downloads)
 }
 
