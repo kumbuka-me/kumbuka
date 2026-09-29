@@ -68,19 +68,26 @@ func (a *AdminPlugins) CheckUpdates(w http.ResponseWriter, r *http.Request) {
 	route.Redirect(w, r, "/admin/plugins", http.StatusSeeOther)
 }
 
-// render renders the plugin administration page.
-func (a *AdminPlugins) render(w http.ResponseWriter, r *http.Request, id string, status int, message string) {
-	a.renderWithPermissionApprovals(w, r, id, status, message, nil)
+// pluginPermissionApprovalState carries operation-specific review prompts into one plugin administration render.
+type pluginPermissionApprovalState struct {
+	catalog  map[string]*webview.PluginPermissionApproval
+	install  *webview.PluginPermissionApproval
+	upgrades map[string]*webview.PluginPermissionApproval
 }
 
-// renderWithPermissionApprovals renders plugin administration with update-specific permission approval prompts.
+// render renders the plugin administration page.
+func (a *AdminPlugins) render(w http.ResponseWriter, r *http.Request, id string, status int, message string) {
+	a.renderWithPermissionApprovals(w, r, id, status, message, pluginPermissionApprovalState{})
+}
+
+// renderWithPermissionApprovals renders plugin administration with operation-specific permission review prompts.
 func (a *AdminPlugins) renderWithPermissionApprovals(
 	w http.ResponseWriter,
 	r *http.Request,
 	id string,
 	status int,
 	message string,
-	approvals map[string]*webview.PluginPermissionApproval,
+	approvals pluginPermissionApprovalState,
 ) {
 	w.Header().Set("Cache-Control", "private, no-store")
 	if a.manager == nil {
@@ -95,7 +102,9 @@ func (a *AdminPlugins) renderWithPermissionApprovals(
 	data := webview.AdminPluginsView{
 		Layout:                    layout,
 		AdminPlugins:              a.manager.Plugins(),
-		PluginPermissionApprovals: approvals,
+		PluginPermissionApprovals: approvals.catalog,
+		PluginInstallApproval:     approvals.install,
+		PluginUpgradeApprovals:    approvals.upgrades,
 	}
 	a.populatePluginUpdateView(&data)
 	if err := a.populatePluginDetails(&data, id); err != nil {
@@ -171,23 +180,28 @@ func isPluginSettingsModule(moduleType string) bool {
 	}
 }
 
-// Install installs a plugin package from an administration request.
+// Install reviews and installs one uploaded plugin package. Every new installation requires explicit administrator confirmation, even when the package requests no permissions.
 func (a *AdminPlugins) Install(w http.ResponseWriter, r *http.Request) {
 	if a.manager == nil {
 		http.Error(w, "Plugin manager unavailable.", http.StatusServiceUnavailable)
 		return
 	}
-	archive, status, err := readPluginUpload(w, r)
+	upload, status, err := readPluginUpload(w, r)
 	if err != nil {
 		a.render(w, r, "", status, "Upload failed: "+err.Error()+".")
 		return
 	}
-	if _, err = pluginpackage.Read(archive); err != nil {
+	if _, err = pluginpackage.Read(upload.archive); err != nil {
 		a.render(w, r, "", http.StatusUnprocessableEntity, "Invalid plugin package: "+err.Error())
 		return
 	}
-	item, err := a.manager.Install(r.Context(), archive)
+	item, err := a.manager.Install(r.Context(), upload.archive, upload.approvals...)
 	if err != nil {
+		var approval *appplugins.PermissionApprovalRequiredError
+		if errors.As(err, &approval) {
+			a.renderPermissionApproval(w, r, approval.PluginID, approval)
+			return
+		}
 		a.failure(w, r, "", "install", err)
 		return
 	}
@@ -294,7 +308,8 @@ func (a *AdminPlugins) handleBulkUpdate(w http.ResponseWriter, r *http.Request) 
 		"actor_id", currentUser(r).ID,
 	)
 	a.renderWithPermissionApprovals(
-		w, r, "", http.StatusUnprocessableEntity, bulkPluginUpdateMessage(len(result.Updated), approvalCount, failureCount), approvals,
+		w, r, "", http.StatusUnprocessableEntity, bulkPluginUpdateMessage(len(result.Updated), approvalCount, failureCount),
+		pluginPermissionApprovalState{catalog: approvals},
 	)
 }
 
@@ -317,24 +332,27 @@ func (a *AdminPlugins) runPluginAction(w http.ResponseWriter, r *http.Request, i
 	}
 }
 
-// pluginUpdateApproval returns exact permission consent submitted from a server-rendered approval card.
+// pluginUpdateApproval returns exact package and permission consent submitted from a server-rendered catalog approval card.
 func pluginUpdateApproval(r *http.Request) []appplugins.UpdateApproval {
+	operation := strings.TrimSpace(r.FormValue("approve_operation"))
+	pluginID := strings.TrimSpace(r.FormValue("approve_plugin_id"))
 	version := strings.TrimSpace(r.FormValue("approve_version"))
-	if version == "" {
+	digest := strings.TrimSpace(r.FormValue("approve_digest"))
+	if operation == "" || pluginID == "" || version == "" || digest == "" {
 		return nil
 	}
 	permissions := append([]string(nil), r.Form["approve_permission"]...)
-	return []appplugins.UpdateApproval{{Version: version, Permissions: permissions}}
+	return []appplugins.UpdateApproval{{Operation: operation, PluginID: pluginID, Version: version, Digest: digest, Permissions: permissions}}
 }
 
-// upgradeFromUpload validates an uploaded package identity before replacing the installed plugin.
+// upgradeFromUpload validates an uploaded package identity before replacing the installed plugin. Permission-set changes are returned to Action for explicit administrator review.
 func (a *AdminPlugins) upgradeFromUpload(w http.ResponseWriter, r *http.Request, id string) error {
-	archive, status, err := readPluginUpload(w, r)
+	upload, status, err := readPluginUpload(w, r)
 	if err != nil {
 		a.render(w, r, pluginDetailID(r, id), status, "Upload failed: "+err.Error()+".")
 		return errPluginActionHandled
 	}
-	pkg, err := pluginpackage.Read(archive)
+	pkg, err := pluginpackage.Read(upload.archive)
 	if err != nil {
 		a.render(w, r, pluginDetailID(r, id), http.StatusUnprocessableEntity, "Invalid plugin package: "+err.Error())
 		return errPluginActionHandled
@@ -343,7 +361,7 @@ func (a *AdminPlugins) upgradeFromUpload(w http.ResponseWriter, r *http.Request,
 		a.render(w, r, pluginDetailID(r, id), http.StatusUnprocessableEntity, "The uploaded package must have the same plugin ID.")
 		return errPluginActionHandled
 	}
-	return a.manager.Upgrade(r.Context(), id, archive)
+	return a.manager.Upgrade(r.Context(), id, upload.archive, upload.approvals...)
 }
 
 // pluginActionDestination returns the post-action administration destination.
@@ -420,33 +438,62 @@ func renderPluginREADME(source string) (template.HTML, error) {
 	return template.HTML(rendered), nil
 }
 
-// renderPermissionApproval keeps the installed version active and asks the administrator to approve only newly requested capabilities.
+// renderPermissionApproval keeps the existing state unchanged and asks the administrator to review the exact package permission request before continuing.
 func (a *AdminPlugins) renderPermissionApproval(w http.ResponseWriter, r *http.Request, id string, approval *appplugins.PermissionApprovalRequiredError) {
 	a.views.Logger().Info(
-		"plugin update requires permission approval",
-		"event", "plugin.update_permission_approval_required",
-		"plugin_id", id,
+		"plugin package requires permission approval",
+		"event", "plugin.permission_approval_required",
+		"operation", approval.Operation,
+		"plugin_id", approval.PluginID,
 		"version", approval.Version,
 		"permissions", approval.Permissions,
+		"added_permissions", approval.AddedPermissions,
+		"removed_permissions", approval.RemovedPermissions,
 		"actor_id", currentUser(r).ID,
 	)
-	a.renderWithPermissionApprovals(
-		w,
-		r,
-		pluginDetailID(r, id),
-		http.StatusConflict,
-		"This update requests new permissions. Review and approve them to continue; the existing plugin version is still active.",
-		map[string]*webview.PluginPermissionApproval{id: pluginPermissionApprovalView(approval)},
-	)
+
+	view := pluginPermissionApprovalView(approval)
+	state := pluginPermissionApprovalState{}
+	openPluginID := pluginDetailID(r, id)
+	message := "This update changes the plugin permission set. Review and confirm the exact package before updating; the existing plugin version is still active."
+	switch approval.Operation {
+	case "install":
+		state.install = view
+		openPluginID = ""
+		message = "Review this plugin's requested permissions before installing it. Nothing has been installed yet."
+	case "upgrade":
+		state.upgrades = map[string]*webview.PluginPermissionApproval{id: view}
+		message = "This uploaded package changes the plugin permission set. Review and confirm the change before upgrading; the existing plugin version is still active."
+	default:
+		state.catalog = map[string]*webview.PluginPermissionApproval{id: view}
+	}
+
+	a.renderWithPermissionApprovals(w, r, openPluginID, http.StatusConflict, message, state)
 }
 
 // pluginPermissionApprovalView converts an application permission challenge into presentation data.
 func pluginPermissionApprovalView(approval *appplugins.PermissionApprovalRequiredError) *webview.PluginPermissionApproval {
-	permissions := make([]webview.PluginPermission, 0, len(approval.Permissions))
-	for _, permission := range approval.Permissions {
-		permissions = append(permissions, webview.PluginPermission{Name: permission, Description: pluginPermissionDescription(permission)})
+	return &webview.PluginPermissionApproval{
+		Operation:          approval.Operation,
+		PluginID:           approval.PluginID,
+		Name:               approval.Name,
+		Provider:           approval.Provider,
+		Description:        approval.Description,
+		Version:            approval.Version,
+		Digest:             approval.Digest,
+		Permissions:        pluginPermissionViews(approval.Permissions),
+		AddedPermissions:   pluginPermissionViews(approval.AddedPermissions),
+		RemovedPermissions: pluginPermissionViews(approval.RemovedPermissions),
 	}
-	return &webview.PluginPermissionApproval{PluginID: approval.PluginID, Version: approval.Version, Permissions: permissions}
+}
+
+// pluginPermissionViews decorates stable capability identifiers with administrator-facing descriptions.
+func pluginPermissionViews(permissions []string) []webview.PluginPermission {
+	result := make([]webview.PluginPermission, 0, len(permissions))
+	for _, permission := range permissions {
+		result = append(result, webview.PluginPermission{Name: permission, Description: pluginPermissionDescription(permission)})
+	}
+	return result
 }
 
 // pluginPermissionDescription explains host-mediated permissions without implying broader access than the capability provides.
@@ -483,7 +530,7 @@ func pluginPermissionDescription(permission string) string {
 	case "drafts:read":
 		return "May read the bounded draft information exposed to plugins."
 	default:
-		return "Requests an additional host-mediated Kumbuka capability."
+		return "Requests a host-mediated Kumbuka capability."
 	}
 }
 
@@ -494,7 +541,7 @@ func bulkPluginUpdateMessage(updated, approvals, failed int) string {
 		parts = append(parts, fmt.Sprintf("Updated %d plugin(s).", updated))
 	}
 	if approvals > 0 {
-		parts = append(parts, fmt.Sprintf("%d update(s) require permission approval; open those plugins to review the new capabilities.", approvals))
+		parts = append(parts, fmt.Sprintf("%d update(s) require permission approval; open those plugins to review the permission changes.", approvals))
 	}
 	if failed > 0 {
 		parts = append(parts, fmt.Sprintf("%d update(s) failed and can be retried without affecting the successful updates.", failed))
@@ -526,29 +573,89 @@ func (a *AdminPlugins) audit(r *http.Request, action, id string) {
 	a.views.Logger().Info("plugin lifecycle changed", "event", "plugin."+action, "plugin_id", id, "actor_id", currentUser(r).ID)
 }
 
-// readPluginUpload streams one bounded package without temporary files or extraction.
-func readPluginUpload(w http.ResponseWriter, r *http.Request) ([]byte, int, error) {
+// pluginPackageUpload contains one bounded package plus any exact permission approval fields submitted alongside it.
+type pluginPackageUpload struct {
+	archive   []byte
+	approvals []appplugins.PermissionApproval
+}
+
+// readPluginUpload streams one bounded package and its small approval fields without temporary files or extraction.
+func readPluginUpload(w http.ResponseWriter, r *http.Request) (pluginPackageUpload, int, error) {
 	r.Body = http.MaxBytesReader(w, r.Body, pluginpackage.MaxArchiveBytes+(64<<10))
 	reader, err := r.MultipartReader()
 	if err != nil {
-		return nil, http.StatusBadRequest, errors.New("choose a .kumbukaplugin package to upload")
+		return pluginPackageUpload{}, http.StatusBadRequest, errors.New("choose a .kumbukaplugin package to upload")
 	}
-	part, err := reader.NextPart()
-	if err != nil {
-		return nil, http.StatusBadRequest, errors.New("upload exactly one plugin package")
+
+	var archive []byte
+	fields := make(map[string][]string)
+	for {
+		part, nextErr := reader.NextPart()
+		if nextErr == io.EOF {
+			break
+		}
+		if nextErr != nil {
+			return pluginPackageUpload{}, http.StatusBadRequest, errors.New("could not read the plugin upload")
+		}
+
+		if part.FileName() != "" {
+			if archive != nil || !validPluginUploadPart(part.FormName(), part.FileName()) {
+				return pluginPackageUpload{}, http.StatusBadRequest, errors.New("upload exactly one plugin package")
+			}
+			content, readErr := io.ReadAll(io.LimitReader(part, pluginpackage.MaxArchiveBytes+1))
+			if len(content) > pluginpackage.MaxArchiveBytes {
+				return pluginPackageUpload{}, http.StatusRequestEntityTooLarge, errors.New("plugin packages must be 16 MiB or smaller")
+			}
+			if readErr != nil {
+				return pluginPackageUpload{}, http.StatusBadRequest, errors.New("could not read the plugin package")
+			}
+			archive = content
+			continue
+		}
+
+		name := part.FormName()
+		if !validPluginApprovalField(name) {
+			return pluginPackageUpload{}, http.StatusBadRequest, errors.New("plugin upload contains an unexpected form field")
+		}
+		value, readErr := io.ReadAll(io.LimitReader(part, 4097))
+		if readErr != nil || len(value) > 4096 {
+			return pluginPackageUpload{}, http.StatusBadRequest, errors.New("plugin approval field is invalid")
+		}
+		fields[name] = append(fields[name], strings.TrimSpace(string(value)))
 	}
-	if !validPluginUploadPart(part.FormName(), part.FileName()) {
-		return nil, http.StatusBadRequest, errors.New("upload exactly one plugin package")
+
+	if archive == nil {
+		return pluginPackageUpload{}, http.StatusBadRequest, errors.New("upload exactly one plugin package")
 	}
-	content, err := io.ReadAll(io.LimitReader(part, pluginpackage.MaxArchiveBytes+1))
-	if len(content) > pluginpackage.MaxArchiveBytes {
-		return nil, http.StatusRequestEntityTooLarge, errors.New("plugin packages must be 16 MiB or smaller")
+	return pluginPackageUpload{archive: archive, approvals: pluginPermissionApprovals(fields)}, http.StatusOK, nil
+}
+
+// validPluginApprovalField limits multipart metadata to the exact fields emitted by Kumbuka's review UI.
+func validPluginApprovalField(name string) bool {
+	switch name {
+	case "approve_operation", "approve_plugin_id", "approve_version", "approve_digest", "approve_permission":
+		return true
+	default:
+		return false
 	}
-	if err != nil {
-		return nil, http.StatusBadRequest, errors.New("could not read the plugin package")
+}
+
+// pluginPermissionApprovals decodes one exact package approval from form values. Partial approval metadata is ignored and causes a fresh review challenge.
+func pluginPermissionApprovals(fields map[string][]string) []appplugins.PermissionApproval {
+	first := func(name string) string {
+		values := fields[name]
+		if len(values) == 0 {
+			return ""
+		}
+		return strings.TrimSpace(values[0])
 	}
-	if _, err := reader.NextPart(); err != io.EOF {
-		return nil, http.StatusBadRequest, errors.New("upload exactly one plugin package")
+	operation := first("approve_operation")
+	pluginID := first("approve_plugin_id")
+	version := first("approve_version")
+	digest := first("approve_digest")
+	if operation == "" || pluginID == "" || version == "" || digest == "" {
+		return nil
 	}
-	return content, http.StatusOK, nil
+	permissions := append([]string(nil), fields["approve_permission"]...)
+	return []appplugins.PermissionApproval{{Operation: operation, PluginID: pluginID, Version: version, Digest: digest, Permissions: permissions}}
 }

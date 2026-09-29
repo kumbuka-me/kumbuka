@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"html/template"
@@ -91,6 +92,11 @@ func (s *pluginUpdateServiceStub) Status() appplugins.PluginUpdateStatus {
 
 // pluginUpload supports plugin administration regression coverage.
 func pluginUpload(t *testing.T, content []byte) *http.Request {
+	return pluginUploadWithFields(t, content, nil)
+}
+
+// pluginUploadWithFields submits one package together with exact permission-review metadata.
+func pluginUploadWithFields(t *testing.T, content []byte, fields url.Values) *http.Request {
 	t.Helper()
 	var body bytes.Buffer
 	writer := multipart.NewWriter(&body)
@@ -98,10 +104,34 @@ func pluginUpload(t *testing.T, content []byte) *http.Request {
 	require.NoError(t, err)
 	_, err = part.Write(content)
 	require.NoError(t, err)
+	for name, values := range fields {
+		for _, value := range values {
+			require.NoError(t, writer.WriteField(name, value))
+		}
+	}
 	require.NoError(t, writer.Close())
 	r := httptest.NewRequest("POST", "/admin/plugins", &body)
 	r.Header.Set("Content-Type", writer.FormDataContentType())
 	return r
+}
+
+// pluginApprovalFields binds a test approval to the exact package digest and complete manifest permission set.
+func pluginApprovalFields(t *testing.T, content []byte, operation, reviewedVersion string) url.Values {
+	t.Helper()
+	pkg, err := pluginpackage.Read(content)
+	require.NoError(t, err)
+	manifest := pkg.Manifest()
+	digest := sha256.Sum256(content)
+	fields := url.Values{
+		"approve_operation": {operation},
+		"approve_plugin_id": {manifest.ID},
+		"approve_version":   {reviewedVersion},
+		"approve_digest":    {fmt.Sprintf("%x", digest[:])},
+	}
+	for _, permission := range manifest.Permissions {
+		fields.Add("approve_permission", permission)
+	}
+	return fields
 }
 
 // TestAdminPluginLifecycleAndAuthorization supports plugin administration regression coverage.
@@ -125,6 +155,17 @@ func TestAdminPluginLifecycleAndAuthorization(t *testing.T) {
 	assert.Empty(t, manager.Plugins())
 	response := httptest.NewRecorder()
 	admin.Install(response, pluginUpload(t, archive))
+	require.Equal(t, http.StatusConflict, response.Code)
+	assert.Contains(t, response.Body.String(), "before installation")
+	assert.Contains(t, response.Body.String(), "Requested permissions")
+	assert.Contains(t, response.Body.String(), "approve_digest")
+	assert.Contains(t, response.Body.String(), `name="approve_operation" value="install"`)
+	assert.Empty(t, manager.Plugins(), "reviewing a package must not install it")
+
+	pkg, err := pluginpackage.Read(archive)
+	require.NoError(t, err)
+	response = httptest.NewRecorder()
+	admin.Install(response, pluginUploadWithFields(t, archive, pluginApprovalFields(t, archive, "install", pkg.Manifest().Version)))
 	require.Equal(t, http.StatusSeeOther, response.Code)
 	require.Len(t, manager.Plugins(), 1)
 	assert.True(t, manager.Plugins()[0].Enabled)
@@ -219,7 +260,7 @@ func TestAdminPluginCatalogUpdate(t *testing.T) {
 	assert.Equal(t, "9.9.9", updates.downloadedVer)
 }
 
-func TestAdminPluginCatalogUpdateRequiresNewPermissionApproval(t *testing.T) {
+func TestAdminPluginCatalogUpdateRequiresPermissionChangeApproval(t *testing.T) {
 	ctx := context.Background()
 	runtime, err := wasm.New(
 		ctx,
@@ -254,14 +295,15 @@ func TestAdminPluginCatalogUpdateRequiresNewPermissionApproval(t *testing.T) {
 	admin.Action(response, request)
 
 	require.Equal(t, http.StatusConflict, response.Code)
-	assert.Contains(t, response.Body.String(), "New permissions required for version 1.1.0")
+	assert.Contains(t, response.Body.String(), "Permission changes for version 1.1.0")
 	assert.Contains(t, response.Body.String(), "pages:write")
 	assert.Contains(t, response.Body.String(), "normal page edit authorization")
-	assert.Contains(t, response.Body.String(), "Approve permissions and update")
+	assert.Contains(t, response.Body.String(), "Confirm permission changes and update")
+	assert.Contains(t, response.Body.String(), `name="approve_operation" value="update"`)
 	require.Len(t, manager.Plugins(), 1)
 	assert.Equal(t, "1.0.0", manager.Plugins()[0].Manifest.Version)
 
-	form := url.Values{"approve_version": {"1.1.0"}, "approve_permission": {"pages:write"}}
+	form := pluginApprovalFields(t, updateArchive, "update", "1.1.0")
 	request = auth.WithUser(httptest.NewRequest("POST", "/admin/plugins/"+pluginID+"/update?return=detail", strings.NewReader(form.Encode())), domain.User{ID: 1, Role: "admin"})
 	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	request.SetPathValue("pluginID", pluginID)
@@ -272,6 +314,61 @@ func TestAdminPluginCatalogUpdateRequiresNewPermissionApproval(t *testing.T) {
 	require.Equal(t, http.StatusSeeOther, response.Code)
 	assert.Equal(t, "/admin/plugins?plugin="+pluginID, response.Header().Get("Location"))
 	require.Len(t, manager.Plugins(), 1)
+	assert.Equal(t, "1.1.0", manager.Plugins()[0].Manifest.Version)
+}
+
+func TestAdminPluginManualUpgradeRequiresPermissionChangeApproval(t *testing.T) {
+	ctx := context.Background()
+	runtime, err := wasm.New(
+		ctx,
+		wasm.Limits{InitTimeout: 30 * time.Second},
+		wasm.WithPermissions("pages:read"),
+		wasm.WithInterpreter(),
+	)
+	require.NoError(t, err)
+	manager := plugin.NewManager(&plugin.Registry{}, runtime)
+	defer func() { require.NoError(t, manager.Close(ctx)) }()
+
+	const pluginID = "io.example.manual-permission-change"
+	installedArchive := endpointPluginArchive(t, pluginID, "1.0.0", []string{"pages:read"})
+	_, err = manager.Install(ctx, installedArchive)
+	require.NoError(t, err)
+	upgradeArchive := endpointPluginArchive(t, pluginID, "1.1.0", nil)
+
+	views := testHandlerViews(t, webview.RuntimeInfo{})
+	data := browserContextLoaderStub{load: func(*http.Request, *webview.Views, string) (webview.Layout, error) {
+		return webview.Layout{User: domain.User{ID: 1, Role: "admin"}}, nil
+	}}
+	admin := NewAdminPlugins(appplugins.NewAdmin(manager, nil), data, views)
+
+	request := auth.WithUser(pluginUpload(t, upgradeArchive), domain.User{ID: 1, Role: "admin"})
+	request.URL.Path = "/admin/plugins/" + pluginID + "/upgrade"
+	request.URL.RawQuery = "return=detail"
+	request.SetPathValue("pluginID", pluginID)
+	request.SetPathValue("action", "upgrade")
+	response := httptest.NewRecorder()
+	admin.Action(response, request)
+
+	require.Equal(t, http.StatusConflict, response.Code)
+	assert.Contains(t, response.Body.String(), "Removed permissions")
+	assert.Contains(t, response.Body.String(), "pages:read")
+	assert.Contains(t, response.Body.String(), "Confirm permission changes and upgrade")
+	assert.Contains(t, response.Body.String(), `name="approve_operation" value="upgrade"`)
+	assert.Equal(t, "1.0.0", manager.Plugins()[0].Manifest.Version)
+
+	request = auth.WithUser(
+		pluginUploadWithFields(t, upgradeArchive, pluginApprovalFields(t, upgradeArchive, "upgrade", "1.1.0")),
+		domain.User{ID: 1, Role: "admin"},
+	)
+	request.URL.Path = "/admin/plugins/" + pluginID + "/upgrade"
+	request.URL.RawQuery = "return=detail"
+	request.SetPathValue("pluginID", pluginID)
+	request.SetPathValue("action", "upgrade")
+	response = httptest.NewRecorder()
+	admin.Action(response, request)
+
+	require.Equal(t, http.StatusSeeOther, response.Code)
+	assert.Equal(t, "/admin/plugins?plugin="+pluginID, response.Header().Get("Location"))
 	assert.Equal(t, "1.1.0", manager.Plugins()[0].Manifest.Version)
 }
 

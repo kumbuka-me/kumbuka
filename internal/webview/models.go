@@ -112,14 +112,28 @@ type PluginPermission struct {
 	Description string
 }
 
-// PluginPermissionApproval describes one catalog update blocked on explicit administrator approval.
+// PluginPermissionApproval describes one exact plugin package waiting for explicit administrator permission review.
 type PluginPermissionApproval struct {
-	// PluginID identifies the installed plugin requesting additional capabilities.
+	// Operation is install, update, or upgrade.
+	Operation string
+	// PluginID identifies the plugin package being reviewed.
 	PluginID string
-	// Version is the catalog release that requests the additional capabilities.
+	// Name is the human-readable plugin name from the package manifest.
+	Name string
+	// Provider is the package provider shown to the administrator.
+	Provider string
+	// Description is the package description shown to the administrator.
+	Description string
+	// Version is the exact package version being reviewed.
 	Version string
-	// Permissions contains only capabilities not requested by the currently installed version.
+	// Digest is the SHA-256 digest of the exact package bytes being reviewed.
+	Digest string
+	// Permissions contains the complete permission set requested by the target package.
 	Permissions []PluginPermission
+	// AddedPermissions contains capabilities introduced relative to the installed version.
+	AddedPermissions []PluginPermission
+	// RemovedPermissions contains capabilities no longer requested by the target version.
+	RemovedPermissions []PluginPermission
 }
 
 // PluginUpdateStatus describes catalog refresh state shown in plugin administration.
@@ -462,8 +476,14 @@ type AdminPluginsView struct {
 	// PluginUpdates contains newer compatible first-party releases keyed by plugin ID.
 	PluginUpdates map[string]*PluginUpdate
 
-	// PluginPermissionApprovals contains catalog updates waiting for explicit approval of newly requested capabilities.
+	// PluginPermissionApprovals contains catalog updates waiting for explicit permission review.
 	PluginPermissionApprovals map[string]*PluginPermissionApproval
+
+	// PluginInstallApproval contains a newly uploaded package waiting for explicit permission review.
+	PluginInstallApproval *PluginPermissionApproval
+
+	// PluginUpgradeApprovals contains manually uploaded replacement packages waiting for explicit permission review.
+	PluginUpgradeApprovals map[string]*PluginPermissionApproval
 
 	// PluginUpdateStatus contains scheduled and manual catalog refresh state.
 	PluginUpdateStatus PluginUpdateStatus

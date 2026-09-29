@@ -2,6 +2,7 @@ package plugins
 
 import (
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"slices"
@@ -31,27 +32,53 @@ type lifecycleManager interface {
 	Uninstall(context.Context, string) error
 }
 
-// UpdateApproval binds administrator consent to the exact catalog version and newly requested permissions that were reviewed.
-type UpdateApproval struct {
-	// Version is the catalog release shown to the administrator.
+// PermissionApproval binds administrator consent to the exact plugin package and complete requested permission set that were reviewed.
+type PermissionApproval struct {
+	// Operation is install, update, or upgrade and prevents consent from being reused across lifecycle actions.
+	Operation string
+	// PluginID identifies the package whose permissions were reviewed.
+	PluginID string
+	// Version is the package version shown to the administrator.
 	Version string
-	// Permissions contains the exact newly requested permissions approved for that release.
+	// Digest is the SHA-256 digest of the exact package bytes that were reviewed.
+	Digest string
+	// Permissions contains the complete permission set approved for that package.
 	Permissions []string
 }
 
-// PermissionApprovalRequiredError reports additional capabilities introduced by a catalog update.
+// UpdateApproval is retained as the update-specific spelling of PermissionApproval.
+type UpdateApproval = PermissionApproval
+
+// PermissionApprovalRequiredError reports a package that must be reviewed before installation or activation.
 type PermissionApprovalRequiredError struct {
-	// PluginID identifies the installed plugin requesting additional capabilities.
+	// Operation is install, update, or upgrade.
+	Operation string
+	// PluginID identifies the plugin requesting permission approval.
 	PluginID string
-	// Version is the catalog version that requests the additional capabilities.
+	// Name is the human-readable plugin name from the package manifest.
+	Name string
+	// Provider is the package provider shown in administration.
+	Provider string
+	// Description is the package description shown in administration.
+	Description string
+	// Version is the package version that requires approval.
 	Version string
-	// Permissions contains only permissions that are new relative to the installed version.
+	// Digest binds the approval to the exact package bytes.
+	Digest string
+	// Permissions contains the complete target permission set.
 	Permissions []string
+	// AddedPermissions contains target permissions absent from the installed version.
+	AddedPermissions []string
+	// RemovedPermissions contains installed permissions absent from the target version.
+	RemovedPermissions []string
 }
 
 // Error describes the required explicit administrator approval without exposing package internals.
 func (e *PermissionApprovalRequiredError) Error() string {
-	return fmt.Sprintf("plugin %s update to %s requires approval for new permissions: %v", e.PluginID, e.Version, e.Permissions)
+	if e.Operation == "install" {
+		return fmt.Sprintf("plugin %s installation requires permission approval", e.PluginID)
+	}
+	return fmt.Sprintf("plugin %s %s to %s changes permissions and requires approval", e.PluginID, e.Operation, e.Version)
 }
 
 // UpdateFailure records one independent plugin update that could not be applied.
@@ -122,22 +149,35 @@ func (a *Admin) Available() (map[string]domain.PluginRelease, error) {
 	return a.catalog.Available()
 }
 
-// Install validates and installs one plugin package.
-func (a *Admin) Install(ctx context.Context, archive []byte) (plugin.LoadedPlugin, error) {
-	if _, err := pluginpackage.Read(archive); err != nil {
+// Install validates one plugin package and requires explicit administrator review before any package is installed, including packages that request no permissions.
+func (a *Admin) Install(ctx context.Context, archive []byte, approvals ...PermissionApproval) (plugin.LoadedPlugin, error) {
+	packageData, err := pluginpackage.Read(archive)
+	if err != nil {
 		return plugin.LoadedPlugin{}, err
+	}
+	manifest := packageData.Manifest()
+	if !permissionApprovalMatches(approvals, "install", manifest.ID, manifest.Version, manifest.Permissions, archive) {
+		return plugin.LoadedPlugin{}, permissionApprovalRequired("install", pluginpackage.Manifest{}, manifest, manifest.Version, archive)
 	}
 	return a.manager.Install(ctx, archive)
 }
 
-// Upgrade validates package identity before replacing the installed plugin.
-func (a *Admin) Upgrade(ctx context.Context, id string, archive []byte) error {
+// Upgrade validates package identity and requires explicit administrator approval whenever the complete permission set changes.
+func (a *Admin) Upgrade(ctx context.Context, id string, archive []byte, approvals ...PermissionApproval) error {
+	installed, ok := installedPlugin(a.manager.Plugins(), id)
+	if !ok {
+		return errors.New("plugin is not installed")
+	}
 	packageData, err := pluginpackage.Read(archive)
 	if err != nil {
 		return err
 	}
-	if packageData.Manifest().ID != id {
+	manifest := packageData.Manifest()
+	if manifest.ID != id {
 		return errors.New("uploaded package must have the same plugin ID")
+	}
+	if permissionSetChanged(installed.Manifest.Permissions, manifest.Permissions) && !permissionApprovalMatches(approvals, "upgrade", manifest.ID, manifest.Version, manifest.Permissions, archive) {
+		return permissionApprovalRequired("upgrade", installed.Manifest, manifest, manifest.Version, archive)
 	}
 	_, err = a.manager.Upgrade(ctx, id, archive)
 	return err
@@ -152,7 +192,7 @@ func (a *Admin) Disable(ctx context.Context, id string) error { return a.manager
 // Uninstall removes an installed plugin.
 func (a *Admin) Uninstall(ctx context.Context, id string) error { return a.manager.Uninstall(ctx, id) }
 
-// Update downloads and applies one compatible installed-plugin update. Additional manifest permissions require an explicit administrator approval before the package is activated.
+// Update downloads and applies one compatible installed-plugin update. Any permission-set change requires explicit administrator approval before the package is activated.
 func (a *Admin) Update(ctx context.Context, id string, approvals ...UpdateApproval) error {
 	if !a.CatalogAvailable() {
 		return errors.New("plugin update catalog is unavailable")
@@ -206,10 +246,9 @@ func (a *Admin) updateRelease(ctx context.Context, installed plugin.LoadedPlugin
 	if err != nil {
 		return err
 	}
-	if permissions := addedPermissions(installed.Manifest.Permissions, packageData.Manifest().Permissions); len(permissions) > 0 {
-		if !permissionApprovalMatches(approvals, release.Version, permissions) {
-			return &PermissionApprovalRequiredError{PluginID: id, Version: release.Version, Permissions: permissions}
-		}
+	manifest := packageData.Manifest()
+	if permissionSetChanged(installed.Manifest.Permissions, manifest.Permissions) && !permissionApprovalMatches(approvals, "update", manifest.ID, release.Version, manifest.Permissions, archive) {
+		return permissionApprovalRequired("update", installed.Manifest, manifest, release.Version, archive)
 	}
 	_, err = a.manager.Upgrade(ctx, id, archive)
 	return err
@@ -227,13 +266,43 @@ func validateUpdatePackage(id string, archive []byte) (*pluginpackage.Package, e
 	return packageData, nil
 }
 
-// permissionApprovalMatches reports whether consent exactly matches the release and permission delta currently being activated.
-func permissionApprovalMatches(approvals []UpdateApproval, version string, permissions []string) bool {
-	if len(approvals) == 0 || approvals[0].Version != version {
-		return false
+// permissionApprovalRequired constructs a review challenge bound to the exact package bytes and permission transition.
+func permissionApprovalRequired(operation string, current, target pluginpackage.Manifest, version string, archive []byte) *PermissionApprovalRequiredError {
+	added, removed := permissionChanges(current.Permissions, target.Permissions)
+	return &PermissionApprovalRequiredError{
+		Operation:          operation,
+		PluginID:           target.ID,
+		Name:               target.Name,
+		Provider:           target.Provider,
+		Description:        target.Description,
+		Version:            version,
+		Digest:             pluginArchiveDigest(archive),
+		Permissions:        normalizedPermissions(target.Permissions),
+		AddedPermissions:   added,
+		RemovedPermissions: removed,
 	}
-	approved := normalizedPermissions(approvals[0].Permissions)
-	return slices.Equal(approved, normalizedPermissions(permissions))
+}
+
+// permissionApprovalMatches reports whether consent exactly matches the package identity, reviewed version, digest, and complete target permission set currently being activated.
+func permissionApprovalMatches(approvals []PermissionApproval, operation, pluginID, version string, permissions []string, archive []byte) bool {
+	digest := pluginArchiveDigest(archive)
+	targetPermissions := normalizedPermissions(permissions)
+	for _, approved := range approvals {
+		if approved.Operation == operation &&
+			approved.PluginID == pluginID &&
+			approved.Version == version &&
+			approved.Digest == digest &&
+			slices.Equal(normalizedPermissions(approved.Permissions), targetPermissions) {
+			return true
+		}
+	}
+	return false
+}
+
+// pluginArchiveDigest returns the canonical lower-case SHA-256 digest used to bind approval to package bytes.
+func pluginArchiveDigest(archive []byte) string {
+	digest := sha256.Sum256(archive)
+	return fmt.Sprintf("%x", digest[:])
 }
 
 // normalizedPermissions returns a sorted, de-duplicated permission set for exact approval comparison.
@@ -248,16 +317,28 @@ func normalizedPermissions(permissions []string) []string {
 	return result
 }
 
-// addedPermissions returns sorted target permissions absent from the currently installed manifest.
-func addedPermissions(current, target []string) []string {
-	permissions := make([]string, 0, len(target))
+// permissionSetChanged reports whether two permission sets differ, ignoring ordering and duplicates.
+func permissionSetChanged(current, target []string) bool {
+	return !slices.Equal(normalizedPermissions(current), normalizedPermissions(target))
+}
+
+// permissionChanges returns the sorted additions and removals between two permission sets.
+func permissionChanges(current, target []string) ([]string, []string) {
+	current = normalizedPermissions(current)
+	target = normalizedPermissions(target)
+	added := make([]string, 0, len(target))
+	removed := make([]string, 0, len(current))
 	for _, permission := range target {
-		if !slices.Contains(current, permission) && !slices.Contains(permissions, permission) {
-			permissions = append(permissions, permission)
+		if !slices.Contains(current, permission) {
+			added = append(added, permission)
 		}
 	}
-	sort.Strings(permissions)
-	return permissions
+	for _, permission := range current {
+		if !slices.Contains(target, permission) {
+			removed = append(removed, permission)
+		}
+	}
+	return added, removed
 }
 
 // installedUpdateIDs returns sorted IDs available for currently installed plugins.

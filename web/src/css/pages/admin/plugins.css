@@ -747,4 +747,51 @@
   }
 }
 
+/* Explicit package permission review for installs and permission-changing upgrades. */
+.plugin-permission-group {
+  display: grid;
+  gap: 8px;
+}
 
+.plugin-permission-group h4 {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.plugin-permission-target {
+  display: grid;
+  gap: 10px;
+}
+
+.plugin-permission-target > summary {
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.plugin-permission-target[open] > summary {
+  margin-bottom: 10px;
+}
+
+.plugin-permission-list .plugin-permission-none {
+  grid-template-columns: 1fr;
+}
+
+[data-plugin-catalog-update] > form[data-plugin-update] {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
+[data-plugin-upload-approval]:empty {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  [data-plugin-catalog-update] > form[data-plugin-update],
+  [data-plugin-catalog-update] > form[data-plugin-update] .button {
+    width: 100%;
+  }
+}

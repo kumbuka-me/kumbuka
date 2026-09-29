@@ -146,7 +146,7 @@ test("plugin administration forms drive the real runtime lifecycle", async () =>
 
     const installForm = page.locator("[data-plugin-install]");
     const installButton = installForm.getByRole("button", {
-      name: "Install and enable",
+      name: "Review plugin",
       exact: true,
     });
     assert.equal(await installButton.isDisabled(), true);
@@ -190,6 +190,18 @@ test("plugin administration forms drive the real runtime lifecycle", async () =>
       /(?:KiB|MiB)$/,
     );
     await installButton.click();
+    await installForm
+      .getByText("Review Browser Fixture 1.0.0 before installation", { exact: true })
+      .waitFor();
+    assert.equal(
+      await installForm
+        .getByText("This plugin requests no host capabilities.", { exact: true })
+        .count(),
+      1,
+    );
+    await installForm
+      .getByRole("button", { name: "Confirm and install", exact: true })
+      .click();
     await page.waitForURL(url + "/admin/plugins?plugin=io.example.browser");
 
     const browserDialog = page.locator(
@@ -299,3 +311,4 @@ test("plugin administration forms drive the real runtime lifecycle", async () =>
     await rm(directory, { recursive: true, force: true });
   }
 });
+

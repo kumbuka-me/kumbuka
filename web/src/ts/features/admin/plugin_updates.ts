@@ -11,19 +11,13 @@ type PluginUpdateProgress = {
 };
 
 type PluginUpdateRowState =
-  | "queued"
-  | "updating"
-  | "updated"
-  | "failed"
-  | "approval";
+  "queued" | "updating" | "updated" | "failed" | "approval";
 
 const boundPluginUpdateForms = new WeakSet<HTMLFormElement>();
 
 // pluginUpdateForms returns the catalog update forms rendered below one DOM root.
 function pluginUpdateForms(root: ParentNode = document): HTMLFormElement[] {
-  return [
-    ...root.querySelectorAll<HTMLFormElement>("[data-plugin-update]"),
-  ];
+  return [...root.querySelectorAll<HTMLFormElement>("[data-plugin-update]")];
 }
 
 // isBulkPluginUpdate reports whether form is the Update all action.
@@ -198,10 +192,10 @@ function syncPermissionApprovalDetail(
   const sourceDialog = pluginDetailDialog(result, pluginID);
   const targetDialog = pluginDetailDialog(document, pluginID);
   const source = sourceDialog?.querySelector<HTMLElement>(
-    ".plugin-update-section",
+    "[data-plugin-catalog-update]",
   );
   const target = targetDialog?.querySelector<HTMLElement>(
-    ".plugin-update-section",
+    "[data-plugin-catalog-update]",
   );
   if (!source || !target) return false;
 
@@ -232,12 +226,9 @@ async function updateSinglePlugin(form: HTMLFormElement): Promise<void> {
       form.action,
       new FormData(form),
     );
-    if (
-      response.status === 409 &&
-      pluginPermissionApproval(result) !== null
-    ) {
-      const pluginID = form.closest<HTMLElement>("[data-plugin-id]")?.dataset
-        .pluginId;
+    if (response.status === 409 && pluginPermissionApproval(result) !== null) {
+      const pluginID =
+        form.closest<HTMLElement>("[data-plugin-id]")?.dataset.pluginId;
       if (pluginID && syncPermissionApprovalDetail(pluginID, result)) {
         const rowUpdate = availablePluginUpdates().find(
           (update) => update.id === pluginID,
@@ -482,7 +473,7 @@ async function updateAllPlugins(form: HTMLFormElement): Promise<void> {
     const problems: string[] = [];
     if (approvals > 0) {
       problems.push(
-        `${approvals} update(s) need permission approval. Open the marked plugins to review the new capabilities.`,
+        `${approvals} update(s) need permission approval. Open the marked plugins to review the permission changes.`,
       );
     }
     if (failed > 0) {

@@ -29,6 +29,34 @@ function formatFileSize(bytes: number): string {
   return `${Math.max(1, Math.ceil(bytes / kibibyte))} KiB`;
 }
 
+// pluginUploadResponseForm returns the matching install or manual-upgrade form from one server-rendered response.
+function pluginUploadResponseForm(
+  result: Document,
+  form: HTMLFormElement,
+): HTMLFormElement | null {
+  const selector = form.hasAttribute("data-plugin-install")
+    ? "form[data-plugin-install]"
+    : "form[data-plugin-upgrade]";
+  const action = form.getAttribute("action") || "";
+  for (const candidate of result.querySelectorAll<HTMLFormElement>(selector)) {
+    if ((candidate.getAttribute("action") || "") === action) return candidate;
+  }
+  return null;
+}
+
+// pluginUploadProblem extracts the user-facing administration error from a rendered upload response.
+function pluginUploadProblem(result: Document): string {
+  return (
+    result
+      .querySelector<HTMLElement>(".plugin-detail-message[role='alert']")
+      ?.textContent?.trim() ||
+    result
+      .querySelector<HTMLElement>(".settings-note[role='alert']")
+      ?.textContent?.trim() ||
+    "Could not process the plugin package. Check the package and try again."
+  );
+}
+
 // setupPluginUpload wires one install or upgrade package picker.
 function setupPluginUpload(form: HTMLFormElement): void {
   const input = requiredElement<HTMLInputElement>(
@@ -155,13 +183,83 @@ function setupPluginUpload(form: HTMLFormElement): void {
     if (files?.length) chooseDroppedFile(files);
   });
 
-  form.addEventListener("submit", (event: SubmitEvent) => {
-    if (input.files?.length === 1 && !pluginPackageProblem(input.files[0])) {
+  let submitting = false;
+
+  form.addEventListener("submit", async (event: SubmitEvent) => {
+    if (input.files?.length !== 1 || pluginPackageProblem(input.files[0])) {
+      event.preventDefault();
+      input.click();
+      return;
+    }
+    if (submitting) {
+      event.preventDefault();
       return;
     }
 
+    const approval = form.querySelector<HTMLElement>(
+      "[data-plugin-upload-approval]",
+    );
+    if (!approval) return;
+
     event.preventDefault();
-    input.click();
+    submitting = true;
+    const originalLabel = submit.textContent?.trim() || "Submit";
+    form.setAttribute("aria-busy", "true");
+    submit.disabled = true;
+    submit.textContent = form.hasAttribute("data-plugin-install")
+      ? approval.querySelector("[data-plugin-package-approval]")
+        ? "Installing…"
+        : "Reviewing plugin…"
+      : approval.querySelector("[data-plugin-package-approval]")
+        ? "Applying upgrade…"
+        : "Checking upgrade…";
+
+    try {
+      const response = await fetch(form.action, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { Accept: "text/html" },
+        body: new FormData(form),
+      });
+      const result = new DOMParser().parseFromString(
+        await response.text(),
+        "text/html",
+      );
+
+      if (response.status === 409) {
+        const sourceForm = pluginUploadResponseForm(result, form);
+        const sourceApproval = sourceForm?.querySelector<HTMLElement>(
+          "[data-plugin-upload-approval]",
+        );
+        if (sourceForm && sourceApproval) {
+          approval.innerHTML = sourceApproval.innerHTML;
+          submit.textContent =
+            sourceForm
+              .querySelector<HTMLButtonElement>("[data-plugin-upload-submit]")
+              ?.textContent?.trim() || "Confirm and continue";
+          showProblem("");
+          return;
+        }
+      }
+
+      if (response.ok && response.redirected) {
+        window.location.assign(response.url);
+        return;
+      }
+
+      showProblem(pluginUploadProblem(result));
+    } catch {
+      showProblem(
+        "Could not process the plugin package. Check your connection and try again.",
+      );
+    } finally {
+      submitting = false;
+      form.removeAttribute("aria-busy");
+      submit.disabled = false;
+      if (!approval.querySelector("[data-plugin-package-approval]")) {
+        submit.textContent = originalLabel;
+      }
+    }
   });
 
   sync();

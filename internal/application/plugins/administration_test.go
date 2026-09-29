@@ -24,6 +24,7 @@ func TestAdminStatusWithoutCatalog(t *testing.T) {
 // administrationLifecycleStub provides deterministic lifecycle behavior without constructing a WASM runtime.
 type administrationLifecycleStub struct {
 	plugins  []plugin.LoadedPlugin
+	installs []string
 	upgrades []string
 	failures map[string]error
 }
@@ -32,8 +33,15 @@ func (s *administrationLifecycleStub) Plugins() []plugin.LoadedPlugin {
 	return append([]plugin.LoadedPlugin(nil), s.plugins...)
 }
 func (*administrationLifecycleStub) IsRequired(string) bool { return false }
-func (*administrationLifecycleStub) Install(context.Context, []byte) (plugin.LoadedPlugin, error) {
-	return plugin.LoadedPlugin{}, nil
+func (s *administrationLifecycleStub) Install(_ context.Context, archive []byte) (plugin.LoadedPlugin, error) {
+	pkg, err := pluginpackage.Read(archive)
+	if err != nil {
+		return plugin.LoadedPlugin{}, err
+	}
+	item := plugin.LoadedPlugin{Manifest: pkg.Manifest(), Enabled: true}
+	s.plugins = append(s.plugins, item)
+	s.installs = append(s.installs, item.Manifest.ID)
+	return item, nil
 }
 func (s *administrationLifecycleStub) Upgrade(_ context.Context, id string, archive []byte) (plugin.LoadedPlugin, error) {
 	if err := s.failures[id]; err != nil {
@@ -78,17 +86,92 @@ func (s *administrationCatalogStub) Download(_ context.Context, id, version stri
 }
 func (*administrationCatalogStub) Status() PluginUpdateStatus { return PluginUpdateStatus{} }
 
-func TestCatalogUpdateRequiresApprovalForNewPermissions(t *testing.T) {
+func TestInstallAlwaysRequiresExactPermissionReview(t *testing.T) {
+	t.Parallel()
+
+	const id = "io.example.install-review"
+	archive := administrationPluginArchive(t, id, "1.0.0", []string{"pages:read", "pages:write"})
+	manager := &administrationLifecycleStub{}
+	admin := NewAdmin(manager, nil)
+
+	_, err := admin.Install(context.Background(), archive)
+	var approval *PermissionApprovalRequiredError
+	require.ErrorAs(t, err, &approval)
+	assert.Equal(t, "install", approval.Operation)
+	assert.Equal(t, id, approval.PluginID)
+	assert.Equal(t, "1.0.0", approval.Version)
+	assert.Equal(t, []string{"pages:read", "pages:write"}, approval.Permissions)
+	assert.Equal(t, approval.Permissions, approval.AddedPermissions)
+	assert.Empty(t, approval.RemovedPermissions)
+	assert.Empty(t, manager.installs)
+
+	_, err = admin.Install(context.Background(), archive, PermissionApproval{
+		Operation:   "install",
+		PluginID:    id,
+		Version:     "1.0.0",
+		Digest:      approval.Digest,
+		Permissions: []string{"pages:write"},
+	})
+	require.ErrorAs(t, err, &approval, "partial permission approval must not install the package")
+	assert.Empty(t, manager.installs)
+
+	item, err := admin.Install(context.Background(), archive, PermissionApproval{
+		Operation:   "install",
+		PluginID:    id,
+		Version:     "1.0.0",
+		Digest:      approval.Digest,
+		Permissions: []string{"pages:write", "pages:read"},
+	})
+	require.NoError(t, err)
+	assert.Equal(t, id, item.Manifest.ID)
+	assert.Equal(t, []string{id}, manager.installs)
+}
+
+func TestInstallWithoutPermissionsStillRequiresConfirmation(t *testing.T) {
+	t.Parallel()
+
+	const id = "io.example.install-no-permissions"
+	archive := administrationPluginArchive(t, id, "1.0.0", nil)
+	manager := &administrationLifecycleStub{}
+	admin := NewAdmin(manager, nil)
+
+	_, err := admin.Install(context.Background(), archive)
+	var approval *PermissionApprovalRequiredError
+	require.ErrorAs(t, err, &approval)
+	assert.Empty(t, approval.Permissions)
+	assert.Empty(t, manager.installs)
+
+	_, err = admin.Install(context.Background(), archive, PermissionApproval{
+		Operation: "upgrade",
+		PluginID:  id,
+		Version:   "1.0.0",
+		Digest:    approval.Digest,
+	})
+	require.ErrorAs(t, err, &approval, "approval for a different lifecycle operation must not install the package")
+	assert.Empty(t, manager.installs)
+
+	_, err = admin.Install(context.Background(), archive, PermissionApproval{
+		Operation: "install",
+		PluginID:  id,
+		Version:   "1.0.0",
+		Digest:    approval.Digest,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, []string{id}, manager.installs)
+}
+
+func TestCatalogUpdateRequiresApprovalForAnyPermissionChange(t *testing.T) {
 	t.Parallel()
 
 	const id = "io.example.permissions"
 	manager := &administrationLifecycleStub{plugins: []plugin.LoadedPlugin{{
-		Manifest: pluginpackage.Manifest{ID: id, Version: "1.0.0", Permissions: []string{"pages:read"}},
+		Manifest: pluginpackage.Manifest{ID: id, Version: "1.0.0", Permissions: []string{"pages:read", "storage:read"}},
 		Enabled:  true,
 	}}}
+	archive := administrationPluginArchive(t, id, "1.1.0", []string{"pages:read", "pages:write"})
 	catalog := &administrationCatalogStub{
 		updates:  map[string]domain.PluginRelease{id: {Version: "1.1.0"}},
-		archives: map[string][]byte{id: administrationPluginArchive(t, id, "1.1.0", []string{"pages:read", "pages:write"})},
+		archives: map[string][]byte{id: archive},
 	}
 	admin := NewAdmin(manager, catalog)
 
@@ -96,16 +179,31 @@ func TestCatalogUpdateRequiresApprovalForNewPermissions(t *testing.T) {
 
 	var approval *PermissionApprovalRequiredError
 	require.ErrorAs(t, err, &approval)
+	assert.Equal(t, "update", approval.Operation)
 	assert.Equal(t, id, approval.PluginID)
 	assert.Equal(t, "1.1.0", approval.Version)
-	assert.Equal(t, []string{"pages:write"}, approval.Permissions)
+	assert.Equal(t, []string{"pages:read", "pages:write"}, approval.Permissions)
+	assert.Equal(t, []string{"pages:write"}, approval.AddedPermissions)
+	assert.Equal(t, []string{"storage:read"}, approval.RemovedPermissions)
 	assert.Empty(t, manager.upgrades)
 
-	err = admin.Update(context.Background(), id, UpdateApproval{Version: "1.0.9", Permissions: []string{"pages:write"}})
+	err = admin.Update(context.Background(), id, UpdateApproval{
+		Operation:   "update",
+		PluginID:    id,
+		Version:     "1.1.0",
+		Digest:      "wrong-digest",
+		Permissions: approval.Permissions,
+	})
 	require.ErrorAs(t, err, &approval)
-	assert.Empty(t, manager.upgrades, "stale approval must not activate a different catalog release")
+	assert.Empty(t, manager.upgrades, "approval for different package bytes must not activate the release")
 
-	require.NoError(t, admin.Update(context.Background(), id, UpdateApproval{Version: "1.1.0", Permissions: []string{"pages:write"}}))
+	require.NoError(t, admin.Update(context.Background(), id, UpdateApproval{
+		Operation:   "update",
+		PluginID:    id,
+		Version:     "1.1.0",
+		Digest:      pluginArchiveDigest(archive),
+		Permissions: []string{"pages:write", "pages:read"},
+	}))
 	assert.Equal(t, []string{id}, manager.upgrades)
 	assert.Equal(t, "1.1.0", manager.plugins[0].Manifest.Version)
 }
@@ -115,14 +213,46 @@ func TestCatalogUpdateWithExistingPermissionsNeedsNoExtraApproval(t *testing.T) 
 
 	const id = "io.example.same-permissions"
 	manager := &administrationLifecycleStub{plugins: []plugin.LoadedPlugin{{
-		Manifest: pluginpackage.Manifest{ID: id, Version: "1.0.0", Permissions: []string{"pages:read"}},
+		Manifest: pluginpackage.Manifest{ID: id, Version: "1.0.0", Permissions: []string{"pages:read", "pages:write"}},
 	}}}
 	catalog := &administrationCatalogStub{
-		updates:  map[string]domain.PluginRelease{id: {Version: "1.1.0"}},
-		archives: map[string][]byte{id: administrationPluginArchive(t, id, "1.1.0", []string{"pages:read"})},
+		updates: map[string]domain.PluginRelease{id: {Version: "1.1.0"}},
+		archives: map[string][]byte{id: administrationPluginArchive(
+			t,
+			id,
+			"1.1.0",
+			[]string{"pages:write", "pages:read"},
+		)},
 	}
 
 	require.NoError(t, NewAdmin(manager, catalog).Update(context.Background(), id))
+	assert.Equal(t, []string{id}, manager.upgrades)
+}
+
+func TestManualUpgradeRequiresApprovalWhenPermissionsChange(t *testing.T) {
+	t.Parallel()
+
+	const id = "io.example.manual-upgrade"
+	manager := &administrationLifecycleStub{plugins: []plugin.LoadedPlugin{{
+		Manifest: pluginpackage.Manifest{ID: id, Version: "1.0.0", Permissions: []string{"pages:read"}},
+	}}}
+	archive := administrationPluginArchive(t, id, "1.1.0", nil)
+	admin := NewAdmin(manager, nil)
+
+	err := admin.Upgrade(context.Background(), id, archive)
+	var approval *PermissionApprovalRequiredError
+	require.ErrorAs(t, err, &approval)
+	assert.Equal(t, "upgrade", approval.Operation)
+	assert.Empty(t, approval.Permissions)
+	assert.Equal(t, []string{"pages:read"}, approval.RemovedPermissions)
+	assert.Empty(t, manager.upgrades)
+
+	require.NoError(t, admin.Upgrade(context.Background(), id, archive, PermissionApproval{
+		Operation: "upgrade",
+		PluginID:  id,
+		Version:   "1.1.0",
+		Digest:    approval.Digest,
+	}))
 	assert.Equal(t, []string{id}, manager.upgrades)
 }
 

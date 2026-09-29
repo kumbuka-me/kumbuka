@@ -32,6 +32,76 @@
        hidden></p>
   </div>
 {{ end }}
+{{ define "plugin-permission-list" }}
+  <ul class="plugin-permission-list">
+    {{ range . }}
+      <li>
+        <code data-plugin-permission>{{ .Name }}</code>
+        <span>{{ .Description }}</span>
+      </li>
+    {{ else }}
+      <li class="plugin-permission-none">
+        <span>This plugin requests no host capabilities.</span>
+      </li>
+    {{ end }}
+  </ul>
+{{ end }}
+{{ define "plugin-permission-hidden" }}
+  <input type="hidden" name="approve_operation" value="{{ .Operation }}" />
+  <input type="hidden" name="approve_plugin_id" value="{{ .PluginID }}" />
+  <input type="hidden" name="approve_version" value="{{ .Version }}" />
+  <input type="hidden" name="approve_digest" value="{{ .Digest }}" />
+  {{ range .Permissions }}
+    <input type="hidden" name="approve_permission" value="{{ .Name }}" />
+  {{ end }}
+{{ end }}
+{{ define "plugin-permission-review" }}
+  <div class="plugin-permission-approval"
+       data-plugin-permission-approval
+       data-plugin-package-approval
+       data-operation="{{ .Operation }}"
+       data-plugin-id="{{ .PluginID }}"
+       data-plugin-version="{{ .Version }}">
+    <div class="plugin-permission-approval-heading">
+      <div>
+        {{ if eq .Operation "install" }}
+          <strong>Review {{ .Name }} {{ .Version }} before installation</strong>
+          {{ if .Description }}
+            <p class="muted">{{ .Description }}</p>
+          {{ end }}
+          <p class="muted">{{ if .Provider }}Provider: {{ .Provider }}. {{ end }}Confirm the complete permission request before Kumbuka installs and enables this package.</p>
+        {{ else }}
+          <strong>Permission changes for version {{ .Version }}</strong>
+          <p class="muted">The existing version stays active until you confirm this exact package and permission set.</p>
+        {{ end }}
+      </div>
+      <span class="plugin-permission-required-badge">Approval required</span>
+    </div>
+    {{ if eq .Operation "install" }}
+      <div class="plugin-permission-group">
+        <h4>Requested permissions</h4>
+        {{ template "plugin-permission-list" .Permissions }}
+      </div>
+    {{ else }}
+      {{ if .AddedPermissions }}
+        <div class="plugin-permission-group">
+          <h4>Added permissions</h4>
+          {{ template "plugin-permission-list" .AddedPermissions }}
+        </div>
+      {{ end }}
+      {{ if .RemovedPermissions }}
+        <div class="plugin-permission-group">
+          <h4>Removed permissions</h4>
+          {{ template "plugin-permission-list" .RemovedPermissions }}
+        </div>
+      {{ end }}
+      <details class="plugin-permission-target">
+        <summary>Permissions after this change</summary>
+        {{ template "plugin-permission-list" .Permissions }}
+      </details>
+    {{ end }}
+  </div>
+{{ end }}
 {{ define "content" }}
   <section class="admin-page plugin-admin-page">
     <div class="settings-heading">
@@ -157,7 +227,7 @@
     </section>
     <section class="panel settings-panel">
       <h2>Install a plugin</h2>
-      <p class="settings-note">Upload a <code>.kumbukaplugin</code> package up to 16 MiB.</p>
+      <p class="settings-note">Upload a <code>.kumbukaplugin</code> package up to 16 MiB. Kumbuka shows the package identity and requested permissions before anything is installed.</p>
       <form class="plugin-upload-form"
             method="post"
             enctype="multipart/form-data"
@@ -165,8 +235,16 @@
             data-plugin-upload
             data-plugin-install>
         {{ template "plugin-upload-field" . }}
+        <div data-plugin-upload-approval>
+          {{ with .PluginInstallApproval }}
+            {{ template "plugin-permission-review" . }}
+            {{ template "plugin-permission-hidden" . }}
+          {{ end }}
+        </div>
         <div class="plugin-upload-actions">
-          <button class="button primary" type="submit" data-plugin-upload-submit>Install and enable</button>
+          <button class="button primary" type="submit" data-plugin-upload-submit>
+            {{ if .PluginInstallApproval }}Confirm and install{{ else }}Review plugin{{ end }}
+          </button>
         </div>
       </form>
     </section>
@@ -319,73 +397,53 @@
         </details>
         <section class="plugin-detail-section plugin-update-section">
           <h3>Updates</h3>
-          {{ with index $.PluginPermissionApprovals .Manifest.ID }}
-            <div class="plugin-permission-approval"
-                 data-plugin-permission-approval
-                 data-plugin-id="{{ .PluginID }}"
-                 data-plugin-version="{{ .Version }}">
-              <div class="plugin-permission-approval-heading">
-                <div>
-                  <strong>New permissions required for version {{ .Version }}</strong>
-                  <p class="muted">Kumbuka kept the installed version active. Review the additional capabilities below before allowing this update.</p>
-                </div>
-                <span class="plugin-permission-required-badge">Approval required</span>
-              </div>
-              <ul class="plugin-permission-list">
-                {{ range .Permissions }}
-                  <li>
-                    <code data-plugin-permission>{{ .Name }}</code>
-                    <span>{{ .Description }}</span>
-                  </li>
-                {{ end }}
-              </ul>
+          <div data-plugin-catalog-update>
+            {{ with index $.PluginPermissionApprovals .Manifest.ID }}
+              {{ template "plugin-permission-review" . }}
               <form method="post"
                     action="{{ route "/admin/plugins/" }}{{ $plugin.Manifest.ID }}/update?return=detail"
                     data-plugin-update
                     data-plugin-update-pending="Applying approved update…">
-                <input type="hidden" name="approve_version" value="{{ .Version }}" />
-                {{ range .Permissions }}
-                  <input type="hidden" name="approve_permission" value="{{ .Name }}" />
-                {{ end }}
+                {{ template "plugin-permission-hidden" . }}
                 <button class="button primary" type="submit" data-plugin-update-submit>
                   <span class="plugin-update-spinner"
                         data-plugin-update-spinner
                         aria-hidden="true"
                         hidden></span>
-                  <span data-plugin-update-label>Approve permissions and update</span>
+                  <span data-plugin-update-label>Confirm permission changes and update</span>
                 </button>
               </form>
-            </div>
-          {{ else }}
-            {{ with index $.PluginUpdates .Manifest.ID }}
-              <div class="plugin-update-card">
-                <div>
-                  <strong>Version {{ .Version }} is available</strong>
-                  <p class="muted">Published {{ .ReleasedAt.Format "2006-01-02" }}. Kumbuka verifies the catalog checksum and package identity before switching versions.</p>
-                </div>
-                <form method="post"
-                      action="{{ route "/admin/plugins/" }}{{ $plugin.Manifest.ID }}/update?return=detail"
-                      data-plugin-update>
-                  <button class="button primary" type="submit" data-plugin-update-submit>
-                    <span class="plugin-update-spinner"
-                          data-plugin-update-spinner
-                          aria-hidden="true"
-                          hidden></span>
-                    <span data-plugin-update-label>Update to {{ .Version }}</span>
-                  </button>
-                </form>
-              </div>
             {{ else }}
-              {{ if $.PluginCatalogUnavailable }}
-                <p class="settings-note">No successful catalog check is available yet. Use Check for updates on the plugin list to refresh it now.</p>
+              {{ with index $.PluginUpdates .Manifest.ID }}
+                <div class="plugin-update-card">
+                  <div>
+                    <strong>Version {{ .Version }} is available</strong>
+                    <p class="muted">Published {{ .ReleasedAt.Format "2006-01-02" }}. Kumbuka verifies the catalog checksum and package identity before switching versions.</p>
+                  </div>
+                  <form method="post"
+                        action="{{ route "/admin/plugins/" }}{{ $plugin.Manifest.ID }}/update?return=detail"
+                        data-plugin-update>
+                    <button class="button primary" type="submit" data-plugin-update-submit>
+                      <span class="plugin-update-spinner"
+                            data-plugin-update-spinner
+                            aria-hidden="true"
+                            hidden></span>
+                      <span data-plugin-update-label>Update to {{ .Version }}</span>
+                    </button>
+                  </form>
+                </div>
               {{ else }}
-                <p class="settings-note">No newer compatible version is listed in the Kumbuka plugin catalog.</p>
+                {{ if $.PluginCatalogUnavailable }}
+                  <p class="settings-note">No successful catalog check is available yet. Use Check for updates on the plugin list to refresh it now.</p>
+                {{ else }}
+                  <p class="settings-note">No newer compatible version is listed in the Kumbuka plugin catalog.</p>
+                {{ end }}
               {{ end }}
             {{ end }}
-          {{ end }}
+          </div>
           <div class="plugin-manual-upgrade">
             <h4>Manual package upgrade</h4>
-            <p class="settings-note">Upload a package with the same plugin ID. Its enabled state is preserved. The current version stays active if validation fails.</p>
+            <p class="settings-note">Upload a package with the same plugin ID. Its enabled state is preserved. If the package changes permissions, Kumbuka asks for confirmation before replacing the current version.</p>
             <form class="plugin-upload-form"
                   method="post"
                   enctype="multipart/form-data"
@@ -393,8 +451,16 @@
                   data-plugin-upload
                   data-plugin-upgrade>
               {{ template "plugin-upload-field" . }}
+              <div data-plugin-upload-approval>
+                {{ with index $.PluginUpgradeApprovals .Manifest.ID }}
+                  {{ template "plugin-permission-review" . }}
+                  {{ template "plugin-permission-hidden" . }}
+                {{ end }}
+              </div>
               <div class="plugin-upload-actions">
-                <button class="button primary" type="submit" data-plugin-upload-submit>Upgrade plugin</button>
+                <button class="button primary" type="submit" data-plugin-upload-submit>
+                  {{ if index $.PluginUpgradeApprovals .Manifest.ID }}Confirm permission changes and upgrade{{ else }}Upgrade plugin{{ end }}
+                </button>
               </div>
             </form>
           </div>
@@ -415,5 +481,3 @@
     </dialog>
   {{ end }}
 {{ end }}
-
-
