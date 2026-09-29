@@ -269,7 +269,7 @@ clean: ## Clean up generated application files.
 .PHONY: test-web
 test-web: check-web ## Compile and run the TypeScript frontend unit tests.
 	@set -eu; \
-	tmp=$$(mktemp -d); \
+	tmp=$$(mktemp -d "$(CURDIR)/.test-web.XXXXXX"); \
 	trap 'rm -rf "$$tmp"' EXIT INT TERM; \
 	$(TSC) -p test/ts/tsconfig.json --outDir "$$tmp"; \
 	$(NODE) --test "$$tmp"/test/ts/*.test.js

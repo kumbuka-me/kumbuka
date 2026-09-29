@@ -1,0 +1,59 @@
+/* GFM task items inside ordinary Tiptap bullet lists.
+   A single list can contain both normal rows and task rows, matching Markdown. */
+
+.visual-editor-content li.visual-task-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  list-style: none;
+}
+
+.visual-editor-content li.visual-task-item > .visual-task-checkbox {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  margin-top: 0.3em;
+  user-select: none;
+}
+
+.visual-editor-content
+  li.visual-task-item
+  > .visual-task-checkbox
+  input[type="checkbox"] {
+  width: 1rem;
+  min-width: 1rem;
+  max-width: 1rem;
+  height: 1rem;
+  min-height: 1rem;
+  max-height: 1rem;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.visual-editor-content li.visual-task-item > .visual-task-content {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.visual-editor-content
+  li.visual-task-item
+  > .visual-task-content
+  > p:first-child {
+  margin-top: 0;
+}
+
+.visual-editor-content
+  li.visual-task-item
+  > .visual-task-content
+  > p:last-child {
+  margin-bottom: 0;
+}
+
+.visual-editor-content
+  li.visual-task-item[data-checked="true"]
+  > .visual-task-content
+  > p:first-child {
+  color: var(--text-tertiary);
+}

@@ -88,7 +88,7 @@ for (const failFirst of [false, true])
         </form>
         <script type="module">
           import { initMarkdownToolbar, insertMarkdownAtSelection } from '/assets/js/features/editor/toolbar.js';
-          import { initTablePalette } from '/assets/js/features/editor/tables.js';
+          import { initTablePalette } from '/assets/js/features/editor/table-palette.js';
           import { initLazyVisualEditor } from '/assets/js/features/editor/visual-loader.js';
           import { initEditorPreview } from '/assets/js/features/editor/preview.js';
           window.insertMarkdown = markdown => insertMarkdownAtSelection(document.querySelector('textarea'), markdown);

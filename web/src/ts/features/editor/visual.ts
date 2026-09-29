@@ -6,6 +6,11 @@ import { openCompletionPicker } from "./completion-picker.ts";
 
 import { Editor } from "./visual-deps/core.ts";
 import { Image } from "./visual-deps/image.ts";
+import {
+  isVisualTaskListInsert,
+  toggleVisualTaskList,
+  visualTaskListExtensions,
+} from "./visual-deps/list.ts";
 import { TableKit } from "./visual-deps/table.ts";
 import { Markdown } from "./visual-deps/markdown.ts";
 import { StarterKit } from "./visual-deps/starter.ts";
@@ -486,6 +491,12 @@ export function setupVisualEditor(form: HTMLFormElement): void {
   async function runPluginInsert(insert: EditorInsertAction): Promise<void> {
     if (!editor) return;
 
+    if (isVisualTaskListInsert(insert)) {
+      toggleVisualTaskList(editor);
+      syncToolbar();
+      return;
+    }
+
     const opened = await openCompletionPicker(insert, (replacement) => {
       if (!editor) return;
       editor
@@ -607,7 +618,11 @@ export function setupVisualEditor(form: HTMLFormElement): void {
         editor = new Editor({
           element: visualSurface,
           extensions: [
-            StarterKit.configure({ link: { openOnClick: false } }),
+            StarterKit.configure({
+              link: { openOnClick: false },
+              listItem: false,
+            }),
+            ...visualTaskListExtensions(),
             visualMentions(),
             TableKit.configure({
               table: { resizable: true, cellMinWidth: 40 },

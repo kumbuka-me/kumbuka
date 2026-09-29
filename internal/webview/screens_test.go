@@ -15,7 +15,7 @@ import (
 func TestEditorToolbarRendersResolvedDirectActionsAndSubmenus(t *testing.T) {
 	views, err := New(web.Assets, testViewsLogger(), "test", "test", nil, RuntimeInfo{})
 	require.NoError(t, err)
-	strike := plugin.EditorInsertContribution{PluginID: "io.example.strike", ModuleID: "strike", Name: "Strikethrough", Markdown: "~~", Suffix: "~~", Mode: "wrap"}
+	strike := plugin.EditorInsertContribution{PluginID: "io.example.strike", ModuleID: "strike", Name: "Strikethrough", Description: "Wrap selected text in strikethrough markers.", Markdown: "~~", Suffix: "~~", Mode: "wrap"}
 	callouts := []plugin.EditorInsertContribution{{PluginID: "io.example.callouts", ModuleID: "note", Name: "Note", Markdown: "!!! note", Mode: "insert"}, {PluginID: "io.example.callouts", ModuleID: "danger", Name: "Danger", Markdown: "!!! danger", Mode: "insert"}}
 	model := EditView{Layout: Layout{Title: "Edit", User: domain.User{ID: 1, Role: "admin"}, Preferences: domain.DefaultUserPreferences(), EditorToolbar: []plugin.ToolbarGroup{
 		{ID: "text", Label: "Text formatting", Contributions: []plugin.ToolbarContribution{{ID: "io.example.strike:strike", Name: "Strikethrough", Icon: "braces-lucide", Action: &strike}}},
@@ -30,6 +30,8 @@ func TestEditorToolbarRendersResolvedDirectActionsAndSubmenus(t *testing.T) {
 	assert.Contains(t, body, `data-plugin-insert-name="Danger"`)
 	assert.Equal(t, 1, strings.Count(body, `data-toolbar-contribution="io.example.strike:strike"`))
 	assert.Contains(t, body, `data-plugin-insert-suffix="~~"`)
+	assert.Contains(t, body, `title="Strikethrough"`)
+	assert.NotContains(t, body, `title="Wrap selected text in strikethrough markers."`)
 }
 
 func TestTypedScreensRenderProductionTemplates(t *testing.T) {

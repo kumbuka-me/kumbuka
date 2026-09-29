@@ -267,11 +267,14 @@ test("plugin administration forms drive the real runtime lifecycle", async () =>
         mimeType: "application/zip",
         buffer: await upgrade.body(),
       });
+    const upgradeNavigation = page.waitForNavigation({
+      url: url + "/admin/plugins?plugin=io.example.browser",
+    });
     await browserDialog
       .locator("[data-plugin-upgrade]")
       .getByRole("button", { name: "Upgrade plugin", exact: true })
       .click();
-    await page.waitForURL(url + "/admin/plugins?plugin=io.example.browser");
+    await upgradeNavigation;
     await browserDialog.waitFor({ state: "visible" });
     assert.match(
       await browserDialog.locator(".plugin-metadata").textContent(),
@@ -311,4 +314,3 @@ test("plugin administration forms drive the real runtime lifecycle", async () =>
     await rm(directory, { recursive: true, force: true });
   }
 });
-

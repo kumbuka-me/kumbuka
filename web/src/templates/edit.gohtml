@@ -11,7 +11,7 @@
                 data-plugin-insert-placeholder="{{ .Action.Placeholder }}"
                 data-plugin-insert-mode="{{ .Action.Mode }}"
                 data-plugin-insert-inline="{{ .Action.Inline }}"
-                title="{{ if .Description }}{{ .Description }}{{ else }}{{ .Name }}{{ end }}"
+                title="{{ .Name }}"
                 aria-label="{{ .Name }}">{{ icon .Icon 16 }}</button>
       {{ else }}
         <details class="markdown-toolbar-menu" data-toolbar-contribution="{{ .ID }}">
@@ -27,7 +27,7 @@
                       data-plugin-insert-placeholder="{{ .Placeholder }}"
                       data-plugin-insert-mode="{{ .Mode }}"
                       data-plugin-insert-inline="{{ .Inline }}"
-                      title="{{ if .Description }}{{ .Description }}{{ else }}{{ .Name }}{{ end }}">{{ if .Icon }}{{ icon .Icon 15 }}{{ else }}{{ icon "braces-lucide" 15 }}{{ end }}<span>{{ .Name }}</span></button>
+                      title="{{ .Name }}">{{ if .Icon }}{{ icon .Icon 15 }}{{ else }}{{ icon "braces-lucide" 15 }}{{ end }}<span>{{ .Name }}</span></button>
             {{ end }}
           </div>
         </details>

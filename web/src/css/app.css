@@ -91,6 +91,8 @@
 
 @import "./editor/visual.css";
 
+@import "./editor/visual-task-lists.css";
+
 @import "./editor/visual-widget-tables.css";
 
 @import "./editor/toolbar.css";
