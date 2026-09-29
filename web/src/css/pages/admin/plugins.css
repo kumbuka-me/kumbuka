@@ -456,6 +456,18 @@
   font-weight: 700;
 }
 
+[data-plugin-update-progress][data-plugin-update-state="updated"] {
+  color: var(--success);
+}
+
+[data-plugin-update-progress][data-plugin-update-state="approval"] {
+  color: var(--warning);
+}
+
+[data-plugin-update-progress][data-plugin-update-state="failed"] {
+  color: var(--danger);
+}
+
 .plugin-update-badge {
   display: inline-flex;
   margin-left: 5px;
@@ -485,6 +497,70 @@
 
 .plugin-update-card form {
   flex: none;
+}
+
+.plugin-permission-required {
+  color: var(--warning);
+}
+
+.plugin-permission-approval {
+  display: grid;
+  gap: 14px;
+  margin-top: 12px;
+  padding: 16px;
+  border: 1px solid color-mix(in srgb, var(--warning) 42%, var(--border));
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--warning) 7%, var(--surface));
+}
+
+.plugin-permission-approval-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.plugin-permission-approval-heading p {
+  margin: 4px 0 0;
+}
+
+.plugin-permission-required-badge {
+  display: inline-flex;
+  flex: none;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--warning) 14%, var(--surface));
+  color: var(--warning);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.plugin-permission-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.plugin-permission-list li {
+  display: grid;
+  grid-template-columns: minmax(120px, max-content) 1fr;
+  gap: 12px;
+  align-items: start;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--warning) 22%, var(--border));
+  border-radius: 7px;
+  background: var(--surface);
+}
+
+.plugin-permission-list span {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.plugin-permission-approval form {
+  justify-self: end;
 }
 
 .plugin-update-spinner:not([hidden]) {
@@ -523,9 +599,20 @@
 @media (max-width: 640px) {
   .plugin-update-heading,
   .plugin-update-check,
-  .plugin-update-card {
+  .plugin-update-card,
+  .plugin-permission-approval-heading {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .plugin-permission-list li {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+
+  .plugin-permission-approval form,
+  .plugin-permission-approval .button {
+    width: 100%;
   }
 
   .plugin-update-check-status {
@@ -659,3 +746,5 @@
     grid-row: 1 / span 8;
   }
 }
+
+

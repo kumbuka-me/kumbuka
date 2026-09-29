@@ -2,6 +2,7 @@ package endpoint
 
 import (
 	"errors"
+	"fmt"
 	"html/template"
 	"io"
 	"net/http"
@@ -69,6 +70,18 @@ func (a *AdminPlugins) CheckUpdates(w http.ResponseWriter, r *http.Request) {
 
 // render renders the plugin administration page.
 func (a *AdminPlugins) render(w http.ResponseWriter, r *http.Request, id string, status int, message string) {
+	a.renderWithPermissionApprovals(w, r, id, status, message, nil)
+}
+
+// renderWithPermissionApprovals renders plugin administration with update-specific permission approval prompts.
+func (a *AdminPlugins) renderWithPermissionApprovals(
+	w http.ResponseWriter,
+	r *http.Request,
+	id string,
+	status int,
+	message string,
+	approvals map[string]*webview.PluginPermissionApproval,
+) {
 	w.Header().Set("Cache-Control", "private, no-store")
 	if a.manager == nil {
 		http.Error(w, "Plugin manager unavailable.", http.StatusServiceUnavailable)
@@ -79,7 +92,11 @@ func (a *AdminPlugins) render(w http.ResponseWriter, r *http.Request, id string,
 		httpresponse.InternalServerError(a.views.Logger(), w, err)
 		return
 	}
-	data := webview.AdminPluginsView{Layout: layout, AdminPlugins: a.manager.Plugins()}
+	data := webview.AdminPluginsView{
+		Layout:                    layout,
+		AdminPlugins:              a.manager.Plugins(),
+		PluginPermissionApprovals: approvals,
+	}
 	a.populatePluginUpdateView(&data)
 	if err := a.populatePluginDetails(&data, id); err != nil {
 		httpresponse.InternalServerError(a.views.Logger(), w, err)
@@ -198,6 +215,11 @@ func (a *AdminPlugins) Action(w http.ResponseWriter, r *http.Request) {
 		if errors.Is(err, errPluginActionHandled) {
 			return
 		}
+		var approval *appplugins.PermissionApprovalRequiredError
+		if errors.As(err, &approval) {
+			a.renderPermissionApproval(w, r, id, approval)
+			return
+		}
 		a.failure(w, r, id, action, err)
 		return
 	}
@@ -212,16 +234,22 @@ func (a *AdminPlugins) Action(w http.ResponseWriter, r *http.Request) {
 
 var errPluginActionHandled = errors.New("plugin action response already written")
 
-// handleBulkUpdate applies all catalog updates and renders the partial-success failure contract.
+// handleBulkUpdate applies all catalog updates independently so one blocked or failed plugin never stops the rest.
 func (a *AdminPlugins) handleBulkUpdate(w http.ResponseWriter, r *http.Request) {
 	before := pluginInventoryByID(a.manager.Plugins())
-	updated, err := a.manager.UpdateAll(r.Context())
-	for _, pluginID := range updated {
+	result, err := a.manager.UpdateAll(r.Context())
+	if err != nil {
+		a.views.Logger().Error("bulk plugin update failed", "event", "plugin.update_all_failed", "error", err, "actor_id", currentUser(r).ID)
+		a.render(w, r, "", http.StatusUnprocessableEntity, "Could not check or download updates from the Kumbuka catalog. No remaining plugin updates were attempted.")
+		return
+	}
+
+	for _, pluginID := range result.Updated {
 		a.audit(r, "update", pluginID)
 	}
 
 	after := pluginInventoryByID(a.manager.Plugins())
-	for _, pluginID := range updated {
+	for _, pluginID := range result.Updated {
 		previous, previousOK := before[pluginID]
 		current, currentOK := after[pluginID]
 		if pluginRenderStateChanged(previous, previousOK, current, currentOK) {
@@ -232,12 +260,42 @@ func (a *AdminPlugins) handleBulkUpdate(w http.ResponseWriter, r *http.Request) 
 		}
 	}
 
-	if err != nil {
-		a.views.Logger().Error("bulk plugin update failed", "event", "plugin.update_all_failed", "error", err, "actor_id", currentUser(r).ID)
-		a.render(w, r, "", http.StatusUnprocessableEntity, "Could not update all plugins from the Kumbuka catalog. Plugins updated before the failure remain on their new versions; the remaining plugins were left unchanged.")
+	if len(result.Failed) == 0 {
+		route.Redirect(w, r, "/admin/plugins", http.StatusSeeOther)
 		return
 	}
-	route.Redirect(w, r, "/admin/plugins", http.StatusSeeOther)
+
+	approvals := make(map[string]*webview.PluginPermissionApproval)
+	approvalCount := 0
+	failureCount := 0
+	for _, failure := range result.Failed {
+		var approval *appplugins.PermissionApprovalRequiredError
+		if errors.As(failure.Err, &approval) {
+			approvals[failure.PluginID] = pluginPermissionApprovalView(approval)
+			approvalCount++
+			continue
+		}
+		failureCount++
+		a.views.Logger().Error(
+			"plugin update failed during bulk update",
+			"event", "plugin.update_failed",
+			"plugin_id", failure.PluginID,
+			"error", failure.Err,
+			"actor_id", currentUser(r).ID,
+		)
+	}
+
+	a.views.Logger().Warn(
+		"bulk plugin update completed with attention required",
+		"event", "plugin.update_all_partial",
+		"updated", len(result.Updated),
+		"permission_approvals", approvalCount,
+		"failed", failureCount,
+		"actor_id", currentUser(r).ID,
+	)
+	a.renderWithPermissionApprovals(
+		w, r, "", http.StatusUnprocessableEntity, bulkPluginUpdateMessage(len(result.Updated), approvalCount, failureCount), approvals,
+	)
 }
 
 // runPluginAction executes one lifecycle action and reports responses written during upload validation.
@@ -250,13 +308,23 @@ func (a *AdminPlugins) runPluginAction(w http.ResponseWriter, r *http.Request, i
 	case "uninstall":
 		return a.manager.Uninstall(r.Context(), id)
 	case "update":
-		return a.manager.Update(r.Context(), id)
+		return a.manager.Update(r.Context(), id, pluginUpdateApproval(r)...)
 	case "upgrade":
 		return a.upgradeFromUpload(w, r, id)
 	default:
 		http.NotFound(w, r)
 		return errPluginActionHandled
 	}
+}
+
+// pluginUpdateApproval returns exact permission consent submitted from a server-rendered approval card.
+func pluginUpdateApproval(r *http.Request) []appplugins.UpdateApproval {
+	version := strings.TrimSpace(r.FormValue("approve_version"))
+	if version == "" {
+		return nil
+	}
+	permissions := append([]string(nil), r.Form["approve_permission"]...)
+	return []appplugins.UpdateApproval{{Version: version, Permissions: permissions}}
 }
 
 // upgradeFromUpload validates an uploaded package identity before replacing the installed plugin.
@@ -350,6 +418,88 @@ func renderPluginREADME(source string) (template.HTML, error) {
 		return "", err
 	}
 	return template.HTML(rendered), nil
+}
+
+// renderPermissionApproval keeps the installed version active and asks the administrator to approve only newly requested capabilities.
+func (a *AdminPlugins) renderPermissionApproval(w http.ResponseWriter, r *http.Request, id string, approval *appplugins.PermissionApprovalRequiredError) {
+	a.views.Logger().Info(
+		"plugin update requires permission approval",
+		"event", "plugin.update_permission_approval_required",
+		"plugin_id", id,
+		"version", approval.Version,
+		"permissions", approval.Permissions,
+		"actor_id", currentUser(r).ID,
+	)
+	a.renderWithPermissionApprovals(
+		w,
+		r,
+		pluginDetailID(r, id),
+		http.StatusConflict,
+		"This update requests new permissions. Review and approve them to continue; the existing plugin version is still active.",
+		map[string]*webview.PluginPermissionApproval{id: pluginPermissionApprovalView(approval)},
+	)
+}
+
+// pluginPermissionApprovalView converts an application permission challenge into presentation data.
+func pluginPermissionApprovalView(approval *appplugins.PermissionApprovalRequiredError) *webview.PluginPermissionApproval {
+	permissions := make([]webview.PluginPermission, 0, len(approval.Permissions))
+	for _, permission := range approval.Permissions {
+		permissions = append(permissions, webview.PluginPermission{Name: permission, Description: pluginPermissionDescription(permission)})
+	}
+	return &webview.PluginPermissionApproval{PluginID: approval.PluginID, Version: approval.Version, Permissions: permissions}
+}
+
+// pluginPermissionDescription explains host-mediated permissions without implying broader access than the capability provides.
+func pluginPermissionDescription(permission string) string {
+	switch permission {
+	case "pages:write":
+		return "May update the current page through Kumbuka's normal page edit authorization and concurrency checks."
+	case "pages:content":
+		return "May read Markdown content for pages made available to the plugin by Kumbuka."
+	case "pages:read":
+		return "May read page metadata and page relationships made available to the plugin by Kumbuka."
+	case "browser:render":
+		return "May contribute isolated browser-rendered plugin UI."
+	case "network:http":
+		return "May make outbound HTTP requests through Kumbuka's bounded network adapter."
+	case "network:private":
+		return "May allow approved HTTP requests to private network destinations."
+	case "network:insecure-tls":
+		return "May disable origin TLS verification for plugin HTTP requests."
+	case "storage:read":
+		return "May read data stored in this plugin's own namespace."
+	case "storage:write":
+		return "May write data in this plugin's own namespace."
+	case "settings:read":
+		return "May read this plugin's own declared settings."
+	case "settings:write":
+		return "May update this plugin's own declared settings."
+	case "users:read":
+		return "May resolve the bounded public user information exposed to plugins."
+	case "notifications:send":
+		return "May create host-attributed notifications through Kumbuka."
+	case "activity:read":
+		return "May read the bounded activity information exposed to plugins."
+	case "drafts:read":
+		return "May read the bounded draft information exposed to plugins."
+	default:
+		return "Requests an additional host-mediated Kumbuka capability."
+	}
+}
+
+// bulkPluginUpdateMessage summarizes independent bulk outcomes while keeping per-plugin technical errors out of the browser.
+func bulkPluginUpdateMessage(updated, approvals, failed int) string {
+	parts := make([]string, 0, 3)
+	if updated > 0 {
+		parts = append(parts, fmt.Sprintf("Updated %d plugin(s).", updated))
+	}
+	if approvals > 0 {
+		parts = append(parts, fmt.Sprintf("%d update(s) require permission approval; open those plugins to review the new capabilities.", approvals))
+	}
+	if failed > 0 {
+		parts = append(parts, fmt.Sprintf("%d update(s) failed and can be retried without affecting the successful updates.", failed))
+	}
+	return strings.Join(parts, " ")
 }
 
 // failure records a plugin administration failure and redirects the request.

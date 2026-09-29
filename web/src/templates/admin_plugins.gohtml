@@ -116,8 +116,13 @@
                 </td>
                 <td>
                   <span>{{ .Manifest.Version }}</span>
-                  {{ with index $.PluginUpdates .Manifest.ID }}
-                    <small class="plugin-update-version">{{ .Version }} available</small>
+                  {{ with index $.PluginPermissionApprovals .Manifest.ID }}
+                    <small class="plugin-update-version plugin-permission-required"
+                           data-plugin-permission-approval-required>Permission approval required</small>
+                  {{ else }}
+                    {{ with index $.PluginUpdates .Manifest.ID }}
+                      <small class="plugin-update-version">{{ .Version }} available</small>
+                    {{ end }}
                   {{ end }}
                 </td>
                 <td>{{ if .Manifest.Provider }}{{ .Manifest.Provider }}{{ else }}Not specified{{ end }}</td>
@@ -314,29 +319,68 @@
         </details>
         <section class="plugin-detail-section plugin-update-section">
           <h3>Updates</h3>
-          {{ with index $.PluginUpdates .Manifest.ID }}
-            <div class="plugin-update-card">
-              <div>
-                <strong>Version {{ .Version }} is available</strong>
-                <p class="muted">Published {{ .ReleasedAt.Format "2006-01-02" }}. Kumbuka verifies the catalog checksum and package identity before switching versions.</p>
+          {{ with index $.PluginPermissionApprovals .Manifest.ID }}
+            <div class="plugin-permission-approval"
+                 data-plugin-permission-approval
+                 data-plugin-id="{{ .PluginID }}"
+                 data-plugin-version="{{ .Version }}">
+              <div class="plugin-permission-approval-heading">
+                <div>
+                  <strong>New permissions required for version {{ .Version }}</strong>
+                  <p class="muted">Kumbuka kept the installed version active. Review the additional capabilities below before allowing this update.</p>
+                </div>
+                <span class="plugin-permission-required-badge">Approval required</span>
               </div>
+              <ul class="plugin-permission-list">
+                {{ range .Permissions }}
+                  <li>
+                    <code data-plugin-permission>{{ .Name }}</code>
+                    <span>{{ .Description }}</span>
+                  </li>
+                {{ end }}
+              </ul>
               <form method="post"
                     action="{{ route "/admin/plugins/" }}{{ $plugin.Manifest.ID }}/update?return=detail"
-                    data-plugin-update>
+                    data-plugin-update
+                    data-plugin-update-pending="Applying approved update…">
+                <input type="hidden" name="approve_version" value="{{ .Version }}" />
+                {{ range .Permissions }}
+                  <input type="hidden" name="approve_permission" value="{{ .Name }}" />
+                {{ end }}
                 <button class="button primary" type="submit" data-plugin-update-submit>
                   <span class="plugin-update-spinner"
                         data-plugin-update-spinner
                         aria-hidden="true"
                         hidden></span>
-                  <span data-plugin-update-label>Update to {{ .Version }}</span>
+                  <span data-plugin-update-label>Approve permissions and update</span>
                 </button>
               </form>
             </div>
           {{ else }}
-            {{ if $.PluginCatalogUnavailable }}
-              <p class="settings-note">No successful catalog check is available yet. Use Check for updates on the plugin list to refresh it now.</p>
+            {{ with index $.PluginUpdates .Manifest.ID }}
+              <div class="plugin-update-card">
+                <div>
+                  <strong>Version {{ .Version }} is available</strong>
+                  <p class="muted">Published {{ .ReleasedAt.Format "2006-01-02" }}. Kumbuka verifies the catalog checksum and package identity before switching versions.</p>
+                </div>
+                <form method="post"
+                      action="{{ route "/admin/plugins/" }}{{ $plugin.Manifest.ID }}/update?return=detail"
+                      data-plugin-update>
+                  <button class="button primary" type="submit" data-plugin-update-submit>
+                    <span class="plugin-update-spinner"
+                          data-plugin-update-spinner
+                          aria-hidden="true"
+                          hidden></span>
+                    <span data-plugin-update-label>Update to {{ .Version }}</span>
+                  </button>
+                </form>
+              </div>
             {{ else }}
-              <p class="settings-note">No newer compatible version is listed in the Kumbuka plugin catalog.</p>
+              {{ if $.PluginCatalogUnavailable }}
+                <p class="settings-note">No successful catalog check is available yet. Use Check for updates on the plugin list to refresh it now.</p>
+              {{ else }}
+                <p class="settings-note">No newer compatible version is listed in the Kumbuka plugin catalog.</p>
+              {{ end }}
             {{ end }}
           {{ end }}
           <div class="plugin-manual-upgrade">
@@ -371,3 +415,5 @@
     </dialog>
   {{ end }}
 {{ end }}
+
+

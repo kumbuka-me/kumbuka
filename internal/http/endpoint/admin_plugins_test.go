@@ -1,14 +1,18 @@
 package endpoint
 
 import (
+	"archive/zip"
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"html/template"
 	"log/slog"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -215,6 +219,62 @@ func TestAdminPluginCatalogUpdate(t *testing.T) {
 	assert.Equal(t, "9.9.9", updates.downloadedVer)
 }
 
+func TestAdminPluginCatalogUpdateRequiresNewPermissionApproval(t *testing.T) {
+	ctx := context.Background()
+	runtime, err := wasm.New(
+		ctx,
+		wasm.Limits{InitTimeout: 30 * time.Second},
+		wasm.WithPermissions("pages:write"),
+		wasm.WithInterpreter(),
+	)
+	require.NoError(t, err)
+	manager := plugin.NewManager(&plugin.Registry{}, runtime)
+	defer func() { require.NoError(t, manager.Close(ctx)) }()
+
+	const pluginID = "io.example.permission-update"
+	installedArchive := endpointPluginArchive(t, pluginID, "1.0.0", nil)
+	_, err = manager.Install(ctx, installedArchive)
+	require.NoError(t, err)
+	updateArchive := endpointPluginArchive(t, pluginID, "1.1.0", []string{"pages:write"})
+
+	updates := &pluginUpdateServiceStub{
+		updates: map[string]domain.PluginRelease{pluginID: {Version: "1.1.0"}},
+		archive: updateArchive,
+	}
+	views := testHandlerViews(t, webview.RuntimeInfo{})
+	data := browserContextLoaderStub{load: func(*http.Request, *webview.Views, string) (webview.Layout, error) {
+		return webview.Layout{User: domain.User{ID: 1, Role: "admin"}}, nil
+	}}
+	admin := NewAdminPlugins(appplugins.NewAdmin(manager, updates), data, views)
+
+	request := auth.WithUser(httptest.NewRequest("POST", "/admin/plugins/"+pluginID+"/update?return=detail", nil), domain.User{ID: 1, Role: "admin"})
+	request.SetPathValue("pluginID", pluginID)
+	request.SetPathValue("action", "update")
+	response := httptest.NewRecorder()
+	admin.Action(response, request)
+
+	require.Equal(t, http.StatusConflict, response.Code)
+	assert.Contains(t, response.Body.String(), "New permissions required for version 1.1.0")
+	assert.Contains(t, response.Body.String(), "pages:write")
+	assert.Contains(t, response.Body.String(), "normal page edit authorization")
+	assert.Contains(t, response.Body.String(), "Approve permissions and update")
+	require.Len(t, manager.Plugins(), 1)
+	assert.Equal(t, "1.0.0", manager.Plugins()[0].Manifest.Version)
+
+	form := url.Values{"approve_version": {"1.1.0"}, "approve_permission": {"pages:write"}}
+	request = auth.WithUser(httptest.NewRequest("POST", "/admin/plugins/"+pluginID+"/update?return=detail", strings.NewReader(form.Encode())), domain.User{ID: 1, Role: "admin"})
+	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	request.SetPathValue("pluginID", pluginID)
+	request.SetPathValue("action", "update")
+	response = httptest.NewRecorder()
+	admin.Action(response, request)
+
+	require.Equal(t, http.StatusSeeOther, response.Code)
+	assert.Equal(t, "/admin/plugins?plugin="+pluginID, response.Header().Get("Location"))
+	require.Len(t, manager.Plugins(), 1)
+	assert.Equal(t, "1.1.0", manager.Plugins()[0].Manifest.Version)
+}
+
 // TestAdminPluginCatalogUpdateAll supports bulk plugin update regression coverage.
 func TestAdminPluginCatalogUpdateAll(t *testing.T) {
 	ctx := context.Background()
@@ -263,7 +323,7 @@ func TestAdminPluginCatalogUpdateAll(t *testing.T) {
 	}, updates.downloads)
 }
 
-func TestAdminPluginCatalogUpdateAllAuditsSuccessfulUpgradesBeforeFailure(t *testing.T) {
+func TestAdminPluginCatalogUpdateAllContinuesAfterOnePluginFails(t *testing.T) {
 	ctx := context.Background()
 	runtime, err := wasm.New(ctx, wasm.Limits{InitTimeout: 30 * time.Second}, wasm.WithInterpreter())
 	require.NoError(t, err)
@@ -280,14 +340,21 @@ func TestAdminPluginCatalogUpdateAllAuditsSuccessfulUpgradesBeforeFailure(t *tes
 	second, err := manager.Install(ctx, secondArchive)
 	require.NoError(t, err)
 
+	thirdArchive, err := plugins.Packages.ReadFile("tables.kumbukaplugin")
+	require.NoError(t, err)
+	third, err := manager.Install(ctx, thirdArchive)
+	require.NoError(t, err)
+
 	updates := &pluginUpdateServiceStub{
 		updates: map[string]domain.PluginRelease{
 			first.Manifest.ID:  {Version: "9.9.9"},
 			second.Manifest.ID: {Version: "8.8.8"},
+			third.Manifest.ID:  {Version: "7.7.7"},
 		},
 		archives: map[string][]byte{
 			first.Manifest.ID:  firstArchive,
 			second.Manifest.ID: secondArchive,
+			third.Manifest.ID:  thirdArchive,
 		},
 		onDownload: func(ctx context.Context, id string) error {
 			if id == second.Manifest.ID {
@@ -312,11 +379,17 @@ func TestAdminPluginCatalogUpdateAllAuditsSuccessfulUpgradesBeforeFailure(t *tes
 	assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
 	assert.Contains(t, logs.String(), "event=plugin.update plugin_id="+first.Manifest.ID)
 	assert.NotContains(t, logs.String(), "event=plugin.update plugin_id="+second.Manifest.ID)
-	assert.Contains(t, logs.String(), "event=plugin.update_all_failed")
+	assert.Contains(t, logs.String(), "event=plugin.update plugin_id="+third.Manifest.ID)
+	assert.Contains(t, logs.String(), "event=plugin.update_all_partial")
+	assert.Equal(t, []string{
+		first.Manifest.ID + "@9.9.9",
+		second.Manifest.ID + "@8.8.8",
+		third.Manifest.ID + "@7.7.7",
+	}, updates.downloads)
 }
 
-// TestAdminPluginCatalogUpdateAllPrevalidatesPackages ensures package failures happen before any upgrade is applied.
-func TestAdminPluginCatalogUpdateAllPrevalidatesPackages(t *testing.T) {
+// TestAdminPluginCatalogUpdateAllContinuesPastInvalidPackage ensures one bad catalog package does not block independent updates.
+func TestAdminPluginCatalogUpdateAllContinuesPastInvalidPackage(t *testing.T) {
 	ctx := context.Background()
 	runtime, err := wasm.New(ctx, wasm.Limits{InitTimeout: 30 * time.Second}, wasm.WithInterpreter())
 	require.NoError(t, err)
@@ -328,15 +401,23 @@ func TestAdminPluginCatalogUpdateAllPrevalidatesPackages(t *testing.T) {
 	callouts, err := manager.Install(ctx, calloutsArchive)
 	require.NoError(t, err)
 
+	detailsArchive, err := plugins.Packages.ReadFile("details.kumbukaplugin")
+	require.NoError(t, err)
+	details, err := manager.Install(ctx, detailsArchive)
+	require.NoError(t, err)
+
 	updates := &pluginUpdateServiceStub{
 		updates: map[string]domain.PluginRelease{
 			callouts.Manifest.ID: {Version: "9.9.9"},
+			details.Manifest.ID:  {Version: "8.8.8"},
 		},
 		archives: map[string][]byte{
 			callouts.Manifest.ID: []byte("invalid package"),
+			details.Manifest.ID:  detailsArchive,
 		},
 	}
-	views := testHandlerViews(t, webview.RuntimeInfo{})
+	var logs bytes.Buffer
+	views := testHandlerViewsWithLogger(t, slog.New(slog.NewTextHandler(&logs, nil)), webview.RuntimeInfo{})
 	data := browserContextLoaderStub{load: func(*http.Request, *webview.Views, string) (webview.Layout, error) {
 		return webview.Layout{User: domain.User{ID: 1, Role: "admin"}}, nil
 	}}
@@ -349,9 +430,10 @@ func TestAdminPluginCatalogUpdateAllPrevalidatesPackages(t *testing.T) {
 	admin.Action(w, request)
 
 	assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
-	assert.Contains(t, w.Body.String(), "Could not update all plugins")
-	require.Len(t, manager.Plugins(), 1)
-	assert.Equal(t, callouts.Manifest.Version, manager.Plugins()[0].Manifest.Version)
+	assert.Contains(t, w.Body.String(), "1 update(s) failed")
+	assert.Contains(t, logs.String(), "event=plugin.update plugin_id="+details.Manifest.ID)
+	assert.Equal(t, []string{callouts.Manifest.ID + "@9.9.9", details.Manifest.ID + "@8.8.8"}, updates.downloads)
+	require.Len(t, manager.Plugins(), 2)
 }
 
 // TestAdminPluginManualCatalogRefresh supports plugin administration regression coverage.
@@ -453,4 +535,37 @@ func TestAdminPluginMetadataIsEscaped(t *testing.T) {
 	assert.NotContains(t, string(html), "<script>bad()")
 	assert.NotContains(t, string(html), "<img src=x")
 	assert.Contains(t, string(html), "&lt;script&gt;")
+}
+
+// endpointPluginArchive creates a minimal valid declarative package for plugin update endpoint tests.
+func endpointPluginArchive(t *testing.T, id, version string, permissions []string) []byte {
+	t.Helper()
+
+	permissionYAML := "permissions: []\n"
+	if len(permissions) > 0 {
+		permissionYAML = "permissions:\n"
+		for _, permission := range permissions {
+			permissionYAML += "  - " + permission + "\n"
+		}
+	}
+	manifest := fmt.Sprintf(
+		"api_version: 1\nid: %s\nname: Endpoint fixture\nversion: %s\nmodules:\n  - type: markdown-syntax\n    id: syntax\n    syntax: strikethrough\n%s",
+		id,
+		version,
+		permissionYAML,
+	)
+
+	var buffer bytes.Buffer
+	writer := zip.NewWriter(&buffer)
+	for name, content := range map[string]string{
+		"plugin.yaml": manifest,
+		"README.md":   "# Endpoint fixture\n",
+	} {
+		entry, err := writer.Create(name)
+		require.NoError(t, err)
+		_, err = entry.Write([]byte(content))
+		require.NoError(t, err)
+	}
+	require.NoError(t, writer.Close())
+	return buffer.Bytes()
 }

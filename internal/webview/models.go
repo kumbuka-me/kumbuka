@@ -104,6 +104,24 @@ type PluginUpdate struct {
 	ReleasedAt time.Time
 }
 
+// PluginPermission describes one newly requested plugin capability for administrator approval.
+type PluginPermission struct {
+	// Name is the stable manifest permission identifier.
+	Name string
+	// Description explains the host-mediated capability in administrator-facing language.
+	Description string
+}
+
+// PluginPermissionApproval describes one catalog update blocked on explicit administrator approval.
+type PluginPermissionApproval struct {
+	// PluginID identifies the installed plugin requesting additional capabilities.
+	PluginID string
+	// Version is the catalog release that requests the additional capabilities.
+	Version string
+	// Permissions contains only capabilities not requested by the currently installed version.
+	Permissions []PluginPermission
+}
+
 // PluginUpdateStatus describes catalog refresh state shown in plugin administration.
 type PluginUpdateStatus struct {
 	// Available reports whether the plugin update service is configured.
@@ -443,6 +461,9 @@ type AdminPluginsView struct {
 
 	// PluginUpdates contains newer compatible first-party releases keyed by plugin ID.
 	PluginUpdates map[string]*PluginUpdate
+
+	// PluginPermissionApprovals contains catalog updates waiting for explicit approval of newly requested capabilities.
+	PluginPermissionApprovals map[string]*PluginPermissionApproval
 
 	// PluginUpdateStatus contains scheduled and manual catalog refresh state.
 	PluginUpdateStatus PluginUpdateStatus
