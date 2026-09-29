@@ -371,6 +371,16 @@ function parsePluginListRows(
   }
 }
 
+// isEmptyPluginListValue distinguishes a valid optional empty list from malformed saved data.
+function isEmptyPluginListValue(value: string): boolean {
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return Array.isArray(parsed) && parsed.length === 0;
+  } catch {
+    return false;
+  }
+}
+
 // setupPluginListField turns one manifest list field into addable structured rows backed by canonical JSON.
 function setupPluginListField(field: HTMLElement): void {
   const value = requiredElement<HTMLInputElement>(
@@ -451,7 +461,11 @@ function setupPluginListField(field: HTMLElement): void {
 
   const storedValue = value.value;
   const initialRows = parsePluginListRows(storedValue, templateControls);
-  if (storedValue.trim() && initialRows.length === 0) {
+  if (
+    storedValue.trim() &&
+    initialRows.length === 0 &&
+    !isEmptyPluginListValue(storedValue)
+  ) {
     const error = document.createElement("small");
     error.className = "field-validation-error";
     error.setAttribute("role", "alert");
@@ -460,7 +474,12 @@ function setupPluginListField(field: HTMLElement): void {
     field.append(error);
   }
   for (const row of initialRows) appendRow(row);
-  if (rows.childElementCount === 0) appendRow();
+  if (
+    rows.childElementCount === 0 &&
+    field.dataset.listRequired === "true"
+  ) {
+    appendRow();
+  }
 
   add.addEventListener("click", () => appendRow());
   sync();

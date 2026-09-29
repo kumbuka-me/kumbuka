@@ -67,7 +67,66 @@
           {{ range .Module.Fields }}
             {{ $value := index $group.Values .ID }}
             {{ $hasSecret := index $group.SecretFields .ID }}
-            <label{{ if eq .Type "boolean" }} class="toggle-row"{{ end }}>
+            {{ if eq .Type "list" }}
+              <div class="plugin-list-field"
+                   data-plugin-list-field
+                   data-list-required="{{ .Required }}"
+                   data-max-items="{{ .MaxItems }}">
+                <div class="plugin-list-heading">
+                  <span>{{ .Name }}{{ if .Required }} <small>required</small>{{ end }}</span>
+                  <button class="button compact" type="button" data-plugin-list-add>Add row</button>
+                </div>
+                <input type="hidden"
+                       name="setting_{{ $group.Module.ID }}_{{ .ID }}"
+                       value="{{ $value }}"
+                       data-plugin-list-value
+                       data-error-label="{{ .Name }}" />
+                <div class="plugin-list-table">
+                  <div class="plugin-list-header" aria-hidden="true">
+                    {{ range .Columns }}<span>{{ .Name }}</span>{{ end }}<span></span>
+                  </div>
+                  <div class="plugin-list-rows" data-plugin-list-rows></div>
+                </div>
+                <template data-plugin-list-template>
+                  <div class="plugin-list-row">
+                    {{ range .Columns }}
+                      {{ $column := . }}
+                      {{ if eq .Type "color" }}
+                        <input type="color"
+                               aria-label="{{ .Name }}"
+                               value="{{ if .Default }}{{ .Default }}{{ else }}#64748b{{ end }}"
+                               data-plugin-list-column="{{ .ID }}"
+                               data-plugin-list-default="{{ .Default }}"
+                               {{ if .Required }}required{{ end }} />
+                      {{ else if eq .Type "select" }}
+                        <select aria-label="{{ .Name }}"
+                                data-plugin-list-column="{{ .ID }}"
+                                data-plugin-list-default="{{ .Default }}"
+                                {{ if .Required }}required{{ end }}>
+                          {{ if not .Required }}<option value=""></option>{{ end }}
+                          {{ range .Options }}
+                            <option value="{{ . }}" {{ if eq . $column.Default }}selected{{ end }}>{{ . }}</option>
+                          {{ end }}
+                        </select>
+                      {{ else }}
+                        <input type="{{ if eq .Type "url" }}url{{ else }}text{{ end }}"
+                               aria-label="{{ .Name }}"
+                               value="{{ .Default }}"
+                               data-plugin-list-column="{{ .ID }}"
+                               data-plugin-list-default="{{ .Default }}"
+                               {{ if .Required }}required{{ end }} />
+                      {{ end }}
+                    {{ end }}
+                    <button class="icon-button"
+                            type="button"
+                            data-plugin-list-remove
+                            aria-label="Remove row"
+                            title="Remove row">{{ icon "trash-2-lucide" 16 }}</button>
+                  </div>
+                </template>
+              </div>
+            {{ else }}
+              <label{{ if eq .Type "boolean" }} class="toggle-row"{{ end }}>
               <span>{{ .Name }}{{ if .Required }} <small>required</small>{{ end }}</span>
               {{ if eq .Type "textarea" }}
                 <textarea name="setting_{{ $group.Module.ID }}_{{ .ID }}"
@@ -98,7 +157,8 @@
                        value="{{ $value }}"
                        {{ if .Required }}required{{ end }} />
               {{ end }}
-            </label>
+              </label>
+            {{ end }}
           {{ end }}
           <div class="settings-actions">
             <button class="button primary compact" type="submit">Save</button>
@@ -159,6 +219,7 @@
               {{ if eq .Type "list" }}
                 <div class="plugin-list-field"
                      data-plugin-list-field
+                     data-list-required="{{ .Required }}"
                      data-max-items="{{ .MaxItems }}">
                   <div class="plugin-list-heading">
                     <span>{{ .Name }}{{ if .Required }} <small>required</small>{{ end }}</span>
@@ -275,9 +336,10 @@
                   {{ $value := index $record.Values .ID }}
                   {{ $hasSecret := index $record.SecretFields .ID }}
                   {{ if eq .Type "list" }}
-                    <div class="plugin-list-field"
-                         data-plugin-list-field
-                         data-max-items="{{ .MaxItems }}">
+                  <div class="plugin-list-field"
+                       data-plugin-list-field
+                       data-list-required="{{ .Required }}"
+                       data-max-items="{{ .MaxItems }}">
                       <div class="plugin-list-heading">
                         <span>{{ .Name }}{{ if .Required }} <small>required</small>{{ end }}</span>
                         <button class="button compact" type="button" data-plugin-list-add>Add row</button>

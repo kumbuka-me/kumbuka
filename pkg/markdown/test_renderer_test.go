@@ -77,7 +77,7 @@ func isolatedTestRenderer(t testing.TB, names ...string) *Renderer {
 
 func newPluginTestRenderer(names ...string) (*Renderer, *plugin.Manager, error) {
 	ctx := context.Background()
-	runtime, err := wasm.New(ctx, wasm.Limits{InitTimeout: 30 * time.Second}, wasm.WithPermissions("pages:read", "pages:content", "pages:write", "browser:render"), wasm.WithInterpreter())
+	runtime, err := wasm.New(ctx, wasm.Limits{InitTimeout: 30 * time.Second}, wasm.WithPermissions("pages:read", "pages:content", "pages:write", "browser:render", "settings:read"), wasm.WithInterpreter())
 	if err != nil {
 		return nil, nil, err
 	}

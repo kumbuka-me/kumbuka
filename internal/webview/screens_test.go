@@ -8,6 +8,7 @@ import (
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/kumbuka-me/kumbuka/pkg/plugin"
 	"github.com/kumbuka-me/kumbuka/web"
+	"github.com/kumbuka-me/sdk/pluginpackage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -32,6 +33,38 @@ func TestEditorToolbarRendersResolvedDirectActionsAndSubmenus(t *testing.T) {
 	assert.Contains(t, body, `data-plugin-insert-suffix="~~"`)
 	assert.Contains(t, body, `title="Strikethrough"`)
 	assert.NotContains(t, body, `title="Wrap selected text in strikethrough markers."`)
+}
+
+func TestPluginSettingsRendersStructuredListRows(t *testing.T) {
+	t.Parallel()
+	views, err := New(web.Assets, testViewsLogger(), "test", "test", nil, RuntimeInfo{})
+	require.NoError(t, err)
+	module := pluginpackage.Module{Type: "settings", ID: "workflow", Name: "Workflow", Fields: []pluginpackage.ConfigurationField{{
+		ID: "states", Name: "States", Type: "list", MaxItems: 16, Columns: []pluginpackage.ConfigurationField{
+			{ID: "id", Name: "ID", Type: "text", Required: true},
+			{ID: "color", Name: "Color", Type: "color", Required: true, Default: "#64748b"},
+		},
+	}}}
+	model := AdminPluginSettingsView{
+		Layout: Layout{Title: "Tasks settings", User: domain.User{ID: 1, Role: "admin"}, Preferences: domain.DefaultUserPreferences()},
+		PluginSettings: &plugin.LoadedPlugin{Manifest: pluginpackage.Manifest{
+			ID: "me.kumbuka.tasks", Name: "Tasks", Modules: []pluginpackage.Module{module},
+		}},
+		PluginSettingsGroups: []plugin.SettingGroup{{
+			Module: module,
+			Values: map[string]string{"states": `[{"id":"open","color":"#64748b"}]`},
+		}},
+	}
+	response := httptest.NewRecorder()
+	views.Render(response, "admin_plugin_settings", model)
+	require.Equal(t, 200, response.Code, response.Body.String())
+	body := response.Body.String()
+	assert.Contains(t, body, `data-plugin-list-field`)
+	assert.Contains(t, body, `data-list-required="false"`)
+	assert.Contains(t, body, `name="setting_workflow_states"`)
+	assert.Contains(t, body, `data-plugin-list-column="id"`)
+	assert.Contains(t, body, `data-plugin-list-column="color"`)
+	assert.NotContains(t, body, `type="text" name="setting_workflow_states"`)
 }
 
 func TestTypedScreensRenderProductionTemplates(t *testing.T) {
