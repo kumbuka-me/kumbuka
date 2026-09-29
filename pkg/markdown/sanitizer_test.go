@@ -49,3 +49,17 @@ func TestSanitizerRestrictsCoreMentionMarkerToSpans(t *testing.T) {
 	require.NotContains(t, output, `data-kumbuka-mention`)
 	require.Contains(t, output, `@alice`)
 }
+
+// TestSanitizerKeepsAccessibleCheckboxButtons verifies interactive checklist fallbacks retain their safe ARIA state and label.
+func TestSanitizerKeepsAccessibleCheckboxButtons(t *testing.T) {
+	input := `<button type="button" class="checklist-checkbox" role="checkbox" aria-checked="false" aria-label="Mark complete" onclick="evil()">✓</button>`
+
+	output := newSanitizer().Sanitize(input)
+
+	require.Contains(t, output, `type="button"`)
+	require.Contains(t, output, `class="checklist-checkbox"`)
+	require.Contains(t, output, `role="checkbox"`)
+	require.Contains(t, output, `aria-checked="false"`)
+	require.Contains(t, output, `aria-label="Mark complete"`)
+	require.NotContains(t, output, `onclick`)
+}
