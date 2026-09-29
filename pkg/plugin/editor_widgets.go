@@ -73,6 +73,24 @@ type EditorWidgetSettingColumn struct {
 	Type EditorWidgetColumnType `json:"type"`
 }
 
+// EditorWidgetChoice describes one resolved option for a settings-backed select.
+type EditorWidgetChoice struct {
+	Value   string `json:"value"`
+	Label   string `json:"label"`
+	Default bool   `json:"default,omitempty"`
+}
+
+// EditorWidgetChoiceSource declares a list field that supplies select options.
+type EditorWidgetChoiceSource struct {
+	SettingModuleID  string `json:"setting_module_id,omitempty"`
+	ResourceModuleID string `json:"resource_module_id,omitempty"`
+	SourceAttribute  string `json:"source_attribute"`
+	ListField        string `json:"list_field"`
+	ValueColumn      string `json:"value_column"`
+	LabelColumn      string `json:"label_column"`
+	DefaultColumn    string `json:"default_column,omitempty"`
+}
+
 // EditorWidgetTreeField declares one visible field in a hierarchical tree-item editor.
 type EditorWidgetTreeField struct {
 	// Attribute identifies the parallel list attribute storing this field for every item.
@@ -85,6 +103,10 @@ type EditorWidgetTreeField struct {
 	Placeholder string `json:"placeholder,omitempty"`
 	// Suggestions supplies optional text-input choices without restricting custom values.
 	Suggestions []string `json:"suggestions,omitempty"`
+	// ChoiceSource declares where a select field obtains workflow-dependent options.
+	ChoiceSource *EditorWidgetChoiceSource `json:"choice_source,omitempty"`
+	// Choices contains host-resolved options keyed by the source attribute value.
+	Choices map[string][]EditorWidgetChoice `json:"choices,omitempty"`
 }
 
 // EditorWidgetSetting declares one generic control rendered by the visual editor.
@@ -123,6 +145,10 @@ type EditorWidgetSetting struct {
 	IDPrefix string `json:"id_prefix,omitempty"`
 	// MaxDepth bounds tree nesting created by the editor.
 	MaxDepth int `json:"max_depth,omitempty"`
+	// ChoiceSource declares where a dynamic select obtains its options.
+	ChoiceSource *EditorWidgetChoiceSource `json:"choice_source,omitempty"`
+	// Choices contains host-resolved options keyed by the source attribute value.
+	Choices map[string][]EditorWidgetChoice `json:"choices,omitempty"`
 }
 
 // EditorWidgetLineAnnotations describes direct line-range annotation controls for a rendered card preview.
@@ -379,9 +405,69 @@ func validateEditorWidgetCompletionReferences(widgets []EditorWidgetContribution
 			if setting.Type == EditorWidgetSettingResource && !completionModules[setting.CompletionModuleID] {
 				return fmt.Errorf("visual editor widget %q references unknown editor-completion module %q", widget.ID, setting.CompletionModuleID)
 			}
+			if setting.ChoiceSource != nil {
+				if err := validateEditorWidgetChoiceSource(widget, *setting.ChoiceSource, manifest); err != nil {
+					return err
+				}
+			}
+			for _, field := range setting.Fields {
+				if field.ChoiceSource == nil {
+					continue
+				}
+				if err := validateEditorWidgetChoiceSource(widget, *field.ChoiceSource, manifest); err != nil {
+					return err
+				}
+			}
 		}
 	}
 	return nil
+}
+
+func validateEditorWidgetChoiceSource(widget EditorWidgetContribution, source EditorWidgetChoiceSource, manifest pluginpackage.Manifest) error {
+	if !validID.MatchString(source.SourceAttribute) || !validID.MatchString(source.ListField) ||
+		!validID.MatchString(source.ValueColumn) || !validID.MatchString(source.LabelColumn) ||
+		(source.DefaultColumn != "" && !validID.MatchString(source.DefaultColumn)) ||
+		(source.SettingModuleID == "" && source.ResourceModuleID == "") {
+		return fmt.Errorf("visual editor widget %q has an invalid choice source", widget.ID)
+	}
+	attributeFound := false
+	for _, attribute := range widget.Attributes {
+		if attribute.Name == source.SourceAttribute && (attribute.Type == EditorWidgetAttributeString || attribute.Type == EditorWidgetAttributeIdentifier) {
+			attributeFound = true
+		}
+	}
+	if !attributeFound {
+		return fmt.Errorf("visual editor widget %q choice source references unknown attribute %q", widget.ID, source.SourceAttribute)
+	}
+	for _, moduleID := range []string{source.SettingModuleID, source.ResourceModuleID} {
+		if moduleID == "" {
+			continue
+		}
+		found := false
+		for _, module := range manifest.Modules {
+			moduleType := ModuleType(module.Type)
+			if module.ID != moduleID || (moduleType != ModuleTypeSettings && moduleType != ModuleTypeAdminResource) {
+				continue
+			}
+			for _, field := range module.Fields {
+				if field.ID == source.ListField && ConfigurationFieldType(field.Type) == ConfigurationFieldList && choiceColumnsExist(field.Columns, source) {
+					found = true
+				}
+			}
+		}
+		if !found {
+			return fmt.Errorf("visual editor widget %q choice source references invalid module %q", widget.ID, moduleID)
+		}
+	}
+	return nil
+}
+
+func choiceColumnsExist(columns []pluginpackage.ConfigurationField, source EditorWidgetChoiceSource) bool {
+	found := map[string]bool{}
+	for _, column := range columns {
+		found[column.ID] = true
+	}
+	return found[source.ValueColumn] && found[source.LabelColumn] && (source.DefaultColumn == "" || found[source.DefaultColumn])
 }
 
 // cloneEditorWidget copies mutable contract fields before they leave the manager.
@@ -398,8 +484,12 @@ func cloneEditorWidget(widget EditorWidgetContribution) EditorWidgetContribution
 		clone.Settings[index].Columns = append([]EditorWidgetSettingColumn(nil), widget.Settings[index].Columns...)
 		clone.Settings[index].Suggestions = append([]string(nil), widget.Settings[index].Suggestions...)
 		clone.Settings[index].Fields = append([]EditorWidgetTreeField(nil), widget.Settings[index].Fields...)
+		clone.Settings[index].ChoiceSource = cloneEditorWidgetChoiceSource(widget.Settings[index].ChoiceSource)
+		clone.Settings[index].Choices = cloneEditorWidgetChoices(widget.Settings[index].Choices)
 		for fieldIndex := range clone.Settings[index].Fields {
 			clone.Settings[index].Fields[fieldIndex].Suggestions = append([]string(nil), widget.Settings[index].Fields[fieldIndex].Suggestions...)
+			clone.Settings[index].Fields[fieldIndex].ChoiceSource = cloneEditorWidgetChoiceSource(widget.Settings[index].Fields[fieldIndex].ChoiceSource)
+			clone.Settings[index].Fields[fieldIndex].Choices = cloneEditorWidgetChoices(widget.Settings[index].Fields[fieldIndex].Choices)
 		}
 	}
 	clone.Constraints = append([]EditorWidgetConstraint(nil), widget.Constraints...)
@@ -431,6 +521,25 @@ func cloneEditorWidget(widget EditorWidgetContribution) EditorWidgetContribution
 	}
 	if widget.Preview.Tabs != nil {
 		clone.Preview.Tabs = utils.ToPtr(*widget.Preview.Tabs)
+	}
+	return clone
+}
+
+func cloneEditorWidgetChoiceSource(source *EditorWidgetChoiceSource) *EditorWidgetChoiceSource {
+	if source == nil {
+		return nil
+	}
+	clone := *source
+	return &clone
+}
+
+func cloneEditorWidgetChoices(source map[string][]EditorWidgetChoice) map[string][]EditorWidgetChoice {
+	if source == nil {
+		return nil
+	}
+	clone := make(map[string][]EditorWidgetChoice, len(source))
+	for key, choices := range source {
+		clone[key] = append([]EditorWidgetChoice(nil), choices...)
 	}
 	return clone
 }
@@ -719,7 +828,7 @@ func validateEditorWidgetSetting(setting EditorWidgetSetting, attributes map[str
 // validateEditorWidgetTreeSettingDeclaration validates one hierarchical list editor and its hidden identity fields.
 func validateEditorWidgetTreeSettingDeclaration(setting EditorWidgetSetting, attributes map[string]EditorWidgetAttribute) error {
 	if setting.Attribute != "" || len(setting.Attributes) < 3 || len(setting.Attributes) > 16 || len(setting.Columns) != 0 ||
-		len(setting.Fields) == 0 || len(setting.Fields) > 12 || setting.CompletionModuleID != "" || len(setting.Suggestions) != 0 {
+		len(setting.Fields) == 0 || len(setting.Fields) > 12 || setting.CompletionModuleID != "" || len(setting.Suggestions) != 0 || setting.ChoiceSource != nil || len(setting.Choices) != 0 {
 		return fmt.Errorf("tree setting %q has invalid shape", setting.Label)
 	}
 	if setting.IDAttribute == "" || setting.ParentAttribute == "" || setting.TitleAttribute == "" ||
@@ -758,8 +867,11 @@ func validateEditorWidgetTreeSettingDeclaration(setting EditorWidgetSetting, att
 			strings.TrimSpace(field.Label) == "" || len(field.Label) > 128 || len(field.Placeholder) > 256 || len(field.Suggestions) > 16 {
 			return fmt.Errorf("tree setting %q has invalid field %q", setting.Label, field.Attribute)
 		}
-		if field.Type != EditorWidgetSettingText && field.Type != EditorWidgetSettingTextarea && field.Type != EditorWidgetSettingMention && field.Type != EditorWidgetSettingDate {
+		if field.Type != EditorWidgetSettingText && field.Type != EditorWidgetSettingTextarea && field.Type != EditorWidgetSettingMention && field.Type != EditorWidgetSettingDate && field.Type != EditorWidgetSettingSelect {
 			return fmt.Errorf("tree setting %q field %q has unsupported type %q", setting.Label, field.Attribute, field.Type)
+		}
+		if (field.Type == EditorWidgetSettingSelect) != (field.ChoiceSource != nil) || len(field.Choices) != 0 {
+			return fmt.Errorf("tree setting %q field %q has invalid choice source", setting.Label, field.Attribute)
 		}
 		for _, suggestion := range field.Suggestions {
 			if strings.TrimSpace(suggestion) == "" || len(suggestion) > 128 {
@@ -823,7 +935,15 @@ func validateEditorWidgetTextSettingDeclaration(setting EditorWidgetSetting, att
 // validateEditorWidgetSelectSettingDeclaration validates select controls.
 func validateEditorWidgetSelectSettingDeclaration(setting EditorWidgetSetting, attributes map[string]EditorWidgetAttribute) error {
 	attribute, ok := attributes[setting.Attribute]
-	if !validEditorWidgetSelectSetting(setting, attribute, ok) {
+	if setting.ChoiceSource != nil {
+		if !ok || (attribute.Type != EditorWidgetAttributeString && attribute.Type != EditorWidgetAttributeIdentifier) ||
+			len(setting.Attributes) != 0 || len(setting.Columns) != 0 || len(setting.Fields) != 0 || len(setting.Suggestions) != 0 ||
+			setting.CompletionModuleID != "" || len(setting.Choices) != 0 {
+			return fmt.Errorf("select setting %q references an invalid dynamic attribute", setting.Label)
+		}
+		return nil
+	}
+	if !validEditorWidgetSelectSetting(setting, attribute, ok) || len(setting.Choices) != 0 {
 		return fmt.Errorf("select setting %q references an invalid attribute", setting.Label)
 	}
 	return nil
@@ -1168,17 +1288,17 @@ func validEditorWidgetSettingMetadata(setting EditorWidgetSetting) bool {
 
 // validEditorWidgetTextSetting reports whether a text control targets one scalar attribute.
 func validEditorWidgetTextSetting(setting EditorWidgetSetting, attribute EditorWidgetAttribute, found bool) bool {
-	return found && (attribute.Type == EditorWidgetAttributeString || attribute.Type == EditorWidgetAttributeIdentifier) && len(setting.Attributes) == 0 && len(setting.Columns) == 0 && len(setting.Fields) == 0 && setting.CompletionModuleID == "" && setting.IDAttribute == "" && setting.ParentAttribute == "" && setting.TitleAttribute == "" && setting.DescriptionAttribute == "" && setting.EmptyValue == "" && setting.IDPrefix == "" && setting.MaxDepth == 0
+	return found && (attribute.Type == EditorWidgetAttributeString || attribute.Type == EditorWidgetAttributeIdentifier) && len(setting.Attributes) == 0 && len(setting.Columns) == 0 && len(setting.Fields) == 0 && setting.CompletionModuleID == "" && setting.IDAttribute == "" && setting.ParentAttribute == "" && setting.TitleAttribute == "" && setting.DescriptionAttribute == "" && setting.EmptyValue == "" && setting.IDPrefix == "" && setting.MaxDepth == 0 && setting.ChoiceSource == nil && len(setting.Choices) == 0
 }
 
 // validEditorWidgetSelectSetting reports whether a select control targets one enum attribute without extra control data.
 func validEditorWidgetSelectSetting(setting EditorWidgetSetting, attribute EditorWidgetAttribute, found bool) bool {
-	return found && attribute.Type == EditorWidgetAttributeEnum && len(setting.Attributes) == 0 && len(setting.Columns) == 0 && len(setting.Fields) == 0 && len(setting.Suggestions) == 0 && setting.CompletionModuleID == "" && setting.IDAttribute == "" && setting.ParentAttribute == "" && setting.TitleAttribute == "" && setting.DescriptionAttribute == "" && setting.EmptyValue == "" && setting.IDPrefix == "" && setting.MaxDepth == 0
+	return found && attribute.Type == EditorWidgetAttributeEnum && len(setting.Attributes) == 0 && len(setting.Columns) == 0 && len(setting.Fields) == 0 && len(setting.Suggestions) == 0 && setting.CompletionModuleID == "" && setting.IDAttribute == "" && setting.ParentAttribute == "" && setting.TitleAttribute == "" && setting.DescriptionAttribute == "" && setting.EmptyValue == "" && setting.IDPrefix == "" && setting.MaxDepth == 0 && setting.ChoiceSource == nil
 }
 
 // validEditorWidgetResourceSetting reports whether a resource control targets one scalar attribute without unrelated control data.
 func validEditorWidgetResourceSetting(setting EditorWidgetSetting, attribute EditorWidgetAttribute, found bool) bool {
-	return found && (attribute.Type == EditorWidgetAttributeString || attribute.Type == EditorWidgetAttributeIdentifier) && len(setting.Attributes) == 0 && len(setting.Columns) == 0 && len(setting.Fields) == 0 && len(setting.Suggestions) == 0 && setting.IDAttribute == "" && setting.ParentAttribute == "" && setting.TitleAttribute == "" && setting.DescriptionAttribute == "" && setting.EmptyValue == "" && setting.IDPrefix == "" && setting.MaxDepth == 0
+	return found && (attribute.Type == EditorWidgetAttributeString || attribute.Type == EditorWidgetAttributeIdentifier) && len(setting.Attributes) == 0 && len(setting.Columns) == 0 && len(setting.Fields) == 0 && len(setting.Suggestions) == 0 && setting.IDAttribute == "" && setting.ParentAttribute == "" && setting.TitleAttribute == "" && setting.DescriptionAttribute == "" && setting.EmptyValue == "" && setting.IDPrefix == "" && setting.MaxDepth == 0 && setting.ChoiceSource == nil && len(setting.Choices) == 0
 }
 
 // validEditorWidgetTableShape reports whether a table control has a bounded one-to-one attribute and column layout.

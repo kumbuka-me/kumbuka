@@ -9,6 +9,8 @@ import type {
   CatalogWidgetCalloutPreview,
   CatalogWidgetCardPreview,
   CatalogWidgetConstraint,
+  CatalogWidgetChoice,
+  CatalogWidgetChoiceSource,
   CatalogWidgetDetailsPreview,
   CatalogWidgetLineAnnotations,
   CatalogWidgetPreview,
@@ -86,6 +88,43 @@ function isWidgetColumn(value: unknown): value is CatalogWidgetSettingColumn {
   );
 }
 
+function isWidgetChoice(value: unknown): value is CatalogWidgetChoice {
+  return (
+    isRecord(value) &&
+    typeof value.value === "string" &&
+    typeof value.label === "string" &&
+    optionalBoolean(value.default)
+  );
+}
+
+function isWidgetChoiceSource(
+  value: unknown,
+): value is CatalogWidgetChoiceSource {
+  return (
+    isRecord(value) &&
+    optionalString(value.setting_module_id) &&
+    optionalString(value.resource_module_id) &&
+    typeof value.source_attribute === "string" &&
+    typeof value.list_field === "string" &&
+    typeof value.value_column === "string" &&
+    typeof value.label_column === "string" &&
+    optionalString(value.default_column)
+  );
+}
+
+function isWidgetChoices(
+  value: unknown,
+): value is Record<string, CatalogWidgetChoice[]> {
+  return (
+    isRecord(value) &&
+    Object.values(value).every(
+      (choices) =>
+        Array.isArray(choices) &&
+        choices.every((choice) => isWidgetChoice(choice)),
+    )
+  );
+}
+
 function isWidgetTreeField(value: unknown): value is CatalogWidgetTreeField {
   return (
     isRecord(value) &&
@@ -94,9 +133,13 @@ function isWidgetTreeField(value: unknown): value is CatalogWidgetTreeField {
     (value.type === "text" ||
       value.type === "textarea" ||
       value.type === "mention" ||
-      value.type === "date") &&
+      value.type === "date" ||
+      value.type === "select") &&
     optionalString(value.placeholder) &&
-    (value.suggestions === undefined || strings(value.suggestions))
+    (value.suggestions === undefined || strings(value.suggestions)) &&
+    (value.choice_source === undefined ||
+      isWidgetChoiceSource(value.choice_source)) &&
+    (value.choices === undefined || isWidgetChoices(value.choices))
   );
 }
 
@@ -133,7 +176,10 @@ function isWidgetSetting(value: unknown): value is CatalogWidgetSetting {
     optionalString(value.description_attribute) &&
     optionalString(value.empty_value) &&
     optionalString(value.id_prefix) &&
-    optionalNumber(value.max_depth)
+    optionalNumber(value.max_depth) &&
+    (value.choice_source === undefined ||
+      isWidgetChoiceSource(value.choice_source)) &&
+    (value.choices === undefined || isWidgetChoices(value.choices))
   );
 }
 

@@ -108,7 +108,10 @@ func loadEditorCatalogPluginData(
 		return editorCatalogPluginData{}, err
 	}
 
-	widgets, widgetProblems := plugins.EditorWidgets()
+	widgets, widgetProblems, err := plugins.EditorWidgetsWithChoices(ctx)
+	if err != nil {
+		return editorCatalogPluginData{}, err
+	}
 
 	return editorCatalogPluginData{
 		completions:         completions,

@@ -103,7 +103,9 @@
                                 data-plugin-list-column="{{ .ID }}"
                                 data-plugin-list-default="{{ .Default }}"
                                 {{ if .Required }}required{{ end }}>
-                          {{ if not .Required }}<option value=""></option>{{ end }}
+                          {{ if not .Required }}
+                            <option value=""></option>
+                          {{ end }}
                           {{ range .Options }}
                             <option value="{{ . }}" {{ if eq . $column.Default }}selected{{ end }}>{{ . }}</option>
                           {{ end }}
@@ -127,36 +129,36 @@
               </div>
             {{ else }}
               <label{{ if eq .Type "boolean" }} class="toggle-row"{{ end }}>
-              <span>{{ .Name }}{{ if .Required }} <small>required</small>{{ end }}</span>
-              {{ if eq .Type "textarea" }}
-                <textarea name="setting_{{ $group.Module.ID }}_{{ .ID }}"
-                          {{ if .Required }}required{{ end }}>{{ $value }}</textarea>
-              {{ else if eq .Type "boolean" }}
-                <input type="checkbox"
-                       name="setting_{{ $group.Module.ID }}_{{ .ID }}"
-                       {{ if eq $value "true" }}checked{{ end }} />
-              {{ else if eq .Type "select" }}
-                <select name="setting_{{ $group.Module.ID }}_{{ .ID }}"
-                        {{ if .Required }}required{{ end }}>
-                  {{ if not .Required }}
-                    <option value=""></option>
-                  {{ end }}
-                  {{ range .Options }}
-                    <option value="{{ . }}" {{ if eq . $value }}selected{{ end }}>{{ . }}</option>
-                  {{ end }}
-                </select>
-              {{ else if eq .Type "secret" }}
-                <input type="password"
-                       name="setting_{{ $group.Module.ID }}_{{ .ID }}"
-                       autocomplete="new-password"
-                       {{ if $hasSecret }}placeholder="Stored secret — leave blank to keep"
-                       {{ else if .Required }}required{{ end }} />
-              {{ else }}
-                <input type="{{ if eq .Type "url" }}url{{ else }}text{{ end }}"
-                       name="setting_{{ $group.Module.ID }}_{{ .ID }}"
-                       value="{{ $value }}"
-                       {{ if .Required }}required{{ end }} />
-              {{ end }}
+                <span>{{ .Name }}{{ if .Required }} <small>required</small>{{ end }}</span>
+                {{ if eq .Type "textarea" }}
+                  <textarea name="setting_{{ $group.Module.ID }}_{{ .ID }}"
+                            {{ if .Required }}required{{ end }}>{{ $value }}</textarea>
+                {{ else if eq .Type "boolean" }}
+                  <input type="checkbox"
+                         name="setting_{{ $group.Module.ID }}_{{ .ID }}"
+                         {{ if eq $value "true" }}checked{{ end }} />
+                {{ else if eq .Type "select" }}
+                  <select name="setting_{{ $group.Module.ID }}_{{ .ID }}"
+                          {{ if .Required }}required{{ end }}>
+                    {{ if not .Required }}
+                      <option value=""></option>
+                    {{ end }}
+                    {{ range .Options }}
+                      <option value="{{ . }}" {{ if eq . $value }}selected{{ end }}>{{ . }}</option>
+                    {{ end }}
+                  </select>
+                {{ else if eq .Type "secret" }}
+                  <input type="password"
+                         name="setting_{{ $group.Module.ID }}_{{ .ID }}"
+                         autocomplete="new-password"
+                         {{ if $hasSecret }}placeholder="Stored secret — leave blank to keep"
+                         {{ else if .Required }}required{{ end }} />
+                {{ else }}
+                  <input type="{{ if eq .Type "url" }}url{{ else }}text{{ end }}"
+                         name="setting_{{ $group.Module.ID }}_{{ .ID }}"
+                         value="{{ $value }}"
+                         {{ if .Required }}required{{ end }} />
+                {{ end }}
               </label>
             {{ end }}
           {{ end }}
@@ -336,10 +338,10 @@
                   {{ $value := index $record.Values .ID }}
                   {{ $hasSecret := index $record.SecretFields .ID }}
                   {{ if eq .Type "list" }}
-                  <div class="plugin-list-field"
-                       data-plugin-list-field
-                       data-list-required="{{ .Required }}"
-                       data-max-items="{{ .MaxItems }}">
+                    <div class="plugin-list-field"
+                         data-plugin-list-field
+                         data-list-required="{{ .Required }}"
+                         data-max-items="{{ .MaxItems }}">
                       <div class="plugin-list-heading">
                         <span>{{ .Name }}{{ if .Required }} <small>required</small>{{ end }}</span>
                         <button class="button compact" type="button" data-plugin-list-add>Add row</button>

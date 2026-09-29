@@ -26,12 +26,30 @@ export interface CatalogWidgetSettingColumn {
   type: "text" | "textarea" | "color";
 }
 
+export interface CatalogWidgetChoice {
+  value: string;
+  label: string;
+  default?: boolean;
+}
+
+export interface CatalogWidgetChoiceSource {
+  setting_module_id?: string;
+  resource_module_id?: string;
+  source_attribute: string;
+  list_field: string;
+  value_column: string;
+  label_column: string;
+  default_column?: string;
+}
+
 export interface CatalogWidgetTreeField {
   attribute: string;
   label: string;
-  type: "text" | "textarea" | "mention" | "date";
+  type: "text" | "textarea" | "mention" | "date" | "select";
   placeholder?: string;
   suggestions?: string[];
+  choice_source?: CatalogWidgetChoiceSource;
+  choices?: Record<string, CatalogWidgetChoice[]>;
 }
 
 export interface CatalogWidgetSetting {
@@ -60,6 +78,8 @@ export interface CatalogWidgetSetting {
   empty_value?: string;
   id_prefix?: string;
   max_depth?: number;
+  choice_source?: CatalogWidgetChoiceSource;
+  choices?: Record<string, CatalogWidgetChoice[]>;
 }
 
 export interface CatalogWidgetLineAnnotations {

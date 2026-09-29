@@ -474,10 +474,7 @@ function setupPluginListField(field: HTMLElement): void {
     field.append(error);
   }
   for (const row of initialRows) appendRow(row);
-  if (
-    rows.childElementCount === 0 &&
-    field.dataset.listRequired === "true"
-  ) {
+  if (rows.childElementCount === 0 && field.dataset.listRequired === "true") {
     appendRow();
   }
 
