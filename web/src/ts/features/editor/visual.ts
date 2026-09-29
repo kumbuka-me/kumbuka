@@ -39,7 +39,6 @@ export {
   visualSyntaxLabel,
 } from "./visual-syntax.ts";
 
-
 export function setupVisualEditor(form: HTMLFormElement): void {
   const source = form.querySelector<HTMLTextAreaElement>(
     "[data-markdown-editor]",

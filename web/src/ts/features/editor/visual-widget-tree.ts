@@ -604,7 +604,10 @@ export function collectTreeValues(
   }
 }
 
-export function treeFormProblem(form: HTMLFormElement, widget: CatalogWidget): string {
+export function treeFormProblem(
+  form: HTMLFormElement,
+  widget: CatalogWidget,
+): string {
   for (const setting of widget.settings) {
     if (setting.type !== "tree") continue;
     const field = form.querySelector<HTMLElement>(

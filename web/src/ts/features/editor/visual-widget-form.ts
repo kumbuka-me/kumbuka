@@ -2,10 +2,7 @@
 
 import type { CatalogCompletion } from "./catalog.ts";
 import { openSourceDialog } from "./source-dialog.ts";
-import {
-  createLabel,
-  setupMentionSetting,
-} from "./visual-widget-controls.ts";
+import { createLabel, setupMentionSetting } from "./visual-widget-controls.ts";
 import {
   collectTreeValues,
   createTreeSetting,
@@ -22,7 +19,6 @@ import {
   type CatalogWidget,
   type CatalogWidgetSetting,
 } from "./widget-contract.ts";
-
 
 function createScalarSetting(
   setting: CatalogWidgetSetting,
@@ -112,7 +108,6 @@ function createScalarSetting(
   wrapper.append(control);
   return wrapper;
 }
-
 
 function defaultPreviewColors(widget: CatalogWidget): string[] {
   return widget.preview.kind === "badge"
@@ -291,7 +286,6 @@ function createTableSetting(
   field.append(add);
   return field;
 }
-
 
 function tableRows(
   form: HTMLFormElement,

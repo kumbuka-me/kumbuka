@@ -43,6 +43,10 @@ func NewRenderer(
 		wasm.WithHTTPAuthorizer(authorizeHTTP),
 		wasm.WithInvocationObserver(invocationObserver),
 		wasm.WithPermissions(
+			// pages:write only permits packages to declare the capability. Actual
+			// mutations stay request-scoped and require pages.update-content to be
+			// bound by an authorized application workflow.
+			"pages:write",
 			"network:http",
 			"network:private",
 			"network:insecure-tls",

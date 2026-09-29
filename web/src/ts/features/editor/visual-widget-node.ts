@@ -66,7 +66,6 @@ function contractForRaw(
   return widgetForSource(raw, widgets);
 }
 
-
 interface RenderedWidgetPayload {
   html: string;
 }

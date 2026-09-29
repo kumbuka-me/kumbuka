@@ -571,7 +571,10 @@ function tableCellOffset(line: string, column: number): number {
   return offset;
 }
 
-export function tableColumnCount(lines: string[], table: MarkdownTable): number {
+export function tableColumnCount(
+  lines: string[],
+  table: MarkdownTable,
+): number {
   return Math.max(1, cellParts(lines[table.headerLine] ?? "").length);
 }
 

@@ -693,7 +693,6 @@ export function widgetValues(
   return result;
 }
 
-
 function quoteAttribute(value: string): string {
   return JSON.stringify(value);
 }

@@ -321,7 +321,7 @@ func largePageBenchmarkRenderer(tb testing.TB, names ...string) *Renderer {
 	runtime, err := wasm.New(
 		ctx,
 		wasm.Limits{InitTimeout: 30 * time.Second},
-		wasm.WithPermissions("pages:read", "pages:content", "browser:render"),
+		firstPartyRendererPermissions(),
 	)
 	require.NoError(tb, err)
 
