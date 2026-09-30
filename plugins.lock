@@ -1,4 +1,5 @@
 autolinks=1.1.1
+bulleted-lists=1.0.0
 callouts=1.4.1
 coding-ligatures=1.1.1
 continue-working=1.1.2
@@ -9,6 +10,7 @@ favorites=1.1.2
 footnotes=1.1.1
 includes=1.4.4
 mermaid=1.1.1
+numbered-lists=1.0.0
 page-report=1.2.6
 popular-pages=1.1.2
 recent-changes=1.1.2
