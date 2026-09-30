@@ -90,8 +90,10 @@ type ManagedConfigurationGroup struct {
 type RuntimeInfo struct {
 	// RoutePrefix is the normalized deployment path, empty at root.
 	RoutePrefix string
-	// ListenAddress is the configured HTTP listen address.
-	ListenAddress string
+	// ApplicationListenAddress is the configured public application listen address.
+	ApplicationListenAddress string
+	// ManagementListenAddress is the configured operational management listen address.
+	ManagementListenAddress string
 	// PublicURL is the externally visible Kumbuka URL.
 	PublicURL string
 	// PDFURL is the optional deployment-level PDF endpoint override.

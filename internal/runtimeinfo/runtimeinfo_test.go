@@ -15,11 +15,13 @@ func TestManagedConfigurationUsesExactOrigins(t *testing.T) {
 	t.Parallel()
 
 	cfg := flags.Config{
-		ListenAddress: "127.0.0.1:9090",
-		DatabaseURL:   "postgres://example/kumbuka",
+		ApplicationListenAddress: "127.0.0.1:9090",
+		ManagementListenAddress:  "127.0.0.1:9091",
+		DatabaseURL:              "postgres://example/kumbuka",
 		OverrideOrigins: map[string]tinyflags.ValueOrigin{
-			"listen-address": {Source: tinyflags.ValueSourceFlag, Key: "-a"},
-			"database-url":   {Source: tinyflags.ValueSourceEnvironment, Key: "CUSTOM_DATABASE_DSN"},
+			"listen-address":            {Source: tinyflags.ValueSourceFlag, Key: "-a"},
+			"management-listen-address": {Source: tinyflags.ValueSourceFlag, Key: "-m"},
+			"database-url":              {Source: tinyflags.ValueSourceEnvironment, Key: "CUSTOM_DATABASE_DSN"},
 		},
 	}
 
@@ -28,7 +30,8 @@ func TestManagedConfigurationUsesExactOrigins(t *testing.T) {
 
 	assert.Equal(t, "Flag · -a", server.Items[0].Source)
 	assert.Equal(t, "Environment · CUSTOM_DATABASE_DSN", server.Items[1].Source)
-	assert.Equal(t, "Default", server.Items[2].Source)
+	assert.Equal(t, "Flag · -m", server.Items[2].Source)
+	assert.Equal(t, "127.0.0.1:9091", info.ManagementListenAddress)
 }
 
 func TestNewRegistrationOverride(t *testing.T) {

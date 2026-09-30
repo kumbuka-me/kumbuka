@@ -321,9 +321,9 @@ func Run(
 		go pluginUpdates.Run(ctx)
 	}
 
-	// Construct the HTTP handler and run the server until shutdown.
-	handler := httpserver.New(serverConfig)
-	if err := server.Run(ctx, cfg.ListenAddress, handler, logger, server.WithMaxHeaderValueCount(100)); err != nil {
+	// Construct both HTTP handlers and run their listeners until shutdown.
+	handlers := httpserver.New(serverConfig)
+	if err := httpserver.Run(ctx, cfg.ApplicationListenAddress, cfg.ManagementListenAddress, handlers, logger); err != nil {
 		setupLogger.Error("run server", "event", "server_run_failed", "error", err)
 		return err
 	}

@@ -6,8 +6,8 @@ github.com/cespare/xxhash/v2 v2.3.0 h1:UL815xU9SqsFlibzuggzjXhog7bL6oX9BbNZnL2UF
 github.com/cespare/xxhash/v2 v2.3.0/go.mod h1:VGX0DQ3Q6kWi7AoAeZDth3/j3BFtOZR5XLFGgcrjCOs=
 github.com/containeroo/httpgrace v0.2.1 h1:A9g/cZkJ/TnXJX2oW/3FURNkaIi27anoUbXihZ+CEZA=
 github.com/containeroo/httpgrace v0.2.1/go.mod h1:ifU/Fl17muy18WSKxuzQEUTV+lTXIy+ISdrCYXuThqc=
-github.com/containeroo/httpprefix v0.1.1 h1:Jnx8gwsqnG0/V/owug7hTTN0/ct63E0QvXJKKdG3F6U=
-github.com/containeroo/httpprefix v0.1.1/go.mod h1:xMw9Szd6vbbaUQzLQaQq8tH267vhHH+2HrOBCBBm8oA=
+github.com/containeroo/httpprefix v0.2.0 h1:99SQIdfqHqqKsiNEwN+0Qx/BeBNSibOgoLTwi/W5whQ=
+github.com/containeroo/httpprefix v0.2.0/go.mod h1:ojBKJotFxIoVx35+tOX2z8cVyvhGGxv72NrU8waTJv0=
 github.com/containeroo/notifykit v0.7.0 h1:XLhLPuWHc2A1yaACoYAFaz2yVy1tB3VguyQhE22RBuA=
 github.com/containeroo/notifykit v0.7.0/go.mod h1:J9CNWRdUb8ETHQ3hKhoN2tuFDia8gFrw0jo2sLW6FVA=
 github.com/containeroo/tinyflags v0.2.1 h1:EQWj/CcqcHU+t7sVc+hiVV/Nim7IqDiKX71FoUJaQRs=

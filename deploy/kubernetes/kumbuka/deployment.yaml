@@ -27,6 +27,8 @@ spec:
                   key: database-url
             - name: KUMBUKA__LISTEN_ADDRESS
               value: 0.0.0.0:8080
+            - name: KUMBUKA__MANAGEMENT_LISTEN_ADDRESS
+              value: 0.0.0.0:8081
             - name: KUMBUKA__PUBLIC_URL
               value: https://kumbuka.example.test
             - name: KUMBUKA__PDF_URL
@@ -44,22 +46,26 @@ spec:
             - name: http
               containerPort: 8080
               protocol: TCP
+            - name: management
+              containerPort: 8081
+              protocol: TCP
           startupProbe:
-            tcpSocket:
-              port: http
+            httpGet:
+              path: /healthz
+              port: management
             periodSeconds: 2
             failureThreshold: 30
           readinessProbe:
             httpGet:
-              path: /healthz
-              port: http
+              path: /readyz
+              port: management
             periodSeconds: 10
             timeoutSeconds: 3
             failureThreshold: 3
           livenessProbe:
-            tcpSocket:
-              port: http
+            httpGet:
+              path: /healthz
+              port: management
             periodSeconds: 30
             timeoutSeconds: 3
             failureThreshold: 3
-

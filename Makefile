@@ -77,6 +77,7 @@ PDF_CONTAINER_NAME ?= html2pdf
 MAILBRIDGE_CONTAINER_NAME ?= mailbridge
 
 KUMBUKA_ASSIGNED_PORT ?= $(call dev-port,app)
+KUMBUKA_MANAGEMENT_ASSIGNED_PORT ?= $(call dev-port,management)
 DB_ASSIGNED_PORT ?= $(call dev-port,postgres)
 PDF_ASSIGNED_PORT ?= $(call dev-port,pdf)
 MAILBRIDGE_ASSIGNED_PORT ?= $(call dev-port,mailbridge)
@@ -122,10 +123,12 @@ ports-reset: $(DEV_PORT) ## Clear saved ports after stopping local services.
 .PHONY: ports
 ports: $(DEV_PORT) ## Print selected local development ports.
 	@$(DEV_PORT) app --port "$(KUMBUKA_ASSIGNED_PORT)" > /dev/null
+	@$(DEV_PORT) management --port "$(KUMBUKA_MANAGEMENT_ASSIGNED_PORT)" > /dev/null
 	@$(DEV_PORT) postgres --port "$(DB_ASSIGNED_PORT)" > /dev/null
 	@$(DEV_PORT) pdf --port "$(PDF_ASSIGNED_PORT)" > /dev/null
 	@$(DEV_PORT) mailbridge --port "$(MAILBRIDGE_ASSIGNED_PORT)" > /dev/null
 	@echo "Kumbuka: http://127.0.0.1:$(KUMBUKA_ASSIGNED_PORT)/"
+	@echo "Management: http://127.0.0.1:$(KUMBUKA_MANAGEMENT_ASSIGNED_PORT)/"
 	@echo "Postgres: 127.0.0.1:$(DB_ASSIGNED_PORT)"
 	@echo "PDF: http://127.0.0.1:$(PDF_ASSIGNED_PORT)/render"
 	@echo "Mailbridge: http://127.0.0.1:$(MAILBRIDGE_ASSIGNED_PORT)/mail"
@@ -191,6 +194,7 @@ serve: ports ## Run Kumbuka using the saved ports.
 		--debug \
 		--access-log \
 		--listen-address="127.0.0.1:$(KUMBUKA_ASSIGNED_PORT)" \
+		--management-listen-address="127.0.0.1:$(KUMBUKA_MANAGEMENT_ASSIGNED_PORT)" \
 		--log-format text \
 		--pdf-url="http://127.0.0.1:$(PDF_ASSIGNED_PORT)/render" \
 		--database-url="postgres://kumbuka:kumbuka@127.0.0.1:$(DB_ASSIGNED_PORT)/kumbuka?sslmode=disable" \

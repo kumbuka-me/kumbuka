@@ -42,7 +42,8 @@ func TestAdministrationOverviewShowsInstanceRuntimeAndInventory(t *testing.T) {
 	t.Parallel()
 
 	views := testHandlerViews(t, webview.RuntimeInfo{
-		ListenAddress:             "127.0.0.1:51114",
+		ApplicationListenAddress:  "127.0.0.1:51114",
+		ManagementListenAddress:   "127.0.0.1:51115",
 		PublicURL:                 "http://localhost:8080",
 		ReadOnly:                  true,
 		PluginUpdateCheckInterval: "15m",
@@ -54,7 +55,8 @@ func TestAdministrationOverviewShowsInstanceRuntimeAndInventory(t *testing.T) {
 			Version: "v0.8.0",
 			Commit:  "abc1234",
 			Runtime: webview.RuntimeInfo{
-				ListenAddress:             "127.0.0.1:51114",
+				ApplicationListenAddress:  "127.0.0.1:51114",
+				ManagementListenAddress:   "127.0.0.1:51115",
 				PublicURL:                 "http://localhost:8080",
 				ReadOnly:                  true,
 				PluginUpdateCheckInterval: "15m",
@@ -90,6 +92,7 @@ func TestAdministrationOverviewShowsInstanceRuntimeAndInventory(t *testing.T) {
 	assert.Contains(t, body, "v0.8.0")
 	assert.Contains(t, body, "abc1234")
 	assert.Contains(t, body, "127.0.0.1:51114")
+	assert.Contains(t, body, "127.0.0.1:51115")
 	assert.Contains(t, body, "http://localhost:8080")
 	assert.Contains(t, body, "Read-only mode")
 	assert.Contains(t, body, "Enabled")

@@ -62,6 +62,7 @@ func TestParse(t *testing.T) {
 				"--database-url", "postgres://example/kumbuka",
 				"--public-url", "https://kumbuka.example.test",
 				"-a", "127.0.0.1:9090",
+				"-m", "127.0.0.1:9091",
 			})
 
 			require.NoError(t, err)
@@ -88,6 +89,14 @@ func TestParse(t *testing.T) {
 					Key:    "-a",
 				},
 				cfg.OverrideOrigins["listen-address"],
+			)
+			assert.Equal(
+				t,
+				tinyflags.ValueOrigin{
+					Source: tinyflags.ValueSourceFlag,
+					Key:    "-m",
+				},
+				cfg.OverrideOrigins["management-listen-address"],
 			)
 		})
 
@@ -119,6 +128,44 @@ func TestParse(t *testing.T) {
 }
 
 func TestServerFlags(t *testing.T) {
+	t.Run("listen addresses", func(t *testing.T) {
+		t.Run("defaults", func(t *testing.T) {
+			t.Setenv("KUMBUKA__LISTEN_ADDRESS", "")
+			t.Setenv("KUMBUKA__MANAGEMENT_LISTEN_ADDRESS", "")
+
+			cfg, err := parseTestConfig([]string{"--database-url", "postgres://example/kumbuka"})
+
+			require.NoError(t, err)
+			assert.Equal(t, "127.0.0.1:8080", cfg.ApplicationListenAddress)
+			assert.Equal(t, "127.0.0.1:8081", cfg.ManagementListenAddress)
+		})
+
+		t.Run("flags", func(t *testing.T) {
+			t.Parallel()
+
+			cfg, err := parseTestConfig([]string{
+				"--database-url", "postgres://example/kumbuka",
+				"--listen-address", "0.0.0.0:9000",
+				"--management-listen-address", "127.0.0.1:9001",
+			})
+
+			require.NoError(t, err)
+			assert.Equal(t, "0.0.0.0:9000", cfg.ApplicationListenAddress)
+			assert.Equal(t, "127.0.0.1:9001", cfg.ManagementListenAddress)
+		})
+
+		t.Run("environment", func(t *testing.T) {
+			t.Setenv("KUMBUKA__DATABASE_URL", "postgres://example/kumbuka")
+			t.Setenv("KUMBUKA__LISTEN_ADDRESS", "0.0.0.0:9100")
+			t.Setenv("KUMBUKA__MANAGEMENT_LISTEN_ADDRESS", "0.0.0.0:9101")
+
+			cfg, err := parseTestConfig(nil)
+
+			require.NoError(t, err)
+			assert.Equal(t, "0.0.0.0:9100", cfg.ApplicationListenAddress)
+			assert.Equal(t, "0.0.0.0:9101", cfg.ManagementListenAddress)
+		})
+	})
 	t.Run("database max connections", func(t *testing.T) {
 		t.Run("default uses automatic sizing", func(t *testing.T) {
 			t.Setenv("KUMBUKA__DATABASE_MAX_CONNS", "")

@@ -68,9 +68,15 @@
       </div>
       <dl class="admin-overview-facts admin-overview-runtime-facts">
         <div>
-          <dt>Listen address</dt>
+          <dt>Application Listen address</dt>
           <dd>
-            <code>{{ .Runtime.ListenAddress }}</code>
+            <code>{{ .Runtime.ApplicationListenAddress }}</code>
+          </dd>
+        </div>
+        <div>
+          <dt>Management listen address</dt>
+          <dd>
+            <code>{{ .Runtime.ManagementListenAddress }}</code>
           </dd>
         </div>
         <div>

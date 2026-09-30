@@ -13,7 +13,8 @@ import (
 // New returns administrator-safe runtime information for the active deployment.
 func New(cfg flags.Config, encryptionKeyConfigured bool) webview.RuntimeInfo {
 	return webview.RuntimeInfo{
-		ListenAddress:                      cfg.ListenAddress,
+		ApplicationListenAddress:           cfg.ApplicationListenAddress,
+		ManagementListenAddress:            cfg.ManagementListenAddress,
 		RoutePrefix:                        cfg.RoutePrefix,
 		PublicURL:                          cfg.PublicURL,
 		PDFURL:                             cfg.PDFURL,
@@ -47,8 +48,9 @@ func managedConfiguration(cfg flags.Config, encryptionKeyConfigured bool) []webv
 		{
 			Name: "Server",
 			Items: []webview.ManagedConfigurationItem{
-				managedConfigurationItem(cfg, "Listen address", "listen-address", cfg.ListenAddress),
+				managedConfigurationItem(cfg, "Listen address", "listen-address", cfg.ApplicationListenAddress),
 				managedConfigurationItem(cfg, "Database URL", "database-url", configuredLabel(cfg.DatabaseURL != "")),
+				managedConfigurationItem(cfg, "Management listen address", "management-listen-address", cfg.ManagementListenAddress),
 				managedConfigurationItem(cfg, "Database max connections", "database-max-conns", databaseConnectionCountLabel(cfg.DatabaseMaxConns)),
 				managedConfigurationItem(cfg, "Database minimum idle connections", "database-min-idle-conns", databaseConnectionCountLabel(cfg.DatabaseMinIdleConns)),
 				managedConfigurationItem(cfg, "Route prefix", "route-prefix", cfg.RoutePrefix),

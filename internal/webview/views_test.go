@@ -21,8 +21,9 @@ func TestNew(t *testing.T) {
 
 		logger := testViewsLogger()
 		runtime := RuntimeInfo{
-			ListenAddress: "127.0.0.1:8080",
-			PublicURL:     "https://kumbuka.example.test",
+			ApplicationListenAddress: "127.0.0.1:8080",
+			ManagementListenAddress:  "127.0.0.1:8081",
+			PublicURL:                "https://kumbuka.example.test",
 		}
 
 		views, err := New(

@@ -50,37 +50,54 @@ func TestDeploymentPrefix(t *testing.T) {
 				AuthenticationConfig: AuthenticationConfig{BrowserAuth: auth.BrowserAuth{Authenticator: prefixAuthenticator{}, Login: http.NotFoundHandler()}, BearerAuth: prefixAuthenticator{}},
 				AdministrationConfig: AdministrationConfig{System: appsystem.NewSystem(prefixSystemRepository{}, slog.Default(), appsystem.NewSetupState(false))},
 			}
-			handler := New(config)
-			for _, path := range []string{"/healthz", "/metrics", "/assets/v-test/favicon.svg", "/plugins/runtime.js", "/sw.js"} {
+			handlers := New(config)
+
+			for _, path := range []string{"/assets/v-test/favicon.svg", "/plugins/runtime.js", "/sw.js"} {
 				response := httptest.NewRecorder()
-				handler.ServeHTTP(response, httptest.NewRequest("GET", prefix+path, nil))
+				handlers.Application.ServeHTTP(response, httptest.NewRequest(http.MethodGet, prefix+path, nil))
 				assert.Equal(t, http.StatusOK, response.Code, path)
 				if path == "/sw.js" {
 					assert.Equal(t, prefix+"/", response.Header().Get("Service-Worker-Allowed"))
 				}
 				if prefix != "" {
 					outside := httptest.NewRecorder()
-					handler.ServeHTTP(outside, httptest.NewRequest("GET", path, nil))
+					handlers.Application.ServeHTTP(outside, httptest.NewRequest(http.MethodGet, path, nil))
 					assert.Equal(t, http.StatusNotFound, outside.Code, path)
 				}
 			}
-			for _, path := range []string{"/healthz", "/metrics"} {
+
+			for _, path := range []string{"/healthz", "/readyz", "/metrics"} {
 				response := httptest.NewRecorder()
-				handler.ServeHTTP(response, httptest.NewRequest("POST", prefix+path, nil))
-				assert.Equal(t, http.StatusMethodNotAllowed, response.Code)
+				handlers.Management.ServeHTTP(response, httptest.NewRequest(http.MethodGet, path, nil))
+				assert.Equal(t, http.StatusOK, response.Code, path)
+
+				methodResponse := httptest.NewRecorder()
+				handlers.Management.ServeHTTP(methodResponse, httptest.NewRequest(http.MethodPost, path, nil))
+				assert.Equal(t, http.StatusMethodNotAllowed, methodResponse.Code, path)
+
+				applicationResponse := httptest.NewRecorder()
+				handlers.Application.ServeHTTP(applicationResponse, httptest.NewRequest(http.MethodGet, prefix+path, nil))
+				assert.NotEqual(t, http.StatusOK, applicationResponse.Code, path)
+
+				if prefix != "" {
+					prefixedManagement := httptest.NewRecorder()
+					handlers.Management.ServeHTTP(prefixedManagement, httptest.NewRequest(http.MethodGet, prefix+path, nil))
+					assert.Equal(t, http.StatusNotFound, prefixedManagement.Code, path)
+				}
 			}
+
 			response := httptest.NewRecorder()
-			handler.ServeHTTP(response, httptest.NewRequest("GET", prefix+"/pages/foo", nil))
+			handlers.Application.ServeHTTP(response, httptest.NewRequest(http.MethodGet, prefix+"/pages/foo", nil))
 			assert.Equal(t, http.StatusFound, response.Code)
 			assert.Equal(t, prefix+"/auth/login?next=%2Fpages%2Ffoo", response.Header().Get("Location"))
 			for _, path := range []string{"/assets", "/api", "/edit"} {
 				redirect := httptest.NewRecorder()
-				handler.ServeHTTP(redirect, httptest.NewRequest("GET", prefix+path, nil))
+				handlers.Application.ServeHTTP(redirect, httptest.NewRequest(http.MethodGet, prefix+path, nil))
 				assert.Equal(t, prefix+path+"/", redirect.Header().Get("Location"))
 			}
 			if prefix != "" {
 				response = httptest.NewRecorder()
-				handler.ServeHTTP(response, httptest.NewRequest("GET", prefix, nil))
+				handlers.Application.ServeHTTP(response, httptest.NewRequest(http.MethodGet, prefix, nil))
 				assert.Equal(t, http.StatusPermanentRedirect, response.Code)
 				assert.Equal(t, prefix+"/", response.Header().Get("Location"))
 			}

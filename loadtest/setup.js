@@ -1,13 +1,13 @@
 import http from "k6/http";
 import { check, fail, sleep } from "k6";
-import { baseURL } from "./lib/config.js";
+import { baseURL, managementURL } from "./lib/config.js";
 
 export const options = { vus: 1, iterations: 1 };
 
 function waitForHealth() {
   let health;
   for (let attempt = 0; attempt < 30; attempt += 1) {
-    health = http.get(`${baseURL}/healthz`);
+    health = http.get(`${managementURL}/healthz`);
     if (health.status === 200) break;
     sleep(1);
   }

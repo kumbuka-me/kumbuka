@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-base_url=${BASE_URL:-http://kumbuka:8080}
+base_url=${BASE_URL:-http://kumbuka:8081}
 interval=${SAMPLE_INTERVAL:-5}
 
 while :; do

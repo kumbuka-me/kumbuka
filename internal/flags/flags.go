@@ -44,8 +44,10 @@ var trustedGroupHeaders = []string{
 type Config struct {
 	// RoutePrefix is the normalized deployment path, empty at root.
 	RoutePrefix string
-	// ListenAddress is the TCP address used by the HTTP server.
-	ListenAddress string
+	// ApplicationListenAddress is the TCP address used by the public application server.
+	ApplicationListenAddress string
+	// ManagementListenAddress is the TCP address used by the operational management server.
+	ManagementListenAddress string
 	// DatabaseURL is the PostgreSQL connection URL.
 	DatabaseURL string
 	// DatabaseMaxConns is the maximum number of database connections.
@@ -149,9 +151,21 @@ func registerServerFlags(tf *tinyflags.FlagSet, cfg *Config) func() {
 			IP:   net.ParseIP("127.0.0.1"),
 			Port: 8080,
 		},
-		"Address on which the web server listens",
+		"Address on which the application server listens",
 	).
 		Short("a").
+		Placeholder("ADDR").
+		Value()
+
+	management := tf.TCPAddr(
+		"management-listen-address",
+		&net.TCPAddr{
+			IP:   net.ParseIP("127.0.0.1"),
+			Port: 8081,
+		},
+		"Address on which health, readiness, and metrics listen",
+	).
+		Short("m").
 		Placeholder("ADDR").
 		Value()
 
@@ -256,7 +270,8 @@ func registerServerFlags(tf *tinyflags.FlagSet, cfg *Config) func() {
 		Value()
 
 	return func() {
-		cfg.ListenAddress = (*listen).String()
+		cfg.ApplicationListenAddress = (*listen).String()
+		cfg.ManagementListenAddress = (*management).String()
 
 		if allowUserRegistrationFlag.Changed() {
 			cfg.AllowUserRegistrationOverride = allowUserRegistrationFlag.Value()

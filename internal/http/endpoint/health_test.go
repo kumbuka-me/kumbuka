@@ -2,10 +2,12 @@ package endpoint
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -25,17 +27,36 @@ func (f *fakeHealthStore) Ping(ctx context.Context) error {
 func TestHealthz(t *testing.T) {
 	t.Parallel()
 
-	t.Run("Returns ok", func(t *testing.T) {
+	response := httptest.NewRecorder()
+	Health().ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/healthz", nil))
+
+	require.Equal(t, http.StatusOK, response.Code)
+	assert.JSONEq(t, `{"status":"ok"}`, response.Body.String())
+}
+
+func TestReadyz(t *testing.T) {
+	t.Parallel()
+
+	t.Run("returns ok when dependencies are ready", func(t *testing.T) {
 		t.Parallel()
 
 		store := &fakeHealthStore{pingFn: func(context.Context) error { return nil }}
+		response := httptest.NewRecorder()
 
-		handler := Health(store)
-		req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
-		rec := httptest.NewRecorder()
+		Ready(store).ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/readyz", nil))
 
-		handler.ServeHTTP(rec, req)
+		require.Equal(t, http.StatusOK, response.Code)
+		assert.JSONEq(t, `{"status":"ok"}`, response.Body.String())
+	})
 
-		require.Equal(t, http.StatusOK, rec.Code)
+	t.Run("returns unavailable when a dependency is down", func(t *testing.T) {
+		t.Parallel()
+
+		store := &fakeHealthStore{pingFn: func(context.Context) error { return errors.New("database down") }}
+		response := httptest.NewRecorder()
+
+		Ready(store).ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/readyz", nil))
+
+		require.Equal(t, http.StatusServiceUnavailable, response.Code)
 	})
 }

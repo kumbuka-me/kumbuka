@@ -1,7 +1,7 @@
 import http from "k6/http";
 import encoding from "k6/encoding";
 import { check, fail, sleep } from "k6";
-import { baseURL, headers } from "./lib/config.js";
+import { baseURL, managementURL, headers } from "./lib/config.js";
 import { sitePages } from "./lib/site.js";
 
 export const options = { vus: 1, iterations: 1 };
@@ -41,7 +41,7 @@ function architectureImage() {
 export default function () {
   let health;
   for (let attempt = 0; attempt < 30; attempt += 1) {
-    health = http.get(`${baseURL}/healthz`);
+    health = http.get(`${managementURL}/healthz`);
     if (health.status === 200) break;
     sleep(1);
   }
