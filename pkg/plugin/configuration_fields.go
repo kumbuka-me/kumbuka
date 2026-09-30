@@ -9,13 +9,12 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/kumbuka-me/kumbuka/pkg/ascii"
 	"github.com/kumbuka-me/sdk/pluginpackage"
 )
 
-var (
-	// ErrSecretEncryptionUnavailable reports that secret-backed plugin configuration cannot be persisted safely.
-	ErrSecretEncryptionUnavailable = errors.New("plugin secret encryption is unavailable")
-)
+// ErrSecretEncryptionUnavailable reports that secret-backed plugin configuration cannot be persisted safely.
+var ErrSecretEncryptionUnavailable = errors.New("plugin secret encryption is unavailable")
 
 // ConfigurationFieldError reports a safe validation problem for one declarative configuration field.
 type ConfigurationFieldError struct {
@@ -69,7 +68,7 @@ func validConfigurationColor(value string) bool {
 		return false
 	}
 	for _, character := range value[1:] {
-		if !isHexadecimalDigit(character) {
+		if !ascii.IsHexDigit(character) {
 			return false
 		}
 	}

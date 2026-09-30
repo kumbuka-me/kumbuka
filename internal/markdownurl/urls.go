@@ -1,7 +1,11 @@
 // Package markdownurl locates resource URL destinations without rewriting Markdown source syntax.
 package markdownurl
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/kumbuka-me/kumbuka/pkg/ascii"
+)
 
 // Range identifies one URL destination by byte offsets in its Markdown source.
 type Range struct {
@@ -453,5 +457,5 @@ func htmlTagEnd(line string, start int) (int, bool) {
 
 // isHTMLNameByte reports whether a byte can belong to an HTML tag or attribute name.
 func isHTMLNameByte(value byte) bool {
-	return value >= 'a' && value <= 'z' || value >= 'A' && value <= 'Z' || value >= '0' && value <= '9' || value == '-' || value == ':'
+	return ascii.IsAlphanumeric(value) || value == '-' || value == ':'
 }

@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/kumbuka-me/kumbuka/pkg/ascii"
 	"github.com/kumbuka-me/kumbuka/pkg/plugin"
 	"github.com/kumbuka-me/kumbuka/pkg/renderprofile"
 	"github.com/kumbuka-me/sdk"
@@ -716,11 +717,6 @@ func validWidgetIdentifier(value string) bool {
 	return true
 }
 
-// asciiAlphanumeric reports whether a byte is an ASCII letter or digit.
-func asciiAlphanumeric(value byte) bool {
-	return value >= 'a' && value <= 'z' || value >= 'A' && value <= 'Z' || value >= '0' && value <= '9'
-}
-
 // hasOnlyWidgetCommandResult reports whether a render result contains exactly one widget command response.
 func hasOnlyWidgetCommandResult(result sdk.RenderResult) bool {
 	return len(result.Parts) == 0 && len(result.Actions) == 0 && result.File == nil && result.WidgetCommand != nil
@@ -733,12 +729,12 @@ func validWidgetActionIdentity(action sdk.WidgetAction) bool {
 
 // validWidgetIdentifierBoundary reports whether a widget identifier has a valid length and first character.
 func validWidgetIdentifierBoundary(value string) bool {
-	return len(value) > 0 && len(value) <= 128 && asciiAlphanumeric(value[0])
+	return len(value) > 0 && len(value) <= 128 && ascii.IsAlphanumeric(value[0])
 }
 
 // validWidgetIdentifierCharacter reports whether a non-leading widget identifier byte is supported.
 func validWidgetIdentifierCharacter(value byte) bool {
-	return asciiAlphanumeric(value) || value == '-' || value == '_' || value == '.'
+	return ascii.IsAlphanumeric(value) || value == '-' || value == '_' || value == '.'
 }
 
 // rendererModule adapts one WASM renderer declaration to a pipeline stage.

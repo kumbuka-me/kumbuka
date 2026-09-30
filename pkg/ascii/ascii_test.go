@@ -146,3 +146,36 @@ func TestIsDigit(t *testing.T) {
 		assert.False(t, IsDigit('\u0661'))
 	})
 }
+
+// TestBytePredicates verifies byte scanners can use the shared ASCII helpers without conversions.
+func TestBytePredicates(t *testing.T) {
+	t.Parallel()
+
+	var letter byte = 'Q'
+	var digit byte = '7'
+	assert.True(t, IsAlphanumeric(letter))
+	assert.True(t, IsDigit(digit))
+	assert.False(t, IsAlphanumeric(byte(0xc3)))
+}
+
+// TestIsHexDigit verifies hexadecimal ASCII digits are accepted.
+func TestIsHexDigit(t *testing.T) {
+	t.Parallel()
+
+	for _, character := range []byte{'0', '9', 'a', 'f', 'A', 'F'} {
+		assert.True(t, IsHexDigit(character), "expected %q to be hexadecimal", character)
+	}
+	for _, character := range []byte{'g', 'G', '-', ' '} {
+		assert.False(t, IsHexDigit(character), "expected %q to be rejected", character)
+	}
+}
+
+// TestToLower verifies ASCII case folding leaves non-uppercase bytes unchanged.
+func TestToLower(t *testing.T) {
+	t.Parallel()
+
+	assert.Equal(t, byte('a'), ToLower(byte('A')))
+	assert.Equal(t, byte('z'), ToLower(byte('Z')))
+	assert.Equal(t, byte('5'), ToLower(byte('5')))
+	assert.Equal(t, rune('é'), ToLower(rune('é')))
+}

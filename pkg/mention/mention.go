@@ -97,5 +97,5 @@ func nameByte(value byte) bool {
 
 // wordByte defines the ASCII word characters used at mention boundaries.
 func wordByte(value byte) bool {
-	return ascii.IsAlphanumeric(rune(value)) || value == '_'
+	return ascii.IsAlphanumeric(value) || value == '_'
 }

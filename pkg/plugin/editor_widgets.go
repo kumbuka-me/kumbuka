@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/kumbuka-me/kumbuka/pkg/ascii"
 	"github.com/kumbuka-me/kumbuka/pkg/utils"
 	"github.com/kumbuka-me/sdk/pluginpackage"
 )
@@ -918,9 +919,10 @@ func validateEditorWidgetTreeSettingDeclaration(setting EditorWidgetSetting, att
 
 // validTreeIDPrefix reports whether an automatically generated tree-ID prefix is safe for identifier-like values.
 func validTreeIDPrefix(value string) bool {
-	for _, character := range value {
-		if character >= 'a' && character <= 'z' || character >= 'A' && character <= 'Z' ||
-			character >= '0' && character <= '9' || character == '-' || character == '_' || character == '.' || character == ':' || character == '/' {
+	for index := 0; index < len(value); index++ {
+		character := value[index]
+		if ascii.IsAlphanumeric(character) || character == '-' || character == '_' ||
+			character == '.' || character == ':' || character == '/' {
 			continue
 		}
 		return false
@@ -1281,7 +1283,7 @@ func validEditorWidgetColor(value string) bool {
 		return false
 	}
 	for _, char := range value[1:] {
-		if isHexadecimalDigit(char) {
+		if ascii.IsHexDigit(char) {
 			continue
 		}
 		return false
@@ -1401,9 +1403,4 @@ func validEditorWidgetTabsClasses(tabs *EditorWidgetTabsPreview) bool {
 // hasHexColorShape reports whether value uses the hash-prefixed six-digit hexadecimal color shape.
 func hasHexColorShape(value string) bool {
 	return len(value) == 7 && value[0] == '#'
-}
-
-// isHexadecimalDigit reports whether character is an ASCII hexadecimal digit.
-func isHexadecimalDigit(character rune) bool {
-	return character >= '0' && character <= '9' || character >= 'a' && character <= 'f' || character >= 'A' && character <= 'F'
 }

@@ -437,7 +437,7 @@ func safeClassName(name string) bool {
 
 // safeClassCharacter reports whether char may appear in a plugin-safe CSS class segment.
 func safeClassCharacter(character byte) bool {
-	return ascii.IsAlphanumeric(rune(character)) ||
+	return ascii.IsAlphanumeric(character) ||
 		character == '_' ||
 		character == '-'
 }
@@ -503,11 +503,12 @@ func validContentLengthNumber(value string) bool {
 	dotSeen := false
 	digitSeen := false
 
-	for _, char := range value {
+	for index := 0; index < len(value); index++ {
+		character := value[index]
 		switch {
-		case ascii.IsDigit(char):
+		case ascii.IsDigit(character):
 			digitSeen = true
-		case char == '.' && !dotSeen:
+		case character == '.' && !dotSeen:
 			dotSeen = true
 		default:
 			return false
