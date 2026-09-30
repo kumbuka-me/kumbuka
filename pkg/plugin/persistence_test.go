@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/kumbuka-me/sdk/pluginpackage"
 	"github.com/stretchr/testify/assert"
@@ -31,6 +32,13 @@ func (s *observedStore) SavePlugin(ctx context.Context, r Record, b []byte) erro
 	}
 	s.saves++
 	return s.memoryStore.SavePlugin(ctx, r, b)
+}
+func (s *observedStore) SeedPlugin(ctx context.Context, r Record, b []byte) error {
+	if s.fail {
+		return errors.New("persistence failed")
+	}
+	s.saves++
+	return s.memoryStore.SeedPlugin(ctx, r, b)
 }
 func (s *observedStore) SetPluginEnabled(ctx context.Context, id string, b bool) error {
 	if s.fail {
@@ -208,4 +216,69 @@ func TestBootstrapRejectsStoredManifestThatDoesNotMatchPackage(t *testing.T) {
 	require.ErrorContains(t, err, "stored plugin package mismatch")
 	assert.Empty(t, manager.Plugins())
 	require.NoError(t, manager.Close(ctx))
+}
+
+// blockedSeedStore pauses after the initial inventory read to force a stale
+// startup to race with a completed installation from another manager.
+type blockedSeedStore struct {
+	Store
+	reached chan struct{}
+	resume  chan struct{}
+}
+
+func (s *blockedSeedStore) SeedPlugin(ctx context.Context, r Record, archive []byte) error {
+	close(s.reached)
+	select {
+	case <-s.resume:
+		return s.Store.SeedPlugin(ctx, r, archive)
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+func TestConcurrentBootstrapUsesWinningInstallation(t *testing.T) {
+	for _, enabled := range []bool{false, true} {
+		t.Run(fmt.Sprintf("winner_enabled_%t", enabled), func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			const id = "io.concurrent"
+			store := &memoryStore{records: make(map[string]Record)}
+			blocked := &blockedSeedStore{Store: store, reached: make(chan struct{}), resume: make(chan struct{})}
+			// The losing binary offers an older package with different dependencies
+			// and the opposite default. None of those values may replace the winner.
+			losingArchive := inventoryArchive(t, id, "1.0.0", !enabled, "io.unavailable")
+			winningArchive := inventoryArchive(t, id, "2.0.0", enabled, "")
+			loserRuntime, winnerRuntime := &observedRuntime{}, &observedRuntime{}
+			loser := NewManager(&Registry{}, loserRuntime, WithStore(blocked))
+			winner := NewManager(&Registry{}, winnerRuntime, WithStore(store))
+			defer loser.Close(context.Background())
+			defer winner.Close(context.Background())
+			losingDistribution := testDistribution(t, [][]byte{losingArchive})
+			done := make(chan error, 1)
+			go func() { done <- loser.Bootstrap(ctx, losingDistribution) }()
+			select {
+			case <-blocked.reached:
+			case <-ctx.Done():
+				t.Fatal(ctx.Err())
+			}
+			err := winner.Bootstrap(ctx, testDistribution(t, [][]byte{winningArchive}))
+			close(blocked.resume)
+			require.NoError(t, err)
+			require.NoError(t, <-done)
+			for _, manager := range []*Manager{winner, loser} {
+				loaded := manager.Plugins()
+				require.Len(t, loaded, 1)
+				assert.Equal(t, "2.0.0", loaded[0].Manifest.Version)
+				assert.Equal(t, enabled, loaded[0].Enabled)
+				assert.Empty(t, loaded[0].Manifest.Requires)
+			}
+			if enabled {
+				assert.Equal(t, []string{id}, loserRuntime.loads)
+			} else {
+				assert.Empty(t, loserRuntime.loads)
+			}
+			persisted, err := store.PluginPackage(ctx, id)
+			require.NoError(t, err)
+			assert.Equal(t, winningArchive, persisted)
+		})
+	}
 }

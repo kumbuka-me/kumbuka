@@ -40,6 +40,18 @@ func (s *Store) PluginPackage(ctx context.Context, id string) ([]byte, error) {
 	err := s.pool.QueryRow(ctx, `SELECT package FROM plugin_installations WHERE plugin_id=$1`, id).Scan(&archive)
 	return archive, err
 }
+
+// SeedPlugin lets PostgreSQL arbitrate concurrent first installations without
+// updating the winning row, including its enabled state and package bytes.
+func (s *Store) SeedPlugin(ctx context.Context, record plugin.Record, archive []byte) error {
+	manifest, err := json.Marshal(record.Manifest)
+	if err != nil {
+		return err
+	}
+	_, err = s.pool.Exec(ctx, `INSERT INTO plugin_installations(plugin_id,enabled,manifest,digest,readme,package) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(plugin_id) DO NOTHING`, record.ID, record.Enabled, manifest, record.Digest[:], record.README, archive)
+	return err
+}
+
 func (s *Store) SavePlugin(ctx context.Context, record plugin.Record, archive []byte) error {
 	manifest, err := json.Marshal(record.Manifest)
 	if err != nil {

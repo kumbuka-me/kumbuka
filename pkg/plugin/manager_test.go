@@ -166,3 +166,7 @@ func (s *requiredPolicyStore) SetPluginEnabled(_ context.Context, _ string, enab
 	s.stateWrites++
 	return nil
 }
+
+func (*requiredPolicyStore) SeedPlugin(context.Context, plugin.Record, []byte) error {
+	return errors.New("unexpected package seed")
+}

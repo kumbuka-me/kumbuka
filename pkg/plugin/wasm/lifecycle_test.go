@@ -57,6 +57,23 @@ func (s *installationStore) SavePlugin(_ context.Context, r plugin.Record, archi
 	return nil
 }
 
+func (s *installationStore) SeedPlugin(_ context.Context, r plugin.Record, archive []byte) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.fail {
+		return errors.New("storage failed")
+	}
+	if _, exists := s.records[r.ID]; exists {
+		return nil
+	}
+	if s.packages == nil {
+		s.packages = make(map[string][]byte)
+	}
+	s.packages[r.ID] = bytes.Clone(archive)
+	s.records[r.ID] = r
+	return nil
+}
+
 // DeletePlugin deletes plugin.
 func (s *installationStore) DeletePlugin(_ context.Context, id string) error {
 	s.mu.Lock()

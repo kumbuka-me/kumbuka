@@ -22,28 +22,11 @@ func (m *Manager) Bootstrap(ctx context.Context, distribution Distribution) erro
 	if err != nil {
 		return err
 	}
-	catalog := make(map[string]managedPlugin, len(records))
-	for _, record := range records {
-		if _, ok := catalog[record.ID]; ok {
-			return fmt.Errorf("duplicate stored plugin %s", record.ID)
-		}
-		if record.ID != record.Manifest.ID {
-			return errors.New("stored plugin identity mismatch")
-		}
-		settings, err := m.loadSettings(ctx, record.Manifest)
-		if err != nil {
-			return err
-		}
-		catalog[record.ID] = managedPlugin{
-			metadata: LoadedPlugin{
-				Manifest: record.Manifest,
-				Digest:   record.Digest,
-				README:   record.README,
-				Enabled:  record.Enabled,
-				Settings: settings,
-			},
-		}
+	catalog, err := m.catalogFromRecords(ctx, records)
+	if err != nil {
+		return err
 	}
+	seeded := false
 	if distribution != nil {
 		seen := make(map[string]bool)
 		for _, builtin := range distribution.Catalog() {
@@ -66,10 +49,22 @@ func (m *Manager) Bootstrap(ctx context.Context, distribution Distribution) erro
 			if err != nil {
 				return err
 			}
-			if err := m.store.SavePlugin(ctx, recordFor(item), archive); err != nil {
+			if err := m.store.SeedPlugin(ctx, recordFor(item), archive); err != nil {
 				return err
 			}
-			catalog[builtin.ID] = item
+			seeded = true
+		}
+	}
+	// A concurrent startup may have inserted a different version or enabled
+	// state after our first inventory read. Activate only the database winner.
+	if seeded {
+		records, err = m.store.ListPlugins(ctx)
+		if err != nil {
+			return err
+		}
+		catalog, err = m.catalogFromRecords(ctx, records)
+		if err != nil {
+			return err
 		}
 	}
 	if err := m.enableRequiredPlugins(ctx, catalog); err != nil {
@@ -90,6 +85,33 @@ func (m *Manager) Bootstrap(ctx context.Context, distribution Distribution) erro
 	}
 	m.loaded, m.order, m.distribution = catalog, order, distribution
 	return nil
+}
+
+// catalogFromRecords restores runtime metadata exclusively from durable inventory.
+func (m *Manager) catalogFromRecords(ctx context.Context, records []Record) (map[string]managedPlugin, error) {
+	catalog := make(map[string]managedPlugin, len(records))
+	for _, record := range records {
+		if _, ok := catalog[record.ID]; ok {
+			return nil, fmt.Errorf("duplicate stored plugin %s", record.ID)
+		}
+		if record.ID != record.Manifest.ID {
+			return nil, errors.New("stored plugin identity mismatch")
+		}
+		settings, err := m.loadSettings(ctx, record.Manifest)
+		if err != nil {
+			return nil, err
+		}
+		catalog[record.ID] = managedPlugin{
+			metadata: LoadedPlugin{
+				Manifest: record.Manifest,
+				Digest:   record.Digest,
+				README:   record.README,
+				Enabled:  record.Enabled,
+				Settings: settings,
+			},
+		}
+	}
+	return catalog, nil
 }
 
 // metadataFromPackage returns a managed plugin from a package and its metadata.

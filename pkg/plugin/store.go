@@ -22,6 +22,9 @@ type Record struct {
 type Store interface {
 	ListPlugins(context.Context) ([]Record, error)
 	PluginPackage(context.Context, string) ([]byte, error)
+	// SeedPlugin inserts a missing installation atomically; an existing row is never changed.
+	// Callers must reload inventory afterward to observe a concurrent winner.
+	SeedPlugin(context.Context, Record, []byte) error
 	SavePlugin(context.Context, Record, []byte) error
 	SetPluginEnabled(context.Context, string, bool) error
 	DeletePlugin(context.Context, string) error
@@ -74,6 +77,21 @@ func (s *memoryStore) ListPlugins(context.Context) ([]Record, error) {
 func (s *memoryStore) SavePlugin(_ context.Context, record Record, archive []byte) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.packages == nil {
+		s.packages = make(map[string][]byte)
+	}
+	s.packages[record.ID] = bytes.Clone(archive)
+	s.records[record.ID] = cloneRecord(record)
+	return nil
+}
+
+// SeedPlugin atomically inserts a missing installation without replacing its state.
+func (s *memoryStore) SeedPlugin(_ context.Context, record Record, archive []byte) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, exists := s.records[record.ID]; exists {
+		return nil
+	}
 	if s.packages == nil {
 		s.packages = make(map[string][]byte)
 	}
