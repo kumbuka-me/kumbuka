@@ -42,3 +42,19 @@ func TestEditorWidgetChoiceSourceReferencesDeclaredLists(t *testing.T) {
 	}}
 	require.NoError(t, validateEditorWidgetCompletionReferences([]EditorWidgetContribution{widget}, manifest))
 }
+
+func TestEditorWidgetChoiceSourceRejectsWrongModuleType(t *testing.T) {
+	for _, moduleType := range []string{"settings", "admin-resource"} {
+		t.Run(moduleType, func(t *testing.T) {
+			source := EditorWidgetChoiceSource{SourceAttribute: "workflow", ListField: "states", ValueColumn: "id", LabelColumn: "label"}
+			if moduleType == "settings" {
+				source.ResourceModuleID = "workflow"
+			} else {
+				source.SettingModuleID = "workflow"
+			}
+			widget := EditorWidgetContribution{ID: "task", Attributes: []EditorWidgetAttribute{{Name: "workflow", Type: EditorWidgetAttributeIdentifier}}}
+			manifest := pluginpackage.Manifest{Modules: []pluginpackage.Module{{ID: "workflow", Type: moduleType, Fields: []pluginpackage.ConfigurationField{{ID: "states", Type: "list", Columns: []pluginpackage.ConfigurationField{{ID: "id", Type: "text"}, {ID: "label", Type: "text"}}}}}}}
+			require.ErrorContains(t, validateEditorWidgetChoiceSource(widget, source, manifest), "invalid module")
+		})
+	}
+}

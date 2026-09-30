@@ -435,10 +435,7 @@ func validateEditorWidgetCompletionReferences(widgets []EditorWidgetContribution
 
 // validateEditorWidgetChoiceSource checks that an option source references valid attributes and list columns.
 func validateEditorWidgetChoiceSource(widget EditorWidgetContribution, source EditorWidgetChoiceSource, manifest pluginpackage.Manifest) error {
-	if !validID.MatchString(source.SourceAttribute) || !validID.MatchString(source.ListField) ||
-		!validID.MatchString(source.ValueColumn) || !validID.MatchString(source.LabelColumn) ||
-		(source.DefaultColumn != "" && !validID.MatchString(source.DefaultColumn)) ||
-		(source.SettingModuleID == "" && source.ResourceModuleID == "") {
+	if !validEditorWidgetChoiceSourceNames(source) {
 		return fmt.Errorf("visual editor widget %q has an invalid choice source", widget.ID)
 	}
 	attributeFound := false
@@ -450,14 +447,17 @@ func validateEditorWidgetChoiceSource(widget EditorWidgetContribution, source Ed
 	if !attributeFound {
 		return fmt.Errorf("visual editor widget %q choice source references unknown attribute %q", widget.ID, source.SourceAttribute)
 	}
-	for _, moduleID := range []string{source.SettingModuleID, source.ResourceModuleID} {
+	for _, moduleType := range []ModuleType{ModuleTypeSettings, ModuleTypeAdminResource} {
+		moduleID := source.SettingModuleID
+		if moduleType == ModuleTypeAdminResource {
+			moduleID = source.ResourceModuleID
+		}
 		if moduleID == "" {
 			continue
 		}
 		found := false
 		for _, module := range manifest.Modules {
-			moduleType := ModuleType(module.Type)
-			if module.ID != moduleID || (moduleType != ModuleTypeSettings && moduleType != ModuleTypeAdminResource) {
+			if module.ID != moduleID || ModuleType(module.Type) != moduleType {
 				continue
 			}
 			for _, field := range module.Fields {
@@ -471,6 +471,19 @@ func validateEditorWidgetChoiceSource(widget EditorWidgetContribution, source Ed
 		}
 	}
 	return nil
+}
+
+// validEditorWidgetChoiceSourceNames reports whether source identifiers form a usable list reference.
+func validEditorWidgetChoiceSourceNames(source EditorWidgetChoiceSource) bool {
+	if source.SettingModuleID == "" && source.ResourceModuleID == "" {
+		return false
+	}
+	for _, name := range []string{source.SourceAttribute, source.ListField, source.ValueColumn, source.LabelColumn} {
+		if !validID.MatchString(name) {
+			return false
+		}
+	}
+	return source.DefaultColumn == "" || validID.MatchString(source.DefaultColumn)
 }
 
 // choiceColumnsExist reports whether the list exposes every required option column.
@@ -1300,19 +1313,42 @@ func validEditorWidgetSettingMetadata(setting EditorWidgetSetting) bool {
 		(setting.Type == EditorWidgetSettingTable || setting.RowSeparator == "")
 }
 
+// editorWidgetScalarAttribute reports whether an attribute accepts a free-form scalar value.
+func editorWidgetScalarAttribute(attribute EditorWidgetAttribute) bool {
+	return attribute.Type == EditorWidgetAttributeString || attribute.Type == EditorWidgetAttributeIdentifier
+}
+
+// editorWidgetSingleAttributeSetting reports whether a control has no table or nested-field layout.
+func editorWidgetSingleAttributeSetting(setting EditorWidgetSetting) bool {
+	return len(setting.Attributes) == 0 && len(setting.Columns) == 0 && len(setting.Fields) == 0
+}
+
+// editorWidgetWithoutTreeOptions reports whether a control omits all tree-only configuration.
+func editorWidgetWithoutTreeOptions(setting EditorWidgetSetting) bool {
+	return setting.IDAttribute == "" && setting.ParentAttribute == "" &&
+		setting.TitleAttribute == "" && setting.DescriptionAttribute == "" &&
+		setting.EmptyValue == "" && setting.IDPrefix == "" && setting.MaxDepth == 0
+}
+
 // validEditorWidgetTextSetting reports whether a text control targets one scalar attribute.
 func validEditorWidgetTextSetting(setting EditorWidgetSetting, attribute EditorWidgetAttribute, found bool) bool {
-	return found && (attribute.Type == EditorWidgetAttributeString || attribute.Type == EditorWidgetAttributeIdentifier) && len(setting.Attributes) == 0 && len(setting.Columns) == 0 && len(setting.Fields) == 0 && setting.CompletionModuleID == "" && setting.IDAttribute == "" && setting.ParentAttribute == "" && setting.TitleAttribute == "" && setting.DescriptionAttribute == "" && setting.EmptyValue == "" && setting.IDPrefix == "" && setting.MaxDepth == 0 && setting.ChoiceSource == nil && len(setting.Choices) == 0
+	return found && editorWidgetScalarAttribute(attribute) && editorWidgetSingleAttributeSetting(setting) &&
+		setting.CompletionModuleID == "" && editorWidgetWithoutTreeOptions(setting) &&
+		setting.ChoiceSource == nil && len(setting.Choices) == 0
 }
 
 // validEditorWidgetSelectSetting reports whether a select control targets one enum attribute without extra control data.
 func validEditorWidgetSelectSetting(setting EditorWidgetSetting, attribute EditorWidgetAttribute, found bool) bool {
-	return found && attribute.Type == EditorWidgetAttributeEnum && len(setting.Attributes) == 0 && len(setting.Columns) == 0 && len(setting.Fields) == 0 && len(setting.Suggestions) == 0 && setting.CompletionModuleID == "" && setting.IDAttribute == "" && setting.ParentAttribute == "" && setting.TitleAttribute == "" && setting.DescriptionAttribute == "" && setting.EmptyValue == "" && setting.IDPrefix == "" && setting.MaxDepth == 0 && setting.ChoiceSource == nil
+	return found && attribute.Type == EditorWidgetAttributeEnum && editorWidgetSingleAttributeSetting(setting) &&
+		len(setting.Suggestions) == 0 && setting.CompletionModuleID == "" && editorWidgetWithoutTreeOptions(setting) &&
+		setting.ChoiceSource == nil
 }
 
 // validEditorWidgetResourceSetting reports whether a resource control targets one scalar attribute without unrelated control data.
 func validEditorWidgetResourceSetting(setting EditorWidgetSetting, attribute EditorWidgetAttribute, found bool) bool {
-	return found && (attribute.Type == EditorWidgetAttributeString || attribute.Type == EditorWidgetAttributeIdentifier) && len(setting.Attributes) == 0 && len(setting.Columns) == 0 && len(setting.Fields) == 0 && len(setting.Suggestions) == 0 && setting.IDAttribute == "" && setting.ParentAttribute == "" && setting.TitleAttribute == "" && setting.DescriptionAttribute == "" && setting.EmptyValue == "" && setting.IDPrefix == "" && setting.MaxDepth == 0 && setting.ChoiceSource == nil && len(setting.Choices) == 0
+	return found && editorWidgetScalarAttribute(attribute) && editorWidgetSingleAttributeSetting(setting) &&
+		len(setting.Suggestions) == 0 && editorWidgetWithoutTreeOptions(setting) &&
+		setting.ChoiceSource == nil && len(setting.Choices) == 0
 }
 
 // validEditorWidgetTableShape reports whether a table control has a bounded one-to-one attribute and column layout.
