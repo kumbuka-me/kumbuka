@@ -74,6 +74,6 @@ func TestRangesHandlesMarkdownDestinationWhitespaceAndReferenceIndent(t *testing
 func TestRangesStopsBareDestinationsAtMarkdownTerminators(t *testing.T) {
 	t.Parallel()
 
-	source := `[one](one.png "title") [two](two.png\t"title")`
+	source := "[one](one.png \"title\") [two](two.png\t\"title\")"
 	assert.Equal(t, []string{"one.png", "two.png"}, destinations(source))
 }

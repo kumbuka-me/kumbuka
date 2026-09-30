@@ -6,6 +6,11 @@ type character interface {
 	~byte | ~rune
 }
 
+// IsASCII reports whether character is an ASCII code point.
+func IsASCII[T character](character T) bool {
+	return character >= 0 && character <= 0x7f
+}
+
 // IsAlphanumeric reports whether character is an ASCII letter or digit.
 func IsAlphanumeric[T character](character T) bool {
 	return IsLetter(character) || IsDigit(character)

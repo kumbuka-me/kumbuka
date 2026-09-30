@@ -6,6 +6,18 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// TestIsASCII verifies byte and rune scanners can identify the ASCII fast path.
+func TestIsASCII(t *testing.T) {
+	t.Parallel()
+
+	assert.True(t, IsASCII(byte(0)))
+	assert.True(t, IsASCII(byte(0x7f)))
+	assert.False(t, IsASCII(byte(0x80)))
+	assert.True(t, IsASCII(rune('A')))
+	assert.False(t, IsASCII(rune('é')))
+	assert.False(t, IsASCII(rune(-1)))
+}
+
 // TestIsAlphanumeric verifies ASCII letters and digits are accepted.
 func TestIsAlphanumeric(t *testing.T) {
 	t.Parallel()
