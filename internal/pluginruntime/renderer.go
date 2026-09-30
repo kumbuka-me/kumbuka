@@ -28,15 +28,10 @@ func NewRenderer(
 	logger *slog.Logger,
 	version, commit string,
 ) (*markdown.Renderer, error) {
-	archives, err := plugins.Archives()
-	if err != nil {
-		return nil, err
-	}
-
 	renderer, err := markdown.NewWithPluginStore(
 		ctx,
 		store,
-		archives,
+		plugins.Distribution{},
 		wasm.WithStorage(store),
 		wasm.WithUserDirectory(plugincap.PublicUsers{Source: store}),
 		wasm.WithSecretCodec(secretCodec),

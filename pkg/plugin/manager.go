@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"maps"
+	"slices"
 	"sync"
 
 	"github.com/kumbuka-me/sdk/pluginpackage"
@@ -25,14 +26,6 @@ type Instance interface {
 	Close(context.Context) error
 }
 
-// Source is descriptive metadata only; it never grants a runtime capability.
-type Source string
-
-const (
-	SourceBundled   Source = "bundled"
-	SourceInstalled Source = "installed"
-)
-
 // LoadedPlugin describes one plugin known to the manager.
 type LoadedPlugin struct {
 	// Enabled reports whether the plugin currently contributes active modules.
@@ -43,16 +36,16 @@ type LoadedPlugin struct {
 	README string
 	// Settings contains persisted boolean settings keyed by settings-module ID.
 	Settings map[string]bool
-	// Source records whether the package is bundled or installed.
-	Source Source
+	// Builtin describes the offline distribution, independently of installed state.
+	Builtin                *BuiltinPackage
+	BuiltinUpdateAvailable bool
+	BuiltinMismatch        bool
 	// Digest stores the content digest used for identity and caching.
 	Digest [32]byte
 }
 
-// managedPlugin owns the package bytes, metadata, and optional live instance for one plugin.
+// managedPlugin owns metadata and an optional live instance, never an archive.
 type managedPlugin struct {
-	// archive contains the validated plugin package bytes.
-	archive []byte
 	// metadata contains externally visible plugin state.
 	metadata LoadedPlugin
 	// editorWidgets contains the validated optional visual-editor contributions.
@@ -85,15 +78,15 @@ type Manager struct {
 	values Storage
 	// secrets encrypts manifest-declared secret resource fields.
 	secrets SecretCodec
-	// bundled stores embedded package bytes by plugin ID for installed overrides.
-	bundled map[string][]byte
+	// distribution supplies offline installation and update candidates.
+	distribution Distribution
 	// retirements tracks instances waiting for active render leases to drain.
 	retirements []*retirement
 }
 
 // NewManager constructs a new manager.
 func NewManager(registry *Registry, runtime Runtime, options ...ManagerOption) *Manager {
-	m := &Manager{registry: registry, runtime: runtime, loaded: make(map[string]managedPlugin), bundled: make(map[string][]byte), store: &memoryStore{records: make(map[string]Record)}}
+	m := &Manager{registry: registry, runtime: runtime, loaded: make(map[string]managedPlugin), store: &memoryStore{records: make(map[string]Record)}}
 
 	for _, option := range options {
 		option(m)
@@ -112,7 +105,7 @@ func (m *Manager) Plugins() []LoadedPlugin {
 
 	for _, id := range m.order {
 		if loaded, ok := m.loaded[id]; ok && !seen[id] {
-			result = append(result, cloneLoaded(loaded.metadata))
+			result = append(result, m.describe(loaded.metadata))
 			seen[id] = true
 		}
 	}
@@ -122,21 +115,25 @@ func (m *Manager) Plugins() []LoadedPlugin {
 
 // cloneLoaded copies mutable manifest slices before metadata leaves the manager.
 func cloneLoaded(metadata LoadedPlugin) LoadedPlugin {
-	metadata.Manifest.Modules = append([]pluginpackage.Module(nil), metadata.Manifest.Modules...)
+	if metadata.Builtin != nil {
+		value := *metadata.Builtin
+		metadata.Builtin = &value
+	}
+	metadata.Manifest.Modules = slices.Clone(metadata.Manifest.Modules)
 	for i := range metadata.Manifest.Modules {
-		metadata.Manifest.Modules[i].Requires = append([]string(nil), metadata.Manifest.Modules[i].Requires...)
-		metadata.Manifest.Modules[i].Fields = append([]pluginpackage.ConfigurationField(nil), metadata.Manifest.Modules[i].Fields...)
+		metadata.Manifest.Modules[i].Requires = slices.Clone(metadata.Manifest.Modules[i].Requires)
+		metadata.Manifest.Modules[i].Fields = slices.Clone(metadata.Manifest.Modules[i].Fields)
 		for fieldIndex := range metadata.Manifest.Modules[i].Fields {
 			field := &metadata.Manifest.Modules[i].Fields[fieldIndex]
-			field.Options = append([]string(nil), field.Options...)
-			field.Columns = append([]pluginpackage.ConfigurationField(nil), field.Columns...)
+			field.Options = slices.Clone(field.Options)
+			field.Columns = slices.Clone(field.Columns)
 			for columnIndex := range field.Columns {
-				field.Columns[columnIndex].Options = append([]string(nil), field.Columns[columnIndex].Options...)
+				field.Columns[columnIndex].Options = slices.Clone(field.Columns[columnIndex].Options)
 			}
 		}
 	}
-	metadata.Manifest.Requires = append([]string(nil), metadata.Manifest.Requires...)
-	metadata.Manifest.Permissions = append([]string(nil), metadata.Manifest.Permissions...)
+	metadata.Manifest.Requires = slices.Clone(metadata.Manifest.Requires)
+	metadata.Manifest.Permissions = slices.Clone(metadata.Manifest.Permissions)
 	metadata.Settings = maps.Clone(metadata.Settings)
 
 	return metadata

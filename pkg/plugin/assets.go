@@ -2,6 +2,7 @@ package plugin
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"image/png"
 	"io/fs"
@@ -102,7 +103,7 @@ func (m *Manager) IconResources() ([]icons.Resource, error) {
 				continue
 			}
 			if pkg == nil {
-				loaded, err := pluginpackage.Read(item.archive)
+				loaded, err := m.readPackage(context.Background(), item)
 				if err != nil {
 					return nil, err
 				}
@@ -238,7 +239,7 @@ func (m *Manager) PluginPreview(id string) ([]byte, error) {
 		return nil, fs.ErrNotExist
 	}
 
-	pkg, err := pluginpackage.Read(item.archive)
+	pkg, err := m.readPackage(context.Background(), item)
 	if err != nil {
 		return nil, err
 	}
@@ -303,7 +304,7 @@ func (m *Manager) BrowserAsset(id, digest, name string) ([]byte, error) {
 	if !hasBrowser {
 		return nil, fs.ErrNotExist
 	}
-	pkg, err := pluginpackage.Read(item.archive)
+	pkg, err := m.readPackage(context.Background(), item)
 	if err != nil {
 		return nil, err
 	}
@@ -340,7 +341,7 @@ func (m *Manager) declaredAsset(id, digest, name string, moduleType ModuleType) 
 	if !declared {
 		return nil, fs.ErrNotExist
 	}
-	pkg, err := pluginpackage.Read(item.archive)
+	pkg, err := m.readPackage(context.Background(), item)
 	if err != nil {
 		return nil, err
 	}
@@ -355,7 +356,7 @@ func (m *Manager) BrowserAssetNames(id, digest string) ([]string, error) {
 	if !activePluginVersion(item, ok, digest) {
 		return nil, fs.ErrNotExist
 	}
-	pkg, err := pluginpackage.Read(item.archive)
+	pkg, err := m.readPackage(context.Background(), item)
 	if err != nil {
 		return nil, err
 	}

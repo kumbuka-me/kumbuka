@@ -142,7 +142,7 @@ func (a *AdminPlugins) populatePluginUpdateView(data *webview.AdminPluginsView) 
 		return
 	}
 	for pluginID, release := range updates {
-		data.PluginUpdates[pluginID] = &webview.PluginUpdate{Version: release.Version, ReleasedAt: release.ReleasedAt}
+		data.PluginUpdates[pluginID] = &webview.PluginUpdate{Version: release.Version, ReleasedAt: release.ReleasedAt, Builtin: release.Builtin}
 	}
 }
 
@@ -327,6 +327,9 @@ func (a *AdminPlugins) runPluginAction(w http.ResponseWriter, r *http.Request, i
 	case "uninstall":
 		return a.manager.Uninstall(r.Context(), id)
 	case "update":
+		if r.FormValue("source") == "builtin" {
+			return a.manager.UpdateBuiltin(r.Context(), id, pluginUpdateApproval(r)...)
+		}
 		return a.manager.Update(r.Context(), id, pluginUpdateApproval(r)...)
 	case "upgrade":
 		return a.upgradeFromUpload(w, r, id)

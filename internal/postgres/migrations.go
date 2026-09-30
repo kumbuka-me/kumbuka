@@ -179,6 +179,12 @@ func applyMigration(ctx context.Context, tx pgx.Tx, item migration) error {
 		return err
 	}
 
+	if item.version == 16 {
+		if err := migratePluginInstallations(ctx, tx); err != nil {
+			return fmt.Errorf("migration %d: %w", item.version, err)
+		}
+	}
+
 	if _, err := tx.Exec(ctx, string(sql)); err != nil {
 		return fmt.Errorf("migration %d: %w", item.version, err)
 	}

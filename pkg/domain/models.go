@@ -636,6 +636,8 @@ type WebhookDelivery struct {
 
 // PluginRelease describes update metadata needed outside the catalog transport adapter.
 type PluginRelease struct {
+	// Builtin selects an embedded offline update instead of an HTTP download.
+	Builtin bool
 	// Version is the compatible plugin version offered to administrators.
 	Version string
 	// ReleasedAt records when the release was published.

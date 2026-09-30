@@ -10,6 +10,7 @@ import (
 
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/kumbuka-me/kumbuka/pkg/plugin"
+	"github.com/kumbuka-me/kumbuka/pkg/pluginversion"
 	"github.com/kumbuka-me/sdk/pluginpackage"
 )
 
@@ -123,7 +124,17 @@ func (a *Admin) IsRequired(id string) bool { return a.manager.IsRequired(id) }
 func (a *Admin) HasPlugin(id string) bool { return pluginInstalled(a.manager.Plugins(), id) }
 
 // CatalogAvailable reports whether update checks were configured.
-func (a *Admin) CatalogAvailable() bool { return a.catalog != nil }
+func (a *Admin) CatalogAvailable() bool {
+	if a.catalog != nil {
+		return true
+	}
+	for _, item := range a.manager.Plugins() {
+		if item.Builtin != nil {
+			return true
+		}
+	}
+	return false
+}
 
 // Refresh checks the configured first-party catalog.
 func (a *Admin) Refresh(ctx context.Context) error {
@@ -143,10 +154,41 @@ func (a *Admin) Status() PluginUpdateStatus {
 
 // Available returns compatible updates when catalog access succeeds.
 func (a *Admin) Available() (map[string]domain.PluginRelease, error) {
-	if a.catalog == nil {
+	updates := make(map[string]domain.PluginRelease)
+	var remoteErr error
+	if a.catalog != nil {
+		remote, err := a.catalog.Available()
+		remoteErr = err
+		for id, release := range remote {
+			updates[id] = release
+		}
+	}
+	for _, item := range a.manager.Plugins() {
+		if !item.BuiltinUpdateAvailable || item.Builtin == nil {
+			continue
+		}
+		id := item.Manifest.ID
+		remote, exists := updates[id]
+		if !exists || !pluginversion.Newer(remote.Version, item.Builtin.Version) {
+			updates[id] = domain.PluginRelease{Version: item.Builtin.Version, Builtin: true}
+		}
+	}
+	if len(updates) > 0 {
+		return updates, nil
+	}
+	if a.catalog == nil && !a.CatalogAvailable() {
 		return nil, errors.New("plugin update catalog is unavailable")
 	}
-	return a.catalog.Available()
+	return updates, remoteErr
+}
+
+// UpdateBuiltin explicitly chooses the offline candidate even if a newer remote release exists.
+func (a *Admin) UpdateBuiltin(ctx context.Context, id string, approvals ...UpdateApproval) error {
+	installed, ok := installedPlugin(a.manager.Plugins(), id)
+	if !ok || installed.Builtin == nil || !installed.BuiltinUpdateAvailable {
+		return errors.New("no newer builtin plugin release is available")
+	}
+	return a.updateRelease(ctx, installed, domain.PluginRelease{Version: installed.Builtin.Version, Builtin: true}, approvals)
 }
 
 // Install validates one plugin package and requires explicit administrator review before any package is installed, including packages that request no permissions.
@@ -201,7 +243,7 @@ func (a *Admin) Update(ctx context.Context, id string, approvals ...UpdateApprov
 	if !ok {
 		return errors.New("plugin is not installed")
 	}
-	updates, err := a.catalog.Available()
+	updates, err := a.Available()
 	if err != nil {
 		return fmt.Errorf("check plugin update catalog: %w", err)
 	}
@@ -278,7 +320,19 @@ func (a *Admin) UpdateAll(ctx context.Context) (UpdateAllResult, error) {
 // updateRelease downloads, validates, authorizes, and activates one known catalog release.
 func (a *Admin) updateRelease(ctx context.Context, installed plugin.LoadedPlugin, release domain.PluginRelease, approvals []UpdateApproval) error {
 	id := installed.Manifest.ID
-	archive, err := a.catalog.Download(ctx, id, release.Version)
+	var archive []byte
+	var err error
+	if release.Builtin {
+		source, ok := a.manager.(interface {
+			BuiltinArchive(context.Context, string, string) ([]byte, error)
+		})
+		if !ok {
+			return errors.New("builtin distribution is unavailable")
+		}
+		archive, err = source.BuiltinArchive(ctx, id, release.Version)
+	} else {
+		archive, err = a.catalog.Download(ctx, id, release.Version)
+	}
 	if err != nil {
 		return fmt.Errorf("download plugin update: %w", err)
 	}

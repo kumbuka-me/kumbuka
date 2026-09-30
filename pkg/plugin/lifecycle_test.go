@@ -32,47 +32,19 @@ func (lifecycleTestInstance) Contributions() Contributions { return Contribution
 // Close releases the no-op instance.
 func (lifecycleTestInstance) Close(context.Context) error { return nil }
 
-func TestUninstallValidatesBundledFallbackBeforeCommit(t *testing.T) {
-	t.Parallel()
-
-	const id = "io.example.lifecycle"
+func TestUninstallDoesNotRestoreBuiltinFallback(t *testing.T) {
 	ctx := context.Background()
-	bundled := lifecycleTestArchive(t, id, "1.0.0")
-	installed := lifecycleTestArchive(t, id, "2.0.0")
+	const id = "io.example.lifecycle"
 	manager := NewManager(&Registry{}, lifecycleTestRuntime{})
-	t.Cleanup(func() { require.NoError(t, manager.Close(context.Background())) })
-
-	require.NoError(t, manager.Bootstrap(ctx, [][]byte{bundled}))
-	_, err := manager.Upgrade(ctx, id, installed)
+	t.Cleanup(func() { require.NoError(t, manager.Close(ctx)) })
+	require.NoError(t, manager.Bootstrap(ctx, testDistribution(t, [][]byte{lifecycleTestArchive(t, id, "1.0.0")})))
+	_, err := manager.Upgrade(ctx, id, lifecycleTestArchive(t, id, "2.0.0"))
 	require.NoError(t, err)
-	require.Len(t, manager.Plugins(), 1)
-	assert.Equal(t, SourceInstalled, manager.Plugins()[0].Source)
-
+	require.NoError(t, manager.Uninstall(ctx, id))
+	assert.Empty(t, manager.Plugins())
 	records, err := manager.store.ListPlugins(ctx)
 	require.NoError(t, err)
-	require.Len(t, records, 1)
-	require.Equal(t, SourceInstalled, records[0].Source)
-	require.Equal(t, installed, records[0].Package)
-
-	// Simulate an embedded package becoming unreadable. Uninstall must fail
-	// before it changes durable or in-memory lifecycle state.
-	manager.mu.Lock()
-	manager.bundled[id] = []byte("not a plugin archive")
-	manager.mu.Unlock()
-
-	err = manager.Uninstall(ctx, id)
-	require.Error(t, err)
-
-	plugins := manager.Plugins()
-	require.Len(t, plugins, 1)
-	assert.Equal(t, SourceInstalled, plugins[0].Source)
-	assert.Equal(t, "2.0.0", fmt.Sprint(plugins[0].Manifest.Version))
-
-	records, storeErr := manager.store.ListPlugins(ctx)
-	require.NoError(t, storeErr)
-	require.Len(t, records, 1)
-	assert.Equal(t, SourceInstalled, records[0].Source)
-	assert.Equal(t, installed, records[0].Package)
+	assert.Empty(t, records)
 }
 
 // lifecycleTestArchive creates one valid declarative package with the requested version.

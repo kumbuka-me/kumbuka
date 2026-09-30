@@ -49,17 +49,24 @@ func (m *Manager) retire(life *lifetime, instance Instance) {
 
 // descriptor converts package manifest metadata into registry metadata.
 func descriptor(manifest pluginpackage.Manifest) Descriptor {
-	return Descriptor{ID: manifest.ID, Name: manifest.Name, Description: manifest.Description, DefaultEnabled: manifest.DefaultEnabled, Requires: manifest.Requires}
+	return Descriptor{
+		ID:             manifest.ID,
+		Name:           manifest.Name,
+		Description:    manifest.Description,
+		DefaultEnabled: manifest.DefaultEnabled,
+		Requires:       manifest.Requires,
+	}
 }
 
 // recordFor converts managed runtime state into durable installation state.
 func recordFor(item managedPlugin) Record {
-	record := Record{ID: item.metadata.Manifest.ID, Source: item.metadata.Source, Enabled: item.metadata.Enabled}
-	if record.Source == SourceInstalled {
-		record.Package = item.archive
+	return Record{
+		ID:       item.metadata.Manifest.ID,
+		Manifest: item.metadata.Manifest,
+		Digest:   item.metadata.Digest,
+		README:   item.metadata.README,
+		Enabled:  item.metadata.Enabled,
 	}
-
-	return record
 }
 
 // Install validates and starts a package before durable, atomic publication.
@@ -79,57 +86,56 @@ func (m *Manager) Install(ctx context.Context, archive []byte) (LoadedPlugin, er
 		return LoadedPlugin{}, fmt.Errorf("plugin %s is already installed", id)
 	}
 
-	item, err := m.prepare(ctx, pkg, archive, SourceInstalled, true)
+	item, err := m.prepare(ctx, pkg, true)
 	if err != nil {
 		return LoadedPlugin{}, err
 	}
-	if err = m.publish(ctx, id, item); err != nil {
+	if err = m.publish(ctx, id, item, archive); err != nil {
 		return LoadedPlugin{}, err
 	}
 
-	m.order = append(m.order, id)
-
-	return cloneLoaded(item.metadata), nil
+	return m.describe(item.metadata), nil
 }
 
 // prepare validates and instantiates a package before any durable or registry change.
-func (m *Manager) prepare(ctx context.Context, pkg *pluginpackage.Package, archive []byte, source Source, enabled bool) (managedPlugin, error) {
+func (m *Manager) prepare(ctx context.Context, pkg *pluginpackage.Package, enabled bool) (managedPlugin, error) {
 	if m.required[pkg.Manifest().ID] {
 		enabled = true
 	}
-	// Even disabled upgrades validate executable compatibility before persistence.
-	instance, err := m.runtime.Load(ctx, pkg)
+	item, err := m.metadataFromPackage(ctx, pkg, enabled)
 	if err != nil {
 		return managedPlugin{}, err
 	}
-	settings, err := m.loadSettings(ctx, pkg.Manifest())
-	if err != nil {
-		_ = instance.Close(context.Background())
-		return managedPlugin{}, err
-	}
-
-	editorWidgets, editorWidgetProblem := editorWidgetsFromPackage(pkg)
-	item := managedPlugin{
-		metadata:            LoadedPlugin{Manifest: pkg.Manifest(), README: pkg.README(), Settings: settings, Source: source, Digest: pkg.Digest(), Enabled: enabled},
-		archive:             append([]byte(nil), archive...),
-		editorWidgets:       editorWidgets,
-		editorWidgetProblem: editorWidgetProblem,
-		instance:            instance,
-	}
-	if !enabled {
-		if err := instance.Close(ctx); err != nil {
+	if enabled {
+		item.instance, err = m.runtime.Load(ctx, pkg)
+		if err != nil {
 			return managedPlugin{}, err
 		}
-		item.instance = nil
 	}
-
 	return item, nil
 }
 
 // publish commits durable state and atomically transitions the active registry entry.
-func (m *Manager) publish(ctx context.Context, id string, item managedPlugin) error {
+func (m *Manager) publish(ctx context.Context, id string, item managedPlugin, archive []byte) error {
 	previous := m.loaded[id]
-	commit := func() error { return m.store.SavePlugin(ctx, recordFor(item)) }
+	catalog := make(map[string]managedPlugin, len(m.loaded)+1)
+	for key, value := range m.loaded {
+		catalog[key] = value
+	}
+	catalog[id] = item
+	order, graphErr := dependencyOrder(catalog)
+	if graphErr != nil {
+		if item.instance != nil {
+			_ = item.instance.Close(context.Background())
+		}
+		return graphErr
+	}
+	commit := func() error {
+		if archive == nil {
+			return m.store.SetPluginEnabled(ctx, id, item.metadata.Enabled)
+		}
+		return m.store.SavePlugin(ctx, recordFor(item), archive)
+	}
 
 	var old *lifetime
 	var err error
@@ -151,6 +157,7 @@ func (m *Manager) publish(ctx context.Context, id string, item managedPlugin) er
 	}
 
 	m.loaded[id] = item
+	m.order = order
 	if previous.instance != nil {
 		m.retire(old, previous.instance)
 	}
@@ -171,17 +178,17 @@ func (m *Manager) Enable(ctx context.Context, id string) error {
 		return nil
 	}
 
-	pkg, err := pluginpackage.Read(item.archive)
+	pkg, err := m.readPackage(ctx, item)
 	if err != nil {
 		return err
 	}
 
-	prepared, err := m.prepare(ctx, pkg, item.archive, item.metadata.Source, true)
+	prepared, err := m.prepare(ctx, pkg, true)
 	if err != nil {
 		return err
 	}
 
-	return m.publish(ctx, id, prepared)
+	return m.publish(ctx, id, prepared, nil)
 }
 
 // Disable removes an installed plugin from the active registry while retaining its package.
@@ -204,23 +211,7 @@ func (m *Manager) Disable(ctx context.Context, id string) error {
 	item.instance = nil
 	item.metadata.Enabled = false
 
-	return m.publish(ctx, id, item)
-}
-
-// prepareBundledFallback validates and reconstructs the embedded package that becomes visible after an installed override is removed. It runs before the durable/registry transition so a corrupt package or settings read cannot leave the manager half-uninstalled.
-func (m *Manager) prepareBundledFallback(ctx context.Context, id string) (managedPlugin, bool, error) {
-	archive, bundled := m.bundled[id]
-	if !bundled {
-		return managedPlugin{}, false, nil
-	}
-
-	item, err := m.managedPluginFromArchive(ctx, archive, SourceBundled)
-	if err != nil {
-		return managedPlugin{}, true, err
-	}
-
-	item.metadata.Enabled = false
-	return item, true, nil
+	return m.publish(ctx, id, item, nil)
 }
 
 // find returns one installed plugin while enforcing manager lifecycle state.
@@ -254,63 +245,54 @@ func (m *Manager) Upgrade(ctx context.Context, id string, archive []byte) (Loade
 		return LoadedPlugin{}, err
 	}
 
-	item, err := m.prepare(ctx, pkg, archive, SourceInstalled, previous.metadata.Enabled)
+	item, err := m.prepare(ctx, pkg, previous.metadata.Enabled)
 	if err != nil {
 		return LoadedPlugin{}, err
 	}
-	if err = m.publish(ctx, id, item); err != nil {
+	if err = m.publish(ctx, id, item, archive); err != nil {
 		return LoadedPlugin{}, err
 	}
 
-	return cloneLoaded(item.metadata), nil
+	return m.describe(item.metadata), nil
 }
 
-// Uninstall removes installed bytes. For a bundled ID, retain only a disabled bundled record so restarting Kumbuka cannot silently reactivate its embedded copy. Namespaced plugin data is intentionally retained for a possible reinstall.
+// Uninstall deletes installed state and retains namespaced settings and data.
+// A builtin distribution will seed a missing installation on the next startup;
+// disable is the persistent opt-out for plugins shipped by Kumbuka.
 func (m *Manager) Uninstall(ctx context.Context, id string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-
 	if m.required[id] {
 		return errors.New("required system plugin cannot be disabled or uninstalled")
 	}
-
 	item, err := m.find(id)
 	if err != nil {
 		return err
 	}
-
-	fallback, bundled, err := m.prepareBundledFallback(ctx, id)
+	catalog := make(map[string]managedPlugin, len(m.loaded))
+	for key, value := range m.loaded {
+		if key != id {
+			catalog[key] = value
+		}
+	}
+	order, err := dependencyOrder(catalog)
 	if err != nil {
 		return err
 	}
-
-	commit := func() error {
-		if bundled {
-			return m.store.SavePlugin(ctx, Record{ID: id, Source: SourceBundled, Enabled: false})
-		}
-		return m.store.DeletePlugin(ctx, id)
-	}
-
+	commit := func() error { return m.store.DeletePlugin(ctx, id) }
 	var old *lifetime
 	if item.instance != nil {
 		old, err = m.registry.transition(id, nil, true, commit)
 	} else {
 		err = commit()
 	}
-
 	if err != nil {
 		return err
 	}
-
 	delete(m.loaded, id)
-	if bundled {
-		m.loaded[id] = fallback
-	} else {
-		m.order = slices.DeleteFunc(m.order, func(value string) bool { return value == id })
-	}
+	m.order = order
 	if item.instance != nil {
 		m.retire(old, item.instance)
 	}
-
 	return nil
 }

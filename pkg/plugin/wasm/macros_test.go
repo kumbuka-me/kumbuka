@@ -23,14 +23,14 @@ func TestBundledAndInstalledMacrosUsePublicCapabilities(t *testing.T) {
 		data, err := plugins.Packages.ReadFile(name + ".kumbukaplugin")
 		require.NoError(t, err)
 		var outputs []string
-		for _, source := range []plugin.Source{plugin.SourceBundled, plugin.SourceInstalled} {
+		for _, source := range []string{"builtin", "upload"} {
 			runtime, err := wasm.New(ctx, wasm.Limits{}, wasm.WithPermissions("pages:read"))
 			require.NoError(t, err)
 			registry := &plugin.Registry{}
 			manager := plugin.NewManager(registry, runtime)
 			t.Cleanup(func() { _ = manager.Close(ctx) })
-			if source == plugin.SourceBundled {
-				require.NoError(t, manager.Bootstrap(ctx, [][]byte{data}))
+			if source == "builtin" {
+				require.NoError(t, manager.Bootstrap(ctx, testDistribution(t, [][]byte{data})))
 			} else {
 				_, err = manager.Install(ctx, data)
 				require.NoError(t, err)
@@ -85,7 +85,7 @@ func TestPageReportPropagatesAuthorizationFailure(t *testing.T) {
 	registry := &plugin.Registry{}
 	manager := plugin.NewManager(registry, runtime)
 	t.Cleanup(func() { require.NoError(t, manager.Close(context.Background())) })
-	require.NoError(t, manager.Bootstrap(ctx, [][]byte{data}))
+	require.NoError(t, manager.Bootstrap(ctx, testDistribution(t, [][]byte{data})))
 	renderer := markdown.NewWithRegistry(registry)
 
 	_, err = renderer.RenderPageResolvedWithFunctions(`{{pages query="private"}}`, markdown.Slug, markdown.DefaultOptions(), markdown.Functions{Capabilities: map[string]plugin.Capability{

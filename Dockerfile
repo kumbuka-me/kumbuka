@@ -50,7 +50,7 @@ COPY internal/ internal/
 COPY pkg/ pkg/
 COPY scripts/generate-icons/ scripts/generate-icons/
 COPY web/ web/
-COPY plugins/packages.go plugins/packages.go
+COPY plugins/*.go plugins/
 COPY --from=plugins /src/plugins/*.kumbukaplugin plugins/
 COPY --from=frontend /src/web/dist web/dist
 
@@ -91,3 +91,5 @@ WORKDIR /app
 USER 65532:0
 
 ENTRYPOINT ["/kumbuka"]
+
+

@@ -9,11 +9,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/kumbuka-me/kumbuka/pkg/pluginversion"
 	"io"
 	"net"
 	"net/http"
 	"net/url"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -67,16 +67,6 @@ type catalog struct {
 	SchemaVersion int `json:"schema_version"`
 	// Plugins contains first-party plugin release histories.
 	Plugins []catalogPlugin `json:"plugins"`
-}
-
-// semanticVersion is a strict three-component plugin version.
-type semanticVersion struct {
-	// major is the compatibility-breaking version component.
-	major uint64
-	// minor is the feature version component.
-	minor uint64
-	// patch is the patch version component.
-	patch uint64
 }
 
 // Client fetches, caches, and downloads first-party plugin update metadata and packages.
@@ -164,20 +154,20 @@ func (c *Client) cachedCatalog() (catalog, error) {
 
 // newestCompatibleRelease selects the newest valid release newer than currentText.
 func newestCompatibleRelease(releases []release, currentText string) (release, bool) {
-	current, ok := parseVersion(currentText)
+	current, ok := pluginversion.Parse(currentText)
 	if !ok {
 		return release{}, false
 	}
 
 	var selected release
-	var selectedVersion semanticVersion
+	var selectedVersion pluginversion.Version
 	found := false
 	for _, candidateRelease := range releases {
 		candidate, valid := eligibleUpdateVersion(candidateRelease, current)
 		if !valid {
 			continue
 		}
-		if !found || compareVersion(candidate, selectedVersion) > 0 {
+		if !found || pluginversion.Compare(candidate, selectedVersion) > 0 {
 			selected = candidateRelease
 			selectedVersion = candidate
 			found = true
@@ -187,12 +177,12 @@ func newestCompatibleRelease(releases []release, currentText string) (release, b
 }
 
 // eligibleUpdateVersion validates compatibility, version ordering, and release metadata.
-func eligibleUpdateVersion(candidateRelease release, current semanticVersion) (semanticVersion, bool) {
+func eligibleUpdateVersion(candidateRelease release, current pluginversion.Version) (pluginversion.Version, bool) {
 	if int64(candidateRelease.APIVersion) != int64(sdk.Version) || releaseProblem(candidateRelease) != "" {
-		return semanticVersion{}, false
+		return pluginversion.Version{}, false
 	}
-	candidate, valid := parseVersion(candidateRelease.Version)
-	return candidate, valid && compareVersion(candidate, current) > 0
+	candidate, valid := pluginversion.Parse(candidateRelease.Version)
+	return candidate, valid && pluginversion.Compare(candidate, current) > 0
 }
 
 // Download retrieves one bounded package in memory, verifies it, and returns validated package bytes.
@@ -358,7 +348,7 @@ func (c *Client) release(pluginID, version string) (release, error) {
 
 // releaseProblem returns a validation problem for update metadata that must not be used.
 func releaseProblem(release release) string {
-	if _, ok := parseVersion(release.Version); !ok {
+	if _, ok := pluginversion.Parse(release.Version); !ok {
 		return "plugin release version is invalid"
 	}
 	if release.APIVersion <= 0 {
@@ -410,11 +400,6 @@ func validUpdateURLAuthority(value *url.URL) bool {
 	return value != nil && value.Host != "" && value.User == nil
 }
 
-// validSemanticVersionPart reports whether a numeric version component is non-empty and has no leading zeroes.
-func validSemanticVersionPart(part string) bool {
-	return part != "" && (len(part) == 1 || part[0] != '0')
-}
-
 // loopbackHost reports whether host resolves syntactically to a loopback-only test target.
 func loopbackHost(host string) bool {
 	if strings.EqualFold(host, "localhost") {
@@ -422,37 +407,4 @@ func loopbackHost(host string) bool {
 	}
 	address := net.ParseIP(host)
 	return address != nil && address.IsLoopback()
-}
-
-// parseVersion parses the strict MAJOR.MINOR.PATCH versions used by first-party plugins.
-func parseVersion(value string) (semanticVersion, bool) {
-	parts := strings.Split(value, ".")
-	if len(parts) != 3 {
-		return semanticVersion{}, false
-	}
-	values := make([]uint64, 3)
-	for index, part := range parts {
-		if !validSemanticVersionPart(part) {
-			return semanticVersion{}, false
-		}
-		parsed, err := strconv.ParseUint(part, 10, 64)
-		if err != nil {
-			return semanticVersion{}, false
-		}
-		values[index] = parsed
-	}
-	return semanticVersion{major: values[0], minor: values[1], patch: values[2]}, true
-}
-
-// compareVersion compares left and right and returns -1, 0, or 1.
-func compareVersion(left, right semanticVersion) int {
-	for _, pair := range [][2]uint64{{left.major, right.major}, {left.minor, right.minor}, {left.patch, right.patch}} {
-		if pair[0] < pair[1] {
-			return -1
-		}
-		if pair[0] > pair[1] {
-			return 1
-		}
-	}
-	return 0
 }

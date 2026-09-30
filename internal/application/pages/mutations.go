@@ -102,8 +102,8 @@ type Mutations struct {
 	content pageContentPreparer
 	// icons validates page icons against the active built-in and plugin catalog.
 	icons pageIconValidator
-	// contentChanges receives committed canonical Markdown mutations.
-	contentChanges pageContentChangeSink
+	// contentChangeSink receives committed canonical Markdown mutations.
+	contentChangeSink pageContentChangeSink
 }
 
 // NewMutations constructs core page mutation use cases. Event sinks are optional so page mutations remain independently testable.
@@ -143,7 +143,7 @@ func (s *Mutations) WithContentPreparer(preparer pageContentPreparer) *Mutations
 
 // WithContentChangeSink enables post-commit plugin page-source hooks.
 func (s *Mutations) WithContentChangeSink(sink pageContentChangeSink) *Mutations {
-	s.contentChanges = sink
+	s.contentChangeSink = sink
 	return s
 }
 
@@ -218,10 +218,10 @@ func (s *Mutations) previousPageMarkdown(ctx context.Context, previousSlug strin
 
 // notifyContentChanged invokes post-commit hooks only when canonical Markdown changed.
 func (s *Mutations) notifyContentChanged(ctx context.Context, change PageContentChange) {
-	if s.contentChanges == nil || change.PreviousMarkdown == change.Markdown {
+	if s.contentChangeSink == nil || change.PreviousMarkdown == change.Markdown {
 		return
 	}
-	if err := s.contentChanges.ContentChanged(ctx, change); err != nil {
+	if err := s.contentChangeSink.ContentChanged(ctx, change); err != nil {
 		s.effects.logger.ErrorContext(ctx,
 			"plugin content change failed",
 			"event", "page_side_effect_failed",

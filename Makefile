@@ -142,8 +142,10 @@ generate: plugins ## Generate application source files.
 	go generate ./pkg/icons
 
 .PHONY: check-generated
-check-generated: generate ## Verify committed generated files are current.
+check-generated: $(PLUGIN_STAMP) ## Verify committed generated files are current.
+	go generate ./pkg/icons
 	@test -z "$$(git status --porcelain -- pkg/icons/catalog_gen.go)"
+	go run ./scripts/generate-plugins -check
 
 .PHONY: css
 css: ## Bundle split CSS sources into web/dist/css/app.css.
@@ -322,7 +324,8 @@ cover: test-web plugins ## Display Go test coverage.
 ##@ plugins
 
 .PHONY: plugins
-plugins: $(PLUGIN_STAMP) ## Download the pinned first-party plugin packages.
+plugins: $(PLUGIN_STAMP) ## Download pinned packages and generate the builtin catalog.
+	go generate ./plugins
 
 $(PLUGIN_STAMP): $(PLUGIN_LOCK) $(PLUGIN_DOWNLOAD)
 	$(PLUGIN_DOWNLOAD)

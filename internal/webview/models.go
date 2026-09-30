@@ -98,6 +98,8 @@ type MediaItem struct {
 
 // PluginUpdate describes one compatible first-party update shown in plugin administration.
 type PluginUpdate struct {
+	// Builtin reports that this release is available without internet access.
+	Builtin bool
 	// Version is the newer plugin version available from the catalog.
 	Version string
 	// ReleasedAt records when the catalog release was published.

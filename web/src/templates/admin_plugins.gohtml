@@ -198,7 +198,7 @@
                   {{ end }}
                 </td>
                 <td>{{ if .Manifest.Provider }}{{ .Manifest.Provider }}{{ else }}Not specified{{ end }}</td>
-                <td>{{ if eq .Source "bundled" }}Bundled{{ else }}Installed{{ end }}</td>
+                <td>Installed</td>
                 <td>
                   <div class="plugin-state-control"
                        data-plugin-state-control="{{ .Manifest.ID }}"
@@ -283,7 +283,7 @@
                 {{ with index $.PluginUpdates .Manifest.ID }}<span class="plugin-update-badge">{{ .Version }} available</span>{{ end }}
               </span>
               <span><strong>Provider</strong> {{ if .Manifest.Provider }}{{ .Manifest.Provider }}{{ else }}Not specified{{ end }}</span>
-              <span><strong>Source</strong> {{ if eq .Source "bundled" }}Bundled{{ else }}Installed{{ end }}</span>
+              <span><strong>Source</strong> Installed</span>
             </div>
             <div class="plugin-state-control"
                  data-plugin-state-control="{{ .Manifest.ID }}"
@@ -346,7 +346,7 @@
               </dd>
               <dt>Source</dt>
               <dd>
-                {{ if eq .Source "bundled" }}Bundled{{ else }}Installed{{ end }}
+                Installed
               </dd>
             </dl>
             <div class="plugin-technical-section">
@@ -399,6 +399,20 @@
         </details>
         <section class="plugin-detail-section plugin-update-section">
           <h3>Updates</h3>
+          {{ with .Builtin }}
+            <p class="settings-note">Builtin version: {{ .Version }} (available offline).</p>
+          {{ end }}
+          {{ if .BuiltinMismatch }}
+            <p class="settings-note">Package mismatch: the installed and builtin packages have the same version but different digests. The installed package is preserved.</p>
+          {{ end }}
+          {{ if .BuiltinUpdateAvailable }}
+            <form method="post"
+                  action="{{ route "/admin/plugins/" }}{{ .Manifest.ID }}/update?return=detail"
+                  data-plugin-update>
+              <input type="hidden" name="source" value="builtin">
+              <button class="button" type="submit">Update offline to {{ .Builtin.Version }}</button>
+            </form>
+          {{ end }}
           <div data-plugin-catalog-update>
             {{ with index $.PluginPermissionApprovals .Manifest.ID }}
               {{ template "plugin-permission-review" . }}
@@ -407,6 +421,9 @@
                     data-plugin-update
                     data-plugin-update-pending="Applying approved update…">
                 {{ template "plugin-permission-hidden" . }}
+                {{ if $plugin.Builtin }}{{ if eq .Version $plugin.Builtin.Version }}<input type="hidden"
+       name="source"
+       value="builtin">{{ end }}{{ end }}
                 <button class="button primary" type="submit" data-plugin-update-submit>
                   <span class="plugin-update-spinner"
                         data-plugin-update-spinner
@@ -420,7 +437,7 @@
                 <div class="plugin-update-card">
                   <div>
                     <strong>Version {{ .Version }} is available</strong>
-                    <p class="muted">Published {{ .ReleasedAt.Format "2006-01-02" }}. Kumbuka verifies the catalog checksum and package identity before switching versions.</p>
+                    <p class="muted">{{ if .Builtin }}Included in this Kumbuka release. No internet connection is needed.{{ else }}Published {{ .ReleasedAt.Format "2006-01-02" }}. Kumbuka verifies the catalog checksum and package identity before switching versions.{{ end }}</p>
                   </div>
                   <form method="post"
                         action="{{ route "/admin/plugins/" }}{{ $plugin.Manifest.ID }}/update?return=detail"
@@ -467,10 +484,10 @@
             </form>
           </div>
         </section>
-        {{ if and (eq .Source "installed") (not (index $.PluginRequiredIDs .Manifest.ID)) }}
+        {{ if not (index $.PluginRequiredIDs .Manifest.ID) }}
           <section class="plugin-detail-section plugin-danger-zone">
             <h3>Uninstall</h3>
-            <p class="settings-note">Plugin settings and data are retained. If Kumbuka includes a bundled copy, it remains disabled after removing the installed version.</p>
+            <p class="settings-note">Plugin settings and data are retained. A builtin package is installed again on the next server startup if missing. Disable it to keep it inactive across restarts.</p>
             <form method="post"
                   action="{{ route "/admin/plugins/" }}{{ .Manifest.ID }}/uninstall"
                   data-confirm="Uninstall {{ .Manifest.Name }}?"

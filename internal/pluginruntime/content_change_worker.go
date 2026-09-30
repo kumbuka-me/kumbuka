@@ -30,8 +30,10 @@ type contentChangeRepository interface {
 	RetryPluginContentChange(context.Context, int64, time.Time, string) error
 }
 
-// ContentChanges durably adapts committed page mutations to active plugin hooks.
-type ContentChanges struct {
+// ContentChangeWorker durably delivers committed page-source changes to active plugin hooks.
+// It persists one event per interested plugin, drains the queue in the background,
+// and retries failed deliveries without blocking page saves.
+type ContentChangeWorker struct {
 	// repository owns the durable delivery queue.
 	repository contentChangeRepository
 	// manager owns active plugin contributions.
@@ -44,14 +46,14 @@ type ContentChanges struct {
 	wake chan struct{}
 }
 
-// NewContentChanges constructs the durable post-commit plugin mutation adapter.
-func NewContentChanges(
+// NewContentChangeWorker constructs the durable post-commit plugin delivery worker.
+func NewContentChangeWorker(
 	repository contentChangeRepository,
 	manager *plugin.Manager,
 	notifications plugincap.NotificationSender,
 	logger *slog.Logger,
-) *ContentChanges {
-	return &ContentChanges{
+) *ContentChangeWorker {
+	return &ContentChangeWorker{
 		repository:    repository,
 		manager:       manager,
 		notifications: notifications,
@@ -61,7 +63,7 @@ func NewContentChanges(
 }
 
 // ContentChanged persists one delivery for every active plugin owning a committed-content hook.
-func (c *ContentChanges) ContentChanged(ctx context.Context, change pages.PageContentChange) error {
+func (c *ContentChangeWorker) ContentChanged(ctx context.Context, change pages.PageContentChange) error {
 	if c == nil || c.manager == nil {
 		return nil
 	}
@@ -84,7 +86,7 @@ func (c *ContentChanges) ContentChanged(ctx context.Context, change pages.PageCo
 }
 
 // queuedChanges snapshots the active content-change targets for one committed page mutation.
-func (c *ContentChanges) queuedChanges(change pages.PageContentChange) []domain.PluginContentChange {
+func (c *ContentChangeWorker) queuedChanges(change pages.PageContentChange) []domain.PluginContentChange {
 	targets := c.manager.ContentChangeTargets()
 	queued := make([]domain.PluginContentChange, 0, len(targets))
 	for _, target := range targets {
@@ -100,7 +102,7 @@ func (c *ContentChanges) queuedChanges(change pages.PageContentChange) []domain.
 }
 
 // Run drains durable content-change deliveries until the application context is canceled.
-func (c *ContentChanges) Run(ctx context.Context) {
+func (c *ContentChangeWorker) Run(ctx context.Context) {
 	if c == nil || c.repository == nil || c.manager == nil {
 		return
 	}
@@ -121,7 +123,7 @@ func (c *ContentChanges) Run(ctx context.Context) {
 }
 
 // signal wakes the background queue worker without blocking page saves.
-func (c *ContentChanges) signal() {
+func (c *ContentChangeWorker) signal() {
 	select {
 	case c.wake <- struct{}{}:
 	default:
@@ -129,7 +131,7 @@ func (c *ContentChanges) signal() {
 }
 
 // processPending claims bounded batches until no immediately deliverable events remain.
-func (c *ContentChanges) processPending(ctx context.Context) {
+func (c *ContentChangeWorker) processPending(ctx context.Context) {
 	for ctx.Err() == nil {
 		changes, err := c.repository.ClaimPluginContentChanges(ctx, contentChangeBatchSize, contentChangeLease)
 		if err != nil {
@@ -149,7 +151,7 @@ func (c *ContentChanges) processPending(ctx context.Context) {
 }
 
 // processOne delivers one leased event and either acknowledges or schedules it for retry.
-func (c *ContentChanges) processOne(ctx context.Context, change domain.PluginContentChange) {
+func (c *ContentChangeWorker) processOne(ctx context.Context, change domain.PluginContentChange) {
 	if err := c.deliver(ctx, change); err != nil {
 		retryAt := time.Now().Add(contentChangeRetryDelay(change.Attempts))
 		message := boundedContentChangeError(err.Error())
@@ -184,7 +186,7 @@ func (c *ContentChanges) processOne(ctx context.Context, change domain.PluginCon
 }
 
 // deliverAll invokes every captured plugin target and combines fallback delivery failures.
-func (c *ContentChanges) deliverAll(ctx context.Context, changes []domain.PluginContentChange) error {
+func (c *ContentChangeWorker) deliverAll(ctx context.Context, changes []domain.PluginContentChange) error {
 	var combined error
 	for _, change := range changes {
 		combined = errors.Join(combined, c.deliver(ctx, change))
@@ -193,7 +195,7 @@ func (c *ContentChanges) deliverAll(ctx context.Context, changes []domain.Plugin
 }
 
 // deliver invokes the captured plugin's hook with only mutation-scoped external capabilities.
-func (c *ContentChanges) deliver(ctx context.Context, change domain.PluginContentChange) error {
+func (c *ContentChangeWorker) deliver(ctx context.Context, change domain.PluginContentChange) error {
 	return c.manager.ContentChangedFor(ctx, change.PluginID, plugin.ContentChangeRequest{
 		Page:           plugincap.PageValue(change.Page),
 		PreviousSource: change.PreviousMarkdown,

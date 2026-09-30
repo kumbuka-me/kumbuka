@@ -69,7 +69,7 @@ func TestManagerFailuresNeverPublishContributions(t *testing.T) {
 	registry := &plugin.Registry{}
 	runtime := &fakeRuntime{err: errors.New("invalid reactor")}
 	manager := plugin.NewManager(registry, runtime)
-	err = manager.Bootstrap(context.Background(), [][]byte{data})
+	err = manager.Bootstrap(context.Background(), testDistribution(t, [][]byte{data}))
 	require.ErrorContains(t, err, "invalid reactor")
 	assert.Empty(t, registry.Snapshot().Entries)
 	_, err = manager.Install(context.Background(), []byte("invalid package"))
@@ -102,7 +102,7 @@ func TestRequiredPluginsAreOperatorPolicy(t *testing.T) {
 	require.NoError(t, err)
 	runtime := &fakeRuntime{instance: &fakeInstance{}}
 	manager := plugin.NewManager(&plugin.Registry{}, runtime, plugin.WithRequiredPlugins("me.kumbuka.callouts"))
-	require.NoError(t, manager.Bootstrap(ctx, [][]byte{archive}))
+	require.NoError(t, manager.Bootstrap(ctx, testDistribution(t, [][]byte{archive})))
 	assert.True(t, manager.IsRequired("me.kumbuka.callouts"))
 	require.Error(t, manager.Disable(ctx, "me.kumbuka.callouts"))
 	require.Error(t, manager.Uninstall(ctx, "me.kumbuka.callouts"))
@@ -110,16 +110,26 @@ func TestRequiredPluginsAreOperatorPolicy(t *testing.T) {
 	require.NoError(t, manager.Close(ctx))
 }
 
-// disabledPolicyStore provides test state for disabled policy store behavior.
-type disabledPolicyStore struct{}
+// requiredPolicyStore provides persisted disabled state for required-plugin bootstrap tests.
+type requiredPolicyStore struct {
+	archive     []byte
+	enabled     bool
+	stateWrites int
+}
 
-func (disabledPolicyStore) ListPlugins(context.Context) ([]plugin.Record, error) {
-	return []plugin.Record{{ID: "me.kumbuka.callouts", Source: plugin.SourceBundled, Enabled: false}}, nil
+func (s *requiredPolicyStore) ListPlugins(context.Context) ([]plugin.Record, error) {
+	pkg, err := pluginpackage.Read(s.archive)
+	if err != nil {
+		return nil, err
+	}
+	return []plugin.Record{{ID: pkg.Manifest().ID, Manifest: pkg.Manifest(), Digest: pkg.Digest(), README: pkg.README(), Enabled: s.enabled}}, nil
 }
-func (disabledPolicyStore) SavePlugin(context.Context, plugin.Record) error {
-	return errors.New("unexpected policy write")
+
+func (*requiredPolicyStore) SavePlugin(context.Context, plugin.Record, []byte) error {
+	return errors.New("unexpected package write")
 }
-func (disabledPolicyStore) DeletePlugin(context.Context, string) error {
+
+func (*requiredPolicyStore) DeletePlugin(context.Context, string) error {
 	return errors.New("unexpected policy delete")
 }
 
@@ -127,12 +137,32 @@ func TestRequiredPolicyOverridesDisabledBootstrapRecord(t *testing.T) {
 	ctx := context.Background()
 	archive, err := plugins.Packages.ReadFile("callouts.kumbukaplugin")
 	require.NoError(t, err)
+	store := &requiredPolicyStore{archive: archive}
 	runtime := &fakeRuntime{instance: &fakeInstance{}}
-	manager := plugin.NewManager(&plugin.Registry{}, runtime, plugin.WithStore(disabledPolicyStore{}), plugin.WithRequiredPlugins("me.kumbuka.callouts"))
-	require.NoError(t, manager.Bootstrap(ctx, [][]byte{archive}))
+	manager := plugin.NewManager(&plugin.Registry{}, runtime, plugin.WithStore(store), plugin.WithRequiredPlugins("me.kumbuka.callouts"))
+	require.NoError(t, manager.Bootstrap(ctx, testDistribution(t, [][]byte{archive})))
 	assert.True(t, manager.Plugins()[0].Enabled)
+	assert.True(t, store.enabled)
+	assert.Equal(t, 1, store.stateWrites)
+	require.NoError(t, manager.Close(ctx))
+
+	runtime = &fakeRuntime{instance: &fakeInstance{}}
+	manager = plugin.NewManager(&plugin.Registry{}, runtime, plugin.WithStore(store), plugin.WithRequiredPlugins("me.kumbuka.callouts"))
+	require.NoError(t, manager.Bootstrap(ctx, testDistribution(t, [][]byte{archive})))
+	assert.True(t, manager.Plugins()[0].Enabled)
+	assert.Equal(t, 1, store.stateWrites, "persisted required state should not be rewritten on restart")
 	require.NoError(t, manager.Close(ctx))
 	missing := plugin.NewManager(&plugin.Registry{}, &fakeRuntime{}, plugin.WithRequiredPlugins("missing"))
 	require.ErrorContains(t, missing.Bootstrap(ctx, nil), "required plugin missing is missing")
 	require.NoError(t, missing.Close(ctx))
+}
+
+func (s *requiredPolicyStore) PluginPackage(context.Context, string) ([]byte, error) {
+	return s.archive, nil
+}
+
+func (s *requiredPolicyStore) SetPluginEnabled(_ context.Context, _ string, enabled bool) error {
+	s.enabled = enabled
+	s.stateWrites++
+	return nil
 }

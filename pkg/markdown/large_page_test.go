@@ -338,7 +338,7 @@ func largePageBenchmarkRenderer(tb testing.TB, names ...string) *Renderer {
 		archives = append(archives, archive)
 	}
 
-	require.NoError(tb, manager.Bootstrap(ctx, archives))
+	require.NoError(tb, manager.Bootstrap(ctx, testDistribution(tb, archives)))
 	return NewWithManager(registry, manager)
 }
 

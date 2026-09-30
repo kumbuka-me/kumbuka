@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -108,7 +107,7 @@ func Run(
 	)
 	if err != nil {
 		setupLogger.Error("open database", "event", "database_open_failed", "error", err)
-		return errors.New("database_open_failed")
+		return err
 	}
 	defer database.Close()
 
@@ -204,15 +203,15 @@ func Run(
 	iconCatalog := renderer.IconCatalog()
 	content := pagecontent.New(renderer)
 	navigation.WithIconValidator(iconCatalog)
-	contentChanges := pluginruntime.NewContentChanges(
+	contentChangeWorker := pluginruntime.NewContentChangeWorker(
 		database,
 		renderer.PluginManager(),
 		notifications,
-		logger.With("component", "plugin-content-changes"),
+		logger.With("component", "plugin-content-change-worker"),
 	)
 	mutations.WithIconValidator(iconCatalog).
 		WithContentPreparer(content).
-		WithContentChangeSink(contentChanges)
+		WithContentChangeSink(contentChangeWorker)
 	discussions.WithContentPreparer(content)
 	reviewDiscussions.WithContentPreparer(content)
 	settings.WithIconValidator(iconCatalog)
@@ -314,7 +313,7 @@ func Run(
 	}
 
 	// Start the content-change worker after the runtime dependencies are fully configured.
-	go contentChanges.Run(ctx)
+	go contentChangeWorker.Run(ctx)
 
 	// Start scheduled plugin update checks when they are enabled.
 	if cfg.PluginUpdateCheckInterval > 0 {

@@ -412,3 +412,65 @@ func administrationPluginArchive(t *testing.T, id, version string, permissions [
 	require.NoError(t, writer.Close())
 	return buffer.Bytes()
 }
+
+// offlineLifecycle exposes embedded package reads independently of remote transport.
+type offlineLifecycle struct {
+	*administrationLifecycleStub
+	archives map[string][]byte
+}
+
+func (s *offlineLifecycle) BuiltinArchive(_ context.Context, id, version string) ([]byte, error) {
+	data, ok := s.archives[id]
+	if !ok {
+		return nil, errors.New("missing builtin")
+	}
+	return data, nil
+}
+func TestUpdateResolutionAcrossSources(t *testing.T) {
+	for _, tc := range []struct {
+		name, builtin, remote string
+		want                  string
+		offline               bool
+	}{
+		{"builtin only", "1.10.0", "", "1.10.0", true},
+		{"remote only", "", "1.11.0", "1.11.0", false},
+		{"remote newer", "1.10.0", "1.11.0", "1.11.0", false},
+		{"builtin newer", "1.12.0", "1.11.0", "1.12.0", true},
+		{"tie prefers offline", "1.11.0", "1.11.0", "1.11.0", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			item := plugin.LoadedPlugin{Manifest: pluginpackage.Manifest{ID: "io.fixture", Version: "1.9.0"}}
+			if tc.builtin != "" {
+				item.Builtin = &plugin.BuiltinPackage{ID: "io.fixture", Version: tc.builtin}
+				item.BuiltinUpdateAvailable = true
+			}
+			manager := &administrationLifecycleStub{plugins: []plugin.LoadedPlugin{item}}
+			var catalog Catalog
+			if tc.remote != "" {
+				catalog = &administrationCatalogStub{updates: map[string]domain.PluginRelease{"io.fixture": {Version: tc.remote}}}
+			}
+			releases, err := NewAdmin(manager, catalog).Available()
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, releases["io.fixture"].Version)
+			assert.Equal(t, tc.offline, releases["io.fixture"].Builtin)
+		})
+	}
+}
+func TestOfflineUpdateAndUpdateAllContinueAfterFailure(t *testing.T) {
+	ctx := context.Background()
+	manager := &offlineLifecycle{administrationLifecycleStub: &administrationLifecycleStub{failures: map[string]error{"io.bad": errors.New("initialization failed")}}, archives: make(map[string][]byte)}
+	for _, id := range []string{"io.bad", "io.good"} {
+		manager.plugins = append(manager.plugins, plugin.LoadedPlugin{Manifest: pluginpackage.Manifest{ID: id, Version: "1.0.0"}, Builtin: &plugin.BuiltinPackage{ID: id, Version: "1.1.0"}, BuiltinUpdateAvailable: true})
+		manager.archives[id] = administrationPluginArchive(t, id, "1.1.0", nil)
+	}
+	admin := NewAdmin(manager, nil)
+	result, err := admin.UpdateAll(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"io.good"}, result.Updated)
+	require.Len(t, result.Failed, 1)
+	assert.Equal(t, "io.bad", result.Failed[0].PluginID)
+	// Explicit offline selection ignores a newer remote release entirely.
+	remote := &administrationCatalogStub{updates: map[string]domain.PluginRelease{"io.good": {Version: "9.0.0"}}}
+	require.NoError(t, NewAdmin(manager, remote).UpdateBuiltin(ctx, "io.good"))
+	assert.Empty(t, remote.downloads)
+}

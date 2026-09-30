@@ -13,20 +13,24 @@ func New(ctx context.Context, runtimeOptions ...wasm.Option) (*Renderer, error) 
 }
 
 // NewWithPluginStore restores durable plugin lifecycle state and bootstraps the supplied distribution packages before rendering.
-func NewWithPluginStore(ctx context.Context, store plugin.Store, archives [][]byte, runtimeOptions ...wasm.Option) (*Renderer, error) {
-	return newWithPluginPackages(ctx, store, archives, nil, runtimeOptions...)
+func NewWithPluginStore(ctx context.Context, store plugin.Store, distribution plugin.Distribution, runtimeOptions ...wasm.Option) (*Renderer, error) {
+	return newWithPluginPackages(ctx, store, distribution, nil, runtimeOptions...)
 }
 
 // NewWithPluginPackages constructs an isolated renderer from only the supplied packages. Required IDs are force-enabled regardless of distribution defaults so callers can build a renderer from an explicitly selected package set.
 func NewWithPluginPackages(ctx context.Context, archives [][]byte, required []string, runtimeOptions ...wasm.Option) (*Renderer, error) {
-	return newWithPluginPackages(ctx, nil, archives, required, runtimeOptions...)
+	distribution, err := plugin.NewArchiveDistribution(archives)
+	if err != nil {
+		return nil, err
+	}
+	return newWithPluginPackages(ctx, nil, distribution, required, runtimeOptions...)
 }
 
 // newWithPluginPackages constructs a renderer, runtime, and plugin manager from package archives.
 func newWithPluginPackages(
 	ctx context.Context,
 	store plugin.Store,
-	archives [][]byte,
+	distribution plugin.Distribution,
 	required []string,
 	runtimeOptions ...wasm.Option,
 ) (*Renderer, error) {
@@ -48,7 +52,7 @@ func newWithPluginPackages(
 		managerOptions = append(managerOptions, plugin.WithRequiredPlugins(required...))
 	}
 	manager := plugin.NewManager(registry, runtime, managerOptions...)
-	if err := manager.Bootstrap(ctx, archives); err != nil {
+	if err := manager.Bootstrap(ctx, distribution); err != nil {
 		_ = manager.Close(context.Background())
 		return nil, err
 	}

@@ -166,15 +166,15 @@ func TestBundledAndInstalledCalloutsUseSameRuntime(t *testing.T) {
 	require.NoError(t, err)
 	expectedVersion := pkg.Manifest().Version
 	var outputs []string
-	for _, source := range []plugin.Source{plugin.SourceBundled, plugin.SourceInstalled} {
+	for _, source := range []string{"builtin", "upload"} {
 		runtime, err := wasm.New(context.Background(), wasm.Limits{})
 		require.NoError(t, err)
 		registry := &plugin.Registry{}
 		manager := plugin.NewManager(registry, runtime)
 		t.Cleanup(func() { _ = manager.Close(context.Background()) })
 		var metadata plugin.LoadedPlugin
-		if source == plugin.SourceBundled {
-			require.NoError(t, manager.Bootstrap(context.Background(), [][]byte{data}))
+		if source == "builtin" {
+			require.NoError(t, manager.Bootstrap(context.Background(), testDistribution(t, [][]byte{data})))
 			plugins := manager.Plugins()
 			require.Len(t, plugins, 1)
 			metadata = plugins[0]
@@ -182,7 +182,6 @@ func TestBundledAndInstalledCalloutsUseSameRuntime(t *testing.T) {
 			metadata, err = manager.Install(context.Background(), data)
 			require.NoError(t, err)
 		}
-		assert.Equal(t, source, metadata.Source)
 		assert.Equal(t, expectedVersion, metadata.Manifest.Version)
 		renderer := markdown.NewWithRegistry(registry)
 		got, err := renderer.Render("!!! warning\n!!! note\n**Nested** [[Page]]\n")

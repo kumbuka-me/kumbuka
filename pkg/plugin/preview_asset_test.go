@@ -69,13 +69,13 @@ func TestPluginPreviewReturnsNotFoundWhenPackageHasNoPreview(t *testing.T) {
 func previewTestManager(pkg *pluginpackage.Package, archive []byte) *Manager {
 	manager := NewManager(&Registry{}, nil)
 	manager.loaded[pkg.Manifest().ID] = managedPlugin{
-		archive: archive,
 		metadata: LoadedPlugin{
 			Enabled:  false,
 			Manifest: pkg.Manifest(),
 			Digest:   pkg.Digest(),
 		},
 	}
+	manager.store.(*memoryStore).packages = map[string][]byte{pkg.Manifest().ID: archive}
 	manager.order = []string{pkg.Manifest().ID}
 	return manager
 }

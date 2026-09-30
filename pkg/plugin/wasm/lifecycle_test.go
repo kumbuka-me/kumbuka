@@ -24,7 +24,8 @@ type installationStore struct {
 	// mu protects concurrent access to the receiver state.
 	mu sync.Mutex
 	// records indexes the state associated with records.
-	records map[string]plugin.Record
+	records  map[string]plugin.Record
+	packages map[string][]byte
 	// fail stores the value associated with fail.
 	fail bool
 }
@@ -35,20 +36,23 @@ func (s *installationStore) ListPlugins(context.Context) ([]plugin.Record, error
 	defer s.mu.Unlock()
 	var result []plugin.Record
 	for _, r := range s.records {
-		r.Package = bytes.Clone(r.Package)
+
 		result = append(result, r)
 	}
 	return result, nil
 }
 
 // SavePlugin saves plugin.
-func (s *installationStore) SavePlugin(_ context.Context, r plugin.Record) error {
+func (s *installationStore) SavePlugin(_ context.Context, r plugin.Record, archive []byte) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.fail {
 		return errors.New("storage failed")
 	}
-	r.Package = bytes.Clone(r.Package)
+	if s.packages == nil {
+		s.packages = make(map[string][]byte)
+	}
+	s.packages[r.ID] = bytes.Clone(archive)
 	s.records[r.ID] = r
 	return nil
 }
@@ -216,27 +220,28 @@ func TestBundledDisableAndInstalledOverrideSurviveRestore(t *testing.T) {
 	data, err := plugins.Packages.ReadFile("callouts.kumbukaplugin")
 	require.NoError(t, err)
 	manager, _, _ := lifecycleManager(t, store)
-	require.NoError(t, manager.Bootstrap(ctx, [][]byte{data}))
+	require.NoError(t, manager.Bootstrap(ctx, testDistribution(t, [][]byte{data})))
 	id := "me.kumbuka.callouts"
 	require.NoError(t, manager.Disable(ctx, id))
 	restored, _, _ := lifecycleManager(t, store)
-	require.NoError(t, restored.Bootstrap(ctx, [][]byte{data}))
+	require.NoError(t, restored.Bootstrap(ctx, testDistribution(t, [][]byte{data})))
 	assert.False(t, restored.Plugins()[0].Enabled)
 	metadata, err := restored.Upgrade(ctx, id, data)
 	require.NoError(t, err)
-	assert.Equal(t, plugin.SourceInstalled, metadata.Source)
+	assert.NotZero(t, metadata.Digest)
 	assert.False(t, metadata.Enabled)
 	require.NoError(t, restored.Enable(ctx, id))
-	require.NoError(t, restored.Uninstall(ctx, id))
-	assert.Equal(t, plugin.SourceBundled, restored.Plugins()[0].Source)
+	require.NoError(t, restored.Disable(ctx, id))
 	assert.False(t, restored.Plugins()[0].Enabled)
 	final, _, _ := lifecycleManager(t, store)
-	require.NoError(t, final.Bootstrap(ctx, [][]byte{data}))
+	require.NoError(t, final.Bootstrap(ctx, testDistribution(t, [][]byte{data})))
 	assert.False(t, final.Plugins()[0].Enabled)
 	records, err := store.ListPlugins(ctx)
 	require.NoError(t, err)
 	require.Len(t, records, 1)
-	assert.Empty(t, records[0].Package)
+	stored, err := store.PluginPackage(ctx, id)
+	require.NoError(t, err)
+	assert.Equal(t, data, stored)
 }
 
 // blockingPreprocessor groups the state and data associated with blocking preprocessor.
@@ -331,4 +336,21 @@ func TestLifecycleDependenciesAndFailedBootstrapAreAtomic(t *testing.T) {
 	require.NoError(t, manager.Close(ctx))
 	assert.Empty(t, registry.Snapshot().Entries)
 
+}
+
+func (s *installationStore) PluginPackage(_ context.Context, id string) ([]byte, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return bytes.Clone(s.packages[id]), nil
+}
+func (s *installationStore) SetPluginEnabled(_ context.Context, id string, enabled bool) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.fail {
+		return errors.New("storage failed")
+	}
+	r := s.records[id]
+	r.Enabled = enabled
+	s.records[id] = r
+	return nil
 }

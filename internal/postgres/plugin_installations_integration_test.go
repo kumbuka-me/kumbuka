@@ -2,6 +2,10 @@ package postgres
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/json"
+	"github.com/jackc/pgx/v5"
+	"github.com/kumbuka-me/sdk/pluginpackage"
 	"io"
 	"log/slog"
 	"testing"
@@ -52,4 +56,81 @@ func TestPluginInstallationSurvivesDatabaseAndRuntimeRestart(t *testing.T) {
 	records, err := database.ListPlugins(ctx)
 	require.NoError(t, err)
 	assert.Empty(t, records)
+}
+
+// TestPluginInventoryAndStateDoNotAccessArchive proves inventory can execute with
+// a metadata-only target list and disable cannot trigger a package rewrite.
+func TestPluginInventoryAndStateDoNotAccessArchive(t *testing.T) {
+	ctx := context.Background()
+	database, err := Open(ctx, integrationDatabase(t), slog.New(slog.NewTextHandler(io.Discard, nil)))
+	require.NoError(t, err)
+	defer database.Close()
+	archive, err := plugins.Packages.ReadFile("strikethrough.kumbukaplugin")
+	require.NoError(t, err)
+	pkg, err := pluginpackage.Read(archive)
+	require.NoError(t, err)
+	record := plugin.Record{ID: pkg.Manifest().ID, Manifest: pkg.Manifest(), Digest: pkg.Digest(), README: pkg.README(), Enabled: true}
+	require.NoError(t, database.SavePlugin(ctx, record, archive))
+	// A column-level trigger detects UPDATE statements that name the package.
+	_, err = database.pool.Exec(ctx, `CREATE FUNCTION reject_plugin_package_update() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'package rewritten'; END $$;
+ CREATE TRIGGER reject_package_update BEFORE UPDATE OF package ON plugin_installations FOR EACH ROW EXECUTE FUNCTION reject_plugin_package_update()`)
+	require.NoError(t, err)
+	require.NoError(t, database.SetPluginEnabled(ctx, record.ID, false))
+	// PostgreSQL EXPLAIN exposes exactly the inventory target list.
+	var plan string
+	rows, err := database.pool.Query(ctx, "EXPLAIN (VERBOSE, FORMAT JSON) "+pluginInventorySQL)
+	require.NoError(t, err)
+	require.True(t, rows.Next())
+	require.NoError(t, rows.Scan(&plan))
+	rows.Close()
+	assert.NotContains(t, plan, `\"package\"`)
+	assert.NotContains(t, pluginInventorySQL, "package")
+	records, err := database.ListPlugins(ctx)
+	require.NoError(t, err)
+	require.Len(t, records, 1)
+	assert.False(t, records[0].Enabled)
+	assert.Equal(t, record.Manifest, records[0].Manifest)
+	assert.Equal(t, record.Digest, records[0].Digest)
+	stored, err := database.PluginPackage(ctx, record.ID)
+	require.NoError(t, err)
+	assert.Equal(t, archive, stored)
+}
+
+func TestLegacyPluginMetadataMigration(t *testing.T) {
+	ctx := context.Background()
+	conn, err := pgx.Connect(ctx, integrationDatabase(t))
+	require.NoError(t, err)
+	defer conn.Close(ctx)
+	tx, err := conn.Begin(ctx)
+	require.NoError(t, err)
+	defer tx.Rollback(ctx)
+	// Only the legacy installation table is needed to exercise the data migration.
+	_, err = tx.Exec(ctx, `CREATE TABLE plugin_installations (
+ plugin_id text PRIMARY KEY,source text NOT NULL,enabled boolean NOT NULL,package bytea,
+ CONSTRAINT plugin_installations_check CHECK ((source='bundled' AND package IS NULL) OR (source='installed' AND package IS NOT NULL)),
+ CONSTRAINT plugin_installations_source_check CHECK (source IN ('bundled','installed')))`)
+	require.NoError(t, err)
+	builtin, err := plugins.Packages.ReadFile("callouts.kumbukaplugin")
+	require.NoError(t, err)
+	installed, err := plugins.Packages.ReadFile("strikethrough.kumbukaplugin")
+	require.NoError(t, err)
+	_, err = tx.Exec(ctx, `INSERT INTO plugin_installations VALUES ('me.kumbuka.callouts','bundled',false,NULL),('me.kumbuka.strikethrough','installed',true,$1)`, installed)
+	require.NoError(t, err)
+	require.NoError(t, migratePluginInstallations(ctx, tx))
+	ddl, err := migrationFiles.ReadFile("migrations/016_installed_plugin_metadata.sql")
+	require.NoError(t, err)
+	_, err = tx.Exec(ctx, string(ddl))
+	require.NoError(t, err)
+	for id, want := range map[string][]byte{"me.kumbuka.callouts": builtin, "me.kumbuka.strikethrough": installed} {
+		var got, digest, manifest []byte
+		var enabled bool
+		require.NoError(t, tx.QueryRow(ctx, `SELECT package,digest,manifest,enabled FROM plugin_installations WHERE plugin_id=$1`, id).Scan(&got, &digest, &manifest, &enabled))
+		assert.Equal(t, want, got)
+		sum := sha256.Sum256(want)
+		assert.Equal(t, sum[:], digest)
+		assert.Equal(t, id == "me.kumbuka.strikethrough", enabled)
+		var metadata pluginpackage.Manifest
+		require.NoError(t, json.Unmarshal(manifest, &metadata))
+		assert.Equal(t, id, metadata.ID)
+	}
 }

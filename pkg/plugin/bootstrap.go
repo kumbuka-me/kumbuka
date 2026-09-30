@@ -1,43 +1,84 @@
 package plugin
 
 import (
-	"bytes"
 	"context"
-	"crypto/sha256"
 	"errors"
 	"fmt"
+	"reflect"
 	"sort"
 
 	"github.com/kumbuka-me/sdk/pluginpackage"
 )
 
-// Bootstrap merges embedded distribution bytes with durable overrides, checks the complete enabled dependency graph, and publishes once. Failed startup closes every prepared instance and leaves both persistence and registry alone.
-func (m *Manager) Bootstrap(ctx context.Context, archives [][]byte) error {
+// Bootstrap reconciles offline distribution packages into the authoritative store,
+// then eagerly prepares the complete enabled graph before publishing any registry.
+func (m *Manager) Bootstrap(ctx context.Context, distribution Distribution) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-
 	if m.closed || len(m.loaded) != 0 {
 		return errors.New("plugin manager is not empty")
 	}
-
 	records, err := m.store.ListPlugins(ctx)
 	if err != nil {
 		return err
 	}
-
-	catalog, originals, err := m.bootstrapCatalog(ctx, archives, records)
-	if err != nil {
+	catalog := make(map[string]managedPlugin, len(records))
+	for _, record := range records {
+		if _, ok := catalog[record.ID]; ok {
+			return fmt.Errorf("duplicate stored plugin %s", record.ID)
+		}
+		if record.ID != record.Manifest.ID {
+			return errors.New("stored plugin identity mismatch")
+		}
+		settings, err := m.loadSettings(ctx, record.Manifest)
+		if err != nil {
+			return err
+		}
+		catalog[record.ID] = managedPlugin{
+			metadata: LoadedPlugin{
+				Manifest: record.Manifest,
+				Digest:   record.Digest,
+				README:   record.README,
+				Enabled:  record.Enabled,
+				Settings: settings,
+			},
+		}
+	}
+	if distribution != nil {
+		seen := make(map[string]bool)
+		for _, builtin := range distribution.Catalog() {
+			if seen[builtin.ID] {
+				return fmt.Errorf("duplicate builtin plugin %s", builtin.ID)
+			}
+			seen[builtin.ID] = true
+			if _, exists := catalog[builtin.ID]; exists {
+				continue
+			}
+			archive, err := distribution.Package(ctx, builtin.ID)
+			if err != nil {
+				return err
+			}
+			pkg, err := validateBuiltin(builtin, archive)
+			if err != nil {
+				return err
+			}
+			item, err := m.metadataFromPackage(ctx, pkg, pkg.Manifest().DefaultEnabled || m.required[builtin.ID])
+			if err != nil {
+				return err
+			}
+			if err := m.store.SavePlugin(ctx, recordFor(item), archive); err != nil {
+				return err
+			}
+			catalog[builtin.ID] = item
+		}
+	}
+	if err := m.enableRequiredPlugins(ctx, catalog); err != nil {
 		return err
 	}
-	if err := m.enableRequiredPlugins(catalog); err != nil {
-		return err
-	}
-
 	order, err := dependencyOrder(catalog)
 	if err != nil {
 		return err
 	}
-
 	candidate, prepared, err := m.prepareBootstrapInstances(ctx, catalog, order)
 	if err != nil {
 		closePluginInstances(prepared)
@@ -47,138 +88,72 @@ func (m *Manager) Bootstrap(ctx context.Context, archives [][]byte) error {
 		closePluginInstances(prepared)
 		return err
 	}
-
-	m.loaded = catalog
-	m.order = order
-	m.bundled = originals
+	m.loaded, m.order, m.distribution = catalog, order, distribution
 	return nil
 }
 
-// bootstrapCatalog merges bundled archives with the persisted lifecycle state.
-func (m *Manager) bootstrapCatalog(
-	ctx context.Context,
-	archives [][]byte,
-	records []Record,
-) (map[string]managedPlugin, map[string][]byte, error) {
-	catalog := make(map[string]managedPlugin, len(archives)+len(records))
-	originals := make(map[string][]byte, len(archives))
-
-	for _, archive := range archives {
-		item, err := m.managedPluginFromArchive(ctx, archive, SourceBundled)
-		if err != nil {
-			return nil, nil, err
-		}
-
-		id := item.metadata.Manifest.ID
-		if _, exists := catalog[id]; exists {
-			return nil, nil, fmt.Errorf("duplicate bundled plugin %s", id)
-		}
-
-		catalog[id] = item
-		originals[id] = item.archive
-	}
-
-	seen := make(map[string]bool, len(records))
-	for _, record := range records {
-		if seen[record.ID] {
-			return nil, nil, fmt.Errorf("duplicate stored plugin %s", record.ID)
-		}
-		seen[record.ID] = true
-
-		if err := m.applyStoredPlugin(ctx, catalog, record); err != nil {
-			return nil, nil, err
-		}
-	}
-
-	return catalog, originals, nil
-}
-
-// managedPluginFromArchive validates package bytes and loads their persisted settings.
-func (m *Manager) managedPluginFromArchive(
-	ctx context.Context,
-	archive []byte,
-	source Source,
-) (managedPlugin, error) {
-	pkg, err := pluginpackage.Read(archive)
-	if err != nil {
-		return managedPlugin{}, err
-	}
-
+// metadataFromPackage returns a managed plugin from a package and its metadata.
+func (m *Manager) metadataFromPackage(ctx context.Context, pkg *pluginpackage.Package, enabled bool) (managedPlugin, error) {
 	settings, err := m.loadSettings(ctx, pkg.Manifest())
 	if err != nil {
 		return managedPlugin{}, err
 	}
-
-	editorWidgets, editorWidgetProblem := editorWidgetsFromPackage(pkg)
+	widgets, problem := editorWidgetsFromPackage(pkg)
 	return managedPlugin{
-		archive: bytes.Clone(archive),
 		metadata: LoadedPlugin{
 			Manifest: pkg.Manifest(),
 			README:   pkg.README(),
 			Settings: settings,
-			Source:   source,
 			Digest:   pkg.Digest(),
-			Enabled:  pkg.Manifest().DefaultEnabled,
-		},
-		editorWidgets:       editorWidgets,
-		editorWidgetProblem: editorWidgetProblem,
+			Enabled:  enabled,
+		}, editorWidgets: widgets, editorWidgetProblem: problem,
 	}, nil
 }
 
-// applyStoredPlugin overlays one persisted lifecycle record on the startup catalog.
-func (m *Manager) applyStoredPlugin(
-	ctx context.Context,
-	catalog map[string]managedPlugin,
-	record Record,
-) error {
-	switch record.Source {
-	case SourceBundled:
-		item, ok := catalog[record.ID]
-		if !ok {
-			return fmt.Errorf("stored bundled plugin %s is unavailable", record.ID)
-		}
-		if len(record.Package) != 0 {
-			return errors.New("bundled state must not contain installed bytes")
-		}
-
-		item.metadata.Enabled = record.Enabled
-		catalog[record.ID] = item
-		return nil
-
-	case SourceInstalled:
-		// Installed bytes are an explicit administrator choice. Collapse the
-		// override only when it is byte-identical to the bundled package.
-		if bundled, ok := catalog[record.ID]; ok && sha256.Sum256(record.Package) == bundled.metadata.Digest {
-			bundled.metadata.Enabled = record.Enabled
-			catalog[record.ID] = bundled
-			return nil
-		}
-
-		item, err := m.managedPluginFromArchive(ctx, record.Package, SourceInstalled)
-		if err != nil {
-			return err
-		}
-		if item.metadata.Manifest.ID != record.ID {
-			return errors.New("stored plugin identity mismatch")
-		}
-
-		item.metadata.Enabled = record.Enabled
-		catalog[record.ID] = item
-		return nil
-
-	default:
-		return errors.New("invalid stored plugin source")
+// readPackage checks persisted bytes against the inventory identity on every use.
+func (m *Manager) readPackage(ctx context.Context, item managedPlugin) (*pluginpackage.Package, error) {
+	archive, err := m.store.PluginPackage(ctx, item.metadata.Manifest.ID)
+	if err != nil {
+		return nil, err
 	}
+	pkg, err := pluginpackage.Read(archive)
+	if err != nil {
+		return nil, err
+	}
+	if !packageMatchesInventory(pkg, item.metadata) {
+		return nil, errors.New("stored plugin package mismatch")
+	}
+	return pkg, nil
 }
 
-// enableRequiredPlugins forces operator-required plugins on and checks their presence.
-func (m *Manager) enableRequiredPlugins(catalog map[string]managedPlugin) error {
+// packageMatchesInventory reports whether package-derived metadata still matches the persisted inventory.
+func packageMatchesInventory(pkg *pluginpackage.Package, metadata LoadedPlugin) bool {
+	return pkg.Digest() == metadata.Digest &&
+		reflect.DeepEqual(pkg.Manifest(), metadata.Manifest)
+}
+
+// enableRequiredPlugins persists operator-required plugins as enabled and checks their presence.
+func (m *Manager) enableRequiredPlugins(ctx context.Context, catalog map[string]managedPlugin) error {
+	required := make([]string, 0, len(m.required))
 	for id := range m.required {
-		item, ok := catalog[id]
-		if !ok {
+		required = append(required, id)
+	}
+	sort.Strings(required)
+
+	for _, id := range required {
+		if _, ok := catalog[id]; !ok {
 			return fmt.Errorf("required plugin %s is missing", id)
 		}
+	}
 
+	for _, id := range required {
+		item := catalog[id]
+		if item.metadata.Enabled {
+			continue
+		}
+		if err := m.store.SetPluginEnabled(ctx, id, true); err != nil {
+			return err
+		}
 		item.metadata.Enabled = true
 		catalog[id] = item
 	}
@@ -201,7 +176,7 @@ func (m *Manager) prepareBootstrapInstances(
 			continue
 		}
 
-		pkg, err := pluginpackage.Read(item.archive)
+		pkg, err := m.readPackage(ctx, item)
 		if err != nil {
 			return nil, prepared, err
 		}
@@ -216,6 +191,7 @@ func (m *Manager) prepareBootstrapInstances(
 			return nil, prepared, err
 		}
 
+		item.editorWidgets, item.editorWidgetProblem = editorWidgetsFromPackage(pkg)
 		item.instance = instance
 		catalog[id] = item
 	}

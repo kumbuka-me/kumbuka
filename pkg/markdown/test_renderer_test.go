@@ -94,7 +94,12 @@ func newPluginTestRenderer(names ...string) (*Renderer, *plugin.Manager, error) 
 		archives = append(archives, archive)
 	}
 
-	if err := manager.Bootstrap(ctx, archives); err != nil {
+	distribution, err := plugin.NewArchiveDistribution(archives)
+	if err != nil {
+		_ = manager.Close(ctx)
+		return nil, nil, err
+	}
+	if err := manager.Bootstrap(ctx, distribution); err != nil {
 		_ = manager.Close(context.Background())
 		return nil, nil, err
 	}

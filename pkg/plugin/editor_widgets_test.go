@@ -224,9 +224,7 @@ func TestEditorWidgets(t *testing.T) {
   }]
 }`)
 		manager := editorWidgetTestManager(t, archive, true)
-		item := manager.loaded["me.kumbuka.editor-widget-fixture"]
-		item.archive = []byte("not a plugin package")
-		manager.loaded["me.kumbuka.editor-widget-fixture"] = item
+		manager.store.(*memoryStore).packages["me.kumbuka.editor-widget-fixture"] = []byte("not a plugin package")
 
 		widgets, problems := manager.EditorWidgets()
 
@@ -282,7 +280,6 @@ func editorWidgetTestManager(t *testing.T, archive []byte, enabled bool) *Manage
 	id := pkg.Manifest().ID
 	widgets, problem := editorWidgetsFromPackage(pkg)
 	manager.loaded[id] = managedPlugin{
-		archive: archive,
 		metadata: LoadedPlugin{
 			Enabled:  enabled,
 			Manifest: pkg.Manifest(),
@@ -292,6 +289,7 @@ func editorWidgetTestManager(t *testing.T, archive []byte, enabled bool) *Manage
 		editorWidgets:       widgets,
 		editorWidgetProblem: problem,
 	}
+	manager.store.(*memoryStore).packages = map[string][]byte{pkg.Manifest().ID: archive}
 	manager.order = []string{id}
 	return manager
 }

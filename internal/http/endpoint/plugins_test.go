@@ -78,7 +78,7 @@ func TestBrowserPluginLifecycleAndAssetBoundary(t *testing.T) {
 		require.NoError(t, err)
 		archives = append(archives, archive)
 	}
-	require.NoError(t, manager.Bootstrap(ctx, archives))
+	require.NoError(t, manager.Bootstrap(ctx, testDistribution(t, archives)))
 	modules := pluginbrowser.Catalog("/plugins", manager)
 	require.Len(t, modules, 2)
 	module := modules[0]

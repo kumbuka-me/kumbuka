@@ -72,7 +72,7 @@ func TestParse(t *testing.T) {
 					Source: tinyflags.ValueSourceFlag,
 					Key:    "--database-url",
 				},
-				cfg.OverrideOrigins["database-url"],
+				cfg.Overrides["database-url"].Origin,
 			)
 			assert.Equal(
 				t,
@@ -80,7 +80,7 @@ func TestParse(t *testing.T) {
 					Source: tinyflags.ValueSourceFlag,
 					Key:    "--public-url",
 				},
-				cfg.OverrideOrigins["public-url"],
+				cfg.Overrides["public-url"].Origin,
 			)
 			assert.Equal(
 				t,
@@ -88,7 +88,7 @@ func TestParse(t *testing.T) {
 					Source: tinyflags.ValueSourceFlag,
 					Key:    "-a",
 				},
-				cfg.OverrideOrigins["listen-address"],
+				cfg.Overrides["listen-address"].Origin,
 			)
 			assert.Equal(
 				t,
@@ -96,7 +96,7 @@ func TestParse(t *testing.T) {
 					Source: tinyflags.ValueSourceFlag,
 					Key:    "-m",
 				},
-				cfg.OverrideOrigins["management-listen-address"],
+				cfg.Overrides["management-listen-address"].Origin,
 			)
 		})
 
@@ -113,7 +113,7 @@ func TestParse(t *testing.T) {
 					Source: tinyflags.ValueSourceEnvironment,
 					Key:    "KUMBUKA__DATABASE_URL",
 				},
-				cfg.OverrideOrigins["database-url"],
+				cfg.Overrides["database-url"].Origin,
 			)
 			assert.Equal(
 				t,
@@ -121,7 +121,7 @@ func TestParse(t *testing.T) {
 					Source: tinyflags.ValueSourceEnvironment,
 					Key:    "KUMBUKA__PUBLIC_URL",
 				},
-				cfg.OverrideOrigins["public-url"],
+				cfg.Overrides["public-url"].Origin,
 			)
 		})
 	})

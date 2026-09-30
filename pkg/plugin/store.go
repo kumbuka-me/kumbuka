@@ -3,29 +3,27 @@ package plugin
 import (
 	"bytes"
 	"context"
+	"fmt"
+	"github.com/kumbuka-me/sdk/pluginpackage"
 	"sort"
 	"sync"
 )
 
-// Record is durable installation state. Bundled records contain no archive: their distribution bytes always come from the running Kumbuka binary.
+// Record is validated installation metadata. Inventory never includes package bytes.
 type Record struct {
-	// ID identifies the associated object.
-	ID string
-	// Source records whether the durable state refers to bundled or installed bytes.
-	Source Source
-	// Enabled records whether the plugin should be active after startup.
-	Enabled bool
-	// Package contains installed archive bytes; bundled records leave it empty.
-	Package []byte
+	ID       string
+	Enabled  bool
+	Manifest pluginpackage.Manifest
+	Digest   [32]byte
+	README   string
 }
 
-// Store persists plugin installation and enabled-state records.
+// Store separates inventory and lifecycle state from package storage.
 type Store interface {
-	// ListPlugins returns all durable plugin records.
 	ListPlugins(context.Context) ([]Record, error)
-	// SavePlugin creates or replaces one durable plugin record.
-	SavePlugin(context.Context, Record) error
-	// DeletePlugin removes one durable plugin record.
+	PluginPackage(context.Context, string) ([]byte, error)
+	SavePlugin(context.Context, Record, []byte) error
+	SetPluginEnabled(context.Context, string, bool) error
 	DeletePlugin(context.Context, string) error
 }
 
@@ -56,7 +54,8 @@ type memoryStore struct {
 	// mu protects concurrent access to the receiver state.
 	mu sync.Mutex
 	// records indexes cloned durable records by plugin ID.
-	records map[string]Record
+	records  map[string]Record
+	packages map[string][]byte
 }
 
 // ListPlugins returns all durable plugin records.
@@ -72,9 +71,13 @@ func (s *memoryStore) ListPlugins(context.Context) ([]Record, error) {
 }
 
 // SavePlugin creates or replaces one durable plugin record.
-func (s *memoryStore) SavePlugin(_ context.Context, record Record) error {
+func (s *memoryStore) SavePlugin(_ context.Context, record Record, archive []byte) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.packages == nil {
+		s.packages = make(map[string][]byte)
+	}
+	s.packages[record.ID] = bytes.Clone(archive)
 	s.records[record.ID] = cloneRecord(record)
 	return nil
 }
@@ -84,11 +87,36 @@ func (s *memoryStore) DeletePlugin(_ context.Context, id string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	delete(s.records, id)
+	delete(s.packages, id)
 	return nil
 }
 
-// cloneRecord copies archive bytes so callers cannot mutate stored state.
-func cloneRecord(record Record) Record { record.Package = bytes.Clone(record.Package); return record }
+// cloneRecord copies mutable metadata so callers cannot mutate stored state.
+func cloneRecord(record Record) Record {
+	record.Manifest = cloneLoaded(LoadedPlugin{Manifest: record.Manifest}).Manifest
+	return record
+}
+
+func (s *memoryStore) PluginPackage(_ context.Context, id string) ([]byte, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	data, ok := s.packages[id]
+	if !ok {
+		return nil, fmt.Errorf("plugin %s is not installed", id)
+	}
+	return bytes.Clone(data), nil
+}
+func (s *memoryStore) SetPluginEnabled(_ context.Context, id string, enabled bool) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	record, ok := s.records[id]
+	if !ok {
+		return fmt.Errorf("plugin %s is not installed", id)
+	}
+	record.Enabled = enabled
+	s.records[id] = record
+	return nil
+}
 
 // WithRequiredPlugins protects operator-selected plugin IDs from disable/removal. A package cannot make itself required by declaring manifest metadata.
 func WithRequiredPlugins(ids ...string) ManagerOption {
