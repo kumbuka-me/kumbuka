@@ -2,8 +2,8 @@
 package reviewsuggestions
 
 import (
+	"cmp"
 	"slices"
-	"sort"
 	"strings"
 
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
@@ -12,11 +12,11 @@ import (
 // Apply applies non-overlapping new-side line replacements from bottom to top against an immutable source snapshot.
 func Apply(markdown string, suggestions []domain.PageReviewComment) (string, error) {
 	ordered := slices.Clone(suggestions)
-	sort.Slice(ordered, func(left, right int) bool {
-		if ordered[left].StartLine != ordered[right].StartLine {
-			return ordered[left].StartLine < ordered[right].StartLine
+	slices.SortFunc(ordered, func(left, right domain.PageReviewComment) int {
+		if order := cmp.Compare(left.StartLine, right.StartLine); order != 0 {
+			return order
 		}
-		return ordered[left].EndLine < ordered[right].EndLine
+		return cmp.Compare(left.EndLine, right.EndLine)
 	})
 
 	previousEnd := 0

@@ -14,8 +14,6 @@ github.com/containeroo/tinyflags v0.3.0 h1:XWArd7517jzgP0t7mcKidt+d0M8A80pwZ6GTp
 github.com/containeroo/tinyflags v0.3.0/go.mod h1:5CGkQy0A+90ubNaEDJanfXOlE4+aYHp4OBwCpXM1yDM=
 github.com/containeroo/tmplfuncs v0.0.2 h1:Gzls/3c+Bcyc76PuPOKOVgG9boKM9/5todkIqlO597Q=
 github.com/containeroo/tmplfuncs v0.0.2/go.mod h1:6hpqNh2G33pzLtgcxwu0rqQ+gzvyvk4gw61kbi9gHIE=
-github.com/containeroo/uuidv7 v0.0.2 h1:uXkehhMEkXmpgofFsGa/YBpVxjlEShO4AskfiIyRQDw=
-github.com/containeroo/uuidv7 v0.0.2/go.mod h1:rWRRcLO75vqyqiPluhuYaq3porH/qfkJ5vbkxtdM+38=
 github.com/coreos/go-oidc/v3 v3.21.0 h1:wZo4Q9Pum8dYEj0eMUPrqR+kvuGkeUplbLpNCkBqoWM=
 github.com/coreos/go-oidc/v3 v3.21.0/go.mod h1:DYCf24+ncYi+XkIH97GY1+dqoRlbaSI26KVTCI9SrY4=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=

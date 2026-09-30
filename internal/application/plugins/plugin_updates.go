@@ -1,10 +1,11 @@
 package plugins
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"log/slog"
-	"sort"
+	"slices"
 	"sync"
 	"time"
 
@@ -245,6 +246,8 @@ func pluginUpdateNotices(items []plugin.LoadedPlugin, updates map[string]domain.
 			AvailableVersion: release.Version,
 		})
 	}
-	sort.Slice(notices, func(i, j int) bool { return notices[i].ID < notices[j].ID })
+	slices.SortFunc(notices, func(left, right domain.PluginUpdateNotice) int {
+		return cmp.Compare(left.ID, right.ID)
+	})
 	return notices
 }

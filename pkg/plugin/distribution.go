@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/kumbuka-me/kumbuka/pkg/pluginversion"
 	"github.com/kumbuka-me/sdk/pluginpackage"
@@ -47,7 +48,7 @@ func NewArchiveDistribution(archives [][]byte) (*ArchiveDistribution, error) {
 	return d, nil
 }
 func (d *ArchiveDistribution) Catalog() []BuiltinPackage {
-	return append([]BuiltinPackage(nil), d.catalog...)
+	return slices.Clone(d.catalog)
 }
 func (d *ArchiveDistribution) Package(_ context.Context, id string) ([]byte, error) {
 	data, ok := d.packages[id]

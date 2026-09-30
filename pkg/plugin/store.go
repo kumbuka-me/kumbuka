@@ -2,11 +2,13 @@ package plugin
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"fmt"
-	"github.com/kumbuka-me/sdk/pluginpackage"
-	"sort"
+	"slices"
 	"sync"
+
+	"github.com/kumbuka-me/sdk/pluginpackage"
 )
 
 // Record is validated installation metadata. Inventory never includes package bytes.
@@ -69,7 +71,9 @@ func (s *memoryStore) ListPlugins(context.Context) ([]Record, error) {
 	for _, record := range s.records {
 		result = append(result, cloneRecord(record))
 	}
-	sort.Slice(result, func(i, j int) bool { return result[i].ID < result[j].ID })
+	slices.SortFunc(result, func(left, right Record) int {
+		return cmp.Compare(left.ID, right.ID)
+	})
 	return result, nil
 }
 

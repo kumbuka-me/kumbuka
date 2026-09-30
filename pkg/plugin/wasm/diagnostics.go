@@ -37,7 +37,7 @@ func (d *guestDiagnostics) Write(value []byte) (int, error) {
 
 // Summary returns the first useful guest error line without the runtime stack dump.
 func (d *guestDiagnostics) Summary() string {
-	for _, line := range strings.Split(string(d.data), "\n") {
+	for line := range strings.SplitSeq(string(d.data), "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" {
 			continue

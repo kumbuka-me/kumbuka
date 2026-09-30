@@ -3,8 +3,7 @@ package response
 import (
 	"log/slog"
 	"net/http"
-
-	"github.com/containeroo/uuidv7"
+	"uuid"
 )
 
 // RequestWriter retains diagnostic context for the request and its access log. Unwrap lets http.ResponseController reach optional transport capabilities.
@@ -61,29 +60,8 @@ func InternalServerError(logger *slog.Logger, w http.ResponseWriter, err error) 
 	if request, ok := w.(*RequestWriter); ok {
 		logger = logger.With("method", request.method, "path", request.path)
 	}
-	reference, referenceErr := uuidv7.New()
-	if referenceErr != nil {
-		logger.Error(
-			"generate error reference",
-			"event", "error_reference_failed",
-			"error", referenceErr,
-		)
-		logger.Error(
-			"request failed",
-			"event", "request_failed",
-			"error", err,
-		)
 
-		if request, ok := w.(*RequestWriter); ok && request.Status != 0 {
-			return
-		}
-		Problem(w,
-			http.StatusInternalServerError,
-			"The request could not be processed.",
-		)
-		return
-	}
-
+	reference := uuid.NewV7().String()
 	if request, ok := w.(*RequestWriter); ok {
 		request.ErrorReference = reference
 	}
