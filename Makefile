@@ -229,8 +229,20 @@ loadtest-read: loadtest-prepare ## Run the baseline read-heavy load test.
 	$(LOADTEST_COMPOSE) --profile loadtest run --rm k6 run /scripts/read-heavy.js
 
 .PHONY: loadtest-stress
-loadtest-stress: loadtest-prepare ## Run the stepped mixed stress test with resource monitoring.
-	@LOADTEST_MONITOR_INTERVAL=$(LOADTEST_MONITOR_INTERVAL) $(LOADTEST_STRESS_RUNNER) "$(LOADTEST_COMPOSE_FILE)" stress /scripts/stress.js
+loadtest-stress: loadtest-prepare ## Run the stepped mixed stress test up to 3k requests/s.
+	@LOADTEST_MONITOR_INTERVAL=$(LOADTEST_MONITOR_INTERVAL) $(LOADTEST_STRESS_RUNNER) "$(LOADTEST_COMPOSE_FILE)" stress /scripts/stress.js 3000
+
+.PHONY: loadtest-stress-5k
+loadtest-stress-5k: loadtest-prepare ## Run the stepped mixed stress test up to 5k requests/s.
+	@LOADTEST_MONITOR_INTERVAL=$(LOADTEST_MONITOR_INTERVAL) $(LOADTEST_STRESS_RUNNER) "$(LOADTEST_COMPOSE_FILE)" stress-5k /scripts/stress.js 5000
+
+.PHONY: loadtest-stress-8k
+loadtest-stress-8k: loadtest-prepare ## Run the stepped mixed stress test up to 8k requests/s.
+	@LOADTEST_MONITOR_INTERVAL=$(LOADTEST_MONITOR_INTERVAL) $(LOADTEST_STRESS_RUNNER) "$(LOADTEST_COMPOSE_FILE)" stress-8k /scripts/stress.js 8000
+
+.PHONY: loadtest-stress-10k
+loadtest-stress-10k: loadtest-prepare ## Run the stepped mixed stress test up to 10k requests/s.
+	@LOADTEST_MONITOR_INTERVAL=$(LOADTEST_MONITOR_INTERVAL) $(LOADTEST_STRESS_RUNNER) "$(LOADTEST_COMPOSE_FILE)" stress-10k /scripts/stress.js 10000
 
 .PHONY: loadtest-search-stress
 loadtest-search-stress: loadtest-prepare ## Run the search-only stress test with resource monitoring.

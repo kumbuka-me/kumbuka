@@ -4,6 +4,7 @@ set -eu
 compose_file=${1:?compose file is required}
 profile=${2:?profile name is required}
 k6_script=${3:?k6 script is required}
+stress_target=${4:-3000}
 
 export KUMBUKA__DATABASE_MAX_CONNS="${KUMBUKA__DATABASE_MAX_CONNS:-18}"
 
@@ -92,7 +93,7 @@ printf 'PostgreSQL max conns: %s\n' "$KUMBUKA__DATABASE_MAX_CONNS"
 printf 'Running %s\n\n' "$profile"
 
 set +e
-compose --profile loadtest run --rm k6 run "$k6_script"
+compose --profile loadtest run --rm -e STRESS_TARGET="$stress_target" k6 run "$k6_script"
 status=$?
 set -e
 

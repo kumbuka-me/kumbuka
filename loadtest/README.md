@@ -8,6 +8,9 @@ These tests run only against `deploy/compose.loadtest.yaml`. That Compose projec
 make loadtest-smoke
 make loadtest-read
 make loadtest-stress
+make loadtest-stress-5k
+make loadtest-stress-8k
+make loadtest-stress-10k
 make loadtest-search-stress
 make loadtest-render-stress
 ```
@@ -18,7 +21,9 @@ The stack uses Kumbuka's trusted-proxy authentication override solely inside its
 
 The stress profiles use k6's arrival-rate executors. Each iteration sends exactly one HTTP request, so a target of 1000 means approximately 1000 requested HTTP requests per second. Because the arrival rate is independent of response time, Kumbuka becoming slower does not automatically reduce the requested load.
 
-`make loadtest-stress` is the general read profile. It focuses tightly on the observed saturation knee: after entering at 2000 requests per second, it holds 2400, 2500, 2600, 2700, 2800, 2900, and 3000 requests per second for 30 seconds each, with short ramps between levels. The VU ceiling is 3500: high enough to expose the knee, but deliberately lower than the earlier 5000-VU run so an overloaded server cannot accumulate an unnecessarily large queue. Its deterministic request mix remains 70% individual page API reads, 20% page-list requests, and 10% searches.
+`make loadtest-stress` is the general read baseline. It focuses on the original saturation range: after entering at 2000 requests per second, it holds 2400, 2500, 2600, 2700, 2800, 2900, and 3000 requests per second for 30 seconds each, with short ramps between levels.
+
+The higher-rate variants reuse the exact same deterministic workload and thresholds while extending the arrival-rate ceiling in 1000-request-per-second steps. `make loadtest-stress-5k` holds 4000 and 5000 requests per second, `make loadtest-stress-8k` continues through 6000, 7000, and 8000, and `make loadtest-stress-10k` continues through 9000 and 10000. Every level gets a 15-second ramp followed by a 30-second hold. The VU ceiling remains 3500 so overload is visible as dropped iterations rather than an unbounded client-side queue. The request mix remains 70% individual page API reads, 20% page-list requests, and 10% searches.
 
 `make loadtest-search-stress` isolates search and ramps through 100, 250, 500, 1000, and 2000 search requests per second. Use it to expose database and search-path saturation without cheaper page reads hiding the result.
 
