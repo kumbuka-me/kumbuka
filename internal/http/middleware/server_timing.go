@@ -16,10 +16,6 @@ const performanceTimingCookie = "kumbuka_perf"
 // PerformanceDiagnostics attaches one shared trace to each application request and logs it.
 // The middleware is installed only when deployment-level diagnostics are enabled; browsers opt in separately to receive Server-Timing.
 func PerformanceDiagnostics(logger *slog.Logger) Middleware {
-	if logger == nil {
-		logger = slog.Default()
-	}
-
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
 			exposeServerTiming := performanceDiagnosticsRequested(request)

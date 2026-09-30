@@ -46,9 +46,6 @@ func NewRebuilds(
 	renderer *md.Renderer,
 	logger *slog.Logger,
 ) *Rebuilds {
-	if logger == nil {
-		logger = slog.Default()
-	}
 	return &Rebuilds{
 		catalog:   catalog,
 		pages:     pages,
