@@ -13,8 +13,17 @@ func IsAlphanumeric[T character](character T) bool {
 
 // IsLetter reports whether character is an ASCII letter.
 func IsLetter[T character](character T) bool {
-	return character >= 'a' && character <= 'z' ||
-		character >= 'A' && character <= 'Z'
+	return IsLowercaseLetter(character) || IsUppercaseLetter(character)
+}
+
+// IsLowercaseLetter reports whether character is a lowercase ASCII letter.
+func IsLowercaseLetter[T character](character T) bool {
+	return character >= 'a' && character <= 'z'
+}
+
+// IsUppercaseLetter reports whether character is an uppercase ASCII letter.
+func IsUppercaseLetter[T character](character T) bool {
+	return character >= 'A' && character <= 'Z'
 }
 
 // IsDigit reports whether character is an ASCII decimal digit.

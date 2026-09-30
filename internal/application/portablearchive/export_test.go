@@ -26,3 +26,32 @@ func TestPortableResourceScannerSkipsMalformedReferences(t *testing.T) {
 	assert.Equal(t, portableAttachmentResource, reference.Kind)
 	assert.EqualValues(t, 7, reference.ID)
 }
+
+func TestPortableResourceScannerStopsAtMarkdownTerminators(t *testing.T) {
+	t.Parallel()
+
+	for _, source := range []string{
+		"/media/42/image.png) trailing",
+		"/media/42/image.png\ttrailing",
+		"/media/42/image.png\ntrailing",
+		`/media/42/image.png"trailing`,
+		"/media/42/image.png'trailing",
+	} {
+		reference, ok := nextPortableResourceReference(source)
+		require.True(t, ok)
+		assert.Equal(t, "/media/42/image.png", source[reference.Start:reference.End])
+	}
+}
+
+func TestMediaImageIDRequiresDecimalIdentifierAndFilename(t *testing.T) {
+	t.Parallel()
+
+	id, ok := MediaImageID("/media/42/image.png")
+	require.True(t, ok)
+	assert.EqualValues(t, 42, id)
+
+	for _, value := range []string{"/media//image.png", "/media/4a/image.png", "/media/42/"} {
+		_, ok := MediaImageID(value)
+		assert.False(t, ok, "expected %q to be rejected", value)
+	}
+}

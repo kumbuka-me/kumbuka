@@ -203,9 +203,7 @@ func reviewGroupID(w http.ResponseWriter, value string) (int64, bool) {
 
 // reviewerUsernames parses @username tokens from the compact reviewers field.
 func reviewerUsernames(value string) []string {
-	parts := strings.FieldsFunc(value, func(character rune) bool {
-		return character == ',' || character == ';' || character == '\n' || character == '\r' || character == '\t' || character == ' '
-	})
+	parts := strings.FieldsFunc(value, isReviewerSeparator)
 
 	result := make([]string, 0, len(parts))
 	for _, part := range parts {
@@ -216,6 +214,16 @@ func reviewerUsernames(value string) []string {
 	}
 
 	return result
+}
+
+// isReviewerSeparator reports whether character separates usernames in the compact reviewers field.
+func isReviewerSeparator(character rune) bool {
+	switch character {
+	case ',', ';', '\n', '\r', '\t', ' ':
+		return true
+	default:
+		return false
+	}
 }
 
 // writeReviewProblem translates workflow conflicts before generic page errors.

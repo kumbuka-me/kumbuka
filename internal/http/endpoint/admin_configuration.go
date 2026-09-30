@@ -237,7 +237,7 @@ func splitHeaderNames(value string) []string {
 	seen := map[string]bool{}
 	headers := make([]string, 0)
 
-	for value := range strings.FieldsFuncSeq(value, func(r rune) bool { return r == ',' || r == '\n' }) {
+	for value := range strings.FieldsFuncSeq(value, isHeaderNameSeparator) {
 		header := strings.TrimSpace(value)
 		key := strings.ToLower(header)
 		if header == "" || seen[key] {
@@ -249,6 +249,11 @@ func splitHeaderNames(value string) []string {
 	}
 
 	return headers
+}
+
+// isHeaderNameSeparator reports whether character separates trusted-proxy header names in configuration input.
+func isHeaderNameSeparator(character rune) bool {
+	return character == ',' || character == '\n'
 }
 
 // SaveAdminSettings updates mutable application-wide settings.

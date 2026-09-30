@@ -12,6 +12,7 @@ import (
 	"unicode/utf8"
 
 	lucide "github.com/kaugesaar/lucide-go"
+	"github.com/kumbuka-me/kumbuka/pkg/ascii"
 	"github.com/kumbuka-me/sdk/pluginpackage"
 )
 
@@ -303,9 +304,9 @@ func isIdentifierCharacter(character byte) bool {
 	return isIdentifierStart(character) || character == '.' || character == '_' || character == '-'
 }
 
-// isIdentifierStart reports whether a rune may start an icon identifier.
+// isIdentifierStart reports whether a byte may start an icon identifier.
 func isIdentifierStart(character byte) bool {
-	return character >= 'a' && character <= 'z' || character >= '0' && character <= '9'
+	return ascii.IsLowercaseLetter(character) || ascii.IsDigit(character)
 }
 
 // resourceSVG renders only host-authored SVG structure around escaped path data.

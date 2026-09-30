@@ -441,7 +441,7 @@ func validateEditorWidgetChoiceSource(widget EditorWidgetContribution, source Ed
 	}
 	attributeFound := false
 	for _, attribute := range widget.Attributes {
-		if attribute.Name == source.SourceAttribute && (attribute.Type == EditorWidgetAttributeString || attribute.Type == EditorWidgetAttributeIdentifier) {
+		if attribute.Name == source.SourceAttribute && editorWidgetScalarAttribute(attribute) {
 			attributeFound = true
 		}
 	}
@@ -462,7 +462,7 @@ func validateEditorWidgetChoiceSource(widget EditorWidgetContribution, source Ed
 				continue
 			}
 			for _, field := range module.Fields {
-				if field.ID == source.ListField && ConfigurationFieldType(field.Type) == ConfigurationFieldList && choiceColumnsExist(field.Columns, source) {
+				if editorWidgetChoiceSourceField(field, source) {
 					found = true
 				}
 			}
@@ -472,6 +472,13 @@ func validateEditorWidgetChoiceSource(widget EditorWidgetContribution, source Ed
 		}
 	}
 	return nil
+}
+
+// editorWidgetChoiceSourceField reports whether field supplies the configured list and required choice columns.
+func editorWidgetChoiceSourceField(field pluginpackage.ConfigurationField, source EditorWidgetChoiceSource) bool {
+	return field.ID == source.ListField &&
+		ConfigurationFieldType(field.Type) == ConfigurationFieldList &&
+		choiceColumnsExist(field.Columns, source)
 }
 
 // validEditorWidgetChoiceSourceNames reports whether source identifiers form a usable list reference.
@@ -828,7 +835,7 @@ func validEditorWidgetEnumValue(value string, seen map[string]bool) bool {
 
 // validEditorWidgetMemberOfConstraint reports whether a member-of rule maps a scalar attribute to a list attribute.
 func validEditorWidgetMemberOfConstraint(value, set EditorWidgetAttribute) bool {
-	return (value.Type == EditorWidgetAttributeString || value.Type == EditorWidgetAttributeIdentifier) && set.Type == EditorWidgetAttributeList
+	return editorWidgetScalarAttribute(value) && set.Type == EditorWidgetAttributeList
 }
 
 // validateEditorWidgetSetting validates a generated control and its referenced attributes.
@@ -855,14 +862,10 @@ func validateEditorWidgetSetting(setting EditorWidgetSetting, attributes map[str
 
 // validateEditorWidgetTreeSettingDeclaration validates one hierarchical list editor and its hidden identity fields.
 func validateEditorWidgetTreeSettingDeclaration(setting EditorWidgetSetting, attributes map[string]EditorWidgetAttribute) error {
-	if setting.Attribute != "" || len(setting.Attributes) < 3 || len(setting.Attributes) > 16 || len(setting.Columns) != 0 ||
-		len(setting.Fields) == 0 || len(setting.Fields) > 12 || setting.CompletionModuleID != "" || len(setting.Suggestions) != 0 || setting.ChoiceSource != nil || len(setting.Choices) != 0 {
+	if !validEditorWidgetTreeSettingShape(setting) {
 		return fmt.Errorf("tree setting %q has invalid shape", setting.Label)
 	}
-	if setting.IDAttribute == "" || setting.ParentAttribute == "" || setting.TitleAttribute == "" ||
-		setting.IDAttribute == setting.ParentAttribute || setting.MaxDepth < 1 || setting.MaxDepth > 32 ||
-		len(setting.EmptyValue) > 16 ||
-		len(setting.IDPrefix) > 64 || (setting.IDPrefix != "" && !validTreeIDPrefix(setting.IDPrefix)) {
+	if !validEditorWidgetTreeIdentity(setting) {
 		return fmt.Errorf("tree setting %q has invalid identity or nesting metadata", setting.Label)
 	}
 
@@ -891,14 +894,13 @@ func validateEditorWidgetTreeSettingDeclaration(setting EditorWidgetSetting, att
 
 	visible := make(map[string]bool, len(setting.Fields))
 	for _, field := range setting.Fields {
-		if !bound[field.Attribute] || field.Attribute == setting.IDAttribute || field.Attribute == setting.ParentAttribute || visible[field.Attribute] ||
-			strings.TrimSpace(field.Label) == "" || len(field.Label) > 128 || len(field.Placeholder) > 256 || len(field.Suggestions) > 16 {
+		if !validEditorWidgetTreeFieldMetadata(field, setting, bound, visible) {
 			return fmt.Errorf("tree setting %q has invalid field %q", setting.Label, field.Attribute)
 		}
-		if field.Type != EditorWidgetSettingText && field.Type != EditorWidgetSettingTextarea && field.Type != EditorWidgetSettingMention && field.Type != EditorWidgetSettingDate && field.Type != EditorWidgetSettingSelect {
+		if !supportedEditorWidgetTreeFieldType(field.Type) {
 			return fmt.Errorf("tree setting %q field %q has unsupported type %q", setting.Label, field.Attribute, field.Type)
 		}
-		if (field.Type == EditorWidgetSettingSelect) != (field.ChoiceSource != nil) || len(field.Choices) != 0 {
+		if !validEditorWidgetTreeFieldChoiceSource(field) {
 			return fmt.Errorf("tree setting %q field %q has invalid choice source", setting.Label, field.Attribute)
 		}
 		for _, suggestion := range field.Suggestions {
@@ -917,17 +919,62 @@ func validateEditorWidgetTreeSettingDeclaration(setting EditorWidgetSetting, att
 	return nil
 }
 
+// validEditorWidgetTreeSettingShape reports whether a tree control contains only tree-layout fields.
+func validEditorWidgetTreeSettingShape(setting EditorWidgetSetting) bool {
+	return setting.Attribute == "" && len(setting.Attributes) >= 3 && len(setting.Attributes) <= 16 &&
+		len(setting.Columns) == 0 && len(setting.Fields) > 0 && len(setting.Fields) <= 12 &&
+		setting.CompletionModuleID == "" && len(setting.Suggestions) == 0 &&
+		setting.ChoiceSource == nil && len(setting.Choices) == 0
+}
+
+// validEditorWidgetTreeIdentity reports whether tree identity, sentinel, and nesting metadata stay within contract bounds.
+func validEditorWidgetTreeIdentity(setting EditorWidgetSetting) bool {
+	return setting.IDAttribute != "" && setting.ParentAttribute != "" && setting.TitleAttribute != "" &&
+		setting.IDAttribute != setting.ParentAttribute && setting.MaxDepth >= 1 && setting.MaxDepth <= 32 &&
+		len(setting.EmptyValue) <= 16 && len(setting.IDPrefix) <= 64 &&
+		(setting.IDPrefix == "" || validTreeIDPrefix(setting.IDPrefix))
+}
+
+// validEditorWidgetTreeFieldMetadata reports whether one visible tree field is bound, unique, labeled, and bounded.
+func validEditorWidgetTreeFieldMetadata(
+	field EditorWidgetTreeField,
+	setting EditorWidgetSetting,
+	bound, visible map[string]bool,
+) bool {
+	return bound[field.Attribute] && field.Attribute != setting.IDAttribute && field.Attribute != setting.ParentAttribute &&
+		!visible[field.Attribute] && strings.TrimSpace(field.Label) != "" && len(field.Label) <= 128 &&
+		len(field.Placeholder) <= 256 && len(field.Suggestions) <= 16
+}
+
+// supportedEditorWidgetTreeFieldType reports whether a tree field uses a host-supported control type.
+func supportedEditorWidgetTreeFieldType(fieldType EditorWidgetSettingType) bool {
+	switch fieldType {
+	case EditorWidgetSettingText, EditorWidgetSettingTextarea, EditorWidgetSettingMention, EditorWidgetSettingDate, EditorWidgetSettingSelect:
+		return true
+	default:
+		return false
+	}
+}
+
+// validEditorWidgetTreeFieldChoiceSource reports whether select fields alone declare dynamic choices.
+func validEditorWidgetTreeFieldChoiceSource(field EditorWidgetTreeField) bool {
+	return (field.Type == EditorWidgetSettingSelect) == (field.ChoiceSource != nil) && len(field.Choices) == 0
+}
+
 // validTreeIDPrefix reports whether an automatically generated tree-ID prefix is safe for identifier-like values.
 func validTreeIDPrefix(value string) bool {
 	for index := 0; index < len(value); index++ {
-		character := value[index]
-		if ascii.IsAlphanumeric(character) || character == '-' || character == '_' ||
-			character == '.' || character == ':' || character == '/' {
-			continue
+		if !validTreeIDPrefixCharacter(value[index]) {
+			return false
 		}
-		return false
 	}
 	return true
+}
+
+// validTreeIDPrefixCharacter reports whether character may appear in an automatically generated tree-ID prefix.
+func validTreeIDPrefixCharacter(character byte) bool {
+	return ascii.IsAlphanumeric(character) || character == '-' || character == '_' ||
+		character == '.' || character == ':' || character == '/'
 }
 
 // validateEditorWidgetResourceSettingDeclaration validates a resource picker and its completion-module reference.
@@ -965,7 +1012,7 @@ func validateEditorWidgetTextSettingDeclaration(setting EditorWidgetSetting, att
 func validateEditorWidgetSelectSettingDeclaration(setting EditorWidgetSetting, attributes map[string]EditorWidgetAttribute) error {
 	attribute, ok := attributes[setting.Attribute]
 	if setting.ChoiceSource != nil {
-		if !ok || (attribute.Type != EditorWidgetAttributeString && attribute.Type != EditorWidgetAttributeIdentifier) ||
+		if !ok || !editorWidgetScalarAttribute(attribute) ||
 			len(setting.Attributes) != 0 || len(setting.Columns) != 0 || len(setting.Fields) != 0 || len(setting.Suggestions) != 0 ||
 			setting.CompletionModuleID != "" || len(setting.Choices) != 0 {
 			return fmt.Errorf("select setting %q references an invalid dynamic attribute", setting.Label)

@@ -159,20 +159,14 @@ func nextMediaReference(source string) (reference mediaReference, found bool) {
 		}
 		start := offset + index
 		offset = start + len("/media/")
-		end := offset
-		for end < len(source) && source[end] >= '0' && source[end] <= '9' {
-			end++
-		}
+		end := portableResourceIDEnd(source, offset)
 		if end == offset {
 			continue
 		}
 		if end >= len(source) || source[end] != '/' {
 			continue
 		}
-		end++
-		for end < len(source) && !strings.ContainsRune(" \t\n\r\f)\"'", rune(source[end])) {
-			end++
-		}
+		end = portableResourceReferenceEnd(source, end+1)
 		id, ok := MediaImageID(source[start:end])
 		if !ok {
 			continue
@@ -195,10 +189,8 @@ func MediaImageID(value string) (imageID int64, ok bool) {
 	if rawID == "" || filename == "" {
 		return 0, false
 	}
-	for _, digit := range rawID {
-		if digit < '0' || digit > '9' {
-			return 0, false
-		}
+	if !validPortableResourceIDText(rawID) {
+		return 0, false
 	}
 	id, err := strconv.ParseInt(rawID, 10, 64)
 	return id, err == nil

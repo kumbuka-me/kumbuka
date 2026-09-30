@@ -233,10 +233,40 @@ func isInlineLinkDestinationStart(line string, index int) bool {
 		!isEscapedMarkdownByte(line, index)
 }
 
+// markdownContentIndent returns the leading-space indent for content that may be indented by at most three spaces.
+func markdownContentIndent(line string) (int, bool) {
+	indent := 0
+	for indent < len(line) && line[indent] == ' ' {
+		indent++
+		if indent > 3 {
+			return 0, false
+		}
+	}
+	return indent, indent < len(line)
+}
+
+// skipHorizontalSpace advances index across ASCII spaces and tabs up to end.
+func skipHorizontalSpace(value string, index, end int) int {
+	for index < end && isHorizontalSpace(value[index]) {
+		index++
+	}
+	return index
+}
+
+// isHorizontalSpace reports whether value is Markdown/HTML horizontal ASCII whitespace.
+func isHorizontalSpace(value byte) bool {
+	return value == ' ' || value == '\t'
+}
+
+// isMarkdownDestinationTerminator reports whether value ends an unwrapped Markdown link destination.
+func isMarkdownDestinationTerminator(value byte) bool {
+	return isHorizontalSpace(value) || value == '\r' || value == ')'
+}
+
 // markdownFence identifies a backtick or tilde fence indented by at most three spaces.
 func markdownFence(line string) (byte, int, int) {
-	indent := len(line) - len(strings.TrimLeft(line, " "))
-	if indent > 3 || indent == len(line) {
+	indent, ok := markdownContentIndent(line)
+	if !ok {
 		return 0, 0, 0
 	}
 	marker := line[indent]
@@ -264,8 +294,8 @@ func (s *markdownURLScanner) scanReferenceDefinition(line string, offset int) bo
 	if s.codeWidth != 0 || s.inComment || s.inHTMLCode {
 		return false
 	}
-	indent := len(line) - len(strings.TrimLeft(line, " "))
-	if indent > 3 || indent >= len(line) || line[indent] != '[' {
+	indent, ok := markdownContentIndent(line)
+	if !ok || line[indent] != '[' {
 		return false
 	}
 	closing := strings.Index(line[indent+1:], "]:")
@@ -291,9 +321,7 @@ func isEscapedMarkdownByte(line string, index int) bool {
 
 // markdownDestination reads a simple URL or angle-wrapped URL after a link delimiter.
 func markdownDestination(line string, offset, start int) (markdownURLRange, bool) {
-	for start < len(line) && (line[start] == ' ' || line[start] == '\t') {
-		start++
-	}
+	start = skipHorizontalSpace(line, start, len(line))
 	if start >= len(line) {
 		return markdownURLRange{}, false
 	}
@@ -306,7 +334,7 @@ func markdownDestination(line string, offset, start int) (markdownURLRange, bool
 		return markdownURLRange{start: offset + start, end: offset + start + end}, true
 	}
 	end := start
-	for end < len(line) && !strings.ContainsRune(" \t\r)", rune(line[end])) {
+	for end < len(line) && !isMarkdownDestinationTerminator(line[end]) {
 		end++
 	}
 	return markdownURLRange{start: offset + start, end: offset + end}, end > start
@@ -324,7 +352,7 @@ func (s *markdownURLScanner) scanHTMLTag(line string, offset, start int) (int, b
 		return 0, false
 	}
 
-	selfClosing := strings.HasSuffix(strings.TrimSpace(line[attributesStart:end]), "/")
+	selfClosing := isSelfClosingHTMLTag(line[attributesStart:end])
 	if isHTMLCodeElement(name) {
 		s.inHTMLCode = !closing && !selfClosing
 	}
@@ -368,7 +396,7 @@ func (s *markdownURLScanner) scanHTMLAttributes(line string, offset, start, end 
 			index++
 		}
 		attribute := strings.ToLower(line[attributeStart:index])
-		index = skipHTMLSpace(line, index, end)
+		index = skipHorizontalSpace(line, index, end)
 		if index >= end || line[index] != '=' {
 			continue
 		}
@@ -382,19 +410,11 @@ func (s *markdownURLScanner) scanHTMLAttributes(line string, offset, start, end 
 	}
 }
 
-// skipHTMLSpace advances past horizontal whitespace within a tag.
-func skipHTMLSpace(line string, index, end int) int {
-	for index < end && (line[index] == ' ' || line[index] == '\t') {
-		index++
-	}
-	return index
-}
-
 // htmlAttributeValue returns the bounds and next scan position for a quoted or unquoted value.
 func htmlAttributeValue(line string, index, end int) (int, int, int) {
-	index = skipHTMLSpace(line, index, end)
+	index = skipHorizontalSpace(line, index, end)
 	quote := byte(0)
-	if index < end && (line[index] == '"' || line[index] == '\'') {
+	if index < end && isHTMLQuote(line[index]) {
 		quote = line[index]
 		index++
 	}
@@ -412,9 +432,19 @@ func htmlAttributeValue(line string, index, end int) (int, int, int) {
 	return start, index, index
 }
 
+// isHTMLQuote reports whether value opens or closes an HTML attribute quote.
+func isHTMLQuote(value byte) bool {
+	return value == '"' || value == '\''
+}
+
+// isSelfClosingHTMLTag reports whether the parsed attribute segment ends with a self-closing slash.
+func isSelfClosingHTMLTag(attributes string) bool {
+	return strings.HasSuffix(strings.TrimSpace(attributes), "/")
+}
+
 // isHTMLAttributeValueTerminator reports whether value ends an unquoted HTML attribute value.
 func isHTMLAttributeValueTerminator(value byte) bool {
-	return value == ' ' || value == '\t' || value == '\r' || value == '>'
+	return isHorizontalSpace(value) || value == '\r' || value == '>'
 }
 
 // isHTMLCodeElement reports whether an element suppresses Markdown URL scanning in its body.
@@ -446,7 +476,7 @@ func htmlTagEnd(line string, start int) (int, bool) {
 		switch {
 		case quote != 0 && line[index] == quote:
 			quote = 0
-		case quote == 0 && (line[index] == '"' || line[index] == '\''):
+		case quote == 0 && isHTMLQuote(line[index]):
 			quote = line[index]
 		case quote == 0 && line[index] == '>':
 			return index, true

@@ -179,3 +179,17 @@ func TestToLower(t *testing.T) {
 	assert.Equal(t, byte('5'), ToLower(byte('5')))
 	assert.Equal(t, rune('é'), ToLower(rune('é')))
 }
+
+// TestLetterCasePredicates verifies ASCII letter case classification for byte and rune scanners.
+func TestLetterCasePredicates(t *testing.T) {
+	t.Parallel()
+
+	assert.True(t, IsLowercaseLetter(byte('a')))
+	assert.True(t, IsLowercaseLetter(rune('z')))
+	assert.False(t, IsLowercaseLetter(byte('A')))
+	assert.True(t, IsUppercaseLetter(byte('A')))
+	assert.True(t, IsUppercaseLetter(rune('Z')))
+	assert.False(t, IsUppercaseLetter(byte('a')))
+	assert.False(t, IsLowercaseLetter(rune('é')))
+	assert.False(t, IsUppercaseLetter(rune('É')))
+}

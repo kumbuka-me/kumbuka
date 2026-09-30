@@ -324,18 +324,12 @@ func findPortableResourceReference(source, prefix string) (portableResourceRefer
 		digitsStart := start + len(prefix)
 		offset = digitsStart
 
-		digitsEnd := digitsStart
-		for digitsEnd < len(source) && source[digitsEnd] >= '0' && source[digitsEnd] <= '9' {
-			digitsEnd++
-		}
+		digitsEnd := portableResourceIDEnd(source, digitsStart)
 		if !hasPortableResourceIDTerminator(source, digitsStart, digitsEnd) {
 			continue
 		}
 
-		end := digitsEnd + 1
-		for end < len(source) && !strings.ContainsRune(" \t\n\r\f)\"'", rune(source[end])) {
-			end++
-		}
+		end := portableResourceReferenceEnd(source, digitsEnd+1)
 		id, err := strconv.ParseInt(source[digitsStart:digitsEnd], 10, 64)
 		if err != nil || !validPortableResourceReference(id, digitsEnd, end) {
 			continue

@@ -55,12 +55,15 @@ func validDynamicFormRow(value string) bool {
 	}
 
 	for _, character := range value {
-		if ascii.IsAlphanumeric(character) || character == '-' || character == '_' {
-			continue
+		if !validDynamicFormRowCharacter(character) {
+			return false
 		}
-
-		return false
 	}
 
 	return true
+}
+
+// validDynamicFormRowCharacter reports whether character belongs to the portable dynamic-row alphabet.
+func validDynamicFormRowCharacter(character rune) bool {
+	return ascii.IsAlphanumeric(character) || character == '-' || character == '_'
 }

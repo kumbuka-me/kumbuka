@@ -58,3 +58,22 @@ func destinations(source string) []string {
 	}
 	return result
 }
+
+func TestRangesHandlesMarkdownDestinationWhitespaceAndReferenceIndent(t *testing.T) {
+	t.Parallel()
+
+	source := strings.Join([]string{
+		"[tab](\ttab.png)",
+		"   [reference]:   three.png",
+		"    [indented]: ignored.png",
+	}, "\n")
+
+	assert.Equal(t, []string{"tab.png", "three.png"}, destinations(source))
+}
+
+func TestRangesStopsBareDestinationsAtMarkdownTerminators(t *testing.T) {
+	t.Parallel()
+
+	source := `[one](one.png "title") [two](two.png\t"title")`
+	assert.Equal(t, []string{"one.png", "two.png"}, destinations(source))
+}

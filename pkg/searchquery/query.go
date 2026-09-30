@@ -81,7 +81,7 @@ func matchingQuotes(value string) bool {
 		return false
 	}
 	quote := value[0]
-	return (quote == '\'' || quote == '"') && value[len(value)-1] == quote
+	return isQuoteRune(rune(quote)) && value[len(value)-1] == quote
 }
 
 // tokens splits a search query while preserving quoted segments and their delimiters.
@@ -108,7 +108,7 @@ func tokens(query string) []string {
 			}
 			continue
 		}
-		if r == '"' || r == '\'' {
+		if isQuoteRune(r) {
 			quote = r
 			current.WriteRune(r)
 			continue
@@ -123,6 +123,11 @@ func tokens(query string) []string {
 		current.WriteRune('\\')
 	}
 	return flushToken(result, &current)
+}
+
+// isQuoteRune reports whether value is a supported search-query quote delimiter.
+func isQuoteRune(value rune) bool {
+	return value == '\'' || value == '"'
 }
 
 // flushToken appends the current token and resets its builder.
