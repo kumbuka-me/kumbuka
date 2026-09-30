@@ -26,6 +26,7 @@ func TestConfigureBrowserAuth(t *testing.T) {
 	assert.NotNil(t, configured.Login)
 	assert.NotNil(t, configured.Callback)
 	assert.NotNil(t, configured.Validate)
+	assert.NotNil(t, configured.ApplySettings)
 	assert.NotNil(t, configured.Local)
 	assert.NotNil(t, configured.LocalLoginAllowed)
 }

@@ -140,6 +140,10 @@ func SaveAdminAuthentication(
 			return
 		}
 
+		// The database remains authoritative across restarts, while requests use
+		// this validated process-resident snapshot immediately after the save.
+		browserAuth.ApplySettings(effective)
+
 		route.Redirect(w, r, "/admin/configuration", http.StatusSeeOther)
 	}
 }

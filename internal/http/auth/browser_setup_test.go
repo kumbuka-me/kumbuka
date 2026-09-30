@@ -302,3 +302,90 @@ func TestRuntimeTrustedProxyAuthenticateDoesNotReadApplicationSettings(t *testin
 	assert.Equal(t, 1, repository.trustedProxyRefreshes)
 	assert.Zero(t, repository.settingsCalls)
 }
+
+// TestConfiguredPersistedTrustedProxyAuthenticationCachesSettings verifies ordinary requests do not reread persisted auth configuration.
+func TestConfiguredPersistedTrustedProxyAuthenticationCachesSettings(t *testing.T) {
+	t.Parallel()
+
+	repository := &setupBrowserRepository{
+		settings: domain.ApplicationSettings{Authentication: domain.AuthenticationSettings{
+			Mode:                   domain.AuthModeTrustedProxy,
+			TrustedUsernameHeaders: []string{"X-User"},
+		}},
+		trustedProxyUser: domain.User{ID: 7, Username: "reader", Enabled: true},
+	}
+	configured, err := ConfigureBrowserAuth(context.Background(), BrowserConfig{}, repository)
+	require.NoError(t, err)
+	require.Equal(t, 1, repository.settingsCalls)
+
+	request := httptest.NewRequest(http.MethodGet, "/api/pages/example", nil)
+	request.Header.Set("X-User", "reader")
+	user, err := configured.Authenticator.Authenticate(request)
+
+	require.NoError(t, err)
+	assert.Equal(t, int64(7), user.ID)
+	assert.Equal(t, 1, repository.trustedProxyRefreshes)
+	assert.Equal(t, 1, repository.settingsCalls)
+}
+
+// TestConfiguredLocalAuthenticationCachesSettings verifies local session validation is the only steady-state database lookup.
+func TestConfiguredLocalAuthenticationCachesSettings(t *testing.T) {
+	t.Parallel()
+
+	const token = "local-session"
+	repository := &setupBrowserRepository{
+		settings:             domain.ApplicationSettings{Authentication: domain.AuthenticationSettings{Mode: domain.AuthModeLocal}},
+		localAdminCredential: true,
+		sessionUser:          domain.User{ID: 7, Username: "reader", Enabled: true},
+	}
+	configured, err := ConfigureBrowserAuth(context.Background(), BrowserConfig{}, repository)
+	require.NoError(t, err)
+	require.Equal(t, 1, repository.settingsCalls)
+
+	request := httptest.NewRequest(http.MethodGet, "/api/pages/example", nil)
+	request.AddCookie(&http.Cookie{Name: localSessionCookie, Value: token})
+	user, err := configured.Authenticator.Authenticate(request)
+
+	require.NoError(t, err)
+	assert.Equal(t, int64(7), user.ID)
+	assert.Equal(t, localSessionHash(token), repository.sessionHash)
+	assert.Equal(t, 1, repository.settingsCalls)
+}
+
+// TestApplySettingsReplacesCachedAuthentication verifies an administrator save changes runtime auth without another settings read.
+func TestApplySettingsReplacesCachedAuthentication(t *testing.T) {
+	t.Parallel()
+
+	repository := &setupBrowserRepository{}
+	browser := &browserAuthenticator{repository: repository}
+	browser.applySettings(domain.AuthenticationSettings{
+		Mode:                   domain.AuthModeTrustedProxy,
+		TrustedUsernameHeaders: []string{"X-Original"},
+	})
+
+	browser.applySettings(domain.AuthenticationSettings{
+		Mode:                   domain.AuthModeTrustedProxy,
+		TrustedUsernameHeaders: []string{"X-Replacement"},
+	})
+	settings, err := browser.currentSettings(context.Background())
+
+	require.NoError(t, err)
+	assert.Equal(t, []string{"X-Replacement"}, settings.TrustedUsernameHeaders)
+	assert.Zero(t, repository.settingsCalls)
+}
+
+// TestCompleteSetupSwitchesCachedDefaultModeToLocal verifies a fresh process does not keep its pre-setup mode after bootstrap.
+func TestCompleteSetupSwitchesCachedDefaultModeToLocal(t *testing.T) {
+	t.Parallel()
+
+	completed := false
+	browser := &browserAuthenticator{setupCompleted: func() { completed = true }}
+	browser.applySettings(domain.AuthenticationSettings{Mode: domain.AuthModeNone})
+
+	browser.completeSetup()
+	settings, err := browser.currentSettings(context.Background())
+
+	require.NoError(t, err)
+	assert.True(t, completed)
+	assert.Equal(t, domain.AuthModeLocal, settings.Mode)
+}

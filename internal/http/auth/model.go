@@ -59,6 +59,8 @@ type BrowserAuth struct {
 	Callback http.Handler
 	// Validate checks proposed persisted authentication settings.
 	Validate func(context.Context, domain.AuthenticationSettings) error
+	// ApplySettings replaces the process-resident effective settings after persistence succeeds.
+	ApplySettings func(domain.AuthenticationSettings)
 	// Local provides local setup, recovery login, and password-management operations.
 	Local *Local
 	// LocalLoginAllowed reports whether the local sign-in endpoint is currently available.

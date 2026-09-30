@@ -155,9 +155,11 @@ func TestOIDCLoginAcrossRestarts(t *testing.T) {
 		}
 
 		third := fixture.restart(t)
+		settingsReads := fixture.repository.settingsCalls
 		user, err := third.Authenticator.Authenticate(request)
 		require.NoError(t, err)
 		assert.Equal(t, int64(7), user.ID)
+		assert.Equal(t, settingsReads, fixture.repository.settingsCalls)
 
 		fixture.repository.user.SessionVersion++
 		_, err = third.Authenticator.Authenticate(request)

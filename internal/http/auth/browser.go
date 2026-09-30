@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	appauthentication "github.com/kumbuka-me/kumbuka/internal/application/authentication"
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
@@ -38,8 +40,10 @@ type browserAuthenticator struct {
 	localLoginEnabled bool
 	// setupRequired reports process-local first-run setup state without request-time database access.
 	setupRequired func() bool
-	// overrideAuthenticator is the prebuilt authenticator for fixed non-OIDC runtime modes.
-	overrideAuthenticator Authenticator
+	// setupCompleted marks process-local setup complete after the bootstrap transaction commits.
+	setupCompleted func()
+	// settings points at the immutable process-resident effective authentication settings.
+	settings atomic.Pointer[authenticationSettingsSnapshot]
 
 	// mu protects the cached OIDC integration and its settings key.
 	mu sync.Mutex
@@ -47,6 +51,14 @@ type browserAuthenticator struct {
 	oidcKey string
 	// oidc is the cached OIDC integration for oidcKey.
 	oidc *OIDC
+}
+
+// authenticationSettingsSnapshot owns one immutable effective authentication configuration.
+type authenticationSettingsSnapshot struct {
+	// value is cloned before publication and never mutated afterwards.
+	value domain.AuthenticationSettings
+	// authenticator is the reusable adapter for value when it has already been constructed.
+	authenticator Authenticator
 }
 
 // ConfigureBrowserAuth constructs database-managed browser authentication.
@@ -61,34 +73,32 @@ func ConfigureBrowserAuth(
 		trustedProxy:      config.TrustedProxy,
 		oidcConfig:        config.OIDC,
 		none:              NewNone(repository),
-		local:             NewLocal(repository, config.OIDC.PublicURL).WithSetupCompleted(config.SetupCompleted),
 		oidcLogin:         appauthentication.NewOIDC(repository, config.AllowUserRegistrationOverride),
 		trustedProxyLogin: appauthentication.NewTrustedProxy(repository, config.AllowUserRegistrationOverride),
 		localLoginEnabled: config.LocalLoginEnabled,
 		setupRequired:     config.SetupRequired,
+		setupCompleted:    config.SetupCompleted,
 	}
+	browser.local = NewLocal(repository, config.OIDC.PublicURL).WithSetupCompleted(browser.completeSetup)
 
-	// Validate the effective startup mode so broken OIDC or local recovery
-	// configuration fails early.
-	settings, err := browser.currentSettings(ctx)
+	// Load and validate the effective authentication settings once. Steady-state
+	// requests use the process-resident snapshot until an administrator saves a
+	// replacement configuration.
+	settings, err := browser.loadSettings(ctx)
 	if err != nil {
 		return BrowserAuth{}, err
 	}
 	if err := browser.validate(ctx, settings); err != nil {
 		return BrowserAuth{}, err
 	}
-	if config.ModeOverride != "" && config.ModeOverride != domain.AuthModeOIDC {
-		browser.overrideAuthenticator, err = browser.authenticatorForSettings(ctx, settings)
-		if err != nil {
-			return BrowserAuth{}, err
-		}
-	}
+	browser.applySettings(settings)
 
 	return BrowserAuth{
 		Authenticator:     browser,
 		Login:             http.HandlerFunc(browser.login),
 		Callback:          http.HandlerFunc(browser.callback),
 		Validate:          browser.validate,
+		ApplySettings:     browser.applySettings,
 		Local:             browser.local,
 		LocalLoginAllowed: browser.localLoginAllowed,
 	}, nil
@@ -124,11 +134,23 @@ func (b *browserAuthenticator) Authenticate(r *http.Request) (domain.User, error
 		}
 	}
 
-	if b.overrideAuthenticator != nil {
-		return b.overrideAuthenticator.Authenticate(r)
+	if snapshot := b.settings.Load(); snapshot != nil {
+		if snapshot.authenticator != nil {
+			return snapshot.authenticator.Authenticate(r)
+		}
+
+		authenticator, err := b.authenticatorForSettings(r.Context(), snapshot.value)
+		if err != nil {
+			return domain.User{}, err
+		}
+		b.settings.CompareAndSwap(snapshot, &authenticationSettingsSnapshot{
+			value:         snapshot.value,
+			authenticator: authenticator,
+		})
+		return authenticator.Authenticate(r)
 	}
 
-	settings, err := b.currentSettings(r.Context())
+	settings, err := b.loadSettings(r.Context())
 	if err != nil {
 		return domain.User{}, err
 	}
@@ -183,6 +205,7 @@ func (b *browserAuthenticator) login(w http.ResponseWriter, r *http.Request) {
 
 // callback completes OIDC only while OIDC is the effective authentication mode.
 func (b *browserAuthenticator) callback(w http.ResponseWriter, r *http.Request) {
+	snapshot := b.settings.Load()
 	settings, err := b.currentSettings(r.Context())
 	if err != nil {
 		httpresponse.Problem(w, http.StatusInternalServerError, "The request could not be processed.")
@@ -192,11 +215,22 @@ func (b *browserAuthenticator) callback(w http.ResponseWriter, r *http.Request) 
 		httpresponse.Problem(w, http.StatusBadRequest, "OIDC authentication is not enabled.")
 		return
 	}
+	settings, err = b.refreshOIDCGroupMappings(r.Context(), settings)
+	if err != nil {
+		httpresponse.Problem(w, http.StatusInternalServerError, "The request could not be processed.")
+		return
+	}
 
 	oidcAuth, err := b.oidcFor(r.Context(), settings)
 	if err != nil {
 		httpresponse.Problem(w, http.StatusInternalServerError, "The request could not be processed.")
 		return
+	}
+	if snapshot != nil {
+		b.settings.CompareAndSwap(snapshot, &authenticationSettingsSnapshot{
+			value:         cloneAuthenticationSettings(settings),
+			authenticator: oidcAuth,
+		})
 	}
 
 	oidcAuth.callback(w, r)
@@ -238,19 +272,42 @@ func (b *browserAuthenticator) requiresSetup() bool {
 	return b.setupRequired != nil && b.setupRequired()
 }
 
-// currentSettings reads database-managed settings and overlays deployment-managed authentication fields.
+// completeSetup switches a freshly bootstrapped process to its post-setup authentication state.
+func (b *browserAuthenticator) completeSetup() {
+	if b.setupCompleted != nil {
+		b.setupCompleted()
+	}
+	if b.modeOverride == "" {
+		b.applySettings(domain.AuthenticationSettings{Mode: domain.AuthModeLocal})
+	}
+}
+
+// currentSettings returns the process-resident effective authentication settings.
 func (b *browserAuthenticator) currentSettings(ctx context.Context) (domain.AuthenticationSettings, error) {
-	// Deployment-managed modes should not reread database settings on every request.
+	if snapshot := b.settings.Load(); snapshot != nil {
+		return snapshot.value, nil
+	}
+
+	// Directly constructed authenticators in focused tests may not have gone
+	// through ConfigureBrowserAuth. Production instances always take the cached
+	// branch above after startup initialization.
+	return b.loadSettings(ctx)
+}
+
+// loadSettings reads persisted authentication settings at startup and overlays deployment-managed fields.
+func (b *browserAuthenticator) loadSettings(ctx context.Context) (domain.AuthenticationSettings, error) {
+	// Deployment-managed modes that do not depend on persisted OIDC group
+	// configuration need no settings query even during startup.
 	switch b.modeOverride {
 	case domain.AuthModeNone, domain.AuthModeLocal:
 		return domain.AuthenticationSettings{Mode: b.modeOverride}, nil
 	case domain.AuthModeTrustedProxy:
 		return domain.AuthenticationSettings{
 			Mode:                      domain.AuthModeTrustedProxy,
-			TrustedUsernameHeaders:    b.trustedProxy.Username,
-			TrustedEmailHeaders:       b.trustedProxy.Email,
-			TrustedDisplayNameHeaders: b.trustedProxy.DisplayName,
-			TrustedGroupHeaders:       b.trustedProxy.Groups,
+			TrustedUsernameHeaders:    slices.Clone(b.trustedProxy.Username),
+			TrustedEmailHeaders:       slices.Clone(b.trustedProxy.Email),
+			TrustedDisplayNameHeaders: slices.Clone(b.trustedProxy.DisplayName),
+			TrustedGroupHeaders:       slices.Clone(b.trustedProxy.Groups),
 			TrustedAdminGroup:         b.trustedProxy.AdminGroup,
 		}, nil
 	}
@@ -281,7 +338,69 @@ func (b *browserAuthenticator) currentSettings(ctx context.Context) (domain.Auth
 		}
 	}
 
-	return authentication, nil
+	return cloneAuthenticationSettings(authentication), nil
+}
+
+// refreshOIDCGroupMappings reloads mutable group references only during an interactive OIDC callback.
+func (b *browserAuthenticator) refreshOIDCGroupMappings(
+	ctx context.Context,
+	settings domain.AuthenticationSettings,
+) (domain.AuthenticationSettings, error) {
+	if !oidcGroupMappingsEnabled(settings) {
+		return settings, nil
+	}
+
+	mappings, err := b.repository.OIDCGroupMappings(ctx)
+	if err != nil {
+		return domain.AuthenticationSettings{}, err
+	}
+	settings.OIDCGroupMappings = mappings
+	return settings, nil
+}
+
+// applySettings replaces the effective authentication snapshot after persisted settings are saved.
+func (b *browserAuthenticator) applySettings(settings domain.AuthenticationSettings) {
+	settings = cloneAuthenticationSettings(settings)
+	b.settings.Store(&authenticationSettingsSnapshot{
+		value:         settings,
+		authenticator: b.cachedAuthenticatorForSettings(settings),
+	})
+}
+
+// cachedAuthenticatorForSettings returns an already-constructible steady-state authenticator without external I/O.
+func (b *browserAuthenticator) cachedAuthenticatorForSettings(settings domain.AuthenticationSettings) Authenticator {
+	switch settings.Mode {
+	case domain.AuthModeNone:
+		return b.none
+	case domain.AuthModeLocal:
+		return b.local
+	case domain.AuthModeTrustedProxy:
+		return NewTrustedProxy(b.trustedProxyLogin, TrustedProxyHeaders{
+			Username:    settings.TrustedUsernameHeaders,
+			Email:       settings.TrustedEmailHeaders,
+			DisplayName: settings.TrustedDisplayNameHeaders,
+			Groups:      settings.TrustedGroupHeaders,
+			AdminGroup:  settings.TrustedAdminGroup,
+		})
+	case domain.AuthModeOIDC:
+		key := oidcSettingsKey(settings)
+		b.mu.Lock()
+		defer b.mu.Unlock()
+		if b.oidc != nil && b.oidcKey == key {
+			return b.oidc
+		}
+	}
+	return nil
+}
+
+// cloneAuthenticationSettings prevents request handlers from sharing mutable slice backing arrays with configuration writers.
+func cloneAuthenticationSettings(settings domain.AuthenticationSettings) domain.AuthenticationSettings {
+	settings.TrustedUsernameHeaders = slices.Clone(settings.TrustedUsernameHeaders)
+	settings.TrustedEmailHeaders = slices.Clone(settings.TrustedEmailHeaders)
+	settings.TrustedDisplayNameHeaders = slices.Clone(settings.TrustedDisplayNameHeaders)
+	settings.TrustedGroupHeaders = slices.Clone(settings.TrustedGroupHeaders)
+	settings.OIDCGroupMappings = slices.Clone(settings.OIDCGroupMappings)
+	return settings
 }
 
 // authenticatorForSettings creates the authenticator for one resolved configuration.
