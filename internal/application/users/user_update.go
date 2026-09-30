@@ -45,6 +45,12 @@ type UserUpdateInput struct {
 	AuthModeOverride domain.AuthMode
 }
 
+// changesProfile reports whether the request edits a profile value or restores provider ownership.
+func (input UserUpdateInput) changesProfile() bool {
+	return input.Username != nil || input.Email != nil || input.DisplayName != nil ||
+		input.RevertUsername || input.RevertEmail || input.RevertDisplayName
+}
+
 // UpdateAccount validates the complete operation before submitting one atomic mutation.
 func (s *Users) UpdateAccount(ctx context.Context, input UserUpdateInput) error {
 	if err := validateAccountUpdate(input); err != nil {
@@ -57,8 +63,7 @@ func (s *Users) UpdateAccount(ctx context.Context, input UserUpdateInput) error 
 		Enabled:  input.Enabled,
 		GroupIDs: input.GroupIDs,
 	}
-	profileChanged := input.Username != nil || input.Email != nil || input.DisplayName != nil ||
-		input.RevertUsername || input.RevertEmail || input.RevertDisplayName
+	profileChanged := input.changesProfile()
 	var profile domain.UserProfile
 	if profileChanged {
 		var err error
@@ -114,8 +119,7 @@ func validateAccountUpdate(input UserUpdateInput) error {
 
 // prepareProfileUpdate validates and normalizes an administrator-managed account profile.
 func prepareProfileUpdate(input UserUpdateInput, current domain.UserProfile, update *domain.UserAccountUpdate) error {
-	requested := input.Username != nil || input.Email != nil || input.DisplayName != nil
-	if !requested && !input.RevertUsername && !input.RevertEmail && !input.RevertDisplayName {
+	if !input.changesProfile() {
 		return nil
 	}
 	if current.Source == domain.ProfileSourceTrustedProxy && input.Username != nil {

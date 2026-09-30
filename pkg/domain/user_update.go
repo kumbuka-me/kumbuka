@@ -2,7 +2,7 @@ package domain
 
 // UserAccountUpdate contains one atomic account mutation. Nil profile fields and an empty password hash preserve existing values.
 type UserAccountUpdate struct {
-	// UserID identifies the user associated with user account update.
+	// UserID identifies the account to update.
 	UserID int64
 	// Username optionally replaces the administrator-managed username.
 	Username *string
@@ -16,14 +16,14 @@ type UserAccountUpdate struct {
 	RevertEmail bool
 	// RevertDisplayName restores the latest provider display name and clears its override.
 	RevertDisplayName bool
-	// Role is the role associated with user account update.
+	// Role replaces the account role.
 	Role UserRole
-	// Enabled reports whether enabled applies to user account update.
+	// Enabled determines whether the account may authenticate.
 	Enabled bool
-	// GroupIDs contains the group i ds associated with user account update.
+	// GroupIDs replaces the complete set of account group memberships.
 	GroupIDs []int64
-	// LocalCredentialEnabled stores the local credential enabled value used by user account update.
+	// LocalCredentialEnabled optionally changes whether the local recovery credential may authenticate.
 	LocalCredentialEnabled *bool
-	// PasswordHash stores the password hash value used by user account update.
+	// PasswordHash replaces the local password hash when nonempty.
 	PasswordHash string
 }
