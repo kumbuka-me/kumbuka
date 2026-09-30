@@ -33,8 +33,7 @@ func (n *userMentionNode) Kind() ast.NodeKind { return kindUserMention }
 // Dump returns a diagnostic representation of a mention node.
 func (n *userMentionNode) Dump(_ []byte) *ast.NodeDump { return ast.NewNodeDump(n, nil) }
 
-// mentionTransformer wraps authored mention ranges while leaving code spans and
-// image alt text literal.
+// mentionTransformer wraps authored mention ranges while leaving code spans and image alt text literal.
 type mentionTransformer struct {
 	// ranges contains authored mention source spans in document order.
 	ranges []mention.Range

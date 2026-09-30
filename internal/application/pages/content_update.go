@@ -23,8 +23,7 @@ type PageContentUpdateInput struct {
 	Actor domain.User
 }
 
-// UpdateContent performs a guarded page-body update while preserving all page
-// metadata and running the normal revision, authorization, and side-effect path.
+// UpdateContent performs a guarded page-body update while preserving all page metadata and running the normal revision, authorization, and side-effect path.
 func (s *Mutations) UpdateContent(ctx context.Context, input PageContentUpdateInput) (domain.Page, error) {
 	slug := strings.TrimSpace(input.Slug)
 	if slug == "" || input.ExpectedUpdatedAt.IsZero() {

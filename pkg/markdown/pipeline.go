@@ -367,8 +367,7 @@ func (p *renderPipeline) expandMacros(source string, invocations []macroInvocati
 	return source, nil
 }
 
-// deferredMacroPlaceholder emits only bounded host metadata. The invocation
-// remains on the server and is re-derived from authorized canonical Markdown.
+// deferredMacroPlaceholder emits only bounded host metadata. The invocation remains on the server and is re-derived from authorized canonical Markdown.
 func deferredMacroPlaceholder(invocation macroInvocation, index int, version, locale string) string {
 	return `<div class="kumbuka-deferred-fragment" role="status" aria-live="polite"` +
 		` data-kumbuka-deferred-plugin="` + invocation.owner + `"` +

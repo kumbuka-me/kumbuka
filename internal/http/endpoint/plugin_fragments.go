@@ -17,9 +17,7 @@ const maxDeferredMacroIndex = 999999
 
 var deferredLocale = regexp.MustCompile(`^[A-Za-z0-9-]{0,35}$`)
 
-// PluginMacroFragment renders one slow, network-backed macro after the page
-// shell has loaded. The invocation is always re-derived from authorized saved
-// Markdown; browser input cannot supply provider URLs, credentials, or options.
+// PluginMacroFragment renders one slow, network-backed macro after the page shell has loaded. The invocation is always re-derived from authorized saved Markdown; browser input cannot supply provider URLs, credentials, or options.
 func PluginMacroFragment(
 	reports pageReportService,
 	navigation navigationService,

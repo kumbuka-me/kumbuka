@@ -19,9 +19,7 @@ func New(renderer *markdown.Renderer) *Preparer {
 	return &Preparer{renderer: renderer}
 }
 
-// Prepare derives plugin usage and invalidates the previous artifact. Rendering
-// is deliberately excluded from the save request: the first page read lazily
-// stores a safe artifact, and administrator rebuilds can precompute them.
+// Prepare derives plugin usage and invalidates the previous artifact. Rendering is deliberately excluded from the save request: the first page read lazily stores a safe artifact, and administrator rebuilds can precompute them.
 func (p *Preparer) Prepare(_ context.Context, source string) (*pluginusage.Index, domain.PageRender, error) {
 	if p == nil || p.renderer == nil {
 		return nil, domain.PageRender{}, nil

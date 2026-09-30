@@ -512,9 +512,7 @@ func BindMacro[T any](render func(T) (string, error)) MacroRenderer {
 	}
 }
 
-// BoundMacro adapts an existing parser to a request-local renderer. When no
-// binding exists it leaves the invocation literal, unless EmptyWhenUnbound is
-// set to preserve a module's established empty-context behavior.
+// BoundMacro adapts an existing parser to a request-local renderer. When no binding exists it leaves the invocation literal, unless EmptyWhenUnbound is set to preserve a module's established empty-context behavior.
 type BoundMacro[T any] struct {
 	// MacroName is the registered macro identifier.
 	MacroName string

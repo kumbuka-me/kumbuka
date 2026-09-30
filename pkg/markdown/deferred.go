@@ -13,10 +13,7 @@ import (
 // at the expected macro invocation in the saved page revision.
 var ErrDeferredMacroNotFound = errors.New("deferred macro not found")
 
-// ShouldDeferMacro reports whether an enabled macro belongs to a plugin that
-// can perform network HTTP requests. Keeping this policy in the host makes all
-// remote-content macros non-blocking without exposing their credentials or
-// provider URLs to browser code.
+// ShouldDeferMacro reports whether an enabled macro belongs to a plugin that can perform network HTTP requests. Keeping this policy in the host makes all remote-content macros non-blocking without exposing their credentials or provider URLs to browser code.
 func (r *Renderer) ShouldDeferMacro(pluginID, moduleID string) bool {
 	if r == nil || r.manager == nil || pluginID == "" || moduleID == "" {
 		return false
@@ -35,9 +32,7 @@ func (r *Renderer) ShouldDeferMacro(pluginID, moduleID string) bool {
 	return false
 }
 
-// RenderDeferredMacro re-derives one macro invocation from canonical Markdown
-// and renders only that fragment. Callers must authorize the page and verify its
-// revision before invoking this method.
+// RenderDeferredMacro re-derives one macro invocation from canonical Markdown and renders only that fragment. Callers must authorize the page and verify its revision before invoking this method.
 func (r *Renderer) RenderDeferredMacro(
 	source string,
 	index int,
