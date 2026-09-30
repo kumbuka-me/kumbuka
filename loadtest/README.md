@@ -2,7 +2,7 @@
 
 These tests run only against `deploy/compose.loadtest.yaml`. That Compose project has a dedicated PostgreSQL volume, does not publish Kumbuka on a host port, and must never be pointed at a production deployment.
 
-`make loadtest-prepare` starts the isolated stack and seeds a documentation site: the repository README and plugin-development README, plus 48 linked operations guides. The generated guides contain tables, checklists, code blocks, tags, internal links, and references to a reused uploaded PNG fixture. Then run one of:
+`make loadtest-prepare` prepares the isolated stack in a strict order: start Kumbuka and PostgreSQL, complete first-run setup when the database is fresh, then seed a documentation site containing the repository README and plugin-development README plus 48 linked operations guides. The generated guides contain tables, checklists, code blocks, tags, internal links, and references to a reused uploaded PNG fixture. Setup and seeding are preparation only; stress targets restart Kumbuka before monitoring begins. Then run one of:
 
 ```sh
 make loadtest-smoke
@@ -16,6 +16,22 @@ make loadtest-render-stress
 ```
 
 The stack uses Kumbuka's trusted-proxy authentication override solely inside its private Compose network. The k6 scripts provide synthetic identity headers; `seed` is an administrator and workload users are ordinary registered users. The seed reads documentation from this checkout rather than fetching a mutable public site, so benchmark inputs stay reproducible.
+
+## Preparation lifecycle
+
+Preparation is deliberately separate from measured load. The targets form this dependency chain:
+
+```text
+loadtest-up
+  -> loadtest-setup
+  -> loadtest-seed
+  -> loadtest-prepare
+  -> restart Kumbuka
+  -> start monitoring
+  -> run the selected stress profile
+```
+
+`make loadtest-setup` probes `/setup`. A fresh database returns the setup page and is bootstrapped once; an already-prepared database skips setup. `make loadtest-seed` runs only after setup and creates or verifies the benchmark fixtures. `make loadtest-reset` removes the dedicated database volume and therefore exercises the complete setup-and-seed path again.
 
 ## Stress profiles
 

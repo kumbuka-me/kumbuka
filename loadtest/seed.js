@@ -13,40 +13,6 @@ function request(method, path, body) {
   });
 }
 
-function ensureSetup() {
-  // Setup routes only exist while this process still needs its first user.
-  // Probe the GET route first so repeated seeds never POST to an unavailable
-  // setup endpoint and accidentally turn normal routing into a 405 failure.
-  const setupPage = http.get(`${baseURL}/setup`, {
-    redirects: 0,
-    responseCallback: http.expectedStatuses(200, 404),
-  });
-
-  if (setupPage.status === 404) {
-    check(setupPage, {
-      "initial setup was already complete": (r) => r.status === 404,
-    });
-    return;
-  }
-
-  if (setupPage.status !== 200) {
-    fail(`Could not determine setup state (status ${setupPage.status}).`);
-  }
-
-  const setup = http.post(
-    `${baseURL}/setup`,
-    "username=loadtest-admin&email=loadtest-admin%40loadtest.invalid&display_name=Loadtest+Admin&password=loadtest-password&password_confirm=loadtest-password",
-    {
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      redirects: 0,
-      responseCallback: http.expectedStatuses(303),
-    },
-  );
-  if (!check(setup, { "initial setup completed": (r) => r.status === 303 })) {
-    fail(`Could not bootstrap the isolated database (status ${setup.status}).`);
-  }
-}
-
 function architectureImage() {
   const existing = http.get(
     `${baseURL}/api/images?q=loadtest-architecture&scope=mine`,
@@ -82,8 +48,6 @@ export default function () {
   if (!check(health, { "Kumbuka is healthy": (r) => r.status === 200 })) {
     fail("Kumbuka did not become healthy before seed data was created.");
   }
-
-  ensureSetup();
 
   const imageURL = architectureImage();
   for (const page of sitePages(imageURL)) {

@@ -213,12 +213,17 @@ run: dev-build html-pdf mailbridge postgres $(OPEN_BROWSER) ## Build, start serv
 loadtest-up: ## Start the isolated Kumbuka and PostgreSQL load-test stack.
 	$(LOADTEST_COMPOSE) up --build --wait --wait-timeout 120 kumbuka postgres
 
+.PHONY: loadtest-setup
+loadtest-setup: loadtest-up ## Complete first-run setup when the isolated database is fresh.
+	$(LOADTEST_COMPOSE) --profile loadtest run --rm k6 run /scripts/setup.js
+
 .PHONY: loadtest-seed
-loadtest-seed: loadtest-up ## Create or verify the dedicated load-test pages.
+loadtest-seed: loadtest-setup ## Create or verify the dedicated load-test pages after setup.
 	$(LOADTEST_COMPOSE) --profile loadtest run --rm k6 run /scripts/seed.js
 
 .PHONY: loadtest-prepare
-loadtest-prepare: loadtest-up loadtest-seed ## Start the isolated stack and seed its test data.
+loadtest-prepare: loadtest-seed ## Complete setup and seed data before any measured load test.
+	@echo "Load-test preparation complete; stress targets restart Kumbuka before monitoring."
 
 .PHONY: loadtest-smoke
 loadtest-smoke: loadtest-prepare ## Run the one-user load-test correctness check.
