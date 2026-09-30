@@ -105,9 +105,7 @@ type Config struct {
 	// AccessLog enables HTTP request logging.
 	AccessLog bool
 	// Overrides records configuration values explicitly overridden by flags or environment variables.
-	Overrides map[string]any
-	// OverrideOrigins records the exact input that supplied each explicit override.
-	OverrideOrigins map[string]tinyflags.ValueOrigin
+	Overrides tinyflags.Overrides
 }
 
 // Parse parses command-line arguments into application configuration.
@@ -132,8 +130,7 @@ func Parse(args []string, version string) (Config, error) {
 	applyAuthFlags()
 	applyLoggingFlags()
 
-	cfg.Overrides = tf.OverriddenValues()
-	cfg.OverrideOrigins = tf.OverriddenOrigins()
+	cfg.Overrides = tf.Overrides()
 
 	return cfg, nil
 }

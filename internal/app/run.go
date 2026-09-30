@@ -79,7 +79,7 @@ func Run(
 		"commit", commit,
 	)
 	if len(cfg.Overrides) > 0 {
-		setupLogger.Info("CLI Overrides", "event", "cli_overrides", "overrides", cfg.Overrides)
+		setupLogger.Info("CLI Overrides", "event", "cli_overrides", "overrides", cfg.Overrides.Values())
 	}
 
 	// Bind the process lifetime to operating-system shutdown signals.

@@ -688,7 +688,7 @@ func TestRoutePrefix(t *testing.T) {
 		cfg, err := Parse([]string{"--database-url=postgres://example/db"}, "test")
 		require.NoError(t, err)
 		assert.Equal(t, "/kumbuka", cfg.RoutePrefix)
-		assert.Equal(t, "KUMBUKA__ROUTE_PREFIX", cfg.OverrideOrigins["route-prefix"].Key)
+		assert.Equal(t, "KUMBUKA__ROUTE_PREFIX", cfg.Overrides["route-prefix"].Origin.Key)
 		cfg, err = Parse([]string{"--database-url=postgres://example/db", "--route-prefix="}, "test")
 		require.NoError(t, err)
 		assert.Empty(t, cfg.RoutePrefix)

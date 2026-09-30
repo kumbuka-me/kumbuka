@@ -18,10 +18,28 @@ func TestManagedConfigurationUsesExactOrigins(t *testing.T) {
 		ApplicationListenAddress: "127.0.0.1:9090",
 		ManagementListenAddress:  "127.0.0.1:9091",
 		DatabaseURL:              "postgres://example/kumbuka",
-		OverrideOrigins: map[string]tinyflags.ValueOrigin{
-			"listen-address":            {Source: tinyflags.ValueSourceFlag, Key: "-a"},
-			"management-listen-address": {Source: tinyflags.ValueSourceFlag, Key: "-m"},
-			"database-url":              {Source: tinyflags.ValueSourceEnvironment, Key: "CUSTOM_DATABASE_DSN"},
+		Overrides: tinyflags.Overrides{
+			"listen-address": {
+				Value: "127.0.0.1:9090",
+				Origin: tinyflags.ValueOrigin{
+					Source: tinyflags.ValueSourceFlag,
+					Key:    "-a",
+				},
+			},
+			"management-listen-address": {
+				Value: "127.0.0.1:9091",
+				Origin: tinyflags.ValueOrigin{
+					Source: tinyflags.ValueSourceFlag,
+					Key:    "-m",
+				},
+			},
+			"database-url": {
+				Value: "postgres://example/kumbuka",
+				Origin: tinyflags.ValueOrigin{
+					Source: tinyflags.ValueSourceEnvironment,
+					Key:    "CUSTOM_DATABASE_DSN",
+				},
+			},
 		},
 	}
 
@@ -70,8 +88,14 @@ func TestManagedConfigurationReportsDatabaseMaxConns(t *testing.T) {
 
 	cfg := flags.Config{
 		DatabaseMaxConns: 36,
-		OverrideOrigins: map[string]tinyflags.ValueOrigin{
-			"database-max-conns": {Source: tinyflags.ValueSourceEnvironment, Key: "KUMBUKA__DATABASE_MAX_CONNS"},
+		Overrides: tinyflags.Overrides{
+			"database-max-conns": {
+				Value: 36,
+				Origin: tinyflags.ValueOrigin{
+					Source: tinyflags.ValueSourceEnvironment,
+					Key:    "KUMBUKA__DATABASE_MAX_CONNS",
+				},
+			},
 		},
 	}
 	info := New(cfg, false)
@@ -94,8 +118,14 @@ func TestManagedConfigurationReportsDatabaseMinIdleConns(t *testing.T) {
 
 	cfg := flags.Config{
 		DatabaseMinIdleConns: 4,
-		OverrideOrigins: map[string]tinyflags.ValueOrigin{
-			"database-min-idle-conns": {Source: tinyflags.ValueSourceFlag, Key: "--database-min-idle-conns"},
+		Overrides: tinyflags.Overrides{
+			"database-min-idle-conns": {
+				Value: 4,
+				Origin: tinyflags.ValueOrigin{
+					Source: tinyflags.ValueSourceFlag,
+					Key:    "--database-min-idle-conns",
+				},
+			},
 		},
 	}
 	info := New(cfg, false)
@@ -148,8 +178,16 @@ func TestManagedConfigurationReportsDisabledMetrics(t *testing.T) {
 	t.Parallel()
 
 	cfg := flags.Config{
-		DisableMetrics:  true,
-		OverrideOrigins: map[string]tinyflags.ValueOrigin{"disable-metrics": {Source: tinyflags.ValueSourceFlag, Key: "--disable-metrics"}},
+		DisableMetrics: true,
+		Overrides: tinyflags.Overrides{
+			"disable-metrics": {
+				Value: true,
+				Origin: tinyflags.ValueOrigin{
+					Source: tinyflags.ValueSourceFlag,
+					Key:    "--disable-metrics",
+				},
+			},
+		},
 	}
 	info := New(cfg, false)
 
@@ -172,8 +210,14 @@ func TestNewReportsPerformanceDiagnostics(t *testing.T) {
 
 	cfg := flags.Config{
 		PerformanceDiagnostics: true,
-		OverrideOrigins: map[string]tinyflags.ValueOrigin{
-			"performance-diagnostics": {Source: tinyflags.ValueSourceFlag, Key: "--performance-diagnostics"},
+		Overrides: tinyflags.Overrides{
+			"performance-diagnostics": {
+				Value: true,
+				Origin: tinyflags.ValueOrigin{
+					Source: tinyflags.ValueSourceFlag,
+					Key:    "--performance-diagnostics",
+				},
+			},
 		},
 	}
 	info := New(cfg, false)

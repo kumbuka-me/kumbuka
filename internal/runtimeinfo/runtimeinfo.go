@@ -99,7 +99,7 @@ func managedConfigurationItem(cfg flags.Config, name, flagName, value string) we
 	return webview.ManagedConfigurationItem{
 		Name:   name,
 		Value:  value,
-		Source: cfg.OverrideOrigins[flagName].String(),
+		Source: cfg.Overrides[flagName].Origin.String(),
 	}
 }
 

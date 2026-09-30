@@ -58,7 +58,14 @@ func newRestartOIDCFixture(t *testing.T) *restartOIDCFixture {
 		fixture.serveProviderRequest(w, r, key, signer)
 	}))
 	fixture.issuer = fixture.provider.URL
-	fixture.repository = &restartOIDCRepository{user: domain.User{ID: 7, Enabled: true, Role: "viewer", SessionVersion: 1}}
+	fixture.repository = &restartOIDCRepository{
+		user: domain.User{
+			ID:             7,
+			Enabled:        true,
+			Role:           "viewer",
+			SessionVersion: 1,
+		},
+	}
 	fixture.repository.settings.Authentication = domain.AuthenticationSettings{Mode: "oidc", OIDCIssuer: fixture.issuer, OIDCClientID: "kumbuka"}
 	fixture.config = BrowserConfig{OIDC: OIDCConfig{ClientSecret: "client-secret", SessionSecret: strings.Repeat("s", 32), PublicURL: "https://wiki.example"}}
 
