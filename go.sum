@@ -37,8 +37,8 @@ github.com/kaugesaar/lucide-go v0.29.0 h1:Gh79AXj0Md6LBronkHiZSWzIG4Xrq8cf4TAuRi
 github.com/kaugesaar/lucide-go v0.29.0/go.mod h1:XewB1pV8an9xmQ3+x7riCwjCtCrwfeUTaI3fiBhfjbY=
 github.com/klauspost/compress v1.19.1 h1:VsB4HPswih7mmZ8WleSFQ75c/Ui1M4trX5oAsJnhSlk=
 github.com/klauspost/compress v1.19.1/go.mod h1:cwPg85FWrGar70rWktvGQj8/hthj3wpl0PGDogxkrSQ=
-github.com/kumbuka-me/sdk v0.21.0 h1:XiyhJj8JZP+hMh6kGoOcGT6ecwuM+EzRo43uw3NxO3Y=
-github.com/kumbuka-me/sdk v0.21.0/go.mod h1:JRgg5aoAoSwHM2IhVjyVl3fAu8UG3fwZ/CoZ6guc030=
+github.com/kumbuka-me/sdk v0.21.1 h1:tG9cj80fB8oGz3szejA5NtUs1MtjEPFC9+4//Kn6VXg=
+github.com/kumbuka-me/sdk v0.21.1/go.mod h1:JRgg5aoAoSwHM2IhVjyVl3fAu8UG3fwZ/CoZ6guc030=
 github.com/kylelemons/godebug v1.1.0 h1:RPNrshWIDI6G2gRW9EHilWtl7Z6Sb1BR0xunSBf0SNc=
 github.com/kylelemons/godebug v1.1.0/go.mod h1:9/0rRGxNHcop5bhtWyNeEfOS8JIWk580+fNqagV/RAw=
 github.com/microcosm-cc/bluemonday v1.0.27 h1:MpEUotklkwCSLeH+Qdx1VJgNqLlpY2KXwXFM08ygZfk=
