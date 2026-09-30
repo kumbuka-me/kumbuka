@@ -227,3 +227,11 @@ func TestScanPageIgnoresInvalidDerivedPluginUsage(t *testing.T) {
 	require.NoError(t, err)
 	assert.Nil(t, page.PluginUsage)
 }
+
+func TestPageSummarySelectDoesNotLoadMarkdownBodies(t *testing.T) {
+	t.Parallel()
+
+	assert.NotContains(t, pageSummarySelect, "markdown_content")
+	assert.NotContains(t, pageSummarySelect, "plugin_usage")
+	assert.Contains(t, pageSummarySelect, ",p.status")
+}

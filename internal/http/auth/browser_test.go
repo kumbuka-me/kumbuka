@@ -14,10 +14,10 @@ import (
 func TestConfigureBrowserAuth(t *testing.T) {
 	t.Parallel()
 
-	repository := &setupBrowserRepository{setupRequired: true}
+	repository := &setupBrowserRepository{}
 	configured, err := ConfigureBrowserAuth(
 		context.Background(),
-		BrowserConfig{ModeOverride: domain.AuthModeNone},
+		BrowserConfig{ModeOverride: domain.AuthModeNone, SetupRequired: func() bool { return true }},
 		repository,
 	)
 

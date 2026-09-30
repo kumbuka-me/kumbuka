@@ -31,7 +31,7 @@ func (s *trustedProxyRepositoryStub) ApplicationSettings(context.Context) (domai
 	return s.settings, nil
 }
 
-func (s *trustedProxyRepositoryStub) RefreshTrustedProxyUser(_ context.Context, username, _, _ string) (domain.User, error) {
+func (s *trustedProxyRepositoryStub) RefreshTrustedProxyUser(_ context.Context, username, _, _ string, _, _ bool) (domain.User, error) {
 	s.username = username
 	if s.refreshErr != nil {
 		return domain.User{}, s.refreshErr
@@ -42,7 +42,7 @@ func (s *trustedProxyRepositoryStub) RefreshTrustedProxyUser(_ context.Context, 
 	return s.existing, nil
 }
 
-func (s *trustedProxyRepositoryStub) CreateTrustedProxyUser(_ context.Context, username, _, _ string) (domain.User, error) {
+func (s *trustedProxyRepositoryStub) CreateTrustedProxyUser(_ context.Context, username, _, _ string, _, _ bool) (domain.User, error) {
 	s.createCalls++
 	s.username = username
 	return s.created, nil
@@ -52,7 +52,7 @@ func TestTrustedProxyLoginRefreshesExistingUserWithoutRegistrationLookup(t *test
 	t.Parallel()
 
 	repository := &trustedProxyRepositoryStub{existing: domain.User{ID: 7, Username: "alice"}}
-	user, err := NewTrustedProxy(repository, nil).Login(context.Background(), " alice ", "", "")
+	user, err := NewTrustedProxy(repository, nil).Login(context.Background(), " alice ", "", "", false, false)
 
 	require.NoError(t, err)
 	assert.Equal(t, int64(7), user.ID)
@@ -67,7 +67,7 @@ func TestTrustedProxyLoginHonorsPersistedRegistrationPolicy(t *testing.T) {
 		settings: domain.ApplicationSettings{AllowUserRegistration: true},
 		created:  domain.User{ID: 9, Username: "alice"},
 	}
-	user, err := NewTrustedProxy(repository, nil).Login(context.Background(), "alice", "", "")
+	user, err := NewTrustedProxy(repository, nil).Login(context.Background(), "alice", "", "", false, false)
 
 	require.NoError(t, err)
 	assert.Equal(t, int64(9), user.ID)
@@ -80,7 +80,7 @@ func TestTrustedProxyLoginHonorsDeploymentRegistrationOverride(t *testing.T) {
 	repository := &trustedProxyRepositoryStub{
 		settings: domain.ApplicationSettings{AllowUserRegistration: true},
 	}
-	_, err := NewTrustedProxy(repository, utils.ToPtr(false)).Login(context.Background(), "alice", "", "")
+	_, err := NewTrustedProxy(repository, utils.ToPtr(false)).Login(context.Background(), "alice", "", "", false, false)
 
 	assert.ErrorIs(t, err, domain.ErrRegistrationDisabled)
 	assert.Zero(t, repository.createCalls)
@@ -91,7 +91,7 @@ func TestTrustedProxyLoginPreservesRefreshFailure(t *testing.T) {
 
 	failure := errors.New("database unavailable")
 	repository := &trustedProxyRepositoryStub{refreshErr: failure}
-	_, err := NewTrustedProxy(repository, nil).Login(context.Background(), "alice", "", "")
+	_, err := NewTrustedProxy(repository, nil).Login(context.Background(), "alice", "", "", false, false)
 
 	assert.ErrorIs(t, err, failure)
 	assert.Zero(t, repository.createCalls)

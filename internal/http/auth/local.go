@@ -28,6 +28,8 @@ type Local struct {
 	repository localRepository
 	// publicURL determines whether browser cookies require HTTPS.
 	publicURL string
+	// setupCompleted updates process-local setup state after the bootstrap transaction commits.
+	setupCompleted func()
 }
 
 // NewLocal creates the local-login authenticator used by setup and recovery login.
@@ -36,6 +38,12 @@ func NewLocal(repository localRepository, publicURL string) *Local {
 		repository: repository,
 		publicURL:  strings.TrimSpace(publicURL),
 	}
+}
+
+// WithSetupCompleted records the process-local setup transition immediately after bootstrap persistence succeeds.
+func (l *Local) WithSetupCompleted(complete func()) *Local {
+	l.setupCompleted = complete
+	return l
 }
 
 // Authenticate resolves a valid local session cookie.
@@ -176,6 +184,9 @@ func (l *Local) setup(
 	)
 	if err != nil {
 		return domain.User{}, "", err
+	}
+	if l.setupCompleted != nil {
+		l.setupCompleted()
 	}
 
 	token, err = l.createSession(ctx, user.ID, hashToken)

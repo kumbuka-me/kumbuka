@@ -10,8 +10,6 @@ import (
 
 // TrustedProxy authenticates requests using identity headers from a trusted proxy.
 type TrustedProxy struct {
-	// repository persists trusted-proxy authorization state.
-	repository trustedProxyRepository
 	// login resolves trusted identities through application registration policy.
 	login trustedProxyLoginService
 	// headers maps trusted proxy headers to Kumbuka identity fields.
@@ -34,11 +32,10 @@ type TrustedProxyHeaders struct {
 
 // NewTrustedProxy creates a trusted-proxy authenticator.
 func NewTrustedProxy(
-	repository trustedProxyRepository,
 	login trustedProxyLoginService,
 	headers TrustedProxyHeaders,
 ) *TrustedProxy {
-	return &TrustedProxy{repository: repository, login: login, headers: headers}
+	return &TrustedProxy{login: login, headers: headers}
 }
 
 // Authenticate resolves the first populated trusted identity header.
@@ -48,11 +45,20 @@ func (a *TrustedProxy) Authenticate(r *http.Request) (domain.User, error) {
 		return domain.User{}, ErrUnauthenticated
 	}
 
+	adminObserved := a.headers.AdminGroup != ""
+	externalAdmin := false
+	if adminObserved {
+		groups := splitHeaderValues(firstHeader(r, a.headers.Groups))
+		externalAdmin = containsGroup(groups, a.headers.AdminGroup)
+	}
+
 	user, err := a.login.Login(
 		r.Context(),
 		username,
 		firstHeader(r, a.headers.Email),
 		firstHeader(r, a.headers.DisplayName),
+		adminObserved,
+		externalAdmin,
 	)
 	if errors.Is(err, domain.ErrRegistrationDisabled) {
 		return domain.User{}, ErrRegistrationDisabled
@@ -64,13 +70,7 @@ func (a *TrustedProxy) Authenticate(r *http.Request) (domain.User, error) {
 		return domain.User{}, ErrInvalidCredentials
 	}
 
-	if a.headers.AdminGroup != "" {
-		groups := splitHeaderValues(firstHeader(r, a.headers.Groups))
-		externalAdmin := containsGroup(groups, a.headers.AdminGroup)
-		if err := a.repository.SetExternalAdminStatus(r.Context(), user.ID, domain.AuthModeTrustedProxy, externalAdmin); err != nil {
-			return domain.User{}, err
-		}
-
+	if adminObserved {
 		user.ExternalAdmin = externalAdmin
 		if externalAdmin {
 			user.Role = domain.UserRoleAdmin

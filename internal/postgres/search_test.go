@@ -40,3 +40,13 @@ func TestSearchQueryBuilderAppliesFiltersInStableOrder(t *testing.T) {
 	assert.Contains(t, query, "lower(pp.key)=$9 AND pp.value ILIKE $10")
 	assert.Contains(t, query, "LIMIT $11 OFFSET $12")
 }
+
+func TestSearchSummarySQLDoesNotLoadMarkdownBodies(t *testing.T) {
+	t.Parallel()
+
+	builder := newSearchQueryBuilder("seeded")
+	query := builder.summarySQL(50, 0)
+
+	assert.NotContains(t, query, "markdown_content")
+	assert.Contains(t, query, "p.search_vector @@ websearch_to_tsquery")
+}

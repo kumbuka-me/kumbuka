@@ -11,8 +11,8 @@ import (
 // trustedProxyRepository contains persistence required to refresh or create trusted-proxy users.
 type trustedProxyRepository interface {
 	registrationSettingsRepository
-	RefreshTrustedProxyUser(context.Context, string, string, string) (domain.User, error)
-	CreateTrustedProxyUser(context.Context, string, string, string) (domain.User, error)
+	RefreshTrustedProxyUser(context.Context, string, string, string, bool, bool) (domain.User, error)
+	CreateTrustedProxyUser(context.Context, string, string, string, bool, bool) (domain.User, error)
 }
 
 // TrustedProxy owns trusted-proxy identity normalization and registration policy.
@@ -32,7 +32,11 @@ func NewTrustedProxy(repository trustedProxyRepository, registrationOverride *bo
 }
 
 // Login refreshes an existing trusted-proxy account or creates one when registration is enabled.
-func (s *TrustedProxy) Login(ctx context.Context, username, email, displayName string) (domain.User, error) {
+func (s *TrustedProxy) Login(
+	ctx context.Context,
+	username, email, displayName string,
+	adminObserved, externalAdmin bool,
+) (domain.User, error) {
 	username = strings.TrimSpace(username)
 	email = strings.TrimSpace(email)
 	displayName = strings.TrimSpace(displayName)
@@ -40,7 +44,7 @@ func (s *TrustedProxy) Login(ctx context.Context, username, email, displayName s
 		return domain.User{}, domain.NewValidationError("identity", "The trusted proxy must supply a username.")
 	}
 
-	user, err := s.repository.RefreshTrustedProxyUser(ctx, username, email, displayName)
+	user, err := s.repository.RefreshTrustedProxyUser(ctx, username, email, displayName, adminObserved, externalAdmin)
 	if err == nil {
 		return user, nil
 	}
@@ -56,5 +60,5 @@ func (s *TrustedProxy) Login(ctx context.Context, username, email, displayName s
 		return domain.User{}, domain.ErrRegistrationDisabled
 	}
 
-	return s.repository.CreateTrustedProxyUser(ctx, username, email, displayName)
+	return s.repository.CreateTrustedProxyUser(ctx, username, email, displayName, adminObserved, externalAdmin)
 }

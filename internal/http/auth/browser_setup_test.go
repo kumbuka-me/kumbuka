@@ -16,10 +16,10 @@ import (
 type setupBrowserRepository struct {
 	// browserRepository is embedded to provide the default interface behavior for this fixture.
 	browserRepository
-	// settings records the tings passed to set operations.
+	// settings records the settings returned by the fixture.
 	settings domain.ApplicationSettings
-	// setupRequired records the up required passed to set operations.
-	setupRequired bool
+	// settingsCalls counts persisted settings reads.
+	settingsCalls int
 	// localAdminCredential controls or records whether local admin credential is active in the test.
 	localAdminCredential bool
 	// localCredentialChecked controls or records whether local credential checked is active in the test.
@@ -32,16 +32,16 @@ type setupBrowserRepository struct {
 	sessionUser domain.User
 	// sessionHash configures or records the session hash value used by the fixture.
 	sessionHash string
+	// trustedProxyUser is returned by trusted-proxy identity refreshes.
+	trustedProxyUser domain.User
+	// trustedProxyRefreshes counts trusted-proxy identity refresh calls.
+	trustedProxyRefreshes int
 }
 
 // ApplicationSettings returns configured application settings for browser-auth tests.
 func (r *setupBrowserRepository) ApplicationSettings(context.Context) (domain.ApplicationSettings, error) {
+	r.settingsCalls++
 	return r.settings, nil
-}
-
-// SetupRequired returns the configured setup state for browser-auth tests.
-func (r *setupBrowserRepository) SetupRequired(context.Context) (bool, error) {
-	return r.setupRequired, nil
 }
 
 // HasLocalAdministratorCredential records and returns local administrator credential availability.
@@ -54,6 +54,19 @@ func (r *setupBrowserRepository) HasLocalAdministratorCredential(context.Context
 func (r *setupBrowserRepository) OIDCGroupMappings(context.Context) ([]domain.OIDCGroupMapping, error) {
 	r.oidcMappingsChecked = true
 	return nil, r.oidcMappingsErr
+}
+
+// RefreshTrustedProxyUser records a trusted-proxy steady-state authentication lookup.
+func (r *setupBrowserRepository) RefreshTrustedProxyUser(
+	_ context.Context,
+	_, _, _ string,
+	_, _ bool,
+) (domain.User, error) {
+	r.trustedProxyRefreshes++
+	if r.trustedProxyUser.ID == 0 {
+		return domain.User{}, domain.ErrNotFound
+	}
+	return r.trustedProxyUser, nil
 }
 
 // LocalUserBySession records the looked-up session hash and returns the configured user.
@@ -74,10 +87,13 @@ func TestConfigureBrowserAuthAllowsSetupWithStaleLocalMode(t *testing.T) {
 		settings: domain.ApplicationSettings{
 			Authentication: domain.AuthenticationSettings{Mode: domain.AuthModeLocal},
 		},
-		setupRequired: true,
 	}
 
-	configured, err := ConfigureBrowserAuth(context.Background(), BrowserConfig{}, repository)
+	configured, err := ConfigureBrowserAuth(
+		context.Background(),
+		BrowserConfig{SetupRequired: func() bool { return true }},
+		repository,
+	)
 
 	require.NoError(t, err)
 	assert.NotNil(t, configured.Authenticator)
@@ -88,11 +104,11 @@ func TestConfigureBrowserAuthAllowsSetupWithStaleLocalMode(t *testing.T) {
 func TestConfigureBrowserAuthAllowsSetupWithRuntimeOIDCOverride(t *testing.T) {
 	t.Parallel()
 
-	repository := &setupBrowserRepository{setupRequired: true}
+	repository := &setupBrowserRepository{}
 
 	configured, err := ConfigureBrowserAuth(
 		context.Background(),
-		BrowserConfig{ModeOverride: domain.AuthModeOIDC},
+		BrowserConfig{ModeOverride: domain.AuthModeOIDC, SetupRequired: func() bool { return true }},
 		repository,
 	)
 
@@ -109,9 +125,8 @@ func TestBrowserLoginRedirectsSetupWithStaleLocalMode(t *testing.T) {
 		settings: domain.ApplicationSettings{
 			Authentication: domain.AuthenticationSettings{Mode: domain.AuthModeLocal},
 		},
-		setupRequired: true,
 	}
-	browser := &browserAuthenticator{repository: repository}
+	browser := &browserAuthenticator{repository: repository, setupRequired: func() bool { return true }}
 	response := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodGet, "/auth/login", nil)
 
@@ -125,10 +140,11 @@ func TestBrowserLoginRedirectsSetupWithStaleLocalMode(t *testing.T) {
 func TestBrowserLoginRedirectsSetupWithRuntimeOIDCOverride(t *testing.T) {
 	t.Parallel()
 
-	repository := &setupBrowserRepository{setupRequired: true}
+	repository := &setupBrowserRepository{}
 	browser := &browserAuthenticator{
-		repository:   repository,
-		modeOverride: domain.AuthModeOIDC,
+		repository:    repository,
+		modeOverride:  domain.AuthModeOIDC,
+		setupRequired: func() bool { return true },
 	}
 	response := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodGet, "/auth/login", nil)
@@ -145,7 +161,6 @@ func TestBrowserAuthenticateUsesBootstrapSessionWithRuntimeOverride(t *testing.T
 
 	const token = "setup-bootstrap-token"
 	repository := &setupBrowserRepository{
-		setupRequired: false,
 		sessionUser: domain.User{
 			ID:      7,
 			Role:    "admin",
@@ -172,7 +187,7 @@ func TestBrowserAuthenticateUsesBootstrapSessionWithRuntimeOverride(t *testing.T
 func TestBrowserValidationStillRequiresLocalAdministratorAfterSetup(t *testing.T) {
 	t.Parallel()
 
-	repository := &setupBrowserRepository{setupRequired: false}
+	repository := &setupBrowserRepository{}
 	browser := &browserAuthenticator{repository: repository}
 
 	err := browser.validate(context.Background(), domain.AuthenticationSettings{Mode: domain.AuthModeLocal})
@@ -252,6 +267,7 @@ func TestBrowserCurrentSettingsOverlaysRuntimeManagedFields(t *testing.T) {
 		settings, err := browser.currentSettings(context.Background())
 
 		require.NoError(t, err)
+		assert.Zero(t, repository.settingsCalls)
 		assert.False(t, repository.oidcMappingsChecked)
 		assert.Equal(t, domain.AuthModeTrustedProxy, settings.Mode)
 		assert.Equal(t, []string{"Runtime-User"}, settings.TrustedUsernameHeaders)
@@ -260,4 +276,29 @@ func TestBrowserCurrentSettingsOverlaysRuntimeManagedFields(t *testing.T) {
 		assert.Equal(t, []string{"Runtime-Groups"}, settings.TrustedGroupHeaders)
 		assert.Equal(t, "runtime-admins", settings.TrustedAdminGroup)
 	})
+}
+
+// TestRuntimeTrustedProxyAuthenticateDoesNotReadApplicationSettings verifies a fixed deployment mode stays off the settings query path.
+func TestRuntimeTrustedProxyAuthenticateDoesNotReadApplicationSettings(t *testing.T) {
+	t.Parallel()
+
+	repository := &setupBrowserRepository{trustedProxyUser: domain.User{ID: 7, Username: "reader", Enabled: true}}
+	configured, err := ConfigureBrowserAuth(
+		context.Background(),
+		BrowserConfig{
+			ModeOverride: domain.AuthModeTrustedProxy,
+			TrustedProxy: TrustedProxyHeaders{Username: []string{"X-User"}},
+		},
+		repository,
+	)
+	require.NoError(t, err)
+
+	request := httptest.NewRequest(http.MethodGet, "/api/pages/example", nil)
+	request.Header.Set("X-User", "reader")
+	user, err := configured.Authenticator.Authenticate(request)
+
+	require.NoError(t, err)
+	assert.Equal(t, int64(7), user.ID)
+	assert.Equal(t, 1, repository.trustedProxyRefreshes)
+	assert.Zero(t, repository.settingsCalls)
 }

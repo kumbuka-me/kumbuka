@@ -22,6 +22,14 @@ LEFT JOIN users u ON u.id=p.updated_by
 LEFT JOIN page_tags pt ON pt.page_id=p.id
 LEFT JOIN tags t ON t.id=pt.tag_id`
 
+const pageSummarySelect = `
+SELECT p.id,p.slug,p.title,coalesce(max(ni.icon),''),coalesce(p.created_by,0),coalesce(p.updated_by,0),coalesce(u.display_name,u.username,''),p.created_at,p.updated_at,p.view_count,coalesce(array_agg(t.name ORDER BY t.name) FILTER (WHERE t.name IS NOT NULL),'{}'),p.status
+FROM pages p
+LEFT JOIN navigation_icons ni ON ni.path=p.slug
+LEFT JOIN users u ON u.id=p.updated_by
+LEFT JOIN page_tags pt ON pt.page_id=p.id
+LEFT JOIN tags t ON t.id=pt.tag_id`
+
 // scanPage scans the common page projection and normalizes missing rows.
 func scanPage(row pgx.Row) (domain.Page, error) {
 	var p domain.Page
@@ -43,11 +51,8 @@ func scanPage(row pgx.Row) (domain.Page, error) {
 		&pluginUsage,
 	)
 
-	if err == nil && len(pluginUsage) != 0 {
-		var usage pluginusage.Index
-		if json.Unmarshal(pluginUsage, &usage) == nil {
-			p.PluginUsage = &usage
-		}
+	if err == nil {
+		decodePagePluginUsage(&p, pluginUsage)
 	}
 
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -57,30 +62,103 @@ func scanPage(row pgx.Row) (domain.Page, error) {
 	return p, err
 }
 
-// GetPage returns a page by slug.
-func (s *Store) GetPage(ctx context.Context, slug string) (domain.Page, error) {
-	page, err := scanPage(
-		s.importQuery(ctx).QueryRow(ctx, pageSelect+`
-WHERE p.slug=$1 AND p.deleted_at IS NULL
-GROUP BY p.id,u.id`, slug),
-	)
-	if err != nil {
-		return domain.Page{}, err
-	}
-
-	page.Groups, err = s.PageGroups(ctx, page.ID)
-	if err != nil {
-		return domain.Page{}, err
-	}
-	var renderedContents json.RawMessage
-	if err := s.importQuery(ctx).QueryRow(ctx, `
-SELECT p.content_language,p.status,coalesce(p.owner_group_id,0),coalesce(g.name,''),p.last_reviewed_at,p.review_interval_days,p.deprecated_target,
-       p.rendered_html,p.rendered_contents,p.render_fingerprint
-FROM pages p
-LEFT JOIN wiki_groups g ON g.id=p.owner_group_id
-WHERE p.id=$1`, page.ID).Scan(
-		&page.Language,
+// scanPageSummary scans the body-free projection used by list-style reads.
+func scanPageSummary(row pgx.Row) (domain.Page, error) {
+	var page domain.Page
+	err := row.Scan(
+		&page.ID,
+		&page.Slug,
+		&page.Title,
+		&page.Icon,
+		&page.CreatedBy,
+		&page.UpdatedBy,
+		&page.Author,
+		&page.CreatedAt,
+		&page.UpdatedAt,
+		&page.ViewCount,
+		&page.Tags,
 		&page.Status,
+	)
+	if errors.Is(err, pgx.ErrNoRows) {
+		err = domain.ErrNotFound
+	}
+	return page, err
+}
+
+// GetPage returns one complete page in a single PostgreSQL round trip.
+func (s *Store) GetPage(ctx context.Context, slug string) (domain.Page, error) {
+	var page domain.Page
+	var pluginUsage json.RawMessage
+	var renderedContents json.RawMessage
+	var groups json.RawMessage
+	var properties json.RawMessage
+
+	err := s.importQuery(ctx).QueryRow(ctx, `
+SELECT
+  p.id,
+  p.slug,
+  p.title,
+  coalesce((SELECT ni.icon FROM navigation_icons ni WHERE ni.path=p.slug LIMIT 1),''),
+  p.markdown_content,
+  coalesce(p.created_by,0),
+  coalesce(p.updated_by,0),
+  coalesce(u.display_name,u.username,''),
+  p.created_at,
+  p.updated_at,
+  p.view_count,
+  coalesce((
+    SELECT array_agg(t.name ORDER BY t.name)
+    FROM page_tags pt
+    JOIN tags t ON t.id=pt.tag_id
+    WHERE pt.page_id=p.id
+  ),'{}'),
+  p.status,
+  p.plugin_usage,
+  p.content_language,
+  coalesce(p.owner_group_id,0),
+  coalesce(owner.name,''),
+  p.last_reviewed_at,
+  p.review_interval_days,
+  p.deprecated_target,
+  p.rendered_html,
+  p.rendered_contents,
+  p.render_fingerprint,
+  coalesce((
+    SELECT jsonb_agg(
+      jsonb_build_object('id',g.id,'name',g.name)
+      ORDER BY lower(g.name),g.id
+    )
+    FROM page_groups pg
+    JOIN wiki_groups g ON g.id=pg.group_id
+    WHERE pg.page_id=p.id
+  ),'[]'::jsonb),
+  coalesce((
+    SELECT jsonb_agg(
+      jsonb_build_object('key',pp.key,'value',pp.value)
+      ORDER BY lower(pp.key),pp.key
+    )
+    FROM page_properties pp
+    WHERE pp.page_id=p.id
+  ),'[]'::jsonb)
+FROM pages p
+LEFT JOIN users u ON u.id=p.updated_by
+LEFT JOIN wiki_groups owner ON owner.id=p.owner_group_id
+WHERE p.slug=$1 AND p.deleted_at IS NULL`, slug).Scan(
+		&page.ID,
+		&page.Slug,
+		&page.Title,
+		&page.Icon,
+		&page.Markdown,
+		&page.CreatedBy,
+		&page.UpdatedBy,
+		&page.Author,
+		&page.CreatedAt,
+		&page.UpdatedAt,
+		&page.ViewCount,
+		&page.Tags,
+		&page.Status,
+		&pluginUsage,
+		&page.Language,
 		&page.OwnerGroupID,
 		&page.OwnerGroup,
 		&page.LastReviewedAt,
@@ -89,10 +167,17 @@ WHERE p.id=$1`, page.ID).Scan(
 		&page.Render.HTML,
 		&renderedContents,
 		&page.Render.Fingerprint,
-	); err != nil {
+		&groups,
+		&properties,
+	)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return domain.Page{}, domain.ErrNotFound
+	}
+	if err != nil {
 		return domain.Page{}, err
 	}
 
+	decodePagePluginUsage(&page, pluginUsage)
 	if len(renderedContents) != 0 {
 		if err := json.Unmarshal(renderedContents, &page.Render.Contents); err != nil {
 			// Render artifacts are derived data. Corrupt metadata must fall back to
@@ -100,13 +185,31 @@ WHERE p.id=$1`, page.ID).Scan(
 			page.Render = domain.PageRender{}
 		}
 	}
-
-	page.Properties, err = s.PageProperties(ctx, page.ID)
-	if err != nil {
-		return domain.Page{}, err
+	if err := json.Unmarshal(groups, &page.Groups); err != nil {
+		return domain.Page{}, fmt.Errorf("decode page groups: %w", err)
+	}
+	if len(page.Groups) == 0 {
+		page.Groups = nil
+	}
+	if err := json.Unmarshal(properties, &page.Properties); err != nil {
+		return domain.Page{}, fmt.Errorf("decode page properties: %w", err)
+	}
+	if len(page.Properties) == 0 {
+		page.Properties = nil
 	}
 
 	return page, nil
+}
+
+// decodePagePluginUsage restores optional rebuildable plugin-usage metadata.
+func decodePagePluginUsage(page *domain.Page, raw json.RawMessage) {
+	if len(raw) == 0 {
+		return
+	}
+	var usage pluginusage.Index
+	if json.Unmarshal(raw, &usage) == nil {
+		page.PluginUsage = &usage
+	}
 }
 
 // SavePageRender replaces the reusable render artifact when the page has not changed since it was read. A concurrent edit simply makes this refresh a no-op.
@@ -136,7 +239,7 @@ func (s *Store) ListPages(ctx context.Context, limit int) ([]domain.Page, error)
 func (s *Store) ListPagesPage(ctx context.Context, limit, offset int) ([]domain.Page, error) {
 	rows, err := s.pool.Query(
 		ctx,
-		pageSelect+`
+		pageSummarySelect+`
 WHERE p.deleted_at IS NULL
 GROUP BY p.id,u.id
 ORDER BY p.updated_at DESC,p.id DESC
@@ -150,7 +253,7 @@ LIMIT $1 OFFSET $2`,
 
 	defer rows.Close()
 
-	return collectPages(rows)
+	return collectPageSummaries(rows)
 }
 
 // NavigationPages returns the minimal page data required to build navigation.
@@ -194,6 +297,19 @@ func collectPages(rows pgx.Rows) ([]domain.Page, error) {
 		out = append(out, p)
 	}
 
+	return out, rows.Err()
+}
+
+// collectPageSummaries scans body-free page rows.
+func collectPageSummaries(rows pgx.Rows) ([]domain.Page, error) {
+	var out []domain.Page
+	for rows.Next() {
+		page, err := scanPageSummary(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, page)
+	}
 	return out, rows.Err()
 }
 

@@ -19,6 +19,10 @@ type BrowserConfig struct {
 	LocalLoginEnabled bool
 	// AllowUserRegistrationOverride overrides the persisted external-user registration policy when non-nil.
 	AllowUserRegistrationOverride *bool
+	// SetupRequired reports process-local first-run setup state without database I/O.
+	SetupRequired func() bool
+	// SetupCompleted marks process-local setup complete immediately after the bootstrap transaction commits.
+	SetupCompleted func()
 }
 
 // OIDCConfig contains the settings required for the OIDC authorization flow.

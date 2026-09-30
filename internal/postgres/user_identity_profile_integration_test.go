@@ -60,9 +60,9 @@ func TestOIDCProfileSyncOverrideAndRevert(t *testing.T) {
 
 func TestTrustedProxyProfileSyncOverrideAndRevert(t *testing.T) {
 	database, ctx := profileTestStore(t)
-	_, err := database.CreateTrustedProxyUser(ctx, "proxy-alice", "alice@example.test", "Alice")
+	_, err := database.CreateTrustedProxyUser(ctx, "proxy-alice", "alice@example.test", "Alice", false, false)
 	require.NoError(t, err)
-	user, err := database.RefreshTrustedProxyUser(ctx, "proxy-alice", "alice-new@example.test", "Alice New")
+	user, err := database.RefreshTrustedProxyUser(ctx, "proxy-alice", "alice-new@example.test", "Alice New", false, false)
 	require.NoError(t, err)
 	assert.Equal(t, "alice-new@example.test", user.Email)
 	assert.Equal(t, "Alice New", user.DisplayName)
@@ -70,7 +70,7 @@ func TestTrustedProxyProfileSyncOverrideAndRevert(t *testing.T) {
 	require.NoError(t, database.UpdateUserAccount(ctx, domain.UserAccountUpdate{
 		UserID: user.ID, Email: utils.ToPtr("local@example.test"), DisplayName: utils.ToPtr("Local Alice"), Role: user.Role, Enabled: true,
 	}))
-	user, err = database.RefreshTrustedProxyUser(ctx, "proxy-alice", "provider@example.test", "Provider Alice")
+	user, err = database.RefreshTrustedProxyUser(ctx, "proxy-alice", "provider@example.test", "Provider Alice", false, false)
 	require.NoError(t, err)
 	assert.Equal(t, "local@example.test", user.Email)
 	assert.Equal(t, "Local Alice", user.DisplayName)
@@ -95,19 +95,19 @@ func TestTrustedProxyProfileSyncOverrideAndRevert(t *testing.T) {
 
 func TestTrustedProxyRelinkRejectsDuplicatesAndUsesOnlyIdentityKey(t *testing.T) {
 	database, ctx := profileTestStore(t)
-	alice, err := database.CreateTrustedProxyUser(ctx, "proxy-carol", "carol@example.test", "Carol")
+	alice, err := database.CreateTrustedProxyUser(ctx, "proxy-carol", "carol@example.test", "Carol", false, false)
 	require.NoError(t, err)
-	bob, err := database.CreateTrustedProxyUser(ctx, "proxy-dave", "dave@example.test", "Dave")
+	bob, err := database.CreateTrustedProxyUser(ctx, "proxy-dave", "dave@example.test", "Dave", false, false)
 	require.NoError(t, err)
 
 	assert.ErrorIs(t, database.RelinkTrustedProxyIdentity(ctx, alice.ID, "proxy-dave"), domain.ErrAlreadyExists)
 	require.NoError(t, database.RelinkTrustedProxyIdentity(ctx, alice.ID, "proxy-carol-new"))
 
-	_, err = database.RefreshTrustedProxyUser(ctx, "proxy-carol", "dave@example.test", "Spoof")
+	_, err = database.RefreshTrustedProxyUser(ctx, "proxy-carol", "dave@example.test", "Spoof", false, false)
 	assert.ErrorIs(t, err, domain.ErrRegistrationDisabled)
-	_, err = database.CreateTrustedProxyUser(ctx, "proxy-carol", "dave@example.test", "Spoof")
+	_, err = database.CreateTrustedProxyUser(ctx, "proxy-carol", "dave@example.test", "Spoof", false, false)
 	assert.ErrorIs(t, err, domain.ErrRegistrationDisabled)
-	resolved, err := database.RefreshTrustedProxyUser(ctx, "proxy-carol-new", "dave@example.test", "Carol Again")
+	resolved, err := database.RefreshTrustedProxyUser(ctx, "proxy-carol-new", "dave@example.test", "Carol Again", false, false)
 	require.NoError(t, err)
 	assert.Equal(t, alice.ID, resolved.ID)
 	assert.NotEqual(t, bob.ID, resolved.ID)

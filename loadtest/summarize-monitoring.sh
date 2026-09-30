@@ -32,12 +32,14 @@ if [ -s "$metrics_file" ]; then
       samples++
       if (samples == 1) {
         first_requests = sample_requests
+        first_acquires = sample_acquires
         first_empty_acquires = sample_empty_acquires
         first_canceled_acquires = sample_canceled_acquires
         first_acquire_seconds = sample_acquire_seconds
         first_empty_wait_seconds = sample_empty_wait_seconds
       }
       last_requests = sample_requests
+      last_acquires = sample_acquires
       last_empty_acquires = sample_empty_acquires
       last_canceled_acquires = sample_canceled_acquires
       last_acquire_seconds = sample_acquire_seconds
@@ -47,6 +49,7 @@ if [ -s "$metrics_file" ]; then
       finish_sample()
       in_sample = 1
       sample_requests = 0
+      sample_acquires = 0
       sample_empty_acquires = 0
       sample_canceled_acquires = 0
       sample_acquire_seconds = 0
@@ -73,6 +76,7 @@ if [ -s "$metrics_file" ]; then
       if ($2 + 0 > max_db_total) max_db_total = $2 + 0
     }
     /^kumbuka_postgres_pool_max_connections / { db_max = $2 + 0 }
+    /^kumbuka_postgres_pool_acquires_total / { sample_acquires = $2 + 0 }
     /^kumbuka_postgres_pool_empty_acquires_total / { sample_empty_acquires = $2 + 0 }
     /^kumbuka_postgres_pool_canceled_acquires_total / { sample_canceled_acquires = $2 + 0 }
     /^kumbuka_postgres_pool_acquire_duration_seconds_total / { sample_acquire_seconds = $2 + 0 }
@@ -80,11 +84,13 @@ if [ -s "$metrics_file" ]; then
     END {
       finish_sample()
       request_delta = last_requests - first_requests
+      acquires_delta = last_acquires - first_acquires
       empty_delta = last_empty_acquires - first_empty_acquires
       canceled_delta = last_canceled_acquires - first_canceled_acquires
       acquire_delta = last_acquire_seconds - first_acquire_seconds
       empty_wait_delta = last_empty_wait_seconds - first_empty_wait_seconds
       if (request_delta < 0) request_delta = 0
+      if (acquires_delta < 0) acquires_delta = 0
       if (empty_delta < 0) empty_delta = 0
       if (canceled_delta < 0) canceled_delta = 0
       if (acquire_delta < 0) acquire_delta = 0
@@ -96,6 +102,9 @@ if [ -s "$metrics_file" ]; then
       printf "  HTTP requests during run:   %.0f\n", request_delta
       if (db_max > 0 || max_db_total > 0) {
         printf "  PostgreSQL pool peak:       %.0f acquired / %.0f total / %.0f max\n", max_db_acquired, max_db_total, db_max
+        printf "  PostgreSQL acquisitions:    %.0f during run\n", acquires_delta
+        if (request_delta > 0)
+          printf "  PostgreSQL acquires/request: %.3f\n", acquires_delta / request_delta
         printf "  PostgreSQL empty acquires:  %.0f during run\n", empty_delta
         printf "  PostgreSQL canceled acquires: %.0f during run\n", canceled_delta
         printf "  PostgreSQL acquire time:    %.3f s during run\n", acquire_delta
@@ -104,3 +113,4 @@ if [ -s "$metrics_file" ]; then
     }
   ' "$metrics_file"
 fi
+

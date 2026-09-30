@@ -22,7 +22,7 @@ func (s searchRepositoryStub) ListPagesPage(_ context.Context, limit, offset int
 	return pageWindow(s.pages, limit, offset), nil
 }
 
-func (s searchRepositoryStub) SearchPage(_ context.Context, _ searchquery.Query, limit, offset int) ([]domain.Page, error) {
+func (s searchRepositoryStub) SearchPageSummary(_ context.Context, _ searchquery.Query, limit, offset int) ([]domain.Page, error) {
 	return pageWindow(s.pages, limit, offset), nil
 }
 

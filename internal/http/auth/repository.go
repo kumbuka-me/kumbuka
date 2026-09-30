@@ -19,12 +19,7 @@ type noneRepository interface {
 
 // trustedProxyLoginService resolves trusted-proxy profiles through application registration policy.
 type trustedProxyLoginService interface {
-	Login(context.Context, string, string, string) (domain.User, error)
-}
-
-// trustedProxyRepository persists authorization state for trusted-proxy identities.
-type trustedProxyRepository interface {
-	SetExternalAdminStatus(context.Context, int64, domain.AuthMode, bool) error
+	Login(context.Context, string, string, string, bool, bool) (domain.User, error)
 }
 
 // localRepository persists local credentials and browser sessions.
@@ -54,12 +49,10 @@ type browserRepository interface {
 	localRepository
 	noneRepository
 	oidcRepository
-	trustedProxyRepository
 	ApplicationSettings(context.Context) (domain.ApplicationSettings, error)
 	ResolveOIDCLogin(context.Context, string, string, string, string, string, bool) (domain.User, error)
-	RefreshTrustedProxyUser(context.Context, string, string, string) (domain.User, error)
-	CreateTrustedProxyUser(context.Context, string, string, string) (domain.User, error)
+	RefreshTrustedProxyUser(context.Context, string, string, string, bool, bool) (domain.User, error)
+	CreateTrustedProxyUser(context.Context, string, string, string, bool, bool) (domain.User, error)
 	HasLocalAdministratorCredential(context.Context) (bool, error)
 	OIDCGroupMappings(context.Context) ([]domain.OIDCGroupMapping, error)
-	SetupRequired(context.Context) (bool, error)
 }

@@ -22,15 +22,24 @@ func registerPublicRoutes(mux *http.ServeMux, config Config) {
 	mux.Handle("GET /brand/logo", endpoint.BrandLogo(config.Settings, config.Assets, config.Logger))
 	mux.Handle("GET /auth/login", browserAuth.Login)
 
-	localLogin := endpoint.LocalLogin(config.Settings, config.System, browserAuth, config.Views)
+	localLogin := endpoint.LocalLogin(config.System, browserAuth, config.Views)
 	mux.Handle("GET /auth/local", localLogin)
 	mux.Handle("POST /auth/local", localLogin)
 
-	setup := endpoint.Setup(config.Settings, config.System, browserAuth, config.Views)
-	mux.Handle("GET /setup", setup)
-	mux.Handle("POST /setup", setup)
+	registerSetupRoutes(mux, config)
 
 	if browserAuth.Callback != nil {
 		mux.Handle("GET /auth/callback", browserAuth.Callback)
 	}
+}
+
+// registerSetupRoutes exposes first-run bootstrap only for processes started before setup completed.
+func registerSetupRoutes(mux *http.ServeMux, config Config) {
+	if !config.System.SetupRequired() {
+		return
+	}
+
+	setup := endpoint.Setup(config.System, config.BrowserAuth, config.Views)
+	mux.Handle("GET /setup", setup)
+	mux.Handle("POST /setup", setup)
 }

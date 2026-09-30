@@ -21,7 +21,6 @@ import (
 type prefixSystemRepository struct{}
 
 func (prefixSystemRepository) Ping(context.Context) error                  { return nil }
-func (prefixSystemRepository) SetupRequired(context.Context) (bool, error) { return false, nil }
 func (prefixSystemRepository) DatabaseSize(context.Context) (int64, error) { return 0, nil }
 func (prefixSystemRepository) LogAudit(context.Context, int64, string, string, string, string) error {
 	return nil
@@ -49,7 +48,7 @@ func TestDeploymentPrefix(t *testing.T) {
 			config := Config{
 				InfrastructureConfig: InfrastructureConfig{RoutePrefix: prefix, Assets: web.Assets, Views: views, Renderer: markdown.NewWithRegistry(nil), Logger: logger, MetricsEnabled: true, Metrics: prefixMetrics{}},
 				AuthenticationConfig: AuthenticationConfig{BrowserAuth: auth.BrowserAuth{Authenticator: prefixAuthenticator{}, Login: http.NotFoundHandler()}, BearerAuth: prefixAuthenticator{}},
-				AdministrationConfig: AdministrationConfig{System: appsystem.NewSystem(prefixSystemRepository{}, slog.Default())},
+				AdministrationConfig: AdministrationConfig{System: appsystem.NewSystem(prefixSystemRepository{}, slog.Default(), appsystem.NewSetupState(false))},
 			}
 			handler := New(config)
 			for _, path := range []string{"/healthz", "/metrics", "/assets/v-test/favicon.svg", "/plugins/runtime.js", "/sw.js"} {

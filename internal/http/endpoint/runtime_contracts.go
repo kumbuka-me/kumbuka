@@ -29,7 +29,7 @@ type databaseInfoService interface {
 // systemService owns health and initial-setup application state.
 type systemService interface {
 	Ping(context.Context) error
-	SetupRequired(context.Context) (bool, error)
+	SetupRequired() bool
 	RecordSetupCompleted(context.Context, domain.User)
 }
 

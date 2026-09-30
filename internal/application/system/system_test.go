@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"testing"
 
+	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -23,8 +24,6 @@ func (s systemRepositoryStub) DatabaseSize(context.Context) (int64, error) {
 
 func (systemRepositoryStub) Ping(context.Context) error { return nil }
 
-func (systemRepositoryStub) SetupRequired(context.Context) (bool, error) { return false, nil }
-
 func (systemRepositoryStub) LogAudit(context.Context, int64, string, string, string, string) error {
 	return nil
 }
@@ -35,11 +34,24 @@ func TestDatabaseSize(t *testing.T) {
 	t.Run("returns repository size", func(t *testing.T) {
 		t.Parallel()
 
-		system := NewSystem(systemRepositoryStub{databaseSize: 192 * 1024 * 1024}, slog.Default())
+		system := NewSystem(systemRepositoryStub{databaseSize: 192 * 1024 * 1024}, slog.Default(), NewSetupState(false))
 
 		size, err := system.DatabaseSize(context.Background())
 
 		require.NoError(t, err)
 		assert.Equal(t, int64(192*1024*1024), size)
 	})
+}
+
+func TestSetupStateCompletesWithoutRepositoryPolling(t *testing.T) {
+	t.Parallel()
+
+	state := NewSetupState(true)
+	system := NewSystem(systemRepositoryStub{}, slog.Default(), state)
+
+	assert.True(t, system.SetupRequired())
+
+	system.RecordSetupCompleted(context.Background(), domain.User{ID: 7, Username: "admin"})
+
+	assert.False(t, system.SetupRequired())
 }

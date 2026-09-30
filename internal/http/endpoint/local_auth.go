@@ -15,12 +15,16 @@ import (
 
 // LocalLogin renders and processes the optional Kumbuka-managed sign-in flow.
 func LocalLogin(
-	settingsUseCases settingsService,
 	systemUseCases systemService,
 	browserAuth auth.BrowserAuth,
 	views *webview.Views,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if systemUseCases.SetupRequired() {
+			route.Redirect(w, r, "/setup", http.StatusFound)
+			return
+		}
+
 		allowed, err := browserAuth.LocalLoginAllowed(r.Context())
 		if err != nil {
 			httpresponse.InternalServerError(views.Logger(), w, err)
@@ -28,22 +32,6 @@ func LocalLogin(
 		}
 		if !allowed {
 			httpresponse.Problem(w, http.StatusNotFound, "Not found.")
-			return
-		}
-
-		settings, err := settingsUseCases.ApplicationSettings(r.Context())
-		if err != nil {
-			httpresponse.InternalServerError(views.Logger(), w, err)
-			return
-		}
-
-		required, err := systemUseCases.SetupRequired(r.Context())
-		if err != nil {
-			httpresponse.InternalServerError(views.Logger(), w, err)
-			return
-		}
-		if required && settings.Authentication.Mode == domain.AuthModeNone {
-			route.Redirect(w, r, "/setup", http.StatusFound)
 			return
 		}
 
@@ -80,28 +68,12 @@ func LocalLogin(
 
 // Setup renders and processes the one-time first-administrator bootstrap.
 func Setup(
-	settingsUseCases settingsService,
 	systemUseCases systemService,
 	browserAuth auth.BrowserAuth,
 	views *webview.Views,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		settings, err := settingsUseCases.ApplicationSettings(r.Context())
-		if err != nil {
-			httpresponse.InternalServerError(views.Logger(), w, err)
-			return
-		}
-		if settings.Authentication.Mode != domain.AuthModeNone {
-			httpresponse.Problem(w, http.StatusNotFound, "Not found.")
-			return
-		}
-
-		required, err := systemUseCases.SetupRequired(r.Context())
-		if err != nil {
-			httpresponse.InternalServerError(views.Logger(), w, err)
-			return
-		}
-		if !required {
+		if !systemUseCases.SetupRequired() {
 			httpresponse.Problem(w, http.StatusNotFound, "Not found.")
 			return
 		}

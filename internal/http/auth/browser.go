@@ -16,7 +16,7 @@ import (
 	"golang.org/x/net/http/httpguts"
 )
 
-// browserAuthenticator resolves the database-managed browser authentication mode per request.
+// browserAuthenticator resolves the effective browser authentication mode while reusing deployment-fixed adapters.
 type browserAuthenticator struct {
 	// repository loads authentication settings and persists authenticated identities.
 	repository browserRepository
@@ -36,6 +36,10 @@ type browserAuthenticator struct {
 	trustedProxyLogin trustedProxyLoginService
 	// localLoginEnabled exposes local recovery login alongside another effective mode.
 	localLoginEnabled bool
+	// setupRequired reports process-local first-run setup state without request-time database access.
+	setupRequired func() bool
+	// overrideAuthenticator is the prebuilt authenticator for fixed non-OIDC runtime modes.
+	overrideAuthenticator Authenticator
 
 	// mu protects the cached OIDC integration and its settings key.
 	mu sync.Mutex
@@ -57,10 +61,11 @@ func ConfigureBrowserAuth(
 		trustedProxy:      config.TrustedProxy,
 		oidcConfig:        config.OIDC,
 		none:              NewNone(repository),
-		local:             NewLocal(repository, config.OIDC.PublicURL),
+		local:             NewLocal(repository, config.OIDC.PublicURL).WithSetupCompleted(config.SetupCompleted),
 		oidcLogin:         appauthentication.NewOIDC(repository, config.AllowUserRegistrationOverride),
 		trustedProxyLogin: appauthentication.NewTrustedProxy(repository, config.AllowUserRegistrationOverride),
 		localLoginEnabled: config.LocalLoginEnabled,
+		setupRequired:     config.SetupRequired,
 	}
 
 	// Validate the effective startup mode so broken OIDC or local recovery
@@ -71,6 +76,12 @@ func ConfigureBrowserAuth(
 	}
 	if err := browser.validate(ctx, settings); err != nil {
 		return BrowserAuth{}, err
+	}
+	if config.ModeOverride != "" && config.ModeOverride != domain.AuthModeOIDC {
+		browser.overrideAuthenticator, err = browser.authenticatorForSettings(ctx, settings)
+		if err != nil {
+			return BrowserAuth{}, err
+		}
 	}
 
 	return BrowserAuth{
@@ -85,16 +96,7 @@ func ConfigureBrowserAuth(
 
 // Authenticate resolves a user with the currently configured browser authentication mode.
 func (b *browserAuthenticator) Authenticate(r *http.Request) (domain.User, error) {
-	settings, err := b.currentSettings(r.Context())
-	if err != nil {
-		return domain.User{}, err
-	}
-
-	setupRequired, err := b.setupRequired(r.Context())
-	if err != nil {
-		return domain.User{}, err
-	}
-	if setupRequired {
+	if b.requiresSetup() {
 		return domain.User{}, ErrUnauthenticated
 	}
 
@@ -112,7 +114,7 @@ func (b *browserAuthenticator) Authenticate(r *http.Request) (domain.User, error
 		}
 	}
 
-	if b.localLoginEnabled && settings.Mode != domain.AuthModeLocal {
+	if b.localLoginEnabled && b.modeOverride != domain.AuthModeLocal {
 		user, err := b.local.Authenticate(r)
 		if err == nil {
 			return user, nil
@@ -122,6 +124,14 @@ func (b *browserAuthenticator) Authenticate(r *http.Request) (domain.User, error
 		}
 	}
 
+	if b.overrideAuthenticator != nil {
+		return b.overrideAuthenticator.Authenticate(r)
+	}
+
+	settings, err := b.currentSettings(r.Context())
+	if err != nil {
+		return domain.User{}, err
+	}
 	authenticator, err := b.authenticatorForSettings(r.Context(), settings)
 	if err != nil {
 		return domain.User{}, err
@@ -132,19 +142,14 @@ func (b *browserAuthenticator) Authenticate(r *http.Request) (domain.User, error
 
 // login starts the configured interactive flow or redirects home for non-interactive modes.
 func (b *browserAuthenticator) login(w http.ResponseWriter, r *http.Request) {
-	settings, err := b.currentSettings(r.Context())
-	if err != nil {
-		httpresponse.Problem(w, http.StatusInternalServerError, "The request could not be processed.")
+	if b.requiresSetup() {
+		route.Redirect(w, r, "/setup", http.StatusFound)
 		return
 	}
 
-	setupRequired, err := b.setupRequired(r.Context())
+	settings, err := b.currentSettings(r.Context())
 	if err != nil {
 		httpresponse.Problem(w, http.StatusInternalServerError, "The request could not be processed.")
-		return
-	}
-	if setupRequired {
-		route.Redirect(w, r, "/setup", http.StatusFound)
 		return
 	}
 	switch settings.Mode {
@@ -199,11 +204,7 @@ func (b *browserAuthenticator) callback(w http.ResponseWriter, r *http.Request) 
 
 // validate checks persisted authentication settings before administrators activate them.
 func (b *browserAuthenticator) validate(ctx context.Context, settings domain.AuthenticationSettings) error {
-	setupRequired, err := b.setupRequired(ctx)
-	if err != nil {
-		return err
-	}
-	if setupRequired {
+	if b.requiresSetup() {
 		return nil
 	}
 
@@ -232,17 +233,26 @@ func (b *browserAuthenticator) validate(ctx context.Context, settings domain.Aut
 	return nil
 }
 
-// setupRequired reports whether first-run setup should bypass normal authentication validation.
-func (b *browserAuthenticator) setupRequired(ctx context.Context) (bool, error) {
-	return b.repository.SetupRequired(ctx)
+// requiresSetup reports process-local first-run setup state without database I/O.
+func (b *browserAuthenticator) requiresSetup() bool {
+	return b.setupRequired != nil && b.setupRequired()
 }
 
 // currentSettings reads database-managed settings and overlays deployment-managed authentication fields.
 func (b *browserAuthenticator) currentSettings(ctx context.Context) (domain.AuthenticationSettings, error) {
-	// None and local overrides need no provider-specific database settings.
+	// Deployment-managed modes should not reread database settings on every request.
 	switch b.modeOverride {
 	case domain.AuthModeNone, domain.AuthModeLocal:
 		return domain.AuthenticationSettings{Mode: b.modeOverride}, nil
+	case domain.AuthModeTrustedProxy:
+		return domain.AuthenticationSettings{
+			Mode:                      domain.AuthModeTrustedProxy,
+			TrustedUsernameHeaders:    b.trustedProxy.Username,
+			TrustedEmailHeaders:       b.trustedProxy.Email,
+			TrustedDisplayNameHeaders: b.trustedProxy.DisplayName,
+			TrustedGroupHeaders:       b.trustedProxy.Groups,
+			TrustedAdminGroup:         b.trustedProxy.AdminGroup,
+		}, nil
 	}
 
 	settings, err := b.repository.ApplicationSettings(ctx)
@@ -254,13 +264,6 @@ func (b *browserAuthenticator) currentSettings(ctx context.Context) (domain.Auth
 
 	switch b.modeOverride {
 	case "":
-	case domain.AuthModeTrustedProxy:
-		authentication.Mode = domain.AuthModeTrustedProxy
-		authentication.TrustedUsernameHeaders = b.trustedProxy.Username
-		authentication.TrustedEmailHeaders = b.trustedProxy.Email
-		authentication.TrustedDisplayNameHeaders = b.trustedProxy.DisplayName
-		authentication.TrustedGroupHeaders = b.trustedProxy.Groups
-		authentication.TrustedAdminGroup = b.trustedProxy.AdminGroup
 	case domain.AuthModeOIDC:
 		authentication.Mode = domain.AuthModeOIDC
 		authentication.OIDCIssuer = b.oidcConfig.Issuer
@@ -296,7 +299,7 @@ func (b *browserAuthenticator) authenticatorForSettings(
 	case domain.AuthModeLocal:
 		return b.local, nil
 	case domain.AuthModeTrustedProxy:
-		return NewTrustedProxy(b.repository, b.trustedProxyLogin, TrustedProxyHeaders{
+		return NewTrustedProxy(b.trustedProxyLogin, TrustedProxyHeaders{
 			Username:    settings.TrustedUsernameHeaders,
 			Email:       settings.TrustedEmailHeaders,
 			DisplayName: settings.TrustedDisplayNameHeaders,

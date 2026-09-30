@@ -11,11 +11,13 @@ import (
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
 
-// SetupRequired reports whether Kumbuka still has no user accounts.
+// SetupRequired reports the persisted one-time setup state. It is intended for startup checks, not request-time polling.
 func (s *Store) SetupRequired(ctx context.Context) (bool, error) {
 	var required bool
 	err := s.pool.QueryRow(ctx, `
-SELECT NOT EXISTS(SELECT 1 FROM users)`).Scan(&required)
+SELECT setup_completed_at IS NULL
+FROM application_settings
+WHERE singleton=true`).Scan(&required)
 
 	return required, err
 }
@@ -42,22 +44,15 @@ func (s *Store) CreateInitialLocalAdministrator(
 	defer func() { _ = tx.Rollback(ctx) }()
 
 	// Lock the singleton settings row so only one concurrent setup can win.
-	// The presence of users is the setup invariant; a stale auth_mode must not
-	// make an otherwise empty installation impossible to bootstrap.
-	var singleton bool
+	var setupCompleted bool
 	if err := tx.QueryRow(ctx, `
-SELECT singleton
+SELECT setup_completed_at IS NOT NULL
 FROM application_settings
-WHERE singleton=true FOR UPDATE`).Scan(&singleton); err != nil {
+WHERE singleton=true
+FOR UPDATE`).Scan(&setupCompleted); err != nil {
 		return domain.User{}, err
 	}
-
-	var exists bool
-	if err := tx.QueryRow(ctx, `
-SELECT EXISTS(SELECT 1 FROM users)`).Scan(&exists); err != nil {
-		return domain.User{}, err
-	}
-	if exists {
+	if setupCompleted {
 		return domain.User{}, domain.ErrAlreadyExists
 	}
 
@@ -83,7 +78,7 @@ VALUES($1,$2)`, user.ID, passwordHash); err != nil {
 	}
 	if _, err := tx.Exec(ctx, `
 UPDATE application_settings
-SET auth_mode='local',allow_user_registration=false,updated_at=now()
+SET auth_mode='local',allow_user_registration=false,setup_completed_at=now(),updated_at=now()
 WHERE singleton=true`); err != nil {
 		return domain.User{}, err
 	}

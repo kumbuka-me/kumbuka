@@ -14,28 +14,23 @@ import (
 type trustedProxyRepositoryStub struct {
 	// user records the user observed by the test double.
 	user domain.User
-	// method configures or records the method value used by the fixture.
-	method domain.AuthMode
-	// admin controls or records whether admin is active in the test.
+	// adminObserved records whether an external admin assertion source was configured.
+	adminObserved bool
+	// admin records the current asserted external administrator state.
 	admin bool
 }
 
-func (r *trustedProxyRepositoryStub) Login(context.Context, string, string, string) (domain.User, error) {
-	return r.user, nil
-}
-
-func (r *trustedProxyRepositoryStub) SetExternalAdminStatus(_ context.Context, _ int64, method domain.AuthMode, admin bool) error {
-	r.method = method
+func (r *trustedProxyRepositoryStub) Login(_ context.Context, _, _, _ string, adminObserved, admin bool) (domain.User, error) {
+	r.adminObserved = adminObserved
 	r.admin = admin
-
-	return nil
+	return r.user, nil
 }
 
 func TestTrustedProxyExternalAdministrator(t *testing.T) {
 	t.Parallel()
 
 	repository := &trustedProxyRepositoryStub{user: domain.User{ID: 7, Role: "viewer", Enabled: true}}
-	authenticator := NewTrustedProxy(repository, repository, TrustedProxyHeaders{
+	authenticator := NewTrustedProxy(repository, TrustedProxyHeaders{
 		Username:   []string{"X-User"},
 		Groups:     []string{"X-Groups"},
 		AdminGroup: "/kumbuka-admins",
@@ -50,7 +45,7 @@ func TestTrustedProxyExternalAdministrator(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, domain.UserRoleAdmin, user.Role)
 	assert.True(t, user.ExternalAdmin)
-	assert.Equal(t, domain.AuthModeTrustedProxy, repository.method)
+	assert.True(t, repository.adminObserved)
 	assert.True(t, repository.admin)
 }
 
@@ -59,7 +54,6 @@ func TestTrustedProxyDisabledAccount(t *testing.T) {
 
 	repository := &trustedProxyRepositoryStub{user: domain.User{ID: 7, Enabled: false}}
 	authenticator := NewTrustedProxy(
-		repository,
 		repository,
 		TrustedProxyHeaders{Username: []string{"X-User"}},
 	)
@@ -112,7 +106,7 @@ func TestFirstHeader(t *testing.T) {
 func TestTrustedProxyClearsReturnedExternalAdminStatus(t *testing.T) {
 	t.Parallel()
 	repository := &trustedProxyRepositoryStub{user: domain.User{ID: 7, Role: "viewer", Enabled: true, ExternalAdmin: true}}
-	authenticator := NewTrustedProxy(repository, repository, TrustedProxyHeaders{Username: []string{"X-User"}, Groups: []string{"X-Groups"}, AdminGroup: "/admins"})
+	authenticator := NewTrustedProxy(repository, TrustedProxyHeaders{Username: []string{"X-User"}, Groups: []string{"X-Groups"}, AdminGroup: "/admins"})
 	request := httptest.NewRequest("GET", "/", nil)
 	request.Header.Set("X-User", "example")
 	request.Header.Set("X-Groups", "/readers")

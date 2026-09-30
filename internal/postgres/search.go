@@ -24,6 +24,20 @@ func (s *Store) SearchPage(ctx context.Context, query searchquery.Query, limit, 
 	return scanSearchPages(rows)
 }
 
+// SearchPageSummary returns one deterministic body-free search window for list-style presentation.
+func (s *Store) SearchPageSummary(ctx context.Context, query searchquery.Query, limit, offset int) ([]domain.Page, error) {
+	builder := newSearchQueryBuilder(query.Text)
+	builder.applyFilters(query.Filters)
+
+	rows, err := s.pool.Query(ctx, builder.summarySQL(limit, offset), builder.args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	return scanSearchPageSummaries(rows)
+}
+
 // searchQueryBuilder owns SQL predicates, ranking, and positional arguments for page search.
 type searchQueryBuilder struct {
 	// args owns positional SQL arguments in append order.
@@ -111,12 +125,42 @@ ORDER BY ` + b.rank + ` DESC,p.updated_at DESC,p.id DESC
 LIMIT ` + limitParam + ` OFFSET ` + offsetParam
 }
 
+// summarySQL renders the search projection without Markdown bodies.
+func (b *searchQueryBuilder) summarySQL(limit, offset int) string {
+	limitParam := b.args.add(limit)
+	offsetParam := b.args.add(offset)
+	return `
+SELECT p.id,p.slug,p.title,coalesce(max(ni.icon),''),coalesce(p.created_by,0),coalesce(p.updated_by,0),coalesce(u.display_name,u.username,''),p.created_at,p.updated_at,p.view_count,coalesce(array_agg(t.name ORDER BY t.name) FILTER (WHERE t.name IS NOT NULL),'{}'),p.status,` + b.rank + `
+FROM pages p
+LEFT JOIN navigation_icons ni ON ni.path=p.slug
+LEFT JOIN users u ON u.id=p.updated_by
+LEFT JOIN page_tags pt ON pt.page_id=p.id
+LEFT JOIN tags t ON t.id=pt.tag_id
+WHERE ` + strings.Join(b.where, " AND ") + `
+GROUP BY p.id,u.id
+ORDER BY ` + b.rank + ` DESC,p.updated_at DESC,p.id DESC
+LIMIT ` + limitParam + ` OFFSET ` + offsetParam
+}
+
 // scanSearchPages decodes page-search rows into domain pages.
 func scanSearchPages(rows pgx.Rows) ([]domain.Page, error) {
 	var pages []domain.Page
 	for rows.Next() {
 		var page domain.Page
 		if err := rows.Scan(&page.ID, &page.Slug, &page.Title, &page.Icon, &page.Markdown, &page.CreatedBy, &page.UpdatedBy, &page.Author, &page.CreatedAt, &page.UpdatedAt, &page.ViewCount, &page.Tags, &page.Status, &page.Rank); err != nil {
+			return nil, err
+		}
+		pages = append(pages, page)
+	}
+	return pages, rows.Err()
+}
+
+// scanSearchPageSummaries decodes body-free search rows.
+func scanSearchPageSummaries(rows pgx.Rows) ([]domain.Page, error) {
+	var pages []domain.Page
+	for rows.Next() {
+		var page domain.Page
+		if err := rows.Scan(&page.ID, &page.Slug, &page.Title, &page.Icon, &page.CreatedBy, &page.UpdatedBy, &page.Author, &page.CreatedAt, &page.UpdatedAt, &page.ViewCount, &page.Tags, &page.Status, &page.Rank); err != nil {
 			return nil, err
 		}
 		pages = append(pages, page)

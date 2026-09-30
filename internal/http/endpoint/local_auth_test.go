@@ -16,19 +16,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// localAuthSettingsStub provides controllable local auth settings behavior for tests.
-type localAuthSettingsStub struct {
-	// settingsService is embedded to provide the default interface behavior for this fixture.
-	settingsService
-	// settings records the tings passed to set operations.
-	settings domain.ApplicationSettings
-}
-
-// ApplicationSettings returns configured settings for local-auth handler tests.
-func (s *localAuthSettingsStub) ApplicationSettings(context.Context) (domain.ApplicationSettings, error) {
-	return s.settings, nil
-}
-
 // localAuthSystemStub provides controllable local auth system behavior for tests.
 type localAuthSystemStub struct {
 	// systemService is embedded to provide the default interface behavior for this fixture.
@@ -40,9 +27,7 @@ type localAuthSystemStub struct {
 }
 
 // SetupRequired returns the configured setup state for local-auth handler tests.
-func (s *localAuthSystemStub) SetupRequired(context.Context) (bool, error) {
-	return s.setupRequired, nil
-}
+func (s *localAuthSystemStub) SetupRequired() bool { return s.setupRequired }
 
 // RecordSetupCompleted records the user that completed setup.
 func (s *localAuthSystemStub) RecordSetupCompleted(_ context.Context, user domain.User) {
@@ -116,13 +101,9 @@ func TestSafeAuthNext(t *testing.T) {
 func TestLocalLoginRedirectsSetupWithRuntimeOIDCOverride(t *testing.T) {
 	t.Parallel()
 
-	settings := &localAuthSettingsStub{settings: domain.ApplicationSettings{
-		Authentication: domain.AuthenticationSettings{Mode: domain.AuthModeNone},
-	}}
 	system := &localAuthSystemStub{setupRequired: true}
 	views := testHandlerViews(t, webview.RuntimeInfo{AuthModeOverride: domain.AuthModeOIDC})
 	handler := LocalLogin(
-		settings,
 		system,
 		auth.BrowserAuth{LocalLoginAllowed: func(context.Context) (bool, error) { return true, nil }},
 		views,
@@ -140,14 +121,11 @@ func TestLocalLoginRedirectsSetupWithRuntimeOIDCOverride(t *testing.T) {
 func TestSetupAllowsRuntimeOIDCOverrideAndCreatesBootstrapSession(t *testing.T) {
 	t.Parallel()
 
-	settings := &localAuthSettingsStub{settings: domain.ApplicationSettings{
-		Authentication: domain.AuthenticationSettings{Mode: domain.AuthModeNone},
-	}}
 	system := &localAuthSystemStub{setupRequired: true}
 	repository := &localAuthRepositoryStub{}
 	local := auth.NewLocal(repository, "http://localhost:8080")
 	views := testHandlerViews(t, webview.RuntimeInfo{AuthModeOverride: domain.AuthModeOIDC})
-	handler := Setup(settings, system, auth.BrowserAuth{Local: local}, views)
+	handler := Setup(system, auth.BrowserAuth{Local: local}, views)
 
 	form := url.Values{
 		"username":         {"admin"},
@@ -178,12 +156,9 @@ func TestSetupAllowsRuntimeOIDCOverrideAndCreatesBootstrapSession(t *testing.T) 
 func TestSetupHTMLValidationUsesUnprocessableStatus(t *testing.T) {
 	t.Parallel()
 
-	settings := &localAuthSettingsStub{settings: domain.ApplicationSettings{
-		Authentication: domain.AuthenticationSettings{Mode: domain.AuthModeNone},
-	}}
 	system := &localAuthSystemStub{setupRequired: true}
 	views := testHandlerViews(t, webview.RuntimeInfo{})
-	handler := Setup(settings, system, auth.BrowserAuth{}, views)
+	handler := Setup(system, auth.BrowserAuth{}, views)
 
 	form := url.Values{
 		"password":         {"correct-horse-battery-staple"},

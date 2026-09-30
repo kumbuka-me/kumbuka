@@ -112,6 +112,15 @@ func Run(
 	}
 	defer database.Close()
 
+	// Resolve the persisted one-time setup state once at startup. Request-time
+	// authentication reads the shared in-memory state instead of polling PostgreSQL.
+	setupRequired, err := database.SetupRequired(ctx)
+	if err != nil {
+		setupLogger.Error("read setup state", "event", "setup_state_read_failed", "error", err)
+		return err
+	}
+	setupState := appsystem.NewSetupState(setupRequired)
+
 	// Construct page mutation and collaboration capabilities that other workflows depend on.
 	webhooks := appwebhooks.NewWebhooks(database, secretCipher, logger.With("component", "webhooks"), cfg.PublicURL).WithUserDirectory(database)
 	access := appaccess.NewAccess(database)
@@ -144,7 +153,7 @@ func Run(
 	preferences := apppreferences.NewPreferences(database)
 	recycleBin := apprecyclebin.NewRecycleBin(database)
 	settings := appsettings.NewSettings(database, secretCipher, logger.With("component", "settings"))
-	system := appsystem.NewSystem(database, logger.With("component", "system"))
+	system := appsystem.NewSystem(database, logger.With("component", "system"), setupState)
 	templates := apptemplates.NewTemplates(database)
 	tokens := apptokens.NewTokens(database)
 	users := appusers.NewUsers(database, credential.Passwords{}, logger.With("component", "users"))
@@ -159,8 +168,11 @@ func Run(
 	// Construct bearer-token authentication for API requests.
 	bearerAuth := auth.NewBearer(database)
 
-	// Configure browser authentication.
-	browserAuth, err := auth.ConfigureBrowserAuth(ctx, browserAuthConfig(cfg), database)
+	// Configure browser authentication with the process-local setup state.
+	browserConfig := browserAuthConfig(cfg)
+	browserConfig.SetupRequired = setupState.Required
+	browserConfig.SetupCompleted = setupState.Complete
+	browserAuth, err := auth.ConfigureBrowserAuth(ctx, browserConfig, database)
 	if err != nil {
 		setupLogger.Error("configure browser auth", "event", "browser_auth_failed", "error", err)
 		return err
