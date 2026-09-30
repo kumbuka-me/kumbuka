@@ -193,11 +193,9 @@ mailbridge: ports ## Run mailbridge locally.
 serve: ports ## Run Kumbuka using the saved ports.
 	@echo "Starting Kumbuka application..."
 	@KUMBUKA_POSTGRES_PORT=$(DB_ASSIGNED_PORT) go run $(COMMAND) \
-		--debug \
-		--access-log \
 		--listen-address="127.0.0.1:$(KUMBUKA_ASSIGNED_PORT)" \
 		--management-listen-address="127.0.0.1:$(KUMBUKA_MANAGEMENT_ASSIGNED_PORT)" \
-		--log-format text \
+		--log-format=text \
 		--pdf-url="http://127.0.0.1:$(PDF_ASSIGNED_PORT)/render" \
 		--database-url="postgres://kumbuka:kumbuka@127.0.0.1:$(DB_ASSIGNED_PORT)/kumbuka?sslmode=disable" \
 		$(RUN_ARGS)
@@ -211,7 +209,11 @@ run: dev-build html-pdf mailbridge postgres $(OPEN_BROWSER) ## Build, start serv
 	@$(OPEN_BROWSER) "http://127.0.0.1:$(KUMBUKA_ASSIGNED_PORT)/" & \
 	browser_pid=$$!; \
 	trap 'kill "$$browser_pid" 2>/dev/null || true' EXIT; \
-	$(MAKE) serve
+	$(MAKE) serve RUN_ARGS="$(RUN_ARGS)"
+
+.PHONY: run-trace
+run-trace: ## Run Kumbuka with performance diagnostics.
+	@$(MAKE) run RUN_ARGS="--performance-diagnostics --debug --access-log $(RUN_ARGS)"
 
 ##@ Load testing
 
