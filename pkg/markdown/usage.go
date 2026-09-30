@@ -91,18 +91,15 @@ type usageScanner struct {
 
 // newUsageScanner constructs a scanner for source-usage analysis.
 func newUsageScanner(source string) usageScanner {
-	lines := strings.Split(source, "\n")
 	scanner := usageScanner{source: source}
 	fence := ""
-	for _, line := range lines {
+	for position := 0; position <= len(source); {
+		line, next, done := sourceLine(source, position)
 		if fence != "" {
 			if pluginmarkdown.Closes(line, fence) {
 				fence = ""
 			}
-			continue
-		}
-		marker := pluginmarkdown.Fence(line)
-		if marker != "" {
+		} else if marker := pluginmarkdown.Fence(line); marker != "" {
 			trimmed := strings.TrimSpace(line)
 			info := strings.TrimSpace(trimmed[len(marker):])
 			if fields := strings.Fields(info); len(fields) > 0 {
@@ -111,11 +108,27 @@ func newUsageScanner(source string) usageScanner {
 				scanner.languages = append(scanner.languages, "")
 			}
 			fence = marker
-			continue
+		} else {
+			scanner.outside = append(scanner.outside, line)
 		}
-		scanner.outside = append(scanner.outside, line)
+		if done {
+			break
+		}
+		position = next
 	}
 	return scanner
+}
+
+// sourceLine returns one line without its newline and the start position of the next line.
+func sourceLine(source string, position int) (line string, next int, done bool) {
+	if position > len(source) {
+		return "", position, true
+	}
+	if newline := strings.IndexByte(source[position:], '\n'); newline >= 0 {
+		end := position + newline
+		return source[position:end], end + 1, false
+	}
+	return source[position:], len(source) + 1, true
 }
 
 // match reports whether the scanner matches any usage rule and returns unique selectors.

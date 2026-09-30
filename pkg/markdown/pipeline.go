@@ -259,22 +259,22 @@ func (p *renderPipeline) preprocessMacros(source string, ctx plugin.Context, pag
 		return source, nil, nil
 	}
 
-	lines := strings.Split(source, "\n")
 	hasCandidate := false
-	for _, line := range lines {
-		name, ok := macroInvocationName(line)
-		if !ok {
-			continue
+	for position := 0; position <= len(source); {
+		line, next, done := sourceLine(source, position)
+		if name, ok := macroInvocationName(line); ok {
+			_, hasCandidate = page.macros[name]
 		}
-		if _, ok := page.macros[name]; ok {
-			hasCandidate = true
+		if hasCandidate || done {
 			break
 		}
+		position = next
 	}
 	if !hasCandidate {
 		return source, nil, nil
 	}
 
+	lines := strings.Split(source, "\n")
 	protected := codeLines(source)
 
 	var invocations []macroInvocation

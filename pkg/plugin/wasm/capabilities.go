@@ -65,7 +65,10 @@ func (r *Runtime) hostCall(ctx context.Context, module api.Module, pointer, leng
 		return 0
 	}
 
-	response := sdk.CapabilityResponse{}
+	response := struct {
+		Value *any   `json:"value,omitempty"`
+		Error string `json:"error,omitempty"`
+	}{}
 	value, err := plugin.Guard("host capability", func() (any, error) {
 		var request sdk.CapabilityRequest
 		if err := decode(input, &request); err != nil {
@@ -76,13 +79,13 @@ func (r *Runtime) hostCall(ctx context.Context, module api.Module, pointer, leng
 	if err != nil {
 		response.Error = err.Error()
 	} else {
-		response.Value, err = json.Marshal(value)
-		if err != nil {
-			response.Error = "cannot encode capability result"
-		}
+		response.Value = &value
 	}
 	encoded, err := json.Marshal(response)
-	if err != nil || len(encoded) > int(capacity) {
+	if err != nil {
+		encoded = []byte(`{"error":"cannot encode capability result"}`)
+	}
+	if len(encoded) > int(capacity) {
 		encoded = []byte(`{"error":"capability response exceeds size limit"}`)
 	}
 	if len(encoded) > int(capacity) || !module.Memory().Write(output, encoded) {

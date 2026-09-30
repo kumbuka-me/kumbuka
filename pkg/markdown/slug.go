@@ -2,29 +2,27 @@ package markdown
 
 import (
 	"strings"
-	"unicode"
-
-	"github.com/kumbuka-me/kumbuka/pkg/ascii"
 )
 
 // Slug converts human-readable page text into a canonical page slug.
 func Slug(value string) string {
 	value = strings.TrimSpace(value)
 	var output strings.Builder
+	output.Grow(len(value))
 	separator := false
 
-	for _, r := range value {
-		r = unicode.ToLower(r)
-		switch {
-		case isSlugRune(r):
+	for index := 0; index < len(value); index++ {
+		character := value[index]
+		if character >= 'A' && character <= 'Z' {
+			character += 'a' - 'A'
+		}
+		if isSlugByte(character) {
 			if separator && output.Len() > 0 {
 				output.WriteByte('-')
 			}
-
 			separator = false
-
-			output.WriteRune(r)
-		default:
+			output.WriteByte(character)
+		} else {
 			separator = true
 		}
 	}
@@ -32,7 +30,10 @@ func Slug(value string) string {
 	return strings.Trim(output.String(), "-")
 }
 
-// isSlugRune reports whether character can be preserved in a canonical page slug.
-func isSlugRune(character rune) bool {
-	return ascii.IsAlphanumeric(character) || character == '/' || character == '_' || character == '-'
+// isSlugByte reports whether character can be preserved in a canonical page slug.
+func isSlugByte(character byte) bool {
+	return character >= 'a' && character <= 'z' ||
+		character >= 'A' && character <= 'Z' ||
+		character >= '0' && character <= '9' ||
+		character == '/' || character == '_' || character == '-'
 }

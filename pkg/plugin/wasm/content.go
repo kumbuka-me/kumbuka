@@ -154,21 +154,47 @@ func resourceReplacementPrefix() (string, error) {
 func (m resourceSubstitutionModule) expandResourceSource(ctx plugin.Context, source string, records map[string]plugin.ResourceRecord, prefix string) (plugin.PreparedContent, map[string]int, error) {
 	prepared := plugin.PreparedContent{Markdown: source}
 	used := make(map[string]int)
-	lines := strings.Split(source, "\n")
-	fence := ""
-	for index, line := range lines {
-		if next, skip := nextResourceFence(line, fence); skip {
-			fence = next
-			continue
-		}
-		expanded, err := m.expandLine(ctx, line, records, prefix, used, &prepared)
-		if err != nil {
-			return plugin.PreparedContent{}, nil, err
-		}
-		lines[index] = expanded
+	opening := "{{" + m.module.Prefix + ":"
+	if !strings.Contains(source, opening) {
+		return prepared, used, nil
 	}
-	prepared.Markdown = strings.Join(lines, "\n")
+
+	var output strings.Builder
+	output.Grow(len(source))
+	fence := ""
+	for position := 0; position <= len(source); {
+		line, next, done := sourceLine(source, position)
+		expanded := line
+		if nextFence, skip := nextResourceFence(line, fence); skip {
+			fence = nextFence
+		} else if strings.Contains(line, opening) {
+			var err error
+			expanded, err = m.expandLine(ctx, line, records, prefix, used, &prepared)
+			if err != nil {
+				return plugin.PreparedContent{}, nil, err
+			}
+		}
+		output.WriteString(expanded)
+		if done {
+			break
+		}
+		output.WriteByte('\n')
+		position = next
+	}
+	prepared.Markdown = output.String()
 	return prepared, used, nil
+}
+
+// sourceLine returns one line without its newline and the start position of the next line.
+func sourceLine(source string, position int) (line string, next int, done bool) {
+	if position > len(source) {
+		return "", position, true
+	}
+	if newline := strings.IndexByte(source[position:], '\n'); newline >= 0 {
+		end := position + newline
+		return source[position:end], end + 1, false
+	}
+	return source[position:], len(source) + 1, true
 }
 
 // nextResourceFence updates fenced-code state and reports whether the current line must be skipped.
@@ -225,7 +251,11 @@ func (m resourceSubstitutionModule) expandLine(
 	prepared *plugin.PreparedContent,
 ) (string, error) {
 	opening := "{{" + m.module.Prefix + ":"
+	if !strings.Contains(line, opening) {
+		return line, nil
+	}
 	var output strings.Builder
+	output.Grow(len(line))
 	for {
 		start := strings.Index(line, opening)
 		if start < 0 {

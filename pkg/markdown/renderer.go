@@ -1,7 +1,6 @@
 package markdown
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"io"
@@ -400,7 +399,8 @@ func (r *Renderer) renderRawResolved(
 	source, annotationRanges := resolvePluginReplacements(source, options.annotations)
 	stop()
 
-	var output bytes.Buffer
+	var output strings.Builder
+	output.Grow(len(source))
 
 	stop = options.pipeline.trace.Measure("extensions")
 	extensions, err := options.pipeline.extensions(ctx, pagePlan, options.pipeline.opaqueReplacements)
