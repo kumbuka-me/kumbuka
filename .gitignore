@@ -19,3 +19,6 @@ coverage.out
 /.dev-ports.json.lock
 
 .envrc
+
+# Local ProjectAtlas index and runtime state
+/.projectatlas/
