@@ -97,7 +97,6 @@ func Run(
 	if err != nil {
 		setupLogger.Error("configure application encryption", "event", "application_encryption_failed", "error", err)
 		return err
-
 	}
 
 	database, err := postgres.Open(
@@ -217,7 +216,7 @@ func Run(
 	)
 
 	// Construct and configure the passive HTML presentation adapter.
-	views, err := createRunViews(appFS, logger, version, commit, availableThemes, cfg, secretCipher, iconCatalog, renderer)
+	views, err := createRunViews(appFS, logger, version, commit, availableThemes, cfg, secretCipher, iconCatalog)
 	if err != nil {
 		setupLogger.Error("create views", "event", "views_create_failed", "error", err)
 		return err
@@ -329,7 +328,6 @@ func createRunViews(
 	cfg flags.Config,
 	secretCipher *secrets.Cipher,
 	iconCatalog *icons.Catalog,
-	renderer *markdown.Renderer,
 ) (*webview.Views, error) {
 	views, err := webview.New(
 		appFS,

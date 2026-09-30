@@ -1,4 +1,4 @@
-package endpoint
+package pagecontent
 
 import (
 	"context"
@@ -62,7 +62,7 @@ func TestAdminRenderRebuildPageStoresStableArtifact(t *testing.T) {
 	artifacts := &adminRenderArtifactStoreStub{}
 	renderer := md.NewWithRegistry(&plugin.Registry{})
 	renderer.SetArtifactBuild("test", "abc")
-	rebuilds := NewAdminRenderRebuilds(
+	rebuilds := NewRebuilds(
 		adminRenderCatalogStub{},
 		adminRenderPageStoreStub{pages: map[string]domain.Page{"guide": page}},
 		artifacts,
@@ -89,7 +89,7 @@ func TestAdminRenderRebuildPageClearsUnpersistableArtifact(t *testing.T) {
 	artifacts := &adminRenderArtifactStoreStub{}
 	renderer := md.NewWithRegistry(&plugin.Registry{})
 	renderer.SetArtifactBuild("test", "abc")
-	rebuilds := NewAdminRenderRebuilds(
+	rebuilds := NewRebuilds(
 		adminRenderCatalogStub{},
 		adminRenderPageStoreStub{pages: map[string]domain.Page{"dynamic": page}},
 		artifacts,
@@ -117,7 +117,7 @@ func TestAdminRenderRebuildAllContinuesPastPageFailure(t *testing.T) {
 	artifacts := &adminRenderArtifactStoreStub{}
 	renderer := md.NewWithRegistry(&plugin.Registry{})
 	renderer.SetArtifactBuild("test", "abc")
-	rebuilds := NewAdminRenderRebuilds(adminRenderCatalogStub{pages: pages}, store, artifacts, renderer, slog.Default())
+	rebuilds := NewRebuilds(adminRenderCatalogStub{pages: pages}, store, artifacts, renderer, slog.Default())
 
 	completed, failed := rebuilds.RebuildAll(context.Background())
 
@@ -129,7 +129,7 @@ func TestAdminRenderRebuildAllContinuesPastPageFailure(t *testing.T) {
 func TestAdminRenderRebuildUnavailable(t *testing.T) {
 	t.Parallel()
 
-	rebuilds := NewAdminRenderRebuilds(nil, nil, nil, nil, slog.Default())
+	rebuilds := NewRebuilds(nil, nil, nil, nil, slog.Default())
 	err := rebuilds.RebuildPage(context.Background(), "guide")
 
 	require.ErrorContains(t, err, "page render rebuild is unavailable")
@@ -155,7 +155,7 @@ func TestAdminRenderRebuildAllHoldsExclusiveRenderLock(t *testing.T) {
 	}
 	renderer := md.NewWithRegistry(&plugin.Registry{})
 	renderer.SetArtifactBuild("test", "abc")
-	rebuilds := NewAdminRenderRebuilds(
+	rebuilds := NewRebuilds(
 		adminRenderCatalogStub{pages: []domain.Page{{Slug: page.Slug}}},
 		adminRenderPageStoreStub{pages: map[string]domain.Page{page.Slug: page}},
 		artifacts,

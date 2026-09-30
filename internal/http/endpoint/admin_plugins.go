@@ -3,6 +3,7 @@ package endpoint
 import (
 	"errors"
 	"fmt"
+	"github.com/kumbuka-me/kumbuka/internal/pagecontent"
 	"html/template"
 	"io"
 	"net/http"
@@ -33,7 +34,7 @@ type AdminPlugins struct {
 	// views renders plugin administration responses.
 	views *webview.Views
 	// renders coordinates background rebuilds of persisted page-render artifacts.
-	renders *AdminRenderRebuilds
+	renders *pagecontent.Rebuilds
 }
 
 // NewAdminPlugins constructs the plugin administration handler.
@@ -42,7 +43,7 @@ func NewAdminPlugins(manager *appplugins.Admin, data browserContextLoader, views
 }
 
 // WithRenderRebuilds enables page render-cache rebuilds after render-affecting plugin lifecycle changes.
-func (a *AdminPlugins) WithRenderRebuilds(rebuilds *AdminRenderRebuilds) *AdminPlugins {
+func (a *AdminPlugins) WithRenderRebuilds(rebuilds *pagecontent.Rebuilds) *AdminPlugins {
 	a.renders = rebuilds
 	return a
 }

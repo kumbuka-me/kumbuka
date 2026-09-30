@@ -1,6 +1,7 @@
 package server
 
 import (
+	"github.com/kumbuka-me/kumbuka/internal/pagecontent"
 	"net/http"
 
 	"github.com/kumbuka-me/kumbuka/internal/http/endpoint"
@@ -15,7 +16,7 @@ func registerAdminRoutes(mux *http.ServeMux, config Config) {
 	adminAuthz := middleware.RequireRole(domain.UserRoleAdmin)
 
 	pluginManager := config.Renderer.PluginManager()
-	renderRebuilds := endpoint.NewAdminRenderRebuilds(
+	renderRebuilds := pagecontent.NewRebuilds(
 		config.PageDirectory,
 		config.PageReports,
 		config.PageRender,
@@ -69,7 +70,7 @@ func registerAdminRoutes(mux *http.ServeMux, config Config) {
 		"POST /admin/pages/bulk",
 		browserAuthn(adminAuthz(endpoint.BulkAdminPages(config.PageBulk, config.PageLookup, config.Media, config.Logger))),
 	)
-	mux.Handle("POST /admin/pages/render-all", browserAuthn(adminAuthz(endpoint.QueueAllAdminPageRenders(renderRebuilds))))
+	mux.Handle("POST /admin/pages/render-all", browserAuthn(adminAuthz(endpoint.QueueAllAdminPageRenders(renderRebuilds, config.Logger))))
 	mux.Handle("POST /admin/pages/render-pending", browserAuthn(adminAuthz(endpoint.FlushPendingAdminPageRenders(renderRebuilds))))
 	mux.Handle("POST /admin/pages/render/{slug...}", browserAuthn(adminAuthz(endpoint.RebuildAdminPageRender(renderRebuilds, config.Logger))))
 	mux.Handle("GET /admin/import", browserAuthn(adminAuthz(endpoint.AdminImport(config.BrowserContext, config.Views))))

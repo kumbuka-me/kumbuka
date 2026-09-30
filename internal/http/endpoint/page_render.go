@@ -2,6 +2,7 @@ package endpoint
 
 import (
 	"context"
+	"github.com/kumbuka-me/kumbuka/internal/pagecontent"
 	"log/slog"
 	"strconv"
 	"strings"
@@ -26,7 +27,7 @@ func renderPageContent(
 	persistable := (locale == "" || locale == "en") && renderer.CanPersist(page.Markdown, page.PluginUsage)
 	if persistable && page.Render.Fingerprint == fingerprint {
 		stop := measurePageStage(ctx, "render_artifact_hit")
-		rendered := renderedPageFromArtifact(page.Render)
+		rendered := pagecontent.FromArtifact(page.Render)
 		stop()
 		return rendered, nil
 	}
@@ -53,7 +54,7 @@ func renderPageContent(
 	if !persistable {
 		return rendered, nil
 	}
-	artifact, ok := pageRenderArtifact(rendered, fingerprint)
+	artifact, ok := pagecontent.Artifact(rendered, fingerprint)
 	if !ok {
 		return rendered, nil
 	}
@@ -87,25 +88,4 @@ func markBrokenWikiLinks(renderedHTML string, links []domain.PageLink) string {
 	}
 
 	return renderedHTML
-}
-
-// renderedPageFromArtifact converts a persisted render artifact into renderer output.
-func renderedPageFromArtifact(render domain.PageRender) md.RenderedPage {
-	contents := make([]md.Heading, len(render.Contents))
-	for index, heading := range render.Contents {
-		contents[index] = md.Heading{Level: heading.Level, ID: heading.ID, Title: heading.Title}
-	}
-	return md.RenderedPage{HTML: render.HTML, Contents: contents}
-}
-
-// pageRenderArtifact converts renderer output into a persistable artifact when it has no request-local contributions.
-func pageRenderArtifact(rendered md.RenderedPage, fingerprint string) (domain.PageRender, bool) {
-	if len(rendered.Inspectors) != 0 || len(rendered.ExportFields) != 0 {
-		return domain.PageRender{}, false
-	}
-	contents := make([]domain.PageHeading, len(rendered.Contents))
-	for index, heading := range rendered.Contents {
-		contents[index] = domain.PageHeading{Level: heading.Level, ID: heading.ID, Title: heading.Title}
-	}
-	return domain.PageRender{HTML: rendered.HTML, Contents: contents, Fingerprint: fingerprint}, true
 }
