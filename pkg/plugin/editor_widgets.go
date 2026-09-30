@@ -75,20 +75,30 @@ type EditorWidgetSettingColumn struct {
 
 // EditorWidgetChoice describes one resolved option for a settings-backed select.
 type EditorWidgetChoice struct {
-	Value   string `json:"value"`
-	Label   string `json:"label"`
-	Default bool   `json:"default,omitempty"`
+	// Value is the attribute value stored when this option is selected.
+	Value string `json:"value"`
+	// Label is the human-readable option text.
+	Label string `json:"label"`
+	// Default selects the initial option when no value is configured.
+	Default bool `json:"default,omitempty"`
 }
 
 // EditorWidgetChoiceSource declares a list field that supplies select options.
 type EditorWidgetChoiceSource struct {
-	SettingModuleID  string `json:"setting_module_id,omitempty"`
+	// SettingModuleID identifies the settings module supplying a global option list.
+	SettingModuleID string `json:"setting_module_id,omitempty"`
+	// ResourceModuleID identifies the resource module supplying lists keyed by record.
 	ResourceModuleID string `json:"resource_module_id,omitempty"`
-	SourceAttribute  string `json:"source_attribute"`
-	ListField        string `json:"list_field"`
-	ValueColumn      string `json:"value_column"`
-	LabelColumn      string `json:"label_column"`
-	DefaultColumn    string `json:"default_column,omitempty"`
+	// SourceAttribute identifies the widget attribute selecting the source record or value.
+	SourceAttribute string `json:"source_attribute"`
+	// ListField identifies the list field containing option rows.
+	ListField string `json:"list_field"`
+	// ValueColumn identifies the column supplying stored option values.
+	ValueColumn string `json:"value_column"`
+	// LabelColumn identifies the column supplying displayed option labels.
+	LabelColumn string `json:"label_column"`
+	// DefaultColumn optionally identifies the boolean column selecting the default option.
+	DefaultColumn string `json:"default_column,omitempty"`
 }
 
 // EditorWidgetTreeField declares one visible field in a hierarchical tree-item editor.
@@ -423,6 +433,7 @@ func validateEditorWidgetCompletionReferences(widgets []EditorWidgetContribution
 	return nil
 }
 
+// validateEditorWidgetChoiceSource checks that an option source references valid attributes and list columns.
 func validateEditorWidgetChoiceSource(widget EditorWidgetContribution, source EditorWidgetChoiceSource, manifest pluginpackage.Manifest) error {
 	if !validID.MatchString(source.SourceAttribute) || !validID.MatchString(source.ListField) ||
 		!validID.MatchString(source.ValueColumn) || !validID.MatchString(source.LabelColumn) ||
@@ -462,6 +473,7 @@ func validateEditorWidgetChoiceSource(widget EditorWidgetContribution, source Ed
 	return nil
 }
 
+// choiceColumnsExist reports whether the list exposes every required option column.
 func choiceColumnsExist(columns []pluginpackage.ConfigurationField, source EditorWidgetChoiceSource) bool {
 	found := map[string]bool{}
 	for _, column := range columns {
@@ -525,6 +537,7 @@ func cloneEditorWidget(widget EditorWidgetContribution) EditorWidgetContribution
 	return clone
 }
 
+// cloneEditorWidgetChoiceSource copies an optional choice-source declaration.
 func cloneEditorWidgetChoiceSource(source *EditorWidgetChoiceSource) *EditorWidgetChoiceSource {
 	if source == nil {
 		return nil
@@ -533,6 +546,7 @@ func cloneEditorWidgetChoiceSource(source *EditorWidgetChoiceSource) *EditorWidg
 	return &clone
 }
 
+// cloneEditorWidgetChoices copies option lists so callers cannot mutate cached choices.
 func cloneEditorWidgetChoices(source map[string][]EditorWidgetChoice) map[string][]EditorWidgetChoice {
 	if source == nil {
 		return nil

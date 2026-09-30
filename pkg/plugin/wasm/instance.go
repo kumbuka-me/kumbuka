@@ -434,7 +434,9 @@ func (i *Instance) encodeRequest(
 ) ([]byte, error) {
 	started := timingStarted(profiled)
 	input, err := json.Marshal(struct {
+		// RenderRequest contains the host request fields sent to the guest.
 		sdk.RenderRequest
+		// Locale supplies the request-local language without changing the SDK request type.
 		Locale string `json:"locale,omitempty"`
 	}{RenderRequest: request, Locale: invocationLocale(ctx)})
 	if profiled {

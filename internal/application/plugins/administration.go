@@ -216,8 +216,10 @@ const pluginUpdateConcurrency = 4
 
 // updateOutcome contains the terminal result for one independent catalog update.
 type updateOutcome struct {
+	// pluginID identifies the plugin whose update completed.
 	pluginID string
-	err      error
+	// err is the update failure, or nil after successful activation.
+	err error
 }
 
 // UpdateAll applies every independent compatible update with bounded concurrency. Downloads and package validation may run four at a time, while the plugin manager keeps final lifecycle publication serialized. One download, permission approval, validation, or activation failure never prevents another plugin from being attempted.

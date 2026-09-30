@@ -47,12 +47,19 @@ func performanceDiagnosticsRequested(request *http.Request) bool {
 
 // performanceWriter adds Server-Timing and records response metadata for the shared request profile.
 type performanceWriter struct {
+	// ResponseWriter receives the underlying HTTP response.
 	http.ResponseWriter
-	trace              *renderprofile.Trace
-	started            time.Time
-	status             int
-	bytes              int
-	committed          bool
+	// trace collects request stages and plugin invocation timings.
+	trace *renderprofile.Trace
+	// started records when response profiling began.
+	started time.Time
+	// status is the final HTTP status, or zero before commitment.
+	status int
+	// bytes counts body bytes accepted by the underlying writer.
+	bytes int
+	// committed prevents changes after the final headers have been sent.
+	committed bool
+	// exposeServerTiming enables timing headers for opted-in browsers.
 	exposeServerTiming bool
 }
 

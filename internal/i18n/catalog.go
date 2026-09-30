@@ -28,23 +28,33 @@ type Option struct {
 
 // Catalog contains immutable interface translations loaded at application startup.
 type Catalog struct {
+	// messages indexes translated message values by locale and key.
 	messages map[string]map[string]string
-	labels   map[string]string
-	codes    []string
-	tags     []language.Tag
-	matcher  language.Matcher
+	// labels maps locale codes to their native display names.
+	labels map[string]string
+	// codes stores supported locale codes in matcher order.
+	codes []string
+	// tags stores parsed language tags corresponding to codes.
+	tags []language.Tag
+	// matcher selects the closest supported language for a request.
+	matcher language.Matcher
 }
 
 // Localizer resolves translated messages for one request.
 type Localizer struct {
+	// catalog supplies the immutable translation messages.
 	catalog *Catalog
 	// Code is the effective BCP 47 interface language tag.
 	Code string
 }
 
+// catalogFile matches the on-disk TOML translation catalog.
 type catalogFile struct {
-	Language string            `toml:"language"`
-	Label    string            `toml:"label"`
+	// Language is the catalog's BCP 47 language code.
+	Language string `toml:"language"`
+	// Label is the native language name shown in the language selector.
+	Label string `toml:"label"`
+	// Messages maps message keys to translated text.
 	Messages map[string]string `toml:"messages"`
 }
 

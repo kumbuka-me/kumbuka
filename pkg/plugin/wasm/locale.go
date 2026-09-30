@@ -6,6 +6,7 @@ import (
 	"github.com/kumbuka-me/kumbuka/pkg/plugin"
 )
 
+// invocationLocaleKey isolates the invocation language in host contexts.
 type invocationLocaleKey struct{}
 
 // withInvocationLocale carries the host-resolved locale to the wire encoder.

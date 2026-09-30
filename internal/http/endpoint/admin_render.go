@@ -26,11 +26,16 @@ type AdminRenderRebuilds struct {
 	// logger records rebuild progress and failures.
 	logger *slog.Logger
 
-	mu      sync.Mutex
-	dirty   bool
+	// mu protects the pending rebuild state.
+	mu sync.Mutex
+	// dirty reports whether another full rebuild has been requested.
+	dirty bool
+	// running reports whether a worker is draining pending rebuilds.
 	running bool
-	reason  string
+	// reason describes the latest nonempty rebuild trigger.
+	reason string
 
+	// renderMu serializes manual and full rebuilds to bound rendering memory.
 	renderMu sync.Mutex
 }
 

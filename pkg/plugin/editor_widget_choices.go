@@ -21,6 +21,7 @@ func (m *Manager) EditorWidgetsWithChoices(ctx context.Context) ([]EditorWidgetC
 	return result, problems, nil
 }
 
+// resolveEditorWidgetChoices populates one widget's option lists while caching repeated sources.
 func (m *Manager) resolveEditorWidgetChoices(ctx context.Context, widget *EditorWidgetContribution) error {
 	cache := make(map[EditorWidgetChoiceSource]map[string][]EditorWidgetChoice)
 	resolve := func(source *EditorWidgetChoiceSource) (map[string][]EditorWidgetChoice, error) {
@@ -57,6 +58,7 @@ func (m *Manager) resolveEditorWidgetChoices(ctx context.Context, widget *Editor
 	return nil
 }
 
+// loadEditorWidgetChoices loads option rows from the declared settings or resource module.
 func (m *Manager) loadEditorWidgetChoices(ctx context.Context, pluginID string, source EditorWidgetChoiceSource) (map[string][]EditorWidgetChoice, error) {
 	result := make(map[string][]EditorWidgetChoice)
 	if source.SettingModuleID != "" {
@@ -91,6 +93,7 @@ func (m *Manager) loadEditorWidgetChoices(ctx context.Context, pluginID string, 
 	return result, nil
 }
 
+// decodeEditorWidgetChoices validates serialized option rows and supplies a default selection.
 func decodeEditorWidgetChoices(value string, source EditorWidgetChoiceSource) ([]EditorWidgetChoice, error) {
 	if strings.TrimSpace(value) == "" {
 		return nil, nil

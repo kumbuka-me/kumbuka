@@ -70,8 +70,11 @@ func (a *AdminPlugins) CheckUpdates(w http.ResponseWriter, r *http.Request) {
 
 // pluginPermissionApprovalState carries operation-specific review prompts into one plugin administration render.
 type pluginPermissionApprovalState struct {
-	catalog  map[string]*webview.PluginPermissionApproval
-	install  *webview.PluginPermissionApproval
+	// catalog indexes pending catalog-install approvals by plugin ID.
+	catalog map[string]*webview.PluginPermissionApproval
+	// install holds the approval required for a newly uploaded package.
+	install *webview.PluginPermissionApproval
+	// upgrades indexes pending upgrade approvals by plugin ID.
 	upgrades map[string]*webview.PluginPermissionApproval
 }
 
@@ -575,7 +578,9 @@ func (a *AdminPlugins) audit(r *http.Request, action, id string) {
 
 // pluginPackageUpload contains one bounded package plus any exact permission approval fields submitted alongside it.
 type pluginPackageUpload struct {
-	archive   []byte
+	// archive contains the uploaded package bytes before validation.
+	archive []byte
+	// approvals contains the exact permission grants confirmed in the submitted form.
 	approvals []appplugins.PermissionApproval
 }
 

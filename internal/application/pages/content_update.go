@@ -11,11 +11,16 @@ import (
 // PageContentUpdateInput replaces only the Markdown body of an existing page.
 // Metadata is loaded from the current page and preserved by the mutation.
 type PageContentUpdateInput struct {
-	Slug              string
-	Markdown          string
-	Message           string
+	// Slug identifies the existing page to update.
+	Slug string
+	// Markdown is the replacement page body.
+	Markdown string
+	// Message describes the change in revision history.
+	Message string
+	// ExpectedUpdatedAt is the version timestamp used to reject stale writes.
 	ExpectedUpdatedAt time.Time
-	Actor             domain.User
+	// Actor is the user whose edit permissions apply to this operation.
+	Actor domain.User
 }
 
 // UpdateContent performs a guarded page-body update while preserving all page

@@ -171,8 +171,11 @@ func prepareProfileUpdate(input UserUpdateInput, current domain.UserProfile, upd
 // recordProfileAudit records each field whose ownership or local value changed.
 func (s *Users) recordProfileAudit(ctx context.Context, actorID int64, current domain.UserProfile, update domain.UserAccountUpdate) {
 	fields := []struct {
-		name     string
-		value    *string
+		// name is the profile field label included in the audit detail.
+		name string
+		// value is the new local value, or nil when no local replacement was requested.
+		value *string
+		// reverted reports whether provider ownership was restored.
 		reverted bool
 	}{
 		{"username", update.Username, update.RevertUsername},

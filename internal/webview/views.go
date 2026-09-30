@@ -302,7 +302,9 @@ func precomputeBrowserTranslations(catalog *i18n.Catalog, options []i18n.Option)
 	for _, option := range options {
 		locale := catalog.Resolve(option.Code, "")
 		payload, _ := json.Marshal(struct {
-			Locale   string            `json:"locale"`
+			// Locale is the resolved interface language code.
+			Locale string `json:"locale"`
+			// Messages contains the translated strings consumed by browser code.
 			Messages map[string]string `json:"messages"`
 		}{Locale: locale.Code, Messages: locale.BrowserMessages()})
 		result[locale.Code] = template.JS(payload)

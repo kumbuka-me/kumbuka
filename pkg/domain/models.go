@@ -91,18 +91,30 @@ const (
 
 // UserProfile contains local values and the latest external values used by administration.
 type UserProfile struct {
-	UserID                int64
-	Source                ProfileSource
-	Username              string
-	Email                 string
-	DisplayName           string
-	ProviderUsername      string
-	ProviderEmail         string
-	ProviderDisplayName   string
-	UsernameOverridden    bool
-	EmailOverridden       bool
+	// UserID identifies the account described by this profile.
+	UserID int64
+	// Source identifies the authority supplying the original profile values.
+	Source ProfileSource
+	// Username is the effective account name, including any local override.
+	Username string
+	// Email is the effective email address, including any local override.
+	Email string
+	// DisplayName is the effective human-readable account name.
+	DisplayName string
+	// ProviderUsername is the latest username received from the identity provider.
+	ProviderUsername string
+	// ProviderEmail is the latest email address received from the identity provider.
+	ProviderEmail string
+	// ProviderDisplayName is the latest display name received from the identity provider.
+	ProviderDisplayName string
+	// UsernameOverridden reports whether a local value takes precedence over the provider username.
+	UsernameOverridden bool
+	// EmailOverridden reports whether a local value takes precedence over the provider email.
+	EmailOverridden bool
+	// DisplayNameOverridden reports whether a local value takes precedence over the provider display name.
 	DisplayNameOverridden bool
-	TrustedProxyUsername  string
+	// TrustedProxyUsername is the external identity linked to this account in trusted-proxy mode.
+	TrustedProxyUsername string
 }
 
 // Group describes one administratively managed user group.
