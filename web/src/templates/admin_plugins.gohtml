@@ -408,9 +408,13 @@
           {{ if .BuiltinUpdateAvailable }}
             <form method="post"
                   action="{{ route "/admin/plugins/" }}{{ .Manifest.ID }}/update?return=detail"
-                  data-plugin-update>
+                  data-plugin-update
+                  data-plugin-update-pending="Applying offline update…">
               <input type="hidden" name="source" value="builtin">
-              <button class="button" type="submit">Update offline to {{ .Builtin.Version }}</button>
+              <button class="button" type="submit" data-plugin-update-submit>
+                <span class="plugin-update-spinner" data-plugin-update-spinner aria-hidden="true" hidden></span>
+                <span data-plugin-update-label>Update offline to {{ .Builtin.Version }}</span>
+              </button>
             </form>
           {{ end }}
           <div data-plugin-catalog-update>

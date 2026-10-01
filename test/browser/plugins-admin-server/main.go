@@ -60,11 +60,29 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	renderer, err := markdown.NewWithPluginPackages(ctx, [][]byte{tablesArchive}, nil)
+	archives := [][]byte{tablesArchive}
+	offlineFixture := os.Getenv("KUMBUKA_FIXTURE_OFFLINE_UPDATE") == "1"
+	if offlineFixture {
+		archive, err := fixturePackage("1.1.0")
+		if err != nil {
+			panic(err)
+		}
+		archives = append(archives, archive)
+	}
+	renderer, err := markdown.NewWithPluginPackages(ctx, archives, nil)
 	if err != nil {
 		panic(err)
 	}
 	defer func() { _ = renderer.Close(ctx) }()
+	if offlineFixture {
+		archive, err := fixturePackage("1.0.0")
+		if err != nil {
+			panic(err)
+		}
+		if _, err := renderer.PluginManager().Upgrade(ctx, "io.example.browser", archive); err != nil {
+			panic(err)
+		}
+	}
 	logger := slog.New(slog.NewTextHandler(os.Stderr, nil))
 	catalog, err := themes.Load("")
 	if err != nil {
