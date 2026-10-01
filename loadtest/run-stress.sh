@@ -22,7 +22,7 @@ stats_pid=
 cleaned=0
 
 mkdir -p "$output_dir"
-rm -f "${results_root}/latest"
+rm -rf "${results_root}/latest"
 ln -s "$run_name" "${results_root}/latest"
 
 compose() {
