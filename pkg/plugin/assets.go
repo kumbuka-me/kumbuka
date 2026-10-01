@@ -7,6 +7,7 @@ import (
 	"image/png"
 	"io/fs"
 	"strings"
+	"time"
 
 	"github.com/kumbuka-me/kumbuka/pkg/icons"
 	"github.com/kumbuka-me/sdk/pluginpackage"
@@ -87,23 +88,27 @@ func (m *Manager) IconResourceVersion() string {
 
 // IconResources returns assets explicitly declared by enabled icon-resource modules. Package validation guarantees that every declared asset exists and is bounded.
 func (m *Manager) IconResources() ([]icons.Resource, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), assetReadTimeout)
+	defer cancel()
 	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	resources := make([]icons.Resource, 0)
+	items := make([]managedPlugin, 0)
 	for _, id := range m.order {
 		item, ok := m.loaded[id]
-		if !activePluginWithModule(item, ok, ModuleTypeIconResource) {
-			continue
+		if activePluginWithModule(item, ok, ModuleTypeIconResource) {
+			items = append(items, managedPlugin{metadata: cloneLoaded(item.metadata)})
 		}
+	}
+	m.mu.Unlock()
 
+	resources := make([]icons.Resource, 0)
+	for _, item := range items {
 		var pkg *pluginpackage.Package
 		for _, module := range item.metadata.Manifest.Modules {
 			if ModuleType(module.Type) != ModuleTypeIconResource {
 				continue
 			}
 			if pkg == nil {
-				loaded, err := m.readPackage(context.Background(), item)
+				loaded, err := m.readAssetPackage(ctx, item, true)
 				if err != nil {
 					return nil, err
 				}
@@ -230,16 +235,12 @@ const (
 )
 
 // PluginPreview returns a bounded static PNG bundled with an installed plugin. Reading preview metadata never enables or instantiates plugin code.
-func (m *Manager) PluginPreview(id string) ([]byte, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	item, ok := m.loaded[id]
-	if !ok {
-		return nil, fs.ErrNotExist
+func (m *Manager) PluginPreview(ctx context.Context, id string) ([]byte, error) {
+	item, err := m.assetSnapshot(id, "", false)
+	if err != nil {
+		return nil, err
 	}
-
-	pkg, err := m.readPackage(context.Background(), item)
+	pkg, err := m.readAssetPackage(ctx, item, false)
 	if err != nil {
 		return nil, err
 	}
@@ -287,12 +288,10 @@ func moduleDeclaresAsset(module pluginpackage.Module, moduleType ModuleType, nam
 }
 
 // BrowserAsset serves bytes from an enabled, exact-version package only. There is no filesystem extraction, and lifecycle changes invalidate old URLs.
-func (m *Manager) BrowserAsset(id, digest, name string) ([]byte, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	item, ok := m.loaded[id]
-	if !activePluginVersion(item, ok, digest) {
-		return nil, fs.ErrNotExist
+func (m *Manager) BrowserAsset(ctx context.Context, id, digest, name string) ([]byte, error) {
+	item, err := m.assetSnapshot(id, digest, true)
+	if err != nil {
+		return nil, err
 	}
 	hasBrowser := false
 	for _, module := range item.metadata.Manifest.Modules {
@@ -304,7 +303,7 @@ func (m *Manager) BrowserAsset(id, digest, name string) ([]byte, error) {
 	if !hasBrowser {
 		return nil, fs.ErrNotExist
 	}
-	pkg, err := m.readPackage(context.Background(), item)
+	pkg, err := m.readAssetPackage(ctx, item, true)
 	if err != nil {
 		return nil, err
 	}
@@ -312,24 +311,20 @@ func (m *Manager) BrowserAsset(id, digest, name string) ([]byte, error) {
 }
 
 // CodeHighlighterAsset returns an asset declared by an active code-highlighter module.
-func (m *Manager) CodeHighlighterAsset(id, digest, name string) ([]byte, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	return m.declaredAsset(id, digest, name, ModuleTypeCodeHighlighter)
+func (m *Manager) CodeHighlighterAsset(ctx context.Context, id, digest, name string) ([]byte, error) {
+	return m.declaredAsset(ctx, id, digest, name, ModuleTypeCodeHighlighter)
 }
 
 // ContentStyleAsset returns an asset declared by an active content-style module.
-func (m *Manager) ContentStyleAsset(id, digest, name string) ([]byte, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	return m.declaredAsset(id, digest, name, ModuleTypeContentStyle)
+func (m *Manager) ContentStyleAsset(ctx context.Context, id, digest, name string) ([]byte, error) {
+	return m.declaredAsset(ctx, id, digest, name, ModuleTypeContentStyle)
 }
 
 // declaredAsset returns one exact-version asset declared by moduleType.
-func (m *Manager) declaredAsset(id, digest, name string, moduleType ModuleType) ([]byte, error) {
-	item, ok := m.loaded[id]
-	if !activePluginVersion(item, ok, digest) {
-		return nil, fs.ErrNotExist
+func (m *Manager) declaredAsset(ctx context.Context, id, digest, name string, moduleType ModuleType) ([]byte, error) {
+	item, err := m.assetSnapshot(id, digest, true)
+	if err != nil {
+		return nil, err
 	}
 	declared := false
 	for _, module := range item.metadata.Manifest.Modules {
@@ -341,7 +336,7 @@ func (m *Manager) declaredAsset(id, digest, name string, moduleType ModuleType) 
 	if !declared {
 		return nil, fs.ErrNotExist
 	}
-	pkg, err := m.readPackage(context.Background(), item)
+	pkg, err := m.readAssetPackage(ctx, item, true)
 	if err != nil {
 		return nil, err
 	}
@@ -349,16 +344,50 @@ func (m *Manager) declaredAsset(id, digest, name string, moduleType ModuleType) 
 }
 
 // BrowserAssetNames returns asset paths declared by active browser modules.
-func (m *Manager) BrowserAssetNames(id, digest string) ([]string, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	item, ok := m.loaded[id]
-	if !activePluginVersion(item, ok, digest) {
-		return nil, fs.ErrNotExist
+func (m *Manager) BrowserAssetNames(ctx context.Context, id, digest string) ([]string, error) {
+	item, err := m.assetSnapshot(id, digest, true)
+	if err != nil {
+		return nil, err
 	}
-	pkg, err := m.readPackage(context.Background(), item)
+	pkg, err := m.readAssetPackage(ctx, item, true)
 	if err != nil {
 		return nil, err
 	}
 	return pkg.AssetNames(), nil
+}
+
+// assetReadTimeout bounds storage reads even for callers without request deadlines.
+const assetReadTimeout = 10 * time.Second
+
+// assetSnapshot copies the identity and declarations under the manager lock.
+// Package I/O and decoding must happen after this lock is released.
+func (m *Manager) assetSnapshot(id, digest string, active bool) (managedPlugin, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	item, ok := m.loaded[id]
+	if m.closed || !ok || (active && !activePluginVersion(item, ok, digest)) {
+		return managedPlugin{}, fs.ErrNotExist
+	}
+	return managedPlugin{metadata: cloneLoaded(item.metadata)}, nil
+}
+
+// readAssetPackage reads outside the manager lock and rejects a package whose
+// local lifecycle changed during I/O, so disable and replacement revoke URLs.
+func (m *Manager) readAssetPackage(ctx context.Context, item managedPlugin, active bool) (*pluginpackage.Package, error) {
+	ctx, cancel := context.WithTimeout(ctx, assetReadTimeout)
+	defer cancel()
+	pkg, err := m.readPackage(ctx, item)
+	if err != nil {
+		return nil, err
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	current, ok := m.loaded[item.metadata.Manifest.ID]
+	if m.closed || !ok || current.metadata.Digest != item.metadata.Digest || (active && !current.metadata.Enabled) {
+		return nil, fs.ErrNotExist
+	}
+	return pkg, nil
 }

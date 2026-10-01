@@ -38,7 +38,7 @@ func TestInstalledBrowserPluginUsesSameRuntimeAndAssets(t *testing.T) {
 	modules := manager.BrowserModules()
 	require.Len(t, modules, 1)
 	old := modules[0]
-	actual, err := manager.BrowserAsset(old.PluginID, old.Digest, "plugin.js")
+	actual, err := manager.BrowserAsset(context.Background(), old.PluginID, old.Digest, "plugin.js")
 	require.NoError(t, err)
 	expected, err := pkg.Asset("plugin.js")
 	require.NoError(t, err)
@@ -46,16 +46,16 @@ func TestInstalledBrowserPluginUsesSameRuntimeAndAssets(t *testing.T) {
 	replacement := changedManifestVersion(t, archive, "1.1.0")
 	_, err = manager.Upgrade(ctx, old.PluginID, replacement)
 	require.NoError(t, err)
-	_, err = manager.BrowserAsset(old.PluginID, old.Digest, "plugin.js")
+	_, err = manager.BrowserAsset(context.Background(), old.PluginID, old.Digest, "plugin.js")
 	require.Error(t, err)
 	next := manager.BrowserModules()[0]
 	assert.Equal(t, "1.1.0", next.Version)
 	assert.NotEqual(t, old.Digest, next.Digest)
-	_, err = manager.BrowserAsset(next.PluginID, next.Digest, "plugin.js")
+	_, err = manager.BrowserAsset(context.Background(), next.PluginID, next.Digest, "plugin.js")
 	require.NoError(t, err)
 	require.NoError(t, manager.Uninstall(ctx, next.PluginID))
 	assert.Empty(t, manager.BrowserModules())
-	_, err = manager.BrowserAsset(next.PluginID, next.Digest, "plugin.js")
+	_, err = manager.BrowserAsset(context.Background(), next.PluginID, next.Digest, "plugin.js")
 	require.Error(t, err)
 }
 

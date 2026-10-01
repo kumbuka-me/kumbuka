@@ -22,7 +22,7 @@ func PluginAssets(manager *plugin.Manager) http.HandlerFunc {
 		}
 		name := r.PathValue("asset")
 		// Asset() also validates the complete path, including backslashes and '..'.
-		data, err := manager.BrowserAsset(r.PathValue("pluginID"), r.PathValue("digest"), name)
+		data, err := manager.BrowserAsset(r.Context(), r.PathValue("pluginID"), r.PathValue("digest"), name)
 		if err != nil {
 			http.NotFound(w, r)
 			return
@@ -51,7 +51,7 @@ func PluginPreview(manager *plugin.Manager) http.HandlerFunc {
 			return
 		}
 
-		data, err := manager.PluginPreview(r.PathValue("pluginID"))
+		data, err := manager.PluginPreview(r.Context(), r.PathValue("pluginID"))
 		if err != nil {
 			http.NotFound(w, r)
 			return
@@ -136,6 +136,6 @@ func PluginPresentationStyles(manager *plugin.Manager) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "text/css; charset=utf-8")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
-		_, _ = w.Write([]byte(pluginbrowser.PresentationStyles(manager)))
+		_, _ = w.Write([]byte(pluginbrowser.PresentationStyles(r.Context(), manager)))
 	}
 }

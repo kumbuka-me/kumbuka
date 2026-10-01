@@ -3,6 +3,7 @@ package plugin
 import (
 	"archive/zip"
 	"bytes"
+	"context"
 	"image"
 	"image/png"
 	"testing"
@@ -21,7 +22,7 @@ func TestPluginPreviewServesDisabledPluginDocumentation(t *testing.T) {
 	require.NoError(t, err)
 
 	manager := previewTestManager(pkg, archive)
-	data, err := manager.PluginPreview(pkg.Manifest().ID)
+	data, err := manager.PluginPreview(context.Background(), pkg.Manifest().ID)
 
 	require.NoError(t, err)
 	assert.Equal(t, preview, data)
@@ -35,7 +36,7 @@ func TestBrowserAssetDoesNotExposeDisabledPluginPreview(t *testing.T) {
 	require.NoError(t, err)
 
 	manager := previewTestManager(pkg, archive)
-	_, err = manager.BrowserAsset(pkg.Manifest().ID, "preview", pluginPreviewAsset)
+	_, err = manager.BrowserAsset(context.Background(), pkg.Manifest().ID, "preview", pluginPreviewAsset)
 
 	require.Error(t, err)
 }
@@ -48,7 +49,7 @@ func TestPluginPreviewRejectsInvalidPNG(t *testing.T) {
 	require.NoError(t, err)
 
 	manager := previewTestManager(pkg, archive)
-	_, err = manager.PluginPreview(pkg.Manifest().ID)
+	_, err = manager.PluginPreview(context.Background(), pkg.Manifest().ID)
 
 	require.Error(t, err)
 }
@@ -61,7 +62,7 @@ func TestPluginPreviewReturnsNotFoundWhenPackageHasNoPreview(t *testing.T) {
 	require.NoError(t, err)
 
 	manager := previewTestManager(pkg, archive)
-	_, err = manager.PluginPreview(pkg.Manifest().ID)
+	_, err = manager.PluginPreview(context.Background(), pkg.Manifest().ID)
 
 	require.Error(t, err)
 }

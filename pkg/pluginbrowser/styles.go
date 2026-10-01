@@ -1,6 +1,7 @@
 package pluginbrowser
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"regexp"
@@ -110,23 +111,23 @@ func appendStyleContribution(identity *strings.Builder, kind, pluginID, moduleID
 }
 
 // PresentationStyles publishes only validated presentation declarations from active package stylesheets.
-func PresentationStyles(manager *plugin.Manager) string {
+func PresentationStyles(ctx context.Context, manager *plugin.Manager) string {
 	if manager == nil {
 		return ""
 	}
 
 	var output strings.Builder
-	appendBrowserModuleStyles(&output, manager)
-	appendCodeHighlighterStyles(&output, manager)
-	appendContentModuleStyles(&output, manager)
+	appendBrowserModuleStyles(ctx, &output, manager)
+	appendCodeHighlighterStyles(ctx, &output, manager)
+	appendContentModuleStyles(ctx, &output, manager)
 	return output.String()
 }
 
 // appendBrowserModuleStyles appends validated browser-module color styles.
-func appendBrowserModuleStyles(output *strings.Builder, manager *plugin.Manager) {
+func appendBrowserModuleStyles(ctx context.Context, output *strings.Builder, manager *plugin.Manager) {
 	for _, module := range manager.BrowserModules() {
 		data, ok := loadPresentationAsset(module.CSS, func() ([]byte, error) {
-			return manager.BrowserAsset(module.PluginID, module.Digest, module.CSS)
+			return manager.BrowserAsset(ctx, module.PluginID, module.Digest, module.CSS)
 		})
 		if !ok {
 			continue
@@ -137,10 +138,10 @@ func appendBrowserModuleStyles(output *strings.Builder, manager *plugin.Manager)
 }
 
 // appendCodeHighlighterStyles appends validated code-highlighter styles.
-func appendCodeHighlighterStyles(output *strings.Builder, manager *plugin.Manager) {
+func appendCodeHighlighterStyles(ctx context.Context, output *strings.Builder, manager *plugin.Manager) {
 	for _, module := range manager.CodeHighlighters() {
 		data, ok := loadPresentationAsset(module.CSS, func() ([]byte, error) {
-			return manager.CodeHighlighterAsset(module.PluginID, module.Digest, module.CSS)
+			return manager.CodeHighlighterAsset(ctx, module.PluginID, module.Digest, module.CSS)
 		})
 		if !ok {
 			continue
@@ -151,10 +152,10 @@ func appendCodeHighlighterStyles(output *strings.Builder, manager *plugin.Manage
 }
 
 // appendContentModuleStyles appends validated rendered-content styles.
-func appendContentModuleStyles(output *strings.Builder, manager *plugin.Manager) {
+func appendContentModuleStyles(ctx context.Context, output *strings.Builder, manager *plugin.Manager) {
 	for _, module := range manager.ContentStyles() {
 		data, ok := loadPresentationAsset(module.CSS, func() ([]byte, error) {
-			return manager.ContentStyleAsset(module.PluginID, module.Digest, module.CSS)
+			return manager.ContentStyleAsset(ctx, module.PluginID, module.Digest, module.CSS)
 		})
 		if !ok {
 			continue
