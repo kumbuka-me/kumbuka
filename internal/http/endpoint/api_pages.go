@@ -103,7 +103,7 @@ func PreviewMarkdown(
 			return
 		}
 
-		httpresponse.Respond(w, http.StatusOK, map[string]string{"html": route.HTML(strings.TrimSuffix(route.ForRequest(r, "/"), "/"), rendered.HTML)})
+		httpresponse.Respond(w, http.StatusOK, map[string]string{"html": route.RewriteHTMLURLs(strings.TrimSuffix(route.ForRequest(r, "/"), "/"), rendered.HTML)})
 	}
 }
 

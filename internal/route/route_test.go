@@ -21,10 +21,10 @@ func TestRedirect(t *testing.T) {
 	}
 }
 
-func TestHTML(t *testing.T) {
+func TestRewriteHTMLURLs(t *testing.T) {
 	source := `<p><a href="/pages/foo">/pages/foo</a><img src="/media/7/a.png"><code>&lt;a href="/pages/foo"&gt;</code><a href="https://example.test/">external</a></p>`
-	assert.Equal(t, source, HTML("", source))
-	got := HTML("/kumbuka", source)
+	assert.Equal(t, source, RewriteHTMLURLs("", source))
+	got := RewriteHTMLURLs("/kumbuka", source)
 	assert.Contains(t, got, `href="/kumbuka/pages/foo"`)
 	assert.Contains(t, got, `src="/kumbuka/media/7/a.png"`)
 	assert.Contains(t, got, `<code>&lt;a href="/pages/foo"&gt;</code>`)

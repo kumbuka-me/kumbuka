@@ -9,9 +9,10 @@ import (
 	"golang.org/x/net/html"
 )
 
-// HTML rewrites local URL attributes in already sanitized HTML. It is not a sanitizer.
+// RewriteHTMLURLs applies the deployment route prefix to local URLs in href,
+// src, action, and poster attributes of already sanitized HTML. It is not a sanitizer.
 // Text, code examples, and external URLs remain untouched.
-func HTML(prefix, source string) string {
+func RewriteHTMLURLs(prefix, source string) string {
 	if prefix == "" {
 		return source
 	}

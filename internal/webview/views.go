@@ -202,7 +202,7 @@ func New(
 
 	funcs := template.FuncMap{
 		"routeHTML": func(value template.HTML) template.HTML {
-			return template.HTML(route.HTML(runtime.RoutePrefix, string(value)))
+			return template.HTML(route.RewriteHTMLURLs(runtime.RoutePrefix, string(value)))
 		},
 		"route":              func(target string) string { return httpprefix.RouteURL(runtime.RoutePrefix, target) },
 		"join":               strings.Join,
