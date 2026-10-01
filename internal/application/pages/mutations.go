@@ -12,6 +12,7 @@ import (
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	md "github.com/kumbuka-me/kumbuka/pkg/markdown"
 	"github.com/kumbuka-me/kumbuka/pkg/pagemove"
+	"github.com/kumbuka-me/kumbuka/pkg/pageurl"
 	"github.com/kumbuka-me/kumbuka/pkg/pluginusage"
 	"github.com/kumbuka-me/kumbuka/pkg/revision"
 )
@@ -190,9 +191,9 @@ func (s *Mutations) Save(ctx context.Context, input PageSaveInput) (domain.Page,
 		input.Actor.ID,
 		input.Markdown,
 		"Mention in "+page.Title,
-		"/pages/"+page.Slug,
+		pageurl.Page(page.ID, page.Slug),
 	)
-	s.effects.notifyWatchers(ctx, input.Actor.ID, page.Slug, actionTitle(action, page.Title), "A watched page changed.", "/pages/"+page.Slug)
+	s.effects.notifyWatchers(ctx, input.Actor.ID, page.Slug, actionTitle(action, page.Title), "A watched page changed.", pageurl.Page(page.ID, page.Slug))
 	s.notifyContentChanged(ctx, PageContentChange{
 		Page:             page,
 		PreviousMarkdown: previousMarkdown,
@@ -383,9 +384,13 @@ func (s *Mutations) Move(
 	if err := s.repository.MovePage(ctx, oldSlug, newSlug, options, actor); err != nil {
 		return err
 	}
+	page, err := s.repository.GetPage(ctx, newSlug)
+	if err != nil {
+		return err
+	}
 
 	s.effects.recordAudit(ctx, actor.ID, "page.moved", "page", newSlug, oldSlug+" → "+newSlug)
-	s.effects.notifyWatchers(ctx, actor.ID, oldSlug, "Page moved: "+oldSlug, "The watched page moved to "+newSlug+".", "/pages/"+newSlug)
+	s.effects.notifyWatchers(ctx, actor.ID, oldSlug, "Page moved: "+oldSlug, "The watched page moved to "+newSlug+".", pageurl.Page(page.ID, page.Slug))
 
 	return nil
 }
@@ -399,9 +404,13 @@ func (s *Mutations) Review(ctx context.Context, slug string, actor domain.User) 
 	if err := s.repository.MarkPageReviewed(ctx, slug); err != nil {
 		return err
 	}
+	page, err := s.repository.GetPage(ctx, slug)
+	if err != nil {
+		return err
+	}
 
 	s.effects.recordAudit(ctx, actor.ID, "page.reviewed", "page", slug, "Documentation review completed")
-	s.effects.notifyWatchers(ctx, actor.ID, slug, "Page reviewed: "+slug, "A watched page was reviewed.", "/pages/"+slug)
+	s.effects.notifyWatchers(ctx, actor.ID, slug, "Page reviewed: "+slug, "A watched page was reviewed.", pageurl.Page(page.ID, page.Slug))
 
 	return nil
 }
@@ -467,7 +476,7 @@ func (s *Mutations) RestoreRevision(ctx context.Context, slug string, number int
 		page.Slug,
 		"Restored revision "+fmt.Sprint(number),
 	)
-	s.effects.notifyWatchers(ctx, actor.ID, page.Slug, "Revision restored: "+page.Title, "A watched page restored an older revision.", "/pages/"+page.Slug)
+	s.effects.notifyWatchers(ctx, actor.ID, page.Slug, "Revision restored: "+page.Title, "A watched page restored an older revision.", pageurl.Page(page.ID, page.Slug))
 	s.notifyContentChanged(ctx, PageContentChange{
 		Page:             page,
 		PreviousMarkdown: previousMarkdown,

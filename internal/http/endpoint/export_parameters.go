@@ -11,6 +11,7 @@ import (
 
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
 	"github.com/kumbuka-me/kumbuka/internal/pdf"
+	"github.com/kumbuka-me/kumbuka/internal/route"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	md "github.com/kumbuka-me/kumbuka/pkg/markdown"
 	"github.com/kumbuka-me/kumbuka/pkg/plugin"
@@ -107,20 +108,25 @@ func renderExportHTML(
 	user domain.User,
 	page domain.Page,
 	parameters map[string]map[string]map[string]string,
+	routePrefix string,
 ) (string, error) {
 	securedCatalog := catalog.Accessible(user)
-	pageNavigation, err := subpageNavigation(ctx, navigation, user, page.Slug)
+	pageNavigation, err := subpageNavigation(ctx, navigation, user, page.Slug, routePrefix)
+	if err != nil {
+		return "", err
+	}
+	links, err := securedCatalog.ResolvePageLinks(ctx, md.Links(page.Markdown))
 	if err != nil {
 		return "", err
 	}
 	rendered, err := renderer.RenderPageResolvedWithFunctions(
 		page.Markdown,
-		md.Slug,
+		md.WikiLinkResolver(links),
 		md.DefaultOptions(),
 		md.Functions{
 			Context:          ctx,
 			PluginUsage:      page.PluginUsage,
-			Capabilities:     plugincap.Capabilities(securedCatalog, pageNavigation, renderer.IconCatalog()),
+			Capabilities:     plugincap.Capabilities(securedCatalog, pageNavigation, routePrefix, renderer.IconCatalog()),
 			ExportParameters: parameters,
 		},
 	)
@@ -164,7 +170,7 @@ func PreviewPageExport(
 			httpresponse.InternalServerError(logger, w, err)
 			return
 		}
-		rendered, err := renderExportHTML(r.Context(), catalog, navigation, media, renderer, currentUser(r), page, parameters)
+		rendered, err := renderExportHTML(r.Context(), catalog, navigation, media, renderer, currentUser(r), page, parameters, route.PrefixForRequest(r))
 		if err != nil {
 			writeRenderedExportProblem(logger, w, err)
 			return

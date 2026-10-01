@@ -18,7 +18,7 @@
       <section class="sidebar-shortcuts plugin-widget"
                data-kumbuka-plugin="{{ .PluginID }}"
                data-kumbuka-module="{{ .ModuleID }}">
-        {{ routeHTML .HTML }}
+        {{ .HTML }}
         {{ if .Actions }}
           <div class="plugin-widget-actions">
             {{ range .Actions }}

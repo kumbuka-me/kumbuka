@@ -41,7 +41,7 @@ func (r *pageSaveRepositoryStub) SavePage(
 	r.metadata = metadata
 	r.render = render
 
-	return domain.Page{Slug: slug, Title: title, Markdown: markdown}, nil
+	return domain.Page{ID: 7, Slug: slug, Title: title, Markdown: markdown}, nil
 }
 
 func (r *pageSaveRepositoryStub) GetPage(context.Context, string) (domain.Page, error) {

@@ -8,6 +8,8 @@ import (
 
 // Page contains the page metadata required to build navigation.
 type Page struct {
+	// ID is the stable persisted page identity.
+	ID int64
 	// Slug is the complete page path.
 	Slug string
 	// Title is the page label displayed to the user.
@@ -30,6 +32,8 @@ type Options struct {
 
 // Node is one page or folder in the slug-derived navigation tree.
 type Node struct {
+	// ID is the stable page identity, or zero for a synthetic folder.
+	ID int64
 	// Title is the display label for the page or folder.
 	Title string
 	// Slug is the accumulated navigation path for the node.
@@ -56,6 +60,8 @@ type Node struct {
 
 // branch is the mutable internal representation used while building navigation.
 type branch struct {
+	// id is the stable page identity, or zero for a synthetic folder.
+	id int64
 	// title is the display label for the branch.
 	title string
 	// slug is the accumulated navigation path for the branch.
@@ -97,6 +103,7 @@ func Build(pages []Page, options Options) []Node {
 				child.icon = icon
 			}
 			if index == len(parts)-1 {
+				child.id = page.ID
 				child.page = true
 				child.title = page.Title
 
@@ -165,6 +172,7 @@ func nodes(parent *branch, depth int, activeSlug string, expanded map[string]boo
 		}
 
 		result = append(result, Node{
+			ID:             child.id,
 			Title:          child.title,
 			Slug:           child.slug,
 			Icon:           child.icon,

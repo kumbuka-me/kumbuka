@@ -1,4 +1,4 @@
-import { route } from "./route.ts";
+import { pageURL, route } from "./route.ts";
 // Global command palette search and keyboard interaction.
 
 import { requiredElement } from "./dom.ts";
@@ -8,6 +8,7 @@ import { requestJSON } from "./http.ts";
 const maxResults = 7;
 
 interface CommandPage {
+  id: number;
   slug: string;
   title: string;
 }
@@ -15,6 +16,7 @@ interface CommandPage {
 function isCommandPage(value: unknown): value is CommandPage {
   return (
     isRecord(value) &&
+    typeof value.id === "number" &&
     typeof value.slug === "string" &&
     typeof value.title === "string"
   );
@@ -69,7 +71,7 @@ function setupCommandPalette(dialog: HTMLDialogElement): void {
     pages.forEach((page) => {
       const anchor = document.createElement("a");
 
-      anchor.href = route(`/pages/${page.slug}`);
+      anchor.href = route(pageURL(page.id, page.slug));
       anchor.dataset.commandOption = "";
       anchor.className = "command-palette-option";
       anchor.setAttribute("role", "option");

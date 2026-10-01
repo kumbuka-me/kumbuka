@@ -315,7 +315,7 @@
         </section>
         {{ with index $.PluginREADMEs .Manifest.ID }}
           <section class="plugin-detail-section plugin-readme-section">
-            <div class="plugin-readme prose">{{ routeHTML . }}</div>
+            <div class="plugin-readme prose">{{ . }}</div>
           </section>
         {{ end }}
         {{ if index $.PluginHasSettings .Manifest.ID }}
@@ -412,7 +412,10 @@
                   data-plugin-update-pending="Applying offline update…">
               <input type="hidden" name="source" value="builtin">
               <button class="button" type="submit" data-plugin-update-submit>
-                <span class="plugin-update-spinner" data-plugin-update-spinner aria-hidden="true" hidden></span>
+                <span class="plugin-update-spinner"
+                      data-plugin-update-spinner
+                      aria-hidden="true"
+                      hidden></span>
                 <span data-plugin-update-label>Update offline to {{ .Builtin.Version }}</span>
               </button>
             </form>

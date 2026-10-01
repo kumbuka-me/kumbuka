@@ -1,4 +1,4 @@
-import { route } from "../core/route.ts";
+import { pageURL, route } from "../core/route.ts";
 // Live global search behavior.
 
 import { createLatestRequest, isAbortError } from "../core/async.ts";
@@ -7,6 +7,7 @@ import { requestJSON } from "../core/http.ts";
 import { t } from "../core/i18n.ts";
 
 interface SearchPage {
+  id: number;
   slug: string;
   title: string;
 }
@@ -14,6 +15,7 @@ interface SearchPage {
 function isSearchPage(value: unknown): value is SearchPage {
   return (
     isRecord(value) &&
+    typeof value.id === "number" &&
     typeof value.slug === "string" &&
     typeof value.title === "string"
   );
@@ -83,7 +85,7 @@ function setupLiveSearch(form: HTMLFormElement): void {
         const link = document.createElement("a");
 
         link.className = "search-suggestion";
-        link.href = route(`/pages/${page.slug}`);
+        link.href = route(pageURL(page.id, page.slug));
         link.setAttribute("role", "option");
         link.setAttribute("aria-selected", "false");
 

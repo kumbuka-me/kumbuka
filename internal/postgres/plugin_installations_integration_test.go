@@ -4,12 +4,13 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/json"
-	"github.com/jackc/pgx/v5"
-	"github.com/kumbuka-me/sdk/pluginpackage"
 	"io"
 	"log/slog"
 	"testing"
 	"time"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/kumbuka-me/sdk/pluginpackage"
 
 	"github.com/kumbuka-me/kumbuka/pkg/markdown"
 	"github.com/kumbuka-me/kumbuka/pkg/plugin"
@@ -100,10 +101,10 @@ func TestLegacyPluginMetadataMigration(t *testing.T) {
 	ctx := context.Background()
 	conn, err := pgx.Connect(ctx, integrationDatabase(t))
 	require.NoError(t, err)
-	defer conn.Close(ctx)
+	defer conn.Close(ctx) // nolint:errcheck
 	tx, err := conn.Begin(ctx)
 	require.NoError(t, err)
-	defer tx.Rollback(ctx)
+	defer tx.Rollback(ctx) // nolint:errcheck
 	// Only the legacy installation table is needed to exercise the data migration.
 	_, err = tx.Exec(ctx, `CREATE TABLE plugin_installations (
  plugin_id text PRIMARY KEY,source text NOT NULL,enabled boolean NOT NULL,package bytea,

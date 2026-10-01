@@ -24,6 +24,8 @@ type Rebuilds struct {
 	renderer *md.Renderer
 	// logger records rebuild progress and failures.
 	logger *slog.Logger
+	// routePrefix is the deployment boundary embedded in rendered application URLs.
+	routePrefix string
 
 	// mu protects the pending rebuild state.
 	mu sync.Mutex
@@ -45,13 +47,15 @@ func NewRebuilds(
 	artifacts artifactStore,
 	renderer *md.Renderer,
 	logger *slog.Logger,
+	routePrefix string,
 ) *Rebuilds {
 	return &Rebuilds{
-		catalog:   catalog,
-		pages:     pages,
-		artifacts: artifacts,
-		renderer:  renderer,
-		logger:    logger.With("component", "page-render-rebuild"),
+		catalog:     catalog,
+		pages:       pages,
+		artifacts:   artifacts,
+		renderer:    renderer,
+		logger:      logger.With("component", "page-render-rebuild"),
+		routePrefix: routePrefix,
 	}
 }
 
@@ -89,10 +93,15 @@ func (c *Rebuilds) rebuildPage(ctx context.Context, slug string) error {
 	usage := c.renderer.AnalyzeUsage(page.Markdown)
 	render := domain.PageRender{}
 	options := md.DefaultOptions()
+	options.RoutePrefix = c.routePrefix
 	if c.renderer.CanPersist(page.Markdown, &usage) {
+		links, linkErr := c.pages.ResolvePageLinks(ctx, md.Links(page.Markdown))
+		if linkErr != nil {
+			return linkErr
+		}
 		rendered, renderErr := c.renderer.RenderPageResolvedWithFunctions(
 			page.Markdown,
-			md.Slug,
+			md.WikiLinkResolver(links),
 			options,
 			md.Functions{
 				Context:     ctx,
@@ -221,6 +230,7 @@ type pageInventory interface {
 // pageContent loads the canonical Markdown and version of one page.
 type pageContent interface {
 	GetPage(context.Context, string) (domain.Page, error)
+	ResolvePageLinks(context.Context, []string) ([]domain.PageLink, error)
 }
 
 // artifactStore persists artifacts only while their source page version is current.

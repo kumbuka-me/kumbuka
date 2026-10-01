@@ -63,7 +63,7 @@ func (s *Store) BulkMovePages(ctx context.Context, slugs []string, target string
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
-	options := domain.MovePageOptions{UpdateIncomingLinks: true, KeepAliases: true}
+	options := domain.MovePageOptions{UpdateIncomingLinks: true}
 	for _, slug := range ordered {
 		source, destination, err := pagemove.Destination(slug, target)
 		if err != nil {
@@ -95,7 +95,7 @@ func movePage(ctx context.Context, tx pgx.Tx, oldSlug, newSlug string, options d
 	if err := validateMoveDestinations(ctx, tx, moved); err != nil {
 		return err
 	}
-	if err := applyPageMoves(ctx, tx, moved, options.KeepAliases, user.ID); err != nil {
+	if err := applyPageMoves(ctx, tx, moved, user.ID); err != nil {
 		return err
 	}
 	if err := retargetMovedPageLinks(ctx, tx, moved); err != nil {
@@ -148,31 +148,24 @@ ORDER BY length(slug),slug`
 	return moved, nil
 }
 
-// validateMoveDestinations ensures no destination collides with pages or aliases outside the move set.
+// validateMoveDestinations ensures every destination is either free or already owned by the same page.
 func validateMoveDestinations(ctx context.Context, tx pgx.Tx, moved []movedPage) error {
-	movingIDs := make([]int64, 0, len(moved))
 	for _, item := range moved {
-		movingIDs = append(movingIDs, item.id)
-	}
-
-	for _, item := range moved {
-		var conflict bool
-		if err := tx.QueryRow(ctx, `
-SELECT EXISTS(SELECT 1 FROM pages WHERE slug=$1 AND id<>ALL($2::bigint[])) OR EXISTS(SELECT 1 FROM page_aliases WHERE alias=$1 AND page_id<>ALL($2::bigint[]))`, item.newSlug, movingIDs).Scan(&conflict); err != nil {
+		if err := validatePageDestination(ctx, tx, item.id, item.newSlug); err != nil {
 			return err
-		}
-		if conflict {
-			return domain.ErrAlreadyExists
 		}
 	}
 
 	return nil
 }
 
-// applyPageMoves updates page paths, navigation icons, and optional aliases deepest-first.
-func applyPageMoves(ctx context.Context, tx pgx.Tx, moved []movedPage, keepAliases bool, userID int64) error {
+// applyPageMoves updates page paths, navigation icons, and aliases deepest-first.
+func applyPageMoves(ctx context.Context, tx pgx.Tx, moved []movedPage, userID int64) error {
 	// Update deepest paths first so unique path constraints never collide with descendants.
 	for _, item := range slices.Backward(moved) {
+		if err := removeCurrentSlugAlias(ctx, tx, item.id, item.newSlug); err != nil {
+			return err
+		}
 		if _, err := tx.Exec(ctx, `
 UPDATE pages
 SET slug=$2,updated_by=$3,updated_at=now()
@@ -184,9 +177,6 @@ UPDATE navigation_icons
 SET path=$2
 WHERE path=$1`, item.oldSlug, item.newSlug); err != nil {
 			return err
-		}
-		if !keepAliases {
-			continue
 		}
 		if _, err := tx.Exec(ctx, `
 INSERT INTO page_aliases(alias,page_id)

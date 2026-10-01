@@ -1,4 +1,4 @@
-import { route } from "../core/route.ts";
+import { pageURL, route } from "../core/route.ts";
 // Interactive knowledge graph rendering and inspection.
 
 import { requiredAttribute, requiredElement } from "../core/dom.ts";
@@ -8,6 +8,7 @@ import { requestJSON } from "../core/http.ts";
 type SVGAttributes = Record<string, string | number>;
 
 interface GraphNode {
+  id: number;
   slug: string;
   title: string;
   status?: string;
@@ -43,6 +44,7 @@ function svgElement<K extends keyof SVGElementTagNameMap>(
 function isGraphNode(value: unknown): value is GraphNode {
   return (
     isRecord(value) &&
+    typeof value.id === "number" &&
     typeof value.slug === "string" &&
     typeof value.title === "string" &&
     (value.status === undefined || typeof value.status === "string")
@@ -175,7 +177,7 @@ function setupGraph(root: HTMLElement): void {
     inspectorStatus.textContent = node.status || "verified";
     inspectorStatus.className = `page-status-badge status-${node.status || "verified"}`;
     inspectorDegree.textContent = `${degree} linked page${degree === 1 ? "" : "s"}`;
-    inspectorOpen.href = route(`/pages/${node.slug}`);
+    inspectorOpen.href = route(pageURL(node.id, node.slug));
 
     render();
   }
@@ -289,7 +291,7 @@ function setupGraph(root: HTMLElement): void {
         inspect(node, degrees.get(node.slug) || 0),
       );
       group.addEventListener("dblclick", () => {
-        window.location.href = route(`/pages/${node.slug}`);
+        window.location.href = route(pageURL(node.id, node.slug));
       });
       group.addEventListener("keydown", (event: KeyboardEvent) => {
         if (event.key === "Enter") inspect(node, degrees.get(node.slug) || 0);

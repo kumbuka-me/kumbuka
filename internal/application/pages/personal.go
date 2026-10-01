@@ -28,6 +28,15 @@ func NewPersonal(repository personalRepository, access accessReader) *Personal {
 	return &Personal{repository: repository, access: access}
 }
 
+// GetPageFor returns one visible page for a personal-action response.
+func (c *Personal) GetPageFor(ctx context.Context, actor domain.User, slug string) (domain.Page, error) {
+	slug = strings.Trim(strings.TrimSpace(slug), "/")
+	if err := appaccess.RequireView(ctx, c.access, actor, slug); err != nil {
+		return domain.Page{}, err
+	}
+	return c.repository.GetPage(ctx, slug)
+}
+
 // SetFavoriteFor updates a favorite only when the actor may view an existing page.
 func (c *Personal) SetFavoriteFor(ctx context.Context, actor domain.User, slug string, on bool) error {
 	slug = strings.Trim(strings.TrimSpace(slug), "/")

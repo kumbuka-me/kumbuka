@@ -8,9 +8,11 @@ import (
 	"errors"
 	"strings"
 
+	"github.com/containeroo/httpprefix"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/kumbuka-me/kumbuka/pkg/icons"
 	"github.com/kumbuka-me/kumbuka/pkg/navigation"
+	"github.com/kumbuka-me/kumbuka/pkg/pageurl"
 	"github.com/kumbuka-me/kumbuka/pkg/plugin"
 	"github.com/kumbuka-me/kumbuka/pkg/revision"
 	"github.com/kumbuka-me/sdk"
@@ -44,6 +46,8 @@ type LatestRevisionSource interface {
 type Pages struct {
 	// Source is the authorized page catalog used for plugin lookups.
 	Source Source
+	// RoutePrefix is the deployment prefix applied to browser destinations.
+	RoutePrefix string
 }
 
 // Search queries the authorized source and converts results to public plugin values.
@@ -55,7 +59,7 @@ func (p Pages) Search(ctx context.Context, query string, limit int) ([]sdk.Page,
 
 	result := make([]sdk.Page, 0, len(pages))
 	for _, page := range pages {
-		result = append(result, PageValue(page))
+		result = append(result, PageValue(page, p.RoutePrefix))
 	}
 
 	return result, nil
@@ -64,7 +68,7 @@ func (p Pages) Search(ctx context.Context, query string, limit int) ([]sdk.Page,
 // GetPage returns one authorized page as a public plugin value.
 func (p Pages) GetPage(ctx context.Context, slug string) (sdk.Page, error) {
 	page, err := p.Source.GetPage(ctx, slug)
-	return PageValue(page), err
+	return PageValue(page, p.RoutePrefix), err
 }
 
 // Content returns authorized stored Markdown without exposing internal domain values.
@@ -107,10 +111,14 @@ func (p Pages) Links(ctx context.Context, source LinkSource, slug string) (sdk.P
 	}
 	result := sdk.PageLinks{Outgoing: make([]sdk.PageLink, 0, len(outgoing))}
 	for _, page := range backlinks {
-		result.Backlinks = append(result.Backlinks, PageValue(page))
+		result.Backlinks = append(result.Backlinks, PageValue(page, p.RoutePrefix))
 	}
 	for _, link := range outgoing {
-		result.Outgoing = append(result.Outgoing, sdk.PageLink{TargetSlug: link.TargetSlug, TargetTitle: link.TargetTitle, Exists: link.Exists})
+		value := sdk.PageLink{TargetID: link.TargetID, TargetSlug: link.TargetSlug, TargetTitle: link.TargetTitle, Exists: link.Exists}
+		if link.Exists {
+			value.TargetURL = httpprefix.RouteURL(p.RoutePrefix, pageurl.Page(link.TargetID, link.ResolvedSlug))
+		}
+		result.Outgoing = append(result.Outgoing, value)
 	}
 	return result, nil
 }
@@ -153,8 +161,9 @@ func revisionValue(record revision.Revision) sdk.Revision {
 }
 
 // PageValue converts an internal page record into its public plugin representation.
-func PageValue(page domain.Page) sdk.Page {
+func PageValue(page domain.Page, routePrefix string) sdk.Page {
 	result := sdk.Page{
+		ID:         page.ID,
 		Slug:       page.Slug,
 		Title:      page.Title,
 		Icon:       page.Icon,
@@ -165,6 +174,9 @@ func PageValue(page domain.Page) sdk.Page {
 		Tags:       page.Tags,
 		ViewCount:  page.ViewCount,
 	}
+	if page.ID > 0 {
+		result.URL = httpprefix.RouteURL(routePrefix, pageurl.Page(page.ID, page.Slug))
+	}
 
 	for _, property := range page.Properties {
 		result.Properties = append(result.Properties, sdk.Property{Key: property.Key, Value: property.Value})
@@ -174,13 +186,13 @@ func PageValue(page domain.Page) sdk.Page {
 }
 
 // Navigation exposes prepared navigation nodes through the public plugin capability API.
-func Navigation(nodes []navigation.Node, pageURL func(string) string) []sdk.NavigationNode {
+func Navigation(nodes []navigation.Node, routePrefix string) []sdk.NavigationNode {
 	result := make([]sdk.NavigationNode, 0, len(nodes))
 
 	for _, node := range nodes {
-		item := sdk.NavigationNode{Title: node.Title, Icon: node.Icon, Page: node.Page, Children: Navigation(node.Children, pageURL)}
+		item := sdk.NavigationNode{Title: node.Title, Icon: node.Icon, Page: node.Page, Children: Navigation(node.Children, routePrefix)}
 		if node.Page {
-			item.URL = pageURL(node.Slug)
+			item.URL = httpprefix.RouteURL(routePrefix, pageurl.Page(node.ID, node.Slug))
 		}
 		result = append(result, item)
 	}
@@ -189,7 +201,7 @@ func Navigation(nodes []navigation.Node, pageURL func(string) string) []sdk.Navi
 }
 
 // Capabilities builds the render-scoped capability map supplied to plugins.
-func Capabilities(source Source, nodes []sdk.NavigationNode, catalogs ...*icons.Catalog) map[string]plugin.Capability {
+func Capabilities(source Source, nodes []sdk.NavigationNode, routePrefix string, catalogs ...*icons.Catalog) map[string]plugin.Capability {
 	catalog := icons.Builtin()
 	if len(catalogs) > 0 && catalogs[0] != nil {
 		catalog = catalogs[0]
@@ -199,7 +211,7 @@ func Capabilities(source Source, nodes []sdk.NavigationNode, catalogs ...*icons.
 		"icons.render":     iconRenderCapability(catalog),
 	}
 	if source != nil {
-		addPageCapabilities(result, source)
+		addPageCapabilities(result, source, routePrefix)
 	}
 	return result
 }
@@ -221,8 +233,8 @@ func iconRenderCapability(catalog *icons.Catalog) plugin.Capability {
 }
 
 // addPageCapabilities adds source-backed page capabilities supported by the concrete source.
-func addPageCapabilities(result map[string]plugin.Capability, source Source) {
-	pages := Pages{source}
+func addPageCapabilities(result map[string]plugin.Capability, source Source, routePrefix string) {
+	pages := Pages{Source: source, RoutePrefix: routePrefix}
 	result["pages.get"] = pageRefCapability(func(ctx context.Context, slug string) (any, error) {
 		return pages.GetPage(ctx, slug)
 	})

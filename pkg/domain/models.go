@@ -738,6 +738,8 @@ type PageComment struct {
 
 // GraphNode is one page in the wiki relationship graph.
 type GraphNode struct {
+	// ID is the stable persisted page identity.
+	ID int64 `json:"id"`
 	// Slug is the normalized page path associated with graph node.
 	Slug string `json:"slug"`
 	// Title is the title associated with graph node.
@@ -804,8 +806,6 @@ type MovePageOptions struct {
 	MoveChildren bool
 	// UpdateIncomingLinks reports whether update incoming links applies to move page options.
 	UpdateIncomingLinks bool
-	// KeepAliases reports whether keep aliases applies to move page options.
-	KeepAliases bool
 }
 
 // NavigationItem describes one page or synthetic folder in the navigation tree.
@@ -880,6 +880,10 @@ type PendingOIDCIdentity struct {
 
 // PageLink describes one wiki link recorded for a source page.
 type PageLink struct {
+	// TargetID is the stable identity of the resolved target, or zero when missing.
+	TargetID int64
+	// ResolvedSlug is the current slug of the resolved target, or empty when missing.
+	ResolvedSlug string
 	// TargetSlug is the target slug associated with page link.
 	TargetSlug string
 	// TargetTitle is the target title associated with page link.

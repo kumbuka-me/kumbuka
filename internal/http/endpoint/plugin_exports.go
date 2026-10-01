@@ -7,6 +7,7 @@ import (
 
 	"github.com/kumbuka-me/kumbuka/internal/http/auth"
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
+	"github.com/kumbuka-me/kumbuka/internal/route"
 	"github.com/kumbuka-me/kumbuka/pkg/markdown"
 	"github.com/kumbuka-me/kumbuka/pkg/plugin"
 	"github.com/kumbuka-me/kumbuka/pkg/plugincap"
@@ -34,7 +35,7 @@ func ExportPagePlugin(
 		}
 		user, _ := auth.User(r)
 		securedCatalog := catalog.Accessible(user)
-		pageNavigation, err := subpageNavigation(r.Context(), navigation, user, slug)
+		pageNavigation, err := subpageNavigation(r.Context(), navigation, user, slug, route.PrefixForRequest(r))
 		if err != nil {
 			httpresponse.Problem(w, http.StatusInternalServerError, "Could not prepare plugin export.")
 			return
@@ -45,10 +46,10 @@ func ExportPagePlugin(
 			r.PathValue("pluginID"),
 			r.PathValue("moduleID"),
 			plugin.Context{
-				Capabilities: plugincap.Capabilities(securedCatalog, pageNavigation, renderer.IconCatalog()),
+				Capabilities: plugincap.Capabilities(securedCatalog, pageNavigation, route.PrefixForRequest(r), renderer.IconCatalog()),
 				Features:     manager.FeatureSettings(),
 			},
-			plugin.ExportRequest{Page: plugincap.PageValue(page), Source: page.Markdown},
+			plugin.ExportRequest{Page: plugincap.PageValue(page, route.PrefixForRequest(r)), Source: page.Markdown},
 		)
 		if err != nil {
 			httpresponse.Problem(w, http.StatusUnprocessableEntity, "Plugin export failed.")

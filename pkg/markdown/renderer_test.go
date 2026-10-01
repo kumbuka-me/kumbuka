@@ -34,18 +34,36 @@ func TestWikiLinksSupportHeadingFragments(t *testing.T) {
 	assert.Equal(t, []string{"operations/postgres"}, Links("[[operations/postgres#Restore from backup]]"))
 }
 
-func TestWikiLinkPrefix(t *testing.T) {
+func TestRoutePrefix(t *testing.T) {
 	t.Parallel()
 
 	renderer := testRenderer(t)
 	options := DefaultOptions()
-	options.WikiLinkPrefix = "/docs/"
+	options.RoutePrefix = "/kumbuka"
 	got, err := renderer.RenderResolvedWithOptions("[[Hello World]]", func(target string) string {
-		return Slug(target) + "/"
+		return DefaultWikiLink(target)
 	}, options)
 
 	require.NoError(t, err)
-	assert.Contains(t, got, `href="/docs/hello-world/"`)
+	assert.Contains(t, got, `href="/kumbuka/pages/hello-world"`)
+}
+
+func TestRoutePrefixPreservesDocumentAndExternalURLs(t *testing.T) {
+	t.Parallel()
+
+	options := DefaultOptions()
+	options.RoutePrefix = "/kumbuka"
+	got, err := testRenderer(t).RenderResolvedWithOptions(
+		`[fragment](#section) [query](?view=history) ![image](/media/7/image.png) [external](https://example.test/page)`,
+		DefaultWikiLink,
+		options,
+	)
+
+	require.NoError(t, err)
+	assert.Contains(t, got, `href="#section"`)
+	assert.Contains(t, got, `href="?view=history"`)
+	assert.Contains(t, got, `src="/kumbuka/media/7/image.png"`)
+	assert.Contains(t, got, `href="https://example.test/page"`)
 }
 
 func TestLinksAreUnique(t *testing.T) {
@@ -193,7 +211,7 @@ func TestSubpagesFunctionExpandsAtItsMarkdownPosition(t *testing.T) {
 		"Before\n\n{{subpages}}\n\nAfter\n",
 		Slug,
 		DefaultOptions(),
-		Functions{Capabilities: plugincap.Capabilities(nil, []sdk.NavigationNode{{Title: "Generated pages", URL: "/pages/child", Page: true}})},
+		Functions{Capabilities: plugincap.Capabilities(nil, []sdk.NavigationNode{{Title: "Generated pages", URL: "/pages/child", Page: true}}, "")},
 	)
 
 	require.NoError(t, err)
@@ -211,7 +229,7 @@ func TestSubpagesFunctionUsesCustomTitle(t *testing.T) {
 		`{{subpages title="Related pages"}}`,
 		Slug,
 		DefaultOptions(),
-		Functions{Capabilities: plugincap.Capabilities(nil, []sdk.NavigationNode{{Title: "Generated pages", URL: "/pages/child", Page: true}})},
+		Functions{Capabilities: plugincap.Capabilities(nil, []sdk.NavigationNode{{Title: "Generated pages", URL: "/pages/child", Page: true}}, "")},
 	)
 
 	require.NoError(t, err)
@@ -226,7 +244,7 @@ func TestSubpagesFunctionAllowsHiddenTitle(t *testing.T) {
 		`{{subpages title=""}}`,
 		Slug,
 		DefaultOptions(),
-		Functions{Capabilities: plugincap.Capabilities(nil, []sdk.NavigationNode{{Title: "Generated pages", URL: "/pages/child", Page: true}})},
+		Functions{Capabilities: plugincap.Capabilities(nil, []sdk.NavigationNode{{Title: "Generated pages", URL: "/pages/child", Page: true}}, "")},
 	)
 
 	require.NoError(t, err)
@@ -242,7 +260,7 @@ func TestSubpagesFunctionLeavesUnsupportedOptionsLiteral(t *testing.T) {
 		`{{subpages depth=2}}`,
 		Slug,
 		DefaultOptions(),
-		Functions{Capabilities: plugincap.Capabilities(nil, []sdk.NavigationNode{{Title: "Generated pages", URL: "/pages/child", Page: true}})},
+		Functions{Capabilities: plugincap.Capabilities(nil, []sdk.NavigationNode{{Title: "Generated pages", URL: "/pages/child", Page: true}}, "")},
 	)
 
 	require.NoError(t, err)
@@ -258,7 +276,7 @@ func TestSubpagesFunctionRemainsLiteralInsideFencedCode(t *testing.T) {
 		"```markdown\n{{subpages}}\n```\n",
 		Slug,
 		DefaultOptions(),
-		Functions{Capabilities: plugincap.Capabilities(nil, []sdk.NavigationNode{{Title: "Generated pages", URL: "/pages/child", Page: true}})},
+		Functions{Capabilities: plugincap.Capabilities(nil, []sdk.NavigationNode{{Title: "Generated pages", URL: "/pages/child", Page: true}}, "")},
 	)
 
 	require.NoError(t, err)

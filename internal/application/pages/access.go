@@ -88,6 +88,33 @@ func (c AccessibleCatalog) PageLinks(ctx context.Context, slug string) ([]domain
 	return links, nil
 }
 
+// ResolvePageLinks resolves and redacts arbitrary wiki-link targets for the current actor.
+func (c AccessibleCatalog) ResolvePageLinks(ctx context.Context, slugs []string) ([]domain.PageLink, error) {
+	links, err := c.catalog.ResolvePageLinks(ctx, slugs)
+	if err != nil {
+		return nil, err
+	}
+	paths := make([]domain.Page, 0, len(links))
+	for _, link := range links {
+		if link.Exists {
+			paths = append(paths, domain.Page{Slug: link.ResolvedSlug})
+		}
+	}
+	visible, err := visiblePaths(ctx, c.access, c.user, paths)
+	if err != nil {
+		return nil, err
+	}
+	for index := range links {
+		if links[index].Exists && !visible[links[index].ResolvedSlug] {
+			links[index].TargetID = 0
+			links[index].ResolvedSlug = ""
+			links[index].TargetTitle = ""
+			links[index].Exists = false
+		}
+	}
+	return links, nil
+}
+
 // Revisions returns revision records only for a page visible to the current user.
 func (c AccessibleCatalog) Revisions(ctx context.Context, slug string) ([]revision.Revision, error) {
 	allowed, err := c.access.CanView(ctx, c.user, slug)
@@ -215,6 +242,7 @@ type reportReader interface {
 	SearchPage(context.Context, string, int, int) ([]domain.Page, error)
 	Backlinks(context.Context, string) ([]domain.Page, error)
 	PageLinks(context.Context, string) ([]domain.PageLink, error)
+	ResolvePageLinks(context.Context, []string) ([]domain.PageLink, error)
 	LatestRevision(context.Context, string) (revision.Revision, int, error)
 	Revisions(context.Context, string) ([]revision.Revision, error)
 }

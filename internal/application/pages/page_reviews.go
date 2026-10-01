@@ -10,6 +10,7 @@ import (
 	appaccess "github.com/kumbuka-me/kumbuka/internal/application/access"
 	"github.com/kumbuka-me/kumbuka/internal/application/webhooks"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
+	"github.com/kumbuka-me/kumbuka/pkg/pageurl"
 )
 
 // PageReviewRequestInput contains the editable fields used to open a review.
@@ -186,10 +187,11 @@ func (s *Reviews) RequestReview(ctx context.Context, input PageReviewRequestInpu
 	if pageErr != nil {
 		s.effects.logger.ErrorContext(ctx, "load page for review notification", "event", "page_side_effect_failed", "error", pageErr)
 	} else {
-		s.notifyReviewTargets(ctx, request.ID, input.Actor.ID, "Review requested for "+page.Title, strings.TrimSpace(input.Note), "/pages/"+input.Slug)
+		destination := pageurl.Page(page.ID, page.Slug)
+		s.notifyReviewTargets(ctx, request.ID, input.Actor.ID, "Review requested for "+page.Title, strings.TrimSpace(input.Note), destination)
+		s.effects.notifyWatchers(ctx, input.Actor.ID, input.Slug, "review-requested", "Review requested", destination)
 	}
 	s.effects.recordAudit(ctx, input.Actor.ID, "page.review_requested", "page", input.Slug, "Review requested for revision "+fmt.Sprint(request.RevisionNumber))
-	s.effects.notifyWatchers(ctx, input.Actor.ID, input.Slug, "review-requested", "Review requested", "/pages/"+input.Slug)
 
 	return request, nil
 }
@@ -245,10 +247,11 @@ func (s *Reviews) UpdateReview(ctx context.Context, input PageReviewUpdateInput)
 	if pageErr != nil {
 		s.effects.logger.ErrorContext(ctx, "load page for review notification", "event", "page_side_effect_failed", "error", pageErr)
 	} else {
-		s.notifyReviewTargets(ctx, updated.ID, input.Actor.ID, "Review request updated for "+page.Title, strings.TrimSpace(input.Note), "/pages/"+input.Slug)
+		destination := pageurl.Page(page.ID, page.Slug)
+		s.notifyReviewTargets(ctx, updated.ID, input.Actor.ID, "Review request updated for "+page.Title, strings.TrimSpace(input.Note), destination)
+		s.effects.notifyWatchers(ctx, input.Actor.ID, input.Slug, "review-updated", "Review request updated", destination)
 	}
 	s.effects.recordAudit(ctx, input.Actor.ID, "page.review_updated", "page", input.Slug, "Pending review request updated")
-	s.effects.notifyWatchers(ctx, input.Actor.ID, input.Slug, "review-updated", "Review request updated", "/pages/"+input.Slug)
 
 	return updated, nil
 }
@@ -286,10 +289,11 @@ func (s *Reviews) CancelReview(ctx context.Context, id int64, slug string, actor
 	if pageErr != nil {
 		s.effects.logger.ErrorContext(ctx, "load page for review notification", "event", "page_side_effect_failed", "error", pageErr)
 	} else {
-		s.notifyReviewTargets(ctx, id, actor.ID, "Review canceled for "+page.Title, "The review request was canceled.", "/pages/"+resolvedSlug)
+		destination := pageurl.Page(page.ID, page.Slug)
+		s.notifyReviewTargets(ctx, id, actor.ID, "Review canceled for "+page.Title, "The review request was canceled.", destination)
+		s.effects.notifyWatchers(ctx, actor.ID, resolvedSlug, "review-canceled", "Review request canceled", destination)
 	}
 	s.effects.recordAudit(ctx, actor.ID, "page.review_canceled", "page", resolvedSlug, "Pending review request canceled")
-	s.effects.notifyWatchers(ctx, actor.ID, resolvedSlug, "review-canceled", "Review request canceled", "/pages/"+resolvedSlug)
 
 	return nil
 }
@@ -340,23 +344,25 @@ func (s *Reviews) DecideReview(ctx context.Context, input PageReviewDecisionInpu
 	page, pageErr := s.repository.GetPage(ctx, resolvedSlug)
 	if pageErr != nil {
 		s.effects.logger.ErrorContext(ctx, "load page for review notification", "event", "page_side_effect_failed", "error", pageErr)
-	} else if request.RequestedBy != input.Actor.ID {
-		body := strings.TrimSpace(input.Note)
-		if body == "" {
-			body = "The review was " + string(input.Decision) + "."
+	} else {
+		if request.RequestedBy != input.Actor.ID {
+			body := strings.TrimSpace(input.Note)
+			if body == "" {
+				body = "The review was " + string(input.Decision) + "."
+			}
+			s.effects.notifyUser(
+				ctx,
+				request.RequestedBy,
+				input.Actor.ID,
+				domain.NotificationKindReview,
+				"Review "+string(input.Decision)+" for "+page.Title,
+				body,
+				pageurl.Page(page.ID, page.Slug),
+			)
 		}
-		s.effects.notifyUser(
-			ctx,
-			request.RequestedBy,
-			input.Actor.ID,
-			domain.NotificationKindReview,
-			"Review "+string(input.Decision)+" for "+page.Title,
-			body,
-			"/pages/"+resolvedSlug,
-		)
+		s.effects.notifyWatchers(ctx, input.Actor.ID, resolvedSlug, "review-"+string(input.Decision), "Review "+strings.ReplaceAll(string(input.Decision), "_", " "), pageurl.Page(page.ID, page.Slug))
 	}
 	s.effects.recordAudit(ctx, input.Actor.ID, "page.review_"+string(input.Decision), "page", resolvedSlug, strings.TrimSpace(input.Note))
-	s.effects.notifyWatchers(ctx, input.Actor.ID, resolvedSlug, "review-"+string(input.Decision), "Review "+strings.ReplaceAll(string(input.Decision), "_", " "), "/pages/"+resolvedSlug)
 
 	return nil
 }

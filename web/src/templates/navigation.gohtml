@@ -19,7 +19,7 @@
     {{ template "nav-icon" .Icon }}
     {{ if .Page }}
       <a class="nav-node-link{{ if .Active }} active{{ end }}"
-         href="{{ route "/pages/" }}{{ .Slug }}"
+         href="{{ route (pageURL .ID .Slug) }}"
          {{ if .Active }}aria-current="page"
          {{ end }}>{{ .Title }}</a>
     {{ else }}
@@ -31,7 +31,7 @@
     </details>
   {{ else if .Page }}
     <a class="nav-page-link{{ if .Root }} nav-root-link{{ end }}{{ if .Active }} active{{ end }}"
-       href="{{ route "/pages/" }}{{ .Slug }}"
+       href="{{ route (pageURL .ID .Slug) }}"
        title="{{ .Title }}"
        {{ if .Active }}aria-current="page"
        {{ end }}>
@@ -57,7 +57,7 @@
             <div class="top-navigation-popover">
               {{ if .Page }}
                 <a class="top-navigation-root-link{{ if .Active }} active{{ end }}"
-                   href="{{ route "/pages/" }}{{ .Slug }}"
+                   href="{{ route (pageURL .ID .Slug) }}"
                    {{ if .Active }}
                    aria-current="page"
                    {{ end }}>
@@ -69,7 +69,7 @@
           </details>
         {{ else if .Page }}
           <a class="top-navigation-page{{ if .Active }} active{{ end }}"
-             href="{{ route "/pages/" }}{{ .Slug }}"
+             href="{{ route (pageURL .ID .Slug) }}"
              {{ if .Active }}
              aria-current="page"
              {{ end }}>

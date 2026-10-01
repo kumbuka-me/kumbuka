@@ -259,7 +259,7 @@ LIMIT $1 OFFSET $2`,
 // NavigationPages returns the minimal page data required to build navigation.
 func (s *Store) NavigationPages(ctx context.Context) ([]domain.Page, error) {
 	rows, err := s.pool.Query(ctx, `
-SELECT p.slug,p.title,coalesce(i.icon,'')
+SELECT p.id,p.slug,p.title,coalesce(i.icon,'')
 FROM pages p
 LEFT JOIN navigation_icons i ON i.path=p.slug
 WHERE p.deleted_at IS NULL
@@ -274,7 +274,7 @@ ORDER BY p.slug`)
 
 	for rows.Next() {
 		var page domain.Page
-		if err := rows.Scan(&page.Slug, &page.Title, &page.Icon); err != nil {
+		if err := rows.Scan(&page.ID, &page.Slug, &page.Title, &page.Icon); err != nil {
 			return nil, err
 		}
 
@@ -633,13 +633,11 @@ func renamePageRecord(ctx context.Context, tx pgx.Tx, id int64, oldSlug, newSlug
 		return nil
 	}
 
-	var conflict bool
-	if err := tx.QueryRow(ctx, `
-SELECT EXISTS(SELECT 1 FROM pages WHERE slug=$1 AND id<>$2) OR EXISTS(SELECT 1 FROM page_aliases WHERE alias=$1 AND page_id<>$2)`, newSlug, id).Scan(&conflict); err != nil {
+	if err := validatePageDestination(ctx, tx, id, newSlug); err != nil {
 		return err
 	}
-	if conflict {
-		return domain.ErrAlreadyExists
+	if err := removeCurrentSlugAlias(ctx, tx, id, newSlug); err != nil {
+		return err
 	}
 
 	if _, err := tx.Exec(ctx, `

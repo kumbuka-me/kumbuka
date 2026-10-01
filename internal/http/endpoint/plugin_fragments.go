@@ -9,6 +9,7 @@ import (
 
 	"github.com/kumbuka-me/kumbuka/internal/http/auth"
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
+	"github.com/kumbuka-me/kumbuka/internal/route"
 	md "github.com/kumbuka-me/kumbuka/pkg/markdown"
 	"github.com/kumbuka-me/kumbuka/pkg/plugincap"
 )
@@ -48,7 +49,7 @@ func PluginMacroFragment(
 			return
 		}
 
-		pageNavigation, err := subpageNavigation(r.Context(), navigation, user, page.Slug)
+		pageNavigation, err := subpageNavigation(r.Context(), navigation, user, page.Slug, route.PrefixForRequest(r))
 		if err != nil {
 			httpresponse.InternalServerError(logger, w, err)
 			return
@@ -58,18 +59,26 @@ func PluginMacroFragment(
 			http.NotFound(w, r)
 			return
 		}
+		securedCatalog := reports.Accessible(user)
+		links, err := securedCatalog.ResolvePageLinks(r.Context(), md.Links(page.Markdown))
+		if err != nil {
+			httpresponse.InternalServerError(logger, w, err)
+			return
+		}
+		options := md.DefaultOptions()
+		options.RoutePrefix = route.PrefixForRequest(r)
 		html, err := renderer.RenderDeferredMacro(
 			page.Markdown,
 			index,
 			pluginID,
 			moduleID,
-			md.Slug,
-			md.DefaultOptions(),
+			md.WikiLinkResolver(links),
+			options,
 			md.Functions{
 				Context:      r.Context(),
 				Locale:       locale,
 				PluginUsage:  page.PluginUsage,
-				Capabilities: plugincap.Capabilities(reports.Accessible(user), pageNavigation, renderer.IconCatalog()),
+				Capabilities: plugincap.Capabilities(securedCatalog, pageNavigation, route.PrefixForRequest(r), renderer.IconCatalog()),
 			},
 		)
 		if errors.Is(err, md.ErrDeferredMacroNotFound) {

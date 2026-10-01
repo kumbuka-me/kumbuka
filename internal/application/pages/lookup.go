@@ -12,7 +12,7 @@ import (
 type lookupRepository interface {
 	GetPage(context.Context, string) (domain.Page, error)
 	ResolvePageAlias(context.Context, string) (string, error)
-	PageSlugByID(context.Context, int64) (string, error)
+	PageByID(context.Context, int64) (domain.Page, error)
 }
 
 // Lookup owns direct page lookup and alias resolution.
@@ -70,7 +70,19 @@ func (q *Lookup) GetPageOrAliasFor(ctx context.Context, actor domain.User, slug 
 	return page, target, nil
 }
 
-// PageSlugByID resolves the current page path for a stable page identifier.
-func (q *Lookup) PageSlugByID(ctx context.Context, id int64) (string, error) {
-	return q.repository.PageSlugByID(ctx, id)
+// PageByID resolves the current page for a stable page identifier.
+func (q *Lookup) PageByID(ctx context.Context, id int64) (domain.Page, error) {
+	return q.repository.PageByID(ctx, id)
+}
+
+// PageByIDFor returns the current page for a stable identifier only when the actor may view it.
+func (q *Lookup) PageByIDFor(ctx context.Context, actor domain.User, id int64) (domain.Page, error) {
+	page, err := q.repository.PageByID(ctx, id)
+	if err != nil {
+		return domain.Page{}, err
+	}
+	if err := appaccess.RequireView(ctx, q.access, actor, page.Slug); err != nil {
+		return domain.Page{}, err
+	}
+	return page, nil
 }

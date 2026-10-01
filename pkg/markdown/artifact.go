@@ -15,7 +15,7 @@ import (
 	"github.com/kumbuka-me/sdk/pluginpackage"
 )
 
-const renderArtifactVersion = 1
+const renderArtifactVersion = 2
 
 // SetArtifactBuild identifies the core renderer build used by persisted page artifacts. Release builds should pass their version/commit so an upgrade invalidates old HTML.
 func (r *Renderer) SetArtifactBuild(version, commit string) {
@@ -34,12 +34,12 @@ func (r *Renderer) SetArtifactBuild(version, commit string) {
 func (r *Renderer) RenderFingerprint(options Options) string {
 	hash := sha256.New()
 	_, _ = fmt.Fprintf(hash,
-		"artifact=%d\napi=%d\nbuild=%s\nwiki_links=%t\nwiki_prefix=%s\n",
+		"artifact=%d\napi=%d\nbuild=%s\nwiki_links=%t\nroute_prefix=%s\n",
 		renderArtifactVersion,
 		sdk.Version,
 		r.artifactBuild,
 		options.WikiLinks,
-		options.WikiLinkPrefix,
+		options.RoutePrefix,
 	)
 	if r.manager == nil {
 		return hex.EncodeToString(hash.Sum(nil))

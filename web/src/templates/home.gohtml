@@ -19,7 +19,7 @@
       <section class="panel plugin-widget{{ if eq .Width "wide" }} wide{{ end }}"
                data-kumbuka-plugin="{{ .PluginID }}"
                data-kumbuka-module="{{ .ModuleID }}">
-        {{ routeHTML .HTML }}
+        {{ .HTML }}
         {{ if .Actions }}
           <div class="plugin-widget-actions">
             {{ range .Actions }}

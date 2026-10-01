@@ -2,10 +2,11 @@ package plugins
 
 import (
 	"context"
+	"testing"
+
 	"github.com/kumbuka-me/kumbuka/pkg/plugin"
 	"github.com/kumbuka-me/sdk/pluginpackage"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 type catalogRuntime struct{}
@@ -23,7 +24,7 @@ func TestEmptyStoreSeedsEveryEmbeddedPackage(t *testing.T) {
 	ctx := context.Background()
 	m := plugin.NewManager(&plugin.Registry{}, catalogRuntime{})
 	require.NoError(t, m.Bootstrap(ctx, Distribution{}))
-	defer m.Close(ctx)
+	defer m.Close(ctx) // nolint:errcheck
 	require.Len(t, m.Plugins(), len(catalog))
 	for _, item := range m.Plugins() {
 		require.Equal(t, item.Manifest.DefaultEnabled, item.Enabled)

@@ -67,7 +67,7 @@
                 <input type="checkbox" name="slug" value="{{ .Slug }}" data-bulk-page />
               </td>
               <td>
-                <a href="{{ route "/pages/" }}{{ .Slug }}"><strong>{{ .Title }}</strong><small>{{ .Slug }}</small></a>
+                <a href="{{ route (pageURL .ID .Slug) }}"><strong>{{ .Title }}</strong><small>{{ .Slug }}</small></a>
               </td>
               <td><span class="page-status-badge status-{{ .Status }}">{{ .Status }}</span></td>
               <td>{{ if .OwnerGroup }}{{ .OwnerGroup }}{{ else }}<span class="muted">—</span>{{ end }}</td>

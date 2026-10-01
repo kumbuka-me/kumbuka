@@ -219,9 +219,9 @@ func TestRemovedMacrosCannotBeActivatedByRequestBindings(t *testing.T) {
 
 // TestSubpagesMarkupAndStaticIconsSurviveCentralSanitizer verifies subpages markup and static icons survive central sanitizer behavior.
 func TestSubpagesMarkupAndStaticIconsSurviveCentralSanitizer(t *testing.T) {
-	nodes := plugincap.Navigation([]navigation.Node{{Slug: "child", Title: "Child", Page: true, Icon: "book-lucide"}}, func(s string) string { return "/pages/" + s })
+	nodes := plugincap.Navigation([]navigation.Node{{ID: 12, Slug: "child", Title: "Child", Page: true, Icon: "book-lucide"}}, "")
 	got, err := testRenderer(t, "subpages").RenderPageResolvedWithFunctions("{{subpages}}", Slug, DefaultOptions(), Functions{
-		Capabilities: plugincap.Capabilities(nil, nodes),
+		Capabilities: plugincap.Capabilities(nil, nodes, ""),
 	})
 	require.NoError(t, err)
 	assert.Contains(t, got.HTML, `<nav class="subpage-toc"`)

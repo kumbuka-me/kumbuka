@@ -31,7 +31,7 @@ func normalizedKnowledgeGraphLimit(limit int) int {
 // knowledgeGraphNodes loads graph nodes and the set of slugs allowed in edges.
 func (s *Store) knowledgeGraphNodes(ctx context.Context, limit int) ([]domain.GraphNode, map[string]bool, error) {
 	rows, err := s.pool.Query(ctx, `
-SELECT slug,title,status
+SELECT id,slug,title,status
 FROM pages
 WHERE deleted_at IS NULL
 ORDER BY updated_at DESC
@@ -45,7 +45,7 @@ LIMIT $1`, limit)
 	allowed := make(map[string]bool, limit)
 	for rows.Next() {
 		var node domain.GraphNode
-		if err := rows.Scan(&node.Slug, &node.Title, &node.Status); err != nil {
+		if err := rows.Scan(&node.ID, &node.Slug, &node.Title, &node.Status); err != nil {
 			return nil, nil, err
 		}
 		nodes = append(nodes, node)

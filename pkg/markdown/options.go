@@ -12,14 +12,13 @@ type Options struct {
 	annotations []plugin.Replacement
 	// WikiLinks enables [[Wiki Link]] resolution.
 	WikiLinks bool
-	// WikiLinkPrefix is prepended to resolved wiki-link targets. Empty uses /pages/.
-	WikiLinkPrefix string
+	// RoutePrefix is applied to application-local URLs while rendering browser HTML.
+	RoutePrefix string
 }
 
 // DefaultOptions returns the default core Markdown rendering behavior.
 func DefaultOptions() Options {
 	return Options{
-		WikiLinks:      true,
-		WikiLinkPrefix: "/pages/",
+		WikiLinks: true,
 	}
 }

@@ -53,6 +53,7 @@ type visiblePageInventoryService interface {
 
 // visiblePageActions mutates actor-owned page preferences after application authorization.
 type visiblePageActions interface {
+	GetPageFor(context.Context, domain.User, string) (domain.Page, error)
 	SetFavoriteFor(context.Context, domain.User, string, bool) error
 	SetPageWatchFor(context.Context, domain.User, string, domain.PageWatchScope) error
 }
@@ -109,9 +110,10 @@ type pageInventoryService interface {
 	PageInventory(context.Context) ([]domain.Page, error)
 }
 
-// pagePermalinkService resolves immutable page IDs to their current slugs.
-type pagePermalinkService interface {
-	PageSlugByID(context.Context, int64) (string, error)
+// canonicalPageService resolves stable IDs and historical slugs for browser routing.
+type canonicalPageService interface {
+	PageByIDFor(context.Context, domain.User, int64) (domain.Page, error)
+	GetPageOrAliasFor(context.Context, domain.User, string) (domain.Page, string, error)
 }
 
 // pageWriterService exposes the core page create/update/delete mutations used by HTTP endpoints.

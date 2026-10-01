@@ -10,6 +10,7 @@ import (
 	"github.com/kumbuka-me/kumbuka/internal/application/webhooks"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	md "github.com/kumbuka-me/kumbuka/pkg/markdown"
+	"github.com/kumbuka-me/kumbuka/pkg/pageurl"
 	"github.com/kumbuka-me/kumbuka/pkg/pluginusage"
 	"github.com/kumbuka-me/kumbuka/pkg/reviewsuggestions"
 	"github.com/kumbuka-me/kumbuka/pkg/revision"
@@ -334,7 +335,7 @@ func (s *ReviewDiscussions) applyReviewSuggestions(ctx context.Context, reviewID
 	}
 
 	s.effects.recordAudit(ctx, actor.ID, "page.review_suggestions_applied", "page", page.Slug, message)
-	s.effects.notifyWatchers(ctx, actor.ID, page.Slug, "Review suggestions applied: "+page.Title, message+" and created a new revision.", "/pages/"+page.Slug)
+	s.effects.notifyWatchers(ctx, actor.ID, page.Slug, "Review suggestions applied: "+page.Title, message+" and created a new revision.", pageurl.Page(page.ID, page.Slug))
 
 	return page, nil
 }

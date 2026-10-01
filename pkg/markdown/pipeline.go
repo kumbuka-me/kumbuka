@@ -62,7 +62,7 @@ type macroInvocation struct {
 
 // newRenderPipeline binds one leased global render plan to request-local state.
 func newRenderPipeline(plan *plugin.RenderPlan, features map[string]bool, functions Functions, source string, iconCatalog *icons.Catalog) *renderPipeline {
-	capabilities := plugincap.Capabilities(nil, nil, iconCatalog)
+	capabilities := plugincap.Capabilities(nil, nil, "", iconCatalog)
 	maps.Copy(capabilities, functions.Capabilities)
 	exportParameters := cloneExportParameters(functions.ExportParameters)
 

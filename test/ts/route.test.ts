@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { route } from "../../web/src/ts/core/route.ts";
+import { pageURL, route } from "../../web/src/ts/core/route.ts";
 import { requestJSON } from "../../web/src/ts/core/http.ts";
 
 for (const prefix of ["", "/kumbuka"]) {
@@ -33,6 +33,14 @@ for (const prefix of ["", "/kumbuka"]) {
     }
   });
 }
+
+test("page URLs combine stable identity with the readable slug", () => {
+  assert.equal(pageURL(123, "guide/install"), "/p/123/guide/install");
+  assert.equal(
+    route(pageURL(123, "guide/install"), "/kumbuka"),
+    "/kumbuka/p/123/guide/install",
+  );
+});
 
 test("routes read the body prefix and generated API URLs reach fetch unchanged", async () => {
   const oldDocument = Object.getOwnPropertyDescriptor(globalThis, "document");

@@ -41,44 +41,45 @@ type DraftSource interface {
 }
 
 // PageListCapabilities exposes only the bounded page-list operations implemented by source.
-func PageListCapabilities(source any) map[string]plugin.Capability {
+func PageListCapabilities(source any, routePrefix string) map[string]plugin.Capability {
 	result := make(map[string]plugin.Capability)
 	if source == nil {
 		return result
 	}
 
 	if pages, ok := source.(RecentPagesSource); ok {
-		result["pages.recent"] = pageListCapability(pages.Recent)
+		result["pages.recent"] = pageListCapability(pages.Recent, routePrefix)
 	}
 	if pages, ok := source.(RecentViewedSource); ok {
-		result["pages.recent-viewed"] = pageListCapability(pages.RecentViewed)
+		result["pages.recent-viewed"] = pageListCapability(pages.RecentViewed, routePrefix)
 	}
 	if pages, ok := source.(FavoritePagesSource); ok {
-		result["pages.favorites"] = pageListCapability(pages.Favorites)
+		result["pages.favorites"] = pageListCapability(pages.Favorites, routePrefix)
 	}
 	if pages, ok := source.(PopularPagesSource); ok {
-		result["pages.popular"] = pageListCapability(pages.Popular)
+		result["pages.popular"] = pageListCapability(pages.Popular, routePrefix)
 	}
 	if edits, ok := source.(RecentEditsSource); ok {
-		result["pages.recent-edits"] = recentEditsCapability(edits.RecentEdited)
+		result["pages.recent-edits"] = recentEditsCapability(edits.RecentEdited, routePrefix)
 	}
 
 	return result
 }
 
 // pageListCapability adapts one bounded page query to the plugin capability contract.
-func pageListCapability(load func(context.Context, int) ([]domain.Page, error)) plugin.Capability {
+func pageListCapability(load func(context.Context, int) ([]domain.Page, error), routePrefix string) plugin.Capability {
 	return func(ctx context.Context, data json.RawMessage) (any, error) {
 		request, err := decodePageListQuery(data)
 		if err != nil {
 			return nil, err
 		}
-		return pageValues(load(ctx, request.Limit))
+		pages, loadErr := load(ctx, request.Limit)
+		return pageValues(pages, loadErr, routePrefix)
 	}
 }
 
 // recentEditsCapability adapts the recent-edit query and projection to the plugin capability contract.
-func recentEditsCapability(load func(context.Context, int) ([]domain.RecentEdit, error)) plugin.Capability {
+func recentEditsCapability(load func(context.Context, int) ([]domain.RecentEdit, error), routePrefix string) plugin.Capability {
 	return func(ctx context.Context, data json.RawMessage) (any, error) {
 		request, err := decodePageListQuery(data)
 		if err != nil {
@@ -90,7 +91,7 @@ func recentEditsCapability(load func(context.Context, int) ([]domain.RecentEdit,
 		}
 		values := make([]sdk.RecentEdit, 0, len(records))
 		for _, record := range records {
-			values = append(values, sdk.RecentEdit{Page: PageValue(record.Page), RevisionMessage: record.RevisionMessage})
+			values = append(values, sdk.RecentEdit{Page: PageValue(record.Page, routePrefix), RevisionMessage: record.RevisionMessage})
 		}
 		return values, nil
 	}
@@ -148,13 +149,13 @@ func MergeCapabilities(sets ...map[string]plugin.Capability) map[string]plugin.C
 }
 
 // pageValues converts pages into plugin capability values.
-func pageValues(pages []domain.Page, err error) ([]sdk.Page, error) {
+func pageValues(pages []domain.Page, err error, routePrefix string) ([]sdk.Page, error) {
 	if err != nil {
 		return nil, err
 	}
 	result := make([]sdk.Page, 0, len(pages))
 	for _, page := range pages {
-		result = append(result, PageValue(page))
+		result = append(result, PageValue(page, routePrefix))
 	}
 	return result, nil
 }

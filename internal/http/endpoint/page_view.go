@@ -15,6 +15,7 @@ import (
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	md "github.com/kumbuka-me/kumbuka/pkg/markdown"
 	"github.com/kumbuka-me/kumbuka/pkg/navigation"
+	"github.com/kumbuka-me/kumbuka/pkg/pageurl"
 	"github.com/kumbuka-me/kumbuka/pkg/plugincap"
 	"github.com/kumbuka-me/kumbuka/pkg/utils"
 )
@@ -33,7 +34,7 @@ func ViewPage(
 		stop := measurePageStage(r.Context(), "page_lookup")
 		user, _ := auth.User(r)
 		result, err := viewPage.Execute(r.Context(), user, slug)
-		page, alias := result.Page, result.Alias
+		page := result.Page
 		stop()
 		if errors.Is(err, domain.ErrNotFound) {
 			renderNotFoundPage(w, r, browserContext, views)
@@ -43,11 +44,6 @@ func ViewPage(
 			writePageProblem(views.Logger(), w, err)
 			return
 		}
-		if alias != "" {
-			route.Redirect(w, r, "/pages/"+alias, http.StatusPermanentRedirect)
-			return
-		}
-
 		securedCatalog := reports.Accessible(user)
 
 		state, outgoingLinks := result.State, result.OutgoingLinks
@@ -70,18 +66,20 @@ func ViewPage(
 		data.PageContentLanguage = cmp.Or(page.Language, data.PageContentLanguage)
 
 		stop = measurePageStage(r.Context(), "page_navigation")
-		pageNavigation := plugincap.Navigation(navigation.Children(data.Navigation, slug), pageURL)
-		capabilities := plugincap.Capabilities(securedCatalog, pageNavigation, renderer.IconCatalog())
+		pageNavigation := plugincap.Navigation(navigation.Children(data.Navigation, slug), route.PrefixForRequest(r))
+		capabilities := plugincap.Capabilities(securedCatalog, pageNavigation, route.PrefixForRequest(r), renderer.IconCatalog())
 		stop()
 
-		rendered, err := renderPageContent(r.Context(), data.Locale.Code, page, md.DefaultOptions(), capabilities, renderer, renderArtifacts, views.Logger())
+		options := md.DefaultOptions()
+		options.RoutePrefix = route.PrefixForRequest(r)
+		rendered, err := renderPageContent(r.Context(), data.Locale.Code, page, outgoingLinks, options, capabilities, renderer, renderArtifacts, views.Logger())
 		if err != nil {
 			httpresponse.InternalServerError(views.Logger(), w, err)
 			return
 		}
 
 		stop = measurePageStage(r.Context(), "broken_links")
-		renderedHTML := markBrokenWikiLinks(rendered.HTML, outgoingLinks)
+		renderedHTML := markBrokenWikiLinks(rendered.HTML, outgoingLinks, options.RoutePrefix)
 		stop()
 
 		data.Page, data.HTML = &page, template.HTML(renderedHTML)
@@ -107,7 +105,7 @@ func ViewPage(
 			r.Context(),
 			data.Locale.Code,
 			"page.details",
-			utils.ToPtr(plugincap.PageValue(page)),
+			utils.ToPtr(plugincap.PageValue(page, route.PrefixForRequest(r))),
 			data.PluginFeatures,
 			capabilities,
 			data.Preferences.HiddenPluginWidgets,
@@ -117,7 +115,7 @@ func ViewPage(
 			httpresponse.InternalServerError(views.Logger(), w, err)
 			return
 		}
-		data.PageDetailWidgets = webview.Widgets(widgets, "page.details", page.Slug, pageURL(page.Slug))
+		data.PageDetailWidgets = webview.Widgets(widgets, "page.details", page.Slug, pageurl.Page(page.ID, page.Slug))
 
 		stop = measurePageStage(r.Context(), "template_render")
 		data.CurrentPage = webview.CurrentPage(data.Page)

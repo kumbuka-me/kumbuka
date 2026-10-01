@@ -27,7 +27,6 @@ func MovePageForm(pageUseCases pageMoveService, logger *slog.Logger) http.Handle
 		options := domain.MovePageOptions{
 			MoveChildren:        r.FormValue("move_children") == "on",
 			UpdateIncomingLinks: r.FormValue("update_links") == "on",
-			KeepAliases:         r.FormValue("keep_aliases") == "on",
 		}
 		if err := pageUseCases.Move(r.Context(), r.PathValue("slug"), newSlug, options, user); err != nil {
 			writePageProblem(logger, w, err)

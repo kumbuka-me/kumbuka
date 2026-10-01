@@ -380,7 +380,7 @@
 <div class="page-reading{{ if .PageContents }} {{ if .Preferences.ShowPageContents }}with-contents{{ else }}contents-hidden{{ end }} {{ end }}">
     <div class="prose"
          lang="{{ .PageContentLanguage }}"
-         data-plugin-annotation-content>{{ routeHTML .HTML }}</div>
+         data-plugin-annotation-content>{{ .HTML }}</div>
     {{ template "page-contents" . }}
   </div>
   {{ if .ApplicationSettings.DiscussionsEnabled }}
@@ -445,7 +445,7 @@
               {{ if $.CanEdit }}
                 <form action="{{ route "/page-comments/resolve/" }}{{ .ID }}/{{ $.Page.Slug }}"
                       method="post">
-                  <input type="hidden" name="next" value="/pages/{{ $.Page.Slug }}" />
+                  <input type="hidden" name="next" value="{{ pageURL $.Page.ID $.Page.Slug }}" />
                   <input type="hidden"
                          name="resolved"
                          value="{{ if .Resolved }}false{{ else }}true{{ end }}" />
@@ -550,7 +550,7 @@
                           method="post">
                       <input type="hidden"
                              name="next"
-                             value="/pages/{{ $.Page.Slug }}#comment-{{ .ID }}" />
+                             value="{{ pageURL $.Page.ID $.Page.Slug }}#comment-{{ .ID }}" />
                       <input type="hidden"
                              name="resolved"
                              value="{{ if .Resolved }}false{{ else }}true{{ end }}" />
@@ -601,7 +601,7 @@
           <section class="plugin-widget"
                    data-kumbuka-plugin="{{ .PluginID }}"
                    data-kumbuka-module="{{ .ModuleID }}">
-            {{ routeHTML .HTML }}
+            {{ .HTML }}
             {{ if .Actions }}
               <div class="plugin-widget-actions">
                 {{ range .Actions }}
@@ -721,7 +721,7 @@
       <button class="share-option"
               type="button"
               data-share-permalink
-              data-url="{{ route "/p/" }}{{ .Page.ID }}">
+              data-url="{{ route (pageURL .Page.ID .Page.Slug) }}">
         <span class="share-option-icon">{{ icon "link-lucide" 22 }}</span>
         <span><strong>Copy permalink</strong><small data-share-permalink-status>Stable page link. Kumbuka sign-in is still required.</small></span>
       </button>
@@ -804,9 +804,6 @@
       </label>
       <label class="toggle-row compact">
         <span><strong>Update incoming links</strong><small>Refactor direct <code>[[path]]</code> references and create revisions for changed pages.</small></span><input type="checkbox" name="update_links" checked />
-      </label>
-      <label class="toggle-row compact">
-        <span><strong>Keep redirects</strong><small>Old paths continue to redirect to the moved pages.</small></span><input type="checkbox" name="keep_aliases" checked />
       </label>
       <div class="app-dialog-actions">
         <button class="button" type="button" data-move-page-close>Cancel</button><button class="button primary" type="submit">{{ icon "folder-input-lucide" 16 }}<span>Move page</span></button>

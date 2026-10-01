@@ -8,16 +8,16 @@ import (
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
 
-// PageSlugByID resolves the current slug for a live page identifier.
-func (s *Store) PageSlugByID(ctx context.Context, id int64) (string, error) {
-	var slug string
+// PageByID resolves the current page for a live stable identifier.
+func (s *Store) PageByID(ctx context.Context, id int64) (domain.Page, error) {
+	var page domain.Page
 	err := s.pool.QueryRow(ctx, `
-SELECT slug
+SELECT id,slug,title
 FROM pages
-WHERE id=$1 AND deleted_at IS NULL`, id).Scan(&slug)
+WHERE id=$1 AND deleted_at IS NULL`, id).Scan(&page.ID, &page.Slug, &page.Title)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return "", domain.ErrNotFound
+		return domain.Page{}, domain.ErrNotFound
 	}
 
-	return slug, err
+	return page, err
 }

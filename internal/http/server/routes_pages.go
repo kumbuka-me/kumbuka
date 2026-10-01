@@ -82,15 +82,15 @@ func registerPageRoutes(mux *http.ServeMux, config Config) {
 		"POST /revisions/{number}/restore/{slug...}",
 		browserAuthn(editorAuthz(endpoint.RestoreRevision(config.PageMutations, config.Views))),
 	)
-	mux.Handle(
-		"GET /pages/{slug...}",
-		browserAuthn(endpoint.ViewPage(
-			config.BrowserContext,
-			config.PageReports,
-			config.PageRender,
-			config.ViewPage,
-			config.Renderer,
-			config.Views,
-		)),
+	viewPage := endpoint.ViewPage(
+		config.BrowserContext,
+		config.PageReports,
+		config.PageRender,
+		config.ViewPage,
+		config.Renderer,
+		config.Views,
 	)
+	mux.Handle("GET /p/{id}", browserAuthn(endpoint.CanonicalPage(config.PageLookup, config.Logger, viewPage)))
+	mux.Handle("GET /p/{id}/{slug...}", browserAuthn(endpoint.CanonicalPage(config.PageLookup, config.Logger, viewPage)))
+	mux.Handle("GET /pages/{slug...}", browserAuthn(endpoint.LegacyPage(config.PageLookup, config.Logger)))
 }

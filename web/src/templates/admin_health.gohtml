@@ -1,7 +1,7 @@
 {{ define "health-page-list" }}
   {{ range . }}
     <a class="health-page-row"
-       href="{{ route "/pages/" }}{{ .Slug }}"><strong>{{ .Title }}</strong><small>{{ .Slug }}</small></a>
+       href="{{ route (pageURL .ID .Slug) }}"><strong>{{ .Title }}</strong><small>{{ .Slug }}</small></a>
   {{ else }}
     <p class="muted health-empty">Nothing to fix.</p>
   {{ end }}

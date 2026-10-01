@@ -164,6 +164,10 @@ func (*discussionCommentRepositoryStub) AddPageComment(
 	return domain.PageComment{ID: 12, PageID: 7, AuthorID: 42}, nil
 }
 
+func (*discussionCommentRepositoryStub) GetPage(context.Context, string) (domain.Page, error) {
+	return domain.Page{ID: 7, Slug: "guide"}, nil
+}
+
 func (r *discussionCommentRepositoryStub) PageComment(context.Context, string, int64) (domain.PageComment, error) {
 	return r.parent, nil
 }

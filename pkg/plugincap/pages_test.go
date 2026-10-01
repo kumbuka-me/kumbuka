@@ -35,7 +35,7 @@ func (c *catalog) GetPage(_ context.Context, slug string) (domain.Page, error) {
 // TestSharedCapabilitiesRestrictScopeAndFields verifies shared capabilities restrict scope and fields behavior.
 func TestSharedCapabilitiesRestrictScopeAndFields(t *testing.T) {
 	source := &catalog{}
-	capabilities := Capabilities(SharedPages{Source: source, Slug: "shared"}, nil)
+	capabilities := Capabilities(SharedPages{Source: source, Slug: "shared"}, nil, "")
 	_, err := capabilities["pages.get"](context.Background(), json.RawMessage(`{"Slug":"private"}`))
 	require.Error(t, err)
 	assert.Zero(t, source.gets)
@@ -52,6 +52,39 @@ func TestSharedCapabilitiesRestrictScopeAndFields(t *testing.T) {
 		require.Error(t, err)
 	}
 	assert.Equal(t, 1, source.searches)
+}
+
+func TestPageValueIncludesStableIdentityAndDeploymentURL(t *testing.T) {
+	value := PageValue(domain.Page{ID: 123, Slug: "guide/install", Title: "Install"}, "/kumbuka")
+
+	assert.Equal(t, int64(123), value.ID)
+	assert.Equal(t, "guide/install", value.Slug)
+	assert.Equal(t, "/kumbuka/p/123/guide/install", value.URL)
+}
+
+type linkSourceStub struct{}
+
+func (linkSourceStub) Backlinks(context.Context, string) ([]domain.Page, error) {
+	return []domain.Page{{ID: 7, Slug: "guide/start", Title: "Guide"}}, nil
+}
+
+func (linkSourceStub) PageLinks(context.Context, string) ([]domain.PageLink, error) {
+	return []domain.PageLink{
+		{TargetID: 8, TargetSlug: "old-api", ResolvedSlug: "api/auth", TargetTitle: "API", Exists: true},
+		{TargetSlug: "missing page", Exists: false},
+	}, nil
+}
+
+func TestPageLinksContainCanonicalTargetURLs(t *testing.T) {
+	pages := Pages{RoutePrefix: "/kumbuka"}
+	links, err := pages.Links(context.Background(), linkSourceStub{}, "guide/start")
+	require.NoError(t, err)
+
+	require.Len(t, links.Backlinks, 1)
+	assert.Equal(t, "/kumbuka/p/7/guide/start", links.Backlinks[0].URL)
+	require.Len(t, links.Outgoing, 2)
+	assert.Equal(t, "/kumbuka/p/8/api/auth", links.Outgoing[0].TargetURL)
+	assert.Empty(t, links.Outgoing[1].TargetURL)
 }
 
 func TestPageContentUpdateCapabilityRestrictsCurrentPage(t *testing.T) {

@@ -17,6 +17,7 @@ func renderPageContent(
 	ctx context.Context,
 	locale string,
 	page domain.Page,
+	links []domain.PageLink,
 	options md.Options,
 	capabilities map[string]plugin.Capability,
 	renderer *md.Renderer,
@@ -35,7 +36,7 @@ func renderPageContent(
 	stop := measurePageStage(ctx, "markdown")
 	rendered, err := renderer.RenderPageResolvedWithFunctions(
 		page.Markdown,
-		md.Slug,
+		md.WikiLinkResolver(links),
 		options,
 		md.Functions{
 			Context:         ctx,
@@ -75,15 +76,15 @@ func renderPageContent(
 }
 
 // markBrokenWikiLinks adds the broken-link class to rendered wiki links whose targets do not exist.
-func markBrokenWikiLinks(renderedHTML string, links []domain.PageLink) string {
+func markBrokenWikiLinks(renderedHTML string, links []domain.PageLink, routePrefix string) string {
 	for _, link := range links {
 		if link.Exists {
 			continue
 		}
 		renderedHTML = strings.ReplaceAll(
 			renderedHTML,
-			`<a href="/pages/`+link.TargetSlug+`"`,
-			`<a class="wiki-link-broken" href="/pages/`+link.TargetSlug+`"`,
+			`<a href="`+routePrefix+md.DefaultWikiLink(link.TargetSlug)+`"`,
+			`<a class="wiki-link-broken" href="`+routePrefix+md.DefaultWikiLink(link.TargetSlug)+`"`,
 		)
 	}
 

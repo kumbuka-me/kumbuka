@@ -197,7 +197,7 @@ func (c *ContentChangeWorker) deliverAll(ctx context.Context, changes []domain.P
 // deliver invokes the captured plugin's hook with only mutation-scoped external capabilities.
 func (c *ContentChangeWorker) deliver(ctx context.Context, change domain.PluginContentChange) error {
 	return c.manager.ContentChangedFor(ctx, change.PluginID, plugin.ContentChangeRequest{
-		Page:           plugincap.PageValue(change.Page),
+		Page:           plugincap.PageValue(change.Page, ""),
 		PreviousSource: change.PreviousMarkdown,
 		Source:         change.Markdown,
 	}, func(descriptor plugin.Descriptor) plugin.Context {

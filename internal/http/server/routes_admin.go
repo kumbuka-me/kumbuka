@@ -22,6 +22,7 @@ func registerAdminRoutes(mux *http.ServeMux, config Config) {
 		config.PageRender,
 		config.Renderer,
 		config.Logger,
+		config.RoutePrefix,
 	)
 	pluginsAdmin := endpoint.NewAdminPlugins(config.PluginAdmin, config.BrowserContext, config.Views).
 		WithRenderRebuilds(renderRebuilds)

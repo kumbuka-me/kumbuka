@@ -11,6 +11,7 @@ import (
 	"github.com/kumbuka-me/kumbuka/internal/application/webhooks"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	md "github.com/kumbuka-me/kumbuka/pkg/markdown"
+	"github.com/kumbuka-me/kumbuka/pkg/pageurl"
 	"github.com/kumbuka-me/kumbuka/pkg/pluginusage"
 	"github.com/kumbuka-me/kumbuka/pkg/revision"
 )
@@ -110,7 +111,11 @@ func (s *Discussions) AddComment(
 		return domain.PageComment{}, err
 	}
 
-	destination := pageCommentURL(slug, comment.ID)
+	page, err := s.repository.GetPage(ctx, slug)
+	if err != nil {
+		return domain.PageComment{}, err
+	}
+	destination := pageCommentURL(page, comment.ID)
 	s.effects.notifyMentions(ctx, actor.ID, body, "Mention in "+slug, destination)
 	if parentID > 0 {
 		parent, err := s.repository.PageComment(ctx, slug, parentID)
@@ -188,7 +193,7 @@ func (s *Discussions) AddSuggestion(
 		return domain.PageComment{}, err
 	}
 
-	destination := pageCommentURL(slug, comment.ID)
+	destination := pageCommentURL(page, comment.ID)
 	if body != "" {
 		s.effects.notifyMentions(ctx, actor.ID, body, "Mention in "+slug, destination)
 	}
@@ -278,7 +283,7 @@ func (s *Discussions) loadApplicableCommentSuggestion(ctx context.Context, slug 
 // recordAppliedCommentSuggestion emits audit and watcher side effects after persistence succeeds.
 func (s *Discussions) recordAppliedCommentSuggestion(ctx context.Context, actor domain.User, updated domain.Page, commentID int64, message string) {
 	s.effects.recordAudit(ctx, actor.ID, "comment.suggestion_applied", "page", updated.Slug, message)
-	s.effects.notifyWatchers(ctx, actor.ID, updated.Slug, "Inline suggestion applied: "+updated.Title, message+" and created a new revision.", pageCommentURL(updated.Slug, commentID))
+	s.effects.notifyWatchers(ctx, actor.ID, updated.Slug, "Inline suggestion applied: "+updated.Title, message+" and created a new revision.", pageCommentURL(updated, commentID))
 }
 
 // ResolveComment changes one page-bound discussion's resolution state.
@@ -391,6 +396,6 @@ func canApplyInlineSuggestion(actor domain.User) bool {
 }
 
 // pageCommentURL returns the stable local fragment for one page discussion item.
-func pageCommentURL(slug string, commentID int64) string {
-	return "/pages/" + strings.TrimSpace(slug) + "#comment-" + fmt.Sprint(commentID)
+func pageCommentURL(page domain.Page, commentID int64) string {
+	return pageurl.Page(page.ID, page.Slug) + "#comment-" + fmt.Sprint(commentID)
 }

@@ -40,7 +40,7 @@ func (draftSource) Drafts(context.Context, int) ([]domain.PageDraft, error) {
 }
 
 func TestPageListCapabilitiesExposeImplementedLists(t *testing.T) {
-	capabilities := PageListCapabilities(listSource{})
+	capabilities := PageListCapabilities(listSource{}, "")
 	for _, name := range []string{"pages.recent", "pages.recent-viewed", "pages.favorites", "pages.popular", "pages.recent-edits"} {
 		require.Contains(t, capabilities, name)
 	}

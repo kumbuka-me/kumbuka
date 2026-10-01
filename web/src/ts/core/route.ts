@@ -21,3 +21,8 @@ export function route(target: string, prefix = routePrefix()): string {
     return prefix + "/";
   }
 }
+
+// Returns the application-local canonical URL for a persisted page.
+export function pageURL(id: number, slug: string): string {
+  return `/p/${id}/${slug.replace(/^\/+|\/+$/g, "")}`;
+}

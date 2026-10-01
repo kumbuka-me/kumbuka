@@ -122,7 +122,7 @@ func (e markdownEngine) Convert(source []byte, output io.Writer) error {
 }
 
 // engine constructs a Goldmark renderer from administrator-controlled options.
-func engine(contributed []plugin.MarkdownComponents, annotationRanges []annotationRange, mentionRanges []mention.Range) markdownEngine {
+func engine(contributed []plugin.MarkdownComponents, annotationRanges []annotationRange, mentionRanges []mention.Range, routePrefix string) markdownEngine {
 	parserExtensions := make([]parser.Extension, 0, len(contributed))
 	rendererExtensions := make([]goldhtml.Extension, 0, len(contributed)+2)
 	for _, components := range contributed {
@@ -141,6 +141,7 @@ func engine(contributed []plugin.MarkdownComponents, annotationRanges []annotati
 			parser.WithExtensions(parserExtensions...),
 			parser.WithASTTransformers(
 				util.Prioritized[parser.ASTTransformer](imageWidthTransformer{}, 100),
+				util.Prioritized[parser.ASTTransformer](routeURLTransformer{prefix: routePrefix}, 110),
 				util.Prioritized[parser.ASTTransformer](mentionTransformer{ranges: mentionRanges}, 200),
 				util.Prioritized[parser.ASTTransformer](annotationTransformer{ranges: annotationRanges}, 210),
 			),
@@ -172,7 +173,7 @@ func Links(source string) []string {
 
 // Render converts Markdown into sanitized HTML using default rendering options.
 func (r *Renderer) Render(source string) (string, error) {
-	return r.RenderResolvedWithOptions(source, Slug, DefaultOptions())
+	return r.RenderResolvedWithOptions(source, DefaultWikiLink, DefaultOptions())
 }
 
 // RenderResolved converts Markdown into sanitized HTML using default rendering options and a custom wiki-link resolver.
@@ -387,11 +388,7 @@ func (r *Renderer) renderRawResolved(
 
 	if options.WikiLinks {
 		stop = options.pipeline.trace.Measure("wiki_links")
-		source = rewriteWikiLinks(
-			source,
-			resolve,
-			wikiLinkPrefix(options),
-		)
+		source = rewriteWikiLinks(source, resolve)
 		stop()
 	}
 
@@ -411,7 +408,7 @@ func (r *Renderer) renderRawResolved(
 	// Conversion invokes contributed parsers, transformers, and node renderers.
 	stop = options.pipeline.trace.Measure("goldmark")
 	_, err = plugin.Guard("Markdown conversion", func() (struct{}, error) {
-		return struct{}{}, engine(extensions, annotationRanges, mention.Ranges(source)).Convert([]byte(source), &output)
+		return struct{}{}, engine(extensions, annotationRanges, mention.Ranges(source), options.RoutePrefix).Convert([]byte(source), &output)
 	})
 	stop()
 	if err != nil {
@@ -522,20 +519,13 @@ func HeadingID(value string) string {
 	return Slug(strings.ReplaceAll(value, "/", " "))
 }
 
-// wikiLinkPrefix returns the configured wiki-link URL prefix.
-func wikiLinkPrefix(options Options) string {
-	if strings.TrimSpace(options.WikiLinkPrefix) == "" {
-		return "/pages/"
-	}
-
-	return options.WikiLinkPrefix
-}
+// DefaultWikiLink returns the legacy slug route used for unresolved wiki links.
+func DefaultWikiLink(target string) string { return "/pages/" + Slug(target) }
 
 // rewriteWikiLinks converts wiki-link syntax outside fenced code blocks into Markdown links.
 func rewriteWikiLinks(
 	source string,
 	resolve func(string) string,
-	prefix string,
 ) string {
 	lines := strings.Split(source, "\n")
 	fence := ""
@@ -559,7 +549,6 @@ func rewriteWikiLinks(
 		lines[index] = rewriteWikiLinksLine(
 			line,
 			resolve,
-			prefix,
 		)
 	}
 
@@ -570,7 +559,6 @@ func rewriteWikiLinks(
 func rewriteWikiLinksLine(
 	line string,
 	resolve func(string) string,
-	prefix string,
 ) string {
 	var output strings.Builder
 
@@ -618,7 +606,6 @@ func rewriteWikiLinksLine(
 		output.WriteString("](")
 		pageTarget, heading := SplitHeadingTarget(target)
 		resolved := resolve(pageTarget)
-		output.WriteString(prefix)
 		output.WriteString(resolved)
 		if heading != "" {
 			output.WriteByte('#')

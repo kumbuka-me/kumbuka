@@ -13,9 +13,9 @@ import (
 
 	"github.com/containeroo/httpprefix"
 	"github.com/kumbuka-me/kumbuka/internal/i18n"
-	"github.com/kumbuka-me/kumbuka/internal/route"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/kumbuka-me/kumbuka/pkg/icons"
+	"github.com/kumbuka-me/kumbuka/pkg/pageurl"
 	"github.com/kumbuka-me/kumbuka/pkg/themes"
 )
 
@@ -201,10 +201,8 @@ func New(
 	browserTranslations := precomputeBrowserTranslations(translations, localeOptions)
 
 	funcs := template.FuncMap{
-		"routeHTML": func(value template.HTML) template.HTML {
-			return template.HTML(route.RewriteHTMLURLs(runtime.RoutePrefix, string(value)))
-		},
 		"route":              func(target string) string { return httpprefix.RouteURL(runtime.RoutePrefix, target) },
+		"pageURL":            pageurl.Page,
 		"join":               strings.Join,
 		"timeago":            timeAgo,
 		"filesize":           fileSize,

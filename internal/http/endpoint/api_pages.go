@@ -79,11 +79,17 @@ func PreviewMarkdown(
 		}
 
 		options := md.DefaultOptions()
+		options.RoutePrefix = route.PrefixForRequest(r)
 
 		slug := md.Slug(request.Slug)
 		user := currentUser(r)
 		securedCatalog := catalogUseCases.Accessible(user)
-		pageNavigation, err := subpageNavigation(r.Context(), navigationUseCases, user, slug)
+		links, err := securedCatalog.ResolvePageLinks(r.Context(), md.Links(request.Markdown))
+		if err != nil {
+			httpresponse.InternalServerError(logger, w, err)
+			return
+		}
+		pageNavigation, err := subpageNavigation(r.Context(), navigationUseCases, user, slug, route.PrefixForRequest(r))
 		if err != nil {
 			httpresponse.InternalServerError(logger, w, err)
 			return
@@ -91,11 +97,11 @@ func PreviewMarkdown(
 
 		rendered, err := renderer.RenderPageResolvedWithFunctions(
 			request.Markdown,
-			md.Slug,
+			md.WikiLinkResolver(links),
 			options,
 			md.Functions{
 				Context:      r.Context(),
-				Capabilities: plugincap.Capabilities(securedCatalog, pageNavigation, renderer.IconCatalog()),
+				Capabilities: plugincap.Capabilities(securedCatalog, pageNavigation, route.PrefixForRequest(r), renderer.IconCatalog()),
 			},
 		)
 		if err != nil {
@@ -103,7 +109,7 @@ func PreviewMarkdown(
 			return
 		}
 
-		httpresponse.Respond(w, http.StatusOK, map[string]string{"html": route.RewriteHTMLURLs(strings.TrimSuffix(route.ForRequest(r, "/"), "/"), rendered.HTML)})
+		httpresponse.Respond(w, http.StatusOK, map[string]string{"html": rendered.HTML})
 	}
 }
 
@@ -113,6 +119,7 @@ func subpageNavigation(
 	navigationUseCases navigationService,
 	user domain.User,
 	slug string,
+	routePrefix string,
 ) ([]sdk.NavigationNode, error) {
 	pages, err := navigationUseCases.VisiblePages(ctx, user)
 	if err != nil {
@@ -126,16 +133,11 @@ func subpageNavigation(
 
 	items := make([]navigation.Page, 0, len(pages))
 	for _, page := range pages {
-		items = append(items, navigation.Page{Slug: page.Slug, Title: page.Title, Icon: page.Icon})
+		items = append(items, navigation.Page{ID: page.ID, Slug: page.Slug, Title: page.Title, Icon: page.Icon})
 	}
 
 	tree := navigation.Build(items, navigation.Options{Icons: icons})
-	return plugincap.Navigation(navigation.Children(tree, slug), pageURL), nil
-}
-
-// pageURL returns the server route for one page slug.
-func pageURL(slug string) string {
-	return "/pages/" + strings.Trim(slug, "/")
+	return plugincap.Navigation(navigation.Children(tree, slug), routePrefix), nil
 }
 
 // ListPages returns recently updated pages up to the requested limit.

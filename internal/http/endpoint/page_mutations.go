@@ -15,6 +15,7 @@ import (
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	md "github.com/kumbuka-me/kumbuka/pkg/markdown"
+	"github.com/kumbuka-me/kumbuka/pkg/pageurl"
 )
 
 // SavePageForm creates or updates a page from the browser form.
@@ -55,7 +56,7 @@ func SavePageForm(
 			return
 		}
 
-		route.Redirect(w, r, "/pages/"+page.Slug, http.StatusSeeOther)
+		route.Redirect(w, r, pageurl.Page(page.ID, page.Slug), http.StatusSeeOther)
 	}
 }
 
@@ -192,8 +193,13 @@ func FavoritePage(catalogUseCases visiblePageActions, views *webview.Views) http
 			writePageProblem(views.Logger(), w, err)
 			return
 		}
+		page, err := catalogUseCases.GetPageFor(r.Context(), user, slug)
+		if err != nil {
+			writePageProblem(views.Logger(), w, err)
+			return
+		}
 
-		route.Redirect(w, r, "/pages/"+slug, http.StatusSeeOther)
+		route.Redirect(w, r, pageurl.Page(page.ID, page.Slug), http.StatusSeeOther)
 	}
 }
 
@@ -208,8 +214,13 @@ func WatchPage(catalogUseCases visiblePageActions, views *webview.Views) http.Ha
 			writePageProblem(views.Logger(), w, err)
 			return
 		}
+		page, err := catalogUseCases.GetPageFor(r.Context(), user, slug)
+		if err != nil {
+			writePageProblem(views.Logger(), w, err)
+			return
+		}
 
-		route.Redirect(w, r, "/pages/"+slug, http.StatusSeeOther)
+		route.Redirect(w, r, pageurl.Page(page.ID, page.Slug), http.StatusSeeOther)
 	}
 }
 

@@ -219,7 +219,7 @@ const VisualListItem = ListItem.extend({
           tokens: token.tokens?.filter((child) => child.type !== "checkbox"),
         }
       : token;
-    const parsed = baseParseMarkdown(normalizedToken, helpers);
+    const parsed = baseParseMarkdown.call(this, normalizedToken, helpers);
     if (Array.isArray(parsed) || "mark" in parsed) return parsed;
 
     const task = Boolean(token.task);
@@ -235,7 +235,7 @@ const VisualListItem = ListItem.extend({
 
   renderMarkdown(node: any, helpers: any, context: any) {
     if (!node.attrs?.task)
-      return baseRenderMarkdown?.(node, helpers, context) ?? "";
+      return baseRenderMarkdown?.call(this, node, helpers, context) ?? "";
 
     return renderNestedMarkdownContent(
       node,

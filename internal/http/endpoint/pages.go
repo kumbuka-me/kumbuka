@@ -5,6 +5,7 @@ import (
 
 	"github.com/kumbuka-me/kumbuka/internal/http/auth"
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
+	"github.com/kumbuka-me/kumbuka/internal/route"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 	md "github.com/kumbuka-me/kumbuka/pkg/markdown"
 	"github.com/kumbuka-me/kumbuka/pkg/plugincap"
@@ -28,8 +29,8 @@ func Home(
 		user, _ := auth.User(r)
 		source := homeUseCases.Lists(user)
 		capabilities := plugincap.MergeCapabilities(
-			plugincap.Capabilities(nil, nil, renderer.IconCatalog()),
-			plugincap.PageListCapabilities(source),
+			plugincap.Capabilities(nil, nil, route.PrefixForRequest(r), renderer.IconCatalog()),
+			plugincap.PageListCapabilities(source, route.PrefixForRequest(r)),
 			plugincap.DraftCapabilities(source),
 		)
 		widgets, err := renderer.RenderWidgets(r.Context(), data.Locale.Code, "home", nil, data.PluginFeatures, capabilities, data.Preferences.HiddenPluginWidgets)

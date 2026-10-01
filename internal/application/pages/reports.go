@@ -15,6 +15,7 @@ type reportRepository interface {
 	SearchPage(context.Context, searchquery.Query, int, int) ([]domain.Page, error)
 	Backlinks(context.Context, string) ([]domain.Page, error)
 	PageLinks(context.Context, string) ([]domain.PageLink, error)
+	ResolvePageLinks(context.Context, []string) ([]domain.PageLink, error)
 	LatestRevision(context.Context, string) (revision.Revision, int, error)
 	Revisions(context.Context, string) ([]revision.Revision, error)
 }
@@ -68,6 +69,11 @@ func (q *Reports) Backlinks(ctx context.Context, slug string) ([]domain.Page, er
 // PageLinks returns link metadata for one page.
 func (q *Reports) PageLinks(ctx context.Context, slug string) ([]domain.PageLink, error) {
 	return q.repository.PageLinks(ctx, slug)
+}
+
+// ResolvePageLinks resolves requested slugs to current stable page targets.
+func (q *Reports) ResolvePageLinks(ctx context.Context, slugs []string) ([]domain.PageLink, error) {
+	return q.repository.ResolvePageLinks(ctx, slugs)
 }
 
 // LatestRevision returns a page's newest revision and total revision count.

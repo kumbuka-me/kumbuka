@@ -38,6 +38,10 @@ func (s adminRenderPageStoreStub) GetPage(_ context.Context, slug string) (domai
 	return page, nil
 }
 
+func (s adminRenderPageStoreStub) ResolvePageLinks(context.Context, []string) ([]domain.PageLink, error) {
+	return nil, s.err
+}
+
 type adminRenderArtifactStoreStub struct {
 	pageID    int64
 	updatedAt time.Time
@@ -68,6 +72,7 @@ func TestAdminRenderRebuildPageStoresStableArtifact(t *testing.T) {
 		artifacts,
 		renderer,
 		slog.Default(),
+		"",
 	)
 
 	err := rebuilds.RebuildPage(context.Background(), "guide")
@@ -95,6 +100,7 @@ func TestAdminRenderRebuildPageClearsUnpersistableArtifact(t *testing.T) {
 		artifacts,
 		renderer,
 		slog.Default(),
+		"",
 	)
 
 	err := rebuilds.RebuildPage(context.Background(), "dynamic")
@@ -117,7 +123,7 @@ func TestAdminRenderRebuildAllContinuesPastPageFailure(t *testing.T) {
 	artifacts := &adminRenderArtifactStoreStub{}
 	renderer := md.NewWithRegistry(&plugin.Registry{})
 	renderer.SetArtifactBuild("test", "abc")
-	rebuilds := NewRebuilds(adminRenderCatalogStub{pages: pages}, store, artifacts, renderer, slog.Default())
+	rebuilds := NewRebuilds(adminRenderCatalogStub{pages: pages}, store, artifacts, renderer, slog.Default(), "")
 
 	completed, failed := rebuilds.RebuildAll(context.Background())
 
@@ -129,7 +135,7 @@ func TestAdminRenderRebuildAllContinuesPastPageFailure(t *testing.T) {
 func TestAdminRenderRebuildUnavailable(t *testing.T) {
 	t.Parallel()
 
-	rebuilds := NewRebuilds(nil, nil, nil, nil, slog.Default())
+	rebuilds := NewRebuilds(nil, nil, nil, nil, slog.Default(), "")
 	err := rebuilds.RebuildPage(context.Background(), "guide")
 
 	require.ErrorContains(t, err, "page render rebuild is unavailable")
@@ -161,6 +167,7 @@ func TestAdminRenderRebuildAllHoldsExclusiveRenderLock(t *testing.T) {
 		artifacts,
 		renderer,
 		slog.Default(),
+		"",
 	)
 
 	type result struct {

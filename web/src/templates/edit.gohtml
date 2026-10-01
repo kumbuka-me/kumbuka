@@ -47,7 +47,7 @@
       data-draft-url="{{ route "/api/drafts/" }}{{ if .Page }}page:{{ .Page.ID }}{{ else }}new{{ end }}"
       data-page-id="{{ if .Page }}{{ .Page.ID }}{{ else }}0{{ end }}"
       data-editor-new="{{ if .Page }} false {{ else }} true {{ end }}"
-      data-editor-exit-url="{{ if .Page }}{{ route "/pages/" }}{{ .Page.Slug }}{{ else }}{{ route "/" }}{{ end }}">
+      data-editor-exit-url="{{ if .Page }}{{ route (pageURL .Page.ID .Page.Slug) }}{{ else }}{{ route "/" }}{{ end }}">
   <input type="hidden"
          name="original_slug"
          value="{{ if .Page }}{{ .Page.Slug }}{{ end }}" />
@@ -60,7 +60,7 @@
   <header class="editor-chrome">
     <div class="editor-chrome-left">
       <a class="editor-back"
-         href="{{ if .Page }}{{ route "/pages/" }}{{ .Page.Slug }}{{ else }}{{ route "/" }}{{ end }}"
+         href="{{ if .Page }}{{ route (pageURL .Page.ID .Page.Slug) }}{{ else }}{{ route "/" }}{{ end }}"
          data-editor-leave
          aria-label="Leave editor"
          title="Leave editor">{{ icon "x-lucide" 18 }}</a>

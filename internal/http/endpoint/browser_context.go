@@ -133,6 +133,7 @@ func presentNavigation(context viewer.Context, requestPath string) []navigation.
 	navigationPages := make([]navigation.Page, 0, len(pages))
 	for _, page := range pages {
 		navigationPages = append(navigationPages, navigation.Page{
+			ID:    page.ID,
 			Slug:  page.Slug,
 			Title: page.Title,
 			Icon:  page.Icon,
@@ -201,8 +202,8 @@ func (l *BrowserContext) loadPluginData(
 		stop = measurePageStage(r.Context(), "view_sidebar_widgets")
 		source := l.query.PersonalLists(user)
 		capabilities := plugincap.MergeCapabilities(
-			plugincap.Capabilities(nil, nil, l.renderer.IconCatalog()),
-			plugincap.PageListCapabilities(source),
+			plugincap.Capabilities(nil, nil, route.PrefixForRequest(r), l.renderer.IconCatalog()),
+			plugincap.PageListCapabilities(source, route.PrefixForRequest(r)),
 		)
 		rendered, err := l.renderer.RenderWidgets(
 			r.Context(),

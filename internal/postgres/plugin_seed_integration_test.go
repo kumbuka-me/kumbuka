@@ -134,8 +134,8 @@ func TestConcurrentPostgresBootstrapReloadsWinner(t *testing.T) {
 	oldRuntime, newRuntime := &seedRuntime{}, &seedRuntime{}
 	loser := plugin.NewManager(&plugin.Registry{}, oldRuntime, plugin.WithStore(blocked))
 	winner := plugin.NewManager(&plugin.Registry{}, newRuntime, plugin.WithStore(database))
-	defer loser.Close(context.Background())
-	defer winner.Close(context.Background())
+	defer loser.Close(context.Background())  // nolint:errcheck
+	defer winner.Close(context.Background()) // nolint:errcheck
 	done := make(chan error, 1)
 	go func() { done <- loser.Bootstrap(ctx, oldDistribution) }()
 	select {

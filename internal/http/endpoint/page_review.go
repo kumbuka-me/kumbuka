@@ -11,6 +11,7 @@ import (
 	"github.com/kumbuka-me/kumbuka/internal/route"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
+	"github.com/kumbuka-me/kumbuka/pkg/pageurl"
 	"github.com/kumbuka-me/kumbuka/pkg/revision"
 )
 
@@ -118,7 +119,7 @@ func ApplyPageReviewSuggestion(pageUseCases pageReviewDiscussionService, views *
 			return
 		}
 
-		route.Redirect(w, r, "/pages/"+page.Slug, http.StatusSeeOther)
+		route.Redirect(w, r, pageurl.Page(page.ID, page.Slug), http.StatusSeeOther)
 	}
 }
 
@@ -137,7 +138,7 @@ func ApplyAllPageReviewSuggestions(pageUseCases pageReviewDiscussionService, vie
 			return
 		}
 
-		route.Redirect(w, r, "/pages/"+page.Slug, http.StatusSeeOther)
+		route.Redirect(w, r, pageurl.Page(page.ID, page.Slug), http.StatusSeeOther)
 	}
 }
 

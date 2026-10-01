@@ -6,10 +6,10 @@ import { graphNeighborhood } from "../../web/src/ts/features/graph.ts";
 
 const graph = {
   nodes: [
-    { slug: "a", title: "Alpha" },
-    { slug: "b", title: "Beta" },
-    { slug: "c", title: "Gamma" },
-    { slug: "d", title: "Database" },
+    { id: 1, slug: "a", title: "Alpha" },
+    { id: 2, slug: "b", title: "Beta" },
+    { id: 3, slug: "c", title: "Gamma" },
+    { id: 4, slug: "d", title: "Database" },
   ],
   edges: [
     { source: "a", target: "b" },

@@ -17,7 +17,6 @@ func registerBrowserRoutes(mux *http.ServeMux, config Config) {
 	mux.Handle("GET /{$}", browserAuthn(endpoint.Home(config.BrowserContext, config.Home, config.Renderer, config.Views)))
 	mux.Handle("GET /search", browserAuthn(endpoint.Search(config.BrowserContext, config.PageSearch, config.Views)))
 	mux.Handle("GET /graph", browserAuthn(endpoint.KnowledgeGraphPage(config.BrowserContext, config.Views)))
-	mux.Handle("GET /p/{id}", browserAuthn(endpoint.PagePermalink(config.PageLookup, config.Logger)))
 	mux.Handle(
 		"GET /settings",
 		browserAuthn(endpoint.Settings(config.BrowserContext, config.Users, config.Tokens, config.Media, config.BrowserAuth.Local, config.Views)),

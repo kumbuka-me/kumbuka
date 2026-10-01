@@ -119,5 +119,5 @@ func TestPageSaveUsesSharedMentionNotificationSender(t *testing.T) {
 	assert.Equal(t, int64(42), sender.actorID)
 	assert.Equal(t, "Please review, @admin", sender.text)
 	assert.Equal(t, "Mention in Example", sender.title)
-	assert.Equal(t, "/pages/example", sender.destination)
+	assert.Equal(t, "/p/7/example", sender.destination)
 }

@@ -63,7 +63,7 @@ func PluginWidgetCommand(
 		}
 		var pageValue *sdk.Page
 		capabilities := plugincap.MergeCapabilities(
-			plugincap.Capabilities(nil, nil, renderer.IconCatalog()),
+			plugincap.Capabilities(nil, nil, route.PrefixForRequest(r), renderer.IconCatalog()),
 			plugincap.NotificationCapabilities(notifications, user.ID, pluginID, pluginName),
 		)
 		if slug := pageSlug; slug != "" {
@@ -72,15 +72,15 @@ func PluginWidgetCommand(
 				httpresponse.Problem(w, http.StatusNotFound, "Page not found.")
 				return
 			}
-			pageValue = utils.ToPtr(plugincap.PageValue(page))
+			pageValue = utils.ToPtr(plugincap.PageValue(page, route.PrefixForRequest(r)))
 			securedCatalog := catalog.Accessible(user)
-			pageNavigation, err := subpageNavigation(r.Context(), navigation, user, slug)
+			pageNavigation, err := subpageNavigation(r.Context(), navigation, user, slug, route.PrefixForRequest(r))
 			if err != nil {
 				httpresponse.Problem(w, http.StatusInternalServerError, "The request could not be processed.")
 				return
 			}
 			capabilities = plugincap.MergeCapabilities(
-				plugincap.Capabilities(securedCatalog, pageNavigation, renderer.IconCatalog()),
+				plugincap.Capabilities(securedCatalog, pageNavigation, route.PrefixForRequest(r), renderer.IconCatalog()),
 				plugincap.PageContentUpdateCapability(page.Slug, func(ctx context.Context, update sdk.PageContentUpdate) (sdk.PageContent, error) {
 					updated, updateErr := pageUpdates.UpdateContent(ctx, apppages.PageContentUpdateInput{
 						Slug: update.Slug, Markdown: update.Markdown, Message: update.Message,

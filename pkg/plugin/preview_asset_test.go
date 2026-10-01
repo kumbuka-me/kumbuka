@@ -128,8 +128,8 @@ func TestPluginAssetsSurviveAnotherManagersUpgradeAndUninstall(t *testing.T) {
 	store := &memoryStore{records: make(map[string]Record)}
 	first := NewManager(&Registry{}, &observedRuntime{}, WithStore(store))
 	second := NewManager(&Registry{}, &observedRuntime{}, WithStore(store))
-	defer first.Close(ctx)
-	defer second.Close(ctx)
+	defer first.Close(ctx)  // nolint:errcheck
+	defer second.Close(ctx) // nolint:errcheck
 	installed, err := first.Install(ctx, oldArchive)
 	require.NoError(t, err)
 	require.NoError(t, second.Bootstrap(ctx, nil))

@@ -26,6 +26,7 @@ func (s *observedStore) PluginPackage(ctx context.Context, id string, digest [32
 	s.reads = append(s.reads, id)
 	return s.memoryStore.PluginPackage(ctx, id, digest)
 }
+
 func (s *observedStore) SavePlugin(ctx context.Context, r Record, b []byte) error {
 	if s.fail {
 		return errors.New("persistence failed")
@@ -33,6 +34,7 @@ func (s *observedStore) SavePlugin(ctx context.Context, r Record, b []byte) erro
 	s.saves++
 	return s.memoryStore.SavePlugin(ctx, r, b)
 }
+
 func (s *observedStore) SeedPlugin(ctx context.Context, r Record, b []byte) error {
 	if s.fail {
 		return errors.New("persistence failed")
@@ -40,6 +42,7 @@ func (s *observedStore) SeedPlugin(ctx context.Context, r Record, b []byte) erro
 	s.saves++
 	return s.memoryStore.SeedPlugin(ctx, r, b)
 }
+
 func (s *observedStore) SetPluginEnabled(ctx context.Context, id string, b bool) error {
 	if s.fail {
 		return errors.New("persistence failed")
@@ -82,6 +85,7 @@ func inventoryArchive(t *testing.T, id, version string, enabled bool, requires s
 	require.NoError(t, w.Close())
 	return b.Bytes()
 }
+
 func TestMetadataInventoryAndEagerActivation(t *testing.T) {
 	ctx := context.Background()
 	disabled := inventoryArchive(t, "io.disabled", "1.0.0", false, "")
@@ -110,6 +114,7 @@ func TestMetadataInventoryAndEagerActivation(t *testing.T) {
 	assert.True(t, runtime.instances[1].closed)
 	require.NoError(t, manager.Close(ctx))
 }
+
 func TestBuiltinReconciliationPreservesInstalledIdentity(t *testing.T) {
 	for _, tc := range []struct {
 		name, installed, builtin string
@@ -148,6 +153,7 @@ func TestBuiltinReconciliationPreservesInstalledIdentity(t *testing.T) {
 		})
 	}
 }
+
 func TestLaterDistributionSeedsOnlyNewIDs(t *testing.T) {
 	ctx := context.Background()
 	existing := inventoryArchive(t, "io.existing", "1.0.0", false, "")
@@ -164,6 +170,7 @@ func TestLaterDistributionSeedsOnlyNewIDs(t *testing.T) {
 	require.Len(t, manager.Plugins(), 3)
 	require.NoError(t, manager.Close(ctx))
 }
+
 func TestFailedStartupClosesAllCandidatesWithoutPublication(t *testing.T) {
 	ctx := context.Background()
 	registry := &Registry{}
@@ -176,6 +183,7 @@ func TestFailedStartupClosesAllCandidatesWithoutPublication(t *testing.T) {
 	assert.True(t, runtime.instances[0].closed)
 	require.NoError(t, manager.Close(ctx))
 }
+
 func TestReplacementFailuresKeepActiveInstallation(t *testing.T) {
 	ctx := context.Background()
 	id := "io.fixture"
@@ -235,6 +243,7 @@ func (s *blockedSeedStore) SeedPlugin(ctx context.Context, r Record, archive []b
 		return ctx.Err()
 	}
 }
+
 func TestConcurrentBootstrapUsesWinningInstallation(t *testing.T) {
 	for _, enabled := range []bool{false, true} {
 		t.Run(fmt.Sprintf("winner_enabled_%t", enabled), func(t *testing.T) {
@@ -250,8 +259,8 @@ func TestConcurrentBootstrapUsesWinningInstallation(t *testing.T) {
 			loserRuntime, winnerRuntime := &observedRuntime{}, &observedRuntime{}
 			loser := NewManager(&Registry{}, loserRuntime, WithStore(blocked))
 			winner := NewManager(&Registry{}, winnerRuntime, WithStore(store))
-			defer loser.Close(context.Background())
-			defer winner.Close(context.Background())
+			defer loser.Close(context.Background())  // nolint:errcheck
+			defer winner.Close(context.Background()) // nolint:errcheck
 			losingDistribution := testDistribution(t, [][]byte{losingArchive})
 			done := make(chan error, 1)
 			go func() { done <- loser.Bootstrap(ctx, losingDistribution) }()

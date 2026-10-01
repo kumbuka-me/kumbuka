@@ -2,7 +2,7 @@
   <section class="review-page">
     <header class="review-heading">
       <div>
-        <p class="breadcrumbs"><a href="{{ route "/pages/" }}{{ .Page.Slug }}">Pages / {{ .Page.Slug }}</a> / Review</p>
+        <p class="breadcrumbs"><a href="{{ route (pageURL .Page.ID .Page.Slug) }}">Pages / {{ .Page.Slug }}</a> / Review</p>
         <div class="review-title-row">
           <h1>Review revision {{ .PageReviewRequest.RevisionNumber }}</h1>
           <span class="review-status status-{{ .PageReviewRequest.Status }}">{{ .PageReviewRequest.Status }}</span>
@@ -10,7 +10,8 @@
         <p class="muted">{{ .Page.Title }}</p>
       </div>
       <div class="review-heading-actions">
-        <a class="button compact" href="{{ route "/pages/" }}{{ .Page.Slug }}">
+        <a class="button compact"
+           href="{{ route (pageURL .Page.ID .Page.Slug) }}">
           {{ icon "arrow-left-lucide" 14 }}<span>Back to page</span>
         </a>
         {{ if and .CanApplyReviewSuggestions (gt .OpenReviewSuggestions 0) }}
