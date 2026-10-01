@@ -60,6 +60,74 @@ test("plugin frames swap atomically and respect block presentation", async () =>
   }
 });
 
+test("plugin frames include outer content margins in their measured height", async () => {
+  const browser = await chromium.launch({
+    channel: process.env.BROWSER_CHANNEL || "chrome",
+    headless: true,
+  });
+  try {
+    const page = await browser.newPage();
+    const module = {
+      plugin_id: "me.kumbuka.margin-test",
+      module_id: "margin-ui",
+      name: "Margin Test",
+      digest: "d".repeat(64),
+    };
+    const fakeJavaScript = `
+      globalThis.kumbukaPlugin = {
+        render(root) {
+          const content = document.createElement("div");
+          content.textContent = "Measured content";
+          content.style.height = "40px";
+          content.style.margin = "32px 0";
+          root.append(content);
+        }
+      };
+    `;
+
+    await page.route("http://margin.test/**", async (route) => {
+      const path = new URL(route.request().url()).pathname;
+      if (
+        await pluginRoute(route, {
+          module,
+          fakeJavaScript,
+        })
+      )
+        return;
+      if (path.startsWith("/assets/")) {
+        await route.fulfill({
+          contentType: "text/javascript",
+          body: await readFile(
+            new URL("../../web/dist/" + path.slice(8), import.meta.url),
+          ),
+        });
+        return;
+      }
+      await route.fulfill({
+        contentType: "text/html",
+        body: `<body>${pluginCatalog(module)}<div data-kumbuka-plugin="me.kumbuka.margin-test" data-kumbuka-module="margin-ui"><pre>margin test</pre></div><script type="module">import {renderPluginModules} from '/assets/js/plugins/loader.js';await renderPluginModules();</script></body>`,
+      });
+    });
+
+    await page.goto("http://margin.test/");
+    await page.locator("iframe[data-plugin-ready]").waitFor();
+
+    const frame = page.frames().find((candidate) => candidate !== page.mainFrame());
+    assert.ok(frame);
+    const dimensions = await frame.evaluate(() => ({
+      clientHeight: document.documentElement.clientHeight,
+      scrollHeight: document.documentElement.scrollHeight,
+      rootHeight: document.getElementById("plugin-root")?.getBoundingClientRect()
+        .height,
+    }));
+
+    assert.equal(dimensions.scrollHeight, dimensions.clientHeight);
+    assert.equal(dimensions.rootHeight, 104);
+  } finally {
+    await browser.close();
+  }
+});
+
 test("real Mermaid is isolated and plugin changes require a page reload", async () => {
   const browser = await chromium.launch({
     channel: process.env.BROWSER_CHANNEL || "chrome",

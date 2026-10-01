@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
 export const plugin = {
@@ -10,6 +11,11 @@ export const plugin = {
 export const base = `/plugins/${plugin.plugin_id}/${plugin.digest}/`;
 export const block =
   '<div data-kumbuka-plugin="me.kumbuka.mermaid" data-kumbuka-module="diagrams"><pre><code class="language-mermaid">graph LR; A --> B</code></pre></div>';
+
+const coreStyles = await readFile(
+  new URL("../../pkg/pluginbrowser/core.css", import.meta.url),
+  "utf8",
+);
 
 const packageAssets = new Map();
 
@@ -78,7 +84,7 @@ export async function pluginRoute(
     await route.fulfill({
       contentType: "text/html",
       headers: { "Content-Security-Policy": policy },
-      body: `<html><head><link rel="stylesheet" href="${base}assets/plugin.css"><script defer src="/plugins/runtime.js"></script></head><body data-plugin-javascript="${base}assets/plugin.js"><main id="plugin-root"></main></body></html>`,
+      body: `<html><head><link rel="stylesheet" href="${base}assets/plugin.css"><style>${coreStyles}</style><script defer src="/plugins/runtime.js"></script></head><body data-plugin-javascript="${base}assets/plugin.js"><main id="plugin-root"></main></body></html>`,
     });
   } else if (path === "/plugins/runtime.js") {
     const { readFile } = await import("node:fs/promises");
@@ -115,5 +121,3 @@ export async function pluginRoute(
   }
   return true;
 }
-
-

@@ -22,4 +22,6 @@ func TestFrameEscapesAssetNamesAndKeepsExecutionIsolated(t *testing.T) {
 	assert.NotContains(t, html, "http-equiv=\"Content-Security-Policy\"")
 	assert.Contains(t, html, "[data-kumbuka-mention]")
 	assert.Contains(t, html, "var(--accent)")
+	assert.Contains(t, html, "#plugin-root")
+	assert.Contains(t, html, "display: flow-root")
 }

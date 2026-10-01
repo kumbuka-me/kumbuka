@@ -1,4 +1,17 @@
-/* Core-owned presentation primitives available inside isolated plugin browser frames. */
+/* Core-owned frame layout and presentation primitives available inside isolated plugin browser frames. */
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+/* The runtime sizes the iframe from this element. A formatting context keeps
+   child margins and floats inside the measured box instead of leaking into the
+   frame document and creating scrollbars. */
+#plugin-root {
+  display: flow-root;
+}
 
 [data-kumbuka-mention] {
   display: inline-flex;
