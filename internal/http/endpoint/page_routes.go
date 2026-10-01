@@ -44,6 +44,17 @@ func LegacyPage(pages canonicalPageService, logger *slog.Logger) http.HandlerFun
 	}
 }
 
+// redirectToCanonicalPage resolves a slug after a mutation and redirects directly to its stable-ID URL.
+func redirectToCanonicalPage(w http.ResponseWriter, r *http.Request, pages canonicalPageService, logger *slog.Logger, slug string, status int) {
+	user, _ := auth.User(r)
+	page, _, err := pages.GetPageOrAliasFor(r.Context(), user, slug)
+	if err != nil {
+		writeCanonicalPageProblem(logger, w, err)
+		return
+	}
+	route.Redirect(w, r, pageurl.Page(page.ID, page.Slug), status)
+}
+
 func canonicalPageForRequest(r *http.Request, pages canonicalPageService) (domain.Page, error) {
 	id, err := canonicalPageID(r.PathValue("id"))
 	if err != nil {

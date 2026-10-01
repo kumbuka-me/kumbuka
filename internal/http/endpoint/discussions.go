@@ -9,6 +9,7 @@ import (
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
 	"github.com/kumbuka-me/kumbuka/internal/route"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
+	"github.com/kumbuka-me/kumbuka/pkg/pageurl"
 )
 
 // AddPageComment adds a page discussion comment or an applicable inline suggestion.
@@ -50,7 +51,7 @@ func AddPageComment(pageUseCases pageDiscussionWriter, views *webview.Views) htt
 				return
 			}
 
-			route.Redirect(w, r, pageCommentTarget(slug, comment.ID), http.StatusSeeOther)
+			route.Redirect(w, r, pageCommentTarget(comment.PageID, slug, comment.ID), http.StatusSeeOther)
 			return
 		}
 		if kind != "" && kind != "comment" {
@@ -66,7 +67,7 @@ func AddPageComment(pageUseCases pageDiscussionWriter, views *webview.Views) htt
 			return
 		}
 
-		route.Redirect(w, r, pageCommentTarget(slug, comment.ID), http.StatusSeeOther)
+		route.Redirect(w, r, pageCommentTarget(comment.PageID, slug, comment.ID), http.StatusSeeOther)
 	}
 }
 
@@ -86,7 +87,7 @@ func ApplyPageCommentSuggestion(pageUseCases pageDiscussionWriter, views *webvie
 			return
 		}
 
-		route.Redirect(w, r, pageCommentTarget(page.Slug, id), http.StatusSeeOther)
+		route.Redirect(w, r, pageCommentTarget(page.ID, page.Slug, id), http.StatusSeeOther)
 	}
 }
 
@@ -130,14 +131,14 @@ func pageCommentParentID(w http.ResponseWriter, value string) (int64, bool) {
 }
 
 // pageCommentTarget returns the page URL that reopens one discussion item after a mutation.
-func pageCommentTarget(slug string, id int64) string {
-	return "/pages/" + strings.TrimSpace(slug) + "#comment-" + strconv.FormatInt(id, 10)
+func pageCommentTarget(pageID int64, slug string, commentID int64) string {
+	return pageurl.Page(pageID, strings.TrimSpace(slug)) + "#comment-" + strconv.FormatInt(commentID, 10)
 }
 
 // pageCommentReturnTarget preserves an inline-comment fragment while defaulting page discussions to their section.
 func pageCommentReturnTarget(value string) string {
 	target := strings.TrimSpace(value)
-	if !httpresponse.IsLocalPath(target) || !strings.HasPrefix(target, "/pages/") {
+	if !httpresponse.IsLocalPath(target) || !isCanonicalPageReturnTarget(target) {
 		return "/"
 	}
 	if strings.Contains(target, "#") {
@@ -145,4 +146,17 @@ func pageCommentReturnTarget(value string) string {
 	}
 
 	return target + "#comments"
+}
+
+// isCanonicalPageReturnTarget validates a stable-ID page URL submitted by a discussion form.
+func isCanonicalPageReturnTarget(target string) bool {
+	path := strings.SplitN(target, "?", 2)[0]
+	path = strings.SplitN(path, "#", 2)[0]
+	remainder, ok := strings.CutPrefix(path, "/p/")
+	if !ok {
+		return false
+	}
+	idText, slug, ok := strings.Cut(remainder, "/")
+	id, err := strconv.ParseInt(idText, 10, 64)
+	return ok && id > 0 && err == nil && strings.Trim(slug, "/") != ""
 }

@@ -42,7 +42,7 @@ func TestMovePageFormValidationProblem(t *testing.T) {
 		Field: "slug", Message: "A destination path is required.",
 	}}})
 
-	MovePageForm(moveErrorStub{err: err}, logger)(response, request)
+	MovePageForm(moveErrorStub{err: err}, nil, logger)(response, request)
 
 	assert.Equal(t, http.StatusUnprocessableEntity, response.Code)
 	assert.JSONEq(t, `{"error":"Page validation failed.","problems":{"slug":"A destination path is required."}}`, response.Body.String())
@@ -203,7 +203,7 @@ func TestKnownServiceErrorsReachHTTPTranslators(t *testing.T) {
 		request.SetPathValue("slug", "source")
 		request = auth.WithUser(request, domain.User{ID: 1, Role: "admin"})
 		response := httptest.NewRecorder()
-		MovePageForm(moveErrorStub{err: conflict}, logger)(response, request)
+		MovePageForm(moveErrorStub{err: conflict}, nil, logger)(response, request)
 		assert.Equal(t, http.StatusConflict, response.Code)
 		assert.Contains(t, response.Body.String(), "Page path already exists.")
 		assert.Empty(t, logs.String())

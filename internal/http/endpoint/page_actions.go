@@ -9,13 +9,12 @@ import (
 
 	apppages "github.com/kumbuka-me/kumbuka/internal/application/pages"
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
-	"github.com/kumbuka-me/kumbuka/internal/route"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	md "github.com/kumbuka-me/kumbuka/pkg/markdown"
 )
 
 // MovePageForm safely moves one page or subtree and optionally refactors direct wiki links.
-func MovePageForm(pageUseCases pageMoveService, logger *slog.Logger) http.HandlerFunc {
+func MovePageForm(pageUseCases pageMoveService, pages canonicalPageService, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user := currentUser(r)
 		if err := r.ParseForm(); err != nil {
@@ -33,12 +32,12 @@ func MovePageForm(pageUseCases pageMoveService, logger *slog.Logger) http.Handle
 			return
 		}
 
-		route.Redirect(w, r, "/pages/"+newSlug, http.StatusSeeOther)
+		redirectToCanonicalPage(w, r, pages, logger, newSlug, http.StatusSeeOther)
 	}
 }
 
 // ReviewPageForm records an explicit documentation review.
-func ReviewPageForm(pageUseCases pageReviewService, logger *slog.Logger) http.HandlerFunc {
+func ReviewPageForm(pageUseCases pageReviewService, pages canonicalPageService, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user := currentUser(r)
 		slug := strings.TrimSpace(r.PathValue("slug"))
@@ -47,12 +46,12 @@ func ReviewPageForm(pageUseCases pageReviewService, logger *slog.Logger) http.Ha
 			return
 		}
 
-		route.Redirect(w, r, "/pages/"+slug, http.StatusSeeOther)
+		redirectToCanonicalPage(w, r, pages, logger, slug, http.StatusSeeOther)
 	}
 }
 
 // RequestPageReview opens a lightweight approval request for the current revision.
-func RequestPageReview(pageUseCases pageApprovalService, logger *slog.Logger) http.HandlerFunc {
+func RequestPageReview(pageUseCases pageApprovalService, pages canonicalPageService, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if err := r.ParseForm(); err != nil {
 			httpresponse.Problem(w, http.StatusBadRequest, "Invalid review request.")
@@ -77,12 +76,12 @@ func RequestPageReview(pageUseCases pageApprovalService, logger *slog.Logger) ht
 			return
 		}
 
-		route.Redirect(w, r, "/pages/"+slug, http.StatusSeeOther)
+		redirectToCanonicalPage(w, r, pages, logger, slug, http.StatusSeeOther)
 	}
 }
 
 // UpdatePageReview edits reviewers or the note of an existing pending request.
-func UpdatePageReview(pageUseCases pageApprovalService, logger *slog.Logger) http.HandlerFunc {
+func UpdatePageReview(pageUseCases pageApprovalService, pages canonicalPageService, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if err := r.ParseForm(); err != nil {
 			httpresponse.Problem(w, http.StatusBadRequest, "Invalid review request.")
@@ -112,12 +111,12 @@ func UpdatePageReview(pageUseCases pageApprovalService, logger *slog.Logger) htt
 			return
 		}
 
-		route.Redirect(w, r, "/pages/"+slug, http.StatusSeeOther)
+		redirectToCanonicalPage(w, r, pages, logger, slug, http.StatusSeeOther)
 	}
 }
 
 // CancelPageReview cancels a pending request while preserving its audit history.
-func CancelPageReview(pageUseCases pageApprovalService, logger *slog.Logger) http.HandlerFunc {
+func CancelPageReview(pageUseCases pageApprovalService, pages canonicalPageService, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if err := r.ParseForm(); err != nil {
 			httpresponse.Problem(w, http.StatusBadRequest, "Invalid review request.")
@@ -135,12 +134,12 @@ func CancelPageReview(pageUseCases pageApprovalService, logger *slog.Logger) htt
 			return
 		}
 
-		route.Redirect(w, r, "/pages/"+slug, http.StatusSeeOther)
+		redirectToCanonicalPage(w, r, pages, logger, slug, http.StatusSeeOther)
 	}
 }
 
 // DecidePageReview approves the requested revision or asks for changes.
-func DecidePageReview(pageUseCases pageApprovalService, logger *slog.Logger) http.HandlerFunc {
+func DecidePageReview(pageUseCases pageApprovalService, pages canonicalPageService, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if err := r.ParseForm(); err != nil {
 			httpresponse.Problem(w, http.StatusBadRequest, "Invalid review decision.")
@@ -165,7 +164,7 @@ func DecidePageReview(pageUseCases pageApprovalService, logger *slog.Logger) htt
 			return
 		}
 
-		route.Redirect(w, r, "/pages/"+slug, http.StatusSeeOther)
+		redirectToCanonicalPage(w, r, pages, logger, slug, http.StatusSeeOther)
 	}
 }
 

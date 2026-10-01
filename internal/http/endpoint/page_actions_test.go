@@ -81,9 +81,10 @@ func TestPageReviewMutationHandlersUseRouteSlug(t *testing.T) {
 		request.SetPathValue("slug", routeSlug)
 		response := httptest.NewRecorder()
 
-		UpdatePageReview(useCases, slog.Default()).ServeHTTP(response, request)
+		UpdatePageReview(useCases, &canonicalPageServiceStub{page: domain.Page{ID: 42, Slug: "docs/start"}}, slog.Default()).ServeHTTP(response, request)
 
 		require.Equal(t, http.StatusSeeOther, response.Code)
+		assert.Equal(t, "/p/42/docs/start", response.Header().Get("Location"))
 		assert.Equal(t, routeSlug, useCases.update.Slug)
 	})
 
@@ -97,9 +98,10 @@ func TestPageReviewMutationHandlersUseRouteSlug(t *testing.T) {
 		request.SetPathValue("slug", routeSlug)
 		response := httptest.NewRecorder()
 
-		CancelPageReview(useCases, slog.Default()).ServeHTTP(response, request)
+		CancelPageReview(useCases, &canonicalPageServiceStub{page: domain.Page{ID: 42, Slug: "docs/start"}}, slog.Default()).ServeHTTP(response, request)
 
 		require.Equal(t, http.StatusSeeOther, response.Code)
+		assert.Equal(t, "/p/42/docs/start", response.Header().Get("Location"))
 		assert.Equal(t, routeSlug, useCases.cancelledSlug)
 	})
 
@@ -113,9 +115,10 @@ func TestPageReviewMutationHandlersUseRouteSlug(t *testing.T) {
 		request.SetPathValue("slug", routeSlug)
 		response := httptest.NewRecorder()
 
-		DecidePageReview(useCases, slog.Default()).ServeHTTP(response, request)
+		DecidePageReview(useCases, &canonicalPageServiceStub{page: domain.Page{ID: 42, Slug: "docs/start"}}, slog.Default()).ServeHTTP(response, request)
 
 		require.Equal(t, http.StatusSeeOther, response.Code)
+		assert.Equal(t, "/p/42/docs/start", response.Header().Get("Location"))
 		assert.Equal(t, routeSlug, useCases.decision.Slug)
 		assert.Equal(t, domain.PageReviewStatusApproved, useCases.decision.Decision)
 	})

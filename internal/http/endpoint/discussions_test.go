@@ -42,8 +42,9 @@ func TestPageCommentReturnTarget(t *testing.T) {
 		value    string
 		expected string
 	}{
-		{name: "page discussion", value: "/pages/docs/start", expected: "/pages/docs/start#comments"},
-		{name: "inline discussion", value: "/pages/docs/start#comment-42", expected: "/pages/docs/start#comment-42"},
+		{name: "canonical page discussion", value: "/p/7/docs/start", expected: "/p/7/docs/start#comments"},
+		{name: "canonical inline discussion", value: "/p/7/docs/start#comment-42", expected: "/p/7/docs/start#comment-42"},
+		{name: "legacy page route", value: "/pages/docs/start", expected: "/"},
 		{name: "external target", value: "https://example.test/pages/start", expected: "/"},
 		{name: "protocol relative target", value: "//example.test/pages/start", expected: "/"},
 		{name: "non page target", value: "/admin", expected: "/"},
@@ -55,6 +56,11 @@ func TestPageCommentReturnTarget(t *testing.T) {
 			assert.Equal(t, test.expected, pageCommentReturnTarget(test.value))
 		})
 	}
+}
+
+func TestPageCommentTargetUsesCanonicalPageURL(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t, "/p/7/docs/start#comment-42", pageCommentTarget(7, "docs/start", 42))
 }
 
 // TestResolvePageCommentUsesRouteSlug verifies resolution cannot substitute a different page through form data.
