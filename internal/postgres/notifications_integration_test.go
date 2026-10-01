@@ -11,6 +11,26 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestCreateNotificationStoresZeroActorAsNull(t *testing.T) {
+	ctx := context.Background()
+	database, err := Open(ctx, integrationDatabase(t), slog.New(slog.NewTextHandler(io.Discard, nil)))
+	require.NoError(t, err)
+	t.Cleanup(database.Close)
+
+	var owner int64
+	require.NoError(t, database.pool.QueryRow(ctx, `INSERT INTO users(username) VALUES('system-notification-owner') RETURNING id`).Scan(&owner))
+	require.NoError(t, addIntegrationNotification(ctx, database, owner, "System notification", "", "/admin/plugins"))
+
+	var actorIsNull bool
+	require.NoError(t, database.pool.QueryRow(ctx, `SELECT actor_id IS NULL FROM notifications WHERE user_id=$1`, owner).Scan(&actorIsNull))
+	require.True(t, actorIsNull)
+
+	items, _, err := database.Notifications(ctx, owner, 8)
+	require.NoError(t, err)
+	require.Len(t, items, 1)
+	require.Zero(t, items[0].ActorID)
+}
+
 func TestOpenNotificationOwnershipAndReadState(t *testing.T) {
 	ctx := context.Background()
 	database, err := Open(ctx, integrationDatabase(t), slog.New(slog.NewTextHandler(io.Discard, nil)))

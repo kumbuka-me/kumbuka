@@ -62,7 +62,7 @@ func (s *Store) CreateNotification(ctx context.Context, item domain.Notification
 	var created bool
 	err := s.pool.QueryRow(ctx, `
 INSERT INTO notifications(user_id,kind,title,body,url,actor_id,source_type,source_id,source_name,idempotency_key)
-VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+VALUES($1,$2,$3,$4,$5,NULLIF($6,0),$7,$8,$9,$10)
 ON CONFLICT (source_id,user_id,idempotency_key)
 WHERE source_type='plugin' AND idempotency_key<>''
 DO UPDATE SET id=notifications.id
