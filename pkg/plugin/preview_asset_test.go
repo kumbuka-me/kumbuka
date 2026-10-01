@@ -76,7 +76,7 @@ func previewTestManager(pkg *pluginpackage.Package, archive []byte) *Manager {
 			Digest:   pkg.Digest(),
 		},
 	}
-	manager.store.(*memoryStore).packages = map[string][]byte{pkg.Manifest().ID: archive}
+	manager.store.(*memoryStore).packages = map[packageIdentity][]byte{{pkg.Manifest().ID, pkg.Digest()}: archive}
 	manager.order = []string{pkg.Manifest().ID}
 	return manager
 }
@@ -115,4 +115,34 @@ func previewTestPNG(t *testing.T) []byte {
 	var buffer bytes.Buffer
 	require.NoError(t, png.Encode(&buffer, image.NewRGBA(image.Rect(0, 0, 32, 18))))
 	return buffer.Bytes()
+}
+
+// A second server can keep serving its installed snapshot after the first changes the database.
+func TestPluginAssetsSurviveAnotherManagersUpgradeAndUninstall(t *testing.T) {
+	ctx := context.Background()
+	oldPreview := previewTestPNG(t)
+	var newer bytes.Buffer
+	require.NoError(t, png.Encode(&newer, image.NewRGBA(image.Rect(0, 0, 16, 16))))
+	oldArchive := previewTestArchive(t, oldPreview, nil)
+	newArchive := previewTestArchive(t, newer.Bytes(), nil)
+	store := &memoryStore{records: make(map[string]Record)}
+	first := NewManager(&Registry{}, &observedRuntime{}, WithStore(store))
+	second := NewManager(&Registry{}, &observedRuntime{}, WithStore(store))
+	defer first.Close(ctx)
+	defer second.Close(ctx)
+	installed, err := first.Install(ctx, oldArchive)
+	require.NoError(t, err)
+	require.NoError(t, second.Bootstrap(ctx, nil))
+	_, err = first.Upgrade(ctx, installed.Manifest.ID, newArchive)
+	require.NoError(t, err)
+	got, err := first.PluginPreview(ctx, installed.Manifest.ID)
+	require.NoError(t, err)
+	assert.Equal(t, newer.Bytes(), got)
+	got, err = second.PluginPreview(ctx, installed.Manifest.ID)
+	require.NoError(t, err)
+	assert.Equal(t, oldPreview, got)
+	require.NoError(t, first.Uninstall(ctx, installed.Manifest.ID))
+	got, err = second.PluginPreview(ctx, installed.Manifest.ID)
+	require.NoError(t, err)
+	assert.Equal(t, oldPreview, got)
 }

@@ -23,7 +23,8 @@ type Record struct {
 // Store separates inventory and lifecycle state from package storage.
 type Store interface {
 	ListPlugins(context.Context) ([]Record, error)
-	PluginPackage(context.Context, string) ([]byte, error)
+	// PluginPackage reads an exact package version, including versions used by other running managers.
+	PluginPackage(context.Context, string, [32]byte) ([]byte, error)
 	// SeedPlugin inserts a missing installation atomically; an existing row is never changed.
 	// Callers must reload inventory afterward to observe a concurrent winner.
 	SeedPlugin(context.Context, Record, []byte) error
@@ -54,13 +55,19 @@ func WithStorage(storage Storage) ManagerOption { return func(m *Manager) { m.va
 // WithSecretCodec configures encryption for manifest-declared plugin secrets.
 func WithSecretCodec(codec SecretCodec) ManagerOption { return func(m *Manager) { m.secrets = codec } }
 
+// packageIdentity addresses immutable archives independently of installation state.
+type packageIdentity struct {
+	id     string
+	digest [32]byte
+}
+
 // memoryStore provides process-local installation persistence for isolated renderers and tests.
 type memoryStore struct {
 	// mu protects concurrent access to the receiver state.
 	mu sync.Mutex
 	// records indexes cloned durable records by plugin ID.
 	records  map[string]Record
-	packages map[string][]byte
+	packages map[packageIdentity][]byte
 }
 
 // ListPlugins returns all durable plugin records.
@@ -82,9 +89,9 @@ func (s *memoryStore) SavePlugin(_ context.Context, record Record, archive []byt
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.packages == nil {
-		s.packages = make(map[string][]byte)
+		s.packages = make(map[packageIdentity][]byte)
 	}
-	s.packages[record.ID] = bytes.Clone(archive)
+	s.packages[packageIdentity{record.ID, record.Digest}] = bytes.Clone(archive)
 	s.records[record.ID] = cloneRecord(record)
 	return nil
 }
@@ -97,9 +104,9 @@ func (s *memoryStore) SeedPlugin(_ context.Context, record Record, archive []byt
 		return nil
 	}
 	if s.packages == nil {
-		s.packages = make(map[string][]byte)
+		s.packages = make(map[packageIdentity][]byte)
 	}
-	s.packages[record.ID] = bytes.Clone(archive)
+	s.packages[packageIdentity{record.ID, record.Digest}] = bytes.Clone(archive)
 	s.records[record.ID] = cloneRecord(record)
 	return nil
 }
@@ -109,7 +116,6 @@ func (s *memoryStore) DeletePlugin(_ context.Context, id string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	delete(s.records, id)
-	delete(s.packages, id)
 	return nil
 }
 
@@ -119,10 +125,10 @@ func cloneRecord(record Record) Record {
 	return record
 }
 
-func (s *memoryStore) PluginPackage(_ context.Context, id string) ([]byte, error) {
+func (s *memoryStore) PluginPackage(_ context.Context, id string, digest [32]byte) ([]byte, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	data, ok := s.packages[id]
+	data, ok := s.packages[packageIdentity{id, digest}]
 	if !ok {
 		return nil, fmt.Errorf("plugin %s is not installed", id)
 	}

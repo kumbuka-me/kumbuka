@@ -30,7 +30,7 @@ func TestBootstrapKeepsInstalledPackageWhenBuiltinDigestMatches(t *testing.T) {
 	records, err := store.ListPlugins(ctx)
 	require.NoError(t, err)
 	require.Len(t, records, 1)
-	stored, err := store.PluginPackage(ctx, id)
+	stored, err := store.PluginPackage(ctx, id, packageDigest(t, archive))
 	require.NoError(t, err)
 	assert.Equal(t, archive, stored)
 	assert.False(t, records[0].Enabled)

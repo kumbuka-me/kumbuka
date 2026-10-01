@@ -134,7 +134,7 @@ func (m *Manager) metadataFromPackage(ctx context.Context, pkg *pluginpackage.Pa
 
 // readPackage checks persisted bytes against the inventory identity on every use.
 func (m *Manager) readPackage(ctx context.Context, item managedPlugin) (*pluginpackage.Package, error) {
-	archive, err := m.store.PluginPackage(ctx, item.metadata.Manifest.ID)
+	archive, err := m.store.PluginPackage(ctx, item.metadata.Manifest.ID, item.metadata.Digest)
 	if err != nil {
 		return nil, err
 	}

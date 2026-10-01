@@ -157,7 +157,7 @@ func TestRequiredPolicyOverridesDisabledBootstrapRecord(t *testing.T) {
 	require.NoError(t, missing.Close(ctx))
 }
 
-func (s *requiredPolicyStore) PluginPackage(context.Context, string) ([]byte, error) {
+func (s *requiredPolicyStore) PluginPackage(context.Context, string, [32]byte) ([]byte, error) {
 	return s.archive, nil
 }
 

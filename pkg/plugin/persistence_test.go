@@ -22,9 +22,9 @@ type observedStore struct {
 	fail   bool
 }
 
-func (s *observedStore) PluginPackage(ctx context.Context, id string) ([]byte, error) {
+func (s *observedStore) PluginPackage(ctx context.Context, id string, digest [32]byte) ([]byte, error) {
 	s.reads = append(s.reads, id)
-	return s.memoryStore.PluginPackage(ctx, id)
+	return s.memoryStore.PluginPackage(ctx, id, digest)
 }
 func (s *observedStore) SavePlugin(ctx context.Context, r Record, b []byte) error {
 	if s.fail {
@@ -140,7 +140,7 @@ func TestBuiltinReconciliationPreservesInstalledIdentity(t *testing.T) {
 				require.NoError(t, err)
 				assert.Equal(t, tc.builtin, manager.Plugins()[0].Manifest.Version)
 				assert.False(t, manager.Plugins()[0].BuiltinUpdateAvailable)
-				persisted, err := store.PluginPackage(ctx, id)
+				persisted, err := store.PluginPackage(ctx, id, packageDigest(t, builtin))
 				require.NoError(t, err)
 				assert.Equal(t, builtin, persisted)
 			}
@@ -276,7 +276,7 @@ func TestConcurrentBootstrapUsesWinningInstallation(t *testing.T) {
 			} else {
 				assert.Empty(t, loserRuntime.loads)
 			}
-			persisted, err := store.PluginPackage(ctx, id)
+			persisted, err := store.PluginPackage(ctx, id, packageDigest(t, winningArchive))
 			require.NoError(t, err)
 			assert.Equal(t, winningArchive, persisted)
 		})

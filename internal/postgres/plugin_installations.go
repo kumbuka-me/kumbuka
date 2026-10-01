@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/jackc/pgx/v5"
 
 	"github.com/kumbuka-me/kumbuka/pkg/plugin"
 )
@@ -35,31 +36,51 @@ func (s *Store) ListPlugins(ctx context.Context) ([]plugin.Record, error) {
 	}
 	return records, rows.Err()
 }
-func (s *Store) PluginPackage(ctx context.Context, id string) ([]byte, error) {
+func (s *Store) PluginPackage(ctx context.Context, id string, digest [32]byte) ([]byte, error) {
 	var archive []byte
-	err := s.pool.QueryRow(ctx, `SELECT package FROM plugin_installations WHERE plugin_id=$1`, id).Scan(&archive)
+	err := s.pool.QueryRow(ctx, `SELECT package FROM plugin_packages WHERE plugin_id=$1 AND digest=$2`, id, digest[:]).Scan(&archive)
 	return archive, err
 }
 
-// SeedPlugin lets PostgreSQL arbitrate concurrent first installations without
-// updating the winning row, including its enabled state and package bytes.
+// SeedPlugin inserts a missing installation; losing candidates are rolled back
+// with their package insert rather than changing the winning installation.
 func (s *Store) SeedPlugin(ctx context.Context, record plugin.Record, archive []byte) error {
-	manifest, err := json.Marshal(record.Manifest)
-	if err != nil {
-		return err
-	}
-	_, err = s.pool.Exec(ctx, `INSERT INTO plugin_installations(plugin_id,enabled,manifest,digest,readme,package) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(plugin_id) DO NOTHING`, record.ID, record.Enabled, manifest, record.Digest[:], record.README, archive)
-	return err
+	return s.persistPlugin(ctx, record, archive, false)
 }
 
+// SavePlugin atomically persists an immutable package and replaces its installed pointer.
+// Previous packages remain available to other servers still running that version.
 func (s *Store) SavePlugin(ctx context.Context, record plugin.Record, archive []byte) error {
+	return s.persistPlugin(ctx, record, archive, true)
+}
+
+func (s *Store) persistPlugin(ctx context.Context, record plugin.Record, archive []byte, replace bool) error {
 	manifest, err := json.Marshal(record.Manifest)
 	if err != nil {
 		return err
 	}
-	_, err = s.pool.Exec(ctx, `INSERT INTO plugin_installations(plugin_id,enabled,manifest,digest,readme,package) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(plugin_id) DO UPDATE SET enabled=EXCLUDED.enabled,manifest=EXCLUDED.manifest,digest=EXCLUDED.digest,readme=EXCLUDED.readme,package=EXCLUDED.package`, record.ID, record.Enabled, manifest, record.Digest[:], record.README, archive)
-	return err
+	tx, err := s.pool.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback(context.Background()) }()
+	if _, err = tx.Exec(ctx, `INSERT INTO plugin_packages(plugin_id,digest,package) VALUES($1,$2,$3) ON CONFLICT(plugin_id,digest) DO NOTHING`, record.ID, record.Digest[:], archive); err != nil {
+		return err
+	}
+	query := `INSERT INTO plugin_installations(plugin_id,enabled,manifest,digest,readme) VALUES($1,$2,$3,$4,$5) ON CONFLICT(plugin_id) DO NOTHING`
+	if replace {
+		query = `INSERT INTO plugin_installations(plugin_id,enabled,manifest,digest,readme) VALUES($1,$2,$3,$4,$5) ON CONFLICT(plugin_id) DO UPDATE SET enabled=EXCLUDED.enabled,manifest=EXCLUDED.manifest,digest=EXCLUDED.digest,readme=EXCLUDED.readme`
+	}
+	result, err := tx.Exec(ctx, query, record.ID, record.Enabled, manifest, record.Digest[:], record.README)
+	if err != nil {
+		return err
+	}
+	if result.RowsAffected() == 0 {
+		return nil
+	}
+	return tx.Commit(ctx)
 }
+
 func (s *Store) SetPluginEnabled(ctx context.Context, id string, enabled bool) error {
 	result, err := s.pool.Exec(ctx, `UPDATE plugin_installations SET enabled=$2 WHERE plugin_id=$1`, id, enabled)
 	if err == nil && result.RowsAffected() != 1 {

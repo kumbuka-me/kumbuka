@@ -73,7 +73,7 @@ func TestPluginInventoryAndStateDoNotAccessArchive(t *testing.T) {
 	require.NoError(t, database.SavePlugin(ctx, record, archive))
 	// A column-level trigger detects UPDATE statements that name the package.
 	_, err = database.pool.Exec(ctx, `CREATE FUNCTION reject_plugin_package_update() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'package rewritten'; END $$;
- CREATE TRIGGER reject_package_update BEFORE UPDATE OF package ON plugin_installations FOR EACH ROW EXECUTE FUNCTION reject_plugin_package_update()`)
+ CREATE TRIGGER reject_package_update BEFORE UPDATE OF package ON plugin_packages FOR EACH ROW EXECUTE FUNCTION reject_plugin_package_update()`)
 	require.NoError(t, err)
 	require.NoError(t, database.SetPluginEnabled(ctx, record.ID, false))
 	// PostgreSQL EXPLAIN exposes exactly the inventory target list.
@@ -91,7 +91,7 @@ func TestPluginInventoryAndStateDoNotAccessArchive(t *testing.T) {
 	assert.False(t, records[0].Enabled)
 	assert.Equal(t, record.Manifest, records[0].Manifest)
 	assert.Equal(t, record.Digest, records[0].Digest)
-	stored, err := database.PluginPackage(ctx, record.ID)
+	stored, err := database.PluginPackage(ctx, record.ID, record.Digest)
 	require.NoError(t, err)
 	assert.Equal(t, archive, stored)
 }
@@ -121,10 +121,14 @@ func TestLegacyPluginMetadataMigration(t *testing.T) {
 	require.NoError(t, err)
 	_, err = tx.Exec(ctx, string(ddl))
 	require.NoError(t, err)
+	ddl, err = migrationFiles.ReadFile("migrations/017_versioned_plugin_packages.sql")
+	require.NoError(t, err)
+	_, err = tx.Exec(ctx, string(ddl))
+	require.NoError(t, err)
 	for id, want := range map[string][]byte{"me.kumbuka.callouts": builtin, "me.kumbuka.strikethrough": installed} {
 		var got, digest, manifest []byte
 		var enabled bool
-		require.NoError(t, tx.QueryRow(ctx, `SELECT package,digest,manifest,enabled FROM plugin_installations WHERE plugin_id=$1`, id).Scan(&got, &digest, &manifest, &enabled))
+		require.NoError(t, tx.QueryRow(ctx, `SELECT p.package,i.digest,i.manifest,i.enabled FROM plugin_installations i JOIN plugin_packages p USING(plugin_id,digest) WHERE i.plugin_id=$1`, id).Scan(&got, &digest, &manifest, &enabled))
 		assert.Equal(t, want, got)
 		sum := sha256.Sum256(want)
 		assert.Equal(t, sum[:], digest)
@@ -132,5 +136,39 @@ func TestLegacyPluginMetadataMigration(t *testing.T) {
 		var metadata pluginpackage.Manifest
 		require.NoError(t, json.Unmarshal(manifest, &metadata))
 		assert.Equal(t, id, metadata.ID)
+	}
+}
+
+func TestPluginPackageVersionsSurviveReplacementAndUninstall(t *testing.T) {
+	ctx := context.Background()
+	database, err := Open(ctx, integrationDatabase(t), slog.New(slog.NewTextHandler(io.Discard, nil)))
+	require.NoError(t, err)
+	defer database.Close()
+	old, oldArchive := seedTestPackage(t, "1.0.0", true)
+	next, nextArchive := seedTestPackage(t, "2.0.0", true)
+	require.NoError(t, database.SavePlugin(ctx, old, oldArchive))
+	_, err = database.pool.Exec(ctx, `CREATE FUNCTION reject_replacement() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'replacement rejected'; END $$;
+ CREATE TRIGGER reject_replacement BEFORE UPDATE ON plugin_installations FOR EACH ROW EXECUTE FUNCTION reject_replacement()`)
+	require.NoError(t, err)
+	require.Error(t, database.SavePlugin(ctx, next, nextArchive))
+	_, err = database.PluginPackage(ctx, next.ID, next.Digest)
+	require.ErrorIs(t, err, pgx.ErrNoRows)
+	records, err := database.ListPlugins(ctx)
+	require.NoError(t, err)
+	require.Equal(t, []plugin.Record{old}, records)
+	_, err = database.pool.Exec(ctx, `DROP TRIGGER reject_replacement ON plugin_installations`)
+	require.NoError(t, err)
+	require.NoError(t, database.SavePlugin(ctx, next, nextArchive))
+	records, err = database.ListPlugins(ctx)
+	require.NoError(t, err)
+	require.Equal(t, []plugin.Record{next}, records)
+	require.NoError(t, database.DeletePlugin(ctx, next.ID))
+	for _, candidate := range []struct {
+		record  plugin.Record
+		archive []byte
+	}{{old, oldArchive}, {next, nextArchive}} {
+		got, err := database.PluginPackage(ctx, candidate.record.ID, candidate.record.Digest)
+		require.NoError(t, err)
+		assert.Equal(t, candidate.archive, got)
 	}
 }

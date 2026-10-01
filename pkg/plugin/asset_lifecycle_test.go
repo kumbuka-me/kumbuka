@@ -17,13 +17,13 @@ type waitingAssetStore struct {
 	release chan struct{}
 }
 
-func (s *waitingAssetStore) PluginPackage(ctx context.Context, id string) ([]byte, error) {
+func (s *waitingAssetStore) PluginPackage(ctx context.Context, id string, digest [32]byte) ([]byte, error) {
 	s.entered <- ctx
 	select {
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	case <-s.release:
-		return s.Store.PluginPackage(ctx, id)
+		return s.Store.PluginPackage(ctx, id, digest)
 	}
 }
 

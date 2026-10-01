@@ -25,7 +25,7 @@ type installationStore struct {
 	mu sync.Mutex
 	// records indexes the state associated with records.
 	records  map[string]plugin.Record
-	packages map[string][]byte
+	packages map[[32]byte][]byte
 	// fail stores the value associated with fail.
 	fail bool
 }
@@ -50,9 +50,9 @@ func (s *installationStore) SavePlugin(_ context.Context, r plugin.Record, archi
 		return errors.New("storage failed")
 	}
 	if s.packages == nil {
-		s.packages = make(map[string][]byte)
+		s.packages = make(map[[32]byte][]byte)
 	}
-	s.packages[r.ID] = bytes.Clone(archive)
+	s.packages[r.Digest] = bytes.Clone(archive)
 	s.records[r.ID] = r
 	return nil
 }
@@ -67,9 +67,9 @@ func (s *installationStore) SeedPlugin(_ context.Context, r plugin.Record, archi
 		return nil
 	}
 	if s.packages == nil {
-		s.packages = make(map[string][]byte)
+		s.packages = make(map[[32]byte][]byte)
 	}
-	s.packages[r.ID] = bytes.Clone(archive)
+	s.packages[r.Digest] = bytes.Clone(archive)
 	s.records[r.ID] = r
 	return nil
 }
@@ -256,7 +256,7 @@ func TestBundledDisableAndInstalledOverrideSurviveRestore(t *testing.T) {
 	records, err := store.ListPlugins(ctx)
 	require.NoError(t, err)
 	require.Len(t, records, 1)
-	stored, err := store.PluginPackage(ctx, id)
+	stored, err := store.PluginPackage(ctx, id, metadata.Digest)
 	require.NoError(t, err)
 	assert.Equal(t, data, stored)
 }
@@ -355,10 +355,10 @@ func TestLifecycleDependenciesAndFailedBootstrapAreAtomic(t *testing.T) {
 
 }
 
-func (s *installationStore) PluginPackage(_ context.Context, id string) ([]byte, error) {
+func (s *installationStore) PluginPackage(_ context.Context, id string, digest [32]byte) ([]byte, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return bytes.Clone(s.packages[id]), nil
+	return bytes.Clone(s.packages[digest]), nil
 }
 func (s *installationStore) SetPluginEnabled(_ context.Context, id string, enabled bool) error {
 	s.mu.Lock()

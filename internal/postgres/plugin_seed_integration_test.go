@@ -66,7 +66,7 @@ func TestConcurrentPluginSeedsPreserveOneCompleteWinner(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, inventory, 1)
 	winning := inventory[0]
-	stored, err := database.PluginPackage(ctx, winning.ID)
+	stored, err := database.PluginPackage(ctx, winning.ID, winning.Digest)
 	require.NoError(t, err)
 	found := false
 	for i, record := range records {
@@ -77,6 +77,9 @@ func TestConcurrentPluginSeedsPreserveOneCompleteWinner(t *testing.T) {
 		}
 	}
 	require.True(t, found, "metadata, state, and archive must all belong to one candidate")
+	var packageCount int
+	require.NoError(t, database.pool.QueryRow(ctx, `SELECT count(*) FROM plugin_packages`).Scan(&packageCount))
+	assert.Equal(t, 1, packageCount, "losing seeds must not leave orphan archives")
 	// Even a later seed cannot issue an UPDATE against the installed row.
 	_, err = database.pool.Exec(ctx, `CREATE FUNCTION reject_seed_update() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'seed updated installation'; END $$;
  CREATE TRIGGER reject_seed_update BEFORE UPDATE ON plugin_installations FOR EACH ROW EXECUTE FUNCTION reject_seed_update()`)
@@ -153,7 +156,7 @@ func TestConcurrentPostgresBootstrapReloadsWinner(t *testing.T) {
 	}
 	assert.Zero(t, oldRuntime.loads)
 	assert.Zero(t, newRuntime.loads)
-	stored, err := database.PluginPackage(ctx, winning.ID)
+	stored, err := database.PluginPackage(ctx, winning.ID, winning.Digest)
 	require.NoError(t, err)
 	assert.Equal(t, newArchive, stored)
 }
