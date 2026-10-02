@@ -25,34 +25,9 @@ func (m *Manager) Bootstrap(ctx context.Context, distribution Distribution) erro
 	if err != nil {
 		return err
 	}
-	seeded := false
-	if distribution != nil {
-		seen := make(map[string]bool)
-		for _, builtin := range distribution.Catalog() {
-			if seen[builtin.ID] {
-				return fmt.Errorf("duplicate builtin plugin %s", builtin.ID)
-			}
-			seen[builtin.ID] = true
-			if _, exists := catalog[builtin.ID]; exists {
-				continue
-			}
-			archive, err := distribution.Package(ctx, builtin.ID)
-			if err != nil {
-				return err
-			}
-			pkg, err := validateBuiltin(builtin, archive)
-			if err != nil {
-				return err
-			}
-			item, err := m.metadataFromPackage(ctx, pkg, pkg.Manifest().DefaultEnabled || m.required[builtin.ID])
-			if err != nil {
-				return err
-			}
-			if err := m.store.SeedPlugin(ctx, recordFor(item), archive); err != nil {
-				return err
-			}
-			seeded = true
-		}
+	seeded, err := m.seedMissingPlugins(ctx, distribution, catalog)
+	if err != nil {
+		return err
 	}
 	// A concurrent startup may have inserted a different version or enabled
 	// state after our first inventory read. Activate only the database winner.
@@ -84,6 +59,47 @@ func (m *Manager) Bootstrap(ctx context.Context, distribution Distribution) erro
 	}
 	m.loaded, m.order, m.distribution = catalog, order, distribution
 	return nil
+}
+
+// seedMissingPlugins validates distribution candidates and persists only plugins absent from durable inventory.
+func (m *Manager) seedMissingPlugins(
+	ctx context.Context,
+	distribution Distribution,
+	catalog map[string]managedPlugin,
+) (bool, error) {
+	if distribution == nil {
+		return false, nil
+	}
+
+	seen := make(map[string]bool)
+	seeded := false
+	for _, builtin := range distribution.Catalog() {
+		if seen[builtin.ID] {
+			return false, fmt.Errorf("duplicate builtin plugin %s", builtin.ID)
+		}
+		seen[builtin.ID] = true
+		if _, exists := catalog[builtin.ID]; exists {
+			continue
+		}
+
+		archive, err := distribution.Package(ctx, builtin.ID)
+		if err != nil {
+			return false, err
+		}
+		pkg, err := validateBuiltin(builtin, archive)
+		if err != nil {
+			return false, err
+		}
+		item, err := m.metadataFromPackage(ctx, pkg, pkg.Manifest().DefaultEnabled || m.required[builtin.ID])
+		if err != nil {
+			return false, err
+		}
+		if err := m.store.SeedPlugin(ctx, recordFor(item), archive); err != nil {
+			return false, err
+		}
+		seeded = true
+	}
+	return seeded, nil
 }
 
 // catalogFromRecords restores runtime metadata exclusively from durable inventory.

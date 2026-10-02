@@ -869,47 +869,73 @@ func validateEditorWidgetTreeSettingDeclaration(setting EditorWidgetSetting, att
 		return fmt.Errorf("tree setting %q has invalid identity or nesting metadata", setting.Label)
 	}
 
+	bound, err := validateEditorWidgetTreeAttributes(setting, attributes)
+	if err != nil {
+		return err
+	}
+	visible, err := validateEditorWidgetTreeFields(setting, bound)
+	if err != nil {
+		return err
+	}
+	return validateEditorWidgetTreeVisibility(setting, visible)
+}
+
+// validateEditorWidgetTreeAttributes validates bound list attributes, separators, and hidden tree references.
+func validateEditorWidgetTreeAttributes(
+	setting EditorWidgetSetting,
+	attributes map[string]EditorWidgetAttribute,
+) (map[string]bool, error) {
 	bound := make(map[string]bool, len(setting.Attributes))
 	separator := ""
 	for _, name := range setting.Attributes {
 		attribute, ok := attributes[name]
 		if !ok || attribute.Type != EditorWidgetAttributeList || bound[name] {
-			return fmt.Errorf("tree setting %q references invalid list attribute %q", setting.Label, name)
+			return nil, fmt.Errorf("tree setting %q references invalid list attribute %q", setting.Label, name)
 		}
 		if separator == "" {
 			separator = attribute.Separator
 		} else if attribute.Separator != separator {
-			return fmt.Errorf("tree setting %q requires one shared list separator", setting.Label)
+			return nil, fmt.Errorf("tree setting %q requires one shared list separator", setting.Label)
 		}
 		if setting.EmptyValue != "" && strings.Contains(setting.EmptyValue, attribute.Separator) {
-			return fmt.Errorf("tree setting %q empty sentinel conflicts with its list separator", setting.Label)
+			return nil, fmt.Errorf("tree setting %q empty sentinel conflicts with its list separator", setting.Label)
 		}
 		bound[name] = true
 	}
+
 	for _, name := range []string{setting.IDAttribute, setting.ParentAttribute, setting.TitleAttribute, setting.DescriptionAttribute} {
 		if name != "" && !bound[name] {
-			return fmt.Errorf("tree setting %q references unbound tree attribute %q", setting.Label, name)
+			return nil, fmt.Errorf("tree setting %q references unbound tree attribute %q", setting.Label, name)
 		}
 	}
+	return bound, nil
+}
 
+// validateEditorWidgetTreeFields validates visible field metadata, control types, choice sources, and suggestions.
+func validateEditorWidgetTreeFields(setting EditorWidgetSetting, bound map[string]bool) (map[string]bool, error) {
 	visible := make(map[string]bool, len(setting.Fields))
 	for _, field := range setting.Fields {
 		if !validEditorWidgetTreeFieldMetadata(field, setting, bound, visible) {
-			return fmt.Errorf("tree setting %q has invalid field %q", setting.Label, field.Attribute)
+			return nil, fmt.Errorf("tree setting %q has invalid field %q", setting.Label, field.Attribute)
 		}
 		if !supportedEditorWidgetTreeFieldType(field.Type) {
-			return fmt.Errorf("tree setting %q field %q has unsupported type %q", setting.Label, field.Attribute, field.Type)
+			return nil, fmt.Errorf("tree setting %q field %q has unsupported type %q", setting.Label, field.Attribute, field.Type)
 		}
 		if !validEditorWidgetTreeFieldChoiceSource(field) {
-			return fmt.Errorf("tree setting %q field %q has invalid choice source", setting.Label, field.Attribute)
+			return nil, fmt.Errorf("tree setting %q field %q has invalid choice source", setting.Label, field.Attribute)
 		}
 		for _, suggestion := range field.Suggestions {
 			if strings.TrimSpace(suggestion) == "" || len(suggestion) > 128 {
-				return fmt.Errorf("tree setting %q field %q has invalid suggestion", setting.Label, field.Attribute)
+				return nil, fmt.Errorf("tree setting %q field %q has invalid suggestion", setting.Label, field.Attribute)
 			}
 		}
 		visible[field.Attribute] = true
 	}
+	return visible, nil
+}
+
+// validateEditorWidgetTreeVisibility requires editable title and configured description fields.
+func validateEditorWidgetTreeVisibility(setting EditorWidgetSetting, visible map[string]bool) error {
 	if !visible[setting.TitleAttribute] {
 		return fmt.Errorf("tree setting %q title attribute must be editable", setting.Label)
 	}
