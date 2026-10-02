@@ -115,6 +115,10 @@ func Parse(args []string, version string) (Config, error) {
 	tf := tinyflags.NewFlagSet("kumbuka", tinyflags.ContinueOnError)
 	tf.EnvPrefix("KUMBUKA_")
 	tf.Version(version)
+	tf.HideEnvs()
+	tf.Note("\nFlags can also be set through environment variables using the KUMBUKA__ prefix. " +
+		"Flag names are uppercased and hyphens are replaced with underscores; for example, " +
+		"--listen-address becomes KUMBUKA__LISTEN_ADDRESS.")
 
 	applyServerFlags := registerServerFlags(tf, &cfg)
 	applyAuthFlags := registerAuthFlags(tf, &cfg)
