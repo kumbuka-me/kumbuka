@@ -5,50 +5,14 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"log/slog"
-	"time"
 
 	"github.com/containeroo/httpgrace/server"
 	"github.com/containeroo/tinyflags"
-	appaccess "github.com/kumbuka-me/kumbuka/internal/application/access"
-	appadministration "github.com/kumbuka-me/kumbuka/internal/application/administration"
-	appgroups "github.com/kumbuka-me/kumbuka/internal/application/groups"
-	appmedia "github.com/kumbuka-me/kumbuka/internal/application/media"
-	appnavigation "github.com/kumbuka-me/kumbuka/internal/application/navigation"
-	appnotifications "github.com/kumbuka-me/kumbuka/internal/application/notifications"
-	apppages "github.com/kumbuka-me/kumbuka/internal/application/pages"
-	appplugins "github.com/kumbuka-me/kumbuka/internal/application/plugins"
-	apppreferences "github.com/kumbuka-me/kumbuka/internal/application/preferences"
-	apprecyclebin "github.com/kumbuka-me/kumbuka/internal/application/recyclebin"
-	appsearch "github.com/kumbuka-me/kumbuka/internal/application/search"
-	appsettings "github.com/kumbuka-me/kumbuka/internal/application/settings"
-	appsystem "github.com/kumbuka-me/kumbuka/internal/application/system"
-	apptemplates "github.com/kumbuka-me/kumbuka/internal/application/templates"
-	apptokens "github.com/kumbuka-me/kumbuka/internal/application/tokens"
-	appusers "github.com/kumbuka-me/kumbuka/internal/application/users"
-	"github.com/kumbuka-me/kumbuka/internal/application/viewer"
-	appwebhooks "github.com/kumbuka-me/kumbuka/internal/application/webhooks"
-	"github.com/kumbuka-me/kumbuka/internal/credential"
+	"github.com/kumbuka-me/kumbuka/internal/bootstrap"
 	"github.com/kumbuka-me/kumbuka/internal/flags"
-	"github.com/kumbuka-me/kumbuka/internal/http/auth"
-	"github.com/kumbuka-me/kumbuka/internal/http/endpoint"
-	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
 	httpserver "github.com/kumbuka-me/kumbuka/internal/http/server"
-	appmetrics "github.com/kumbuka-me/kumbuka/internal/metrics"
-	"github.com/kumbuka-me/kumbuka/internal/pagecontent"
-	"github.com/kumbuka-me/kumbuka/internal/pluginruntime"
-	"github.com/kumbuka-me/kumbuka/internal/pluginupdate"
-	"github.com/kumbuka-me/kumbuka/internal/postgres"
-	"github.com/kumbuka-me/kumbuka/internal/runtimeinfo"
-	"github.com/kumbuka-me/kumbuka/internal/secrets"
-	"github.com/kumbuka-me/kumbuka/internal/webview"
-	"github.com/kumbuka-me/kumbuka/pkg/icons"
 	"github.com/kumbuka-me/kumbuka/pkg/logging"
-	"github.com/kumbuka-me/kumbuka/pkg/markdown"
-	"github.com/kumbuka-me/kumbuka/pkg/themes"
 )
-
-const rendererShutdownTimeout = 10 * time.Second
 
 // Run composes and runs the Kumbuka process.
 func Run(
@@ -86,239 +50,31 @@ func Run(
 	ctx, stop := server.SignalContext(ctx)
 	defer stop()
 
-	availableThemes, err := themes.Load(cfg.ThemeDirectory)
+	// Construct process infrastructure and own its lifetime here.
+	infrastructure, err := bootstrap.NewInfrastructure(ctx, cfg, logger, version, commit)
 	if err != nil {
-		setupLogger.Error("load themes", "event", "theme_load_failed", "error", err)
+		setupLogger.Error("initialize infrastructure", "event", "infrastructure_init_failed", "error", err)
+		return err
+	}
+	defer infrastructure.Close()
+
+	// Compose application capabilities around the initialized infrastructure.
+	application, err := bootstrap.NewApplication(ctx, cfg, infrastructure, logger, version, commit)
+	if err != nil {
+		setupLogger.Error("initialize application", "event", "application_init_failed", "error", err)
+		return err
+	}
+	defer application.Close(setupLogger)
+
+	// Build the passive HTTP adapter after the application graph is complete.
+	serverConfig, err := bootstrap.NewHTTPConfig(appFS, cfg, infrastructure, application, logger, version, commit)
+	if err != nil {
+		setupLogger.Error("initialize HTTP server", "event", "http_init_failed", "error", err)
 		return err
 	}
 
-	secretCipher, err := secrets.New(cfg.EncryptionKey)
-	if err != nil {
-		setupLogger.Error("configure application encryption", "event", "application_encryption_failed", "error", err)
-		return err
-	}
-
-	database, err := postgres.Open(
-		ctx,
-		cfg.DatabaseURL,
-		logger,
-		postgres.WithMaxConns(cfg.DatabaseMaxConns),
-		postgres.WithMinIdleConns(cfg.DatabaseMinIdleConns),
-	)
-	if err != nil {
-		setupLogger.Error("open database", "event", "database_open_failed", "error", err)
-		return err
-	}
-	defer database.Close()
-
-	// Resolve the persisted one-time setup state once at startup. Request-time
-	// authentication reads the shared in-memory state instead of polling PostgreSQL.
-	setupRequired, err := database.SetupRequired(ctx)
-	if err != nil {
-		setupLogger.Error("read setup state", "event", "setup_state_read_failed", "error", err)
-		return err
-	}
-	setupState := appsystem.NewSetupState(setupRequired)
-
-	// Construct page mutation and collaboration capabilities that other workflows depend on.
-	webhooks := appwebhooks.NewWebhooks(database, secretCipher, logger.With("component", "webhooks"), cfg.PublicURL).WithUserDirectory(database)
-	access := appaccess.NewAccess(database)
-	mutations := apppages.NewMutations(database, access, database, logger, webhooks)
-	presence := apppages.NewPresence(database, access)
-	discussions := apppages.NewDiscussions(database, access, database, logger, webhooks)
-	reviews := apppages.NewReviews(database, access, database, logger, webhooks)
-	reviewDiscussions := apppages.NewReviewDiscussions(database, access, reviews, database, logger, webhooks)
-	bulk := apppages.NewBulk(database, mutations, database, logger, webhooks)
-
-	// Construct the remaining application capabilities around their narrow repository ports.
-	administration := appadministration.NewAdministration(database)
-	pageLookup := apppages.NewLookup(database, access)
-	pageSearch := apppages.NewSearch(database, access)
-	pageDirectory := apppages.NewDirectory(database, access)
-	pageReports := apppages.NewReports(database, access)
-	pagePersonal := apppages.NewPersonal(database, access)
-	pageHistory := apppages.NewHistory(database, access)
-	pageRender := apppages.NewRenderArtifacts(database)
-	drafts := apppages.NewDrafts(database)
-	groups := appgroups.NewGroups(database)
-	knowledge := appsearch.NewKnowledge(database, access)
-	notifications := appnotifications.NewNotifications(database, logger.With("component", "notifications"), webhooks)
-	mutations.WithNotifications(notifications)
-	discussions.WithNotifications(notifications)
-	reviews.WithNotifications(notifications)
-	reviewDiscussions.WithNotifications(notifications)
-	media := appmedia.NewMedia(database)
-	navigation := appnavigation.NewNavigation(database, access)
-	preferences := apppreferences.NewPreferences(database)
-	recycleBin := apprecyclebin.NewRecycleBin(database)
-	settings := appsettings.NewSettings(database, secretCipher, logger.With("component", "settings"))
-	system := appsystem.NewSystem(database, logger.With("component", "system"), setupState)
-	templates := apptemplates.NewTemplates(database)
-	tokens := apptokens.NewTokens(database)
-	users := appusers.NewUsers(database, credential.Passwords{}, logger.With("component", "users"))
-
-	// Compose higher-level page workflows from the capabilities they coordinate.
-	serverLogger := logger.With("component", "server")
-	home := apppages.NewHomeQuery(database, drafts, access)
-	editor := apppages.NewEditor(pageLookup, groups, templates)
-	editorSave := apppages.NewEditorSave(mutations, drafts, templates, serverLogger)
-	viewPage := apppages.NewView(database, access, reviews, serverLogger)
-
-	// Construct bearer-token authentication for API requests.
-	bearerAuth := auth.NewBearer(database)
-
-	// Configure browser authentication with the process-local setup state.
-	browserConfig := browserAuthConfig(cfg)
-	browserConfig.SetupRequired = setupState.Required
-	browserConfig.SetupCompleted = setupState.Complete
-	browserAuth, err := auth.ConfigureBrowserAuth(ctx, browserConfig, database)
-	if err != nil {
-		setupLogger.Error("configure browser auth", "event", "browser_auth_failed", "error", err)
-		return err
-	}
-
-	// Construct the metrics registry and register database metrics.
-	metricsRegistry := appmetrics.NewRegistry(!cfg.DisableMetrics, version, commit)
-	metricsRegistry.RegisterPostgres(database)
-
-	// Construct the plugin runtime.
-	renderer, err := pluginruntime.NewRenderer(
-		ctx,
-		database,
-		secretCipher,
-		authenticatedPluginRequest,
-		metricsRegistry,
-		logger.With("component", "plugins"),
-		version,
-		commit,
-	)
-	if err != nil {
-		setupLogger.Error("create plugin runtime", "event", "plugin_runtime_failed", "error", err)
-		return err
-	}
-	defer closeRenderer(renderer, setupLogger)
-	metricsRegistry.RegisterPluginProvider(renderer.PluginManager())
-
-	// Inject runtime-derived content and icon capabilities into application services.
-	iconCatalog := renderer.IconCatalog()
-	content := pagecontent.New(renderer)
-	navigation.WithIconValidator(iconCatalog)
-	contentChangeWorker := pluginruntime.NewContentChangeWorker(
-		database,
-		renderer.PluginManager(),
-		notifications,
-		logger.With("component", "plugin-content-change-worker"),
-	)
-	mutations.WithIconValidator(iconCatalog).
-		WithContentPreparer(content).
-		WithContentChangeSink(contentChangeWorker)
-	discussions.WithContentPreparer(content)
-	reviewDiscussions.WithContentPreparer(content)
-	settings.WithIconValidator(iconCatalog)
-	templates.WithIconValidator(iconCatalog)
-
-	// Construct the optional background plugin-update capability.
-	pluginUpdates := appplugins.NewPluginUpdates(
-		pluginupdate.New(pluginupdate.DefaultCatalogURL),
-		renderer.PluginManager(),
-		notifications,
-		cfg.PluginUpdateCheckInterval,
-		logger.With("component", "plugin-updates"),
-	)
-
-	// Construct and configure the passive HTML presentation adapter.
-	views, err := createRunViews(appFS, logger, version, commit, availableThemes, cfg, secretCipher, iconCatalog)
-	if err != nil {
-		setupLogger.Error("create views", "event", "views_create_failed", "error", err)
-		return err
-	}
-
-	// Compose the shared authenticated browser context used by presentation endpoints.
-	browserContext := endpoint.NewBrowserContext(viewer.New(
-		preferences,
-		navigation,
-		database,
-		settings,
-		knowledge,
-		notifications,
-		access,
-	), renderer)
-
-	// Hand the completed application graph to the HTTP adapter for route construction.
-	serverConfig := httpserver.Config{
-		InfrastructureConfig: httpserver.InfrastructureConfig{
-			RoutePrefix:            cfg.RoutePrefix,
-			Assets:                 appFS,
-			Views:                  views,
-			Renderer:               renderer,
-			Logger:                 serverLogger,
-			AccessLog:              cfg.AccessLog,
-			ReadOnly:               cfg.ReadOnly,
-			MetricsEnabled:         !cfg.DisableMetrics,
-			Metrics:                metricsRegistry,
-			PerformanceDiagnostics: cfg.PerformanceDiagnostics,
-		},
-
-		AuthenticationConfig: httpserver.AuthenticationConfig{
-			BrowserAuth: browserAuth,
-			BearerAuth:  bearerAuth,
-		},
-
-		BrowserConfig: httpserver.BrowserConfig{
-			BrowserContext: browserContext,
-			Preferences:    preferences,
-			Knowledge:      knowledge,
-			Notifications:  notifications,
-		},
-
-		AdministrationConfig: httpserver.AdministrationConfig{
-			Administration: administration,
-			PluginAdmin:    appplugins.NewAdmin(renderer.PluginManager(), pluginUpdates),
-			Groups:         groups,
-			Settings:       settings,
-			System:         system,
-			Templates:      templates,
-			Tokens:         tokens,
-			Users:          users,
-			Webhooks:       webhooks,
-			Media:          media,
-			Navigation:     navigation,
-			RecycleBin:     recycleBin,
-		},
-
-		PageQueryConfig: httpserver.PageQueryConfig{
-			Access:        access,
-			PageLookup:    pageLookup,
-			PageSearch:    pageSearch,
-			PageDirectory: pageDirectory,
-			PageReports:   pageReports,
-			PagePersonal:  pagePersonal,
-			PageHistory:   pageHistory,
-			PageRender:    pageRender,
-			Drafts:        drafts,
-		},
-
-		PageWorkflowConfig: httpserver.PageWorkflowConfig{
-			PageMutations:         mutations,
-			PagePresence:          presence,
-			PageDiscussions:       discussions,
-			PageReviews:           reviews,
-			PageReviewDiscussions: reviewDiscussions,
-			PageBulk:              bulk,
-			Home:                  home,
-			Editor:                editor,
-			EditorSave:            editorSave,
-			ViewPage:              viewPage,
-		},
-	}
-
-	// Start the content-change worker after the runtime dependencies are fully configured.
-	go contentChangeWorker.Run(ctx)
-
-	// Start scheduled plugin update checks when they are enabled.
-	if cfg.PluginUpdateCheckInterval > 0 {
-		go pluginUpdates.Run(ctx)
-	}
+	// Start background application work only after every dependency is configured.
+	application.Start(ctx)
 
 	// Construct both HTTP handlers and run their listeners until shutdown.
 	handlers := httpserver.New(serverConfig)
@@ -328,75 +84,4 @@ func Run(
 	}
 
 	return nil
-}
-
-// createRunViews constructs the server-rendered view set.
-func createRunViews(
-	appFS fs.FS,
-	logger *slog.Logger,
-	version, commit string,
-	availableThemes []themes.Theme,
-	cfg flags.Config,
-	secretCipher *secrets.Cipher,
-	iconCatalog *icons.Catalog,
-) (*webview.Views, error) {
-	views, err := webview.New(
-		appFS,
-		logger,
-		version,
-		commit,
-		availableThemes,
-		runtimeinfo.New(cfg, secretCipher.Configured()),
-		iconCatalog,
-	)
-	if err != nil {
-		return nil, err
-	}
-	views.WithRenderErrorHandler(httpresponse.InternalServerError)
-	return views, nil
-}
-
-// browserAuthConfig maps deployment configuration onto the authentication boundary.
-func browserAuthConfig(cfg flags.Config) auth.BrowserConfig {
-	return auth.BrowserConfig{
-		ModeOverride: cfg.AuthModeOverride,
-		TrustedProxy: auth.TrustedProxyHeaders{
-			Username:    cfg.TrustedUsernameHeaders,
-			Email:       cfg.TrustedEmailHeaders,
-			DisplayName: cfg.TrustedDisplayNameHeaders,
-			Groups:      cfg.TrustedGroupHeaders,
-			AdminGroup:  cfg.TrustedAdminGroup,
-		},
-		OIDC: auth.OIDCConfig{
-			ClientID:      cfg.OIDCClientID,
-			ClientSecret:  cfg.OIDCClientSecret,
-			Issuer:        cfg.OIDCIssuer,
-			SessionSecret: cfg.OIDCSessionSecret,
-			PublicURL:     cfg.PublicURL,
-			GroupClaim:    cfg.OIDCGroupClaim,
-			AdminGroup:    cfg.OIDCAdminGroup,
-		},
-		LocalLoginEnabled:             cfg.LocalLogin,
-		AllowUserRegistrationOverride: cfg.AllowUserRegistrationOverride,
-	}
-}
-
-// authenticatedPluginRequest reports whether the current plugin invocation belongs to an authenticated user.
-func authenticatedPluginRequest(ctx context.Context) bool {
-	user, ok := auth.ContextUser(ctx)
-	return ok && user.ID > 0
-}
-
-// closeRenderer gives plugin shutdown a bounded fresh context after server cancellation.
-func closeRenderer(renderer *markdown.Renderer, logger *slog.Logger) {
-	ctx, cancel := context.WithTimeout(context.Background(), rendererShutdownTimeout)
-	defer cancel()
-
-	if err := renderer.Close(ctx); err != nil {
-		logger.Error(
-			"close markdown renderer",
-			"event", "markdown_renderer_close_failed",
-			"error", err,
-		)
-	}
 }
