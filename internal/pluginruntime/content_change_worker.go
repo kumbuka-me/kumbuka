@@ -15,11 +15,11 @@ import (
 )
 
 const (
-	contentChangeBatchSize   = 16
-	contentChangeLease       = time.Minute
-	contentChangePoll        = 5 * time.Second
-	contentChangeMaxBackoff  = 15 * time.Minute
-	contentChangeMaxErrorLen = 2048
+	contentChangeBatchSize     = 16
+	contentChangeLease         = time.Minute
+	contentChangePoll          = 5 * time.Second
+	contentChangeMaxBackoff    = 15 * time.Minute
+	contentChangeMaxErrorBytes = 2048
 )
 
 // contentChangeRepository persists and leases committed page-source events.
@@ -228,15 +228,18 @@ func contentChangeRetryDelay(attempts int) time.Duration {
 	return delay
 }
 
-// boundedContentChangeError limits persisted queue diagnostics while preserving useful context.
+// boundedContentChangeError returns a trimmed error message capped at the
+// persisted diagnostic byte limit without splitting a UTF-8 sequence.
 func boundedContentChangeError(message string) string {
 	message = strings.TrimSpace(message)
-	if len(message) <= contentChangeMaxErrorLen {
+	if len(message) <= contentChangeMaxErrorBytes {
 		return message
 	}
-	limit := contentChangeMaxErrorLen
+
+	limit := contentChangeMaxErrorBytes
 	for limit > 0 && !utf8.ValidString(message[:limit]) {
 		limit--
 	}
+
 	return message[:limit]
 }
