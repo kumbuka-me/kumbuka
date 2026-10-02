@@ -385,8 +385,12 @@ fmt-md: $(NODE_MODULES) ## Format Markdown files.
 check-templates: ## Check Go HTML template formatting.
 	djlint web/src/templates --check
 
+.PHONY: check-go-docs
+check-go-docs: ## Verify GoDoc summaries for authored functions, structs, and struct fields.
+	go run ./scripts/check-go-docs .
+
 .PHONY: lint
-lint: typecheck check-web lint-go ## Run all linters and formatting checks.
+lint: typecheck check-web check-go-docs lint-go ## Run all linters and formatting checks.
 
 .PHONY: lint-go
 lint-go: web golangci-lint ## Run golangci-lint.

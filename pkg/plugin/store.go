@@ -13,11 +13,16 @@ import (
 
 // Record is validated installation metadata. Inventory never includes package bytes.
 type Record struct {
-	ID       string
-	Enabled  bool
+	// ID is the plugin identifier.
+	ID string
+	// Enabled reports whether the installation is active.
+	Enabled bool
+	// Manifest contains the parsed plugin manifest.
 	Manifest pluginpackage.Manifest
-	Digest   [32]byte
-	README   string
+	// Digest identifies the immutable package contents.
+	Digest [32]byte
+	// README contains plugin documentation bundled with the package.
+	README string
 }
 
 // Store separates inventory and lifecycle state from package storage.
@@ -57,7 +62,9 @@ func WithSecretCodec(codec SecretCodec) ManagerOption { return func(m *Manager) 
 
 // packageIdentity addresses immutable archives independently of installation state.
 type packageIdentity struct {
-	id     string
+	// id is the plugin identifier.
+	id string
+	// digest identifies one immutable package version.
 	digest [32]byte
 }
 
@@ -66,7 +73,8 @@ type memoryStore struct {
 	// mu protects concurrent access to the receiver state.
 	mu sync.Mutex
 	// records indexes cloned durable records by plugin ID.
-	records  map[string]Record
+	records map[string]Record
+	// packages stores immutable plugin archives keyed by plugin identity.
 	packages map[packageIdentity][]byte
 }
 
@@ -125,6 +133,7 @@ func cloneRecord(record Record) Record {
 	return record
 }
 
+// PluginPackage returns a copy of the immutable package matching the requested identity.
 func (s *memoryStore) PluginPackage(_ context.Context, id string, digest [32]byte) ([]byte, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -134,6 +143,8 @@ func (s *memoryStore) PluginPackage(_ context.Context, id string, digest [32]byt
 	}
 	return bytes.Clone(data), nil
 }
+
+// SetPluginEnabled changes the enabled state of an installed in-memory plugin.
 func (s *memoryStore) SetPluginEnabled(_ context.Context, id string, enabled bool) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

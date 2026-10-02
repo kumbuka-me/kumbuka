@@ -359,8 +359,7 @@ func (m *Manager) BrowserAssetNames(ctx context.Context, id, digest string) ([]s
 // assetReadTimeout bounds storage reads even for callers without request deadlines.
 const assetReadTimeout = 10 * time.Second
 
-// assetSnapshot copies the identity and declarations under the manager lock.
-// Package I/O and decoding must happen after this lock is released.
+// assetSnapshot copies asset identity and declarations under the manager lock before package I/O occurs.
 func (m *Manager) assetSnapshot(id, digest string, active bool) (managedPlugin, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -371,8 +370,7 @@ func (m *Manager) assetSnapshot(id, digest string, active bool) (managedPlugin, 
 	return managedPlugin{metadata: cloneLoaded(item.metadata)}, nil
 }
 
-// readAssetPackage reads outside the manager lock and rejects a package whose
-// local lifecycle changed during I/O, so disable and replacement revoke URLs.
+// readAssetPackage reads outside the manager lock and rejects packages whose lifecycle changed during I/O.
 func (m *Manager) readAssetPackage(ctx context.Context, item managedPlugin, active bool) (*pluginpackage.Package, error) {
 	ctx, cancel := context.WithTimeout(ctx, assetReadTimeout)
 	defer cancel()

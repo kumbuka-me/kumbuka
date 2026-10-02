@@ -64,9 +64,7 @@ func (c *Rebuilds) Available() bool {
 	return c != nil && c.catalog != nil && c.pages != nil && c.artifacts != nil && c.renderer != nil
 }
 
-// RebuildPage renders one page from canonical Markdown and replaces its reusable artifact.
-// Administrator-triggered rebuilds are serialized so a manual rebuild cannot overlap
-// a potentially memory-heavy all-pages rebuild.
+// RebuildPage serializes one administrator-triggered render and replaces the page's reusable artifact.
 func (c *Rebuilds) RebuildPage(ctx context.Context, slug string) error {
 	if !c.Available() {
 		return errors.New("page render rebuild is unavailable")

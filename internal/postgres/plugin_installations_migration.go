@@ -10,9 +10,7 @@ import (
 	"github.com/kumbuka-me/sdk/pluginpackage"
 )
 
-// migratePluginInstallations converts legacy state once, under the schema
-// migration transaction. Existing installed archives always win. Old bundled
-// rows had no bytes or version, so their only recoverable package is embedded.
+// migratePluginInstallations converts legacy plugin state under the schema transaction while preserving installed archives.
 func migratePluginInstallations(ctx context.Context, tx pgx.Tx) error {
 	if _, err := tx.Exec(ctx, `ALTER TABLE plugin_installations
  DROP CONSTRAINT plugin_installations_check,

@@ -7,9 +7,13 @@ import (
 	"strings"
 )
 
+// Version is a parsed strict MAJOR.MINOR.PATCH plugin version.
 type Version struct {
+	// major is the semantic-version major component.
 	major uint64
+	// minor is the semantic-version minor component.
 	minor uint64
+	// patch is the semantic-version patch component.
 	patch uint64
 }
 

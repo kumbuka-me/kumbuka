@@ -28,8 +28,10 @@ type Config struct {
 
 // Handlers contains the application and operational management handlers.
 type Handlers struct {
+	// Application serves public application traffic.
 	Application http.Handler
-	Management  http.Handler
+	// Management serves operational health and metrics traffic.
+	Management http.Handler
 }
 
 // New constructs both HTTP applications with the same deployment prefix.

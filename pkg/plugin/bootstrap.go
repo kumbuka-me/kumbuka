@@ -10,8 +10,7 @@ import (
 	"github.com/kumbuka-me/sdk/pluginpackage"
 )
 
-// Bootstrap reconciles offline distribution packages into the authoritative store,
-// then eagerly prepares the complete enabled graph before publishing any registry.
+// Bootstrap reconciles offline packages into the authoritative store and prepares the enabled graph before publication.
 func (m *Manager) Bootstrap(ctx context.Context, distribution Distribution) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()

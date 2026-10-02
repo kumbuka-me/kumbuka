@@ -80,8 +80,7 @@ func (p Pages) Content(ctx context.Context, slug string) (sdk.PageContent, error
 	return sdk.PageContent{Slug: page.Slug, Markdown: page.Markdown, UpdatedAt: page.UpdatedAt}, nil
 }
 
-// PageContentUpdateCapability exposes one current-page-scoped content updater.
-// The host-provided operation remains responsible for edit authorization.
+// PageContentUpdateCapability exposes a current-page-scoped updater whose host operation remains responsible for authorization.
 func PageContentUpdateCapability(
 	slug string,
 	operation func(context.Context, sdk.PageContentUpdate) (sdk.PageContent, error),

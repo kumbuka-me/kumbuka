@@ -12,9 +12,13 @@ import (
 
 // BuiltinPackage identifies an offline candidate, never an active installation.
 type BuiltinPackage struct {
-	ID          string
-	Version     string
-	Digest      [32]byte
+	// ID is the plugin identifier.
+	ID string
+	// Version is the bundled plugin version.
+	Version string
+	// Digest identifies the exact immutable package contents.
+	Digest [32]byte
+	// ArchiveName is the embedded package archive filename.
 	ArchiveName string
 }
 
@@ -27,10 +31,13 @@ type Distribution interface {
 // ArchiveDistribution supplies caller-owned packages for isolated renderers.
 // Server startup uses the generated embedded catalog instead.
 type ArchiveDistribution struct {
-	catalog  []BuiltinPackage
+	// catalog describes the bundled plugins available from the distribution.
+	catalog []BuiltinPackage
+	// packages stores bundled plugin archive bytes by plugin identifier.
 	packages map[string][]byte
 }
 
+// NewArchiveDistribution validates caller-owned archives and constructs an in-memory distribution.
 func NewArchiveDistribution(archives [][]byte) (*ArchiveDistribution, error) {
 	d := &ArchiveDistribution{packages: make(map[string][]byte)}
 	for _, archive := range archives {
@@ -47,9 +54,13 @@ func NewArchiveDistribution(archives [][]byte) (*ArchiveDistribution, error) {
 	}
 	return d, nil
 }
+
+// Catalog returns a copy of the bundled plugin catalog.
 func (d *ArchiveDistribution) Catalog() []BuiltinPackage {
 	return slices.Clone(d.catalog)
 }
+
+// Package returns the archive bytes for the requested bundled plugin.
 func (d *ArchiveDistribution) Package(_ context.Context, id string) ([]byte, error) {
 	data, ok := d.packages[id]
 	if !ok {
@@ -58,6 +69,7 @@ func (d *ArchiveDistribution) Package(_ context.Context, id string) ([]byte, err
 	return data, nil
 }
 
+// validateBuiltin verifies that archive contents match catalog metadata.
 func validateBuiltin(info BuiltinPackage, archive []byte) (*pluginpackage.Package, error) {
 	pkg, err := pluginpackage.Read(archive)
 	if err != nil {
@@ -69,6 +81,7 @@ func validateBuiltin(info BuiltinPackage, archive []byte) (*pluginpackage.Packag
 	return pkg, nil
 }
 
+// describe enriches loaded plugin metadata with bundled-update information.
 func (m *Manager) describe(metadata LoadedPlugin) LoadedPlugin {
 	metadata = cloneLoaded(metadata)
 	if m.distribution != nil {

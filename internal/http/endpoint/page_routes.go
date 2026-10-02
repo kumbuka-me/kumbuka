@@ -55,6 +55,7 @@ func redirectToCanonicalPage(w http.ResponseWriter, r *http.Request, pages canon
 	route.Redirect(w, r, pageurl.Page(page.ID, page.Slug), status)
 }
 
+// canonicalPageForRequest resolves the stable page ID in the request for the authenticated actor.
 func canonicalPageForRequest(r *http.Request, pages canonicalPageService) (domain.Page, error) {
 	id, err := canonicalPageID(r.PathValue("id"))
 	if err != nil {
@@ -64,6 +65,7 @@ func canonicalPageForRequest(r *http.Request, pages canonicalPageService) (domai
 	return pages.PageByIDFor(r.Context(), user, id)
 }
 
+// canonicalPageID parses and validates a positive page identifier from a route value.
 func canonicalPageID(value string) (int64, error) {
 	id, err := strconv.ParseInt(value, 10, 64)
 	if err != nil || id <= 0 {
@@ -72,6 +74,7 @@ func canonicalPageID(value string) (int64, error) {
 	return id, nil
 }
 
+// writeCanonicalPageProblem translates canonical-page lookup failures into HTTP responses.
 func writeCanonicalPageProblem(logger *slog.Logger, w http.ResponseWriter, err error) {
 	if errors.Is(err, domain.ErrNotFound) {
 		httpresponse.Problem(w, http.StatusNotFound, "Not found.")

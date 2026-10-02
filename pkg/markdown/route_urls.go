@@ -8,8 +8,12 @@ import (
 )
 
 // routeURLTransformer applies the deployment boundary while Markdown URLs are still structured nodes.
-type routeURLTransformer struct{ prefix string }
+type routeURLTransformer struct {
+	// prefix is the deployment route prefix applied to local Markdown destinations.
+	prefix string
+}
 
+// Transform rewrites structured link and image destinations through the deployment route prefix.
 func (transformer routeURLTransformer) Transform(document *ast.Document, reader text.Reader, _ parser.Context) {
 	_ = ast.Walk(document, func(node ast.Node, entering bool) (ast.WalkStatus, error) {
 		if !entering {
@@ -25,6 +29,7 @@ func (transformer routeURLTransformer) Transform(document *ast.Document, reader 
 	})
 }
 
+// routedMarkdownDestination applies the deployment route prefix while preserving unchanged AST values.
 func routedMarkdownDestination(value text.SingleLineValue, reader text.Reader, prefix string) text.SingleLineValue {
 	target := string(value.Bytes(reader.Source()))
 	routed := httpprefix.RouteURL(prefix, target)

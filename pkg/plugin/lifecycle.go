@@ -256,9 +256,7 @@ func (m *Manager) Upgrade(ctx context.Context, id string, archive []byte) (Loade
 	return m.describe(item.metadata), nil
 }
 
-// Uninstall deletes installed state and retains namespaced settings and data.
-// A builtin distribution will seed a missing installation on the next startup;
-// disable is the persistent opt-out for plugins shipped by Kumbuka.
+// Uninstall removes installed state while retaining namespaced data; bundled plugins may be seeded again at startup.
 func (m *Manager) Uninstall(ctx context.Context, id string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()

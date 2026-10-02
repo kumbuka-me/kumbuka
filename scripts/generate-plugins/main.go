@@ -13,6 +13,7 @@ import (
 	"github.com/kumbuka-me/sdk/pluginpackage"
 )
 
+// main generates or verifies the first-party plugin catalog.
 func main() {
 	root := flag.String("root", ".", "repository root")
 	check := flag.Bool("check", false, "verify generated content without changing it")
@@ -22,6 +23,8 @@ func main() {
 		os.Exit(1)
 	}
 }
+
+// generate renders the plugin catalog source from the pinned plugin lock file.
 func generate(root string, check bool) error {
 	lock, err := os.ReadFile(filepath.Join(root, "plugins.lock"))
 	if err != nil {

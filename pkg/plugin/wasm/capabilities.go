@@ -66,7 +66,9 @@ func (r *Runtime) hostCall(ctx context.Context, module api.Module, pointer, leng
 	}
 
 	response := struct {
-		Value *any   `json:"value,omitempty"`
+		// Value contains the successful capability result.
+		Value *any `json:"value,omitempty"`
+		// Error contains the guest-visible capability failure.
 		Error string `json:"error,omitempty"`
 	}{}
 	value, err := plugin.Guard("host capability", func() (any, error) {

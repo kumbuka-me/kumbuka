@@ -16,9 +16,12 @@ var Packages embed.FS
 // Distribution provides cheap generated metadata and opens archives only on demand.
 type Distribution struct{}
 
+// Catalog returns metadata for all embedded first-party plugin packages.
 func (Distribution) Catalog() []plugin.BuiltinPackage {
 	return append([]plugin.BuiltinPackage(nil), catalog...)
 }
+
+// Package returns the embedded archive bytes for the requested first-party plugin.
 func (Distribution) Package(_ context.Context, id string) ([]byte, error) {
 	for _, item := range catalog {
 		if item.ID == id {

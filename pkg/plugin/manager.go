@@ -37,9 +37,11 @@ type LoadedPlugin struct {
 	// Settings contains persisted boolean settings keyed by settings-module ID.
 	Settings map[string]bool
 	// Builtin describes the offline distribution, independently of installed state.
-	Builtin                *BuiltinPackage
+	Builtin *BuiltinPackage
+	// BuiltinUpdateAvailable reports whether the bundled distribution contains a newer version.
 	BuiltinUpdateAvailable bool
-	BuiltinMismatch        bool
+	// BuiltinMismatch reports whether installed and bundled packages differ at the same version.
+	BuiltinMismatch bool
 	// Digest stores the content digest used for identity and caching.
 	Digest [32]byte
 }

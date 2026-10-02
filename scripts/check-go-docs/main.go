@@ -76,6 +76,8 @@ func checkFile(set *token.FileSet, file *ast.File) []string {
 		case *ast.FuncDecl:
 			if !described(declaration.Doc) {
 				report(declaration.Pos(), "function "+declaration.Name.Name+" needs a GoDoc summary")
+			} else if !singleLineDescription(declaration.Doc) {
+				report(declaration.Pos(), "function "+declaration.Name.Name+" needs a one-line GoDoc summary")
 			}
 		case *ast.GenDecl:
 			for _, spec := range declaration.Specs {
@@ -102,4 +104,9 @@ func checkFile(set *token.FileSet, file *ast.File) []string {
 // described reports whether a comment contains prose rather than only compiler directives.
 func described(comment *ast.CommentGroup) bool {
 	return comment != nil && strings.TrimSpace(comment.Text()) != ""
+}
+
+// singleLineDescription reports whether a declaration description contains exactly one prose line.
+func singleLineDescription(comment *ast.CommentGroup) bool {
+	return !strings.Contains(strings.TrimSpace(comment.Text()), "\n")
 }
