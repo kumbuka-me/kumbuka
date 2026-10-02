@@ -6,4 +6,8 @@ From the application repository, run `go run ./scripts/check-go-docs` to check f
 go run ./scripts/check-go-docs . ../cli ../sdk ../plugins ../mailbridge
 ```
 
-The check parses every authored Go file, including platform-specific files and embedded or anonymous struct fields. It excludes unit test files, generated files, vendored code, and Node dependencies. Function summaries should be a single descriptive line beginning with the function name; further explanation can follow. Comments should explain purpose, ownership, units, defaults, or constraints rather than repeat the declaration.
+The check parses every authored Go file, including platform-specific files and embedded or anonymous struct fields. It excludes unit test files, generated files, vendored code, and Node dependencies.
+
+Every function must have a GoDoc comment whose first prose line begins with the function name. Additional explanation may follow on subsequent lines or in additional paragraphs.
+
+Structs and struct fields must have descriptive comments. Comments should explain purpose, ownership, units, defaults, or constraints rather than merely repeat the declaration.

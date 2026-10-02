@@ -6,29 +6,101 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestCheckFileReportsNestedAndEmbeddedFields(t *testing.T) {
+	t.Parallel()
+
 	set := token.NewFileSet()
 	file, err := parser.ParseFile(set, "input.go", `package example
+
 // Item describes the result.
 type Item struct {
- string
- // Value is the result value.
- Value string
+	string
+
+	// Value is the result value.
+	Value string
 }
-func build() { var local struct { Number int }; _ = local }
+
+func build() {
+	var local struct {
+		Number int
+	}
+	_ = local
+}
 `, parser.ParseComments)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
+
 	problems := checkFile(set, file)
-	if len(problems) != 3 {
-		t.Fatalf("want 3 missing descriptions, got %v", problems)
-	}
+
+	assert.Len(t, problems, 3)
+}
+
+func TestCheckFileAllowsExtendedFunctionDocumentation(t *testing.T) {
+	t.Parallel()
+
+	set := token.NewFileSet()
+	file, err := parser.ParseFile(set, "input.go", `package example
+
+// Run starts the example.
+// It performs additional initialization before returning.
+func Run() {}
+`, parser.ParseComments)
+	require.NoError(t, err)
+
+	problems := checkFile(set, file)
+
+	assert.Empty(t, problems)
+}
+
+func TestCheckFileRequiresFunctionNameInSummary(t *testing.T) {
+	t.Parallel()
+
+	set := token.NewFileSet()
+	file, err := parser.ParseFile(set, "input.go", `package example
+
+// Starts the example.
+func Run() {}
+`, parser.ParseComments)
+	require.NoError(t, err)
+
+	problems := checkFile(set, file)
+
+	require.Len(t, problems, 1)
+	assert.Contains(
+		t,
+		problems[0],
+		"function Run GoDoc summary must begin with the function name",
+	)
+}
+
+func TestCheckFileDoesNotAcceptLongerIdentifierPrefix(t *testing.T) {
+	t.Parallel()
+
+	set := token.NewFileSet()
+	file, err := parser.ParseFile(set, "input.go", `package example
+
+// Runner starts the example.
+func Run() {}
+`, parser.ParseComments)
+	require.NoError(t, err)
+
+	problems := checkFile(set, file)
+
+	require.Len(t, problems, 1)
+	assert.Contains(
+		t,
+		problems[0],
+		"function Run GoDoc summary must begin with the function name",
+	)
 }
 
 func TestCheckTreeSkipsTestsGeneratedCodeAndDependencies(t *testing.T) {
+	t.Parallel()
+
 	root := t.TempDir()
 	files := map[string]string{
 		"good.go":              "package example\n// Run starts the example.\nfunc Run() {}\n",
@@ -37,20 +109,16 @@ func TestCheckTreeSkipsTestsGeneratedCodeAndDependencies(t *testing.T) {
 		"vendor/dependency.go": "package dependency\nfunc missing() {}\n",
 		"platform.go":          "//go:build windows\n\npackage example\n// Windows runs on Windows.\nfunc Windows() {}\n",
 	}
+
 	for name, source := range files {
 		path := filepath.Join(root, name)
-		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-			t.Fatal(err)
-		}
-		if err := os.WriteFile(path, []byte(source), 0o644); err != nil {
-			t.Fatal(err)
-		}
+
+		require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o755))
+		require.NoError(t, os.WriteFile(path, []byte(source), 0o644))
 	}
+
 	problems, err := checkTree(root)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(problems) != 0 {
-		t.Fatalf("unexpected missing descriptions: %v", problems)
-	}
+
+	require.NoError(t, err)
+	assert.Empty(t, problems)
 }
