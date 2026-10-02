@@ -122,54 +122,90 @@ func prepareProfileUpdate(input UserUpdateInput, current domain.UserProfile, upd
 	if !input.changesProfile() {
 		return nil
 	}
-	if current.Source == domain.ProfileSourceTrustedProxy && input.Username != nil {
-		return domain.NewValidationError("username", "Use the trusted-proxy relink action to change this identity.")
+	if err := validateProfileUpdateOwnership(input, current); err != nil {
+		return err
 	}
-	if current.Source == domain.ProfileSourceTrustedProxy && input.RevertUsername {
-		return domain.NewValidationError("username", "Trusted-proxy usernames are changed only by relinking the identity.")
+	if err := prepareUsernameUpdate(input, current, update); err != nil {
+		return err
 	}
-	if current.Source == domain.ProfileSourceLocal && (input.RevertUsername || input.RevertEmail || input.RevertDisplayName) {
-		return domain.NewValidationError("profile", "Local profile fields are not provider-managed.")
+	if err := prepareEmailUpdate(input, current, update); err != nil {
+		return err
 	}
-
-	if input.Username != nil && !input.RevertUsername {
-		username := strings.TrimSpace(*input.Username)
-		if username == "" {
-			return domain.NewValidationError("username", "Username is required.")
-		}
-		if len([]rune(username)) > 128 {
-			return domain.NewValidationError("username", "Use at most 128 characters.")
-		}
-		if username != current.Username {
-			update.Username = utils.ToPtr(username)
-		}
-	}
-	if input.Email != nil && !input.RevertEmail {
-		email := strings.TrimSpace(*input.Email)
-		if email != "" && !validAccountEmail(email) {
-			return domain.NewValidationError("email", "Enter a valid email address.")
-		}
-		if email != current.Email {
-			update.Email = utils.ToPtr(email)
-		}
-	}
-	if input.DisplayName != nil && !input.RevertDisplayName {
-		displayName := strings.TrimSpace(*input.DisplayName)
-		if displayName == "" {
-			displayName = current.Username
-			if update.Username != nil {
-				displayName = *update.Username
-			}
-		}
-		if displayName != current.DisplayName {
-			update.DisplayName = utils.ToPtr(displayName)
-		}
-	}
+	prepareDisplayNameUpdate(input, current, update)
 
 	update.RevertUsername = input.RevertUsername
 	update.RevertEmail = input.RevertEmail
 	update.RevertDisplayName = input.RevertDisplayName
 	return nil
+}
+
+// validateProfileUpdateOwnership rejects profile operations that conflict with the active identity source.
+func validateProfileUpdateOwnership(input UserUpdateInput, current domain.UserProfile) error {
+	if current.Source == domain.ProfileSourceTrustedProxy && (input.Username != nil || input.RevertUsername) {
+		return domain.NewValidationError("username", "Use the trusted-proxy relink action to change this identity.")
+	}
+	if current.Source == domain.ProfileSourceLocal && revertsProviderProfile(input) {
+		return domain.NewValidationError("profile", "Local profile fields are not provider-managed.")
+	}
+	return nil
+}
+
+// revertsProviderProfile reports whether the update restores any provider-managed profile field.
+func revertsProviderProfile(input UserUpdateInput) bool {
+	return input.RevertUsername || input.RevertEmail || input.RevertDisplayName
+}
+
+// prepareUsernameUpdate validates and records a locally managed username replacement.
+func prepareUsernameUpdate(input UserUpdateInput, current domain.UserProfile, update *domain.UserAccountUpdate) error {
+	if input.Username == nil || input.RevertUsername {
+		return nil
+	}
+
+	username := strings.TrimSpace(*input.Username)
+	if username == "" {
+		return domain.NewValidationError("username", "Username is required.")
+	}
+	if len([]rune(username)) > 128 {
+		return domain.NewValidationError("username", "Use at most 128 characters.")
+	}
+	if username != current.Username {
+		update.Username = utils.ToPtr(username)
+	}
+	return nil
+}
+
+// prepareEmailUpdate validates and records a locally managed email replacement.
+func prepareEmailUpdate(input UserUpdateInput, current domain.UserProfile, update *domain.UserAccountUpdate) error {
+	if input.Email == nil || input.RevertEmail {
+		return nil
+	}
+
+	email := strings.TrimSpace(*input.Email)
+	if email != "" && !validAccountEmail(email) {
+		return domain.NewValidationError("email", "Enter a valid email address.")
+	}
+	if email != current.Email {
+		update.Email = utils.ToPtr(email)
+	}
+	return nil
+}
+
+// prepareDisplayNameUpdate records a locally managed display name using the effective username as its blank fallback.
+func prepareDisplayNameUpdate(input UserUpdateInput, current domain.UserProfile, update *domain.UserAccountUpdate) {
+	if input.DisplayName == nil || input.RevertDisplayName {
+		return
+	}
+
+	displayName := strings.TrimSpace(*input.DisplayName)
+	if displayName == "" {
+		displayName = current.Username
+		if update.Username != nil {
+			displayName = *update.Username
+		}
+	}
+	if displayName != current.DisplayName {
+		update.DisplayName = utils.ToPtr(displayName)
+	}
 }
 
 // recordProfileAudit records each field whose ownership or local value changed.

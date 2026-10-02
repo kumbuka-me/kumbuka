@@ -195,38 +195,17 @@ func updateUserAccountRecord(ctx context.Context, tx pgx.Tx, input domain.UserAc
 	if err != nil {
 		return err
 	}
-	if profile.Source == domain.ProfileSourceTrustedProxy && (input.Username != nil || input.RevertUsername) {
-		return domain.NewValidationError("username", "Relink the trusted-proxy identity to change its username.")
-	}
-	if profile.Source == domain.ProfileSourceLocal && (input.RevertUsername || input.RevertEmail || input.RevertDisplayName) {
-		return domain.NewValidationError("profile", "Local profile fields are not provider-managed.")
+	if err := validateStoredProfileOwnership(input, profile); err != nil {
+		return err
 	}
 
-	username, email, displayName := profile.Username, profile.Email, profile.DisplayName
-	usernameOverridden := profile.UsernameOverridden
-	emailOverridden := profile.EmailOverridden
-	displayNameOverridden := profile.DisplayNameOverridden
-	if input.RevertUsername {
-		username, usernameOverridden = profile.ProviderUsername, false
-	} else if input.Username != nil {
-		username = strings.TrimSpace(*input.Username)
-		usernameOverridden = profile.Source != domain.ProfileSourceLocal
-	}
-	if input.RevertEmail {
-		email, emailOverridden = profile.ProviderEmail, false
-	} else if input.Email != nil {
-		email = strings.TrimSpace(*input.Email)
-		emailOverridden = profile.Source != domain.ProfileSourceLocal
-	}
-	if input.RevertDisplayName {
-		displayName, displayNameOverridden = profile.ProviderDisplayName, false
-	} else if input.DisplayName != nil {
-		displayName = strings.TrimSpace(*input.DisplayName)
-		displayNameOverridden = profile.Source != domain.ProfileSourceLocal
-	}
+	username, usernameOverridden := resolvedStoredUsername(input, profile)
+	email, emailOverridden := resolvedStoredEmail(input, profile)
+	displayName, displayNameOverridden := resolvedStoredDisplayName(input, profile)
 	if username == "" {
 		return domain.NewValidationError("username", "Username is required.")
 	}
+
 	available, err := usernameAvailable(ctx, tx, username, input.UserID)
 	if err != nil {
 		return err
@@ -267,6 +246,55 @@ WHERE id=$1`,
 		return nil
 	}
 	return deleteLocalSessions(ctx, tx, input.UserID)
+}
+
+// validateStoredProfileOwnership rejects persistence requests that violate identity-source ownership rules.
+func validateStoredProfileOwnership(input domain.UserAccountUpdate, profile domain.UserProfile) error {
+	if profile.Source == domain.ProfileSourceTrustedProxy && (input.Username != nil || input.RevertUsername) {
+		return domain.NewValidationError("username", "Relink the trusted-proxy identity to change its username.")
+	}
+	if profile.Source == domain.ProfileSourceLocal && revertsStoredProviderProfile(input) {
+		return domain.NewValidationError("profile", "Local profile fields are not provider-managed.")
+	}
+	return nil
+}
+
+// revertsStoredProviderProfile reports whether a persistence request restores any provider-managed profile field.
+func revertsStoredProviderProfile(input domain.UserAccountUpdate) bool {
+	return input.RevertUsername || input.RevertEmail || input.RevertDisplayName
+}
+
+// resolvedStoredUsername resolves the effective username and whether it remains locally overridden.
+func resolvedStoredUsername(input domain.UserAccountUpdate, profile domain.UserProfile) (string, bool) {
+	if input.RevertUsername {
+		return profile.ProviderUsername, false
+	}
+	if input.Username != nil {
+		return strings.TrimSpace(*input.Username), profile.Source != domain.ProfileSourceLocal
+	}
+	return profile.Username, profile.UsernameOverridden
+}
+
+// resolvedStoredEmail resolves the effective email and whether it remains locally overridden.
+func resolvedStoredEmail(input domain.UserAccountUpdate, profile domain.UserProfile) (string, bool) {
+	if input.RevertEmail {
+		return profile.ProviderEmail, false
+	}
+	if input.Email != nil {
+		return strings.TrimSpace(*input.Email), profile.Source != domain.ProfileSourceLocal
+	}
+	return profile.Email, profile.EmailOverridden
+}
+
+// resolvedStoredDisplayName resolves the effective display name and whether it remains locally overridden.
+func resolvedStoredDisplayName(input domain.UserAccountUpdate, profile domain.UserProfile) (string, bool) {
+	if input.RevertDisplayName {
+		return profile.ProviderDisplayName, false
+	}
+	if input.DisplayName != nil {
+		return strings.TrimSpace(*input.DisplayName), profile.Source != domain.ProfileSourceLocal
+	}
+	return profile.DisplayName, profile.DisplayNameOverridden
 }
 
 type userProfileQuerier interface {
