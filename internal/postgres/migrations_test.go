@@ -9,14 +9,62 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestLoadMigrationsUsesProvidedFilesystem(t *testing.T) {
+	t.Parallel()
+
+	planned, err := loadMigrations(fstest.MapFS{
+		"migrations/010_ten.sql": &fstest.MapFile{Data: []byte("SELECT 10")},
+		"migrations/002_two.sql": &fstest.MapFile{Data: []byte("SELECT 2")},
+		"migrations/README.md":   &fstest.MapFile{Data: []byte("ignored")},
+	})
+
+	require.NoError(t, err)
+	require.Len(t, planned, 2)
+	assert.Equal(t, []int{2, 10}, []int{planned[0].version, planned[1].version})
+}
+
+func TestLoadMigrationsDoesNotUseEmbeddedFallback(t *testing.T) {
+	t.Parallel()
+
+	planned, err := loadMigrations(fstest.MapFS{
+		"migrations/042_fixture.sql": &fstest.MapFile{Data: []byte("SELECT 42")},
+	})
+
+	require.NoError(t, err)
+	require.Len(t, planned, 1)
+	assert.Equal(t, 42, planned[0].version)
+	assert.Equal(t, "042_fixture.sql", planned[0].entry.Name())
+}
+
+func TestLoadMigrationsRequiresMigrationDirectory(t *testing.T) {
+	t.Parallel()
+
+	_, err := loadMigrations(fstest.MapFS{
+		"001_wrong_root.sql": &fstest.MapFile{Data: []byte("SELECT 1")},
+	})
+
+	require.Error(t, err)
+}
+
+func TestLoadMigrationsRejectsInvalidProvidedFilename(t *testing.T) {
+	t.Parallel()
+
+	_, err := loadMigrations(fstest.MapFS{
+		"migrations/next_schema.sql": &fstest.MapFile{Data: []byte("SELECT 1")},
+	})
+
+	require.Error(t, err)
+	assert.ErrorContains(t, err, `invalid migration "next_schema.sql"`)
+}
+
 func TestPlanMigrationsOrdersNumericVersions(t *testing.T) {
 	t.Parallel()
 
 	entries := migrationTestEntries(t, fstest.MapFS{
-		"010_ten.sql": {Data: []byte("SELECT 10")},
-		"002_two.sql": {Data: []byte("SELECT 2")},
-		"001_one.sql": {Data: []byte("SELECT 1")},
-		"README.md":   {Data: []byte("ignored")},
+		"010_ten.sql": &fstest.MapFile{Data: []byte("SELECT 10")},
+		"002_two.sql": &fstest.MapFile{Data: []byte("SELECT 2")},
+		"001_one.sql": &fstest.MapFile{Data: []byte("SELECT 1")},
+		"README.md":   &fstest.MapFile{Data: []byte("ignored")},
 	})
 
 	planned, err := planMigrations(entries)
@@ -30,8 +78,8 @@ func TestPlanMigrationsMarksBaselines(t *testing.T) {
 	t.Parallel()
 
 	entries := migrationTestEntries(t, fstest.MapFS{
-		"009_baseline.sql": {Data: []byte("SELECT 9")},
-		"010_feature.sql":  {Data: []byte("SELECT 10")},
+		"009_baseline.sql": &fstest.MapFile{Data: []byte("SELECT 9")},
+		"010_feature.sql":  &fstest.MapFile{Data: []byte("SELECT 10")},
 	})
 
 	planned, err := planMigrations(entries)
@@ -46,8 +94,8 @@ func TestPlanMigrationsRejectsDuplicateVersions(t *testing.T) {
 	t.Parallel()
 
 	entries := migrationTestEntries(t, fstest.MapFS{
-		"001_create.sql": {Data: []byte("SELECT 1")},
-		"001_update.sql": {Data: []byte("SELECT 2")},
+		"001_create.sql": &fstest.MapFile{Data: []byte("SELECT 1")},
+		"001_update.sql": &fstest.MapFile{Data: []byte("SELECT 2")},
 	})
 
 	_, err := planMigrations(entries)
@@ -62,7 +110,7 @@ func TestPlanMigrationsRejectsInvalidVersion(t *testing.T) {
 	t.Parallel()
 
 	entries := migrationTestEntries(t, fstest.MapFS{
-		"next_schema.sql": {Data: []byte("SELECT 1")},
+		"next_schema.sql": &fstest.MapFile{Data: []byte("SELECT 1")},
 	})
 
 	_, err := planMigrations(entries)

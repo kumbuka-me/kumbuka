@@ -17,9 +17,9 @@ import (
 //go:embed migrations/*.sql
 var migrationFiles embed.FS
 
-// migration describes one validated embedded schema migration.
+// migration describes one validated SQL migration.
 type migration struct {
-	// entry identifies the embedded SQL file.
+	// entry identifies the SQL file.
 	entry fs.DirEntry
 	// version is the unique numeric prefix recorded in schema_migrations.
 	version int
@@ -43,9 +43,9 @@ type migrationResult struct {
 	executed bool
 }
 
-// migrate applies unapplied embedded SQL migrations in version order.
-func (s *Store) migrate(ctx context.Context, logger *slog.Logger) error {
-	migrations, err := loadMigrations()
+// migrate applies unapplied SQL migrations from source in version order.
+func (s *Store) migrate(ctx context.Context, logger *slog.Logger, source fs.FS) error {
+	migrations, err := loadMigrations(source)
 	if err != nil {
 		return err
 	}
@@ -60,7 +60,7 @@ func (s *Store) migrate(ctx context.Context, logger *slog.Logger) error {
 		return err
 	}
 
-	results, err := applyPendingMigrations(ctx, tx, migrations)
+	results, err := applyPendingMigrations(ctx, tx, source, migrations)
 	if err != nil {
 		return err
 	}
@@ -69,7 +69,6 @@ func (s *Store) migrate(ctx context.Context, logger *slog.Logger) error {
 	}
 
 	logMigrationResults(logger, results)
-
 	return nil
 }
 
@@ -84,7 +83,12 @@ CREATE TABLE IF NOT EXISTS schema_migrations (version integer PRIMARY KEY, appli
 }
 
 // applyPendingMigrations applies normal migrations and safely adopts consolidated baselines.
-func applyPendingMigrations(ctx context.Context, tx pgx.Tx, migrations []migration) ([]migrationResult, error) {
+func applyPendingMigrations(
+	ctx context.Context,
+	tx pgx.Tx,
+	source fs.FS,
+	migrations []migration,
+) ([]migrationResult, error) {
 	history, err := readMigrationHistory(ctx, tx)
 	if err != nil {
 		return nil, err
@@ -109,7 +113,7 @@ func applyPendingMigrations(ctx context.Context, tx pgx.Tx, migrations []migrati
 		}
 
 		if execute {
-			if err := applyMigration(ctx, tx, item); err != nil {
+			if err := applyMigration(ctx, tx, source, item); err != nil {
 				return nil, err
 			}
 		} else if err := recordMigration(ctx, tx, item.version); err != nil {
@@ -167,14 +171,14 @@ SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version=$1)`, version).Scan(
 	return exists, err
 }
 
-// applyMigration executes one embedded migration and records its version atomically.
-func applyMigration(ctx context.Context, tx pgx.Tx, item migration) error {
+// applyMigration executes one migration from source and records its version atomically.
+func applyMigration(ctx context.Context, tx pgx.Tx, source fs.FS, item migration) error {
 	var searchPath string
 	if err := tx.QueryRow(ctx, `SHOW search_path`).Scan(&searchPath); err != nil {
 		return fmt.Errorf("migration %d: read search path: %w", item.version, err)
 	}
 
-	sql, err := migrationFiles.ReadFile("migrations/" + item.entry.Name())
+	sql, err := fs.ReadFile(source, "migrations/"+item.entry.Name())
 	if err != nil {
 		return err
 	}
@@ -234,9 +238,9 @@ func logMigrationResults(logger *slog.Logger, results []migrationResult) {
 	}
 }
 
-// loadMigrations validates and orders every embedded SQL migration before the database is touched.
-func loadMigrations() ([]migration, error) {
-	entries, err := fs.ReadDir(migrationFiles, "migrations")
+// loadMigrations validates and orders every SQL migration from source before the database is touched.
+func loadMigrations(source fs.FS) ([]migration, error) {
+	entries, err := fs.ReadDir(source, "migrations")
 	if err != nil {
 		return nil, err
 	}
@@ -287,7 +291,7 @@ func planMigrations(entries []fs.DirEntry) ([]migration, error) {
 	return planned, nil
 }
 
-// migrationVersion parses the numeric prefix of an embedded migration filename.
+// migrationVersion parses the numeric prefix of a migration filename.
 func migrationVersion(name string) (int, error) {
 	prefix, _, _ := strings.Cut(name, "_")
 	version, err := strconv.Atoi(prefix)

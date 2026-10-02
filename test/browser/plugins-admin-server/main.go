@@ -84,7 +84,7 @@ func main() {
 		}
 	}
 	logger := slog.New(slog.NewTextHandler(os.Stderr, nil))
-	catalog, err := themes.Load("")
+	catalog, err := themes.Load(themes.Files, "")
 	if err != nil {
 		panic(err)
 	}

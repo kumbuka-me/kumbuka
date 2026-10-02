@@ -32,6 +32,7 @@ import (
 	"github.com/kumbuka-me/kumbuka/internal/pluginruntime"
 	"github.com/kumbuka-me/kumbuka/internal/pluginupdate"
 	"github.com/kumbuka-me/kumbuka/pkg/markdown"
+	"github.com/kumbuka-me/kumbuka/plugins"
 )
 
 const rendererShutdownTimeout = 10 * time.Second
@@ -203,6 +204,7 @@ func NewApplication(
 	renderer, err := pluginruntime.NewRenderer(
 		ctx,
 		database,
+		plugins.Distribution{},
 		secretCipher,
 		authenticatedPluginRequest,
 		infrastructure.metrics,

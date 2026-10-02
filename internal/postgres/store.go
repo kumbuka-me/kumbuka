@@ -108,7 +108,7 @@ func Open(ctx context.Context, url string, logger *slog.Logger, options ...Optio
 		pool.Close()
 		return nil, err
 	}
-	if err := s.migrate(ctx, logger); err != nil {
+	if err := s.migrate(ctx, logger, migrationFiles); err != nil {
 		pool.Close()
 		return nil, err
 	}

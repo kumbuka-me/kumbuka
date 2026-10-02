@@ -35,7 +35,7 @@ func NewInfrastructure(
 	logger *slog.Logger,
 	version, commit string,
 ) (*Infrastructure, error) {
-	availableThemes, err := themes.Load(cfg.ThemeDirectory)
+	availableThemes, err := themes.Load(themes.Files, cfg.ThemeDirectory)
 	if err != nil {
 		return nil, fmt.Errorf("load themes: %w", err)
 	}

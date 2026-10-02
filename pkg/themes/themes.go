@@ -15,7 +15,7 @@ import (
 )
 
 //go:embed *.toml
-var embeddedFiles embed.FS
+var Files embed.FS
 
 // DefaultTheme is the embedded fallback used before a user selects a preference.
 const DefaultTheme = "Light"
@@ -89,11 +89,11 @@ type Colors struct {
 	SelectionBackground string `json:"selection_background" toml:"selection_background"`
 }
 
-// Load reads embedded themes and overlays themes from an optional directory.
-func Load(directory string) ([]Theme, error) {
-	available, err := loadFS(embeddedFiles, ".")
+// Load reads themes from source and overlays themes from an optional directory.
+func Load(source fs.FS, directory string) ([]Theme, error) {
+	available, err := loadFS(source, ".")
 	if err != nil {
-		return nil, fmt.Errorf("load embedded themes: %w", err)
+		return nil, fmt.Errorf("load builtin themes: %w", err)
 	}
 	if directory == "" {
 		return available, nil
@@ -126,7 +126,6 @@ func loadFS(source fs.FS, root string) ([]Theme, error) {
 	}
 
 	var available []Theme
-
 	for _, entry := range entries {
 		if entry.IsDir() || !strings.EqualFold(path.Ext(entry.Name()), ".toml") {
 			continue
@@ -162,7 +161,6 @@ func loadFS(source fs.FS, root string) ([]Theme, error) {
 // merge overlays themes with matching titles and preserves deterministic ordering.
 func merge(base, overlays []Theme) []Theme {
 	byName := make(map[string]Theme, len(base)+len(overlays))
-
 	for _, theme := range base {
 		byName[strings.ToLower(theme.Title)] = theme
 	}

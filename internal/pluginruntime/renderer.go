@@ -8,7 +8,6 @@ import (
 	"github.com/kumbuka-me/kumbuka/pkg/plugin"
 	"github.com/kumbuka-me/kumbuka/pkg/plugin/wasm"
 	"github.com/kumbuka-me/kumbuka/pkg/plugincap"
-	"github.com/kumbuka-me/kumbuka/plugins"
 )
 
 // Store combines the durable plugin lifecycle and namespaced plugin storage capabilities.
@@ -22,6 +21,7 @@ type Store interface {
 func NewRenderer(
 	ctx context.Context,
 	store Store,
+	distribution plugin.Distribution,
 	secretCodec plugin.SecretCodec,
 	authorizeHTTP func(context.Context) bool,
 	invocationObserver wasm.InvocationObserver,
@@ -31,7 +31,7 @@ func NewRenderer(
 	renderer, err := markdown.NewWithPluginStore(
 		ctx,
 		store,
-		plugins.Distribution{},
+		distribution,
 		wasm.WithStorage(store),
 		wasm.WithUserDirectory(plugincap.PublicUsers{Source: store}),
 		wasm.WithSecretCodec(secretCodec),
