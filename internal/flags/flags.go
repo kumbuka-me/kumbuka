@@ -17,6 +17,16 @@ import (
 // DefaultPluginUpdateCheckInterval is the default background plugin catalog refresh interval.
 const DefaultPluginUpdateCheckInterval = 60 * time.Minute
 
+const (
+	sectionServer             = "Server"
+	sectionDatabase           = "Database"
+	sectionServices           = "Services"
+	sectionAuthentication     = "Authentication"
+	sectionTrustedProxy       = "Trusted proxy"
+	sectionOIDC               = "OIDC"
+	sectionLoggingDiagnostics = "Logging and diagnostics"
+)
+
 var trustedUsernameHeaders = []string{
 	"X-Forwarded-User",
 	"X-Auth-Request-User",
@@ -119,6 +129,15 @@ func Parse(args []string, version string) (Config, error) {
 	tf.Note("\nFlags can also be set through environment variables using the KUMBUKA__ prefix. " +
 		"Flag names are uppercased and hyphens are replaced with underscores; for example, " +
 		"--listen-address becomes KUMBUKA__LISTEN_ADDRESS.")
+	tf.SectionOrder(
+		sectionServer,
+		sectionDatabase,
+		sectionServices,
+		sectionAuthentication,
+		sectionTrustedProxy,
+		sectionOIDC,
+		sectionLoggingDiagnostics,
+	)
 
 	applyServerFlags := registerServerFlags(tf, &cfg)
 	applyAuthFlags := registerAuthFlags(tf, &cfg)
@@ -142,6 +161,7 @@ func Parse(args []string, version string) (Config, error) {
 // registerServerFlags registers flags for the server configuration.
 func registerServerFlags(tf *tinyflags.FlagSet, cfg *Config) func() {
 	tf.StringVar(&cfg.RoutePrefix, "route-prefix", "", "URL path prefix under which Kumbuka is served").
+		Section(sectionServer).
 		Validate(httpprefix.ValidateRoutePrefix).
 		Finalize(httpprefix.NormalizeRoutePrefix).
 		Value()
@@ -154,6 +174,7 @@ func registerServerFlags(tf *tinyflags.FlagSet, cfg *Config) func() {
 		},
 		"Address on which the application server listens",
 	).
+		Section(sectionServer).
 		Short("a").
 		Placeholder("ADDR").
 		Value()
@@ -166,11 +187,13 @@ func registerServerFlags(tf *tinyflags.FlagSet, cfg *Config) func() {
 		},
 		"Address on which health, readiness, and metrics listen",
 	).
+		Section(sectionServer).
 		Short("m").
 		Placeholder("ADDR").
 		Value()
 
 	tf.StringVar(&cfg.DatabaseURL, "database-url", "", "PostgreSQL connection URL").
+		Section(sectionDatabase).
 		Required().
 		Placeholder("URL").
 		OverriddenValueMaskFn(tinyflags.MaskPostgresURL).
@@ -182,6 +205,7 @@ func registerServerFlags(tf *tinyflags.FlagSet, cfg *Config) func() {
 		0,
 		"Maximum number of database connections; 0 uses the pgxpool default",
 	).
+		Section(sectionDatabase).
 		Validate(tinyflags.NonNegative[int32]()).
 		Value()
 
@@ -191,6 +215,7 @@ func registerServerFlags(tf *tinyflags.FlagSet, cfg *Config) func() {
 		0,
 		"Minimum number of idle database connections kept ready; 0 uses the pgxpool default",
 	).
+		Section(sectionDatabase).
 		Validate(tinyflags.NonNegative[int32]()).
 		Value()
 
@@ -200,6 +225,7 @@ func registerServerFlags(tf *tinyflags.FlagSet, cfg *Config) func() {
 		"http://localhost:8080",
 		"Externally visible base URL",
 	).
+		Section(sectionServer).
 		Placeholder("URL").
 		Value()
 
@@ -209,6 +235,7 @@ func registerServerFlags(tf *tinyflags.FlagSet, cfg *Config) func() {
 		"",
 		"Deployment override for the PDF service POST URL, including its path",
 	).
+		Section(sectionServices).
 		Placeholder("URL").
 		Validate(pdf.ValidateURL).
 		Value()
@@ -219,6 +246,7 @@ func registerServerFlags(tf *tinyflags.FlagSet, cfg *Config) func() {
 		DefaultPluginUpdateCheckInterval,
 		"How often Kumbuka checks the first-party plugin update catalog; set to 0 to disable scheduled checks",
 	).
+		Section(sectionServices).
 		Validate(tinyflags.NonNegative[time.Duration]()).
 		Value()
 
@@ -227,7 +255,9 @@ func registerServerFlags(tf *tinyflags.FlagSet, cfg *Config) func() {
 		"allow-user-registration",
 		false,
 		"Deployment override for whether unknown OIDC or trusted-proxy identities may create accounts",
-	).Strict()
+	).
+		Section(sectionAuthentication).
+		Strict()
 
 	tf.BoolVar(
 		&cfg.ReadOnly,
@@ -235,6 +265,7 @@ func registerServerFlags(tf *tinyflags.FlagSet, cfg *Config) func() {
 		false,
 		"Block state-changing application requests while keeping reads and authentication available",
 	).
+		Section(sectionServer).
 		Value()
 
 	tf.BoolVar(
@@ -243,6 +274,7 @@ func registerServerFlags(tf *tinyflags.FlagSet, cfg *Config) func() {
 		false,
 		"Disable Prometheus metrics exposition and HTTP request instrumentation",
 	).
+		Section(sectionLoggingDiagnostics).
 		Value()
 
 	tf.BoolVar(
@@ -251,6 +283,7 @@ func registerServerFlags(tf *tinyflags.FlagSet, cfg *Config) func() {
 		false,
 		"Enable request and browser performance diagnostics",
 	).
+		Section(sectionLoggingDiagnostics).
 		Value()
 
 	tf.BoolVar(
@@ -259,6 +292,7 @@ func registerServerFlags(tf *tinyflags.FlagSet, cfg *Config) func() {
 		false,
 		"Enable the local recovery login alongside the configured authentication mode",
 	).
+		Section(sectionAuthentication).
 		Value()
 
 	tf.StringVar(
@@ -267,6 +301,7 @@ func registerServerFlags(tf *tinyflags.FlagSet, cfg *Config) func() {
 		"",
 		"Directory containing custom theme TOML files that override or extend embedded themes",
 	).
+		Section(sectionServer).
 		Placeholder("DIR").
 		Value()
 
@@ -292,6 +327,7 @@ func registerAuthFlags(tf *tinyflags.FlagSet, cfg *Config) func() {
 		domain.AuthModeTrustedProxy,
 		domain.AuthModeOIDC,
 	).
+		Section(sectionAuthentication).
 		Placeholder("MODE")
 
 	return func() {
@@ -309,6 +345,7 @@ func registerTrustedProxyFlags(tf *tinyflags.FlagSet, cfg *Config) {
 		trustedUsernameHeaders,
 		"Trusted-proxy username headers used only with the authentication override",
 	).
+		Section(sectionTrustedProxy).
 		Value()
 
 	tf.StringSliceVar(
@@ -317,6 +354,7 @@ func registerTrustedProxyFlags(tf *tinyflags.FlagSet, cfg *Config) {
 		trustedEmailHeaders,
 		"Trusted-proxy email headers used only with the authentication override",
 	).
+		Section(sectionTrustedProxy).
 		Value()
 
 	tf.StringSliceVar(
@@ -325,6 +363,7 @@ func registerTrustedProxyFlags(tf *tinyflags.FlagSet, cfg *Config) {
 		trustedDisplayNameHeaders,
 		"Trusted-proxy display-name headers used only with the authentication override",
 	).
+		Section(sectionTrustedProxy).
 		Value()
 
 	tf.StringSliceVar(
@@ -333,6 +372,7 @@ func registerTrustedProxyFlags(tf *tinyflags.FlagSet, cfg *Config) {
 		trustedGroupHeaders,
 		"Trusted-proxy group headers used only with the authentication override",
 	).
+		Section(sectionTrustedProxy).
 		Value()
 
 	tf.StringVar(
@@ -341,6 +381,7 @@ func registerTrustedProxyFlags(tf *tinyflags.FlagSet, cfg *Config) {
 		"",
 		"Trusted-proxy group that grants administrator access with the authentication override",
 	).
+		Section(sectionTrustedProxy).
 		Value()
 }
 
@@ -352,6 +393,7 @@ func registerOIDCFlags(tf *tinyflags.FlagSet, cfg *Config) {
 		"",
 		"OIDC issuer used only with the authentication override",
 	).
+		Section(sectionOIDC).
 		Placeholder("URL").
 		Value()
 
@@ -361,6 +403,7 @@ func registerOIDCFlags(tf *tinyflags.FlagSet, cfg *Config) {
 		"",
 		"OIDC client ID used only with the authentication override",
 	).
+		Section(sectionOIDC).
 		Value()
 
 	tf.StringVar(
@@ -369,6 +412,7 @@ func registerOIDCFlags(tf *tinyflags.FlagSet, cfg *Config) {
 		"groups",
 		"OIDC group-membership claim used only with the authentication override",
 	).
+		Section(sectionOIDC).
 		Value()
 
 	tf.StringVar(
@@ -377,6 +421,7 @@ func registerOIDCFlags(tf *tinyflags.FlagSet, cfg *Config) {
 		"",
 		"OIDC group that grants administrator access with the authentication override",
 	).
+		Section(sectionOIDC).
 		Value()
 
 	tf.StringVar(
@@ -385,6 +430,7 @@ func registerOIDCFlags(tf *tinyflags.FlagSet, cfg *Config) {
 		"",
 		"OIDC client secret used when OIDC is enabled in the administration UI",
 	).
+		Section(sectionOIDC).
 		OverriddenValueMaskFn(tinyflags.MaskFirstLast).
 		Value()
 
@@ -394,6 +440,7 @@ func registerOIDCFlags(tf *tinyflags.FlagSet, cfg *Config) {
 		"",
 		"Secret used to sign OIDC login state and session cookies",
 	).
+		Section(sectionOIDC).
 		OverriddenValueMaskFn(tinyflags.MaskFirstLast).
 		Validate(tinyflags.Optional(
 			tinyflags.MinLength(32),
@@ -406,6 +453,7 @@ func registerOIDCFlags(tf *tinyflags.FlagSet, cfg *Config) {
 		"",
 		"Base64-encoded 32-byte key used to encrypt sensitive application settings",
 	).
+		Section(sectionAuthentication).
 		OverriddenValueMaskFn(tinyflags.MaskFirstLast).
 		Validate(secrets.ValidateKey).
 		Value()
@@ -421,6 +469,7 @@ func registerLoggingFlags(tf *tinyflags.FlagSet, cfg *Config) func() {
 		logging.LogFormatText,
 		logging.LogFormatJSON,
 	).
+		Section(sectionLoggingDiagnostics).
 		Short("l").
 		Placeholder("FORMAT").
 		Value()
@@ -431,6 +480,7 @@ func registerLoggingFlags(tf *tinyflags.FlagSet, cfg *Config) func() {
 		false,
 		"Enable verbose diagnostic logging",
 	).
+		Section(sectionLoggingDiagnostics).
 		Short("d").
 		Value()
 
@@ -440,6 +490,7 @@ func registerLoggingFlags(tf *tinyflags.FlagSet, cfg *Config) func() {
 		false,
 		"Enable HTTP request access logging",
 	).
+		Section(sectionLoggingDiagnostics).
 		Value()
 
 	return func() {
