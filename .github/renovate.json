@@ -51,7 +51,8 @@
       "matchManagers": ["gomod"],
       "matchPackageNames": ["/^github\\.com\\/kumbuka-me\\//"],
       "matchUpdateTypes": ["minor", "patch"],
-      "automerge": true
+      "automerge": true,
+      "addLabels": ["bump:patch"]
     },
     {
       "matchPackageNames": ["prettier", "golangci/golangci-lint"],

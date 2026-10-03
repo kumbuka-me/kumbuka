@@ -8,6 +8,9 @@ on:
       - unlabeled
       - closed
 
+permissions:
+  contents: write
+
 jobs:
   create-release-tag:
     runs-on: ubuntu-latest
@@ -17,4 +20,3 @@ jobs:
         with:
           trigger: |
             Build
-
