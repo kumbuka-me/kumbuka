@@ -1092,6 +1092,7 @@ var lucideOptions = []Option{
 	{Name: "layout-dashboard-lucide", Label: "Layout Dashboard", Source: "Lucide"},
 	{Name: "layout-freeform-lucide", Label: "Layout Freeform", Source: "Lucide"},
 	{Name: "layout-grid-lucide", Label: "Layout Grid", Source: "Lucide"},
+	{Name: "layout-grid-circles-lucide", Label: "Layout Grid Circles", Source: "Lucide"},
 	{Name: "layout-list-lucide", Label: "Layout List", Source: "Lucide"},
 	{Name: "layout-panel-left-lucide", Label: "Layout Panel Left", Source: "Lucide"},
 	{Name: "layout-panel-top-lucide", Label: "Layout Panel Top", Source: "Lucide"},
