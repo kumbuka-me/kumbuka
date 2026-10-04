@@ -608,6 +608,9 @@ export function setupVisualEditor(form: HTMLFormElement): void {
     if (editor) return;
     if (loading) return loading;
 
+    form.dispatchEvent(
+      new CustomEvent("editor:visual-loading", { detail: true }),
+    );
     visualStatus.hidden = false;
     visualStatus.classList.remove("error");
     visualStatus.textContent = "Loading visual editor…";
@@ -683,6 +686,9 @@ export function setupVisualEditor(form: HTMLFormElement): void {
         throw error;
       } finally {
         loading = null;
+        form.dispatchEvent(
+          new CustomEvent("editor:visual-loading", { detail: false }),
+        );
       }
     })();
 

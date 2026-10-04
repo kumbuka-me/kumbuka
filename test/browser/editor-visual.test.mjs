@@ -27,6 +27,10 @@ for (const failFirst of [false, true])
       const download = new Promise((resolve) => {
         releaseVisual = resolve;
       });
+      let releaseCatalog;
+      const catalogDownload = new Promise((resolve) => {
+        releaseCatalog = resolve;
+      });
       page.on("pageerror", (error) => errors.push(error.message));
       await page.route("http://visual.test/**", async (route) => {
         const path = new URL(route.request().url()).pathname;
@@ -41,6 +45,22 @@ for (const failFirst of [false, true])
             return;
           }
           await download;
+        }
+        if (path === "/api/editor/catalog") {
+          await catalogDownload;
+          await route.fulfill({
+            contentType: "application/json",
+            body: JSON.stringify({
+              pages: [],
+              aliases: {},
+              completions: [],
+              completion_providers: [],
+              inserts: [],
+              widgets: [],
+              widget_problems: [],
+            }),
+          });
+          return;
         }
         if (path.startsWith("/assets/")) {
           await route.fulfill({
@@ -124,8 +144,15 @@ for (const failFirst of [false, true])
         false,
       );
       await page.getByRole("button", { name: "Visual", exact: true }).click();
+      await page.waitForFunction(
+        () => document.querySelector("[data-markdown-toolbar]").inert,
+      );
+      releaseCatalog();
       const visual = page.locator(".tiptap");
       await visual.waitFor({ state: "visible" });
+      await page.waitForFunction(
+        () => !document.querySelector("[data-markdown-toolbar]").inert,
+      );
       assert.equal(await page.getByRole("toolbar").count(), 1);
       const active = await toolbar.boundingBox();
       assert.equal(active.width, initial.width);

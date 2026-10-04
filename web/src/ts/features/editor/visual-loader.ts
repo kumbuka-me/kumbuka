@@ -17,9 +17,11 @@ export function initLazyVisualEditor(): void {
     let ready = false;
     let attempts = 0;
     let pending = false;
+    let editorPending = false;
     const syncToolbar = () => {
       if (toolbar)
-        toolbar.inert = pending && form.dataset.editorMode === "visual";
+        toolbar.inert =
+          (pending || editorPending) && form.dataset.editorMode === "visual";
     };
     async function activate(): Promise<void> {
       if (ready || pending) return;
@@ -54,6 +56,11 @@ export function initLazyVisualEditor(): void {
       }
     }
     form.addEventListener("editor:visual-activate", () => void activate());
+    form.addEventListener("editor:visual-loading", (event) => {
+      if (!(event instanceof CustomEvent)) return;
+      editorPending = event.detail === true;
+      syncToolbar();
+    });
     form.addEventListener("editor:mode-change", syncToolbar);
 
     const visualButton = form.querySelector<HTMLButtonElement>(
