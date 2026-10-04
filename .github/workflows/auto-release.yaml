@@ -9,7 +9,9 @@ on:
       - closed
 
 permissions:
+  actions: write
   contents: write
+  issues: write
 
 jobs:
   create-release-tag:
