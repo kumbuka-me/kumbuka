@@ -67,7 +67,7 @@ func Run(
 	defer application.Close(setupLogger)
 
 	// Build the passive HTTP adapter after the application graph is complete.
-	serverConfig, err := bootstrap.NewHTTPConfig(appFS, cfg, infrastructure, application, logger, version, commit)
+	serverConfig, err := bootstrap.NewHTTPConfig(appFS, cfg, infrastructure, application, logger.With("component", "server"), version, commit)
 	if err != nil {
 		setupLogger.Error("initialize HTTP server", "event", "http_init_failed", "error", err)
 		return err
@@ -78,7 +78,7 @@ func Run(
 
 	// Construct both HTTP handlers and run their listeners until shutdown.
 	handlers := httpserver.New(serverConfig)
-	if err := httpserver.Run(ctx, cfg.ApplicationListenAddress, cfg.ManagementListenAddress, handlers, logger); err != nil {
+	if err := httpserver.Run(ctx, cfg.ApplicationListenAddress, cfg.ManagementListenAddress, handlers, logger.With("component", "server")); err != nil {
 		setupLogger.Error("run server", "event", "server_run_failed", "error", err)
 		return err
 	}

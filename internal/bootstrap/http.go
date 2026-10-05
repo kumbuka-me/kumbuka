@@ -40,7 +40,7 @@ func NewHTTPConfig(
 			Assets:                 appFS,
 			Views:                  views,
 			Renderer:               application.renderer,
-			Logger:                 logger.With("component", "server"),
+			Logger:                 logger,
 			AccessLog:              cfg.AccessLog,
 			ReadOnly:               cfg.ReadOnly,
 			MetricsEnabled:         !cfg.DisableMetrics,
