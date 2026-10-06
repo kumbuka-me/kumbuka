@@ -56,7 +56,7 @@ func generate(root string, check bool) error {
 			return fmt.Errorf("package %s does not match unique lock entry", name)
 		}
 		seen[manifest.ID] = true
-		fmt.Fprintf(&out, "{ID:%q, Version:%q, Digest:%#v, ArchiveName:%q},\n", manifest.ID, manifest.Version, pkg.Digest(), archiveName)
+		writeBuiltinPackage(&out, manifest.ID, manifest.Version, pkg.Digest(), archiveName)
 	}
 	out.WriteString("}\n")
 	source, err := format.Source(out.Bytes())
@@ -75,4 +75,16 @@ func generate(root string, check bool) error {
 		return nil
 	}
 	return os.WriteFile(path, source, 0644)
+}
+
+// writeBuiltinPackage emits one readable generated catalog entry.
+func writeBuiltinPackage(out *bytes.Buffer, id, version string, digest [32]byte, archiveName string) {
+	fmt.Fprintf(out, "{\nID: %q,\nVersion: %q,\nDigest: [32]byte{\n", id, version)
+	for offset := 0; offset < len(digest); offset += 8 {
+		for _, value := range digest[offset : offset+8] {
+			fmt.Fprintf(out, "0x%02x, ", value)
+		}
+		out.WriteByte('\n')
+	}
+	fmt.Fprintf(out, "},\nArchiveName: %q,\n},\n", archiveName)
 }

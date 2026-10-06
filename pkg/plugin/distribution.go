@@ -10,13 +10,14 @@ import (
 	"github.com/kumbuka-me/sdk/pluginpackage"
 )
 
-// BuiltinPackage identifies an offline candidate, never an active installation.
+// BuiltinPackage identifies one immutable plugin archive bundled with Kumbuka.
+// It describes an offline installation candidate, not the currently active plugin.
 type BuiltinPackage struct {
 	// ID is the plugin identifier.
 	ID string
 	// Version is the bundled plugin version.
 	Version string
-	// Digest identifies the exact immutable package contents.
+	// Digest is the raw 32-byte SHA-256 digest of the complete package archive.
 	Digest [32]byte
 	// ArchiveName is the embedded package archive filename.
 	ArchiveName string
