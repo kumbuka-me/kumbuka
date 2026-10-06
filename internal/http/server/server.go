@@ -43,19 +43,43 @@ func New(config Config) Handlers {
 }
 
 // Run serves both handlers and stops the remaining listener when either exits.
-func Run(ctx context.Context, applicationAddress, managementAddress string, handlers Handlers, logger *slog.Logger) error {
+func Run(
+	ctx context.Context,
+	appAddress string,
+	managementAddress string,
+	handlers Handlers,
+	logger *slog.Logger,
+) error {
+	// cancel releases the listener context when Run returns, including after the
+	// parent context has already initiated shutdown.
 	listenerContext, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	group, groupContext := errgroup.WithContext(listenerContext)
+
 	group.Go(func() error {
+		// Stop the management listener when the application listener exits.
 		defer cancel()
-		return httpgrace.Run(groupContext, applicationAddress, handlers.Application, logger, httpgrace.WithMaxHeaderValueCount(100))
+		return httpgrace.Run(
+			groupContext,
+			appAddress,
+			handlers.Application,
+			logger,
+			httpgrace.WithMaxHeaderValueCount(100),
+		)
 	})
 	group.Go(func() error {
+		// Stop the application listener when the management listener exits.
 		defer cancel()
-		return httpgrace.Run(groupContext, managementAddress, handlers.Management, logger, httpgrace.WithMaxHeaderValueCount(100))
+		return httpgrace.Run(
+			groupContext,
+			managementAddress,
+			handlers.Management,
+			logger,
+			httpgrace.WithMaxHeaderValueCount(100),
+		)
 	})
+
 	return group.Wait()
 }
 
