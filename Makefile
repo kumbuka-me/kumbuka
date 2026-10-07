@@ -307,7 +307,7 @@ test-web: check-web ## Compile and run the TypeScript frontend unit tests.
 	$(NODE) --test "$$tmp"/test/ts/*.test.js
 
 .PHONY: test-browser
-test-browser: check-web ## Run browser regressions in Chrome.
+test-browser: check-web $(PLUGIN_STAMP) ## Run browser regressions in Chrome.
 	$(NODE) --test --test-concurrency=$(BROWSER_TEST_CONCURRENCY) test/browser/*.test.mjs
 
 .PHONY: test-go
