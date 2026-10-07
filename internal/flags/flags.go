@@ -137,9 +137,12 @@ func Parse(args []string, version string) (Config, error) {
 		sectionTrustedProxy,
 		sectionOIDC,
 		sectionLoggingDiagnostics,
+		tinyflags.EmptyGroup,
 	)
 
 	applyServerFlags := registerServerFlags(tf, &cfg)
+	registerDatabaseFlags(tf, &cfg)
+	registerServiceFlags(tf, &cfg)
 	applyAuthFlags := registerAuthFlags(tf, &cfg)
 	registerTrustedProxyFlags(tf, &cfg)
 	registerOIDCFlags(tf, &cfg)
@@ -158,7 +161,7 @@ func Parse(args []string, version string) (Config, error) {
 	return cfg, nil
 }
 
-// registerServerFlags registers flags for the server configuration.
+// registerServerFlags registers public and management server flags and returns address finalization.
 func registerServerFlags(tf *tinyflags.FlagSet, cfg *Config) func() {
 	tf.StringVar(&cfg.RoutePrefix, "route-prefix", "", "URL path prefix under which Kumbuka is served").
 		Section(sectionServer).
@@ -168,10 +171,7 @@ func registerServerFlags(tf *tinyflags.FlagSet, cfg *Config) func() {
 
 	listen := tf.TCPAddr(
 		"listen-address",
-		&net.TCPAddr{
-			IP:   net.ParseIP("127.0.0.1"),
-			Port: 8080,
-		},
+		&net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 8080},
 		"Address on which the application server listens",
 	).
 		Section(sectionServer).
@@ -181,10 +181,7 @@ func registerServerFlags(tf *tinyflags.FlagSet, cfg *Config) func() {
 
 	management := tf.TCPAddr(
 		"management-listen-address",
-		&net.TCPAddr{
-			IP:   net.ParseIP("127.0.0.1"),
-			Port: 8081,
-		},
+		&net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 8081},
 		"Address on which health, readiness, and metrics listen",
 	).
 		Section(sectionServer).
@@ -192,6 +189,38 @@ func registerServerFlags(tf *tinyflags.FlagSet, cfg *Config) func() {
 		Placeholder("ADDR").
 		Value()
 
+	tf.StringVar(&cfg.PublicURL, "public-url", "http://localhost:8080", "Externally visible base URL").
+		Section(sectionServer).
+		Placeholder("URL").
+		Value()
+
+	tf.BoolVar(
+		&cfg.ReadOnly,
+		"read-only",
+		false,
+		"Block state-changing application requests while keeping reads and authentication available",
+	).
+		Section(sectionServer).
+		Value()
+
+	tf.StringVar(
+		&cfg.ThemeDirectory,
+		"theme-directory",
+		"",
+		"Directory containing custom theme TOML files that override or extend embedded themes",
+	).
+		Section(sectionServer).
+		Placeholder("DIR").
+		Value()
+
+	return func() {
+		cfg.ApplicationListenAddress = (*listen).String()
+		cfg.ManagementListenAddress = (*management).String()
+	}
+}
+
+// registerDatabaseFlags registers PostgreSQL connection and pool sizing flags.
+func registerDatabaseFlags(tf *tinyflags.FlagSet, cfg *Config) {
 	tf.StringVar(&cfg.DatabaseURL, "database-url", "", "PostgreSQL connection URL").
 		Section(sectionDatabase).
 		Required().
@@ -218,17 +247,10 @@ func registerServerFlags(tf *tinyflags.FlagSet, cfg *Config) func() {
 		Section(sectionDatabase).
 		Validate(tinyflags.NonNegative[int32]()).
 		Value()
+}
 
-	tf.StringVar(
-		&cfg.PublicURL,
-		"public-url",
-		"http://localhost:8080",
-		"Externally visible base URL",
-	).
-		Section(sectionServer).
-		Placeholder("URL").
-		Value()
-
+// registerServiceFlags registers deployment overrides for external application services.
+func registerServiceFlags(tf *tinyflags.FlagSet, cfg *Config) {
 	tf.StringVar(
 		&cfg.PDFURL,
 		"pdf-url",
@@ -249,73 +271,9 @@ func registerServerFlags(tf *tinyflags.FlagSet, cfg *Config) func() {
 		Section(sectionServices).
 		Validate(tinyflags.NonNegative[time.Duration]()).
 		Value()
-
-	allowUserRegistrationFlag := tf.BoolVar(
-		utils.ToPtr(false),
-		"allow-user-registration",
-		false,
-		"Deployment override for whether unknown OIDC or trusted-proxy identities may create accounts",
-	).
-		Section(sectionAuthentication).
-		Strict()
-
-	tf.BoolVar(
-		&cfg.ReadOnly,
-		"read-only",
-		false,
-		"Block state-changing application requests while keeping reads and authentication available",
-	).
-		Section(sectionServer).
-		Value()
-
-	tf.BoolVar(
-		&cfg.DisableMetrics,
-		"disable-metrics",
-		false,
-		"Disable Prometheus metrics exposition and HTTP request instrumentation",
-	).
-		Section(sectionLoggingDiagnostics).
-		Value()
-
-	tf.BoolVar(
-		&cfg.PerformanceDiagnostics,
-		"performance-diagnostics",
-		false,
-		"Enable request and browser performance diagnostics",
-	).
-		Section(sectionLoggingDiagnostics).
-		Value()
-
-	tf.BoolVar(
-		&cfg.LocalLogin,
-		"local-login",
-		false,
-		"Enable the local recovery login alongside the configured authentication mode",
-	).
-		Section(sectionAuthentication).
-		Value()
-
-	tf.StringVar(
-		&cfg.ThemeDirectory,
-		"theme-directory",
-		"",
-		"Directory containing custom theme TOML files that override or extend embedded themes",
-	).
-		Section(sectionServer).
-		Placeholder("DIR").
-		Value()
-
-	return func() {
-		cfg.ApplicationListenAddress = (*listen).String()
-		cfg.ManagementListenAddress = (*management).String()
-
-		if allowUserRegistrationFlag.Changed() {
-			cfg.AllowUserRegistrationOverride = allowUserRegistrationFlag.Value()
-		}
-	}
 }
 
-// registerAuthFlags registers flags for the authentication configuration.
+// registerAuthFlags registers cross-mode authentication and recovery flags.
 func registerAuthFlags(tf *tinyflags.FlagSet, cfg *Config) func() {
 	authModeFlag := tinyflags.Enum(
 		tf,
@@ -330,9 +288,41 @@ func registerAuthFlags(tf *tinyflags.FlagSet, cfg *Config) func() {
 		Section(sectionAuthentication).
 		Placeholder("MODE")
 
+	allowUserRegistrationFlag := tf.BoolVar(
+		utils.ToPtr(false),
+		"allow-user-registration",
+		false,
+		"Deployment override for whether unknown OIDC or trusted-proxy identities may create accounts",
+	).
+		Section(sectionAuthentication).
+		Strict()
+
+	tf.BoolVar(
+		&cfg.LocalLogin,
+		"local-login",
+		false,
+		"Enable the local recovery login alongside the configured authentication mode",
+	).
+		Section(sectionAuthentication).
+		Value()
+
+	tf.StringVar(
+		&cfg.EncryptionKey,
+		"encryption-key",
+		"",
+		"Base64-encoded 32-byte key used to encrypt sensitive application settings",
+	).
+		Section(sectionAuthentication).
+		OverriddenValueMaskFn(tinyflags.MaskFirstLast).
+		Validate(secrets.ValidateKey).
+		Value()
+
 	return func() {
 		if authModeFlag.Changed() {
 			cfg.AuthModeOverride = *authModeFlag.Value()
+		}
+		if allowUserRegistrationFlag.Changed() {
+			cfg.AllowUserRegistrationOverride = allowUserRegistrationFlag.Value()
 		}
 	}
 }
@@ -446,21 +436,28 @@ func registerOIDCFlags(tf *tinyflags.FlagSet, cfg *Config) {
 			tinyflags.MinLength(32),
 		)).
 		Value()
-
-	tf.StringVar(
-		&cfg.EncryptionKey,
-		"encryption-key",
-		"",
-		"Base64-encoded 32-byte key used to encrypt sensitive application settings",
-	).
-		Section(sectionAuthentication).
-		OverriddenValueMaskFn(tinyflags.MaskFirstLast).
-		Validate(secrets.ValidateKey).
-		Value()
 }
 
-// registerLoggingFlags registers flags for the logging configuration.
+// registerLoggingFlags registers observability and logging flags.
 func registerLoggingFlags(tf *tinyflags.FlagSet, cfg *Config) func() {
+	tf.BoolVar(
+		&cfg.DisableMetrics,
+		"disable-metrics",
+		false,
+		"Disable Prometheus metrics exposition and HTTP request instrumentation",
+	).
+		Section(sectionLoggingDiagnostics).
+		Value()
+
+	tf.BoolVar(
+		&cfg.PerformanceDiagnostics,
+		"performance-diagnostics",
+		false,
+		"Enable request and browser performance diagnostics",
+	).
+		Section(sectionLoggingDiagnostics).
+		Value()
+
 	logFormat := tinyflags.Enum(
 		tf,
 		"log-format",
