@@ -63,7 +63,6 @@ RUN --mount=type=cache,target=/go/pkg/mod \
   && GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH:-$(go env GOARCH)} \
   go build \
   -ldflags="$LDFLAGS" \
-  -a \
   -o kumbuka \
   cmd/kumbuka/main.go
 
@@ -91,5 +90,4 @@ WORKDIR /app
 USER 65532:0
 
 ENTRYPOINT ["/kumbuka"]
-
 

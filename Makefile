@@ -4,6 +4,7 @@
 
 WEB_BUILD := scripts/web/build.sh
 WEB_BUILD_STAMP := web/dist/.build-stamp
+WEB_SOURCE_MANIFEST := build/web-sources.cksum
 CSS_BUILD := scripts/web/build-css.sh
 CSS_ENTRY := web/src/css/app.css
 CSS_OUTPUT := web/dist/css/app.css
@@ -12,7 +13,6 @@ NPM ?= npm
 NPX ?= npx
 TSC ?= ./node_modules/.bin/tsc
 NODE_MODULES := node_modules/.package-lock.json
-WEB_SOURCES := $(shell find web/src scripts/web -type f) package.json package-lock.json tsconfig.json
 
 ## Plugins
 
@@ -158,9 +158,19 @@ css: ## Bundle split CSS sources into web/dist/css/app.css.
 .PHONY: web
 web: $(WEB_BUILD_STAMP) ## Build the frontend distribution from web/src.
 
-$(WEB_BUILD_STAMP): $(WEB_SOURCES) | $(NODE_MODULES)
+$(WEB_SOURCE_MANIFEST): FORCE
+	@mkdir -p "$(dir $@)"
+	@tmp="$@.tmp"; \
+	{ find web/src scripts/web -type f -exec cksum {} \;; cksum package.json package-lock.json tsconfig.json; } \
+		| LC_ALL=C sort > "$$tmp"; \
+	if ! cmp -s "$$tmp" "$@"; then mv "$$tmp" "$@"; else rm -f "$$tmp"; fi
+
+$(WEB_BUILD_STAMP): $(WEB_SOURCE_MANIFEST) | $(NODE_MODULES)
 	@CSS_BUILD="$(CSS_BUILD)" CSS_ENTRY="$(CSS_ENTRY)" CSS_OUTPUT="$(CSS_OUTPUT)" TSC="$(TSC)" $(WEB_BUILD)
 	@touch "$@"
+
+.PHONY: FORCE
+FORCE:
 
 .PHONY: check-web
 check-web: web ## Build the frontend and verify browser assets.
