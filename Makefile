@@ -3,6 +3,7 @@
 ## Frontend
 
 WEB_BUILD := scripts/web/build.sh
+WEB_BUILD_STAMP := web/dist/.build-stamp
 CSS_BUILD := scripts/web/build-css.sh
 CSS_ENTRY := web/src/css/app.css
 CSS_OUTPUT := web/dist/css/app.css
@@ -11,6 +12,7 @@ NPM ?= npm
 NPX ?= npx
 TSC ?= ./node_modules/.bin/tsc
 NODE_MODULES := node_modules/.package-lock.json
+WEB_SOURCES := $(shell find web/src scripts/web -type f) package.json package-lock.json tsconfig.json
 
 ## Plugins
 
@@ -51,14 +53,16 @@ COMMAND ?= ./cmd/kumbuka
 GO_TEST_RACE_FLAGS ?= -p=2 -parallel=4
 BROWSER_TEST_CONCURRENCY ?= 2
 RACE_TEST_PACKAGES := ./pkg/markdown ./pkg/plugin ./pkg/plugin/wasm ./internal/postgres
-RACE_TEST_PATTERN := ^( \
-	TestMacroCapabilitiesStayRequestLocal| \
-	TestRegistryConcurrentSnapshotsAndRemoval| \
-	TestWASMRequestsAreIsolatedAndSerialized| \
-	TestCapabilitiesUseCurrentRequestAndRecoverFromHostPanic| \
-	TestUpgradeDuringRenderingKeepsWholeSnapshotAlive| \
-	TestConcurrentStartupMigrations \
-)$$
+empty :=
+space := $(empty) $(empty)
+RACE_TEST_NAMES := \
+	TestMacroCapabilitiesStayRequestLocal \
+	TestRegistryConcurrentSnapshotsAndRemoval \
+	TestWASMRequestsAreIsolatedAndSerialized \
+	TestCapabilitiesUseCurrentRequestAndRecoverFromHostPanic \
+	TestUpgradeDuringRenderingKeepsWholeSnapshotAlive \
+	TestConcurrentStartupMigrations
+RACE_TEST_PATTERN := ^($(subst $(space),|,$(strip $(RACE_TEST_NAMES))))$$
 RUN_ARGS ?=
 BUILD_VERSION ?= dev
 BUILD_COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo none)
@@ -152,8 +156,11 @@ css: ## Bundle split CSS sources into web/dist/css/app.css.
 	@CSS_ENTRY="$(CSS_ENTRY)" CSS_OUTPUT="$(CSS_OUTPUT)" $(CSS_BUILD)
 
 .PHONY: web
-web: $(NODE_MODULES) ## Build the frontend distribution from web/src.
+web: $(WEB_BUILD_STAMP) ## Build the frontend distribution from web/src.
+
+$(WEB_BUILD_STAMP): $(WEB_SOURCES) | $(NODE_MODULES)
 	@CSS_BUILD="$(CSS_BUILD)" CSS_ENTRY="$(CSS_ENTRY)" CSS_OUTPUT="$(CSS_OUTPUT)" TSC="$(TSC)" $(WEB_BUILD)
+	@touch "$@"
 
 .PHONY: check-web
 check-web: web ## Build the frontend and verify browser assets.
@@ -303,9 +310,12 @@ test-web: check-web ## Compile and run the TypeScript frontend unit tests.
 test-browser: check-web ## Run browser regressions in Chrome.
 	$(NODE) --test --test-concurrency=$(BROWSER_TEST_CONCURRENCY) test/browser/*.test.mjs
 
-.PHONY: test
-test: test-web vet ## Run frontend and backend unit tests.
+.PHONY: test-go
+test-go: web plugins ## Run backend unit tests.
 	go test -count=1 -timeout=3m ./...
+
+.PHONY: test
+test: test-web test-go ## Run frontend and backend unit tests.
 
 .PHONY: bench
 bench: web plugins ## Run Go benchmark tests.
@@ -389,8 +399,20 @@ check-templates: ## Check Go HTML template formatting.
 check-go-docs: ## Verify GoDoc summaries for authored functions, structs, and struct fields.
 	go run ./scripts/check-go-docs .
 
+.PHONY: check-format
+check-format: ## Verify Go formatting and whitespace.
+	@unformatted="$$(gofmt -l .)"; \
+	if [ -n "$$unformatted" ]; then \
+		printf 'Go files need formatting:\n%s\n' "$$unformatted"; \
+		exit 1; \
+	fi
+	git diff --check
+
 .PHONY: lint
 lint: typecheck check-web check-go-docs lint-go ## Run all linters and formatting checks.
+
+.PHONY: verify
+verify: check-generated check-format lint vet test ## Run the complete local verification suite except race and browser tests.
 
 .PHONY: lint-go
 lint-go: web golangci-lint ## Run golangci-lint.

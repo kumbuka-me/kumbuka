@@ -1,12 +1,10 @@
 ---
-name: Unit Tests
+name: Tests
 
 on:
   workflow_call:
-
   pull_request:
-    branches:
-      - main
+    branches: [main]
     paths:
       - "internal/**"
       - "pkg/**"
@@ -28,61 +26,178 @@ on:
       - ".github/workflows/*.yaml"
   workflow_dispatch:
 
+concurrency:
+  group: tests-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
 jobs:
-  tests:
-    name: Run Tests
+  frontend:
+    name: Build frontend
     runs-on: ubuntu-latest
-
-    permissions:
-      contents: read
-
+    timeout-minutes: 10
     steps:
       - name: Check out code
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
-
       - name: Set up Go
         uses: actions/setup-go@v7
         with:
-          go-version-file: "go.mod"
+          go-version-file: go.mod
           check-latest: true
           cache: true
-
       - name: Set up Node
         uses: actions/setup-node@v7
         with:
           node-version: "24"
-          cache: "npm"
-
+          cache: npm
       - name: Install dependencies
         run: make download
-
-      - name: Generate catalog and build frontend
-        run: make check-generated web
-
-      - name: Check generated files and formatting
-        run: |
-          unformatted=$(gofmt -l .)
-          if [ -n "$unformatted" ]; then
-            printf 'Go files need formatting:\n%s\n' "$unformatted"
-            exit 1
-          fi
-          make lint-go
-          git diff --check
-
-      - name: Run tests
-        run: make test
-
-      - name: Run race tests
-        run: make test-race
-
-      - name: Run browser tests
-        run: make test-browser
-
-      - name: Upload web dist artifact
+      - name: Build and test frontend
+        run: make web test-web
+      - name: Upload web distribution
         uses: actions/upload-artifact@v7
         with:
           name: web-dist
           path: web/dist
+          include-hidden-files: true
           if-no-files-found: error
+          retention-days: 1
+
+  quality:
+    name: Generated files and lint
+    needs: frontend
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          check-latest: true
+          cache: true
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: npm
+      - name: Install dependencies
+        run: make download
+      - name: Download frontend
+        uses: actions/download-artifact@v8
+        with:
+          name: web-dist
+          path: web/dist
+      - name: Restore frontend build stamp
+        run: touch web/dist/.build-stamp
+      - name: Check generated files and formatting
+        run: make check-generated check-format
+      - name: Run linters
+        run: make lint vet
+
+  go-tests:
+    name: Go tests
+    needs: frontend
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v7
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          check-latest: true
+          cache: true
+      - name: Download frontend
+        uses: actions/download-artifact@v8
+        with:
+          name: web-dist
+          path: web/dist
+      - name: Restore frontend build stamp
+        run: touch web/dist/.build-stamp
+      - name: Download plugins
+        run: make plugins
+      - name: Run Go tests
+        run: make test-go
+
+  race-tests:
+    name: Race tests
+    needs: frontend
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v7
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          check-latest: true
+          cache: true
+      - name: Download frontend
+        uses: actions/download-artifact@v8
+        with:
+          name: web-dist
+          path: web/dist
+      - name: Restore frontend build stamp
+        run: touch web/dist/.build-stamp
+      - name: Download plugins
+        run: make plugins
+      - name: Run race tests
+        run: make test-race
+
+  browser-tests:
+    name: Browser tests
+    needs: frontend
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v7
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Download frontend
+        uses: actions/download-artifact@v8
+        with:
+          name: web-dist
+          path: web/dist
+      - name: Restore frontend build stamp
+        run: touch web/dist/.build-stamp
+      - name: Run browser tests
+        run: make test-browser
+
+  required:
+    name: Required tests
+    if: always()
+    needs:
+      - frontend
+      - quality
+      - go-tests
+      - race-tests
+      - browser-tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Verify required jobs
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          for result in $RESULTS; do
+            if [[ "$result" != success ]]; then
+              printf 'Required jobs did not pass: %s\n' "$RESULTS"
+              exit 1
+            fi
+          done
