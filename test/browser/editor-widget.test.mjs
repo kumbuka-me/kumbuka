@@ -101,6 +101,7 @@ test("visual widget exactly-one fields switch modes and focus added rows", async
     const nextSet = nextDialog.getByLabel("Reusable set");
     await nextSet.fill("custom1");
     const nextStatuses = nextDialog.getByLabel("Status", { exact: true });
+    await nextStatuses.first().waitFor({ state: "visible" });
     assert.equal(await nextStatuses.count(), 1);
     assert.equal(await nextStatuses.first().inputValue(), "");
     await nextDialog.getByRole("button", { name: "Apply" }).click();
