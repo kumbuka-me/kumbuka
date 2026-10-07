@@ -49,6 +49,12 @@ type TransactionRunner interface {
 	Run(context.Context, func(Repository) error) error
 }
 
+// NavigationIconInvalidator invalidates navigation icons after imported pages commit.
+type NavigationIconInvalidator interface {
+	// InvalidateIcons discards any cached navigation icon snapshot.
+	InvalidateIcons()
+}
+
 // ProgressRecorder records one successfully committed portable import.
 type ProgressRecorder interface {
 	RecordPortableImport(context.Context, domain.User, int)
@@ -62,11 +68,23 @@ type Importer struct {
 	mutations *pages.Mutations
 	// progress records the committed page count after the transaction succeeds.
 	progress ProgressRecorder
+	// navigationIcons invalidates cached page-path icons after the import commits.
+	navigationIcons NavigationIconInvalidator
 }
 
 // NewImporter constructs portable archive restoration around an explicit transaction runner.
-func NewImporter(transaction TransactionRunner, mutations *pages.Mutations, progress ProgressRecorder) *Importer {
-	return &Importer{transaction: transaction, mutations: mutations, progress: progress}
+func NewImporter(
+	transaction TransactionRunner,
+	mutations *pages.Mutations,
+	progress ProgressRecorder,
+	navigationIcons NavigationIconInvalidator,
+) *Importer {
+	return &Importer{
+		transaction:     transaction,
+		mutations:       mutations,
+		progress:        progress,
+		navigationIcons: navigationIcons,
+	}
 }
 
 // Restore commits all archived resources, groups, and pages together.
@@ -86,6 +104,9 @@ func (i *Importer) Restore(ctx context.Context, archive portable.Archive, actor 
 	})
 	if err != nil {
 		return 0, err
+	}
+	if i.navigationIcons != nil {
+		i.navigationIcons.InvalidateIcons()
 	}
 	if i.progress != nil {
 		i.progress.RecordPortableImport(ctx, actor, count)

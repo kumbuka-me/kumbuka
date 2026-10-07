@@ -105,6 +105,18 @@ func (s *Navigation) NavigationIcons(ctx context.Context) (map[string]string, er
 	return maps.Clone(s.icons), nil
 }
 
+// InvalidateIcons discards cached navigation icons after another workflow changes their persisted state.
+func (s *Navigation) InvalidateIcons() {
+	if s == nil {
+		return
+	}
+
+	s.iconsMu.Lock()
+	s.icons = nil
+	s.iconsLoaded = false
+	s.iconsMu.Unlock()
+}
+
 // SetNavigationIcon sets or clears the icon for a navigation path.
 func (s *Navigation) SetNavigationIcon(ctx context.Context, path, icon string) error {
 	path = strings.Trim(strings.TrimSpace(path), "/")

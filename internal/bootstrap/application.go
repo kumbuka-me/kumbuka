@@ -165,7 +165,9 @@ func (a *Application) composeUseCases(cfg flags.Config, infrastructure *Infrastr
 		cfg.PublicURL,
 	).WithUserDirectory(database)
 	a.access = appaccess.NewAccess(database)
-	a.pageMutations = apppages.NewMutations(database, a.access, database, logger, a.webhooks)
+	a.navigation = appnavigation.NewNavigation(database, a.access)
+	a.pageMutations = apppages.NewMutations(database, a.access, database, logger, a.webhooks).
+		WithNavigationIconInvalidator(a.navigation)
 	a.pagePresence = apppages.NewPresence(database, a.access)
 	a.pageDiscussions = apppages.NewDiscussions(database, a.access, database, logger, a.webhooks)
 	a.pageReviews = apppages.NewReviews(database, a.access, database, logger, a.webhooks)
@@ -194,10 +196,10 @@ func (a *Application) composeUseCases(cfg flags.Config, infrastructure *Infrastr
 		newPortableImportTransactionRunner(database),
 		a.pageMutations,
 		a.pageBulk,
+		a.navigation,
 	)
-	a.navigation = appnavigation.NewNavigation(database, a.access)
 	a.preferences = apppreferences.NewPreferences(database)
-	a.recycleBin = apprecyclebin.NewRecycleBin(database)
+	a.recycleBin = apprecyclebin.NewRecycleBin(database, a.navigation)
 	a.settings = appsettings.NewSettings(database, secretCipher, logger.With("component", "settings"))
 	a.system = appsystem.NewSystem(database, logger.With("component", "system"), infrastructure.setupState)
 	a.templates = apptemplates.NewTemplates(database)

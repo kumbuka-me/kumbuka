@@ -28,6 +28,13 @@ type importProgressStub struct {
 	count int
 }
 
+// navigationIconCacheStub records post-commit cache invalidations.
+type navigationIconCacheStub struct {
+	calls int
+}
+
+func (s *navigationIconCacheStub) InvalidateIcons() { s.calls++ }
+
 type transactionRunnerStub func(context.Context, func(Repository) error) error
 
 func (run transactionRunnerStub) Run(ctx context.Context, work func(Repository) error) error {
@@ -42,6 +49,7 @@ func (s *importProgressStub) RecordPortableImport(_ context.Context, _ domain.Us
 
 func TestImporterRecordsProgressAfterCommit(t *testing.T) {
 	progress := &importProgressStub{}
+	cache := &navigationIconCacheStub{}
 	transactionCalls := 0
 	importer := NewImporter(
 		transactionRunnerStub(func(ctx context.Context, run func(Repository) error) error {
@@ -50,6 +58,7 @@ func TestImporterRecordsProgressAfterCommit(t *testing.T) {
 		}),
 		nil,
 		progress,
+		cache,
 	)
 
 	count, err := importer.Restore(context.Background(), portable.Archive{}, domain.User{ID: 7})
@@ -57,12 +66,14 @@ func TestImporterRecordsProgressAfterCommit(t *testing.T) {
 	require.NoError(t, err)
 	assert.Zero(t, count)
 	assert.Equal(t, 1, transactionCalls)
+	assert.Equal(t, 1, cache.calls)
 	assert.Equal(t, 1, progress.calls)
 	assert.Zero(t, progress.count)
 }
 
 func TestImporterDoesNotRecordProgressWhenRestoreFails(t *testing.T) {
 	progress := &importProgressStub{}
+	cache := &navigationIconCacheStub{}
 	wantErr := errors.New("load groups")
 	importer := NewImporter(
 		transactionRunnerStub(func(_ context.Context, run func(Repository) error) error {
@@ -70,17 +81,20 @@ func TestImporterDoesNotRecordProgressWhenRestoreFails(t *testing.T) {
 		}),
 		nil,
 		progress,
+		cache,
 	)
 
 	count, err := importer.Restore(context.Background(), portable.Archive{}, domain.User{ID: 7})
 
 	require.ErrorIs(t, err, wantErr)
 	assert.Zero(t, count)
+	assert.Zero(t, cache.calls)
 	assert.Zero(t, progress.calls)
 }
 
 func TestImporterDoesNotRecordProgressWhenCommitFails(t *testing.T) {
 	progress := &importProgressStub{}
+	cache := &navigationIconCacheStub{}
 	wantErr := errors.New("commit transaction")
 	importer := NewImporter(
 		transactionRunnerStub(func(_ context.Context, run func(Repository) error) error {
@@ -91,11 +105,13 @@ func TestImporterDoesNotRecordProgressWhenCommitFails(t *testing.T) {
 		}),
 		nil,
 		progress,
+		cache,
 	)
 
 	count, err := importer.Restore(context.Background(), portable.Archive{}, domain.User{ID: 7})
 
 	require.ErrorIs(t, err, wantErr)
 	assert.Zero(t, count)
+	assert.Zero(t, cache.calls)
 	assert.Zero(t, progress.calls)
 }

@@ -13,15 +13,23 @@ type recycleBinRepository interface {
 	PermanentlyDeletePage(context.Context, string) error
 }
 
+// NavigationIconInvalidator invalidates navigation icons after permanent deletion removes orphaned paths.
+type NavigationIconInvalidator interface {
+	// InvalidateIcons discards any cached navigation icon snapshot.
+	InvalidateIcons()
+}
+
 // RecycleBin exposes deleted-page lifecycle use cases.
 type RecycleBin struct {
 	// repository provides the persistence operations required by recycle bin.
 	repository recycleBinRepository
+	// navigationIcons invalidates cached paths after orphaned icons are removed.
+	navigationIcons NavigationIconInvalidator
 }
 
 // NewRecycleBin constructs the deleted-page service.
-func NewRecycleBin(repository recycleBinRepository) *RecycleBin {
-	return &RecycleBin{repository: repository}
+func NewRecycleBin(repository recycleBinRepository, navigationIcons NavigationIconInvalidator) *RecycleBin {
+	return &RecycleBin{repository: repository, navigationIcons: navigationIcons}
 }
 
 // DeletedPages returns pages currently held in the recycle bin.
@@ -36,5 +44,12 @@ func (s *RecycleBin) RestorePage(ctx context.Context, slug string) error {
 
 // PermanentlyDeletePage removes a page already held in the recycle bin.
 func (s *RecycleBin) PermanentlyDeletePage(ctx context.Context, slug string) error {
-	return s.repository.PermanentlyDeletePage(ctx, slug)
+	if err := s.repository.PermanentlyDeletePage(ctx, slug); err != nil {
+		return err
+	}
+	if s.navigationIcons != nil {
+		s.navigationIcons.InvalidateIcons()
+	}
+
+	return nil
 }

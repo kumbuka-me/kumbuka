@@ -25,6 +25,8 @@ type pageSaveRepositoryStub struct {
 	render domain.PageRender
 	// previous configures the page returned before an edit.
 	previous domain.Page
+	// saveErr configures a persistence failure.
+	saveErr error
 }
 
 func (r *pageSaveRepositoryStub) SavePage(
@@ -37,12 +39,24 @@ func (r *pageSaveRepositoryStub) SavePage(
 	render domain.PageRender,
 	_ domain.User,
 ) (domain.Page, error) {
+	if r.saveErr != nil {
+		return domain.Page{}, r.saveErr
+	}
+
 	r.slug = slug
 	r.metadata = metadata
 	r.render = render
 
 	return domain.Page{ID: 7, Slug: slug, Title: title, Markdown: markdown}, nil
 }
+
+// navigationIconCacheStub records cache invalidations triggered by page mutations.
+type navigationIconCacheStub struct {
+	// calls counts cache invalidations observed by the test double.
+	calls int
+}
+
+func (s *navigationIconCacheStub) InvalidateIcons() { s.calls++ }
 
 func (r *pageSaveRepositoryStub) GetPage(context.Context, string) (domain.Page, error) {
 	return r.previous, nil
@@ -140,6 +154,31 @@ func TestSavePersistsDerivedPluginUsage(t *testing.T) {
 	assert.Equal(t, want, *repository.metadata.PluginUsage)
 }
 
+func TestSaveInvalidatesNavigationIconsOnlyAfterPersistenceSucceeds(t *testing.T) {
+	t.Parallel()
+
+	cache := &navigationIconCacheStub{}
+	repository := &pageSaveRepositoryStub{}
+	mutations := NewMutations(repository, nil, nil, slog.Default()).WithNavigationIconInvalidator(cache)
+
+	_, err := mutations.save(context.Background(), PageSaveInput{
+		Slug:   "guide",
+		Title:  "Guide",
+		Status: domain.PageStatusVerified,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, 1, cache.calls)
+
+	repository.saveErr = errors.New("save failed")
+	_, err = mutations.save(context.Background(), PageSaveInput{
+		Slug:   "guide",
+		Title:  "Guide",
+		Status: domain.PageStatusVerified,
+	})
+	require.Error(t, err)
+	assert.Equal(t, 1, cache.calls)
+}
+
 func TestSaveEmitsCommittedContentChange(t *testing.T) {
 	t.Parallel()
 	repository := &pageSaveRepositoryStub{previous: domain.Page{Slug: "guide", Markdown: "old"}}
@@ -225,6 +264,42 @@ func TestMoveValidatesDestinationBeforePersistence(t *testing.T) {
 
 	require.True(t, ok)
 	assert.Equal(t, "slug", validation.Fields[0].Field)
+}
+
+// pageMoveRepositoryStub records one committed page move.
+type pageMoveRepositoryStub struct {
+	pageContentRepository
+	// moved reports whether MovePage completed.
+	moved bool
+}
+
+func (s *pageMoveRepositoryStub) MovePage(context.Context, string, string, domain.MovePageOptions, domain.User) error {
+	s.moved = true
+	return nil
+}
+
+func (s *pageMoveRepositoryStub) GetPage(_ context.Context, slug string) (domain.Page, error) {
+	return domain.Page{ID: 7, Slug: slug, Title: "Guide"}, nil
+}
+
+func TestMoveInvalidatesNavigationIconsAfterPersistence(t *testing.T) {
+	t.Parallel()
+
+	repository := &pageMoveRepositoryStub{}
+	cache := &navigationIconCacheStub{}
+	mutations := NewMutations(repository, nil, nil, slog.Default()).WithNavigationIconInvalidator(cache)
+
+	err := mutations.Move(
+		context.Background(),
+		"guide",
+		"archive/guide",
+		domain.MovePageOptions{},
+		domain.User{ID: 7},
+	)
+
+	require.NoError(t, err)
+	assert.True(t, repository.moved)
+	assert.Equal(t, 1, cache.calls)
 }
 
 func TestSaveSlugResolution(t *testing.T) {
@@ -420,4 +495,23 @@ func TestBulkMoveDelegatesAsSinglePersistenceOperation(t *testing.T) {
 	assert.Equal(t, 1, repository.calls)
 	assert.Equal(t, slugs, repository.slugs)
 	assert.Equal(t, "archive", repository.target)
+}
+
+func TestBulkMoveInvalidatesNavigationIcons(t *testing.T) {
+	t.Parallel()
+
+	repository := &bulkMoveRepositoryStub{}
+	cache := &navigationIconCacheStub{}
+	mutations := NewMutations(nil, nil, nil, slog.Default()).WithNavigationIconInvalidator(cache)
+	pages := NewBulk(repository, mutations, nil, slog.Default())
+
+	err := pages.Bulk(context.Background(), BulkPageInput{
+		Action: BulkPageActionMove,
+		Slugs:  []string{"guide"},
+		Target: "archive",
+		Actor:  domain.User{ID: 7},
+	})
+
+	require.NoError(t, err)
+	assert.Equal(t, 1, cache.calls)
 }

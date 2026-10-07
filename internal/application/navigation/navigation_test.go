@@ -104,6 +104,25 @@ func TestNavigationIconsCachesRepositoryResult(t *testing.T) {
 	assert.Equal(t, "folder-lucide", third["platform"])
 }
 
+func TestInvalidateIconsReloadsRepositoryState(t *testing.T) {
+	t.Parallel()
+
+	repository := &navigationRepositoryStub{icons: map[string]string{"platform": "folder-lucide"}}
+	navigation := NewNavigation(repository, nil)
+
+	first, err := navigation.NavigationIcons(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, "folder-lucide", first["platform"])
+
+	repository.icons = map[string]string{"platform": "book-lucide"}
+	navigation.InvalidateIcons()
+
+	second, err := navigation.NavigationIcons(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, 2, repository.iconCalls)
+	assert.Equal(t, "book-lucide", second["platform"])
+}
+
 func TestSetNavigationIconUpdatesWarmCache(t *testing.T) {
 	t.Parallel()
 

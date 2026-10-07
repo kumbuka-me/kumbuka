@@ -80,6 +80,12 @@ type pageIconValidator interface {
 	IsIcon(string) bool
 }
 
+// NavigationIconInvalidator invalidates navigation icons cached outside page persistence.
+type NavigationIconInvalidator interface {
+	// InvalidateIcons discards any cached navigation icon snapshot.
+	InvalidateIcons()
+}
+
 // PageContentChange describes canonical Markdown before and after one committed page mutation.
 type PageContentChange struct {
 	// Page contains the committed page version.
@@ -108,6 +114,8 @@ type Mutations struct {
 	content pageContentPreparer
 	// icons validates page icons against the active built-in and plugin catalog.
 	icons pageIconValidator
+	// navigationIcons invalidates cached path icons after committed page writes.
+	navigationIcons NavigationIconInvalidator
 	// contentChangeSink receives committed canonical Markdown mutations.
 	contentChangeSink pageContentChangeSink
 }
@@ -138,6 +146,12 @@ func (s *Mutations) WithNotifications(sender NotificationSender) *Mutations {
 // WithIconValidator uses the active icon capability for page validation.
 func (s *Mutations) WithIconValidator(validator pageIconValidator) *Mutations {
 	s.icons = validator
+	return s
+}
+
+// WithNavigationIconInvalidator invalidates cached navigation icons after committed page writes.
+func (s *Mutations) WithNavigationIconInvalidator(cache NavigationIconInvalidator) *Mutations {
+	s.navigationIcons = cache
 	return s
 }
 
@@ -258,7 +272,13 @@ func (s *Mutations) save(ctx context.Context, input PageSaveInput) (domain.Page,
 		return domain.Page{}, err
 	}
 
-	return s.persistPageSave(ctx, input, metadata, render)
+	page, err := s.persistPageSave(ctx, input, metadata, render)
+	if err != nil {
+		return domain.Page{}, err
+	}
+
+	s.invalidateNavigationIcons()
+	return page, nil
 }
 
 // savePortable validates and persists one portable-import page through an explicit repository.
@@ -412,6 +432,8 @@ func (s *Mutations) Move(
 	if err := s.repository.MovePage(ctx, oldSlug, newSlug, options, actor); err != nil {
 		return err
 	}
+	s.invalidateNavigationIcons()
+
 	page, err := s.repository.GetPage(ctx, newSlug)
 	if err != nil {
 		return err
@@ -421,6 +443,13 @@ func (s *Mutations) Move(
 	s.effects.notifyWatchers(ctx, actor.ID, oldSlug, "Page moved: "+oldSlug, "The watched page moved to "+newSlug+".", pageurl.Page(page.ID, page.Slug))
 
 	return nil
+}
+
+// invalidateNavigationIcons discards cached icons after persistence changes their paths or values.
+func (s *Mutations) invalidateNavigationIcons() {
+	if s.navigationIcons != nil {
+		s.navigationIcons.InvalidateIcons()
+	}
 }
 
 // Review records a completed documentation review and its audit event.
