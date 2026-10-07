@@ -85,15 +85,7 @@ func scanPageSummary(row pgx.Row) (domain.Page, error) {
 	return page, err
 }
 
-// GetPage returns one complete page in a single PostgreSQL round trip.
-func (s *Store) GetPage(ctx context.Context, slug string) (domain.Page, error) {
-	var page domain.Page
-	var pluginUsage json.RawMessage
-	var renderedContents json.RawMessage
-	var groups json.RawMessage
-	var properties json.RawMessage
-
-	err := s.importQuery(ctx).QueryRow(ctx, `
+const completePageSelect = `
 SELECT
   p.id,
   p.slug,
@@ -143,7 +135,22 @@ SELECT
 FROM pages p
 LEFT JOIN users u ON u.id=p.updated_by
 LEFT JOIN wiki_groups owner ON owner.id=p.owner_group_id
-WHERE p.slug=$1 AND p.deleted_at IS NULL`, slug).Scan(
+WHERE p.slug=$1 AND p.deleted_at IS NULL`
+
+// GetPage returns one complete page in a single PostgreSQL round trip.
+func (s *Store) GetPage(ctx context.Context, slug string) (domain.Page, error) {
+	return scanCompletePage(s.query(ctx).QueryRow(ctx, completePageSelect, slug))
+}
+
+// scanCompletePage scans the full page projection and restores its structured metadata.
+func scanCompletePage(row pgx.Row) (domain.Page, error) {
+	var page domain.Page
+	var pluginUsage json.RawMessage
+	var renderedContents json.RawMessage
+	var groups json.RawMessage
+	var properties json.RawMessage
+
+	err := row.Scan(
 		&page.ID,
 		&page.Slug,
 		&page.Title,
@@ -178,27 +185,41 @@ WHERE p.slug=$1 AND p.deleted_at IS NULL`, slug).Scan(
 	}
 
 	decodePagePluginUsage(&page, pluginUsage)
-	if len(renderedContents) != 0 {
-		if err := json.Unmarshal(renderedContents, &page.Render.Contents); err != nil {
-			// Render artifacts are derived data. Corrupt metadata must fall back to
-			// the canonical Markdown instead of making the page unavailable.
-			page.Render = domain.PageRender{}
-		}
+	decodePageRenderContents(&page, renderedContents)
+	if err := decodePageCollections(&page, groups, properties); err != nil {
+		return domain.Page{}, err
 	}
+	return page, nil
+}
+
+// decodePageRenderContents restores optional rebuildable render metadata and discards corrupt artifacts.
+func decodePageRenderContents(page *domain.Page, raw json.RawMessage) {
+	if len(raw) == 0 {
+		return
+	}
+	if err := json.Unmarshal(raw, &page.Render.Contents); err != nil {
+		// Render artifacts are derived data. Corrupt metadata must fall back to
+		// the canonical Markdown instead of making the page unavailable.
+		page.Render = domain.PageRender{}
+	}
+}
+
+// decodePageCollections restores persisted group and property collections attached to a page.
+func decodePageCollections(page *domain.Page, groups, properties json.RawMessage) error {
 	if err := json.Unmarshal(groups, &page.Groups); err != nil {
-		return domain.Page{}, fmt.Errorf("decode page groups: %w", err)
+		return fmt.Errorf("decode page groups: %w", err)
 	}
 	if len(page.Groups) == 0 {
 		page.Groups = nil
 	}
+
 	if err := json.Unmarshal(properties, &page.Properties); err != nil {
-		return domain.Page{}, fmt.Errorf("decode page properties: %w", err)
+		return fmt.Errorf("decode page properties: %w", err)
 	}
 	if len(page.Properties) == 0 {
 		page.Properties = nil
 	}
-
-	return page, nil
+	return nil
 }
 
 // decodePagePluginUsage restores optional rebuildable plugin-usage metadata.
@@ -379,7 +400,7 @@ func (s *Store) SavePage(
 		return domain.Page{}, err
 	}
 
-	if tx, active := s.activeImportTransaction(ctx); active {
+	if tx, active := s.activeTransaction(ctx); active {
 		if err := validateAssignableGroup(ctx, tx, mutation.record.metadata.OwnerGroupID, mutation.user); err != nil {
 			return domain.Page{}, mutationError(err)
 		}
