@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/kumbuka-me/kumbuka/internal/flags"
 	"github.com/kumbuka-me/kumbuka/internal/http/auth"
@@ -79,4 +80,65 @@ func TestAuthenticatedPluginRequest(t *testing.T) {
 
 		assert.True(t, authenticatedPluginRequest(request.Context()))
 	})
+}
+
+// blockingApplicationWorker records cancellation and waits for explicit release before returning.
+type blockingApplicationWorker struct {
+	// started closes after Run begins.
+	started chan struct{}
+	// canceled closes after Run observes application cancellation.
+	canceled chan struct{}
+	// release allows Run to return after cancellation.
+	release chan struct{}
+}
+
+// Run blocks until the application cancels the worker and the test releases it.
+func (w *blockingApplicationWorker) Run(ctx context.Context) {
+	close(w.started)
+	<-ctx.Done()
+	close(w.canceled)
+	<-w.release
+}
+
+func TestApplicationCloseCancelsAndJoinsBackgroundWorkers(t *testing.T) {
+	t.Parallel()
+
+	worker := &blockingApplicationWorker{
+		started:  make(chan struct{}),
+		canceled: make(chan struct{}),
+		release:  make(chan struct{}),
+	}
+	application := &Application{backgroundWorkers: []applicationWorker{worker}}
+	application.Start(context.Background())
+
+	select {
+	case <-worker.started:
+	case <-time.After(time.Second):
+		t.Fatal("background worker did not start")
+	}
+
+	closed := make(chan struct{})
+	go func() {
+		application.Close(nil)
+		close(closed)
+	}()
+
+	select {
+	case <-worker.canceled:
+	case <-time.After(time.Second):
+		t.Fatal("background worker was not canceled")
+	}
+
+	select {
+	case <-closed:
+		t.Fatal("application closed before background worker returned")
+	default:
+	}
+
+	close(worker.release)
+	select {
+	case <-closed:
+	case <-time.After(time.Second):
+		t.Fatal("application did not finish closing after background worker returned")
+	}
 }

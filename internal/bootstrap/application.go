@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"sync"
 	"time"
 
 	appaccess "github.com/kumbuka-me/kumbuka/internal/application/access"
@@ -37,6 +38,11 @@ import (
 )
 
 const rendererShutdownTimeout = 10 * time.Second
+
+// applicationWorker runs application-owned background work until its context is canceled.
+type applicationWorker interface {
+	Run(context.Context)
+}
 
 // Application contains the composed application graph and owned background runtime.
 type Application struct {
@@ -121,12 +127,12 @@ type Application struct {
 	// pluginAdmin coordinates plugin lifecycle and catalog operations.
 	pluginAdmin *appplugins.Admin
 
-	// contentChangeWorker delivers committed page-source changes to plugin hooks.
-	contentChangeWorker *pluginruntime.ContentChangeWorker
-	// pluginUpdates coordinates scheduled and manual plugin catalog refreshes.
-	pluginUpdates *appplugins.PluginUpdates
-	// pluginUpdatesEnabled reports whether the background update scheduler should run.
-	pluginUpdatesEnabled bool
+	// backgroundWorkers contains process-lifetime application workers configured before Start.
+	backgroundWorkers []applicationWorker
+	// backgroundCancel stops application-owned workers independently of the parent process context.
+	backgroundCancel context.CancelFunc
+	// backgroundGroup joins every application-owned worker before runtime resources close.
+	backgroundGroup sync.WaitGroup
 }
 
 // NewApplication composes application services around initialized process infrastructure.
@@ -273,23 +279,26 @@ func (a *Application) configurePluginRuntime(
 	a.settings.WithIconValidator(iconCatalog)
 	a.templates.WithIconValidator(iconCatalog)
 
-	a.contentChangeWorker = pluginruntime.NewContentChangeWorker(
+	contentChangeWorker := pluginruntime.NewContentChangeWorker(
 		database,
 		renderer.PluginManager(),
 		a.notifications,
 		logger.With("component", "plugin-content-change-worker"),
 	)
-	a.pageMutations.WithContentChangeSink(a.contentChangeWorker)
+	a.pageMutations.WithContentChangeSink(contentChangeWorker)
+	a.backgroundWorkers = append(a.backgroundWorkers, contentChangeWorker)
 
-	a.pluginUpdates = appplugins.NewPluginUpdates(
+	pluginUpdates := appplugins.NewPluginUpdates(
 		pluginupdate.New(pluginupdate.DefaultCatalogURL),
 		renderer.PluginManager(),
 		a.notifications,
 		cfg.PluginUpdateCheckInterval,
 		logger.With("component", "plugin-updates"),
 	)
-	a.pluginUpdatesEnabled = cfg.PluginUpdateCheckInterval > 0
-	a.pluginAdmin = appplugins.NewAdmin(renderer.PluginManager(), a.pluginUpdates)
+	a.pluginAdmin = appplugins.NewAdmin(renderer.PluginManager(), pluginUpdates)
+	if cfg.PluginUpdateCheckInterval > 0 {
+		a.backgroundWorkers = append(a.backgroundWorkers, pluginUpdates)
+	}
 	return nil
 }
 
@@ -307,21 +316,31 @@ func (a *Application) composeBrowserContext(infrastructure *Infrastructure) {
 	), a.renderer)
 }
 
-// Start launches application-owned background work until ctx is canceled.
+// Start launches application-owned background work until ctx or Close cancels it.
 func (a *Application) Start(ctx context.Context) {
+	if a == nil || len(a.backgroundWorkers) == 0 {
+		return
+	}
+
+	workerContext, cancel := context.WithCancel(ctx)
+	a.backgroundCancel = cancel
+	for _, worker := range a.backgroundWorkers {
+		a.backgroundGroup.Go(func() { worker.Run(workerContext) })
+	}
+}
+
+// Close stops application-owned background work before releasing runtime resources.
+func (a *Application) Close(logger *slog.Logger) {
 	if a == nil {
 		return
 	}
 
-	go a.contentChangeWorker.Run(ctx)
-	if a.pluginUpdatesEnabled {
-		go a.pluginUpdates.Run(ctx)
+	if a.backgroundCancel != nil {
+		a.backgroundCancel()
 	}
-}
+	a.backgroundGroup.Wait()
 
-// Close releases application-owned runtime resources after cancellation.
-func (a *Application) Close(logger *slog.Logger) {
-	if a == nil || a.renderer == nil {
+	if a.renderer == nil {
 		return
 	}
 
