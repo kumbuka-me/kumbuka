@@ -96,17 +96,17 @@ func ExportedMarkdown(
 	seen := map[int64]bool{}
 	var ids []int64
 	result, err := markdownurl.Rewrite(source, func(url string) (string, bool, error) {
-		reference, ok := nextMediaReference(url)
-		if !ok || reference.start != 0 || reference.end != len(url) {
+		reference, ok := exactPortableResourceReference(url, portableMediaResource)
+		if !ok {
 			return "", false, nil
 		}
-		replacement, err := exportedImagePath(ctx, mediaUseCases, markdownPath, reference.id, imageCache)
+		replacement, err := exportedImagePath(ctx, mediaUseCases, markdownPath, reference.ID, imageCache)
 		if err != nil {
 			return "", false, err
 		}
-		if !seen[reference.id] {
-			seen[reference.id] = true
-			ids = append(ids, reference.id)
+		if !seen[reference.ID] {
+			seen[reference.ID] = true
+			ids = append(ids, reference.ID)
 		}
 		return replacement, true, nil
 	})
@@ -142,58 +142,13 @@ func exportedImagePath(
 	return filepath.ToSlash(relative), nil
 }
 
-// mediaReference identifies a stored image reference within Markdown source.
-type mediaReference struct {
-	// start and end store the corresponding values for media reference.
-	start, end int
-	// id identifies media reference.
-	id int64
-}
-
-// nextMediaReference scans the same bare /media/ID/filename syntax used by exports.
-func nextMediaReference(source string) (reference mediaReference, found bool) {
-	for offset := 0; offset < len(source); {
-		index := strings.Index(source[offset:], "/media/")
-		if index < 0 {
-			break
-		}
-		start := offset + index
-		offset = start + len("/media/")
-		end := portableResourceIDEnd(source, offset)
-		if end == offset {
-			continue
-		}
-		if end >= len(source) || source[end] != '/' {
-			continue
-		}
-		end = portableResourceReferenceEnd(source, end+1)
-		id, ok := MediaImageID(source[start:end])
-		if !ok {
-			continue
-		}
-		return mediaReference{start: start, end: end, id: id}, true
-	}
-	return mediaReference{}, false
-}
-
 // MediaImageID validates a local stored-image path and extracts its numeric ID.
 func MediaImageID(value string) (imageID int64, ok bool) {
-	value, ok = strings.CutPrefix(value, "/media/")
+	reference, ok := exactPortableResourceReference(value, portableMediaResource)
 	if !ok {
 		return 0, false
 	}
-	rawID, filename, ok := strings.Cut(value, "/")
-	if !ok {
-		return 0, false
-	}
-	if rawID == "" || filename == "" {
-		return 0, false
-	}
-	if !validPortableResourceIDText(rawID) {
-		return 0, false
-	}
-	id, err := strconv.ParseInt(rawID, 10, 64)
-	return id, err == nil
+	return reference.ID, true
 }
 
 // ReferencedImageIDs returns unique image identifiers referenced from Markdown source.
@@ -202,13 +157,13 @@ func ReferencedImageIDs(source string) []int64 {
 	var ids []int64
 	for _, location := range markdownurl.Ranges(source) {
 		url := source[location.Start:location.End]
-		reference, ok := nextMediaReference(url)
-		if !ok || reference.start != 0 || reference.end != len(url) {
+		reference, ok := exactPortableResourceReference(url, portableMediaResource)
+		if !ok {
 			continue
 		}
-		if !seen[reference.id] {
-			seen[reference.id] = true
-			ids = append(ids, reference.id)
+		if !seen[reference.ID] {
+			seen[reference.ID] = true
+			ids = append(ids, reference.ID)
 		}
 	}
 	return ids

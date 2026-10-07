@@ -50,8 +50,23 @@ func TestMediaImageIDRequiresDecimalIdentifierAndFilename(t *testing.T) {
 	require.True(t, ok)
 	assert.EqualValues(t, 42, id)
 
-	for _, value := range []string{"/media//image.png", "/media/4a/image.png", "/media/42/"} {
+	for _, value := range []string{
+		"/media//image.png",
+		"/media/0/image.png",
+		"/media/4a/image.png",
+		"/media/42/",
+		"/media/999999999999999999999999/image.png",
+		"/attachments/42/file.txt",
+	} {
 		_, ok := MediaImageID(value)
 		assert.False(t, ok, "expected %q to be rejected", value)
 	}
+}
+
+func TestReferencedImageIDsUsesValidatedStoredResourceURLs(t *testing.T) {
+	t.Parallel()
+
+	source := "![valid](/media/42/image.png) ![zero](/media/0/zero.png) ![again](/media/42/image.png)"
+
+	assert.Equal(t, []int64{42}, ReferencedImageIDs(source))
 }
