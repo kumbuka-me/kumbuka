@@ -172,8 +172,7 @@ func (a *Application) composeUseCases(cfg flags.Config, infrastructure *Infrastr
 	).WithUserDirectory(database)
 	a.access = appaccess.NewAccess(database)
 	a.navigation = appnavigation.NewNavigation(database, a.access)
-	a.pageMutations = apppages.NewMutations(database, a.access, database, logger, a.webhooks).
-		WithNavigationIconInvalidator(a.navigation)
+	a.pageMutations = apppages.NewMutations(database, a.access, database, logger, a.navigation, a.webhooks)
 	a.pagePresence = apppages.NewPresence(database, a.access)
 	a.pageDiscussions = apppages.NewDiscussions(database, a.access, database, logger, a.webhooks)
 	a.pageReviews = apppages.NewReviews(database, a.access, database, logger, a.webhooks)

@@ -54,7 +54,7 @@ func TestPageSaveReportsSecondaryFailuresWithoutFailingMutation(t *testing.T) {
 	var logs bytes.Buffer
 	repository := &failingPageSideEffects{}
 	notifications := &failingNotificationSender{}
-	mutations := NewMutations(repository, nil, repository, slog.New(slog.NewJSONHandler(&logs, nil))).WithNotifications(notifications)
+	mutations := NewMutations(repository, nil, repository, slog.New(slog.NewJSONHandler(&logs, nil)), navigationIconInvalidatorStub{}).WithNotifications(notifications)
 
 	page, err := mutations.Save(context.Background(), PageSaveInput{Slug: "example", Title: "Example", Markdown: "private page content", Status: "verified", Actor: domain.User{ID: 42}})
 
@@ -103,7 +103,7 @@ func TestPageSaveUsesSharedMentionNotificationSender(t *testing.T) {
 
 	repository := &failingPageSideEffects{}
 	sender := &notificationSenderStub{}
-	mutations := NewMutations(repository, nil, repository, slog.Default()).WithNotifications(sender)
+	mutations := NewMutations(repository, nil, repository, slog.Default(), navigationIconInvalidatorStub{}).WithNotifications(sender)
 
 	page, err := mutations.Save(context.Background(), PageSaveInput{
 		Slug:     "example",

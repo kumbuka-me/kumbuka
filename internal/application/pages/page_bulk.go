@@ -264,9 +264,7 @@ func (s *Bulk) bulkMove(ctx context.Context, slugs []string, target string, acto
 	if err := s.repository.BulkMovePages(ctx, slugs, target, actor); err != nil {
 		return err
 	}
-	if s.mutations != nil {
-		s.mutations.invalidateNavigationIcons()
-	}
+	s.mutations.invalidateNavigationIcons()
 
 	return nil
 }

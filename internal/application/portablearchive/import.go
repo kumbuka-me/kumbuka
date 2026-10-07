@@ -105,9 +105,7 @@ func (i *Importer) Restore(ctx context.Context, archive portable.Archive, actor 
 	if err != nil {
 		return 0, err
 	}
-	if i.navigationIcons != nil {
-		i.navigationIcons.InvalidateIcons()
-	}
+	i.navigationIcons.InvalidateIcons()
 	if i.progress != nil {
 		i.progress.RecordPortableImport(ctx, actor, count)
 	}

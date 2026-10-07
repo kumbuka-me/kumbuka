@@ -18,7 +18,7 @@ func TestMoveValidationBeforePersistence(t *testing.T) {
 	t.Run("rejects same source and destination", func(t *testing.T) {
 		t.Parallel()
 
-		err := NewMutations(nil, nil, nil, slog.Default()).Move(
+		err := NewMutations(nil, nil, nil, slog.Default(), navigationIconInvalidatorStub{}).Move(
 			ctx,
 			"/guide/",
 			"guide",
@@ -35,7 +35,7 @@ func TestMoveValidationBeforePersistence(t *testing.T) {
 	t.Run("rejects moving tree into itself", func(t *testing.T) {
 		t.Parallel()
 
-		err := NewMutations(nil, nil, nil, slog.Default()).Move(
+		err := NewMutations(nil, nil, nil, slog.Default(), navigationIconInvalidatorStub{}).Move(
 			ctx,
 			"guide",
 			"guide/child",

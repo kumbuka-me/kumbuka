@@ -126,12 +126,14 @@ func NewMutations(
 	access appaccess.Policy,
 	sideEffects pageSideEffectRepository,
 	logger *slog.Logger,
+	navigationIcons NavigationIconInvalidator,
 	eventSinks ...webhooks.EventSink,
 ) *Mutations {
 	return &Mutations{
-		repository:    repository,
-		authorization: pageAuthorization{policy: access},
-		effects:       newPageEffects(sideEffects, logger, eventSinks...),
+		repository:      repository,
+		authorization:   pageAuthorization{policy: access},
+		effects:         newPageEffects(sideEffects, logger, eventSinks...),
+		navigationIcons: navigationIcons,
 	}
 }
 
@@ -146,12 +148,6 @@ func (s *Mutations) WithNotifications(sender NotificationSender) *Mutations {
 // WithIconValidator uses the active icon capability for page validation.
 func (s *Mutations) WithIconValidator(validator pageIconValidator) *Mutations {
 	s.icons = validator
-	return s
-}
-
-// WithNavigationIconInvalidator invalidates cached navigation icons after committed page writes.
-func (s *Mutations) WithNavigationIconInvalidator(cache NavigationIconInvalidator) *Mutations {
-	s.navigationIcons = cache
 	return s
 }
 
@@ -447,9 +443,7 @@ func (s *Mutations) Move(
 
 // invalidateNavigationIcons discards cached icons after persistence changes their paths or values.
 func (s *Mutations) invalidateNavigationIcons() {
-	if s.navigationIcons != nil {
-		s.navigationIcons.InvalidateIcons()
-	}
+	s.navigationIcons.InvalidateIcons()
 }
 
 // Review records a completed documentation review and its audit event.

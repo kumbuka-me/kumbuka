@@ -70,7 +70,7 @@ func TestUpdateContentPreservesPageAndUsesGuardedSave(t *testing.T) {
 		Slug: "guide", Title: "Guide", UpdatedAt: expected, Status: domain.PageStatusVerified,
 		Tags: []string{"docs"}, Groups: []domain.Group{{ID: 7}},
 	}}
-	mutations := NewMutations(repository, nil, nil, nil)
+	mutations := NewMutations(repository, nil, nil, nil, navigationIconInvalidatorStub{})
 
 	_, err := mutations.UpdateContent(context.Background(), PageContentUpdateInput{
 		Slug: "guide", Markdown: "- [x] done", Message: "Toggle checklist item",
@@ -89,7 +89,7 @@ func TestSaveUsesOptimisticConcurrencyForEditorUpdates(t *testing.T) {
 
 	expected := time.Date(2026, time.September, 19, 14, 30, 0, 123000000, time.UTC)
 	repository := &pageConcurrencyRepositoryStub{}
-	mutations := NewMutations(repository, nil, nil, nil)
+	mutations := NewMutations(repository, nil, nil, nil, navigationIconInvalidatorStub{})
 
 	_, err := mutations.save(context.Background(), PageSaveInput{
 		PreviousSlug:      "guide",
@@ -110,7 +110,7 @@ func TestSaveKeepsInternalWritesUnconditional(t *testing.T) {
 	t.Parallel()
 
 	repository := &pageConcurrencyRepositoryStub{}
-	mutations := NewMutations(repository, nil, nil, nil)
+	mutations := NewMutations(repository, nil, nil, nil, navigationIconInvalidatorStub{})
 
 	_, err := mutations.save(context.Background(), PageSaveInput{
 		PreviousSlug: "guide",

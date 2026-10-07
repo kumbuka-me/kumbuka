@@ -86,7 +86,7 @@ func (r *portableImportRepositoryStub) SavePage(
 
 func TestImportPortableReportsSavedPagesOnLaterFailure(t *testing.T) {
 	repository := &portableImportRepositoryStub{FailAt: 2}
-	importer := NewPortableImporter(repository, NewMutations(repository, nil, nil, nil))
+	importer := NewPortableImporter(repository, NewMutations(repository, nil, nil, nil, navigationIconInvalidatorStub{}))
 
 	count, err := importer.ImportPortablePages(context.Background(), []PortableImportedPage{
 		{Slug: "first", Title: "First", Status: "verified"},
@@ -100,7 +100,7 @@ func TestImportPortableReportsSavedPagesOnLaterFailure(t *testing.T) {
 
 func TestImportReportsSavedPagesOnLaterFailure(t *testing.T) {
 	repository := &portableImportRepositoryStub{FailAt: 2}
-	bulk := NewBulk(repository, NewMutations(repository, nil, nil, nil), nil, nil)
+	bulk := NewBulk(repository, NewMutations(repository, nil, nil, nil, navigationIconInvalidatorStub{}), nil, nil)
 
 	count, err := bulk.Import(context.Background(), []ImportedPage{
 		{Slug: "first", Title: "First", Source: "markdown"},
@@ -116,7 +116,7 @@ func TestImportPortablePageRestoresArchiveMetadata(t *testing.T) {
 	t.Parallel()
 
 	repository := &portableImportRepositoryStub{}
-	mutations := NewMutations(repository, nil, nil, nil)
+	mutations := NewMutations(repository, nil, nil, nil, navigationIconInvalidatorStub{})
 	importer := NewPortableImporter(repository, mutations)
 
 	err := importer.importPortablePage(context.Background(), PortableImportedPage{
@@ -152,7 +152,7 @@ func TestImportPortablePageReplacesExistingMetadata(t *testing.T) {
 	t.Parallel()
 
 	repository := &portableImportRepositoryStub{Existing: true}
-	mutations := NewMutations(repository, nil, nil, nil)
+	mutations := NewMutations(repository, nil, nil, nil, navigationIconInvalidatorStub{})
 	importer := NewPortableImporter(repository, mutations)
 
 	err := importer.importPortablePage(context.Background(), PortableImportedPage{

@@ -47,9 +47,7 @@ func (s *RecycleBin) PermanentlyDeletePage(ctx context.Context, slug string) err
 	if err := s.repository.PermanentlyDeletePage(ctx, slug); err != nil {
 		return err
 	}
-	if s.navigationIcons != nil {
-		s.navigationIcons.InvalidateIcons()
-	}
+	s.navigationIcons.InvalidateIcons()
 
 	return nil
 }

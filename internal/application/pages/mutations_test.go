@@ -58,6 +58,11 @@ type navigationIconCacheStub struct {
 
 func (s *navigationIconCacheStub) InvalidateIcons() { s.calls++ }
 
+// navigationIconInvalidatorStub satisfies the required cache dependency in tests that do not inspect invalidation.
+type navigationIconInvalidatorStub struct{}
+
+func (navigationIconInvalidatorStub) InvalidateIcons() {}
+
 func (r *pageSaveRepositoryStub) GetPage(context.Context, string) (domain.Page, error) {
 	return r.previous, nil
 }
@@ -111,7 +116,7 @@ func TestPageUseCasesEnforceResourceAccessBeforePersistence(t *testing.T) {
 	_, err := NewLookup(nil, denyingPageAccess{}).GetPageFor(context.Background(), actor, "private")
 	require.ErrorIs(t, err, domain.ErrNotFound)
 
-	_, err = NewMutations(nil, denyingPageAccess{}, nil, slog.Default()).Save(context.Background(), PageSaveInput{
+	_, err = NewMutations(nil, denyingPageAccess{}, nil, slog.Default(), navigationIconInvalidatorStub{}).Save(context.Background(), PageSaveInput{
 		Slug:   "private",
 		Title:  "Private",
 		Status: "draft",
@@ -124,7 +129,7 @@ func TestPagesOptionalDependenciesAreSafe(t *testing.T) {
 	t.Parallel()
 
 	logger := slog.Default()
-	pages := NewMutations(nil, nil, nil, logger)
+	pages := NewMutations(nil, nil, nil, logger, navigationIconInvalidatorStub{})
 
 	assert.Same(t, logger, pages.effects.logger)
 	assert.Nil(t, pages.content)
@@ -140,7 +145,7 @@ func TestSavePersistsDerivedPluginUsage(t *testing.T) {
 		Fingerprint: "render-plan",
 		Modules:     []pluginusage.Module{{PluginID: "me.kumbuka.variables", ModuleID: "variables", Values: []string{"environment"}}},
 	}
-	pages := NewMutations(repository, nil, nil, slog.Default()).WithContentPreparer(pageContentPreparerStub{usage: want})
+	pages := NewMutations(repository, nil, nil, slog.Default(), navigationIconInvalidatorStub{}).WithContentPreparer(pageContentPreparerStub{usage: want})
 
 	_, err := pages.save(context.Background(), PageSaveInput{
 		Slug:     "guide",
@@ -159,7 +164,7 @@ func TestSaveInvalidatesNavigationIconsOnlyAfterPersistenceSucceeds(t *testing.T
 
 	cache := &navigationIconCacheStub{}
 	repository := &pageSaveRepositoryStub{}
-	mutations := NewMutations(repository, nil, nil, slog.Default()).WithNavigationIconInvalidator(cache)
+	mutations := NewMutations(repository, nil, nil, slog.Default(), cache)
 
 	_, err := mutations.save(context.Background(), PageSaveInput{
 		Slug:   "guide",
@@ -184,7 +189,7 @@ func TestSaveEmitsCommittedContentChange(t *testing.T) {
 	repository := &pageSaveRepositoryStub{previous: domain.Page{Slug: "guide", Markdown: "old"}}
 	sink := &pageContentChangeSinkStub{}
 	actor := domain.User{ID: 7}
-	pages := NewMutations(repository, nil, nil, slog.Default()).WithContentChangeSink(sink)
+	pages := NewMutations(repository, nil, nil, slog.Default(), navigationIconInvalidatorStub{}).WithContentChangeSink(sink)
 
 	page, err := pages.Save(context.Background(), PageSaveInput{
 		PreviousSlug: "guide",
@@ -207,7 +212,7 @@ func TestSaveSkipsContentHookWhenMarkdownIsUnchanged(t *testing.T) {
 	t.Parallel()
 	repository := &pageSaveRepositoryStub{previous: domain.Page{Slug: "guide", Markdown: "same"}}
 	sink := &pageContentChangeSinkStub{}
-	_, err := NewMutations(repository, nil, nil, slog.Default()).WithContentChangeSink(sink).Save(
+	_, err := NewMutations(repository, nil, nil, slog.Default(), navigationIconInvalidatorStub{}).WithContentChangeSink(sink).Save(
 		context.Background(),
 		PageSaveInput{PreviousSlug: "guide", Slug: "guide", Title: "Guide", Markdown: "same", Status: domain.PageStatusVerified},
 	)
@@ -220,7 +225,7 @@ func TestSaveKeepsCommittedPageWhenContentHookFails(t *testing.T) {
 	t.Parallel()
 	repository := &pageSaveRepositoryStub{}
 	sink := &pageContentChangeSinkStub{err: errors.New("hook failed")}
-	page, err := NewMutations(repository, nil, nil, slog.Default()).WithContentChangeSink(sink).Save(
+	page, err := NewMutations(repository, nil, nil, slog.Default(), navigationIconInvalidatorStub{}).WithContentChangeSink(sink).Save(
 		context.Background(),
 		PageSaveInput{Slug: "guide", Title: "Guide", Markdown: "new", Status: domain.PageStatusVerified},
 	)
@@ -233,7 +238,7 @@ func TestSaveKeepsCommittedPageWhenContentHookFails(t *testing.T) {
 func TestSaveValidatesPageBeforePersistence(t *testing.T) {
 	t.Parallel()
 
-	pages := NewMutations(nil, nil, nil, slog.Default())
+	pages := NewMutations(nil, nil, nil, slog.Default(), navigationIconInvalidatorStub{})
 	_, err := pages.Save(context.Background(), PageSaveInput{
 		Icon:               "not-an-icon",
 		Language:           "klingon",
@@ -257,7 +262,7 @@ func TestSaveValidatesPageBeforePersistence(t *testing.T) {
 func TestMoveValidatesDestinationBeforePersistence(t *testing.T) {
 	t.Parallel()
 
-	pages := NewMutations(nil, nil, nil, slog.Default())
+	pages := NewMutations(nil, nil, nil, slog.Default(), navigationIconInvalidatorStub{})
 	err := pages.Move(context.Background(), "guide", "", domain.MovePageOptions{}, domain.User{})
 
 	validation, ok := errors.AsType[*domain.ValidationError](err)
@@ -287,7 +292,7 @@ func TestMoveInvalidatesNavigationIconsAfterPersistence(t *testing.T) {
 
 	repository := &pageMoveRepositoryStub{}
 	cache := &navigationIconCacheStub{}
-	mutations := NewMutations(repository, nil, nil, slog.Default()).WithNavigationIconInvalidator(cache)
+	mutations := NewMutations(repository, nil, nil, slog.Default(), cache)
 
 	err := mutations.Move(
 		context.Background(),
@@ -309,7 +314,7 @@ func TestSaveSlugResolution(t *testing.T) {
 		t.Parallel()
 
 		repository := &pageSaveRepositoryStub{}
-		_, err := NewMutations(repository, nil, nil, slog.Default()).save(context.Background(), PageSaveInput{
+		_, err := NewMutations(repository, nil, nil, slog.Default(), navigationIconInvalidatorStub{}).save(context.Background(), PageSaveInput{
 			Title:  "Generated Page Path",
 			Status: "verified",
 		})
@@ -322,7 +327,7 @@ func TestSaveSlugResolution(t *testing.T) {
 		t.Parallel()
 
 		repository := &pageSaveRepositoryStub{}
-		_, err := NewMutations(repository, nil, nil, slog.Default()).save(context.Background(), PageSaveInput{
+		_, err := NewMutations(repository, nil, nil, slog.Default(), navigationIconInvalidatorStub{}).save(context.Background(), PageSaveInput{
 			Slug:   "custom/path",
 			Title:  "Generated Page Path",
 			Status: "verified",
@@ -335,7 +340,7 @@ func TestSaveSlugResolution(t *testing.T) {
 	t.Run("rejects a path made only of slashes", func(t *testing.T) {
 		t.Parallel()
 
-		_, err := NewMutations(nil, nil, nil, slog.Default()).Save(context.Background(), PageSaveInput{
+		_, err := NewMutations(nil, nil, nil, slog.Default(), navigationIconInvalidatorStub{}).Save(context.Background(), PageSaveInput{
 			Slug:   "/////",
 			Title:  "Invalid path",
 			Status: "verified",
@@ -351,7 +356,7 @@ func TestSaveSlugResolution(t *testing.T) {
 	t.Run("rejects repeated slashes inside a path", func(t *testing.T) {
 		t.Parallel()
 
-		_, err := NewMutations(nil, nil, nil, slog.Default()).Save(context.Background(), PageSaveInput{
+		_, err := NewMutations(nil, nil, nil, slog.Default(), navigationIconInvalidatorStub{}).Save(context.Background(), PageSaveInput{
 			Slug:   "platform//database",
 			Title:  "Invalid path",
 			Status: "verified",
@@ -366,7 +371,7 @@ func TestSaveSlugResolution(t *testing.T) {
 	t.Run("requires an explicit path when editing an existing page", func(t *testing.T) {
 		t.Parallel()
 
-		_, err := NewMutations(nil, nil, nil, slog.Default()).Save(context.Background(), PageSaveInput{
+		_, err := NewMutations(nil, nil, nil, slog.Default(), navigationIconInvalidatorStub{}).Save(context.Background(), PageSaveInput{
 			PreviousSlug: "existing-page",
 			Title:        "Renamed title",
 			Status:       "verified",
@@ -382,7 +387,7 @@ func TestSaveSlugResolution(t *testing.T) {
 func TestSaveRequiresExplicitStatus(t *testing.T) {
 	t.Parallel()
 
-	_, err := NewMutations(nil, nil, nil, slog.Default()).Save(context.Background(), PageSaveInput{Slug: "explicit-path", Title: "Explicit title"})
+	_, err := NewMutations(nil, nil, nil, slog.Default(), navigationIconInvalidatorStub{}).Save(context.Background(), PageSaveInput{Slug: "explicit-path", Title: "Explicit title"})
 	validation, ok := errors.AsType[*domain.ValidationError](err)
 
 	require.True(t, ok)
@@ -396,7 +401,7 @@ func TestBulkValidatesInputsBeforePersistence(t *testing.T) {
 	t.Run("pages", func(t *testing.T) {
 		t.Parallel()
 
-		err := NewBulk(nil, nil, nil, slog.Default()).Bulk(context.Background(), BulkPageInput{})
+		err := NewBulk(nil, NewMutations(nil, nil, nil, slog.Default(), navigationIconInvalidatorStub{}), nil, slog.Default()).Bulk(context.Background(), BulkPageInput{})
 		validation, ok := errors.AsType[*domain.ValidationError](err)
 
 		require.True(t, ok)
@@ -406,7 +411,7 @@ func TestBulkValidatesInputsBeforePersistence(t *testing.T) {
 	t.Run("group", func(t *testing.T) {
 		t.Parallel()
 
-		err := NewBulk(nil, nil, nil, slog.Default()).Bulk(context.Background(), BulkPageInput{Action: "group", Slugs: []string{"guide"}})
+		err := NewBulk(nil, NewMutations(nil, nil, nil, slog.Default(), navigationIconInvalidatorStub{}), nil, slog.Default()).Bulk(context.Background(), BulkPageInput{Action: "group", Slugs: []string{"guide"}})
 		validation, ok := errors.AsType[*domain.ValidationError](err)
 
 		require.True(t, ok)
@@ -416,7 +421,7 @@ func TestBulkValidatesInputsBeforePersistence(t *testing.T) {
 	t.Run("status", func(t *testing.T) {
 		t.Parallel()
 
-		err := NewBulk(nil, nil, nil, slog.Default()).Bulk(context.Background(), BulkPageInput{Action: "status", Slugs: []string{"guide"}, Status: "invalid"})
+		err := NewBulk(nil, NewMutations(nil, nil, nil, slog.Default(), navigationIconInvalidatorStub{}), nil, slog.Default()).Bulk(context.Background(), BulkPageInput{Action: "status", Slugs: []string{"guide"}, Status: "invalid"})
 		validation, ok := errors.AsType[*domain.ValidationError](err)
 
 		require.True(t, ok)
@@ -426,7 +431,7 @@ func TestBulkValidatesInputsBeforePersistence(t *testing.T) {
 	t.Run("tag", func(t *testing.T) {
 		t.Parallel()
 
-		err := NewBulk(nil, nil, nil, slog.Default()).Bulk(context.Background(), BulkPageInput{Action: "tag", Slugs: []string{"guide"}})
+		err := NewBulk(nil, NewMutations(nil, nil, nil, slog.Default(), navigationIconInvalidatorStub{}), nil, slog.Default()).Bulk(context.Background(), BulkPageInput{Action: "tag", Slugs: []string{"guide"}})
 		validation, ok := errors.AsType[*domain.ValidationError](err)
 
 		require.True(t, ok)
@@ -436,7 +441,7 @@ func TestBulkValidatesInputsBeforePersistence(t *testing.T) {
 	t.Run("move target", func(t *testing.T) {
 		t.Parallel()
 
-		err := NewBulk(nil, nil, nil, slog.Default()).Bulk(context.Background(), BulkPageInput{Action: "move", Slugs: []string{"guide"}})
+		err := NewBulk(nil, NewMutations(nil, nil, nil, slog.Default(), navigationIconInvalidatorStub{}), nil, slog.Default()).Bulk(context.Background(), BulkPageInput{Action: "move", Slugs: []string{"guide"}})
 		validation, ok := errors.AsType[*domain.ValidationError](err)
 
 		require.True(t, ok)
@@ -446,7 +451,7 @@ func TestBulkValidatesInputsBeforePersistence(t *testing.T) {
 	t.Run("action", func(t *testing.T) {
 		t.Parallel()
 
-		err := NewBulk(nil, nil, nil, slog.Default()).Bulk(context.Background(), BulkPageInput{Action: "invalid", Slugs: []string{"guide"}})
+		err := NewBulk(nil, NewMutations(nil, nil, nil, slog.Default(), navigationIconInvalidatorStub{}), nil, slog.Default()).Bulk(context.Background(), BulkPageInput{Action: "invalid", Slugs: []string{"guide"}})
 		validation, ok := errors.AsType[*domain.ValidationError](err)
 
 		require.True(t, ok)
@@ -481,7 +486,7 @@ func TestBulkMoveDelegatesAsSinglePersistenceOperation(t *testing.T) {
 	t.Parallel()
 
 	repository := &bulkMoveRepositoryStub{}
-	pages := NewBulk(repository, nil, nil, slog.Default())
+	pages := NewBulk(repository, NewMutations(nil, nil, nil, slog.Default(), navigationIconInvalidatorStub{}), nil, slog.Default())
 	slugs := []string{"guide/first", "guide/second"}
 
 	err := pages.Bulk(context.Background(), BulkPageInput{
@@ -502,7 +507,7 @@ func TestBulkMoveInvalidatesNavigationIcons(t *testing.T) {
 
 	repository := &bulkMoveRepositoryStub{}
 	cache := &navigationIconCacheStub{}
-	mutations := NewMutations(nil, nil, nil, slog.Default()).WithNavigationIconInvalidator(cache)
+	mutations := NewMutations(nil, nil, nil, slog.Default(), cache)
 	pages := NewBulk(repository, mutations, nil, slog.Default())
 
 	err := pages.Bulk(context.Background(), BulkPageInput{
