@@ -35,11 +35,11 @@ type Navigation struct {
 	// iconValidator validates navigation icons against the active catalog.
 	iconValidator iconValidator
 
-	// iconsMu stores the icons mu value used by navigation.
+	// iconsMu protects icons and iconsLoaded.
 	iconsMu sync.RWMutex
-	// icons maps keys to icons values used by navigation.
+	// icons caches navigation icons by normalized page path.
 	icons map[string]string
-	// iconsLoaded reports whether icons loaded applies to navigation.
+	// iconsLoaded distinguishes an empty loaded cache from an unloaded cache.
 	iconsLoaded bool
 }
 

@@ -1,10 +1,13 @@
 package domain
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
 
 // FieldError describes a safe, actionable input failure.
 type FieldError struct {
-	// Field stores the field value used by field error.
+	// Field identifies the invalid input field.
 	Field string
 	// Message contains the message associated with field error.
 	Message string
@@ -14,7 +17,7 @@ type FieldError struct {
 type ValidationError struct {
 	// Fields contains the fields associated with validation error.
 	Fields []FieldError
-	// Cause stores the cause value used by validation error.
+	// Cause is the underlying validation failure.
 	Cause error
 }
 
@@ -46,7 +49,7 @@ func NewValidationError(field, message string) *ValidationError {
 
 // GroupAssignmentError identifies which page group selection is not assignable. It deliberately does not distinguish a hidden group from a nonexistent group.
 type GroupAssignmentError struct {
-	// Field stores the field value used by group assignment error.
+	// Field identifies the invalid group-assignment input.
 	Field string
 }
 
@@ -60,4 +63,33 @@ func (e *GroupAssignmentError) Unwrap() error { return ErrForbidden }
 var (
 	ErrRevisionNotFound = fmt.Errorf("revision: %w", ErrNotFound)
 	ErrCommentNotFound  = fmt.Errorf("comment: %w", ErrNotFound)
+)
+
+var (
+	// ErrNotFound indicates that a requested domain object does not exist.
+	ErrNotFound = errors.New("not found")
+	// ErrAlreadyExists indicates that a unique domain object already exists.
+	ErrAlreadyExists = errors.New("already exists")
+	// ErrForbidden indicates that a requested domain mutation is not permitted.
+	ErrForbidden = errors.New("forbidden")
+	// ErrRegistrationDisabled indicates that a new external identity may not create an account.
+	ErrRegistrationDisabled = errors.New("user registration is disabled")
+	// ErrIdentityApprovalRequired indicates that an OIDC identity awaits administrator approval.
+	ErrIdentityApprovalRequired = errors.New("process OIDC identity: administrator approval is required")
+	// ErrIdentityRejected indicates that an administrator rejected an OIDC identity.
+	ErrIdentityRejected = errors.New("process OIDC identity: identity was rejected")
+	// ErrPageInBin indicates that a page path is occupied by a recycled page.
+	ErrPageInBin = errors.New("page path is in recycle bin")
+	// ErrStaleReview indicates that a page changed after review was requested.
+	ErrStaleReview = errors.New("page changed after review was requested")
+	// ErrReviewPending indicates that a page already has a pending review request.
+	ErrReviewPending = errors.New("review already pending")
+	// ErrReviewClosed indicates that a completed review request cannot be changed.
+	ErrReviewClosed = errors.New("review request is closed")
+	// ErrReviewChangesRequired indicates that reviewer feedback must be addressed before another request.
+	ErrReviewChangesRequired = errors.New("review changes must be addressed")
+	// ErrReviewSuggestionConflict indicates that selected suggestions overlap and cannot be applied together.
+	ErrReviewSuggestionConflict = errors.New("review suggestions overlap")
+	// ErrStaleSuggestion indicates that an inline suggestion no longer targets the page revision it was created from.
+	ErrStaleSuggestion = errors.New("page changed after suggestion was created")
 )
