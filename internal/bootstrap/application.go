@@ -134,78 +134,113 @@ func NewApplication(
 	logger *slog.Logger,
 	version, commit string,
 ) (*Application, error) {
+	application := &Application{}
+	application.composeUseCases(cfg, infrastructure, logger)
+
+	if err := application.configureAuthentication(ctx, cfg, infrastructure); err != nil {
+		return nil, err
+	}
+	if err := application.configurePluginRuntime(ctx, cfg, infrastructure, logger, version, commit); err != nil {
+		return nil, err
+	}
+
+	application.composeBrowserContext(infrastructure)
+	return application, nil
+}
+
+// composeUseCases constructs persistence-backed application services and their application-level dependencies.
+func (a *Application) composeUseCases(cfg flags.Config, infrastructure *Infrastructure, logger *slog.Logger) {
 	database := infrastructure.database
 	secretCipher := infrastructure.cipher
 
-	// Construct page mutation and collaboration capabilities that other workflows depend on.
-	webhooks := appwebhooks.NewWebhooks(
+	// Page mutation and collaboration services form the dependency spine for
+	// notifications, browser workflows, and plugin content processing.
+	a.webhooks = appwebhooks.NewWebhooks(
 		database,
 		secretCipher,
 		logger.With("component", "webhooks"),
 		cfg.PublicURL,
 	).WithUserDirectory(database)
-	access := appaccess.NewAccess(database)
-	mutations := apppages.NewMutations(database, access, database, logger, webhooks)
-	presence := apppages.NewPresence(database, access)
-	discussions := apppages.NewDiscussions(database, access, database, logger, webhooks)
-	reviews := apppages.NewReviews(database, access, database, logger, webhooks)
-	reviewDiscussions := apppages.NewReviewDiscussions(database, access, reviews, database, logger, webhooks)
-	bulk := apppages.NewBulk(database, mutations, database, logger, webhooks)
+	a.access = appaccess.NewAccess(database)
+	a.pageMutations = apppages.NewMutations(database, a.access, database, logger, a.webhooks)
+	a.pagePresence = apppages.NewPresence(database, a.access)
+	a.pageDiscussions = apppages.NewDiscussions(database, a.access, database, logger, a.webhooks)
+	a.pageReviews = apppages.NewReviews(database, a.access, database, logger, a.webhooks)
+	a.pageReviewDiscussions = apppages.NewReviewDiscussions(database, a.access, a.pageReviews, database, logger, a.webhooks)
+	a.pageBulk = apppages.NewBulk(database, a.pageMutations, database, logger, a.webhooks)
 
-	// Construct the remaining application capabilities around their narrow repository ports.
-	administration := appadministration.NewAdministration(database)
-	pageLookup := apppages.NewLookup(database, access)
-	pageSearch := apppages.NewSearch(database, access)
-	pageDirectory := apppages.NewDirectory(database, access)
-	pageReports := apppages.NewReports(database, access)
-	pagePersonal := apppages.NewPersonal(database, access)
-	pageHistory := apppages.NewHistory(database, access)
-	pageRender := apppages.NewRenderArtifacts(database)
-	drafts := apppages.NewDrafts(database)
-	groups := appgroups.NewGroups(database)
-	knowledge := appsearch.NewKnowledge(database, access)
-	notifications := appnotifications.NewNotifications(
+	// Narrow query and administration services depend only on their repository ports.
+	a.administration = appadministration.NewAdministration(database)
+	a.pageLookup = apppages.NewLookup(database, a.access)
+	a.pageSearch = apppages.NewSearch(database, a.access)
+	a.pageDirectory = apppages.NewDirectory(database, a.access)
+	a.pageReports = apppages.NewReports(database, a.access)
+	a.pagePersonal = apppages.NewPersonal(database, a.access)
+	a.pageHistory = apppages.NewHistory(database, a.access)
+	a.pageRender = apppages.NewRenderArtifacts(database)
+	a.drafts = apppages.NewDrafts(database)
+	a.groups = appgroups.NewGroups(database)
+	a.knowledge = appsearch.NewKnowledge(database, a.access)
+	a.notifications = appnotifications.NewNotifications(
 		database,
 		logger.With("component", "notifications"),
-		webhooks,
+		a.webhooks,
 	)
-	mutations.WithNotifications(notifications)
-	discussions.WithNotifications(notifications)
-	reviews.WithNotifications(notifications)
-	reviewDiscussions.WithNotifications(notifications)
-	media := appmedia.NewMedia(database)
-	navigation := appnavigation.NewNavigation(database, access)
-	preferences := apppreferences.NewPreferences(database)
-	recycleBin := apprecyclebin.NewRecycleBin(database)
-	settings := appsettings.NewSettings(database, secretCipher, logger.With("component", "settings"))
-	system := appsystem.NewSystem(database, logger.With("component", "system"), infrastructure.setupState)
-	templates := apptemplates.NewTemplates(database)
-	tokens := apptokens.NewTokens(database)
-	users := appusers.NewUsers(database, credential.Passwords{}, logger.With("component", "users"))
+	a.media = appmedia.NewMedia(database)
+	a.navigation = appnavigation.NewNavigation(database, a.access)
+	a.preferences = apppreferences.NewPreferences(database)
+	a.recycleBin = apprecyclebin.NewRecycleBin(database)
+	a.settings = appsettings.NewSettings(database, secretCipher, logger.With("component", "settings"))
+	a.system = appsystem.NewSystem(database, logger.With("component", "system"), infrastructure.setupState)
+	a.templates = apptemplates.NewTemplates(database)
+	a.tokens = apptokens.NewTokens(database)
+	a.users = appusers.NewUsers(database, credential.Passwords{}, logger.With("component", "users"))
 
-	// Compose higher-level page workflows from the capabilities they coordinate.
+	// Mutation services emit notifications only after the notification service exists.
+	a.pageMutations.WithNotifications(a.notifications)
+	a.pageDiscussions.WithNotifications(a.notifications)
+	a.pageReviews.WithNotifications(a.notifications)
+	a.pageReviewDiscussions.WithNotifications(a.notifications)
+
+	// Higher-level browser workflows coordinate the already-constructed page services.
 	serverLogger := logger.With("component", "server")
-	home := apppages.NewHomeQuery(database, drafts, access)
-	editor := apppages.NewEditor(pageLookup, groups, templates)
-	editorSave := apppages.NewEditorSave(mutations, drafts, templates, serverLogger)
-	viewPage := apppages.NewView(database, access, reviews, serverLogger)
+	a.home = apppages.NewHomeQuery(database, a.drafts, a.access)
+	a.editor = apppages.NewEditor(a.pageLookup, a.groups, a.templates)
+	a.editorSave = apppages.NewEditorSave(a.pageMutations, a.drafts, a.templates, serverLogger)
+	a.viewPage = apppages.NewView(database, a.access, a.pageReviews, serverLogger)
+}
 
-	// Construct API and browser authentication before starting plugin execution.
-	bearerAuth := auth.NewBearer(database)
+// configureAuthentication constructs API and browser authentication after repository-backed settings are available.
+func (a *Application) configureAuthentication(ctx context.Context, cfg flags.Config, infrastructure *Infrastructure) error {
+	database := infrastructure.database
+	a.bearerAuth = auth.NewBearer(database)
+
 	browserConfig := newBrowserAuthConfig(cfg)
 	browserConfig.SetupRequired = infrastructure.setupState.Required
 	browserConfig.SetupCompleted = infrastructure.setupState.Complete
+
 	browserAuth, err := auth.ConfigureBrowserAuth(ctx, browserConfig, database)
 	if err != nil {
-		return nil, fmt.Errorf("configure browser auth: %w", err)
+		return fmt.Errorf("configure browser auth: %w", err)
 	}
+	a.browserAuth = browserAuth
+	return nil
+}
 
-	// Construct the plugin runtime and attach its metrics provider.
+// configurePluginRuntime constructs plugin execution, wires runtime-derived capabilities, and prepares background workers.
+func (a *Application) configurePluginRuntime(
+	ctx context.Context,
+	cfg flags.Config,
+	infrastructure *Infrastructure,
+	logger *slog.Logger,
+	version, commit string,
+) error {
+	database := infrastructure.database
 	renderer, err := pluginruntime.NewRenderer(
 		ctx,
 		database,
 		plugins.Distribution{},
-		secretCipher,
+		infrastructure.cipher,
 		authenticatedPluginRequest,
 		infrastructure.metrics,
 		logger.With("component", "plugins"),
@@ -213,94 +248,53 @@ func NewApplication(
 		commit,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("create plugin runtime: %w", err)
+		return fmt.Errorf("create plugin runtime: %w", err)
 	}
+	a.renderer = renderer
 	infrastructure.metrics.RegisterPluginProvider(renderer.PluginManager())
 
-	// Inject runtime-derived content and icon capabilities into application services.
 	iconCatalog := renderer.IconCatalog()
 	content := pagecontent.New(renderer)
-	navigation.WithIconValidator(iconCatalog)
-	contentChangeWorker := pluginruntime.NewContentChangeWorker(
+	a.navigation.WithIconValidator(iconCatalog)
+	a.pageMutations.WithIconValidator(iconCatalog).
+		WithContentPreparer(content)
+	a.pageDiscussions.WithContentPreparer(content)
+	a.pageReviewDiscussions.WithContentPreparer(content)
+	a.settings.WithIconValidator(iconCatalog)
+	a.templates.WithIconValidator(iconCatalog)
+
+	a.contentChangeWorker = pluginruntime.NewContentChangeWorker(
 		database,
 		renderer.PluginManager(),
-		notifications,
+		a.notifications,
 		logger.With("component", "plugin-content-change-worker"),
 	)
-	mutations.WithIconValidator(iconCatalog).
-		WithContentPreparer(content).
-		WithContentChangeSink(contentChangeWorker)
-	discussions.WithContentPreparer(content)
-	reviewDiscussions.WithContentPreparer(content)
-	settings.WithIconValidator(iconCatalog)
-	templates.WithIconValidator(iconCatalog)
+	a.pageMutations.WithContentChangeSink(a.contentChangeWorker)
 
-	// Construct optional background plugin update discovery.
-	pluginUpdates := appplugins.NewPluginUpdates(
+	a.pluginUpdates = appplugins.NewPluginUpdates(
 		pluginupdate.New(pluginupdate.DefaultCatalogURL),
 		renderer.PluginManager(),
-		notifications,
+		a.notifications,
 		cfg.PluginUpdateCheckInterval,
 		logger.With("component", "plugin-updates"),
 	)
+	a.pluginUpdatesEnabled = cfg.PluginUpdateCheckInterval > 0
+	a.pluginAdmin = appplugins.NewAdmin(renderer.PluginManager(), a.pluginUpdates)
+	return nil
+}
 
-	// Compose shared authenticated browser data after every dependency is available.
-	browserContext := endpoint.NewBrowserContext(viewer.New(
-		preferences,
-		navigation,
+// composeBrowserContext builds shared authenticated browser data after every contributing service is configured.
+func (a *Application) composeBrowserContext(infrastructure *Infrastructure) {
+	database := infrastructure.database
+	a.browserContext = endpoint.NewBrowserContext(viewer.New(
+		a.preferences,
+		a.navigation,
 		database,
-		settings,
-		knowledge,
-		notifications,
-		access,
-	), renderer)
-
-	return &Application{
-		administration: administration,
-		access:         access,
-		groups:         groups,
-		media:          media,
-		navigation:     navigation,
-		notifications:  notifications,
-		preferences:    preferences,
-		recycleBin:     recycleBin,
-		knowledge:      knowledge,
-		settings:       settings,
-		system:         system,
-		templates:      templates,
-		tokens:         tokens,
-		users:          users,
-		webhooks:       webhooks,
-
-		pageLookup:            pageLookup,
-		pageSearch:            pageSearch,
-		pageDirectory:         pageDirectory,
-		pageReports:           pageReports,
-		pagePersonal:          pagePersonal,
-		pageHistory:           pageHistory,
-		pageRender:            pageRender,
-		drafts:                drafts,
-		pageMutations:         mutations,
-		pagePresence:          presence,
-		pageDiscussions:       discussions,
-		pageReviews:           reviews,
-		pageReviewDiscussions: reviewDiscussions,
-		pageBulk:              bulk,
-		home:                  home,
-		editor:                editor,
-		editorSave:            editorSave,
-		viewPage:              viewPage,
-
-		browserAuth:    browserAuth,
-		bearerAuth:     bearerAuth,
-		browserContext: browserContext,
-		renderer:       renderer,
-		pluginAdmin:    appplugins.NewAdmin(renderer.PluginManager(), pluginUpdates),
-
-		contentChangeWorker:  contentChangeWorker,
-		pluginUpdates:        pluginUpdates,
-		pluginUpdatesEnabled: cfg.PluginUpdateCheckInterval > 0,
-	}, nil
+		a.settings,
+		a.knowledge,
+		a.notifications,
+		a.access,
+	), a.renderer)
 }
 
 // Start launches application-owned background work until ctx is canceled.
