@@ -12,6 +12,7 @@ import (
 	appnotifications "github.com/kumbuka-me/kumbuka/internal/application/notifications"
 	apppages "github.com/kumbuka-me/kumbuka/internal/application/pages"
 	appplugins "github.com/kumbuka-me/kumbuka/internal/application/plugins"
+	appportablearchive "github.com/kumbuka-me/kumbuka/internal/application/portablearchive"
 	apppreferences "github.com/kumbuka-me/kumbuka/internal/application/preferences"
 	apprecyclebin "github.com/kumbuka-me/kumbuka/internal/application/recyclebin"
 	appsearch "github.com/kumbuka-me/kumbuka/internal/application/search"
@@ -93,6 +94,8 @@ type AdministrationConfig struct {
 	Webhooks *appwebhooks.Webhooks
 	// Media provides image and attachment use cases.
 	Media *appmedia.Media
+	// PortableImport restores Kumbuka archives inside one atomic transaction.
+	PortableImport *appportablearchive.Importer
 	// Navigation provides navigation-tree and icon use cases.
 	Navigation *appnavigation.Navigation
 	// RecycleBin provides deleted-page lifecycle use cases.

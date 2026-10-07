@@ -12,15 +12,16 @@ import (
 	"strconv"
 	"strings"
 
+	appgroups "github.com/kumbuka-me/kumbuka/internal/application/groups"
+	appmedia "github.com/kumbuka-me/kumbuka/internal/application/media"
 	"github.com/kumbuka-me/kumbuka/internal/application/pages"
 	"github.com/kumbuka-me/kumbuka/internal/markdownurl"
 	"github.com/kumbuka-me/kumbuka/internal/portable"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
 
-// Pages runs a portable import transaction and persists pages inside it.
+// Pages persists pages inside one portable import transaction scope.
 type Pages interface {
-	RunPortableImport(context.Context, domain.User, func(context.Context) (int, error)) (int, error)
 	ImportPortablePages(context.Context, []pages.PortableImportedPage, domain.User) (int, error)
 }
 
@@ -36,14 +37,69 @@ type Groups interface {
 	CreateGroup(context.Context, string) (domain.Group, error)
 }
 
-// Restore commits all archived resources, groups, and pages together.
-func Restore(ctx context.Context, archive portable.Archive, pageService Pages, mediaService Media, groupService Groups, actor domain.User) (int, error) {
-	return pageService.RunPortableImport(ctx, actor, func(transactionContext context.Context) (int, error) {
-		return restore(transactionContext, archive, pageService, mediaService, groupService, actor)
-	})
+// Repository combines the persistence capabilities required inside one portable-import transaction.
+type Repository interface {
+	pages.PortableRepository
+	appmedia.UploadRepository
+	appgroups.ImportRepository
 }
 
-// restore recreates resources and groups, then persists pages on the same transaction context.
+// TransactionRunner supplies a repository whose lifetime is bound to one transaction.
+type TransactionRunner interface {
+	Run(context.Context, func(Repository) error) error
+}
+
+// ProgressRecorder records one successfully committed portable import.
+type ProgressRecorder interface {
+	RecordPortableImport(context.Context, domain.User, int)
+}
+
+// Importer owns the portable archive transaction boundary and post-commit progress reporting.
+type Importer struct {
+	// transaction supplies the repository bound to the archive transaction.
+	transaction TransactionRunner
+	// mutations provides shared page validation and content preparation.
+	mutations *pages.Mutations
+	// progress records the committed page count after the transaction succeeds.
+	progress ProgressRecorder
+}
+
+// NewImporter constructs portable archive restoration around an explicit transaction runner.
+func NewImporter(transaction TransactionRunner, mutations *pages.Mutations, progress ProgressRecorder) *Importer {
+	return &Importer{transaction: transaction, mutations: mutations, progress: progress}
+}
+
+// Restore commits all archived resources, groups, and pages together.
+func (i *Importer) Restore(ctx context.Context, archive portable.Archive, actor domain.User) (int, error) {
+	count := 0
+	err := i.transaction.Run(ctx, func(repository Repository) error {
+		var restoreErr error
+		count, restoreErr = restore(
+			ctx,
+			archive,
+			pages.NewPortableImporter(repository, i.mutations),
+			appmedia.NewUploader(repository),
+			appgroups.NewImporter(repository),
+			actor,
+		)
+		return restoreErr
+	})
+	if err != nil {
+		return 0, err
+	}
+	if i.progress != nil {
+		i.progress.RecordPortableImport(ctx, actor, count)
+	}
+
+	return count, nil
+}
+
+// Restore recreates archived resources, groups, and pages through already transaction-scoped services.
+func Restore(ctx context.Context, archive portable.Archive, pageService Pages, mediaService Media, groupService Groups, actor domain.User) (int, error) {
+	return restore(ctx, archive, pageService, mediaService, groupService, actor)
+}
+
+// restore recreates resources and groups, then persists pages through the same transaction-scoped services.
 func restore(ctx context.Context, archive portable.Archive, pageService Pages, mediaService Media, groupService Groups, actor domain.User) (int, error) {
 	replacements := make(map[string]string, len(archive.Manifest.Media)+len(archive.Manifest.Attachments))
 	for _, resource := range archive.Manifest.Media {

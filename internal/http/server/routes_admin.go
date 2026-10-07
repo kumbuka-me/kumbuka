@@ -91,7 +91,7 @@ func registerAdminContentRoutes(
 	mux.Handle("POST /admin/pages/render-pending", protect(endpoint.FlushPendingAdminPageRenders(renderRebuilds)))
 	mux.Handle("POST /admin/pages/render/{slug...}", protect(endpoint.RebuildAdminPageRender(renderRebuilds, config.Logger)))
 	mux.Handle("GET /admin/import", protect(endpoint.AdminImport(config.BrowserContext, config.Views)))
-	mux.Handle("POST /admin/import", protect(endpoint.ImportPagesWithPortableArchive(config.PageBulk, config.Media, config.Groups, config.Logger)))
+	mux.Handle("POST /admin/import", protect(endpoint.ImportPagesWithPortableArchive(config.PageBulk, config.PortableImport, config.Logger)))
 	mux.Handle("POST /admin/templates", protect(endpoint.CreateAdminPageTemplate(config.Templates, config.Logger)))
 	mux.Handle("POST /admin/templates/{id}", protect(endpoint.UpdateAdminPageTemplate(config.Templates, config.Logger)))
 	mux.Handle("POST /admin/templates/{id}/delete", protect(endpoint.DeleteAdminPageTemplate(config.Templates, config.Logger)))

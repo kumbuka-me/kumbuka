@@ -26,23 +26,23 @@ func TestImportTransactionRollsBackResourcesGroupsAndPages(t *testing.T) {
 	failure := errors.New("later archive page failed")
 	var imageID, attachmentID, groupID int64
 
-	err = database.WithImportTransaction(ctx, func(txContext context.Context) error {
-		image, err := database.SaveImage(txContext, name+".png", "image/png", []byte("image"), actor.ID)
+	err = database.WithImportTransaction(ctx, func(transaction *ImportStore) error {
+		image, err := transaction.SaveImage(ctx, name+".png", "image/png", []byte("image"), actor.ID)
 		if err != nil {
 			return err
 		}
 		imageID = image.ID
-		attachment, err := database.SaveAttachment(txContext, name+".txt", "text/plain", []byte("text"), actor.ID)
+		attachment, err := transaction.SaveAttachment(ctx, name+".txt", "text/plain", []byte("text"), actor.ID)
 		if err != nil {
 			return err
 		}
 		attachmentID = attachment.ID
-		group, err := database.CreateGroup(txContext, name)
+		group, err := transaction.CreateGroup(ctx, name)
 		if err != nil {
 			return err
 		}
 		groupID = group.ID
-		_, err = database.SavePage(txContext, "", name, name, "", "", "body", "import", nil, nil,
+		_, err = transaction.SavePage(ctx, "", name, name, "", "", "body", "import", nil, nil,
 			[]int64{groupID}, domain.PageMetadata{Status: "verified", OwnerGroupID: groupID}, nil, domain.PageRender{}, actor)
 		if err != nil {
 			return err

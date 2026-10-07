@@ -14,6 +14,7 @@ import (
 	appnotifications "github.com/kumbuka-me/kumbuka/internal/application/notifications"
 	apppages "github.com/kumbuka-me/kumbuka/internal/application/pages"
 	appplugins "github.com/kumbuka-me/kumbuka/internal/application/plugins"
+	appportablearchive "github.com/kumbuka-me/kumbuka/internal/application/portablearchive"
 	apppreferences "github.com/kumbuka-me/kumbuka/internal/application/preferences"
 	apprecyclebin "github.com/kumbuka-me/kumbuka/internal/application/recyclebin"
 	appsearch "github.com/kumbuka-me/kumbuka/internal/application/search"
@@ -98,6 +99,8 @@ type Application struct {
 	pageReviewDiscussions *apppages.ReviewDiscussions
 	// pageBulk owns administrative bulk page mutations and imports.
 	pageBulk *apppages.Bulk
+	// portableImport restores Kumbuka archives inside one explicit PostgreSQL transaction scope.
+	portableImport *appportablearchive.Importer
 	// home loads dashboard page-list capabilities with access filtering.
 	home *apppages.HomeQuery
 	// editor loads create and edit page workflow data.
@@ -187,6 +190,11 @@ func (a *Application) composeUseCases(cfg flags.Config, infrastructure *Infrastr
 		a.webhooks,
 	)
 	a.media = appmedia.NewMedia(database)
+	a.portableImport = appportablearchive.NewImporter(
+		newPortableImportTransactionRunner(database),
+		a.pageMutations,
+		a.pageBulk,
+	)
 	a.navigation = appnavigation.NewNavigation(database, a.access)
 	a.preferences = apppreferences.NewPreferences(database)
 	a.recycleBin = apprecyclebin.NewRecycleBin(database)

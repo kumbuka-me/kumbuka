@@ -67,6 +67,11 @@ type pageContentRepository interface {
 	SavePageIfUnchanged(context.Context, time.Time, string, string, string, string, string, string, string, []string, []string, []int64, domain.PageMetadata, map[string]string, domain.PageRender, domain.User) (domain.Page, error)
 }
 
+// PortablePageSaveRepository contains only the page write used by portable imports.
+type PortablePageSaveRepository interface {
+	SavePage(context.Context, string, string, string, string, string, string, string, []string, []string, []int64, domain.PageMetadata, map[string]string, domain.PageRender, domain.User) (domain.Page, error)
+}
+
 type pageContentPreparer interface {
 	Prepare(context.Context, string) (*pluginusage.Index, domain.PageRender, error)
 }
@@ -248,17 +253,40 @@ func validPageWorkflowSettings(input PageSaveInput) bool {
 
 // save validates and persists a page without emitting side effects.
 func (s *Mutations) save(ctx context.Context, input PageSaveInput) (domain.Page, error) {
+	input, metadata, render, err := s.preparePageSave(ctx, input)
+	if err != nil {
+		return domain.Page{}, err
+	}
+
+	return s.persistPageSave(ctx, input, metadata, render)
+}
+
+// savePortable validates and persists one portable-import page through an explicit repository.
+func (s *Mutations) savePortable(ctx context.Context, repository PortablePageSaveRepository, input PageSaveInput) (domain.Page, error) {
+	input, metadata, render, err := s.preparePageSave(ctx, input)
+	if err != nil {
+		return domain.Page{}, err
+	}
+
+	return repository.SavePage(
+		ctx, input.PreviousSlug, input.Slug, input.Title, input.Icon, input.Language, input.Markdown, input.Message,
+		input.Tags, md.Links(input.Markdown), input.GroupIDs, metadata, input.Properties, render, input.Actor,
+	)
+}
+
+// preparePageSave normalizes, validates, and derives persistence metadata for one page save.
+func (s *Mutations) preparePageSave(ctx context.Context, input PageSaveInput) (PageSaveInput, domain.PageMetadata, domain.PageRender, error) {
 	input = normalizePageSaveInput(input)
 	if err := s.validatePageSaveInput(input); err != nil {
-		return domain.Page{}, err
+		return PageSaveInput{}, domain.PageMetadata{}, domain.PageRender{}, err
 	}
 
 	pluginUsage, render, err := preparePageContent(ctx, s.content, input.Markdown)
 	if err != nil {
-		return domain.Page{}, err
+		return PageSaveInput{}, domain.PageMetadata{}, domain.PageRender{}, err
 	}
-	metadata := pageMetadataFromSaveInput(input, pluginUsage)
-	return s.persistPageSave(ctx, input, metadata, render)
+
+	return input, pageMetadataFromSaveInput(input, pluginUsage), render, nil
 }
 
 // normalizePageSaveInput canonicalizes user-controlled page metadata before validation.

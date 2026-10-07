@@ -71,6 +71,7 @@ func NewHTTPConfig(
 			Users:          application.users,
 			Webhooks:       application.webhooks,
 			Media:          application.media,
+			PortableImport: application.portableImport,
 			Navigation:     application.navigation,
 			RecycleBin:     application.recycleBin,
 		},

@@ -137,7 +137,7 @@ func Parse(args []string, version string) (Config, error) {
 		sectionTrustedProxy,
 		sectionOIDC,
 		sectionLoggingDiagnostics,
-		tinyflags.EmptyGroup,
+		tinyflags.UnnamedSection,
 	)
 
 	applyServerFlags := registerServerFlags(tf, &cfg)

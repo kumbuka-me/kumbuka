@@ -303,7 +303,7 @@ func inlineRenderedMediaAttribute(ctx context.Context, mediaUseCases imageConten
 	if err != nil || location.IsAbs() || location.Host != "" {
 		return attribute, false, nil
 	}
-	id, ok := portablearchive.MediaImageID(location.Path)
+	id, ok := portablearchive.MediaImageID(location.EscapedPath())
 	if !ok {
 		return attribute, false, nil
 	}

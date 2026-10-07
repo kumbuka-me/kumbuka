@@ -56,11 +56,6 @@ func (r *portableImportRepositoryStub) GetPage(context.Context, string) (domain.
 	return domain.Page{Slug: "guide"}, nil
 }
 
-// WithImportTransaction runs the test callback under a simulated transaction boundary.
-func (*portableImportRepositoryStub) WithImportTransaction(ctx context.Context, run func(context.Context) error) error {
-	return run(ctx)
-}
-
 // SavePage records the portable page mutation and returns its target page.
 func (r *portableImportRepositoryStub) SavePage(
 	_ context.Context,
@@ -91,9 +86,9 @@ func (r *portableImportRepositoryStub) SavePage(
 
 func TestImportPortableReportsSavedPagesOnLaterFailure(t *testing.T) {
 	repository := &portableImportRepositoryStub{FailAt: 2}
-	bulk := NewBulk(repository, NewMutations(repository, nil, nil, nil), nil, nil)
+	importer := NewPortableImporter(repository, NewMutations(repository, nil, nil, nil))
 
-	count, err := bulk.ImportPortable(context.Background(), []PortableImportedPage{
+	count, err := importer.ImportPortablePages(context.Background(), []PortableImportedPage{
 		{Slug: "first", Title: "First", Status: "verified"},
 		{Slug: "second", Title: "Second", Status: "verified"},
 	}, domain.User{ID: 7})
@@ -101,22 +96,6 @@ func TestImportPortableReportsSavedPagesOnLaterFailure(t *testing.T) {
 	require.Error(t, err)
 	assert.Equal(t, 1, count)
 	assert.Equal(t, 2, repository.SaveCalls)
-}
-
-func TestRunPortableImportReportsNoCommittedPagesOnFailure(t *testing.T) {
-	repository := &portableImportRepositoryStub{FailAt: 2}
-	bulk := NewBulk(repository, NewMutations(repository, nil, nil, nil), nil, nil)
-	actor := domain.User{ID: 7}
-
-	count, err := bulk.RunPortableImport(context.Background(), actor, func(ctx context.Context) (int, error) {
-		return bulk.ImportPortablePages(ctx, []PortableImportedPage{
-			{Slug: "first", Title: "First", Status: "verified"},
-			{Slug: "second", Title: "Second", Status: "verified"},
-		}, actor)
-	})
-
-	require.Error(t, err)
-	assert.Zero(t, count)
 }
 
 func TestImportReportsSavedPagesOnLaterFailure(t *testing.T) {
@@ -138,9 +117,9 @@ func TestImportPortablePageRestoresArchiveMetadata(t *testing.T) {
 
 	repository := &portableImportRepositoryStub{}
 	mutations := NewMutations(repository, nil, nil, nil)
-	bulk := NewBulk(repository, mutations, nil, nil)
+	importer := NewPortableImporter(repository, mutations)
 
-	err := bulk.importPortablePage(context.Background(), PortableImportedPage{
+	err := importer.importPortablePage(context.Background(), PortableImportedPage{
 		Slug:               "guide",
 		Title:              "Guide",
 		Language:           "german",
@@ -174,9 +153,9 @@ func TestImportPortablePageReplacesExistingMetadata(t *testing.T) {
 
 	repository := &portableImportRepositoryStub{Existing: true}
 	mutations := NewMutations(repository, nil, nil, nil)
-	bulk := NewBulk(repository, mutations, nil, nil)
+	importer := NewPortableImporter(repository, mutations)
 
-	err := bulk.importPortablePage(context.Background(), PortableImportedPage{
+	err := importer.importPortablePage(context.Background(), PortableImportedPage{
 		Slug:       "guide",
 		Title:      "Imported Guide",
 		Markdown:   "Imported body",

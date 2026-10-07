@@ -76,10 +76,25 @@ WHERE id=$1`, id).
 	return item, err
 }
 
+// attachmentQueryRower is the query-row capability shared by the pool and import transactions.
+type attachmentQueryRower interface {
+	QueryRow(context.Context, string, ...any) pgx.Row
+}
+
 // SaveAttachment stores one uploaded attachment.
 func (s *Store) SaveAttachment(ctx context.Context, filename, contentType string, data []byte, userID int64) (domain.Attachment, error) {
+	return saveAttachment(ctx, s.pool, filename, contentType, data, userID)
+}
+
+// SaveAttachment stores one uploaded attachment inside the import transaction.
+func (s *ImportStore) SaveAttachment(ctx context.Context, filename, contentType string, data []byte, userID int64) (domain.Attachment, error) {
+	return saveAttachment(ctx, s.tx, filename, contentType, data, userID)
+}
+
+// saveAttachment stores one attachment through the explicitly supplied query boundary.
+func saveAttachment(ctx context.Context, query attachmentQueryRower, filename, contentType string, data []byte, userID int64) (domain.Attachment, error) {
 	var item domain.Attachment
-	err := s.importQuery(ctx).QueryRow(ctx, `
+	err := query.QueryRow(ctx, `
 INSERT INTO attachments(filename,content_type,data,size_bytes,uploaded_by)
 VALUES($1,$2,$3,$4,$5)
 RETURNING id,filename,content_type,size_bytes,coalesce(uploaded_by,0),created_at`, filename, contentType, data, len(data), userID).

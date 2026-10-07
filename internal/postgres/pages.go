@@ -137,9 +137,24 @@ LEFT JOIN users u ON u.id=p.updated_by
 LEFT JOIN wiki_groups owner ON owner.id=p.owner_group_id
 WHERE p.slug=$1 AND p.deleted_at IS NULL`
 
+// completePageQueryRower is the query-row capability shared by the pool and import transactions.
+type completePageQueryRower interface {
+	QueryRow(context.Context, string, ...any) pgx.Row
+}
+
 // GetPage returns one complete page in a single PostgreSQL round trip.
 func (s *Store) GetPage(ctx context.Context, slug string) (domain.Page, error) {
-	return scanCompletePage(s.query(ctx).QueryRow(ctx, completePageSelect, slug))
+	return getPage(ctx, s.pool, slug)
+}
+
+// GetPage returns one complete page inside the import transaction.
+func (s *ImportStore) GetPage(ctx context.Context, slug string) (domain.Page, error) {
+	return getPage(ctx, s.tx, slug)
+}
+
+// getPage loads one complete page through the explicitly supplied query boundary.
+func getPage(ctx context.Context, query completePageQueryRower, slug string) (domain.Page, error) {
+	return scanCompletePage(query.QueryRow(ctx, completePageSelect, slug))
 }
 
 // scanCompletePage scans the full page projection and restores its structured metadata.
@@ -400,31 +415,59 @@ func (s *Store) SavePage(
 		return domain.Page{}, err
 	}
 
-	if tx, active := s.activeTransaction(ctx); active {
-		if err := validateAssignableGroup(ctx, tx, mutation.record.metadata.OwnerGroupID, mutation.user); err != nil {
-			return domain.Page{}, mutationError(err)
-		}
-		if err := executePageSaveTransaction(ctx, tx, mutation); err != nil {
-			return domain.Page{}, mutationError(err)
-		}
-		return s.GetPage(ctx, slug)
-	}
-
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return domain.Page{}, mutationError(err)
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
-	if err := validateAssignableGroup(ctx, tx, mutation.record.metadata.OwnerGroupID, mutation.user); err != nil {
-		return domain.Page{}, mutationError(err)
-	}
-	if err := executePageSaveTransaction(ctx, tx, mutation); err != nil {
+
+	page, err := persistPageSaveTransaction(ctx, tx, mutation)
+	if err != nil {
 		return domain.Page{}, mutationError(err)
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return domain.Page{}, mutationError(err)
 	}
-	return s.GetPage(ctx, slug)
+
+	return page, nil
+}
+
+// SavePage persists page content inside the caller-owned import transaction.
+func (s *ImportStore) SavePage(
+	ctx context.Context,
+	previousSlug, slug, title, icon, language, markdown, message string,
+	tags, links []string,
+	groupIDs []int64,
+	metadata domain.PageMetadata,
+	properties map[string]string,
+	render domain.PageRender,
+	user domain.User,
+) (domain.Page, error) {
+	mutation, err := preparePageSaveTransaction(
+		previousSlug, slug, title, icon, language, markdown, message, tags, links, groupIDs, metadata, properties, render, user,
+	)
+	if err != nil {
+		return domain.Page{}, err
+	}
+
+	page, err := persistPageSaveTransaction(ctx, s.tx, mutation)
+	if err != nil {
+		return domain.Page{}, mutationError(err)
+	}
+
+	return page, nil
+}
+
+// persistPageSaveTransaction validates assignments, writes the page, and reloads it through one transaction.
+func persistPageSaveTransaction(ctx context.Context, tx pgx.Tx, mutation pageSaveTransaction) (domain.Page, error) {
+	if err := validateAssignableGroup(ctx, tx, mutation.record.metadata.OwnerGroupID, mutation.user); err != nil {
+		return domain.Page{}, err
+	}
+	if err := executePageSaveTransaction(ctx, tx, mutation); err != nil {
+		return domain.Page{}, err
+	}
+
+	return getPage(ctx, tx, mutation.slug)
 }
 
 // preparePageSaveTransaction validates derived data and packages the ordered transactional write.

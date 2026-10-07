@@ -135,11 +135,15 @@ func TestImportPagesWithPortableArchiveAutoDetectsKumbukaZip(t *testing.T) {
 	request.Header.Set("Content-Type", multipartWriter.FormDataContentType())
 	response := httptest.NewRecorder()
 	pages := &portableRestorePagesStub{}
+	restorer := &portableArchiveRestorerStub{
+		pages:  pages,
+		media:  &portableRestoreMediaStub{},
+		groups: &portableRestoreGroupsStub{},
+	}
 
 	ImportPagesWithPortableArchive(
 		pages,
-		&portableRestoreMediaStub{},
-		&portableRestoreGroupsStub{},
+		restorer,
 		slog.Default(),
 	).ServeHTTP(response, request)
 
@@ -147,6 +151,21 @@ func TestImportPagesWithPortableArchiveAutoDetectsKumbukaZip(t *testing.T) {
 	require.Len(t, pages.Pages, 1)
 	assert.Equal(t, "ADFADF", pages.Pages[0].Title)
 	assert.Equal(t, "Body without a level-one heading.\n", pages.Pages[0].Markdown)
+}
+
+// portableArchiveRestorerStub restores archives through configured transaction-scoped test services.
+type portableArchiveRestorerStub struct {
+	// pages records restored page mutations.
+	pages *portableRestorePagesStub
+	// media records restored resource uploads.
+	media *portableRestoreMediaStub
+	// groups records restored collaboration groups.
+	groups *portableRestoreGroupsStub
+}
+
+// Restore restores one archive through the configured test services.
+func (s *portableArchiveRestorerStub) Restore(ctx context.Context, archive portable.Archive, actor domain.User) (int, error) {
+	return portablearchive.Restore(ctx, archive, s.pages, s.media, s.groups, actor)
 }
 
 // portableRestorePagesStub records pages passed to the portable service import.
@@ -173,11 +192,6 @@ func (s *portableRestorePagesStub) ImportPortable(
 // ImportPortablePages records the pages prepared inside the import transaction.
 func (s *portableRestorePagesStub) ImportPortablePages(ctx context.Context, pages []apppages.PortableImportedPage, actor domain.User) (int, error) {
 	return s.ImportPortable(ctx, pages, actor)
-}
-
-// RunPortableImport executes the test transaction callback once.
-func (*portableRestorePagesStub) RunPortableImport(ctx context.Context, _ domain.User, run func(context.Context) (int, error)) (int, error) {
-	return run(ctx)
 }
 
 // portableRestoreMediaStub records recreated resources and returns target identifiers.

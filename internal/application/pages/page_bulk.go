@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/kumbuka-me/kumbuka/internal/application/webhooks"
+	"github.com/kumbuka-me/kumbuka/internal/portable"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	md "github.com/kumbuka-me/kumbuka/pkg/markdown"
 	"github.com/kumbuka-me/kumbuka/pkg/pagemove"
@@ -72,7 +73,6 @@ type pageBulkRepository interface {
 type bulkRepository interface {
 	pageBulkRepository
 	GetPage(context.Context, string) (domain.Page, error)
-	WithImportTransaction(context.Context, func(context.Context) error) error
 }
 
 // Bulk owns administrative bulk mutations and imports.
@@ -130,6 +130,11 @@ func (s *Bulk) recordImportProgress(ctx context.Context, actor domain.User, form
 	}
 	s.effects.recordAudit(ctx, actor.ID, "pages.imported", "import", format,
 		fmt.Sprintf("Imported %d pages (%s)", count, status))
+}
+
+// RecordPortableImport records one successfully committed portable archive import.
+func (s *Bulk) RecordPortableImport(ctx context.Context, actor domain.User, count int) {
+	s.recordImportProgress(ctx, actor, portable.Format, count, true)
 }
 
 // validateImportedPages rejects invalid and colliding canonical paths before any page is changed.

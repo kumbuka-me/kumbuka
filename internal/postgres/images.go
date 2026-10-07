@@ -8,10 +8,25 @@ import (
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
 
+// imageQueryRower is the query-row capability shared by the pool and import transactions.
+type imageQueryRower interface {
+	QueryRow(context.Context, string, ...any) pgx.Row
+}
+
 // SaveImage stores an immutable uploaded image and returns its metadata.
 func (s *Store) SaveImage(ctx context.Context, filename, contentType string, data []byte, userID int64) (domain.Image, error) {
+	return saveImage(ctx, s.pool, filename, contentType, data, userID)
+}
+
+// SaveImage stores an immutable uploaded image inside the import transaction.
+func (s *ImportStore) SaveImage(ctx context.Context, filename, contentType string, data []byte, userID int64) (domain.Image, error) {
+	return saveImage(ctx, s.tx, filename, contentType, data, userID)
+}
+
+// saveImage stores one image through the explicitly supplied query boundary.
+func saveImage(ctx context.Context, query imageQueryRower, filename, contentType string, data []byte, userID int64) (domain.Image, error) {
 	var image domain.Image
-	err := s.importQuery(ctx).QueryRow(ctx, `
+	err := query.QueryRow(ctx, `
 INSERT INTO images(filename,content_type,data,size_bytes,uploaded_by)
 VALUES($1,$2,$3,$4,$5)
 RETURNING id,filename,content_type,size_bytes,coalesce(uploaded_by,0),created_at`, filename, contentType, data, int64(len(data)), userID).Scan(

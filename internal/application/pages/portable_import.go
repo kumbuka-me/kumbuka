@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/kumbuka-me/kumbuka/internal/portable"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	md "github.com/kumbuka-me/kumbuka/pkg/markdown"
 )
@@ -38,23 +37,27 @@ type PortableImportedPage struct {
 	Properties map[string]string
 }
 
-// ImportPortable persists pages reconstructed from a Kumbuka portable archive. Archive metadata is authoritative for both new pages and replacements.
-func (s *Bulk) ImportPortable(
-	ctx context.Context,
-	candidates []PortableImportedPage,
-	actor domain.User,
-) (int, error) {
-	count, err := s.ImportPortablePages(ctx, candidates, actor)
-	if err != nil {
-		s.recordImportProgress(ctx, actor, portable.Format, count, false)
-		return count, err
-	}
-	s.recordImportProgress(ctx, actor, portable.Format, count, true)
-	return count, nil
+// PortableRepository contains persistence needed while restoring portable pages.
+type PortableRepository interface {
+	GetPage(context.Context, string) (domain.Page, error)
+	PortablePageSaveRepository
 }
 
-// ImportPortablePages saves archive pages without side effects while an outer transaction is active.
-func (s *Bulk) ImportPortablePages(
+// PortableImporter saves portable archive pages through one explicit repository scope.
+type PortableImporter struct {
+	// repository is the transaction-scoped persistence used by the import.
+	repository PortableRepository
+	// mutations provides shared page validation and derived-content preparation.
+	mutations *Mutations
+}
+
+// NewPortableImporter constructs a portable page importer around an explicit repository scope.
+func NewPortableImporter(repository PortableRepository, mutations *Mutations) *PortableImporter {
+	return &PortableImporter{repository: repository, mutations: mutations}
+}
+
+// ImportPortablePages saves archive pages without side effects through the importer's explicit repository.
+func (s *PortableImporter) ImportPortablePages(
 	ctx context.Context,
 	candidates []PortableImportedPage,
 	actor domain.User,
@@ -67,27 +70,8 @@ func (s *Bulk) ImportPortablePages(
 	return len(candidates), nil
 }
 
-// RunPortableImport commits all archive writes before reporting the successful import.
-func (s *Bulk) RunPortableImport(
-	ctx context.Context,
-	actor domain.User,
-	run func(context.Context) (int, error),
-) (int, error) {
-	count := 0
-	err := s.repository.WithImportTransaction(ctx, func(transactionContext context.Context) error {
-		var importErr error
-		count, importErr = run(transactionContext)
-		return importErr
-	})
-	if err != nil {
-		return 0, err
-	}
-	s.recordImportProgress(ctx, actor, portable.Format, count, true)
-	return count, nil
-}
-
 // importPortablePage persists one archive page using portable metadata instead of target defaults.
-func (s *Bulk) importPortablePage(
+func (s *PortableImporter) importPortablePage(
 	ctx context.Context,
 	candidate PortableImportedPage,
 	actor domain.User,
@@ -104,7 +88,7 @@ func (s *Bulk) importPortablePage(
 		return err
 	}
 
-	_, err := s.mutations.save(ctx, PageSaveInput{
+	_, err := s.mutations.savePortable(ctx, s.repository, PageSaveInput{
 		PreviousSlug:       previousSlug,
 		Slug:               slug,
 		Title:              candidate.Title,

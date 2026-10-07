@@ -4,12 +4,29 @@ import (
 	"context"
 	"strings"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
 
+// groupQuerier is the query capability shared by the pool and import transactions.
+type groupQuerier interface {
+	Query(context.Context, string, ...any) (pgx.Rows, error)
+	QueryRow(context.Context, string, ...any) pgx.Row
+}
+
 // Groups returns all groups and their current user and page counts. Aggregate each relation independently so memberships and page assignments do not form a multiplicative join before counting.
 func (s *Store) Groups(ctx context.Context) ([]domain.Group, error) {
-	rows, err := s.importQuery(ctx).Query(ctx, `
+	return groups(ctx, s.pool)
+}
+
+// Groups returns all groups inside the import transaction.
+func (s *ImportStore) Groups(ctx context.Context) ([]domain.Group, error) {
+	return groups(ctx, s.tx)
+}
+
+// groups loads collaboration groups through the explicitly supplied query boundary.
+func groups(ctx context.Context, query groupQuerier) ([]domain.Group, error) {
+	rows, err := query.Query(ctx, `
 SELECT
   g.id,
   g.name,
@@ -34,7 +51,7 @@ ORDER BY lower(g.name),g.id`)
 
 	defer rows.Close()
 
-	var groups []domain.Group
+	var result []domain.Group
 
 	for rows.Next() {
 		var group domain.Group
@@ -42,21 +59,31 @@ ORDER BY lower(g.name),g.id`)
 			return nil, err
 		}
 
-		groups = append(groups, group)
+		result = append(result, group)
 	}
 
-	return groups, rows.Err()
+	return result, rows.Err()
 }
 
 // CreateGroup creates a normalized group and returns its persisted record.
 func (s *Store) CreateGroup(ctx context.Context, name string) (domain.Group, error) {
+	return createGroup(ctx, s.pool, name)
+}
+
+// CreateGroup creates a normalized group inside the import transaction.
+func (s *ImportStore) CreateGroup(ctx context.Context, name string) (domain.Group, error) {
+	return createGroup(ctx, s.tx, name)
+}
+
+// createGroup stores one group through the explicitly supplied query boundary.
+func createGroup(ctx context.Context, query groupQuerier, name string) (domain.Group, error) {
 	name = strings.TrimSpace(name)
 	if name == "" {
 		return domain.Group{}, domain.NewValidationError("name", "A group name is required.")
 	}
 
 	var group domain.Group
-	err := s.importQuery(ctx).QueryRow(ctx, `
+	err := query.QueryRow(ctx, `
 INSERT INTO wiki_groups(name)
 VALUES($1)
 RETURNING id,name`, name).

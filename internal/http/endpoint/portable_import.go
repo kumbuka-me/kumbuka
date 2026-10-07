@@ -1,6 +1,7 @@
 package endpoint
 
 import (
+	"context"
 	"errors"
 	"io"
 	"log/slog"
@@ -10,24 +11,22 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/kumbuka-me/kumbuka/internal/application/portablearchive"
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
 	"github.com/kumbuka-me/kumbuka/internal/importer"
 	"github.com/kumbuka-me/kumbuka/internal/portable"
 	"github.com/kumbuka-me/kumbuka/internal/route"
+	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
 
-// portableArchivePageImportService combines legacy imports with portable archive page restoration.
-type portableArchivePageImportService interface {
-	pageImportService
-	portablearchive.Pages
+// portableArchiveRestorer restores one validated Kumbuka archive transactionally.
+type portableArchiveRestorer interface {
+	Restore(context.Context, portable.Archive, domain.User) (int, error)
 }
 
 // ImportPagesWithPortableArchive extends the normal admin importer with Kumbuka portable archives.
 func ImportPagesWithPortableArchive(
-	pageUseCases portableArchivePageImportService,
-	mediaUseCases portablearchive.Media,
-	groupUseCases portablearchive.Groups,
+	pageUseCases pageImportService,
+	portableUseCases portableArchiveRestorer,
 	logger *slog.Logger,
 ) http.HandlerFunc {
 	legacy := ImportPages(pageUseCases, logger)
@@ -71,14 +70,7 @@ func ImportPagesWithPortableArchive(
 			return
 		}
 
-		imported, err := portablearchive.Restore(
-			r.Context(),
-			archive,
-			pageUseCases,
-			mediaUseCases,
-			groupUseCases,
-			currentUser(r),
-		)
+		imported, err := portableUseCases.Restore(r.Context(), archive, currentUser(r))
 		if err != nil {
 			writePortableArchiveImportProblem(logger, w, err)
 			return

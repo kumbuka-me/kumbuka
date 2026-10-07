@@ -18,6 +18,23 @@ type groupRepository interface {
 	RemoveGroupMember(context.Context, int64, int64) error
 }
 
+// ImportRepository contains only group persistence required by portable archive restoration.
+type ImportRepository interface {
+	Groups(context.Context) ([]domain.Group, error)
+	CreateGroup(context.Context, string) (domain.Group, error)
+}
+
+// Importer resolves and creates groups through an explicit repository scope.
+type Importer struct {
+	// repository persists groups inside the active import transaction.
+	repository ImportRepository
+}
+
+// NewImporter constructs portable-import group use cases.
+func NewImporter(repository ImportRepository) *Importer {
+	return &Importer{repository: repository}
+}
+
 // Groups exposes collaboration group use cases.
 type Groups struct {
 	// repository provides the persistence operations required by groups.
@@ -26,6 +43,20 @@ type Groups struct {
 
 // NewGroups constructs the collaboration group service.
 func NewGroups(repository groupRepository) *Groups { return &Groups{repository: repository} }
+
+// Groups returns all collaboration groups through the import repository.
+func (s *Importer) Groups(ctx context.Context) ([]domain.Group, error) {
+	return s.repository.Groups(ctx)
+}
+
+// CreateGroup creates a collaboration group through the import repository.
+func (s *Importer) CreateGroup(ctx context.Context, name string) (domain.Group, error) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return domain.Group{}, domain.NewValidationError("name", "A group name is required.")
+	}
+	return s.repository.CreateGroup(ctx, name)
+}
 
 // Groups returns all collaboration groups.
 func (s *Groups) Groups(ctx context.Context) ([]domain.Group, error) {

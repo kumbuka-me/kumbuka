@@ -73,6 +73,23 @@ type mediaRepository interface {
 	SaveImage(context.Context, string, string, []byte, int64) (domain.Image, error)
 }
 
+// UploadRepository contains only persistence required by validated imports and uploads.
+type UploadRepository interface {
+	SaveAttachment(context.Context, string, string, []byte, int64) (domain.Attachment, error)
+	SaveImage(context.Context, string, string, []byte, int64) (domain.Image, error)
+}
+
+// Uploader validates and stores images and attachments through an explicit repository scope.
+type Uploader struct {
+	// repository persists validated image and attachment payloads.
+	repository UploadRepository
+}
+
+// NewUploader constructs an upload-only service around an explicit repository scope.
+func NewUploader(repository UploadRepository) *Uploader {
+	return &Uploader{repository: repository}
+}
+
 // Error describes the number of references blocking media deletion.
 func (e *MediaInUseError) Error() string {
 	return fmt.Sprintf("media is still referenced %d time(s)", e.References)
@@ -96,6 +113,16 @@ func NewMedia(repository mediaRepository) *Media {
 
 // UploadImage validates, normalizes, and stores an image.
 func (s *Media) UploadImage(ctx context.Context, filename string, data []byte, actor domain.User) (domain.Image, error) {
+	return uploadImage(ctx, s.repository, filename, data, actor)
+}
+
+// UploadImage validates, normalizes, and stores an image through the uploader repository.
+func (s *Uploader) UploadImage(ctx context.Context, filename string, data []byte, actor domain.User) (domain.Image, error) {
+	return uploadImage(ctx, s.repository, filename, data, actor)
+}
+
+// uploadImage validates, normalizes, and stores an image through the supplied repository.
+func uploadImage(ctx context.Context, repository UploadRepository, filename string, data []byte, actor domain.User) (domain.Image, error) {
 	if len(data) == 0 {
 		return domain.Image{}, ErrEmptyFile
 	}
@@ -108,7 +135,7 @@ func (s *Media) UploadImage(ctx context.Context, filename string, data []byte, a
 		return domain.Image{}, ErrUnsupportedFileType
 	}
 
-	return s.repository.SaveImage(ctx, SanitizeImageFilename(filename, contentType), contentType, data, actor.ID)
+	return repository.SaveImage(ctx, SanitizeImageFilename(filename, contentType), contentType, data, actor.ID)
 }
 
 // DeleteImage deletes an image when the actor owns it and it is unused, or is an administrator.
@@ -126,6 +153,16 @@ func (s *Media) DeleteImage(ctx context.Context, id int64, actor domain.User) er
 
 // UploadAttachment validates, normalizes, and stores a documentation attachment.
 func (s *Media) UploadAttachment(ctx context.Context, filename string, data []byte, actor domain.User) (domain.Attachment, error) {
+	return uploadAttachment(ctx, s.repository, filename, data, actor)
+}
+
+// UploadAttachment validates, normalizes, and stores an attachment through the uploader repository.
+func (s *Uploader) UploadAttachment(ctx context.Context, filename string, data []byte, actor domain.User) (domain.Attachment, error) {
+	return uploadAttachment(ctx, s.repository, filename, data, actor)
+}
+
+// uploadAttachment validates, normalizes, and stores an attachment through the supplied repository.
+func uploadAttachment(ctx context.Context, repository UploadRepository, filename string, data []byte, actor domain.User) (domain.Attachment, error) {
 	if len(data) == 0 {
 		return domain.Attachment{}, ErrEmptyFile
 	}
@@ -139,7 +176,7 @@ func (s *Media) UploadAttachment(ctx context.Context, filename string, data []by
 		return domain.Attachment{}, ErrUnsupportedFileType
 	}
 
-	return s.repository.SaveAttachment(ctx, filename, contentType, data, actor.ID)
+	return repository.SaveAttachment(ctx, filename, contentType, data, actor.ID)
 }
 
 // DeleteAttachment applies the same ownership and usage policy as images.
