@@ -64,7 +64,7 @@ func Run(
 			groupContext,
 			appAddress,
 			handlers.Application,
-			logger,
+			logger.With("server", "application"),
 			httpgrace.WithMaxHeaderValueCount(100),
 		)
 	})
@@ -75,7 +75,7 @@ func Run(
 			groupContext,
 			managementAddress,
 			handlers.Management,
-			logger,
+			logger.With("server", "management"),
 			httpgrace.WithMaxHeaderValueCount(100),
 		)
 	})
