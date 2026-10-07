@@ -24,6 +24,7 @@ import (
 	appwebhooks "github.com/kumbuka-me/kumbuka/internal/application/webhooks"
 	"github.com/kumbuka-me/kumbuka/internal/http/auth"
 	"github.com/kumbuka-me/kumbuka/internal/http/endpoint"
+	"github.com/kumbuka-me/kumbuka/internal/pagecontent"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/markdown"
 )
@@ -100,6 +101,8 @@ type AdministrationConfig struct {
 	Navigation *appnavigation.Navigation
 	// RecycleBin provides deleted-page lifecycle use cases.
 	RecycleBin *apprecyclebin.RecycleBin
+	// RenderRebuilds coordinates page render-cache rebuilds owned by the application lifecycle.
+	RenderRebuilds *pagecontent.Rebuilds
 }
 
 // PageQueryConfig contains page read capabilities.

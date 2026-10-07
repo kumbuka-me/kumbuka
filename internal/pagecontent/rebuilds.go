@@ -31,10 +31,10 @@ type Rebuilds struct {
 	mu sync.Mutex
 	// dirty reports whether another full rebuild has been requested.
 	dirty bool
-	// running reports whether a worker is draining pending rebuilds.
-	running bool
 	// reason describes the latest nonempty rebuild trigger.
 	reason string
+	// wake notifies the application-owned worker that pending rebuilds are ready.
+	wake chan struct{}
 
 	// renderMu serializes manual and full rebuilds to bound rendering memory.
 	renderMu sync.Mutex
@@ -56,6 +56,7 @@ func NewRebuilds(
 		renderer:    renderer,
 		logger:      logger.With("component", "page-render-rebuild"),
 		routePrefix: routePrefix,
+		wake:        make(chan struct{}, 1),
 	}
 }
 
@@ -171,45 +172,57 @@ func (c *Rebuilds) MarkAllDirty(reason string) {
 	c.mu.Unlock()
 }
 
-// QueueAll marks all cached page renders dirty and starts the background worker.
+// QueueAll marks all cached page renders dirty and wakes the application-owned worker.
 func (c *Rebuilds) QueueAll(reason string) {
 	c.MarkAllDirty(reason)
 	c.FlushPending()
 }
 
-// FlushPending starts one background rebuild worker when deferred changes are pending.
+// FlushPending wakes the application-owned worker when deferred changes are pending.
 func (c *Rebuilds) FlushPending() {
 	if !c.Available() {
 		return
 	}
 
 	c.mu.Lock()
-	if !c.dirty || c.running {
-		c.mu.Unlock()
+	dirty := c.dirty
+	c.mu.Unlock()
+	if !dirty {
 		return
 	}
-	c.running = true
-	c.mu.Unlock()
 
-	go c.run()
+	select {
+	case c.wake <- struct{}{}:
+	default:
+	}
 }
 
-// run drains pending rebuild requests and coalesces changes arriving while a rebuild is in progress.
-func (c *Rebuilds) run() {
+// Run drains pending rebuild requests until the application context is canceled.
+func (c *Rebuilds) Run(ctx context.Context) {
+	if !c.Available() {
+		return
+	}
+
 	for {
-		c.mu.Lock()
-		if !c.dirty {
-			c.running = false
-			c.mu.Unlock()
+		select {
+		case <-ctx.Done():
+			return
+		case <-c.wake:
+			c.runPending(ctx)
+		}
+	}
+}
+
+// runPending rebuilds dirty pages and coalesces requests made while a rebuild is in progress.
+func (c *Rebuilds) runPending(ctx context.Context) {
+	for {
+		reason, dirty := c.takePending()
+		if !dirty || ctx.Err() != nil {
 			return
 		}
-		reason := c.reason
-		c.dirty = false
-		c.reason = ""
-		c.mu.Unlock()
 
 		c.logger.Info("page render rebuild started", "event", "page_render_rebuild_started", "reason", reason)
-		completed, failed := c.RebuildAll(context.Background())
+		completed, failed := c.RebuildAll(ctx)
 		c.logger.Info(
 			"page render rebuild finished",
 			"event", "page_render_rebuild_finished",
@@ -218,6 +231,20 @@ func (c *Rebuilds) run() {
 			"failed", failed,
 		)
 	}
+}
+
+// takePending consumes one pending full-rebuild request.
+func (c *Rebuilds) takePending() (string, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if !c.dirty {
+		return "", false
+	}
+	reason := c.reason
+	c.dirty = false
+	c.reason = ""
+	return reason, true
 }
 
 // pageInventory lists the pages eligible for render-cache rebuilding.

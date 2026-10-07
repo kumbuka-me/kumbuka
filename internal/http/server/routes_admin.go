@@ -5,7 +5,6 @@ import (
 
 	"github.com/kumbuka-me/kumbuka/internal/http/endpoint"
 	"github.com/kumbuka-me/kumbuka/internal/http/middleware"
-	"github.com/kumbuka-me/kumbuka/internal/pagecontent"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
 
@@ -17,18 +16,9 @@ func registerAdminRoutes(mux *http.ServeMux, config Config) {
 	browserAdmin := func(handler http.Handler) http.Handler { return browserAuthn(adminAuthz(handler)) }
 	apiAdmin := func(handler http.Handler) http.Handler { return apiAuthn(adminAuthz(handler)) }
 
-	renderRebuilds := pagecontent.NewRebuilds(
-		config.PageDirectory,
-		config.PageReports,
-		config.PageRender,
-		config.Renderer,
-		config.Logger,
-		config.RoutePrefix,
-	)
-
-	registerAdminPluginRoutes(mux, config, browserAdmin, renderRebuilds)
+	registerAdminPluginRoutes(mux, config, browserAdmin)
 	registerAdminConfigurationRoutes(mux, config, browserAdmin)
-	registerAdminContentRoutes(mux, config, browserAdmin, renderRebuilds)
+	registerAdminContentRoutes(mux, config, browserAdmin)
 	registerAdminIdentityRoutes(mux, config, browserAdmin)
 	registerAdminIntegrationRoutes(mux, config, browserAdmin)
 	registerAdminAPIRoutes(mux, config, apiAdmin)
@@ -39,11 +29,10 @@ func registerAdminPluginRoutes(
 	mux *http.ServeMux,
 	config Config,
 	protect middleware.Middleware,
-	renderRebuilds *pagecontent.Rebuilds,
 ) {
 	pluginManager := config.Renderer.PluginManager()
 	pluginsAdmin := endpoint.NewAdminPlugins(config.PluginAdmin, config.BrowserContext, config.Views).
-		WithRenderRebuilds(renderRebuilds)
+		WithRenderRebuilds(config.RenderRebuilds)
 	pluginSettings := endpoint.NewAdminPluginSettings(pluginManager, config.BrowserContext, config.Views)
 
 	mux.Handle("GET /admin/plugins", protect(http.HandlerFunc(pluginsAdmin.List)))
@@ -79,7 +68,6 @@ func registerAdminContentRoutes(
 	mux *http.ServeMux,
 	config Config,
 	protect middleware.Middleware,
-	renderRebuilds *pagecontent.Rebuilds,
 ) {
 	mux.Handle("GET /admin/templates", protect(endpoint.AdminPageTemplates(config.BrowserContext, config.Templates, config.Groups, config.Views)))
 	mux.Handle("GET /admin/permissions", protect(endpoint.AdminPageAccess(config.BrowserContext, config.Access, config.Groups, config.Navigation, config.Views)))
@@ -87,9 +75,9 @@ func registerAdminContentRoutes(
 	mux.Handle("POST /admin/permissions/{id}/delete", protect(endpoint.DeleteAdminPageAccess(config.Access, config.Logger)))
 	mux.Handle("GET /admin/pages", protect(endpoint.AdminPages(config.BrowserContext, config.PageDirectory, config.Groups, config.Views)))
 	mux.Handle("POST /admin/pages/bulk", protect(endpoint.BulkAdminPages(config.PageBulk, config.PageLookup, config.Media, config.Logger)))
-	mux.Handle("POST /admin/pages/render-all", protect(endpoint.QueueAllAdminPageRenders(renderRebuilds, config.Logger)))
-	mux.Handle("POST /admin/pages/render-pending", protect(endpoint.FlushPendingAdminPageRenders(renderRebuilds)))
-	mux.Handle("POST /admin/pages/render/{slug...}", protect(endpoint.RebuildAdminPageRender(renderRebuilds, config.Logger)))
+	mux.Handle("POST /admin/pages/render-all", protect(endpoint.QueueAllAdminPageRenders(config.RenderRebuilds, config.Logger)))
+	mux.Handle("POST /admin/pages/render-pending", protect(endpoint.FlushPendingAdminPageRenders(config.RenderRebuilds)))
+	mux.Handle("POST /admin/pages/render/{slug...}", protect(endpoint.RebuildAdminPageRender(config.RenderRebuilds, config.Logger)))
 	mux.Handle("GET /admin/import", protect(endpoint.AdminImport(config.BrowserContext, config.Views)))
 	mux.Handle("POST /admin/import", protect(endpoint.ImportPagesWithPortableArchive(config.PageBulk, config.PortableImport, config.Logger)))
 	mux.Handle("POST /admin/templates", protect(endpoint.CreateAdminPageTemplate(config.Templates, config.Logger)))

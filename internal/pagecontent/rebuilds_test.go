@@ -147,6 +147,52 @@ type blockingAdminRenderArtifactStoreStub struct {
 	release chan struct{}
 }
 
+type notifyingAdminRenderArtifactStoreStub struct {
+	// saved signals each persisted render artifact.
+	saved chan struct{}
+}
+
+func (s *notifyingAdminRenderArtifactStoreStub) SavePageRender(context.Context, int64, time.Time, domain.PageRender) error {
+	s.saved <- struct{}{}
+	return nil
+}
+
+func TestQueuedRenderRebuildUsesOwnedWorkerContext(t *testing.T) {
+	page := domain.Page{ID: 1, Slug: "guide", Markdown: "# Guide", UpdatedAt: time.Now()}
+	artifacts := &notifyingAdminRenderArtifactStoreStub{saved: make(chan struct{}, 1)}
+	renderer := md.NewWithRegistry(&plugin.Registry{})
+	renderer.SetArtifactBuild("test", "abc")
+	rebuilds := NewRebuilds(
+		adminRenderCatalogStub{pages: []domain.Page{page}},
+		adminRenderPageStoreStub{pages: map[string]domain.Page{page.Slug: page}},
+		artifacts,
+		renderer,
+		slog.Default(),
+		"",
+	)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() {
+		rebuilds.Run(ctx)
+		close(done)
+	}()
+
+	rebuilds.QueueAll("test")
+	select {
+	case <-artifacts.saved:
+	case <-time.After(time.Second):
+		t.Fatal("queued rebuild did not run")
+	}
+
+	cancel()
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("rebuild worker did not stop after cancellation")
+	}
+}
+
 func (s *blockingAdminRenderArtifactStoreStub) SavePageRender(context.Context, int64, time.Time, domain.PageRender) error {
 	s.entered <- struct{}{}
 	<-s.release

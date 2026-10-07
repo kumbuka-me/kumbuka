@@ -126,6 +126,8 @@ type Application struct {
 	renderer *markdown.Renderer
 	// pluginAdmin coordinates plugin lifecycle and catalog operations.
 	pluginAdmin *appplugins.Admin
+	// renderRebuilds coordinates application-owned background render rebuilds.
+	renderRebuilds *pagecontent.Rebuilds
 
 	// backgroundWorkers contains process-lifetime application workers configured before Start.
 	backgroundWorkers []applicationWorker
@@ -298,6 +300,16 @@ func (a *Application) configurePluginRuntime(
 	if cfg.PluginUpdateCheckInterval > 0 {
 		a.backgroundWorkers = append(a.backgroundWorkers, pluginUpdates)
 	}
+
+	a.renderRebuilds = pagecontent.NewRebuilds(
+		a.pageDirectory,
+		a.pageReports,
+		a.pageRender,
+		a.renderer,
+		logger,
+		cfg.RoutePrefix,
+	)
+	a.backgroundWorkers = append(a.backgroundWorkers, a.renderRebuilds)
 	return nil
 }
 

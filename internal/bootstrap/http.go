@@ -74,6 +74,7 @@ func NewHTTPConfig(
 			PortableImport: application.portableImport,
 			Navigation:     application.navigation,
 			RecycleBin:     application.recycleBin,
+			RenderRebuilds: application.renderRebuilds,
 		},
 
 		PageQueryConfig: httpserver.PageQueryConfig{
