@@ -382,15 +382,26 @@ func permissionApprovalMatches(approvals []PermissionApproval, operation, plugin
 	digest := pluginArchiveDigest(archive)
 	targetPermissions := normalizedPermissions(permissions)
 	for _, approved := range approvals {
-		if approved.Operation == operation &&
-			approved.PluginID == pluginID &&
-			approved.Version == version &&
-			approved.Digest == digest &&
-			slices.Equal(normalizedPermissions(approved.Permissions), targetPermissions) {
+		if approvalMatchesTarget(approved, operation, pluginID, version, digest, targetPermissions) {
 			return true
 		}
 	}
 	return false
+}
+
+// approvalMatchesTarget reports whether one approval is bound to the exact lifecycle target being activated.
+func approvalMatchesTarget(
+	approved PermissionApproval,
+	operation, pluginID, version, digest string,
+	targetPermissions []string,
+) bool {
+	if approved.Operation != operation || approved.PluginID != pluginID || approved.Version != version {
+		return false
+	}
+	if approved.Digest != digest {
+		return false
+	}
+	return slices.Equal(normalizedPermissions(approved.Permissions), targetPermissions)
 }
 
 // pluginArchiveDigest returns the canonical lower-case SHA-256 digest used to bind approval to package bytes.

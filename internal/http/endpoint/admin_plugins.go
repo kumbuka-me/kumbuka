@@ -341,15 +341,17 @@ func (a *AdminPlugins) runPluginAction(w http.ResponseWriter, r *http.Request, i
 
 // pluginUpdateApproval returns exact package and permission consent submitted from a server-rendered catalog approval card.
 func pluginUpdateApproval(r *http.Request) []appplugins.UpdateApproval {
-	operation := strings.TrimSpace(r.FormValue("approve_operation"))
-	pluginID := strings.TrimSpace(r.FormValue("approve_plugin_id"))
-	version := strings.TrimSpace(r.FormValue("approve_version"))
-	digest := strings.TrimSpace(r.FormValue("approve_digest"))
-	if operation == "" || pluginID == "" || version == "" || digest == "" {
+	approval, ok := newPluginPermissionApproval(
+		r.FormValue("approve_operation"),
+		r.FormValue("approve_plugin_id"),
+		r.FormValue("approve_version"),
+		r.FormValue("approve_digest"),
+		r.Form["approve_permission"],
+	)
+	if !ok {
 		return nil
 	}
-	permissions := append([]string(nil), r.Form["approve_permission"]...)
-	return []appplugins.UpdateApproval{{Operation: operation, PluginID: pluginID, Version: version, Digest: digest, Permissions: permissions}}
+	return []appplugins.UpdateApproval{approval}
 }
 
 // upgradeFromUpload validates an uploaded package identity before replacing the installed plugin. Permission-set changes are returned to Action for explicit administrator review.
@@ -656,15 +658,38 @@ func pluginPermissionApprovals(fields map[string][]string) []appplugins.Permissi
 		if len(values) == 0 {
 			return ""
 		}
-		return strings.TrimSpace(values[0])
+		return values[0]
 	}
-	operation := first("approve_operation")
-	pluginID := first("approve_plugin_id")
-	version := first("approve_version")
-	digest := first("approve_digest")
-	if operation == "" || pluginID == "" || version == "" || digest == "" {
+
+	approval, ok := newPluginPermissionApproval(
+		first("approve_operation"),
+		first("approve_plugin_id"),
+		first("approve_version"),
+		first("approve_digest"),
+		fields["approve_permission"],
+	)
+	if !ok {
 		return nil
 	}
-	permissions := append([]string(nil), fields["approve_permission"]...)
-	return []appplugins.PermissionApproval{{Operation: operation, PluginID: pluginID, Version: version, Digest: digest, Permissions: permissions}}
+	return []appplugins.PermissionApproval{approval}
+}
+
+// newPluginPermissionApproval normalizes complete review metadata and rejects partial consent records.
+func newPluginPermissionApproval(operation, pluginID, version, digest string, permissions []string) (appplugins.PermissionApproval, bool) {
+	approval := appplugins.PermissionApproval{
+		Operation:   strings.TrimSpace(operation),
+		PluginID:    strings.TrimSpace(pluginID),
+		Version:     strings.TrimSpace(version),
+		Digest:      strings.TrimSpace(digest),
+		Permissions: append([]string(nil), permissions...),
+	}
+	return approval, completePluginPermissionApproval(approval)
+}
+
+// completePluginPermissionApproval reports whether consent is bound to one exact lifecycle operation and package.
+func completePluginPermissionApproval(approval appplugins.PermissionApproval) bool {
+	return approval.Operation != "" &&
+		approval.PluginID != "" &&
+		approval.Version != "" &&
+		approval.Digest != ""
 }

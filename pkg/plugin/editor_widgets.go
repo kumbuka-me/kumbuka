@@ -1036,19 +1036,37 @@ func validateEditorWidgetTextSettingDeclaration(setting EditorWidgetSetting, att
 
 // validateEditorWidgetSelectSettingDeclaration validates select controls.
 func validateEditorWidgetSelectSettingDeclaration(setting EditorWidgetSetting, attributes map[string]EditorWidgetAttribute) error {
-	attribute, ok := attributes[setting.Attribute]
+	attribute, attributeFound := attributes[setting.Attribute]
 	if setting.ChoiceSource != nil {
-		if !ok || !editorWidgetScalarAttribute(attribute) ||
-			len(setting.Attributes) != 0 || len(setting.Columns) != 0 || len(setting.Fields) != 0 || len(setting.Suggestions) != 0 ||
-			setting.CompletionModuleID != "" || len(setting.Choices) != 0 {
+		if !validEditorWidgetDynamicSelectSetting(setting, attribute, attributeFound) {
 			return fmt.Errorf("select setting %q references an invalid dynamic attribute", setting.Label)
 		}
 		return nil
 	}
-	if !validEditorWidgetSelectSetting(setting, attribute, ok) || len(setting.Choices) != 0 {
+	if !validEditorWidgetStaticSelectSetting(setting, attribute, attributeFound) {
 		return fmt.Errorf("select setting %q references an invalid attribute", setting.Label)
 	}
 	return nil
+}
+
+// validEditorWidgetDynamicSelectSetting reports whether a dynamic select binds one scalar attribute without static option configuration.
+func validEditorWidgetDynamicSelectSetting(setting EditorWidgetSetting, attribute EditorWidgetAttribute, attributeFound bool) bool {
+	return attributeFound && editorWidgetScalarAttribute(attribute) && !editorWidgetSelectHasStaticConfiguration(setting)
+}
+
+// editorWidgetSelectHasStaticConfiguration reports whether a select mixes a dynamic choice source with static-only fields.
+func editorWidgetSelectHasStaticConfiguration(setting EditorWidgetSetting) bool {
+	return len(setting.Attributes) != 0 ||
+		len(setting.Columns) != 0 ||
+		len(setting.Fields) != 0 ||
+		len(setting.Suggestions) != 0 ||
+		setting.CompletionModuleID != "" ||
+		len(setting.Choices) != 0
+}
+
+// validEditorWidgetStaticSelectSetting reports whether a static select has a valid attribute shape and no inline legacy choices.
+func validEditorWidgetStaticSelectSetting(setting EditorWidgetSetting, attribute EditorWidgetAttribute, attributeFound bool) bool {
+	return validEditorWidgetSelectSetting(setting, attribute, attributeFound) && len(setting.Choices) == 0
 }
 
 // validateEditorWidgetTableSettingDeclaration validates table shape and each bound list column.

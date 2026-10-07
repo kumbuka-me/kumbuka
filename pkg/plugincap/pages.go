@@ -87,15 +87,28 @@ func PageContentUpdateCapability(
 ) map[string]plugin.Capability {
 	return map[string]plugin.Capability{
 		"pages.update-content": func(ctx context.Context, data json.RawMessage) (any, error) {
-			var request sdk.PageContentUpdate
-			if err := json.Unmarshal(data, &request); err != nil ||
-				request.Slug != slug || request.ExpectedUpdatedAt.IsZero() ||
-				strings.TrimSpace(request.Message) == "" {
-				return nil, errors.New("invalid page content update")
+			request, err := pageContentUpdateRequest(data, slug)
+			if err != nil {
+				return nil, err
 			}
 			return operation(ctx, request)
 		},
 	}
+}
+
+// pageContentUpdateRequest decodes and validates one page-scoped content update capability request.
+func pageContentUpdateRequest(data json.RawMessage, slug string) (sdk.PageContentUpdate, error) {
+	var request sdk.PageContentUpdate
+	if err := json.Unmarshal(data, &request); err != nil {
+		return sdk.PageContentUpdate{}, errors.New("invalid page content update")
+	}
+	if request.Slug != slug {
+		return sdk.PageContentUpdate{}, errors.New("invalid page content update")
+	}
+	if request.ExpectedUpdatedAt.IsZero() || strings.TrimSpace(request.Message) == "" {
+		return sdk.PageContentUpdate{}, errors.New("invalid page content update")
+	}
+	return request, nil
 }
 
 // Links returns authorized incoming and outgoing wiki-link relationships.
