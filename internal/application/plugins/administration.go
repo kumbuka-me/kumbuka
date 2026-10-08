@@ -7,11 +7,13 @@ import (
 	"fmt"
 	"slices"
 	"sort"
+	"sync"
 
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/kumbuka-me/kumbuka/pkg/plugin"
 	"github.com/kumbuka-me/kumbuka/pkg/pluginversion"
 	"github.com/kumbuka-me/sdk/pluginpackage"
+	"golang.org/x/sync/errgroup"
 )
 
 // Catalog supplies compatible releases and verified download bytes.
@@ -218,7 +220,8 @@ func (a *Admin) Upgrade(ctx context.Context, id string, archive []byte, approval
 	if manifest.ID != id {
 		return errors.New("uploaded package must have the same plugin ID")
 	}
-	if permissionSetChanged(installed.Manifest.Permissions, manifest.Permissions) && !permissionApprovalMatches(approvals, "upgrade", manifest.ID, manifest.Version, manifest.Permissions, archive) {
+	if permissionSetChanged(installed.Manifest.Permissions, manifest.Permissions) &&
+		!permissionApprovalMatches(approvals, "upgrade", manifest.ID, manifest.Version, manifest.Permissions, archive) {
 		return permissionApprovalRequired("upgrade", installed.Manifest, manifest, manifest.Version, archive)
 	}
 	_, err = a.manager.Upgrade(ctx, id, archive)
@@ -256,15 +259,8 @@ func (a *Admin) Update(ctx context.Context, id string, approvals ...UpdateApprov
 
 const pluginUpdateConcurrency = 4
 
-// updateOutcome contains the terminal result for one independent catalog update.
-type updateOutcome struct {
-	// pluginID identifies the plugin whose update completed.
-	pluginID string
-	// err is the update failure, or nil after successful activation.
-	err error
-}
-
-// UpdateAll applies every independent compatible update with bounded concurrency. Downloads and package validation may run four at a time, while the plugin manager keeps final lifecycle publication serialized. One download, permission approval, validation, or activation failure never prevents another plugin from being attempted.
+// UpdateAll applies every independent compatible update with bounded concurrency.
+// One update failure does not prevent other plugins from being attempted.
 func (a *Admin) UpdateAll(ctx context.Context) (UpdateAllResult, error) {
 	updates, err := a.Available()
 	if err != nil {
@@ -277,43 +273,52 @@ func (a *Admin) UpdateAll(ctx context.Context) (UpdateAllResult, error) {
 		return UpdateAllResult{}, nil
 	}
 
-	jobs := make(chan string, len(ids))
-	outcomes := make(chan updateOutcome, len(ids))
+	var (
+		group  errgroup.Group
+		mu     sync.Mutex
+		result UpdateAllResult
+	)
+
+	group.SetLimit(pluginUpdateConcurrency)
+
 	for _, id := range ids {
-		jobs <- id
-	}
-	close(jobs)
-
-	workers := min(pluginUpdateConcurrency, len(ids))
-	for range workers {
-		go func() {
-			for id := range jobs {
-				item, ok := installedPlugin(installed, id)
-				if !ok {
-					outcomes <- updateOutcome{pluginID: id, err: errors.New("plugin is not installed")}
-					continue
-				}
-
-				outcomes <- updateOutcome{
-					pluginID: id,
-					err:      a.updateRelease(ctx, item, updates[id], nil),
-				}
+		group.Go(func() error {
+			item, ok := installedPlugin(installed, id)
+			if !ok {
+				mu.Lock()
+				result.Failed = append(result.Failed, UpdateFailure{
+					PluginID: id,
+					Err:      errors.New("plugin is not installed"),
+				})
+				mu.Unlock()
+				return nil
 			}
-		}()
+
+			err := a.updateRelease(ctx, item, updates[id], nil)
+
+			mu.Lock()
+			defer mu.Unlock()
+
+			if err != nil {
+				result.Failed = append(result.Failed, UpdateFailure{
+					PluginID: id,
+					Err:      err,
+				})
+				return nil
+			}
+
+			result.Updated = append(result.Updated, id)
+			return nil
+		})
 	}
 
-	result := UpdateAllResult{}
-	for range ids {
-		outcome := <-outcomes
-		if outcome.err != nil {
-			result.Failed = append(result.Failed, UpdateFailure{PluginID: outcome.pluginID, Err: outcome.err})
-			continue
-		}
-		result.Updated = append(result.Updated, outcome.pluginID)
-	}
+	_ = group.Wait()
 
 	sort.Strings(result.Updated)
-	sort.Slice(result.Failed, func(i, j int) bool { return result.Failed[i].PluginID < result.Failed[j].PluginID })
+	sort.Slice(result.Failed, func(i, j int) bool {
+		return result.Failed[i].PluginID < result.Failed[j].PluginID
+	})
+
 	return result, nil
 }
 
