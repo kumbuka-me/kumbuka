@@ -31,6 +31,99 @@ func TestConfigureBrowserAuth(t *testing.T) {
 	assert.NotNil(t, configured.LocalLoginAllowed)
 }
 
+// TestBrowserAuthenticationModesLocalLoginSmoke verifies every browser mode exposes local sign-in only when intended.
+func TestBrowserAuthenticationModesLocalLoginSmoke(t *testing.T) {
+	t.Parallel()
+
+	t.Run("none without recovery login", func(t *testing.T) {
+		t.Parallel()
+
+		browser := &browserAuthenticator{}
+		browser.applySettings(domain.AuthenticationSettings{Mode: domain.AuthModeNone})
+		allowed, err := browser.localLoginAllowed(context.Background())
+
+		require.NoError(t, err)
+		assert.False(t, allowed)
+	})
+
+	t.Run("none with recovery login", func(t *testing.T) {
+		t.Parallel()
+
+		browser := &browserAuthenticator{localLoginEnabled: true}
+		browser.applySettings(domain.AuthenticationSettings{Mode: domain.AuthModeNone})
+		allowed, err := browser.localLoginAllowed(context.Background())
+
+		require.NoError(t, err)
+		assert.True(t, allowed)
+	})
+
+	t.Run("local without recovery login", func(t *testing.T) {
+		t.Parallel()
+
+		browser := &browserAuthenticator{}
+		browser.applySettings(domain.AuthenticationSettings{Mode: domain.AuthModeLocal})
+		allowed, err := browser.localLoginAllowed(context.Background())
+
+		require.NoError(t, err)
+		assert.True(t, allowed)
+	})
+
+	t.Run("local with recovery login", func(t *testing.T) {
+		t.Parallel()
+
+		browser := &browserAuthenticator{localLoginEnabled: true}
+		browser.applySettings(domain.AuthenticationSettings{Mode: domain.AuthModeLocal})
+		allowed, err := browser.localLoginAllowed(context.Background())
+
+		require.NoError(t, err)
+		assert.True(t, allowed)
+	})
+
+	t.Run("trusted proxy without recovery login", func(t *testing.T) {
+		t.Parallel()
+
+		browser := &browserAuthenticator{}
+		browser.applySettings(domain.AuthenticationSettings{Mode: domain.AuthModeTrustedProxy})
+		allowed, err := browser.localLoginAllowed(context.Background())
+
+		require.NoError(t, err)
+		assert.False(t, allowed)
+	})
+
+	t.Run("trusted proxy with recovery login", func(t *testing.T) {
+		t.Parallel()
+
+		browser := &browserAuthenticator{localLoginEnabled: true}
+		browser.applySettings(domain.AuthenticationSettings{Mode: domain.AuthModeTrustedProxy})
+		allowed, err := browser.localLoginAllowed(context.Background())
+
+		require.NoError(t, err)
+		assert.True(t, allowed)
+	})
+
+	t.Run("OIDC without recovery login", func(t *testing.T) {
+		t.Parallel()
+
+		browser := &browserAuthenticator{}
+		browser.applySettings(domain.AuthenticationSettings{Mode: domain.AuthModeOIDC})
+		allowed, err := browser.localLoginAllowed(context.Background())
+
+		require.NoError(t, err)
+		assert.False(t, allowed)
+	})
+
+	t.Run("OIDC with recovery login", func(t *testing.T) {
+		t.Parallel()
+
+		browser := &browserAuthenticator{localLoginEnabled: true}
+		browser.applySettings(domain.AuthenticationSettings{Mode: domain.AuthModeOIDC})
+		allowed, err := browser.localLoginAllowed(context.Background())
+
+		require.NoError(t, err)
+		assert.True(t, allowed)
+	})
+}
+
 // TestBrowserAuthenticatorForSettings verifies settings select the expected authenticator implementation.
 func TestBrowserAuthenticatorForSettings(t *testing.T) {
 	t.Parallel()
@@ -110,6 +203,7 @@ func TestBrowserValidationRequiresAdministratorGroupSources(t *testing.T) {
 	assert.Error(t, browser.validateSettings(domain.AuthenticationSettings{Mode: "oidc", OIDCIssuer: "https://example.test", OIDCClientID: "kumbuka", OIDCAdminGroup: "/admins"}))
 	assert.Error(t, browser.validateSettings(domain.AuthenticationSettings{Mode: "trusted-proxy", TrustedUsernameHeaders: []string{"X-User"}, TrustedAdminGroup: "/admins"}))
 }
+
 func TestBrowserValidationCollectsOIDCProblems(t *testing.T) {
 	t.Parallel()
 
