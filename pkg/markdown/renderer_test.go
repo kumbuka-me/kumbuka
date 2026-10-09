@@ -74,6 +74,19 @@ func TestLinksAreUnique(t *testing.T) {
 	assert.Equal(t, []string{"hello-world", "infra/dns"}, got)
 }
 
+func TestWikiLinkScanningPreservesNonLinks(t *testing.T) {
+	t.Parallel()
+
+	source := `\[[Escaped]] [[|empty target]] [[Valid Page]] [[Unclosed`
+
+	assert.Equal(
+		t,
+		`\[[Escaped]] [[|empty target]] [Valid Page](/pages/valid-page) [[Unclosed`,
+		rewriteWikiLinksLine(source, DefaultWikiLink),
+	)
+	assert.Equal(t, []string{"valid-page"}, Links(source))
+}
+
 func TestTabsRenderMarkdownPanels(t *testing.T) {
 	t.Parallel()
 

@@ -22,20 +22,17 @@ func Ranges(text string) []Range {
 	var result []Range
 	consumed := 0
 	for offset := 0; offset < len(text); {
-		next := strings.IndexByte(text[offset:], '@')
-		if next < 0 {
+		start := nextIndex(text, offset, "@")
+		if start < 0 {
 			break
 		}
-		start := offset + next
 		if end, inside := macroEnd(text, start); inside {
 			offset = end
 			continue
 		}
 
-		// The preceding boundary must not belong to an already-consumed mention.
-		validBoundary := start == 0 || start > consumed && !wordByte(text[start-1])
 		offset = start + 1
-		if !validBoundary {
+		if !validMentionBoundary(text, start, consumed) {
 			continue
 		}
 
@@ -77,17 +74,43 @@ func Usernames(text string) []string {
 	return usernames
 }
 
+// nextIndex returns the absolute index of target at or after offset.
+func nextIndex(text string, offset int, target string) int {
+	relative := strings.Index(text[offset:], target)
+	if relative < 0 {
+		return -1
+	}
+	return offset + relative
+}
+
+// validMentionBoundary reports whether an at sign can begin a new mention.
+func validMentionBoundary(text string, start, consumed int) bool {
+	if start == 0 {
+		return true
+	}
+	if start <= consumed {
+		return false
+	}
+	return !wordByte(text[start-1])
+}
+
 // macroEnd reports whether an at sign is inside a plugin-style {{...}} declaration and where scanning should resume.
 func macroEnd(text string, at int) (int, bool) {
-	open := strings.LastIndex(text[:at], "{{")
-	if open < 0 || strings.LastIndex(text[:at], "}}") > open {
+	if !insideOpenMacro(text, at) {
 		return 0, false
 	}
-	closeOffset := strings.Index(text[at:], "}}")
-	if closeOffset < 0 {
+	close := nextIndex(text, at, "}}")
+	if close < 0 {
 		return len(text), true
 	}
-	return at + closeOffset + 2, true
+	return close + len("}}"), true
+}
+
+// insideOpenMacro reports whether offset follows an unmatched plugin declaration opener.
+func insideOpenMacro(text string, offset int) bool {
+	lastOpen := strings.LastIndex(text[:offset], "{{")
+	lastClose := strings.LastIndex(text[:offset], "}}")
+	return lastOpen >= 0 && lastOpen > lastClose
 }
 
 // nameByte reports whether value can occur inside a username mention.

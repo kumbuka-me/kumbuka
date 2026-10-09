@@ -81,11 +81,9 @@ func rewriteMarkdownResourceURLs(source string, replace func(string) (string, bo
 func markdownResourceURLRanges(source string) []markdownURLRange {
 	scanner := markdownURLScanner{}
 	for start := 0; start < len(source); {
-		end := strings.IndexByte(source[start:], '\n')
+		end := indexAtOrAfter(source, start, "\n")
 		if end < 0 {
 			end = len(source)
-		} else {
-			end += start
 		}
 		scanner.scanLine(source[start:end], start)
 		start = end + 1
@@ -173,12 +171,12 @@ func (s *markdownURLScanner) scanInlineLine(line string, offset int) {
 // consumeHTMLComment advances comment state at index and reports whether scanning should stop at the line end.
 func (s *markdownURLScanner) consumeHTMLComment(line string, index int) (next int, handled, stop bool) {
 	if s.inComment {
-		end := strings.Index(line[index:], "-->")
+		end := indexAtOrAfter(line, index, "-->")
 		if end < 0 {
 			return index, true, true
 		}
 		s.inComment = false
-		return index + end + len("-->"), true, false
+		return end + len("-->"), true, false
 	}
 	if s.codeWidth == 0 && strings.HasPrefix(line[index:], "<!--") {
 		s.inComment = true
@@ -226,11 +224,16 @@ func (s *markdownURLScanner) consumeInlineLink(line string, offset, index int) (
 
 // isInlineLinkDestinationStart reports whether index closes a Markdown link label followed by a destination.
 func isInlineLinkDestinationStart(line string, index int) bool {
-	return line[index] == ']' &&
-		index+1 < len(line) &&
-		line[index+1] == '(' &&
-		strings.LastIndexByte(line[:index], '[') >= 0 &&
-		!isEscapedMarkdownByte(line, index)
+	if line[index] != ']' {
+		return false
+	}
+	if index+1 >= len(line) || line[index+1] != '(' {
+		return false
+	}
+	if strings.LastIndexByte(line[:index], '[') < 0 {
+		return false
+	}
+	return !isEscapedMarkdownByte(line, index)
 }
 
 // markdownContentIndent returns the leading-space indent for content that may be indented by at most three spaces.
@@ -298,11 +301,11 @@ func (s *markdownURLScanner) scanReferenceDefinition(line string, offset int) bo
 	if !ok || line[indent] != '[' {
 		return false
 	}
-	closing := strings.Index(line[indent+1:], "]:")
-	if closing < 1 {
+	closing := indexAtOrAfter(line, indent+1, "]:")
+	if closing <= indent+1 {
 		return false
 	}
-	if location, ok := markdownDestination(line, offset, indent+1+closing+2); ok {
+	if location, ok := markdownDestination(line, offset, closing+len("]:")); ok {
 		s.ranges = append(s.ranges, location)
 		return true
 	}
@@ -327,17 +330,26 @@ func markdownDestination(line string, offset, start int) (markdownURLRange, bool
 	}
 	if line[start] == '<' {
 		start++
-		end := strings.IndexByte(line[start:], '>')
-		if end < 0 || end == 0 {
+		end := indexAtOrAfter(line, start, ">")
+		if end <= start {
 			return markdownURLRange{}, false
 		}
-		return markdownURLRange{start: offset + start, end: offset + start + end}, true
+		return markdownURLRange{start: offset + start, end: offset + end}, true
 	}
 	end := start
 	for end < len(line) && !isMarkdownDestinationTerminator(line[end]) {
 		end++
 	}
 	return markdownURLRange{start: offset + start, end: offset + end}, end > start
+}
+
+// indexAtOrAfter returns the absolute index of target at or after offset.
+func indexAtOrAfter(value string, offset int, target string) int {
+	relative := strings.Index(value[offset:], target)
+	if relative < 0 {
+		return -1
+	}
+	return offset + relative
 }
 
 // scanHTMLTag recognizes link-bearing attributes and skips raw code elements.

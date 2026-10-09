@@ -456,36 +456,59 @@ func walkWikiLinksLine(
 	visit func(target, label string),
 ) {
 	for offset := 0; offset < len(line); {
-		start := strings.Index(line[offset:], "[[")
-
-		if start < 0 {
+		match, found := nextWikiLink(line, offset)
+		if !found {
 			return
 		}
+		offset = match.end
+		if match.valid {
+			visit(match.target, match.label)
+		}
+	}
+}
 
-		start += offset
+// wikiLinkMatch contains one complete, unescaped wiki-link token and its parsed destination.
+type wikiLinkMatch struct {
+	// start is the byte offset of the opening delimiter.
+	start int
+	// end is the byte offset immediately after the closing delimiter.
+	end int
+	// target is the requested page and optional heading.
+	target string
+	// label is the human-readable link text.
+	label string
+	// valid reports whether the link contains a non-empty target.
+	valid bool
+}
 
+// nextWikiLink returns the next complete, unescaped wiki-link token at or after offset.
+func nextWikiLink(line string, offset int) (wikiLinkMatch, bool) {
+	for offset < len(line) {
+		relativeStart := strings.Index(line[offset:], "[[")
+		if relativeStart < 0 {
+			return wikiLinkMatch{}, false
+		}
+		start := offset + relativeStart
 		if start > 0 && line[start-1] == '\\' {
-			offset = start + 2
+			offset = start + len("[[")
 			continue
 		}
 
-		end := strings.Index(line[start+2:], "]]")
-		if end < 0 {
-			return
+		relativeClose := strings.Index(line[start+len("[["):], "]]")
+		if relativeClose < 0 {
+			return wikiLinkMatch{}, false
 		}
-
-		end += start + 2
-
-		target, label, ok := parseWikiLink(
-			line[start+2 : end],
-		)
-
-		if ok {
-			visit(target, label)
-		}
-
-		offset = end + 2
+		close := start + len("[[") + relativeClose
+		target, label, valid := parseWikiLink(line[start+len("[[") : close])
+		return wikiLinkMatch{
+			start:  start,
+			end:    close + len("]]"),
+			target: target,
+			label:  label,
+			valid:  valid,
+		}, true
 	}
+	return wikiLinkMatch{}, false
 }
 
 // parseWikiLink splits a wiki-link body into target and optional label.
@@ -565,46 +588,22 @@ func rewriteWikiLinksLine(
 	offset := 0
 
 	for offset < len(line) {
-		start := strings.Index(line[offset:], "[[")
-
-		if start < 0 {
+		match, found := nextWikiLink(line, offset)
+		if !found {
 			output.WriteString(line[offset:])
 			break
 		}
-
-		start += offset
-
-		if start > 0 && line[start-1] == '\\' {
-			output.WriteString(line[offset : start+2])
-
-			offset = start + 2
+		if !match.valid {
+			output.WriteString(line[offset:match.end])
+			offset = match.end
 			continue
 		}
 
-		end := strings.Index(line[start+2:], "]]")
-		if end < 0 {
-			output.WriteString(line[offset:])
-			break
-		}
-
-		end += start + 2
-
-		target, label, ok := parseWikiLink(
-			line[start+2 : end],
-		)
-
-		if !ok {
-			output.WriteString(line[offset : end+2])
-
-			offset = end + 2
-			continue
-		}
-
-		output.WriteString(line[offset:start])
+		output.WriteString(line[offset:match.start])
 		output.WriteByte('[')
-		output.WriteString(label)
+		output.WriteString(match.label)
 		output.WriteString("](")
-		pageTarget, heading := SplitHeadingTarget(target)
+		pageTarget, heading := SplitHeadingTarget(match.target)
 		resolved := resolve(pageTarget)
 		output.WriteString(resolved)
 		if heading != "" {
@@ -613,7 +612,7 @@ func rewriteWikiLinksLine(
 		}
 		output.WriteByte(')')
 
-		offset = end + 2
+		offset = match.end
 	}
 
 	return output.String()
