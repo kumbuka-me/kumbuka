@@ -1,0 +1,534 @@
+./node_modules/.bin/tsc -p tsconfig.json --noEmit
+./node_modules/.bin/tsc -p web/src/ts/service-worker/tsconfig.json --noEmit
+./node_modules/.bin/tsc -p test/ts/tsconfig.json --noEmit
+[32m✔ local profile fields stay directly editable [90m(0.708834ms)[39m[39m
+[32m✔ OIDC fields expose provider ownership and per-field revert [90m(0.122458ms)[39m[39m
+[32m✔ trusted-proxy username requires relinking while mutable fields can be overridden [90m(0.054292ms)[39m[39m
+[32m✔ webhook template completions suggest payload fields [90m(0.520792ms)[39m[39m
+[32m✔ webhook template completions filter nested recipient fields [90m(0.121959ms)[39m[39m
+[32m✔ webhook template completions ignore unrelated tokens [90m(0.051041ms)[39m[39m
+[32m✔ webhook test request asks for JSON and accepts no-content success [90m(17.161917ms)[39m[39m
+[32m✔ webhook test request returns structured server problems [90m(2.068666ms)[39m[39m
+[32m✔ webhook test request rejects unstructured failures [90m(0.299083ms)[39m[39m
+[32m✔ createLatestRequest aborts the previous request [90m(0.43825ms)[39m[39m
+[32m✔ createDebouncer runs only the latest scheduled callback [90m(51.543792ms)[39m[39m
+[32m✔ isAbortError recognizes aborted DOM operations [90m(0.148958ms)[39m[39m
+[32m✔ problem field labels turn snake case into readable text [90m(0.408ms)[39m[39m
+[32m✔ problem field labels turn kebab case into readable text [90m(0.533291ms)[39m[39m
+[32m✔ problem field labels use a safe fallback for an empty name [90m(0.154292ms)[39m[39m
+[32m✔ requiredElement returns the matching template element [90m(0.41725ms)[39m[39m
+[32m✔ requiredElement fails loudly when required markup is missing [90m(0.102041ms)[39m[39m
+[32m✔ requiredElements returns all matching template elements [90m(1.021917ms)[39m[39m
+[32m✔ requiredElements fails loudly when required markup is missing [90m(0.07675ms)[39m[39m
+[32m✔ requiredAttribute returns a trimmed required attribute [90m(0.073459ms)[39m[39m
+[32m✔ requiredAttribute fails loudly when an attribute is absent [90m(0.053459ms)[39m[39m
+[32m✔ attachmentMarkdown inserts a normal Markdown file link [90m(0.400959ms)[39m[39m
+[32m✔ code language catalog includes bundled highlighter languages [90m(0.891959ms)[39m[39m
+[32m✔ code language labels normalize common fence aliases [90m(0.072417ms)[39m[39m
+[32m✔ code language filtering searches labels identifiers and aliases [90m(2.081334ms)[39m[39m
+[32m✔ slashCommandTrigger activates only at the current line start [90m(0.70225ms)[39m[39m
+[32m✔ slash commands filter by label and description [90m(0.098917ms)[39m[39m
+[32m✔ completion picker resolves the variables insert through its trigger [90m(0.368209ms)[39m[39m
+[32m✔ completion picker scopes items to the matched provider [90m(0.349625ms)[39m[39m
+[32m✔ completion picker filters labels and details as the user types [90m(0.087041ms)[39m[39m
+[32m✔ completionTrigger opens the active plugin trigger [90m(0.832875ms)[39m[39m
+[32m✔ completionTrigger ignores completed braces and fenced code [90m(0.092291ms)[39m[39m
+[32m✔ editor accepts the empty Go catalog contract [90m(1.450042ms)[39m[39m
+[32m✔ editor catalog checks every field used by both consumers [90m(0.18425ms)[39m[39m
+[32m✔ Object prototype names are not catalog aliases [90m(0.645ms)[39m[39m
+[32m✔ editor accepts the empty Go draft contract [90m(0.106875ms)[39m[39m
+[32m✔ editor rejects malformed draft fields rather than coercing them [90m(0.092333ms)[39m[39m
+[32m✔ editor accepts declarative plugin action metadata [90m(0.078666ms)[39m[39m
+[32m✔ editor accepts resource-backed completion provider metadata [90m(0.080541ms)[39m[39m
+[32m✔ editor accepts a visual widget resource setting [90m(0.200916ms)[39m[39m
+[32m✔ editor rejects a visual widget resource setting without a completion module [90m(0.104041ms)[39m[39m
+[32m✔ editor accepts Markdown widget fields and tab table columns [90m(0.156708ms)[39m[39m
+[32m✔ editor reopens in the last primary mode, never split preview [90m(0.497625ms)[39m[39m
+[32m✔ editor path preview follows Kumbuka slug rules [90m(0.166042ms)[39m[39m
+[32m✔ guided editor paths combine the selected location and title [90m(0.963458ms)[39m[39m
+[32m✔ guided editor paths keep an existing final segment while moving [90m(0.080875ms)[39m[39m
+[32m✔ editor word statistics handle empty and multiline Markdown [90m(0.449ms)[39m[39m
+[32m✔ replace all supports case insensitive plain-text replacement [90m(0.079209ms)[39m[39m
+[32m✔ replace all can match case [90m(0.050125ms)[39m[39m
+[32m✔ editor mode copy matches the visible workspace [90m(0.059875ms)[39m[39m
+[32m✔ editorSlug follows Kumbuka page path rules [90m(0.455458ms)[39m[39m
+[32m✔ markdownHeadings ignores fenced code and preserves offsets [90m(0.458ms)[39m[39m
+[32m✔ wikiLinkRanges extracts targets and labels [90m(0.120958ms)[39m[39m
+[32m✔ editorDiagnostics reports broken links, heading jumps, and link suggestions [90m(0.608625ms)[39m[39m
+[32m✔ Enter continues an unordered Markdown list [90m(1.041583ms)[39m[39m
+[32m✔ Enter preserves plus and star bullet markers [90m(0.103375ms)[39m[39m
+[32m✔ Enter continues an unchecked task list with an unchecked task [90m(0.051959ms)[39m[39m
+[32m✔ Enter after a completed task starts an unchecked task [90m(0.079208ms)[39m[39m
+[32m✔ Enter preserves indentation for nested task lists [90m(0.049167ms)[39m[39m
+[32m✔ Enter preserves tab indentation [90m(0.046458ms)[39m[39m
+[32m✔ Enter on an empty task marker exits the task list [90m(0.051208ms)[39m[39m
+[32m✔ Enter on an empty bullet marker exits the list [90m(0.0635ms)[39m[39m
+[32m✔ Enter increments ordered lists [90m(0.111792ms)[39m[39m
+[32m✔ Enter preserves ordered-list delimiters [90m(0.077542ms)[39m[39m
+[32m✔ list continuation does not run in the middle of a line [90m(0.056875ms)[39m[39m
+[32m✔ list continuation does not run inside backtick fenced code [90m(0.039166ms)[39m[39m
+[32m✔ list continuation does not run inside tilde fenced code [90m(0.030042ms)[39m[39m
+[32m✔ list continuation resumes after fenced code closes [90m(0.038542ms)[39m[39m
+[32m✔ Enter renumbers following ordered-list items [90m(0.059667ms)[39m[39m
+[32m✔ Enter renumbers only siblings at the same indentation level [90m(0.048791ms)[39m[39m
+[32m✔ Enter preserves closing-parenthesis markers while renumbering [90m(0.077167ms)[39m[39m
+[32m✔ Enter stops renumbering when the ordered list ends [90m(0.0495ms)[39m[39m
+[32m✔ Enter on an empty ordered marker restores following numbering [90m(0.482875ms)[39m[39m
+[32m✔ mentionTrigger opens on an empty or filtered mention [90m(0.878333ms)[39m[39m
+[32m✔ mentionTrigger does not treat email addresses as mentions [90m(0.077542ms)[39m[39m
+[32m✔ mentionTrigger ignores fenced and inline code [90m(0.070041ms)[39m[39m
+[32m✔ mentionReplacement inserts the canonical username [90m(0.045959ms)[39m[39m
+[32m✔ mentionRanges finds visual mentions without matching email addresses [90m(0.142167ms)[39m[39m
+[32m✔ tabularTextToMarkdown converts spreadsheet TSV [90m(0.442917ms)[39m[39m
+[32m✔ tabularTextToMarkdown escapes markdown pipes [90m(0.072625ms)[39m[39m
+[32m✔ tabularTextToMarkdown ignores normal pasted text [90m(0.048417ms)[39m[39m
+[32m✔ declarative wrap actions own text formatting [90m(0.432958ms)[39m[39m
+[32m✔ declarative prefix actions own block formatting [90m(0.093625ms)[39m[39m
+[32m✔ Replace with an empty query leaves the document untouched [90m(0.4395ms)[39m[39m
+[32m✔ Previous match wraps from the start of the document [90m(0.125958ms)[39m[39m
+[32m✔ visual editor replaces the stock listItem with a task-aware list item [90m(0.64125ms)[39m[39m
+[32m✔ visual editor recognizes declarative Markdown checklist actions [90m(0.157625ms)[39m[39m
+[32m✔ visual editor preserves Kumbuka macros as atomic inline syntax [90m(0.4675ms)[39m[39m
+[32m✔ visual editor preserves wiki links as atomic inline syntax [90m(0.126917ms)[39m[39m
+[32m✔ visual editor preserves standalone directives [90m(0.102625ms)[39m[39m
+[32m✔ visual editor does not consume ordinary Markdown braces [90m(0.523709ms)[39m[39m
+[32m✔ widget macro parser preserves declared and unknown attributes [90m(1.079084ms)[39m[39m
+[32m✔ widget macro rewrite retains unknown attributes and omitted defaults [90m(0.228667ms)[39m[39m
+[32m✔ status list mapping accepts legacy comma syntax and emits named colors safely [90m(0.118125ms)[39m[39m
+[32m✔ status widget validates page-local rows and cross-field rules [90m(0.380292ms)[39m[39m
+[32m✔ mention and date settings validate canonical persisted values [90m(1.859042ms)[39m[39m
+[32m✔ multiline macro matching remains opt-in per plugin contract [90m(0.088334ms)[39m[39m
+[32m✔ widget macro parser accepts bare values and repeated attributes [90m(0.134125ms)[39m[39m
+[32m✔ substitution widgets round-trip their resource reference [90m(0.132708ms)[39m[39m
+[32m✔ callout and details widgets preserve structured block content [90m(0.18775ms)[39m[39m
+[32m✔ tabs widgets map parallel titles and bodies without losing multiline content [90m(0.177083ms)[39m[39m
+[32m✔ optional defaults can preserve an explicit empty macro attribute [90m(0.056875ms)[39m[39m
+[32m✔ tree widget accepts blank optional cells and nested parent IDs [90m(2.609041ms)[39m[39m
+[32m✔ tree widget rejects a parent that does not precede its child [90m(0.132083ms)[39m[39m
+[32m✔ wikiLinkTrigger finds an unfinished wiki link [90m(1.196625ms)[39m[39m
+[32m✔ wikiLinkTrigger ignores closed or multiline links [90m(0.073375ms)[39m[39m
+[32m✔ wikiLinkReplacement inserts a normal wiki link [90m(0.049333ms)[39m[39m
+[32m✔ export parameters omit unchanged values and preserve explicit empty values [90m(0.779042ms)[39m[39m
+[32m✔ export parameters preserve whitespace and prototype-like keys [90m(0.118291ms)[39m[39m
+[32m✔ export preview accepts a complete HTML document [90m(0.0625ms)[39m[39m
+[32m✔ graphNeighborhood returns the complete graph without a filter [90m(0.707208ms)[39m[39m
+[32m✔ graphNeighborhood returns a focused node and its direct neighbors [90m(0.14175ms)[39m[39m
+[32m✔ graphNeighborhood expands matching search results with their relationships [90m(0.082958ms)[39m[39m
+[32m✔ knowledgeGraph rejects malformed graph entries instead of filtering them [90m(0.196917ms)[39m[39m
+[32m✔ knowledgeGraph accepts the empty Go graph contract [90m(0.199041ms)[39m[39m
+[32m✔ requireArrayOf returns a fully valid array [90m(0.642709ms)[39m[39m
+[32m✔ requireArrayOf rejects malformed entries instead of filtering them [90m(0.105667ms)[39m[39m
+[32m✔ followedRedirectURL recognizes a redirect followed by fetch [90m(0.9745ms)[39m[39m
+[32m✔ responseProblem validates problem payload fields [90m(11.663208ms)[39m[39m
+[32m✔ requestJSON returns unknown JSON and supplies an Accept header [90m(0.694ms)[39m[39m
+[32m✔ requestJSON surfaces structured JSON errors [90m(0.433833ms)[39m[39m
+[32m✔ Go problem fixtures are accepted by the browser [90m(0.1185ms)[39m[39m
+[32m✔ optional malformed problems never hide a valid server message [90m(0.078291ms)[39m[39m
+[32m✔ requestJSON distinguishes no-content responses from malformed success bodies [90m(0.251209ms)[39m[39m
+[32m✔ browser i18n falls back cleanly without a document [90m(0.372708ms)[39m[39m
+[32m✔ sidebarWidthStatus labels presets and custom widths [90m(0.452208ms)[39m[39m
+[32m✔ sidebarWidthStatus clamps values to supported bounds [90m(0.776125ms)[39m[39m
+[32m✔ formats a complete Markdown document conservatively [90m(1.053125ms)[39m[39m
+[32m✔ preserves fenced and indented block contents [90m(0.757209ms)[39m[39m
+[32m✔ preserves Markdown hard line breaks [90m(0.071458ms)[39m[39m
+[32m✔ formatting is idempotent [90m(0.12175ms)[39m[39m
+[32m✔ preserves image widths in ordinary, linked and reference images [90m(0.077084ms)[39m[39m
+[32m✔ local password matches Go: short [90m(0.759458ms)[39m[39m
+[32m✔ local password matches Go: minimum [90m(0.085333ms)[39m[39m
+[32m✔ local password matches Go: ascii-limit [90m(0.053458ms)[39m[39m
+[32m✔ local password matches Go: ascii-too-long [90m(0.046667ms)[39m[39m
+[32m✔ local password matches Go: six-emoji [90m(0.051917ms)[39m[39m
+[32m✔ local password matches Go: twelve-emoji [90m(0.04125ms)[39m[39m
+[32m✔ local password matches Go: emoji-limit [90m(0.03675ms)[39m[39m
+[32m✔ local password matches Go: emoji-too-long [90m(0.037916ms)[39m[39m
+[32m✔ local password matches Go: accent-limit [90m(0.057166ms)[39m[39m
+[32m✔ local password matches Go: accent-too-long [90m(0.080834ms)[39m[39m
+Kumbuka browser performance diagnostics disabled.
+[32m✔ deployment-gated performance diagnostics expose browser controls [90m(2.738583ms)[39m[39m
+[32m✔ service worker registration reuses an existing root registration [90m(1.046459ms)[39m[39m
+[32m✔ service worker registration creates the root registration once when missing [90m(0.142958ms)[39m[39m
+[32m✔ prefixed registration uses the exact deployment scope and rejects an ancestor registration [90m(0.149208ms)[39m[39m
+[32m✔ manifest start, scope, and icons resolve within the deployment [90m(0.166625ms)[39m[39m
+[32m✔ local routes preserve paths, queries, and fragments at root [90m(0.472625ms)[39m[39m
+[32m✔ local routes preserve paths, queries, and fragments at /kumbuka [90m(0.15325ms)[39m[39m
+[32m✔ page URLs combine stable identity with the readable slug [90m(0.129791ms)[39m[39m
+[32m✔ routes read the body prefix and generated API URLs reach fetch unchanged [90m(10.721375ms)[39m[39m
+[32m✔ live search cancels queued and in-flight work when dismissed [90m(318.999ms)[39m[39m
+[32m✔ private page caching requires a configured client and matching server identity [90m(12.561541ms)[39m[39m
+[32m✔ in-flight responses cannot cross an account switch or logout [90m(0.939709ms)[39m[39m
+[32m✔ login responses and mismatched identities are never cached [90m(0.409209ms)[39m[39m
+[32m✔ versioned assets are served from the service-worker cache [90m(0.825166ms)[39m[39m
+[32m✔ malformed configure-user messages are ignored instead of coerced [90m(0.553291ms)[39m[39m
+[32m✔ a prefixed worker caches only its deployment's pages and assets [90m(0.733042ms)[39m[39m
+[32m✔ page paths match Go: empty [90m(0.7965ms)[39m[39m
+[32m✔ page paths match Go: ordinary title [90m(0.085458ms)[39m[39m
+[32m✔ page paths match Go: hierarchy [90m(0.038458ms)[39m[39m
+[32m✔ page paths match Go: punctuation [90m(0.030542ms)[39m[39m
+[32m✔ page paths match Go: punctuation at edges [90m(0.034458ms)[39m[39m
+[32m✔ page paths match Go: preserved separators [90m(0.027292ms)[39m[39m
+[32m✔ page paths match Go: non-ASCII separators [90m(0.029541ms)[39m[39m
+[32m✔ page paths match Go: dotted capital I [90m(0.033791ms)[39m[39m
+[32m✔ page paths match Go: dotted capital I after ASCII [90m(0.04325ms)[39m[39m
+[32m✔ page paths match Go: Kelvin sign [90m(0.104666ms)[39m[39m
+[32m✔ page paths match Go: emoji separator [90m(0.035959ms)[39m[39m
+[32m✔ page paths match Go: no transliteration [90m(0.023375ms)[39m[39m
+[32m✔ page paths match Go: slash spacing [90m(0.024959ms)[39m[39m
+[32m✔ page paths match Go: hyphen edges [90m(0.020208ms)[39m[39m
+[32m✔ table directives round-trip colors and interaction options [90m(0.555333ms)[39m[39m
+[32m✔ table context resolves body row, column and existing directive [90m(0.443708ms)[39m[39m
+[32m✔ rewriting a table directive inserts and removes only the directive [90m(0.112666ms)[39m[39m
+[32m✔ palette parser preserves existing semantic table tones [90m(0.050458ms)[39m[39m
+[32m✔ table insertion builds the selected Confluence-style grid size [90m(0.079209ms)[39m[39m
+[32m✔ row insertion shifts row and cell color directives [90m(0.19125ms)[39m[39m
+[32m✔ column deletion compacts column and cell color directives [90m(0.145459ms)[39m[39m
+[32m✔ clear cell keeps the table structure intact [90m(0.070542ms)[39m[39m
+[32m✔ delete table removes its formatting directive and preserves surrounding text [90m(0.081042ms)[39m[39m
+[32m✔ row deletion compacts row and cell color directives [90m(0.13725ms)[39m[39m
+[32m✔ column insertion shifts column and cell color directives [90m(0.561709ms)[39m[39m
+[32m✔ visual table mapping skips fenced examples and retains directives in source order [90m(0.242791ms)[39m[39m
+[32m✔ table dimensions round-trip and follow inserted rows and columns [90m(0.187917ms)[39m[39m
+[32m✔ selected palette is applied synchronously before the body exists [90m(1.777542ms)[39m[39m
+[32m✔ themed layout loads the blocking initializer immediately after the catalog [90m(0.678917ms)[39m[39m
+[32m✔ parseThemeCatalog accepts complete server theme definitions [90m(0.687792ms)[39m[39m
+[32m✔ parseThemeCatalog rejects malformed color values [90m(0.39425ms)[39m[39m
+[32m✔ parseThemeCatalog rejects unknown color schemes [90m(0.061709ms)[39m[39m
+[34mℹ tests 190[39m
+[34mℹ suites 0[39m
+[34mℹ pass 190[39m
+[34mℹ fail 0[39m
+[34mℹ cancelled 0[39m
+[34mℹ skipped 0[39m
+[34mℹ todo 0[39m
+[34mℹ duration_ms 640.042084[39m
+node --test --test-concurrency=2 test/browser/*.test.mjs
+[32m✔ rendered code blocks reveal copy without enhancing plugin diagrams [90m(1004.079417ms)[39m[39m
+[32m✔ network macro fragments load after the page shell [90m(843.509584ms)[39m[39m
+[32m✔ visual code blocks choose a supported fenced language [90m(954.754958ms)[39m[39m
+[32m✔ split preview ignores cursor clicks and refreshes without flashing [90m(3646.069333ms)[39m[39m
+[32m✔ visual widget source editing uses an application modal [90m(681.625667ms)[39m[39m
+[32m✔ task assignee suggestions open as soon as @ is typed [90m(658.045917ms)[39m[39m
+[32m✔ holding Alt reveals toolbar icon names until it is released [90m(479.684084ms)[39m[39m
+[32m✔ plugin toolbar submenu children stay hidden until the menu opens [90m(445.348708ms)[39m[39m
+[32m✔ heading menu previews the relative heading sizes [90m(451.641125ms)[39m[39m
+[32m✔ visual editor preserves mixed bullet and task items in one Markdown list [90m(634.646917ms)[39m[39m
+[32m✔ lazy visual editor preserves editing (failed first download: false) [90m(2145.632375ms)[39m[39m
+[32m✔ lazy visual editor preserves editing (failed first download: true) [90m(2150.543292ms)[39m[39m
+[31m✖ callout Markdown fields render and edit code blocks independently [90m(612.147583ms)[39m[39m
+[32m✔ callout visual preview renders fenced Markdown without changing source [90m(1030.539ms)[39m[39m
+[32m✔ visual widget exactly-one fields switch modes and focus added rows [90m(761.00475ms)[39m[39m
+[32m✔ callout widget previews type and content changes before apply [90m(732.860125ms)[39m[39m
+[32m✔ visual resource widget uses its declared completion module [90m(629.220333ms)[39m[39m
+[32m✔ External Files insert and widget list configured sources [90m(987.482292ms)[39m[39m
+[32m✔ image pagination preserves its search and newer searches supersede pending requests [90m(628.631583ms)[39m[39m
+[32m✔ shared picker selects paths, restores drafts, and preserves form values [90m(504.551917ms)[39m[39m
+[32m✔ plugin administration forms drive the real runtime lifecycle [90m(3430.840834ms)[39m[39m
+[32m✔ offline update submits the embedded candidate with JavaScript enabled [90m(2506.440375ms)[39m[39m
+[32m✔ plugin frames swap atomically and respect block presentation [90m(712.0125ms)[39m[39m
+[32m✔ plugin frames include outer content margins in their measured height [90m(468.114625ms)[39m[39m
+[32m✔ real Mermaid is isolated and plugin changes require a page reload [90m(4198.651875ms)[39m[39m
+[32m✔ trusted browser-module changes relay only same-plugin widget commands [90m(534.351708ms)[39m[39m
+[32m✔ Tables uses packaged sorting/filtering, theme colors, and semantic fallback [90m(3958.723167ms)[39m[39m
+[32m✔ browser module cleanup aborts a pending image transfer [90m(427.060542ms)[39m[39m
+[34mℹ tests 28[39m
+[34mℹ suites 0[39m
+[34mℹ pass 27[39m
+[34mℹ fail 1[39m
+[34mℹ cancelled 0[39m
+[34mℹ skipped 0[39m
+[34mℹ todo 0[39m
+[34mℹ duration_ms 20658.692166[39m
+
+[31m✖ failing tests:[39m
+
+test at test/browser/editor-widget-markdown-field.test.mjs:6:1
+[31m✖ callout Markdown fields render and edit code blocks independently [90m(612.147583ms)[39m[39m
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'BashCopy--send-mail-any-operation=false'
+  - '--send-mail-any-operation=false'
+  
+      at TestContext.<anonymous> (file:///Users/qiwi/code/kumbuka/kumbuka/test/browser/editor-widget-markdown-field.test.mjs:100:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'BashCopy--send-mail-any-operation=false',
+    expected: '--send-mail-any-operation=false',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+[32m✔ local profile fields stay directly editable [90m(0.692667ms)[39m[39m
+[32m✔ OIDC fields expose provider ownership and per-field revert [90m(0.112708ms)[39m[39m
+[32m✔ trusted-proxy username requires relinking while mutable fields can be overridden [90m(0.058334ms)[39m[39m
+[32m✔ webhook template completions suggest payload fields [90m(0.500458ms)[39m[39m
+[32m✔ webhook template completions filter nested recipient fields [90m(0.131ms)[39m[39m
+[32m✔ webhook template completions ignore unrelated tokens [90m(0.049417ms)[39m[39m
+[32m✔ webhook test request asks for JSON and accepts no-content success [90m(10.883375ms)[39m[39m
+[32m✔ webhook test request returns structured server problems [90m(1.63175ms)[39m[39m
+[32m✔ webhook test request rejects unstructured failures [90m(0.275459ms)[39m[39m
+[32m✔ createLatestRequest aborts the previous request [90m(0.4295ms)[39m[39m
+[32m✔ createDebouncer runs only the latest scheduled callback [90m(52.509ms)[39m[39m
+[32m✔ isAbortError recognizes aborted DOM operations [90m(0.270583ms)[39m[39m
+[32m✔ problem field labels turn snake case into readable text [90m(0.407416ms)[39m[39m
+[32m✔ problem field labels turn kebab case into readable text [90m(0.667792ms)[39m[39m
+[32m✔ problem field labels use a safe fallback for an empty name [90m(0.181458ms)[39m[39m
+[32m✔ requiredElement returns the matching template element [90m(0.416375ms)[39m[39m
+[32m✔ requiredElement fails loudly when required markup is missing [90m(0.10825ms)[39m[39m
+[32m✔ requiredElements returns all matching template elements [90m(1.06075ms)[39m[39m
+[32m✔ requiredElements fails loudly when required markup is missing [90m(0.152625ms)[39m[39m
+[32m✔ requiredAttribute returns a trimmed required attribute [90m(0.105791ms)[39m[39m
+[32m✔ requiredAttribute fails loudly when an attribute is absent [90m(0.055917ms)[39m[39m
+[32m✔ attachmentMarkdown inserts a normal Markdown file link [90m(0.27525ms)[39m[39m
+[32m✔ code language catalog includes bundled highlighter languages [90m(1.15825ms)[39m[39m
+[32m✔ code language labels normalize common fence aliases [90m(0.087541ms)[39m[39m
+[32m✔ code language filtering searches labels identifiers and aliases [90m(2.039042ms)[39m[39m
+[32m✔ slashCommandTrigger activates only at the current line start [90m(0.711167ms)[39m[39m
+[32m✔ slash commands filter by label and description [90m(0.101041ms)[39m[39m
+[32m✔ completion picker resolves the variables insert through its trigger [90m(0.396209ms)[39m[39m
+[32m✔ completion picker scopes items to the matched provider [90m(0.383333ms)[39m[39m
+[32m✔ completion picker filters labels and details as the user types [90m(0.09575ms)[39m[39m
+[32m✔ completionTrigger opens the active plugin trigger [90m(0.646542ms)[39m[39m
+[32m✔ completionTrigger ignores completed braces and fenced code [90m(0.066208ms)[39m[39m
+[32m✔ editor accepts the empty Go catalog contract [90m(1.4795ms)[39m[39m
+[32m✔ editor catalog checks every field used by both consumers [90m(0.133417ms)[39m[39m
+[32m✔ Object prototype names are not catalog aliases [90m(0.56ms)[39m[39m
+[32m✔ editor accepts the empty Go draft contract [90m(0.087958ms)[39m[39m
+[32m✔ editor rejects malformed draft fields rather than coercing them [90m(0.082292ms)[39m[39m
+[32m✔ editor accepts declarative plugin action metadata [90m(0.061416ms)[39m[39m
+[32m✔ editor accepts resource-backed completion provider metadata [90m(0.057958ms)[39m[39m
+[32m✔ editor accepts a visual widget resource setting [90m(0.17275ms)[39m[39m
+[32m✔ editor rejects a visual widget resource setting without a completion module [90m(0.090792ms)[39m[39m
+[32m✔ editor accepts Markdown widget fields and tab table columns [90m(0.131875ms)[39m[39m
+[32m✔ editor reopens in the last primary mode, never split preview [90m(0.447709ms)[39m[39m
+[32m✔ editor path preview follows Kumbuka slug rules [90m(0.189625ms)[39m[39m
+[32m✔ guided editor paths combine the selected location and title [90m(0.94ms)[39m[39m
+[32m✔ guided editor paths keep an existing final segment while moving [90m(0.090541ms)[39m[39m
+[32m✔ editor word statistics handle empty and multiline Markdown [90m(0.4725ms)[39m[39m
+[32m✔ replace all supports case insensitive plain-text replacement [90m(0.083542ms)[39m[39m
+[32m✔ replace all can match case [90m(0.050125ms)[39m[39m
+[32m✔ editor mode copy matches the visible workspace [90m(0.063666ms)[39m[39m
+[32m✔ editorSlug follows Kumbuka page path rules [90m(0.487334ms)[39m[39m
+[32m✔ markdownHeadings ignores fenced code and preserves offsets [90m(0.525458ms)[39m[39m
+[32m✔ wikiLinkRanges extracts targets and labels [90m(0.136708ms)[39m[39m
+[32m✔ editorDiagnostics reports broken links, heading jumps, and link suggestions [90m(0.708208ms)[39m[39m
+[32m✔ Enter continues an unordered Markdown list [90m(0.855417ms)[39m[39m
+[32m✔ Enter preserves plus and star bullet markers [90m(0.115084ms)[39m[39m
+[32m✔ Enter continues an unchecked task list with an unchecked task [90m(0.059666ms)[39m[39m
+[32m✔ Enter after a completed task starts an unchecked task [90m(0.054875ms)[39m[39m
+[32m✔ Enter preserves indentation for nested task lists [90m(0.06175ms)[39m[39m
+[32m✔ Enter preserves tab indentation [90m(0.057667ms)[39m[39m
+[32m✔ Enter on an empty task marker exits the task list [90m(0.074792ms)[39m[39m
+[32m✔ Enter on an empty bullet marker exits the list [90m(0.049458ms)[39m[39m
+[32m✔ Enter increments ordered lists [90m(0.125291ms)[39m[39m
+[32m✔ Enter preserves ordered-list delimiters [90m(0.097459ms)[39m[39m
+[32m✔ list continuation does not run in the middle of a line [90m(0.070042ms)[39m[39m
+[32m✔ list continuation does not run inside backtick fenced code [90m(0.045333ms)[39m[39m
+[32m✔ list continuation does not run inside tilde fenced code [90m(0.042667ms)[39m[39m
+[32m✔ list continuation resumes after fenced code closes [90m(0.053958ms)[39m[39m
+[32m✔ Enter renumbers following ordered-list items [90m(0.071833ms)[39m[39m
+[32m✔ Enter renumbers only siblings at the same indentation level [90m(0.058959ms)[39m[39m
+[32m✔ Enter preserves closing-parenthesis markers while renumbering [90m(0.075333ms)[39m[39m
+[32m✔ Enter stops renumbering when the ordered list ends [90m(0.816625ms)[39m[39m
+[32m✔ Enter on an empty ordered marker restores following numbering [90m(0.087541ms)[39m[39m
+[32m✔ mentionTrigger opens on an empty or filtered mention [90m(0.807625ms)[39m[39m
+[32m✔ mentionTrigger does not treat email addresses as mentions [90m(0.073833ms)[39m[39m
+[32m✔ mentionTrigger ignores fenced and inline code [90m(0.06475ms)[39m[39m
+[32m✔ mentionReplacement inserts the canonical username [90m(0.037541ms)[39m[39m
+[32m✔ mentionRanges finds visual mentions without matching email addresses [90m(0.130125ms)[39m[39m
+[32m✔ tabularTextToMarkdown converts spreadsheet TSV [90m(0.470542ms)[39m[39m
+[32m✔ tabularTextToMarkdown escapes markdown pipes [90m(0.082625ms)[39m[39m
+[32m✔ tabularTextToMarkdown ignores normal pasted text [90m(0.050417ms)[39m[39m
+[32m✔ declarative wrap actions own text formatting [90m(0.523542ms)[39m[39m
+[32m✔ declarative prefix actions own block formatting [90m(0.106834ms)[39m[39m
+[32m✔ Replace with an empty query leaves the document untouched [90m(0.495666ms)[39m[39m
+[32m✔ Previous match wraps from the start of the document [90m(0.141792ms)[39m[39m
+[32m✔ visual editor replaces the stock listItem with a task-aware list item [90m(0.680791ms)[39m[39m
+[32m✔ visual editor recognizes declarative Markdown checklist actions [90m(0.158584ms)[39m[39m
+[32m✔ visual editor preserves Kumbuka macros as atomic inline syntax [90m(0.460958ms)[39m[39m
+[32m✔ visual editor preserves wiki links as atomic inline syntax [90m(0.131667ms)[39m[39m
+[32m✔ visual editor preserves standalone directives [90m(0.111167ms)[39m[39m
+[32m✔ visual editor does not consume ordinary Markdown braces [90m(0.613166ms)[39m[39m
+[32m✔ widget macro parser preserves declared and unknown attributes [90m(1.066917ms)[39m[39m
+[32m✔ widget macro rewrite retains unknown attributes and omitted defaults [90m(0.228292ms)[39m[39m
+[32m✔ status list mapping accepts legacy comma syntax and emits named colors safely [90m(0.121166ms)[39m[39m
+[32m✔ status widget validates page-local rows and cross-field rules [90m(0.394292ms)[39m[39m
+[32m✔ mention and date settings validate canonical persisted values [90m(1.682ms)[39m[39m
+[32m✔ multiline macro matching remains opt-in per plugin contract [90m(0.113792ms)[39m[39m
+[32m✔ widget macro parser accepts bare values and repeated attributes [90m(0.239042ms)[39m[39m
+[32m✔ substitution widgets round-trip their resource reference [90m(0.174209ms)[39m[39m
+[32m✔ callout and details widgets preserve structured block content [90m(0.175917ms)[39m[39m
+[32m✔ tabs widgets map parallel titles and bodies without losing multiline content [90m(0.19425ms)[39m[39m
+[32m✔ optional defaults can preserve an explicit empty macro attribute [90m(0.059917ms)[39m[39m
+[32m✔ tree widget accepts blank optional cells and nested parent IDs [90m(2.631208ms)[39m[39m
+[32m✔ tree widget rejects a parent that does not precede its child [90m(0.123417ms)[39m[39m
+[32m✔ wikiLinkTrigger finds an unfinished wiki link [90m(1.200875ms)[39m[39m
+[32m✔ wikiLinkTrigger ignores closed or multiline links [90m(0.085166ms)[39m[39m
+[32m✔ wikiLinkReplacement inserts a normal wiki link [90m(0.05275ms)[39m[39m
+[32m✔ export parameters omit unchanged values and preserve explicit empty values [90m(0.724708ms)[39m[39m
+[32m✔ export parameters preserve whitespace and prototype-like keys [90m(0.105458ms)[39m[39m
+[32m✔ export preview accepts a complete HTML document [90m(0.065584ms)[39m[39m
+[32m✔ graphNeighborhood returns the complete graph without a filter [90m(0.582375ms)[39m[39m
+[32m✔ graphNeighborhood returns a focused node and its direct neighbors [90m(0.091916ms)[39m[39m
+[32m✔ graphNeighborhood expands matching search results with their relationships [90m(0.056417ms)[39m[39m
+[32m✔ knowledgeGraph rejects malformed graph entries instead of filtering them [90m(0.142125ms)[39m[39m
+[32m✔ knowledgeGraph accepts the empty Go graph contract [90m(0.139375ms)[39m[39m
+[32m✔ requireArrayOf returns a fully valid array [90m(0.76325ms)[39m[39m
+[32m✔ requireArrayOf rejects malformed entries instead of filtering them [90m(0.132ms)[39m[39m
+[32m✔ followedRedirectURL recognizes a redirect followed by fetch [90m(1.006833ms)[39m[39m
+[32m✔ responseProblem validates problem payload fields [90m(10.532334ms)[39m[39m
+[32m✔ requestJSON returns unknown JSON and supplies an Accept header [90m(0.659708ms)[39m[39m
+[32m✔ requestJSON surfaces structured JSON errors [90m(0.412834ms)[39m[39m
+[32m✔ Go problem fixtures are accepted by the browser [90m(0.130959ms)[39m[39m
+[32m✔ optional malformed problems never hide a valid server message [90m(0.080292ms)[39m[39m
+[32m✔ requestJSON distinguishes no-content responses from malformed success bodies [90m(0.432375ms)[39m[39m
+[32m✔ browser i18n falls back cleanly without a document [90m(0.445542ms)[39m[39m
+[32m✔ sidebarWidthStatus labels presets and custom widths [90m(0.393125ms)[39m[39m
+[32m✔ sidebarWidthStatus clamps values to supported bounds [90m(0.511ms)[39m[39m
+[32m✔ formats a complete Markdown document conservatively [90m(1.035584ms)[39m[39m
+[32m✔ preserves fenced and indented block contents [90m(0.691542ms)[39m[39m
+[32m✔ preserves Markdown hard line breaks [90m(0.078709ms)[39m[39m
+[32m✔ formatting is idempotent [90m(0.12625ms)[39m[39m
+[32m✔ preserves image widths in ordinary, linked and reference images [90m(0.085209ms)[39m[39m
+[32m✔ local password matches Go: short [90m(0.501166ms)[39m[39m
+[32m✔ local password matches Go: minimum [90m(0.072542ms)[39m[39m
+[32m✔ local password matches Go: ascii-limit [90m(0.044125ms)[39m[39m
+[32m✔ local password matches Go: ascii-too-long [90m(0.042916ms)[39m[39m
+[32m✔ local password matches Go: six-emoji [90m(0.052875ms)[39m[39m
+[32m✔ local password matches Go: twelve-emoji [90m(0.035209ms)[39m[39m
+[32m✔ local password matches Go: emoji-limit [90m(0.032958ms)[39m[39m
+[32m✔ local password matches Go: emoji-too-long [90m(0.035042ms)[39m[39m
+[32m✔ local password matches Go: accent-limit [90m(0.054584ms)[39m[39m
+[32m✔ local password matches Go: accent-too-long [90m(0.096917ms)[39m[39m
+Kumbuka browser performance diagnostics disabled.
+[32m✔ deployment-gated performance diagnostics expose browser controls [90m(2.2465ms)[39m[39m
+[32m✔ service worker registration reuses an existing root registration [90m(1.059875ms)[39m[39m
+[32m✔ service worker registration creates the root registration once when missing [90m(0.115542ms)[39m[39m
+[32m✔ prefixed registration uses the exact deployment scope and rejects an ancestor registration [90m(0.128667ms)[39m[39m
+[32m✔ manifest start, scope, and icons resolve within the deployment [90m(0.183042ms)[39m[39m
+[32m✔ local routes preserve paths, queries, and fragments at root [90m(0.47075ms)[39m[39m
+[32m✔ local routes preserve paths, queries, and fragments at /kumbuka [90m(0.105792ms)[39m[39m
+[32m✔ page URLs combine stable identity with the readable slug [90m(0.133042ms)[39m[39m
+[32m✔ routes read the body prefix and generated API URLs reach fetch unchanged [90m(10.605833ms)[39m[39m
+[32m✔ live search cancels queued and in-flight work when dismissed [90m(317.246625ms)[39m[39m
+[32m✔ private page caching requires a configured client and matching server identity [90m(11.294291ms)[39m[39m
+[32m✔ in-flight responses cannot cross an account switch or logout [90m(0.81675ms)[39m[39m
+[32m✔ login responses and mismatched identities are never cached [90m(0.372375ms)[39m[39m
+[32m✔ versioned assets are served from the service-worker cache [90m(0.476625ms)[39m[39m
+[32m✔ malformed configure-user messages are ignored instead of coerced [90m(0.382916ms)[39m[39m
+[32m✔ a prefixed worker caches only its deployment's pages and assets [90m(0.650125ms)[39m[39m
+[32m✔ page paths match Go: empty [90m(0.886542ms)[39m[39m
+[32m✔ page paths match Go: ordinary title [90m(0.088166ms)[39m[39m
+[32m✔ page paths match Go: hierarchy [90m(0.043ms)[39m[39m
+[32m✔ page paths match Go: punctuation [90m(0.030167ms)[39m[39m
+[32m✔ page paths match Go: punctuation at edges [90m(0.033541ms)[39m[39m
+[32m✔ page paths match Go: preserved separators [90m(0.027333ms)[39m[39m
+[32m✔ page paths match Go: non-ASCII separators [90m(0.030792ms)[39m[39m
+[32m✔ page paths match Go: dotted capital I [90m(0.035458ms)[39m[39m
+[32m✔ page paths match Go: dotted capital I after ASCII [90m(0.034584ms)[39m[39m
+[32m✔ page paths match Go: Kelvin sign [90m(0.103208ms)[39m[39m
+[32m✔ page paths match Go: emoji separator [90m(0.034667ms)[39m[39m
+[32m✔ page paths match Go: no transliteration [90m(0.024625ms)[39m[39m
+[32m✔ page paths match Go: slash spacing [90m(0.030083ms)[39m[39m
+[32m✔ page paths match Go: hyphen edges [90m(0.018375ms)[39m[39m
+[32m✔ table directives round-trip colors and interaction options [90m(0.590583ms)[39m[39m
+[32m✔ table context resolves body row, column and existing directive [90m(0.449959ms)[39m[39m
+[32m✔ rewriting a table directive inserts and removes only the directive [90m(0.119375ms)[39m[39m
+[32m✔ palette parser preserves existing semantic table tones [90m(0.05125ms)[39m[39m
+[32m✔ table insertion builds the selected Confluence-style grid size [90m(0.071958ms)[39m[39m
+[32m✔ row insertion shifts row and cell color directives [90m(0.198417ms)[39m[39m
+[32m✔ column deletion compacts column and cell color directives [90m(0.215542ms)[39m[39m
+[32m✔ clear cell keeps the table structure intact [90m(0.106375ms)[39m[39m
+[32m✔ delete table removes its formatting directive and preserves surrounding text [90m(0.098041ms)[39m[39m
+[32m✔ row deletion compacts row and cell color directives [90m(0.167791ms)[39m[39m
+[32m✔ column insertion shifts column and cell color directives [90m(0.126375ms)[39m[39m
+[32m✔ visual table mapping skips fenced examples and retains directives in source order [90m(0.464833ms)[39m[39m
+[32m✔ table dimensions round-trip and follow inserted rows and columns [90m(0.174584ms)[39m[39m
+[32m✔ selected palette is applied synchronously before the body exists [90m(0.726875ms)[39m[39m
+[32m✔ themed layout loads the blocking initializer immediately after the catalog [90m(0.473625ms)[39m[39m
+[32m✔ parseThemeCatalog accepts complete server theme definitions [90m(0.553916ms)[39m[39m
+[32m✔ parseThemeCatalog rejects malformed color values [90m(0.365458ms)[39m[39m
+[32m✔ parseThemeCatalog rejects unknown color schemes [90m(0.050458ms)[39m[39m
+[34mℹ tests 190[39m
+[34mℹ suites 0[39m
+[34mℹ pass 190[39m
+[34mℹ fail 0[39m
+[34mℹ cancelled 0[39m
+[34mℹ skipped 0[39m
+[34mℹ todo 0[39m
+[34mℹ duration_ms 628.583208[39m
+go generate ./plugins
+go test -count=1 -timeout=3m ./...
+?   	github.com/kumbuka-me/kumbuka/cmd/kumbuka	[no test files]
+?   	github.com/kumbuka-me/kumbuka/internal/app	[no test files]
+ok  	github.com/kumbuka-me/kumbuka/internal/application/access	0.083s
+?   	github.com/kumbuka-me/kumbuka/internal/application/administration	[no test files]
+ok  	github.com/kumbuka-me/kumbuka/internal/application/audit	0.067s
+ok  	github.com/kumbuka-me/kumbuka/internal/application/authentication	0.065s
+ok  	github.com/kumbuka-me/kumbuka/internal/application/groups	0.064s
+ok  	github.com/kumbuka-me/kumbuka/internal/application/media	0.066s
+ok  	github.com/kumbuka-me/kumbuka/internal/application/navigation	0.080s
+ok  	github.com/kumbuka-me/kumbuka/internal/application/notifications	0.081s
+ok  	github.com/kumbuka-me/kumbuka/internal/application/pages	0.094s
+ok  	github.com/kumbuka-me/kumbuka/internal/application/plugins	0.147s
+ok  	github.com/kumbuka-me/kumbuka/internal/application/portablearchive	0.081s
+ok  	github.com/kumbuka-me/kumbuka/internal/application/preferences	0.063s
+ok  	github.com/kumbuka-me/kumbuka/internal/application/recyclebin	0.063s
+ok  	github.com/kumbuka-me/kumbuka/internal/application/search	0.064s
+ok  	github.com/kumbuka-me/kumbuka/internal/application/settings	0.083s
+ok  	github.com/kumbuka-me/kumbuka/internal/application/system	0.070s
+ok  	github.com/kumbuka-me/kumbuka/internal/application/templates	0.075s
+ok  	github.com/kumbuka-me/kumbuka/internal/application/tokens	0.064s
+ok  	github.com/kumbuka-me/kumbuka/internal/application/users	0.131s
+ok  	github.com/kumbuka-me/kumbuka/internal/application/viewer	0.124s
+ok  	github.com/kumbuka-me/kumbuka/internal/application/webhooks	0.171s
+ok  	github.com/kumbuka-me/kumbuka/internal/bootstrap	0.131s
+ok  	github.com/kumbuka-me/kumbuka/internal/credential	0.244s
+ok  	github.com/kumbuka-me/kumbuka/internal/filetype	0.091s
+ok  	github.com/kumbuka-me/kumbuka/internal/flags	0.094s
+ok  	github.com/kumbuka-me/kumbuka/internal/http/auth	0.195s
+ok  	github.com/kumbuka-me/kumbuka/internal/http/endpoint	1.836s
+ok  	github.com/kumbuka-me/kumbuka/internal/http/middleware	0.102s
+ok  	github.com/kumbuka-me/kumbuka/internal/http/response	0.099s
+ok  	github.com/kumbuka-me/kumbuka/internal/http/server	0.253s
+ok  	github.com/kumbuka-me/kumbuka/internal/i18n	0.097s
+ok  	github.com/kumbuka-me/kumbuka/internal/importer	0.099s
+ok  	github.com/kumbuka-me/kumbuka/internal/markdownurl	0.091s
+ok  	github.com/kumbuka-me/kumbuka/internal/metrics	0.132s
+ok  	github.com/kumbuka-me/kumbuka/internal/pagecontent	0.124s
+ok  	github.com/kumbuka-me/kumbuka/internal/pdf	0.172s
+ok  	github.com/kumbuka-me/kumbuka/internal/pluginruntime	0.115s
+ok  	github.com/kumbuka-me/kumbuka/internal/pluginupdate	0.113s
+ok  	github.com/kumbuka-me/kumbuka/internal/portable	0.110s
+ok  	github.com/kumbuka-me/kumbuka/internal/postgres	0.361s
+ok  	github.com/kumbuka-me/kumbuka/internal/route	0.075s
+ok  	github.com/kumbuka-me/kumbuka/internal/runtimeinfo	0.080s
+ok  	github.com/kumbuka-me/kumbuka/internal/secrets	0.070s
+ok  	github.com/kumbuka-me/kumbuka/internal/webview	0.236s
+ok  	github.com/kumbuka-me/kumbuka/pkg/ascii	0.068s
+ok  	github.com/kumbuka-me/kumbuka/pkg/domain	0.067s
+ok  	github.com/kumbuka-me/kumbuka/pkg/icons	0.079s
+ok  	github.com/kumbuka-me/kumbuka/pkg/logging	0.066s
+ok  	github.com/kumbuka-me/kumbuka/pkg/markdown	3.642s
+ok  	github.com/kumbuka-me/kumbuka/pkg/mention	0.065s
+ok  	github.com/kumbuka-me/kumbuka/pkg/navigation	0.066s
+ok  	github.com/kumbuka-me/kumbuka/pkg/pagemove	0.073s
+ok  	github.com/kumbuka-me/kumbuka/pkg/pageurl	0.065s
+ok  	github.com/kumbuka-me/kumbuka/pkg/plugin	0.326s
+ok  	github.com/kumbuka-me/kumbuka/pkg/plugin/wasm	6.563s
+ok  	github.com/kumbuka-me/kumbuka/pkg/pluginbrowser	0.091s
+ok  	github.com/kumbuka-me/kumbuka/pkg/plugincap	0.080s
+ok  	github.com/kumbuka-me/kumbuka/pkg/pluginusage	0.063s
+ok  	github.com/kumbuka-me/kumbuka/pkg/pluginversion	0.050s
+ok  	github.com/kumbuka-me/kumbuka/pkg/renderprofile	0.061s
+ok  	github.com/kumbuka-me/kumbuka/pkg/reviewsuggestions	0.062s
+ok  	github.com/kumbuka-me/kumbuka/pkg/revision	0.060s
+ok  	github.com/kumbuka-me/kumbuka/pkg/searchquery	0.061s
+ok  	github.com/kumbuka-me/kumbuka/pkg/themes	0.068s
+ok  	github.com/kumbuka-me/kumbuka/pkg/utils	0.063s
+ok  	github.com/kumbuka-me/kumbuka/plugins	1.223s
+ok  	github.com/kumbuka-me/kumbuka/scripts/check-go-docs	0.068s
+ok  	github.com/kumbuka-me/kumbuka/scripts/generate-icons	0.065s
+?   	github.com/kumbuka-me/kumbuka/scripts/generate-plugins	[no test files]
+?   	github.com/kumbuka-me/kumbuka/test/browser/plugins-admin-server	[no test files]
+ok  	github.com/kumbuka-me/kumbuka/web	0.074s

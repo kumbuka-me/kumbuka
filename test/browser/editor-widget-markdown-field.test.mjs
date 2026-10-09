@@ -3,6 +3,17 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { chromium } from "playwright";
 
+// codeBlockText reads only document content, excluding non-editable ProseMirror controls.
+async function codeBlockText(code) {
+  return code.evaluate((element) => {
+    const content = element.cloneNode(true);
+    for (const control of content.querySelectorAll('[contenteditable="false"]')) {
+      control.remove();
+    }
+    return content.textContent || "";
+  });
+}
+
 test("callout Markdown fields render and edit code blocks independently", async () => {
   const template = await readFile(
     new URL("../../web/src/templates/edit.gohtml", import.meta.url),
@@ -97,8 +108,9 @@ test("callout Markdown fields render and edit code blocks independently", async 
     const dialog = page.getByRole("dialog", { name: "Edit Callout" });
     const rich = dialog.locator(".visual-widget-markdown-content");
     await rich.locator("pre code").waitFor({ state: "visible" });
-    assert.equal(await rich.locator("pre code").textContent(), "--send-mail-any-operation=false");
+    assert.equal(await codeBlockText(rich.locator("pre code")), "--send-mail-any-operation=false");
     assert.equal(await dialog.getByRole("button", { name: /Code language: Bash/ }).count(), 1);
+    assert.equal(await dialog.getByRole("button", { name: "Copy code to clipboard" }).count(), 1);
 
     await dialog.getByRole("button", { name: "Markdown", exact: true }).click();
     const markdown = dialog.getByRole("textbox", { name: "Content Markdown source" });
@@ -116,7 +128,7 @@ test("callout Markdown fields render and edit code blocks independently", async 
     );
     await updated.getByRole("button", { name: "Visual", exact: true }).click();
     assert.equal(await updated.locator(".visual-widget-markdown-content strong").textContent(), "Updated");
-    assert.equal(await updated.locator(".visual-widget-markdown-content pre code").textContent(), "echo ok");
+    assert.equal(await codeBlockText(updated.locator(".visual-widget-markdown-content pre code")), "echo ok");
     await updated.getByRole("button", { name: "Apply" }).click();
     assert.match(await page.locator("textarea[data-markdown-editor]").inputValue(), /    \*\*Updated\*\*/);
     assert.deepEqual(errors, []);
