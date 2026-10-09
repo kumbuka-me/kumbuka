@@ -203,14 +203,10 @@ function renderCallout(
   resetPreview(root);
   root.className = `${preview.class} ${kindValue}`;
 
-  const heading = document.createElement("strong");
-  heading.textContent = kindValue
-    ? kindValue[0].toUpperCase() + kindValue.slice(1)
-    : widget.name;
   const body = document.createElement("div");
   if (preview.body_class) body.className = preview.body_class;
   body.textContent = valueFor(values, preview.body_attribute);
-  root.append(heading, body);
+  root.append(body);
   root.title = raw;
 }
 

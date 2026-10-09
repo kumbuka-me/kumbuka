@@ -486,8 +486,7 @@ function matchCallout(source: string): string | null {
   if (!source.startsWith("!!! ")) return null;
   const lines = source.split("\n");
   if (!/^!!!\s+[A-Za-z][A-Za-z0-9_-]*\s*$/.test(lines[0])) return null;
-  let end = 1;
-  while (end < lines.length && lines[end].trim() !== "") end += 1;
+  const end = indentedBlockEnd(lines, 1);
   return lines.slice(0, end).join("\n");
 }
 
@@ -651,7 +650,7 @@ function calloutWidgetValues(
 ): void {
   const lines = raw.split("\n");
   result.kind = lines[0].slice(4).trim();
-  result.body = lines.slice(1).join("\n");
+  result.body = deindentBody(lines.slice(1));
 }
 
 function deindentBody(lines: string[]): string {
@@ -816,7 +815,7 @@ function rewriteSubstitution(
 function rewriteCallout(values: Record<string, string>): string {
   const kind = values.kind || "note";
   const body = values.body || "";
-  return `!!! ${kind}${body ? `\n${body}` : ""}`;
+  return `!!! ${kind}${body ? `\n${indentBody(body)}` : ""}`;
 }
 
 function rewriteDetails(values: Record<string, string>): string {
