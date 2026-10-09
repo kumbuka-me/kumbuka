@@ -235,3 +235,71 @@ test("editor rejects a visual widget resource setting without a completion modul
   }
   assert.ok(caught instanceof Error);
 });
+
+test("editor accepts Markdown widget fields and tab table columns", () => {
+  const catalog = parseEditorCatalog({
+    pages: [],
+    aliases: {},
+    completions: [],
+    completion_providers: [],
+    inserts: [],
+    widgets: [
+      {
+        plugin_id: "me.kumbuka.callouts",
+        id: "callout",
+        name: "Callout",
+        inline: false,
+        syntax: { kind: "callout" },
+        attributes: [
+          { name: "kind", type: "enum", values: ["info"], required: true },
+          { name: "body", type: "string", required: true },
+        ],
+        settings: [
+          { type: "select", label: "Type", attribute: "kind" },
+          { type: "markdown", label: "Content", attribute: "body" },
+        ],
+        preview: {
+          kind: "callout",
+          callout: {
+            class: "callout",
+            body_class: "callout-body",
+            kind_attribute: "kind",
+            body_attribute: "body",
+            body_format: "markdown",
+          },
+        },
+      },
+      {
+        plugin_id: "me.kumbuka.tabs",
+        id: "tabs",
+        name: "Tabs",
+        inline: false,
+        syntax: { kind: "tabs" },
+        attributes: [
+          { name: "titles", type: "list", required: true },
+          { name: "bodies", type: "list", required: true },
+        ],
+        settings: [{
+          type: "table", label: "Tabs", attributes: ["titles", "bodies"],
+          columns: [
+            { type: "text", label: "Title" },
+            { type: "markdown", label: "Content" },
+          ],
+        }],
+        preview: {
+          kind: "tabs",
+          tabs: {
+            class: "markdown-tabs", list_class: "markdown-tab-list",
+            tab_class: "markdown-tab", panels_class: "markdown-tab-panels",
+            panel_class: "markdown-tab-panel", titles_attribute: "titles",
+            bodies_attribute: "bodies", body_format: "markdown",
+          },
+        },
+      },
+    ],
+    widget_problems: [],
+  });
+
+  assert.equal(catalog.widgets[0]?.settings[1]?.type, "markdown");
+  assert.equal(catalog.widgets[1]?.settings[0]?.columns?.[1]?.type, "markdown");
+});

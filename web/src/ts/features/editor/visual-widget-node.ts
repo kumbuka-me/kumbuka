@@ -5,6 +5,7 @@ import type { CatalogCompletion } from "./catalog.ts";
 import { isRecord } from "../../core/guards.ts";
 import { requestJSON } from "../../core/http.ts";
 import { createSettingsPopover } from "./visual-widget-form.ts";
+import { disposeMarkdownControls } from "./visual-widget-markdown.ts";
 import { renderWidget, resetPreview } from "./visual-widget-preview.ts";
 import {
   matchWidgetSource,
@@ -311,7 +312,10 @@ function widgetNodeView(
     renderPreview(raw, widget);
   };
   const close = (restorePreview = true) => {
-    popover?.remove();
+    if (popover) {
+      disposeMarkdownControls(popover);
+      popover.remove();
+    }
     popover = null;
     if (restorePreview) render();
   };

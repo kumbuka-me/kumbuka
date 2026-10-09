@@ -44,7 +44,8 @@ function enhanceLongformTables(popover: HTMLElement): void {
   for (const table of popover.querySelectorAll<HTMLTableElement>(
     ".visual-widget-table",
   )) {
-    const textareas = table.querySelectorAll<HTMLTextAreaElement>("textarea");
+    const textareas = [...table.querySelectorAll<HTMLTextAreaElement>("textarea")]
+      .filter((textarea) => !textarea.closest(".visual-widget-markdown-field"));
     if (textareas.length === 0) continue;
 
     table.classList.add("visual-widget-table-longform");

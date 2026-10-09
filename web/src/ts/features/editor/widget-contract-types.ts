@@ -23,7 +23,7 @@ export interface CatalogWidgetAttribute {
 
 export interface CatalogWidgetSettingColumn {
   label: string;
-  type: "text" | "textarea" | "color";
+  type: "text" | "textarea" | "markdown" | "color";
 }
 
 export interface CatalogWidgetChoice {
@@ -56,6 +56,7 @@ export interface CatalogWidgetSetting {
   type:
     | "text"
     | "textarea"
+    | "markdown"
     | "select"
     | "resource"
     | "mention"

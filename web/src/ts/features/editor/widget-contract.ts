@@ -84,6 +84,7 @@ function isWidgetColumn(value: unknown): value is CatalogWidgetSettingColumn {
     typeof value.label === "string" &&
     (value.type === "text" ||
       value.type === "textarea" ||
+      value.type === "markdown" ||
       value.type === "color")
   );
 }
@@ -154,6 +155,7 @@ function isWidgetSetting(value: unknown): value is CatalogWidgetSetting {
     resourceSetting &&
     (value.type === "text" ||
       value.type === "textarea" ||
+      value.type === "markdown" ||
       value.type === "select" ||
       value.type === "resource" ||
       value.type === "mention" ||

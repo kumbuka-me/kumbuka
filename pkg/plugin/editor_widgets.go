@@ -70,7 +70,7 @@ type EditorWidgetAttribute struct {
 type EditorWidgetSettingColumn struct {
 	// Label is the human-readable column heading.
 	Label string `json:"label"`
-	// Type selects a text, textarea, or color input.
+	// Type selects a text, textarea, Markdown, or color control.
 	Type EditorWidgetColumnType `json:"type"`
 }
 
@@ -122,7 +122,7 @@ type EditorWidgetTreeField struct {
 
 // EditorWidgetSetting declares one generic control rendered by the visual editor.
 type EditorWidgetSetting struct {
-	// Type selects text, textarea, select, resource, mention, date, or table behavior.
+	// Type selects text, textarea, markdown, select, resource, mention, date, or table behavior.
 	Type EditorWidgetSettingType `json:"type"`
 	// Label is the human-readable setting label.
 	Label string `json:"label"`
@@ -853,6 +853,14 @@ func validateEditorWidgetSetting(setting EditorWidgetSetting, attributes map[str
 	switch setting.Type {
 	case EditorWidgetSettingText, EditorWidgetSettingTextarea, EditorWidgetSettingMention, EditorWidgetSettingDate:
 		return validateEditorWidgetTextSettingDeclaration(setting, attributes)
+	case EditorWidgetSettingMarkdown:
+		if err := validateEditorWidgetTextSettingDeclaration(setting, attributes); err != nil {
+			return err
+		}
+		if attributes[setting.Attribute].Type != EditorWidgetAttributeString {
+			return fmt.Errorf("Markdown setting %q must reference a string attribute", setting.Label)
+		}
+		return nil
 	case EditorWidgetSettingSelect:
 		return validateEditorWidgetSelectSettingDeclaration(setting, attributes)
 	case EditorWidgetSettingResource:
@@ -1086,7 +1094,7 @@ func validateEditorWidgetTableSettingDeclaration(setting EditorWidgetSetting, at
 			return fmt.Errorf("table setting %q has an invalid row separator", setting.Label)
 		}
 		for _, column := range setting.Columns {
-			if !validEditorWidgetTableColumn(column) || column.Type == EditorWidgetColumnColor {
+			if !validEditorWidgetTableColumn(column) || column.Type == EditorWidgetColumnColor || column.Type == EditorWidgetColumnMarkdown {
 				return fmt.Errorf("table setting %q has an invalid compound column", setting.Label)
 			}
 		}
@@ -1488,7 +1496,7 @@ func validEditorWidgetTableAttribute(attribute EditorWidgetAttribute, found, dup
 // validEditorWidgetTableColumn reports whether a table column has a bounded label and supported control type.
 func validEditorWidgetTableColumn(column EditorWidgetSettingColumn) bool {
 	return strings.TrimSpace(column.Label) != "" && len(column.Label) <= 128 &&
-		(column.Type == EditorWidgetColumnText || column.Type == EditorWidgetColumnTextarea || column.Type == EditorWidgetColumnColor)
+		(column.Type == EditorWidgetColumnText || column.Type == EditorWidgetColumnTextarea || column.Type == EditorWidgetColumnMarkdown || column.Type == EditorWidgetColumnColor)
 }
 
 // validEditorWidgetBadgeMetadata reports whether badge preview metadata stays within contract limits.

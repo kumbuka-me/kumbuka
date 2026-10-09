@@ -117,6 +117,7 @@ type EditorWidgetSettingType string
 const (
 	EditorWidgetSettingText     EditorWidgetSettingType = "text"
 	EditorWidgetSettingTextarea EditorWidgetSettingType = "textarea"
+	EditorWidgetSettingMarkdown EditorWidgetSettingType = "markdown"
 	EditorWidgetSettingSelect   EditorWidgetSettingType = "select"
 	EditorWidgetSettingResource EditorWidgetSettingType = "resource"
 	EditorWidgetSettingTable    EditorWidgetSettingType = "table"
@@ -131,6 +132,7 @@ type EditorWidgetColumnType string
 const (
 	EditorWidgetColumnText     EditorWidgetColumnType = "text"
 	EditorWidgetColumnTextarea EditorWidgetColumnType = "textarea"
+	EditorWidgetColumnMarkdown EditorWidgetColumnType = "markdown"
 	EditorWidgetColumnColor    EditorWidgetColumnType = "color"
 )
 

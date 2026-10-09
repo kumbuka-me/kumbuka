@@ -2,6 +2,11 @@
 
 import type { CatalogCompletion } from "./catalog.ts";
 import { openSourceDialog } from "./source-dialog.ts";
+import {
+  createMarkdownControl,
+  disposeMarkdownControls,
+  setMarkdownControlValue,
+} from "./visual-widget-markdown.ts";
 import { createLabel, setupMentionSetting } from "./visual-widget-controls.ts";
 import {
   collectTreeValues,
@@ -26,9 +31,30 @@ function createScalarSetting(
   values: Record<string, string>,
   completions: CatalogCompletion[],
 ): HTMLElement {
-  const wrapper = createLabel(setting.label);
+  const wrapper =
+    setting.type === "markdown"
+      ? document.createElement("div")
+      : createLabel(setting.label);
+  if (setting.type === "markdown") {
+    wrapper.className = "visual-widget-field";
+    const title = document.createElement("span");
+    title.className = "visual-widget-field-label";
+    title.textContent = setting.label;
+    wrapper.append(title);
+  }
   const attribute = widgetAttribute(widget, setting.attribute || "");
   if (!attribute) return wrapper;
+
+  if (setting.type === "markdown") {
+    const markdown = createMarkdownControl(
+      values[attribute.name] || "",
+      setting.label,
+      setting.placeholder || "",
+    );
+    markdown.source.dataset.widgetAttribute = attribute.name;
+    wrapper.append(markdown.element);
+    return wrapper;
+  }
 
   let control: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
   if (setting.type === "select" || setting.type === "resource") {
@@ -189,16 +215,26 @@ function appendTableRow(
       ? setting.attributes?.[0] || ""
       : setting.attributes?.[index] || "";
     const attribute = widgetAttribute(widget, attributeName);
+    const value =
+      column.type === "color"
+        ? normalizeWidgetColor(values[index] || "", attribute) || "#64748b"
+        : values[index] || "";
+    if (column.type === "markdown") {
+      const markdown = createMarkdownControl(value, column.label, "");
+      markdown.source.dataset.widgetTableAttribute = attributeName;
+      markdown.source.dataset.widgetTableColumn = String(index);
+      if (activationAttribute)
+        markdown.source.dataset.widgetExclusiveAttribute = activationAttribute;
+      cell.append(markdown.element);
+      return;
+    }
     const control =
       column.type === "textarea"
         ? document.createElement("textarea")
         : document.createElement("input");
     if (control instanceof HTMLInputElement) control.type = column.type;
     if (control instanceof HTMLTextAreaElement) control.rows = 3;
-    control.value =
-      column.type === "color"
-        ? normalizeWidgetColor(values[index] || "", attribute) || "#64748b"
-        : values[index] || "";
+    control.value = value;
     control.dataset.widgetTableAttribute = attributeName;
     control.dataset.widgetTableColumn = String(index);
     if (activationAttribute)
@@ -212,17 +248,22 @@ function appendTableRow(
   remove.className = "visual-widget-remove-row";
   remove.textContent = "Remove";
   remove.addEventListener("click", () => {
-    if (body.rows.length > 1) row.remove();
-    else
+    if (body.rows.length > 1) {
+      disposeMarkdownControls(row);
+      row.remove();
+    } else
       row
         .querySelectorAll<HTMLInputElement | HTMLTextAreaElement>(
           "input, textarea",
         )
         .forEach((control) => {
-          control.value =
+          const value =
             control instanceof HTMLInputElement && control.type === "color"
               ? "#64748b"
               : "";
+          if (control instanceof HTMLTextAreaElement)
+            setMarkdownControlValue(control, value);
+          else control.value = value;
         });
   });
   actions.append(remove);
@@ -277,11 +318,10 @@ function createTableSetting(
       ),
     );
     activate(exactlyOneActivationAttribute(widget, setting.attributes || []));
-    row
-      .querySelector<HTMLInputElement | HTMLTextAreaElement>(
-        'input[type="text"], input:not([type]), textarea',
-      )
-      ?.focus();
+    const editable = row.querySelector<HTMLElement>(
+      '[contenteditable="true"], input[type="text"], input:not([type]), textarea:not([hidden])',
+    );
+    editable?.focus();
   });
   field.append(add);
   return field;
@@ -382,6 +422,7 @@ function resetTableSetting(
   const body = input?.closest("table")?.tBodies[0];
   if (!body) return;
 
+  disposeMarkdownControls(body);
   body.replaceChildren();
   appendTableRow(
     body,
@@ -403,7 +444,10 @@ function clearFormAttribute(
   const scalar = form.querySelector<
     HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
   >(`[data-widget-attribute="${CSS.escape(attribute)}"]`);
-  if (scalar) scalar.value = "";
+  if (scalar) {
+    if (scalar instanceof HTMLTextAreaElement) setMarkdownControlValue(scalar, "");
+    else scalar.value = "";
+  }
 
   for (const setting of widget.settings) {
     if (
@@ -591,9 +635,15 @@ export function createSettingsPopover(
   form.append(actions);
   popover.append(form);
 
+  // Opening a rich editor or changing tabs must not normalize untouched source.
+  const sourceForValues = (next: Record<string, string>): string =>
+    Object.entries(next).every(([name, value]) => value === (values[name] || ""))
+      ? raw
+      : rewriteWidgetSource(raw, widget, next);
+
   const refreshPreview = () => {
     const next = collectFormValues(form, widget, values);
-    preview(rewriteWidgetSource(raw, widget, next));
+    preview(sourceForValues(next));
   };
 
   form.addEventListener("input", (event) => {
@@ -653,7 +703,7 @@ export function createSettingsPopover(
       error.hidden = false;
       return;
     }
-    apply(rewriteWidgetSource(raw, widget, next));
+    apply(sourceForValues(next));
     close(false);
   });
 
