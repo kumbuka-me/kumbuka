@@ -365,7 +365,7 @@ test("callout and details widgets preserve structured block content", () => {
     },
   };
 
-  const calloutRaw = "!!! warning\nBack up the database.";
+  const calloutRaw = "!!! warning\n    Back up the database.";
   assert.deepEqual(widgetValues(calloutRaw, callout), {
     kind: "warning",
     body: "Back up the database.",
@@ -375,7 +375,7 @@ test("callout and details widgets preserve structured block content", () => {
       kind: "note",
       body: "Updated body.",
     }),
-    "!!! note\nUpdated body.",
+    "!!! note\n    Updated body.",
   );
 
   const detailsRaw = '???+ "Show command"\n\n    **Markdown**';

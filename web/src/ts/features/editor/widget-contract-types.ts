@@ -131,11 +131,14 @@ export interface CatalogWidgetCardPreview {
   line_annotations?: CatalogWidgetLineAnnotations;
 }
 
+export type CatalogWidgetBodyFormat = "markdown";
+
 export interface CatalogWidgetCalloutPreview {
   class: string;
   body_class?: string;
   kind_attribute: string;
   body_attribute: string;
+  body_format?: CatalogWidgetBodyFormat;
 }
 
 export interface CatalogWidgetDetailsPreview {
@@ -144,6 +147,7 @@ export interface CatalogWidgetDetailsPreview {
   title_attribute: string;
   open_attribute: string;
   body_attribute: string;
+  body_format?: CatalogWidgetBodyFormat;
 }
 
 export interface CatalogWidgetTabsPreview {
@@ -156,6 +160,7 @@ export interface CatalogWidgetTabsPreview {
   hidden_class?: string;
   titles_attribute: string;
   bodies_attribute: string;
+  body_format?: CatalogWidgetBodyFormat;
 }
 
 export type CatalogWidgetPreview =

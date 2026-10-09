@@ -855,6 +855,7 @@
 .visual-widget-node-block > .subpage-toc,
 .visual-widget-node-block > .kumbuka-page-report,
 .visual-widget-node-block > .external-file,
+.visual-widget-node-block > details.markdown-details,
 .visual-widget-node-block > :has(> details.markdown-details) {
   width: 100%;
 }
@@ -894,6 +895,19 @@
 .visual-widget-node-block .markdown-details-body,
 .visual-widget-node-block .markdown-tab-panel {
   white-space: pre-wrap;
+}
+
+/* Rendered Markdown uses normal block whitespace; only text-only fallbacks preserve it. */
+.visual-widget-node-block .visual-widget-markdown-rendered,
+.visual-widget-node-block .visual-widget-markdown-rendered .callout-body,
+.visual-widget-node-block .visual-widget-markdown-rendered .markdown-details-body,
+.visual-widget-node-block .visual-widget-markdown-rendered .markdown-tab-panel {
+  white-space: normal;
+}
+
+.visual-widget-node-block .visual-widget-markdown-rendered pre,
+.visual-widget-node-block .visual-widget-markdown-rendered pre code {
+  white-space: pre;
 }
 
 /* Keep callout previews readable while editing and make their type visually distinct. */

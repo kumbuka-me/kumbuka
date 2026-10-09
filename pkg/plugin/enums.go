@@ -143,6 +143,15 @@ const (
 	EditorWidgetConstraintMemberOf   EditorWidgetConstraintKind = "member-of"
 )
 
+// EditorWidgetBodyFormat selects the display format for a structured widget body.
+// An omitted format retains the text-only preview for existing plugins.
+type EditorWidgetBodyFormat string
+
+const (
+	// EditorWidgetBodyFormatMarkdown uses the authenticated page preview renderer.
+	EditorWidgetBodyFormatMarkdown EditorWidgetBodyFormat = "markdown"
+)
+
 // EditorWidgetPreviewKind identifies one bounded host-owned preview renderer.
 type EditorWidgetPreviewKind string
 

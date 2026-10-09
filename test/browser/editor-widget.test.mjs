@@ -220,7 +220,7 @@ test("callout widget previews type and content changes before apply", async () =
             <div data-markdown-toolbar role="toolbar"></div>
             <div class="editor-workspace" data-editor-workspace data-editor-mode="write">
               <div class="editor-source-pane">
-                <textarea data-markdown-editor>!!! warning\nHelpful tip.</textarea>
+                <textarea data-markdown-editor>!!! warning\n    Helpful tip.</textarea>
               </div>
             </div>
           </form>
@@ -300,7 +300,7 @@ test("callout widget previews type and content changes before apply", async () =
 
     assert.equal(
       (await source.inputValue()).trimEnd(),
-      "!!! success\nReady to ship.",
+      "!!! success\n    Ready to ship.",
     );
     assert.equal(
       await callout.evaluate((element) =>

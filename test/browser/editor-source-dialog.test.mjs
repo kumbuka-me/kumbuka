@@ -98,7 +98,7 @@ test("visual widget source editing uses an application modal", async () => {
             <div data-markdown-toolbar role="toolbar"></div>
             <div class="editor-workspace" data-editor-workspace data-editor-mode="write">
               <div class="editor-source-pane">
-                <textarea data-markdown-editor>!!! warning\nHelpful tip.</textarea>
+                <textarea data-markdown-editor>!!! warning\n    Helpful tip.</textarea>
               </div>
             </div>
           </form>
@@ -132,14 +132,17 @@ test("visual widget source editing uses an application modal", async () => {
       await sourceDialog.getByRole("alert").textContent(),
       "Source is not valid Callout syntax.",
     );
+    assert.equal(await source.inputValue(), "not a callout");
 
-    await source.fill("!!! info\nEdited source.");
+    const updatedSource = "!!! info\n    Edited source.";
+    await source.fill(updatedSource);
+    assert.equal(await source.inputValue(), updatedSource);
     await sourceDialog.getByRole("button", { name: "Apply" }).click();
     assert.equal(
       (
         await page.locator("textarea[data-markdown-editor]").inputValue()
       ).trimEnd(),
-      "!!! info\nEdited source.",
+      "!!! info\n    Edited source.",
     );
     assert.deepEqual(dialogs, [], "browser-native dialogs must not be used");
     assert.deepEqual(errors, []);

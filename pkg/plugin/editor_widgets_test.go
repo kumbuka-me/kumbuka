@@ -100,7 +100,7 @@ func TestEditorWidgets(t *testing.T) {
         {"type": "select", "label": "Type", "attribute": "kind"},
         {"type": "textarea", "label": "Body", "attribute": "body"}
       ],
-      "preview": {"kind": "callout", "callout": {"class": "callout", "body_class": "callout-body", "kind_attribute": "kind", "body_attribute": "body"}}
+      "preview": {"kind": "callout", "callout": {"class": "callout", "body_class": "callout-body", "kind_attribute": "kind", "body_attribute": "body", "body_format": "markdown"}}
     },
     {
       "id": "details",
@@ -117,7 +117,7 @@ func TestEditorWidgets(t *testing.T) {
         {"type": "select", "label": "Open", "attribute": "open"},
         {"type": "textarea", "label": "Body", "attribute": "body"}
       ],
-      "preview": {"kind": "details", "details": {"class": "markdown-details", "body_class": "markdown-details-body", "title_attribute": "title", "open_attribute": "open", "body_attribute": "body"}}
+      "preview": {"kind": "details", "details": {"class": "markdown-details", "body_class": "markdown-details-body", "title_attribute": "title", "open_attribute": "open", "body_attribute": "body", "body_format": "markdown"}}
     },
     {
       "id": "tabs",
@@ -130,7 +130,7 @@ func TestEditorWidgets(t *testing.T) {
       ],
       "settings": [{"type": "table", "label": "Tabs", "attributes": ["titles", "bodies"], "columns": [{"label": "Title", "type": "text"}, {"label": "Body", "type": "textarea"}]}],
       "constraints": [{"kind": "same-length", "attributes": ["titles", "bodies"]}],
-      "preview": {"kind": "tabs", "tabs": {"class": "markdown-tabs", "list_class": "markdown-tab-list", "tab_class": "markdown-tab", "panels_class": "markdown-tab-panels", "panel_class": "markdown-tab-panel", "titles_attribute": "titles", "bodies_attribute": "bodies"}}
+      "preview": {"kind": "tabs", "tabs": {"class": "markdown-tabs", "list_class": "markdown-tab-list", "tab_class": "markdown-tab", "panels_class": "markdown-tab-panels", "panel_class": "markdown-tab-panel", "titles_attribute": "titles", "bodies_attribute": "bodies", "body_format": "markdown"}}
     }
   ]
 }`))
@@ -143,6 +143,9 @@ func TestEditorWidgets(t *testing.T) {
 		require.Equal(t, "note", widgets[1].Preview.Card.LineAnnotations.Attribute)
 		require.Equal(t, EditorWidgetSettingTextarea, widgets[2].Settings[1].Type)
 		require.Equal(t, EditorWidgetPreviewTabs, widgets[4].Preview.Kind)
+		require.Equal(t, EditorWidgetBodyFormatMarkdown, widgets[2].Preview.Callout.BodyFormat)
+		require.Equal(t, EditorWidgetBodyFormatMarkdown, widgets[3].Preview.Details.BodyFormat)
+		require.Equal(t, EditorWidgetBodyFormatMarkdown, widgets[4].Preview.Tabs.BodyFormat)
 	})
 
 	t.Run("accepts resource setting with owned completion module", func(t *testing.T) {

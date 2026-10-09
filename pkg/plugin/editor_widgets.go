@@ -260,6 +260,8 @@ type EditorWidgetCalloutPreview struct {
 	KindAttribute string `json:"kind_attribute"`
 	// BodyAttribute selects callout body text.
 	BodyAttribute string `json:"body_attribute"`
+	// BodyFormat optionally renders the body through the page Markdown preview.
+	BodyFormat EditorWidgetBodyFormat `json:"body_format,omitempty"`
 }
 
 // EditorWidgetDetailsPreview describes a native details preview.
@@ -274,6 +276,8 @@ type EditorWidgetDetailsPreview struct {
 	OpenAttribute string `json:"open_attribute"`
 	// BodyAttribute selects details body text.
 	BodyAttribute string `json:"body_attribute"`
+	// BodyFormat optionally renders the body through the page Markdown preview.
+	BodyFormat EditorWidgetBodyFormat `json:"body_format,omitempty"`
 }
 
 // EditorWidgetTabsPreview describes the published tabs component shape.
@@ -296,6 +300,8 @@ type EditorWidgetTabsPreview struct {
 	TitlesAttribute string `json:"titles_attribute"`
 	// BodiesAttribute selects the parallel list of tab bodies.
 	BodiesAttribute string `json:"bodies_attribute"`
+	// BodyFormat optionally renders tab bodies through the page Markdown preview.
+	BodyFormat EditorWidgetBodyFormat `json:"body_format,omitempty"`
 }
 
 // EditorWidgetPreview declares the host-rendered visual representation used while editing.
@@ -1266,6 +1272,11 @@ func validateEditorWidgetCardPreview(preview EditorWidgetPreview, attributes map
 	return validateEditorWidgetAttributeReferences(attributes, append([]string{card.SubtitleAttribute}, card.MetadataAttributes...)...)
 }
 
+// validEditorWidgetBodyFormat accepts only the published Markdown format or legacy text.
+func validEditorWidgetBodyFormat(format EditorWidgetBodyFormat) bool {
+	return format == "" || format == EditorWidgetBodyFormatMarkdown
+}
+
 // validateEditorWidgetCalloutPreview validates callout-specific preview metadata.
 func validateEditorWidgetCalloutPreview(preview EditorWidgetPreview, attributes map[string]EditorWidgetAttribute) error {
 	if preview.Callout == nil || previewHasOtherKind(preview, EditorWidgetPreviewCallout) {
@@ -1278,6 +1289,9 @@ func validateEditorWidgetCalloutPreview(preview EditorWidgetPreview, attributes 
 	}
 	if err := validateEditorWidgetClasses(callout.Class, callout.BodyClass); err != nil {
 		return err
+	}
+	if !validEditorWidgetBodyFormat(callout.BodyFormat) {
+		return errors.New("unsupported callout preview body format")
 	}
 	return validateEditorWidgetAttributeReferences(attributes, callout.KindAttribute, callout.BodyAttribute)
 }
@@ -1295,6 +1309,9 @@ func validateEditorWidgetDetailsPreview(preview EditorWidgetPreview, attributes 
 	if err := validateEditorWidgetClasses(details.Class, details.BodyClass); err != nil {
 		return err
 	}
+	if !validEditorWidgetBodyFormat(details.BodyFormat) {
+		return errors.New("unsupported details preview body format")
+	}
 	return validateEditorWidgetAttributeReferences(attributes, details.TitleAttribute, details.OpenAttribute, details.BodyAttribute)
 }
 
@@ -1310,6 +1327,9 @@ func validateEditorWidgetTabsPreview(preview EditorWidgetPreview, attributes map
 	}
 	if !validEditorWidgetTabsClasses(tabs) {
 		return errors.New("tabs preview classes are required")
+	}
+	if !validEditorWidgetBodyFormat(tabs.BodyFormat) {
+		return errors.New("unsupported tabs preview body format")
 	}
 	for _, name := range []string{tabs.TitlesAttribute, tabs.BodiesAttribute} {
 		if err := validateEditorWidgetAttributeReferences(attributes, name); err != nil {

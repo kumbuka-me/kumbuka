@@ -66,6 +66,29 @@ function contractForRaw(
   return widgetForSource(raw, widgets);
 }
 
+// serverPreviewClass selects widgets explicitly requesting the normal page renderer.
+// Unconfigured widgets retain their safe, text-only declarative preview.
+function serverPreviewClass(widget: CatalogWidget): string | null {
+  switch (widget.preview.kind) {
+    case "card":
+      return widget.preview.card.rendered ? widget.preview.card.class : null;
+    case "callout":
+      return widget.preview.callout.body_format === "markdown"
+        ? widget.preview.callout.class
+        : null;
+    case "details":
+      return widget.preview.details.body_format === "markdown"
+        ? widget.preview.details.class
+        : null;
+    case "tabs":
+      return widget.preview.tabs.body_format === "markdown"
+        ? widget.preview.tabs.class
+        : null;
+    default:
+      return null;
+  }
+}
+
 interface RenderedWidgetPayload {
   html: string;
 }
@@ -85,6 +108,8 @@ function widgetNodeView(
   let node = context.node;
   let popover: HTMLElement | null = null;
   let renderVersion = 0;
+  let previewTimer: ReturnType<typeof setTimeout> | undefined;
+  let previewAbort: AbortController | null = null;
   const shell = document.createElement(inline ? "span" : "div");
   shell.className = inline
     ? "visual-widget-node"
@@ -92,7 +117,8 @@ function widgetNodeView(
   shell.contentEditable = "false";
   shell.dataset.visualWidget = "";
 
-  const preview = document.createElement(inline ? "span" : "div");
+  const previewTag = inline ? "span" : "div";
+  let preview: HTMLElement = document.createElement(previewTag);
   shell.append(preview);
 
   const renderServerPreview = async (
@@ -100,31 +126,45 @@ function widgetNodeView(
     widget: CatalogWidget,
     version: number,
   ) => {
-    if (widget.preview.kind !== "card" || !widget.preview.card.rendered) return;
+    const previewClass = serverPreviewClass(widget);
+    if (!previewClass) return;
     const form = shell.closest<HTMLFormElement>("form[data-preview-url]");
     const endpoint = form?.dataset.previewUrl;
     if (!form || !endpoint) return;
     const slug =
       form.querySelector<HTMLInputElement>('[name="slug"]')?.value || "";
+    const controller = new AbortController();
+    previewAbort = controller;
     try {
       const payload = await requestJSON(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ markdown: raw, slug }),
+        signal: controller.signal,
       });
       if (!isRenderedWidgetPayload(payload) || version !== renderVersion)
         return;
       const staging = document.createElement("div");
       staging.innerHTML = payload.html;
       const rendered = staging.querySelector<HTMLElement>(
-        `.${CSS.escape(widget.preview.card.class)}`,
+        `.${CSS.escape(previewClass)}`,
       );
-      if (!rendered) return;
-      resetPreview(preview);
-      preview.append(rendered);
+      if (!rendered || !shell.isConnected || version !== renderVersion) return;
+      if (widget.preview.kind === "card") {
+        resetPreview(preview);
+        preview.append(rendered);
+      } else {
+        // Keep the actual element as the NodeView child, preserving its
+        // semantics and the published .callout / .markdown-tabs CSS selectors.
+        rendered.classList.add("visual-widget-markdown-rendered");
+        preview.replaceWith(rendered);
+        preview = rendered;
+      }
       setupLineAnnotationSelection(rendered, widget);
     } catch {
-      // Keep the declarative card fallback when a dynamic preview is unavailable.
+      // Keep the safe declarative fallback when a server preview is unavailable.
+    } finally {
+      if (previewAbort === controller) previewAbort = null;
     }
   };
 
@@ -236,20 +276,39 @@ function widgetNodeView(
     });
   };
 
-  const render = () => {
+  // renderPreview invalidates older responses and coalesces rapid form edits.
+  const renderPreview = (raw: string, widget: CatalogWidget) => {
     const version = ++renderVersion;
+    previewAbort?.abort();
+    previewAbort = null;
+    if (previewTimer !== undefined) window.clearTimeout(previewTimer);
+    previewTimer = undefined;
+    if (preview.classList.contains("visual-widget-markdown-rendered")) {
+      const fallback = document.createElement(previewTag);
+      preview.replaceWith(fallback);
+      preview = fallback;
+    }
+    renderWidget(preview, raw, widget);
+    shell.dataset.pluginId = widget.plugin_id;
+    shell.dataset.widgetId = widget.id;
+    if (!serverPreviewClass(widget)) return;
+    previewTimer = window.setTimeout(() => {
+      previewTimer = undefined;
+      void renderServerPreview(raw, widget, version);
+    }, 150);
+  };
+
+  const render = () => {
     const raw = String(node.attrs?.raw || "");
     const widget = contractForRaw(raw, widgets);
     if (!widget) {
+      ++renderVersion;
       preview.className = "visual-kumbuka-token";
       preview.textContent = "Widget";
       preview.title = raw;
       return;
     }
-    renderWidget(preview, raw, widget);
-    shell.dataset.pluginId = widget.plugin_id;
-    shell.dataset.widgetId = widget.id;
-    queueMicrotask(() => void renderServerPreview(raw, widget, version));
+    renderPreview(raw, widget);
   };
   const close = (restorePreview = true) => {
     popover?.remove();
@@ -282,7 +341,7 @@ function widgetNodeView(
       widget,
       shell,
       apply,
-      (previewRaw) => renderWidget(preview, previewRaw, widget),
+      (previewRaw) => renderPreview(previewRaw, widget),
       close,
       completions,
       initialAnnotation,
@@ -354,6 +413,9 @@ function widgetNodeView(
       return true;
     },
     destroy() {
+      ++renderVersion;
+      previewAbort?.abort();
+      if (previewTimer !== undefined) window.clearTimeout(previewTimer);
       close(false);
     },
   };
