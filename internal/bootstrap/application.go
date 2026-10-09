@@ -172,14 +172,17 @@ func (a *Application) composeUseCases(cfg flags.Config, infrastructure *Infrastr
 		logger.With("component", "webhooks"),
 		cfg.PublicURL,
 	).WithUserDirectory(database)
+
 	a.access = appaccess.NewAccess(database)
 	a.navigation = appnavigation.NewNavigation(database, a.access)
-	a.pageMutations = apppages.NewMutations(database, a.access, database, logger, a.navigation, a.webhooks)
+
+	pagesLogger := logger.With("component", "pages")
+	a.pageMutations = apppages.NewMutations(database, a.access, database, pagesLogger, a.navigation, a.webhooks)
 	a.pagePresence = apppages.NewPresence(database, a.access)
-	a.pageDiscussions = apppages.NewDiscussions(database, a.access, database, logger, a.webhooks)
-	a.pageReviews = apppages.NewReviews(database, a.access, database, logger, a.webhooks)
-	a.pageReviewDiscussions = apppages.NewReviewDiscussions(database, a.access, a.pageReviews, database, logger, a.webhooks)
-	a.pageBulk = apppages.NewBulk(database, a.pageMutations, database, logger, a.webhooks)
+	a.pageDiscussions = apppages.NewDiscussions(database, a.access, database, pagesLogger, a.webhooks)
+	a.pageReviews = apppages.NewReviews(database, a.access, database, pagesLogger, a.webhooks)
+	a.pageReviewDiscussions = apppages.NewReviewDiscussions(database, a.access, a.pageReviews, database, pagesLogger, a.webhooks)
+	a.pageBulk = apppages.NewBulk(database, a.pageMutations, database, pagesLogger, a.webhooks)
 
 	// Narrow query and administration services depend only on their repository ports.
 	a.administration = appadministration.NewAdministration(database)
@@ -220,11 +223,10 @@ func (a *Application) composeUseCases(cfg flags.Config, infrastructure *Infrastr
 	a.pageReviewDiscussions.WithNotifications(a.notifications)
 
 	// Higher-level browser workflows coordinate the already-constructed page services.
-	serverLogger := logger.With("component", "server")
 	a.home = apppages.NewHomeQuery(database, a.drafts, a.access)
 	a.editor = apppages.NewEditor(a.pageLookup, a.groups, a.templates)
-	a.editorSave = apppages.NewEditorSave(a.pageMutations, a.drafts, a.templates, serverLogger)
-	a.viewPage = apppages.NewView(database, a.access, a.pageReviews, serverLogger)
+	a.editorSave = apppages.NewEditorSave(a.pageMutations, a.drafts, a.templates, pagesLogger)
+	a.viewPage = apppages.NewView(database, a.access, a.pageReviews, pagesLogger)
 }
 
 // configureAuthentication constructs API and browser authentication after repository-backed settings are available.
@@ -306,7 +308,7 @@ func (a *Application) configurePluginRuntime(
 		a.pageReports,
 		a.pageRender,
 		a.renderer,
-		logger,
+		logger.With("component", "page-render-rebuilds"),
 		cfg.RoutePrefix,
 	)
 	a.backgroundWorkers = append(a.backgroundWorkers, a.renderRebuilds)

@@ -48,7 +48,7 @@ func NewInfrastructure(
 	database, err := postgres.Open(
 		ctx,
 		cfg.DatabaseURL,
-		logger,
+		logger.With("component", "postgres"),
 		postgres.WithMaxConns(cfg.DatabaseMaxConns),
 		postgres.WithMinIdleConns(cfg.DatabaseMinIdleConns),
 	)
