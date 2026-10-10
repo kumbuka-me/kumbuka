@@ -656,7 +656,7 @@ func validateEditorWidgetSetting(setting EditorWidgetSetting, attributes map[str
 			return err
 		}
 		if attributes[setting.Attribute].Type != EditorWidgetAttributeString {
-			return fmt.Errorf("Markdown setting %q must reference a string attribute", setting.Label)
+			return fmt.Errorf("markdown setting %q must reference a string attribute", setting.Label)
 		}
 		return nil
 	case EditorWidgetSettingSelect:
