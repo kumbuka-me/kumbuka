@@ -11,7 +11,6 @@ import (
 	"strings"
 
 	"github.com/kumbuka-me/kumbuka/pkg/ascii"
-	"github.com/kumbuka-me/kumbuka/pkg/utils"
 	"github.com/kumbuka-me/sdk/pluginpackage"
 )
 
@@ -360,6 +359,13 @@ type editorWidgetDocument struct {
 	Widgets []EditorWidgetContribution `json:"widgets"`
 }
 
+// editorWidgetValidator carries the indexed declarations shared by the
+// setting, constraint, and preview validation phases.
+type editorWidgetValidator struct {
+	// attributes indexes declarations by their source attribute name.
+	attributes map[string]EditorWidgetAttribute
+}
+
 // EditorWidgets returns cached validated visual-editor contracts and non-fatal problems from enabled plugins.
 func (m *Manager) EditorWidgets() ([]EditorWidgetContribution, []EditorWidgetProblem) {
 	m.mu.Lock()
@@ -406,195 +412,6 @@ func editorWidgetsFromPackage(pkg *pluginpackage.Package) ([]EditorWidgetContrib
 		parsed[index].PluginID = id
 	}
 	return parsed, ""
-}
-
-// validateEditorWidgetCompletionReferences verifies resource controls reference editor-completion modules owned by the same plugin.
-func validateEditorWidgetCompletionReferences(widgets []EditorWidgetContribution, manifest pluginpackage.Manifest) error {
-	completionModules := make(map[string]bool)
-	for _, module := range manifest.Modules {
-		if ModuleType(module.Type) == ModuleTypeEditorCompletion {
-			completionModules[module.ID] = true
-		}
-	}
-
-	for _, widget := range widgets {
-		for _, setting := range widget.Settings {
-			if setting.Type == EditorWidgetSettingResource && !completionModules[setting.CompletionModuleID] {
-				return fmt.Errorf("visual editor widget %q references unknown editor-completion module %q", widget.ID, setting.CompletionModuleID)
-			}
-			if setting.ChoiceSource != nil {
-				if err := validateEditorWidgetChoiceSource(widget, *setting.ChoiceSource, manifest); err != nil {
-					return err
-				}
-			}
-			for _, field := range setting.Fields {
-				if field.ChoiceSource == nil {
-					continue
-				}
-				if err := validateEditorWidgetChoiceSource(widget, *field.ChoiceSource, manifest); err != nil {
-					return err
-				}
-			}
-		}
-	}
-	return nil
-}
-
-// validateEditorWidgetChoiceSource checks that an option source references valid attributes and list columns.
-func validateEditorWidgetChoiceSource(widget EditorWidgetContribution, source EditorWidgetChoiceSource, manifest pluginpackage.Manifest) error {
-	if !validEditorWidgetChoiceSourceNames(source) {
-		return fmt.Errorf("visual editor widget %q has an invalid choice source", widget.ID)
-	}
-	attributeFound := false
-	for _, attribute := range widget.Attributes {
-		if attribute.Name == source.SourceAttribute && editorWidgetScalarAttribute(attribute) {
-			attributeFound = true
-		}
-	}
-	if !attributeFound {
-		return fmt.Errorf("visual editor widget %q choice source references unknown attribute %q", widget.ID, source.SourceAttribute)
-	}
-	for _, moduleType := range []ModuleType{ModuleTypeSettings, ModuleTypeAdminResource} {
-		moduleID := source.SettingModuleID
-		if moduleType == ModuleTypeAdminResource {
-			moduleID = source.ResourceModuleID
-		}
-		if moduleID == "" {
-			continue
-		}
-		found := false
-		for _, module := range manifest.Modules {
-			if module.ID != moduleID || ModuleType(module.Type) != moduleType {
-				continue
-			}
-			for _, field := range module.Fields {
-				if editorWidgetChoiceSourceField(field, source) {
-					found = true
-				}
-			}
-		}
-		if !found {
-			return fmt.Errorf("visual editor widget %q choice source references invalid module %q", widget.ID, moduleID)
-		}
-	}
-	return nil
-}
-
-// editorWidgetChoiceSourceField reports whether field supplies the configured list and required choice columns.
-func editorWidgetChoiceSourceField(field pluginpackage.ConfigurationField, source EditorWidgetChoiceSource) bool {
-	return field.ID == source.ListField &&
-		ConfigurationFieldType(field.Type) == ConfigurationFieldList &&
-		choiceColumnsExist(field.Columns, source)
-}
-
-// validEditorWidgetChoiceSourceNames reports whether source identifiers form a usable list reference.
-func validEditorWidgetChoiceSourceNames(source EditorWidgetChoiceSource) bool {
-	if source.SettingModuleID == "" && source.ResourceModuleID == "" {
-		return false
-	}
-	for _, name := range []string{source.SourceAttribute, source.ListField, source.ValueColumn, source.LabelColumn} {
-		if !validID.MatchString(name) {
-			return false
-		}
-	}
-	return source.DefaultColumn == "" || validID.MatchString(source.DefaultColumn)
-}
-
-// choiceColumnsExist reports whether the list exposes every required option column.
-func choiceColumnsExist(columns []pluginpackage.ConfigurationField, source EditorWidgetChoiceSource) bool {
-	found := map[string]bool{}
-	for _, column := range columns {
-		found[column.ID] = true
-	}
-	return found[source.ValueColumn] && found[source.LabelColumn] && (source.DefaultColumn == "" || found[source.DefaultColumn])
-}
-
-// cloneEditorWidget copies mutable contract fields before they leave the manager.
-func cloneEditorWidget(widget EditorWidgetContribution) EditorWidgetContribution {
-	clone := widget
-	clone.Attributes = append([]EditorWidgetAttribute(nil), widget.Attributes...)
-	for index := range clone.Attributes {
-		clone.Attributes[index].Values = append([]string(nil), widget.Attributes[index].Values...)
-		clone.Attributes[index].Aliases = cloneStringMap(widget.Attributes[index].Aliases)
-	}
-	clone.Settings = append([]EditorWidgetSetting(nil), widget.Settings...)
-	for index := range clone.Settings {
-		clone.Settings[index].Attributes = append([]string(nil), widget.Settings[index].Attributes...)
-		clone.Settings[index].Columns = append([]EditorWidgetSettingColumn(nil), widget.Settings[index].Columns...)
-		clone.Settings[index].Suggestions = append([]string(nil), widget.Settings[index].Suggestions...)
-		clone.Settings[index].Fields = append([]EditorWidgetTreeField(nil), widget.Settings[index].Fields...)
-		clone.Settings[index].ChoiceSource = cloneEditorWidgetChoiceSource(widget.Settings[index].ChoiceSource)
-		clone.Settings[index].Choices = cloneEditorWidgetChoices(widget.Settings[index].Choices)
-		for fieldIndex := range clone.Settings[index].Fields {
-			clone.Settings[index].Fields[fieldIndex].Suggestions = append([]string(nil), widget.Settings[index].Fields[fieldIndex].Suggestions...)
-			clone.Settings[index].Fields[fieldIndex].ChoiceSource = cloneEditorWidgetChoiceSource(widget.Settings[index].Fields[fieldIndex].ChoiceSource)
-			clone.Settings[index].Fields[fieldIndex].Choices = cloneEditorWidgetChoices(widget.Settings[index].Fields[fieldIndex].Choices)
-		}
-	}
-	clone.Constraints = append([]EditorWidgetConstraint(nil), widget.Constraints...)
-	for index := range clone.Constraints {
-		clone.Constraints[index].Attributes = append([]string(nil), widget.Constraints[index].Attributes...)
-	}
-	if widget.Preview.Badge != nil {
-		badge := *widget.Preview.Badge
-		badge.DefaultColors = append([]string(nil), widget.Preview.Badge.DefaultColors...)
-		badge.ToneClasses = cloneStringMap(widget.Preview.Badge.ToneClasses)
-		clone.Preview.Badge = &badge
-	}
-	if widget.Preview.Reference != nil {
-		clone.Preview.Reference = utils.ToPtr(*widget.Preview.Reference)
-	}
-	if widget.Preview.Card != nil {
-		card := *widget.Preview.Card
-		card.MetadataAttributes = append([]string(nil), widget.Preview.Card.MetadataAttributes...)
-		if widget.Preview.Card.LineAnnotations != nil {
-			card.LineAnnotations = utils.ToPtr(*widget.Preview.Card.LineAnnotations)
-		}
-		clone.Preview.Card = &card
-	}
-	if widget.Preview.Callout != nil {
-		clone.Preview.Callout = utils.ToPtr(*widget.Preview.Callout)
-	}
-	if widget.Preview.Details != nil {
-		clone.Preview.Details = utils.ToPtr(*widget.Preview.Details)
-	}
-	if widget.Preview.Tabs != nil {
-		clone.Preview.Tabs = utils.ToPtr(*widget.Preview.Tabs)
-	}
-	return clone
-}
-
-// cloneEditorWidgetChoiceSource copies an optional choice-source declaration.
-func cloneEditorWidgetChoiceSource(source *EditorWidgetChoiceSource) *EditorWidgetChoiceSource {
-	if source == nil {
-		return nil
-	}
-	clone := *source
-	return &clone
-}
-
-// cloneEditorWidgetChoices copies option lists so callers cannot mutate cached choices.
-func cloneEditorWidgetChoices(source map[string][]EditorWidgetChoice) map[string][]EditorWidgetChoice {
-	if source == nil {
-		return nil
-	}
-	clone := make(map[string][]EditorWidgetChoice, len(source))
-	for key, choices := range source {
-		clone[key] = append([]EditorWidgetChoice(nil), choices...)
-	}
-	return clone
-}
-
-// cloneStringMap copies a string map while preserving nil.
-func cloneStringMap(source map[string]string) map[string]string {
-	if source == nil {
-		return nil
-	}
-	clone := make(map[string]string, len(source))
-	for key, value := range source {
-		clone[key] = value
-	}
-	return clone
 }
 
 // editorWidgetProblem bounds plugin-owned editor diagnostics before publishing them to clients.
@@ -664,13 +481,14 @@ func validateEditorWidget(widget *EditorWidgetContribution) error {
 	if err != nil {
 		return err
 	}
-	if err := validateEditorWidgetSettings(widget.Settings, attributes); err != nil {
+	validator := editorWidgetValidator{attributes: attributes}
+	if err := validator.validateSettings(widget.Settings); err != nil {
 		return err
 	}
-	if err := validateEditorWidgetConstraints(widget.Constraints, attributes); err != nil {
+	if err := validator.validateConstraints(widget.Constraints); err != nil {
 		return err
 	}
-	return validateEditorWidgetPreview(widget.Preview, attributes)
+	return validator.validatePreview(widget.Preview)
 }
 
 // validateEditorWidgetDeclaration validates widget metadata, syntax, and collection bounds.
@@ -723,26 +541,6 @@ func validateEditorWidgetAttributes(declarations []EditorWidgetAttribute) (map[s
 		attributes[attribute.Name] = attribute
 	}
 	return attributes, nil
-}
-
-// validateEditorWidgetSettings validates all generated controls against declared attributes.
-func validateEditorWidgetSettings(settings []EditorWidgetSetting, attributes map[string]EditorWidgetAttribute) error {
-	for _, setting := range settings {
-		if err := validateEditorWidgetSetting(setting, attributes); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// validateEditorWidgetConstraints validates all cross-attribute constraints.
-func validateEditorWidgetConstraints(constraints []EditorWidgetConstraint, attributes map[string]EditorWidgetAttribute) error {
-	for _, constraint := range constraints {
-		if err := validateEditorWidgetConstraint(constraint, attributes); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 // validateEditorWidgetAttribute validates one structured source attribute declaration.

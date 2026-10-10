@@ -44,17 +44,17 @@ func TestEditorWidgetChoiceSourceReferencesDeclaredLists(t *testing.T) {
 }
 
 func TestEditorWidgetChoiceSourceRejectsWrongModuleType(t *testing.T) {
-	for _, moduleType := range []string{"settings", "admin-resource"} {
-		t.Run(moduleType, func(t *testing.T) {
-			source := EditorWidgetChoiceSource{SourceAttribute: "workflow", ListField: "states", ValueColumn: "id", LabelColumn: "label"}
-			if moduleType == "settings" {
-				source.ResourceModuleID = "workflow"
-			} else {
-				source.SettingModuleID = "workflow"
-			}
-			widget := EditorWidgetContribution{ID: "task", Attributes: []EditorWidgetAttribute{{Name: "workflow", Type: EditorWidgetAttributeIdentifier}}}
-			manifest := pluginpackage.Manifest{Modules: []pluginpackage.Module{{ID: "workflow", Type: moduleType, Fields: []pluginpackage.ConfigurationField{{ID: "states", Type: "list", Columns: []pluginpackage.ConfigurationField{{ID: "id", Type: "text"}, {ID: "label", Type: "text"}}}}}}}
-			require.ErrorContains(t, validateEditorWidgetChoiceSource(widget, source, manifest), "invalid module")
-		})
-	}
+	t.Run("settings source cannot point at admin resource", func(t *testing.T) {
+		source := EditorWidgetChoiceSource{ResourceModuleID: "workflow", SourceAttribute: "workflow", ListField: "states", ValueColumn: "id", LabelColumn: "label"}
+		widget := EditorWidgetContribution{ID: "task", Attributes: []EditorWidgetAttribute{{Name: "workflow", Type: EditorWidgetAttributeIdentifier}}}
+		manifest := pluginpackage.Manifest{Modules: []pluginpackage.Module{{ID: "workflow", Type: "settings", Fields: []pluginpackage.ConfigurationField{{ID: "states", Type: "list", Columns: []pluginpackage.ConfigurationField{{ID: "id", Type: "text"}, {ID: "label", Type: "text"}}}}}}}
+		require.ErrorContains(t, validateEditorWidgetChoiceSource(widget, source, manifest), "invalid module")
+	})
+
+	t.Run("resource source cannot point at settings", func(t *testing.T) {
+		source := EditorWidgetChoiceSource{SettingModuleID: "workflow", SourceAttribute: "workflow", ListField: "states", ValueColumn: "id", LabelColumn: "label"}
+		widget := EditorWidgetContribution{ID: "task", Attributes: []EditorWidgetAttribute{{Name: "workflow", Type: EditorWidgetAttributeIdentifier}}}
+		manifest := pluginpackage.Manifest{Modules: []pluginpackage.Module{{ID: "workflow", Type: "admin-resource", Fields: []pluginpackage.ConfigurationField{{ID: "states", Type: "list", Columns: []pluginpackage.ConfigurationField{{ID: "id", Type: "text"}, {ID: "label", Type: "text"}}}}}}}
+		require.ErrorContains(t, validateEditorWidgetChoiceSource(widget, source, manifest), "invalid module")
+	})
 }
