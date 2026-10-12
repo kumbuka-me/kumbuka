@@ -462,11 +462,11 @@ func oidcGroups(idToken *oidc.IDToken, claim string) ([]string, error) {
 		return nil, err
 	}
 
-	return oidcGroupValues(values[claim])
+	return decodeOIDCGroupClaimValues(values[claim])
 }
 
-// oidcGroupValues normalizes one optional OIDC group claim.
-func oidcGroupValues(raw json.RawMessage) ([]string, error) {
+// decodeOIDCGroupClaimValues accepts a JSON string or string array.
+func decodeOIDCGroupClaimValues(raw json.RawMessage) ([]string, error) {
 	if len(raw) == 0 || string(raw) == "null" {
 		return nil, nil
 	}

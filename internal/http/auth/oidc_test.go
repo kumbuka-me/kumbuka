@@ -172,7 +172,7 @@ func TestOIDCGroupValues(t *testing.T) {
 	t.Run("accepts string array", func(t *testing.T) {
 		t.Parallel()
 
-		groups, err := oidcGroupValues([]byte(`["/admins"," /family ","/admins"]`))
+		groups, err := decodeOIDCGroupClaimValues([]byte(`["/admins"," /family ","/admins"]`))
 
 		assert.NoError(t, err)
 		assert.Equal(t, []string{"/admins", "/family"}, groups)
@@ -181,7 +181,7 @@ func TestOIDCGroupValues(t *testing.T) {
 	t.Run("accepts one string", func(t *testing.T) {
 		t.Parallel()
 
-		groups, err := oidcGroupValues([]byte(`"/admins"`))
+		groups, err := decodeOIDCGroupClaimValues([]byte(`"/admins"`))
 
 		assert.NoError(t, err)
 		assert.Equal(t, []string{"/admins"}, groups)
@@ -190,7 +190,7 @@ func TestOIDCGroupValues(t *testing.T) {
 	t.Run("accepts missing claim", func(t *testing.T) {
 		t.Parallel()
 
-		groups, err := oidcGroupValues(nil)
+		groups, err := decodeOIDCGroupClaimValues(nil)
 
 		assert.NoError(t, err)
 		assert.Empty(t, groups)
@@ -199,7 +199,7 @@ func TestOIDCGroupValues(t *testing.T) {
 	t.Run("rejects non-string values", func(t *testing.T) {
 		t.Parallel()
 
-		_, err := oidcGroupValues([]byte(`{"name":"admins"}`))
+		_, err := decodeOIDCGroupClaimValues([]byte(`{"name":"admins"}`))
 
 		assert.Error(t, err)
 	})

@@ -383,7 +383,7 @@ func (b *browserAuthenticator) cachedAuthenticatorForSettings(settings domain.Au
 			AdminGroup:  settings.TrustedAdminGroup,
 		})
 	case domain.AuthModeOIDC:
-		key := oidcSettingsKey(settings)
+		key := oidcSettingsFingerprint(settings)
 		b.mu.Lock()
 		defer b.mu.Unlock()
 		if b.oidc != nil && b.oidcKey == key {
@@ -574,7 +574,7 @@ func (b *browserAuthenticator) localLoginAllowed(ctx context.Context) (bool, err
 
 // oidcFor returns a cached OIDC integration for the supplied public settings.
 func (b *browserAuthenticator) oidcFor(ctx context.Context, settings domain.AuthenticationSettings) (*OIDC, error) {
-	key := oidcSettingsKey(settings)
+	key := oidcSettingsFingerprint(settings)
 
 	b.mu.Lock()
 	if b.oidc != nil && b.oidcKey == key {
@@ -611,8 +611,8 @@ func (b *browserAuthenticator) oidcFor(ctx context.Context, settings domain.Auth
 	return configured, nil
 }
 
-// oidcSettingsKey fingerprints public OIDC settings that affect the cached integration.
-func oidcSettingsKey(settings domain.AuthenticationSettings) string {
+// oidcSettingsFingerprint identifies settings that affect the cached OIDC integration.
+func oidcSettingsFingerprint(settings domain.AuthenticationSettings) string {
 	var key strings.Builder
 	_, _ = fmt.Fprintf(
 		&key,

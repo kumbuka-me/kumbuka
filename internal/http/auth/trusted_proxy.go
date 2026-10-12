@@ -35,12 +35,15 @@ func NewTrustedProxy(
 	login trustedProxyLoginService,
 	headers TrustedProxyHeaders,
 ) *TrustedProxy {
-	return &TrustedProxy{login: login, headers: headers}
+	return &TrustedProxy{
+		login:   login,
+		headers: headers,
+	}
 }
 
-// Authenticate resolves the first populated trusted identity header.
+// Authenticate resolves trusted identity headers in configured fallback order.
 func (a *TrustedProxy) Authenticate(r *http.Request) (domain.User, error) {
-	username := firstHeader(r, a.headers.Username)
+	username := firstConfiguredHeaderValue(r, a.headers.Username)
 	if username == "" {
 		return domain.User{}, ErrUnauthenticated
 	}
@@ -48,15 +51,15 @@ func (a *TrustedProxy) Authenticate(r *http.Request) (domain.User, error) {
 	adminObserved := a.headers.AdminGroup != ""
 	externalAdmin := false
 	if adminObserved {
-		groups := splitHeaderValues(firstHeader(r, a.headers.Groups))
+		groups := splitCommaSeparatedHeaderValues(firstConfiguredHeaderValue(r, a.headers.Groups))
 		externalAdmin = containsGroup(groups, a.headers.AdminGroup)
 	}
 
 	user, err := a.login.Login(
 		r.Context(),
 		username,
-		firstHeader(r, a.headers.Email),
-		firstHeader(r, a.headers.DisplayName),
+		firstConfiguredHeaderValue(r, a.headers.Email),
+		firstConfiguredHeaderValue(r, a.headers.DisplayName),
 		adminObserved,
 		externalAdmin,
 	)
@@ -80,8 +83,9 @@ func (a *TrustedProxy) Authenticate(r *http.Request) (domain.User, error) {
 	return user, nil
 }
 
-// splitHeaderValues normalizes a comma-separated trusted group header.
-func splitHeaderValues(value string) []string {
+// splitCommaSeparatedHeaderValues trims and drops empty values.
+// Example: "/admins, /users" becomes ["/admins", "/users"].
+func splitCommaSeparatedHeaderValues(value string) []string {
 	groups := make([]string, 0)
 	for part := range strings.SplitSeq(value, ",") {
 		if group := strings.TrimSpace(part); group != "" {
@@ -92,8 +96,9 @@ func splitHeaderValues(value string) []string {
 	return groups
 }
 
-// firstHeader returns the first non-empty configured header value.
-func firstHeader(r *http.Request, headers []string) string {
+// firstConfiguredHeaderValue returns the first non-empty configured header.
+// Example: ["X-User", "X-Remote-User"] uses X-Remote-User only when X-User is blank.
+func firstConfiguredHeaderValue(r *http.Request, headers []string) string {
 	for _, header := range headers {
 		if value := strings.TrimSpace(r.Header.Get(header)); value != "" {
 			return value
