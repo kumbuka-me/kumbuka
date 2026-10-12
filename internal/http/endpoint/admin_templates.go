@@ -11,6 +11,7 @@ import (
 	"github.com/kumbuka-me/kumbuka/internal/route"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
+	"github.com/kumbuka-me/kumbuka/pkg/utils"
 )
 
 // AdminPageTemplates renders reusable page-template management.
@@ -113,7 +114,7 @@ func pageTemplateInputFromForm(r *http.Request) (apptemplates.PageTemplateInput,
 		Markdown:           r.FormValue("markdown"),
 		PathPrefix:         r.FormValue("path_prefix"),
 		Icon:               r.FormValue("icon"),
-		Tags:               splitTags(r.FormValue("tags")),
+		Tags:               utils.SplitCommaSeparatedValues(r.FormValue("tags")),
 		Status:             domain.PageStatus(r.FormValue("status")),
 		OwnerGroupID:       ownerGroupID,
 		ReviewIntervalDays: reviewIntervalDays,

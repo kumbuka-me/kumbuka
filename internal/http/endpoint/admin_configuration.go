@@ -228,16 +228,17 @@ func authenticationSettingsFromForm(r *http.Request) (domain.AuthenticationSetti
 		OIDCGroupsAuthoritative:   r.FormValue("oidc_groups_authoritative") == "on",
 		OIDCGroupMappings:         mappings,
 		OIDCAdminGroup:            strings.TrimSpace(r.FormValue("oidc_admin_group")),
-		TrustedUsernameHeaders:    splitHeaderNames(r.FormValue("trusted_username_headers")),
-		TrustedEmailHeaders:       splitHeaderNames(r.FormValue("trusted_email_headers")),
-		TrustedDisplayNameHeaders: splitHeaderNames(r.FormValue("trusted_display_name_headers")),
-		TrustedGroupHeaders:       splitHeaderNames(r.FormValue("trusted_group_headers")),
+		TrustedUsernameHeaders:    parseConfiguredHeaderNames(r.FormValue("trusted_username_headers")),
+		TrustedEmailHeaders:       parseConfiguredHeaderNames(r.FormValue("trusted_email_headers")),
+		TrustedDisplayNameHeaders: parseConfiguredHeaderNames(r.FormValue("trusted_display_name_headers")),
+		TrustedGroupHeaders:       parseConfiguredHeaderNames(r.FormValue("trusted_group_headers")),
 		TrustedAdminGroup:         strings.TrimSpace(r.FormValue("trusted_admin_group")),
 	}, nil
 }
 
-// splitHeaderNames normalizes a comma-separated ordered header list.
-func splitHeaderNames(value string) []string {
+// parseConfiguredHeaderNames keeps ordered, case-insensitively unique comma or newline values.
+// Example: "X-User, x-user\nX-Email" becomes ["X-User", "X-Email"].
+func parseConfiguredHeaderNames(value string) []string {
 	seen := map[string]bool{}
 	headers := make([]string, 0)
 

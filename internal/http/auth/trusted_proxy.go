@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
+	"github.com/kumbuka-me/kumbuka/pkg/utils"
 )
 
 // TrustedProxy authenticates requests using identity headers from a trusted proxy.
@@ -51,7 +52,7 @@ func (a *TrustedProxy) Authenticate(r *http.Request) (domain.User, error) {
 	adminObserved := a.headers.AdminGroup != ""
 	externalAdmin := false
 	if adminObserved {
-		groups := splitCommaSeparatedHeaderValues(firstConfiguredHeaderValue(r, a.headers.Groups))
+		groups := utils.SplitCommaSeparatedValues(firstConfiguredHeaderValue(r, a.headers.Groups))
 		externalAdmin = containsGroup(groups, a.headers.AdminGroup)
 	}
 
@@ -81,19 +82,6 @@ func (a *TrustedProxy) Authenticate(r *http.Request) (domain.User, error) {
 	}
 
 	return user, nil
-}
-
-// splitCommaSeparatedHeaderValues trims and drops empty values.
-// Example: "/admins, /users" becomes ["/admins", "/users"].
-func splitCommaSeparatedHeaderValues(value string) []string {
-	groups := make([]string, 0)
-	for part := range strings.SplitSeq(value, ",") {
-		if group := strings.TrimSpace(part); group != "" {
-			groups = append(groups, group)
-		}
-	}
-
-	return groups
 }
 
 // firstConfiguredHeaderValue returns the first non-empty configured header.

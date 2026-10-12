@@ -16,6 +16,7 @@ import (
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	md "github.com/kumbuka-me/kumbuka/pkg/markdown"
 	"github.com/kumbuka-me/kumbuka/pkg/pageurl"
+	"github.com/kumbuka-me/kumbuka/pkg/utils"
 )
 
 // SavePageForm creates or updates a page from the browser form.
@@ -90,7 +91,7 @@ func pageEditorSaveInput(
 			Language:           r.FormValue("language"),
 			Markdown:           r.FormValue("markdown"),
 			Message:            r.FormValue("message"),
-			Tags:               splitTags(r.FormValue("tags")),
+			Tags:               utils.SplitCommaSeparatedValues(r.FormValue("tags")),
 			GroupIDs:           parseGroupIDs(r.Form["group_id"]),
 			Status:             metadata.Status,
 			OwnerGroupID:       metadata.OwnerGroupID,
@@ -222,19 +223,6 @@ func WatchPage(catalogUseCases visiblePageActions, views *webview.Views) http.Ha
 
 		route.Redirect(w, r, pageurl.Page(page.ID, page.Slug), http.StatusSeeOther)
 	}
-}
-
-// splitTags normalizes a comma-separated tag list.
-func splitTags(value string) []string {
-	result := make([]string, 0)
-
-	for part := range strings.SplitSeq(value, ",") {
-		if part = strings.TrimSpace(part); part != "" {
-			result = append(result, part)
-		}
-	}
-
-	return result
 }
 
 // parseGroupIDs parses positive group identifiers from form values and leaves invalid values for store validation.
