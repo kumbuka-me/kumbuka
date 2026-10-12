@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"strings"
 
-	httpgrace "github.com/containeroo/httpgrace/server"
-	"golang.org/x/sync/errgroup"
+	grace "github.com/containeroo/httpkit/grace"
+	httpkitserver "github.com/containeroo/httpkit/server"
 )
 
 // Config groups the capabilities used to construct HTTP routes.
@@ -50,37 +50,20 @@ func Run(
 	handlers Handlers,
 	logger *slog.Logger,
 ) error {
-	// cancel releases the listener context when Run returns, including after the
-	// parent context has already initiated shutdown.
-	listenerContext, cancel := context.WithCancel(ctx)
-	defer cancel()
-
-	group, groupContext := errgroup.WithContext(listenerContext)
-
-	group.Go(func() error {
-		// Stop the management listener when the application listener exits.
-		defer cancel()
-		return httpgrace.Run(
-			groupContext,
-			appAddress,
-			handlers.Application,
-			logger.With("server", "application"),
-			httpgrace.WithMaxHeaderValueCount(100),
-		)
-	})
-	group.Go(func() error {
-		// Stop the application listener when the management listener exits.
-		defer cancel()
-		return httpgrace.Run(
-			groupContext,
-			managementAddress,
-			handlers.Management,
-			logger.With("server", "management"),
-			httpgrace.WithMaxHeaderValueCount(100),
-		)
-	})
-
-	return group.Wait()
+	return httpkitserver.Run(ctx,
+		httpkitserver.Listener{
+			Address: appAddress,
+			Handler: handlers.Application,
+			Logger:  logger.With("server", "application"),
+			Options: []grace.Option{grace.WithMaxHeaderValueCount(100)},
+		},
+		httpkitserver.Listener{
+			Address: managementAddress,
+			Handler: handlers.Management,
+			Logger:  logger.With("server", "management"),
+			Options: []grace.Option{grace.WithMaxHeaderValueCount(100)},
+		},
+	)
 }
 
 // methodNotAllowed rejects unsupported methods on operational endpoints.

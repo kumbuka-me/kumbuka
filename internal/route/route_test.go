@@ -5,7 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/containeroo/httpprefix"
+	httpprefix "github.com/containeroo/httpkit/prefix"
 	"github.com/stretchr/testify/assert"
 )
 

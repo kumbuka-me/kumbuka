@@ -5,7 +5,7 @@ import (
 	"net"
 	"time"
 
-	"github.com/containeroo/httpprefix"
+	httpprefix "github.com/containeroo/httpkit/prefix"
 	"github.com/containeroo/tinyflags"
 	"github.com/kumbuka-me/kumbuka/internal/pdf"
 	"github.com/kumbuka-me/kumbuka/internal/secrets"

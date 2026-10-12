@@ -6,7 +6,7 @@ import (
 	"io"
 	"io/fs"
 
-	"github.com/containeroo/httpgrace/server"
+	server "github.com/containeroo/httpkit/grace"
 	"github.com/containeroo/tinyflags"
 	"github.com/kumbuka-me/kumbuka/internal/bootstrap"
 	"github.com/kumbuka-me/kumbuka/internal/flags"

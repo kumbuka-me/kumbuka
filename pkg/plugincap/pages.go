@@ -8,7 +8,7 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/containeroo/httpprefix"
+	httpprefix "github.com/containeroo/httpkit/prefix"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/kumbuka-me/kumbuka/pkg/icons"
 	"github.com/kumbuka-me/kumbuka/pkg/navigation"

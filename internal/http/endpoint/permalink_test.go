@@ -8,7 +8,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/containeroo/httpprefix"
+	httpprefix "github.com/containeroo/httpkit/prefix"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

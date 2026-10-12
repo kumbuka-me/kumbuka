@@ -11,7 +11,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/containeroo/httpprefix"
+	httpprefix "github.com/containeroo/httpkit/prefix"
 	"github.com/kumbuka-me/kumbuka/internal/i18n"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/kumbuka-me/kumbuka/pkg/icons"

@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/containeroo/httpprefix"
+	httpprefix "github.com/containeroo/httpkit/prefix"
 	"github.com/kumbuka-me/kumbuka/pkg/plugin"
 	"github.com/kumbuka-me/kumbuka/pkg/plugin/wasm"
 	"github.com/kumbuka-me/kumbuka/pkg/pluginbrowser"

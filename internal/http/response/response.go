@@ -2,9 +2,9 @@
 package response
 
 import (
-	"encoding/json"
-	"encoding/xml"
 	"net/http"
+
+	httpkitresponse "github.com/containeroo/httpkit/response"
 )
 
 // FieldProblem describes a validation problem for one request field.
@@ -25,31 +25,12 @@ func NewFieldProblem(field, message string) FieldProblem {
 
 // Respond writes a JSON response with the supplied status code.
 func Respond(w http.ResponseWriter, status int, value any) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(status)
-
-	if value != nil {
-		_ = json.NewEncoder(w).Encode(value)
-	}
+	httpkitresponse.WriteJSON(w, status, value)
 }
 
 // XML writes an indented XML response with an XML declaration.
 func XML(w http.ResponseWriter, status int, value any) error {
-	body, err := xml.MarshalIndent(value, "", "  ")
-	if err != nil {
-		return err
-	}
-
-	output := make([]byte, 0, len(xml.Header)+len(body)+1)
-	output = append(output, xml.Header...)
-	output = append(output, body...)
-	output = append(output, '\n')
-
-	w.Header().Set("Content-Type", "application/xml; charset=utf-8")
-	w.WriteHeader(status)
-
-	_, err = w.Write(output)
-	return err
+	return httpkitresponse.WriteXML(w, status, value)
 }
 
 // Problem writes a consistent JSON error response with optional field problems.

@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/containeroo/httpprefix"
+	httpprefix "github.com/containeroo/httpkit/prefix"
 )
 
 // ForRequest generates a URL using the deployment prefix of a mounted request.

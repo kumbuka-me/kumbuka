@@ -1,7 +1,7 @@
 package markdown
 
 import (
-	"github.com/containeroo/httpprefix"
+	httpprefix "github.com/containeroo/httpkit/prefix"
 	"github.com/yuin/goldmark/v2/ast"
 	"github.com/yuin/goldmark/v2/parser"
 	"github.com/yuin/goldmark/v2/text"

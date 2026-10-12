@@ -3,7 +3,7 @@ package server
 import (
 	"net/http"
 
-	"github.com/containeroo/httpprefix"
+	"github.com/containeroo/httpkit/prefix"
 	"github.com/kumbuka-me/kumbuka/internal/http/endpoint"
 	"github.com/kumbuka-me/kumbuka/internal/http/middleware"
 )
@@ -51,9 +51,9 @@ func newApplication(config Config) http.Handler {
 		application = config.Metrics.InstrumentHTTP(application)
 	}
 
-	return httpprefix.MountUnderPrefixWithOptions(
+	return prefix.MountUnderPrefixWithOptions(
 		application,
 		config.RoutePrefix,
-		httpprefix.WithRedirectRewriting(),
+		prefix.WithRedirectRewriting(),
 	)
 }
