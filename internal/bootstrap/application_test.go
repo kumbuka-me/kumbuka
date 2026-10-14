@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	appkitauth "github.com/containeroo/appkit/auth"
+	appkitconfig "github.com/containeroo/appkit/config"
 	"github.com/kumbuka-me/kumbuka/internal/flags"
 	"github.com/kumbuka-me/kumbuka/internal/http/auth"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
@@ -17,22 +19,29 @@ func TestNewBrowserAuthConfigMapsDeploymentSettings(t *testing.T) {
 	t.Parallel()
 
 	allowRegistration := true
+	authMode := appkitauth.ModeOIDC
 	cfg := flags.Config{
-		AuthModeOverride:              domain.AuthModeOIDC,
-		TrustedUsernameHeaders:        []string{"X-User", "Remote-User"},
-		TrustedEmailHeaders:           []string{"X-Email"},
-		TrustedDisplayNameHeaders:     []string{"X-Name"},
-		TrustedGroupHeaders:           []string{"X-Groups"},
-		TrustedAdminGroup:             "admins",
-		OIDCClientID:                  "kumbuka",
-		OIDCClientSecret:              "client-secret",
-		OIDCIssuer:                    "https://id.example",
-		OIDCSessionSecret:             "01234567890123456789012345678901",
-		PublicURL:                     "https://wiki.example",
-		OIDCGroupClaim:                "roles",
-		OIDCAdminGroup:                "wiki-admins",
-		LocalLogin:                    true,
-		AllowUserRegistrationOverride: &allowRegistration,
+		Server: appkitconfig.Server{PublicURL: "https://wiki.example"},
+		Authentication: appkitconfig.Authentication{
+			ModeOverride:              &authMode,
+			LocalLogin:                true,
+			AllowRegistrationOverride: &allowRegistration,
+		},
+		Proxy: appkitconfig.Proxy{
+			UsernameHeaders:    []string{"X-User", "Remote-User"},
+			EmailHeaders:       []string{"X-Email"},
+			DisplayNameHeaders: []string{"X-Name"},
+			GroupHeaders:       []string{"X-Groups"},
+			AdminGroup:         "admins",
+		},
+		OIDC: appkitconfig.OIDC{
+			ClientID:      "kumbuka",
+			ClientSecret:  "client-secret",
+			Issuer:        "https://id.example",
+			SessionSecret: "01234567890123456789012345678901",
+			GroupClaim:    "roles",
+			AdminGroup:    "wiki-admins",
+		},
 	}
 
 	got := newBrowserAuthConfig(cfg)

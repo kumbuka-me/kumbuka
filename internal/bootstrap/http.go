@@ -36,16 +36,16 @@ func NewHTTPConfig(
 
 	return httpserver.Config{
 		InfrastructureConfig: httpserver.InfrastructureConfig{
-			RoutePrefix:            cfg.RoutePrefix,
+			RoutePrefix:            cfg.Server.RoutePrefix,
 			Assets:                 appFS,
 			Views:                  views,
 			Renderer:               application.renderer,
 			Logger:                 logger,
-			AccessLog:              cfg.AccessLog,
+			AccessLog:              cfg.Logging.AccessLog,
 			ReadOnly:               cfg.ReadOnly,
-			MetricsEnabled:         !cfg.DisableMetrics,
+			MetricsEnabled:         !cfg.Observability.DisableMetrics,
 			Metrics:                infrastructure.metrics,
-			PerformanceDiagnostics: cfg.PerformanceDiagnostics,
+			PerformanceDiagnostics: cfg.Observability.PerformanceDiagnostics,
 		},
 
 		AuthenticationConfig: httpserver.AuthenticationConfig{

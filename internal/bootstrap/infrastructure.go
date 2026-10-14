@@ -40,17 +40,17 @@ func NewInfrastructure(
 		return nil, fmt.Errorf("load themes: %w", err)
 	}
 
-	secretCipher, err := appkitsecrets.New(cfg.EncryptionKey)
+	secretCipher, err := appkitsecrets.New(cfg.Authentication.EncryptionKey)
 	if err != nil {
 		return nil, fmt.Errorf("configure application encryption: %w", err)
 	}
 
 	database, err := postgres.Open(
 		ctx,
-		cfg.DatabaseURL,
+		cfg.Database.URL,
 		logger.With("component", "postgres"),
-		postgres.WithMaxConns(cfg.DatabaseMaxConns),
-		postgres.WithMinIdleConns(cfg.DatabaseMinIdleConns),
+		postgres.WithMaxConns(cfg.Database.MaxConns),
+		postgres.WithMinIdleConns(cfg.Database.MinIdleConns),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("open database: %w", err)
@@ -62,7 +62,7 @@ func NewInfrastructure(
 		return nil, fmt.Errorf("read setup state: %w", err)
 	}
 
-	metricsRegistry := appmetrics.NewRegistry(!cfg.DisableMetrics, version, commit)
+	metricsRegistry := appmetrics.NewRegistry(!cfg.Observability.DisableMetrics, version, commit)
 	metricsRegistry.RegisterPostgres(database)
 
 	return &Infrastructure{

@@ -4,115 +4,44 @@ package flags
 import (
 	"time"
 
+	appkitauth "github.com/containeroo/appkit/auth"
 	appkitconfig "github.com/containeroo/appkit/config"
-	appkitlogging "github.com/containeroo/appkit/logging"
-	appkitsecrets "github.com/containeroo/appkit/secrets"
 	"github.com/containeroo/tinyflags"
 	"github.com/kumbuka-me/kumbuka/internal/pdf"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
-	"github.com/kumbuka-me/kumbuka/pkg/utils"
 )
 
 // DefaultPluginUpdateCheckInterval is the default background plugin catalog refresh interval.
 const DefaultPluginUpdateCheckInterval = 60 * time.Minute
 
 const (
-	sectionServer             = "Server"
-	sectionDatabase           = "Database"
-	sectionServices           = "Services"
-	sectionAuthentication     = "Authentication"
-	sectionTrustedProxy       = "Trusted proxy"
-	sectionOIDC               = "OIDC"
-	sectionLoggingDiagnostics = "Logging and diagnostics"
+	sectionServices = "Services"
 )
-
-var trustedUsernameHeaders = []string{
-	"X-Forwarded-User",
-	"X-Auth-Request-User",
-	"Remote-User",
-}
-
-var trustedEmailHeaders = []string{
-	"X-Forwarded-Email",
-	"X-Auth-Request-Email",
-	"X-Authentik-Email",
-}
-
-var trustedDisplayNameHeaders = []string{
-	"X-Forwarded-Name",
-	"X-Auth-Request-Preferred-Username",
-	"X-Authentik-Name",
-}
-
-var trustedGroupHeaders = []string{
-	"X-Forwarded-Groups",
-	"X-Auth-Request-Groups",
-}
 
 // Config contains deployment-level runtime configuration for Kumbuka.
 type Config struct {
-	// RoutePrefix is the normalized deployment path, empty at root.
-	RoutePrefix string
-	// ApplicationListenAddress is the TCP address used by the public application server.
-	ApplicationListenAddress string
-	// ManagementListenAddress is the TCP address used by the operational management server.
-	ManagementListenAddress string
-	// DatabaseURL is the PostgreSQL connection URL.
-	DatabaseURL string
-	// DatabaseMaxConns is the maximum number of database connections.
-	DatabaseMaxConns int32
-	// DatabaseMinIdleConns is the minimum number of idle database connections kept ready.
-	DatabaseMinIdleConns int32
-	// PublicURL is the externally visible base URL.
-	PublicURL string
+	// Server contains shared HTTP listener configuration.
+	Server appkitconfig.Server
+	// Database contains shared PostgreSQL configuration.
+	Database appkitconfig.Postgres
+	// Authentication contains shared authentication configuration.
+	Authentication appkitconfig.Authentication
+	// Proxy contains shared trusted-proxy configuration.
+	Proxy appkitconfig.Proxy
+	// OIDC contains shared OpenID Connect configuration.
+	OIDC appkitconfig.OIDC
+	// Logging contains shared logging configuration.
+	Logging appkitconfig.Logging
+	// Observability contains shared metrics and diagnostics configuration.
+	Observability appkitconfig.Observability
 	// PDFURL optionally overrides the persisted PDF rendering endpoint for this process.
 	PDFURL string
 	// PluginUpdateCheckInterval controls scheduled first-party catalog checks; zero keeps only manual checks.
 	PluginUpdateCheckInterval time.Duration
-	// AllowUserRegistrationOverride overrides the persisted registration setting when non-nil.
-	AllowUserRegistrationOverride *bool
 	// ReadOnly blocks state-changing application requests while allowing authentication flows.
 	ReadOnly bool
-	// DisableMetrics disables Prometheus exposition and request instrumentation.
-	DisableMetrics bool
-	// AuthModeOverride forces one browser authentication mode for recovery when non-empty.
-	AuthModeOverride domain.AuthMode
-	// TrustedUsernameHeaders are used only by the trusted-proxy runtime override.
-	TrustedUsernameHeaders []string
-	// TrustedEmailHeaders are used only by the trusted-proxy runtime override.
-	TrustedEmailHeaders []string
-	// TrustedDisplayNameHeaders are used only by the trusted-proxy runtime override.
-	TrustedDisplayNameHeaders []string
-	// TrustedGroupHeaders are used only by the trusted-proxy runtime override.
-	TrustedGroupHeaders []string
-	// TrustedAdminGroup grants administrator access when asserted by the trusted-proxy runtime override.
-	TrustedAdminGroup string
-	// OIDCIssuer is used only by the OIDC runtime override.
-	OIDCIssuer string
-	// OIDCClientID is used only by the OIDC runtime override.
-	OIDCClientID string
-	// OIDCGroupClaim names the group-membership claim used only by the OIDC runtime override.
-	OIDCGroupClaim string
-	// OIDCAdminGroup grants administrator access when asserted by the OIDC runtime override.
-	OIDCAdminGroup string
-	// OIDCClientSecret is the deployment-managed OIDC client secret.
-	OIDCClientSecret string
-	// OIDCSessionSecret signs OIDC login and session cookies.
-	OIDCSessionSecret string
-	// EncryptionKey encrypts sensitive application settings stored in PostgreSQL.
-	EncryptionKey string
-	// LocalLogin enables the local recovery login alongside the configured mode.
-	LocalLogin bool
 	// ThemeDirectory optionally overlays embedded themes with TOML files from disk.
 	ThemeDirectory string
-	// LogFormat selects structured text or JSON logging.
-	LogFormat appkitlogging.LogFormat
-	// Debug enables verbose diagnostic logging.
-	Debug bool
-	// PerformanceDiagnostics enables deployment-level request tracing and browser diagnostics.
-	PerformanceDiagnostics bool
-	// AccessLog enables HTTP request logging.
-	AccessLog bool
 	// Overrides records configuration values explicitly overridden by flags or environment variables.
 	Overrides tinyflags.Overrides
 }
@@ -121,57 +50,64 @@ type Config struct {
 func Parse(args []string, version string) (Config, error) {
 	cfg := Config{}
 
-	tf := tinyflags.NewFlagSet("kumbuka", tinyflags.ContinueOnError)
-	tf.EnvPrefix("KUMBUKA_")
-	tf.Version(version)
-	tf.HideEnvs()
-	tf.Note("\nFlags can also be set through environment variables using the KUMBUKA__ prefix. " +
-		"Flag names are uppercased and hyphens are replaced with underscores; for example, " +
-		"--listen-address becomes KUMBUKA__LISTEN_ADDRESS.")
+	tf := appkitconfig.NewFlagSet("kumbuka", "KUMBUKA", version)
 	tf.SectionOrder(
-		sectionServer,
-		sectionDatabase,
+		appkitconfig.SectionServer,
+		appkitconfig.SectionDatabase,
 		sectionServices,
-		sectionAuthentication,
-		sectionTrustedProxy,
-		sectionOIDC,
-		sectionLoggingDiagnostics,
+		appkitconfig.SectionAuthentication,
+		appkitconfig.SectionProxy,
+		appkitconfig.SectionOIDC,
+		appkitconfig.SectionLogging,
 		tinyflags.UnnamedSection,
 	)
 
-	applyServerFlags := registerServerFlags(tf, &cfg)
-	registerDatabaseFlags(tf, &cfg)
+	finalizeServer := appkitconfig.RegisterServer(tf, &cfg.Server, appkitconfig.ServerOptions{})
+	appkitconfig.RegisterPostgres(tf, &cfg.Database, appkitconfig.PostgresOptions{})
+	finalizeAuthentication := appkitconfig.RegisterAuthentication(
+		tf,
+		&cfg.Authentication,
+		appkitconfig.AuthenticationOptions{},
+	)
+	appkitconfig.RegisterProxy(tf, &cfg.Proxy)
+	appkitconfig.RegisterOIDC(tf, &cfg.OIDC)
+	finalizeLogging := appkitconfig.RegisterLogging(tf, &cfg.Logging)
+	appkitconfig.RegisterObservability(tf, &cfg.Observability)
+	registerApplicationFlags(tf, &cfg)
 	registerServiceFlags(tf, &cfg)
-	applyAuthFlags := registerAuthFlags(tf, &cfg)
-	registerTrustedProxyFlags(tf, &cfg)
-	registerOIDCFlags(tf, &cfg)
-	applyLoggingFlags := registerLoggingFlags(tf, &cfg)
 
 	if err := tf.Parse(args); err != nil {
 		return Config{}, err
 	}
 
-	applyServerFlags()
-	applyAuthFlags()
-	applyLoggingFlags()
-
+	finalizeServer()
+	finalizeAuthentication()
+	finalizeLogging()
 	cfg.Overrides = tf.Overrides()
 
 	return cfg, nil
 }
 
-// registerServerFlags registers public and management server flags and returns address finalization.
-func registerServerFlags(tf *tinyflags.FlagSet, cfg *Config) func() {
-	var server appkitconfig.Server
-	finalizeServer := appkitconfig.RegisterServer(tf, &server, appkitconfig.ServerOptions{})
+// AuthenticationModeOverride returns Kumbuka's domain value for the Appkit mode override.
+func (c Config) AuthenticationModeOverride() domain.AuthMode {
+	if c.Authentication.ModeOverride == nil {
+		return ""
+	}
+	if *c.Authentication.ModeOverride == appkitauth.ModeProxy {
+		return domain.AuthModeTrustedProxy
+	}
+	return domain.AuthMode(*c.Authentication.ModeOverride)
+}
 
+// registerApplicationFlags registers Kumbuka-specific server behavior.
+func registerApplicationFlags(tf *tinyflags.FlagSet, cfg *Config) {
 	tf.BoolVar(
 		&cfg.ReadOnly,
 		"read-only",
 		false,
 		"Block state-changing application requests while keeping reads and authentication available",
 	).
-		Section(sectionServer).
+		Section(appkitconfig.SectionServer).
 		Value()
 
 	tf.StringVar(
@@ -180,46 +116,8 @@ func registerServerFlags(tf *tinyflags.FlagSet, cfg *Config) func() {
 		"",
 		"Directory containing custom theme TOML files that override or extend embedded themes",
 	).
-		Section(sectionServer).
+		Section(appkitconfig.SectionServer).
 		Placeholder("DIR").
-		Value()
-
-	return func() {
-		finalizeServer()
-		cfg.RoutePrefix = server.RoutePrefix
-		cfg.ApplicationListenAddress = server.ListenAddress
-		cfg.ManagementListenAddress = server.ManagementListenAddress
-		cfg.PublicURL = server.PublicURL
-	}
-}
-
-// registerDatabaseFlags registers PostgreSQL connection and pool sizing flags.
-func registerDatabaseFlags(tf *tinyflags.FlagSet, cfg *Config) {
-	tf.StringVar(&cfg.DatabaseURL, "database-url", "", "PostgreSQL connection URL").
-		Section(sectionDatabase).
-		Required().
-		Placeholder("URL").
-		OverriddenValueMaskFn(tinyflags.MaskPostgresURL).
-		Value()
-
-	tf.Int32Var(
-		&cfg.DatabaseMaxConns,
-		"database-max-conns",
-		0,
-		"Maximum number of database connections; 0 uses the pgxpool default",
-	).
-		Section(sectionDatabase).
-		Validate(tinyflags.NonNegative[int32]()).
-		Value()
-
-	tf.Int32Var(
-		&cfg.DatabaseMinIdleConns,
-		"database-min-idle-conns",
-		0,
-		"Minimum number of idle database connections kept ready; 0 uses the pgxpool default",
-	).
-		Section(sectionDatabase).
-		Validate(tinyflags.NonNegative[int32]()).
 		Value()
 }
 
@@ -245,226 +143,4 @@ func registerServiceFlags(tf *tinyflags.FlagSet, cfg *Config) {
 		Section(sectionServices).
 		Validate(tinyflags.NonNegative[time.Duration]()).
 		Value()
-}
-
-// registerAuthFlags registers cross-mode authentication and recovery flags.
-func registerAuthFlags(tf *tinyflags.FlagSet, cfg *Config) func() {
-	authModeFlag := tinyflags.Enum(
-		tf,
-		"auth-mode",
-		domain.AuthModeNone,
-		"Emergency override for the database-managed authentication mode",
-		domain.AuthModeNone,
-		domain.AuthModeLocal,
-		domain.AuthModeTrustedProxy,
-		domain.AuthModeOIDC,
-	).
-		Section(sectionAuthentication).
-		Placeholder("MODE")
-
-	allowUserRegistrationFlag := tf.BoolVar(
-		utils.ToPtr(false),
-		"allow-user-registration",
-		false,
-		"Deployment override for whether unknown OIDC or trusted-proxy identities may create accounts",
-	).
-		Section(sectionAuthentication).
-		Strict()
-
-	tf.BoolVar(
-		&cfg.LocalLogin,
-		"local-login",
-		false,
-		"Enable the local recovery login alongside the configured authentication mode",
-	).
-		Section(sectionAuthentication).
-		Value()
-
-	tf.StringVar(
-		&cfg.EncryptionKey,
-		"encryption-key",
-		"",
-		"Base64-encoded 32-byte key used to encrypt sensitive application settings",
-	).
-		Section(sectionAuthentication).
-		OverriddenValueMaskFn(tinyflags.MaskFirstLast).
-		Validate(appkitsecrets.ValidateKey).
-		Value()
-
-	return func() {
-		if authModeFlag.Changed() {
-			cfg.AuthModeOverride = *authModeFlag.Value()
-		}
-		if allowUserRegistrationFlag.Changed() {
-			cfg.AllowUserRegistrationOverride = allowUserRegistrationFlag.Value()
-		}
-	}
-}
-
-// registerTrustedProxyFlags registers flags for the trusted-proxy configuration.
-func registerTrustedProxyFlags(tf *tinyflags.FlagSet, cfg *Config) {
-	tf.StringSliceVar(
-		&cfg.TrustedUsernameHeaders,
-		"trusted-username-headers",
-		trustedUsernameHeaders,
-		"Trusted-proxy username headers used only with the authentication override",
-	).
-		Section(sectionTrustedProxy).
-		Value()
-
-	tf.StringSliceVar(
-		&cfg.TrustedEmailHeaders,
-		"trusted-email-headers",
-		trustedEmailHeaders,
-		"Trusted-proxy email headers used only with the authentication override",
-	).
-		Section(sectionTrustedProxy).
-		Value()
-
-	tf.StringSliceVar(
-		&cfg.TrustedDisplayNameHeaders,
-		"trusted-display-name-headers",
-		trustedDisplayNameHeaders,
-		"Trusted-proxy display-name headers used only with the authentication override",
-	).
-		Section(sectionTrustedProxy).
-		Value()
-
-	tf.StringSliceVar(
-		&cfg.TrustedGroupHeaders,
-		"trusted-group-headers",
-		trustedGroupHeaders,
-		"Trusted-proxy group headers used only with the authentication override",
-	).
-		Section(sectionTrustedProxy).
-		Value()
-
-	tf.StringVar(
-		&cfg.TrustedAdminGroup,
-		"trusted-admin-group",
-		"",
-		"Trusted-proxy group that grants administrator access with the authentication override",
-	).
-		Section(sectionTrustedProxy).
-		Value()
-}
-
-// registerOIDCFlags registers flags for the OIDC configuration.
-func registerOIDCFlags(tf *tinyflags.FlagSet, cfg *Config) {
-	tf.StringVar(
-		&cfg.OIDCIssuer,
-		"oidc-issuer",
-		"",
-		"OIDC issuer used only with the authentication override",
-	).
-		Section(sectionOIDC).
-		Placeholder("URL").
-		Value()
-
-	tf.StringVar(
-		&cfg.OIDCClientID,
-		"oidc-client-id",
-		"",
-		"OIDC client ID used only with the authentication override",
-	).
-		Section(sectionOIDC).
-		Value()
-
-	tf.StringVar(
-		&cfg.OIDCGroupClaim,
-		"oidc-group-claim",
-		"groups",
-		"OIDC group-membership claim used only with the authentication override",
-	).
-		Section(sectionOIDC).
-		Value()
-
-	tf.StringVar(
-		&cfg.OIDCAdminGroup,
-		"oidc-admin-group",
-		"",
-		"OIDC group that grants administrator access with the authentication override",
-	).
-		Section(sectionOIDC).
-		Value()
-
-	tf.StringVar(
-		&cfg.OIDCClientSecret,
-		"oidc-client-secret",
-		"",
-		"OIDC client secret used when OIDC is enabled in the administration UI",
-	).
-		Section(sectionOIDC).
-		OverriddenValueMaskFn(tinyflags.MaskFirstLast).
-		Value()
-
-	tf.StringVar(
-		&cfg.OIDCSessionSecret,
-		"oidc-session-secret",
-		"",
-		"Secret used to sign OIDC login state and session cookies",
-	).
-		Section(sectionOIDC).
-		OverriddenValueMaskFn(tinyflags.MaskFirstLast).
-		Validate(tinyflags.Optional(
-			tinyflags.MinLength(32),
-		)).
-		Value()
-}
-
-// registerLoggingFlags registers observability and logging flags.
-func registerLoggingFlags(tf *tinyflags.FlagSet, cfg *Config) func() {
-	tf.BoolVar(
-		&cfg.DisableMetrics,
-		"disable-metrics",
-		false,
-		"Disable Prometheus metrics exposition and HTTP request instrumentation",
-	).
-		Section(sectionLoggingDiagnostics).
-		Value()
-
-	tf.BoolVar(
-		&cfg.PerformanceDiagnostics,
-		"performance-diagnostics",
-		false,
-		"Enable request and browser performance diagnostics",
-	).
-		Section(sectionLoggingDiagnostics).
-		Value()
-
-	logFormat := tinyflags.Enum(
-		tf,
-		"log-format",
-		appkitlogging.LogFormatJSON,
-		"Log output format",
-		appkitlogging.LogFormatText,
-		appkitlogging.LogFormatJSON,
-	).
-		Section(sectionLoggingDiagnostics).
-		Short("l").
-		Placeholder("FORMAT").
-		Value()
-
-	tf.BoolVar(
-		&cfg.Debug,
-		"debug",
-		false,
-		"Enable verbose diagnostic logging",
-	).
-		Section(sectionLoggingDiagnostics).
-		Short("d").
-		Value()
-
-	tf.BoolVar(
-		&cfg.AccessLog,
-		"access-log",
-		false,
-		"Enable HTTP request access logging",
-	).
-		Section(sectionLoggingDiagnostics).
-		Value()
-
-	return func() {
-		cfg.LogFormat = *logFormat
-	}
 }

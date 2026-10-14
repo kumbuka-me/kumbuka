@@ -35,7 +35,7 @@ func Run(
 	}
 
 	// Configure process logging and record the effective application identity.
-	logger := appkitlogging.Setup(cfg.LogFormat, cfg.Debug, stdout)
+	logger := appkitlogging.Setup(cfg.Logging.Format, cfg.Logging.Debug, stdout)
 	setupLogger := logger.With("component", "setup")
 	setupLogger.Info(
 		"starting Kumbuka",
@@ -89,8 +89,8 @@ func Run(
 	handlers := httpserver.New(serverConfig)
 	if err := appkithttpserver.Run(
 		ctx,
-		cfg.ApplicationListenAddress,
-		cfg.ManagementListenAddress,
+		cfg.Server.ListenAddress,
+		cfg.Server.ManagementListenAddress,
 		handlers,
 		logger.With("server", "application"),
 		logger.With("server", "management"),

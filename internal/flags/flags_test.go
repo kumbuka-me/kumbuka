@@ -24,8 +24,8 @@ func TestParse(t *testing.T) {
 		cfg, err := parseTestConfig(nil)
 
 		require.NoError(t, err)
-		assert.Equal(t, "postgres://example/kumbuka", cfg.DatabaseURL)
-		assert.Equal(t, domain.AuthModeTrustedProxy, cfg.AuthModeOverride)
+		assert.Equal(t, "postgres://example/kumbuka", cfg.Database.URL)
+		assert.Equal(t, domain.AuthModeTrustedProxy, cfg.AuthenticationModeOverride())
 	})
 
 	t.Run("overridden values mask secrets", func(t *testing.T) {
@@ -136,8 +136,8 @@ func TestServerFlags(t *testing.T) {
 			cfg, err := parseTestConfig([]string{"--database-url", "postgres://example/kumbuka"})
 
 			require.NoError(t, err)
-			assert.Equal(t, "127.0.0.1:8080", cfg.ApplicationListenAddress)
-			assert.Equal(t, "127.0.0.1:8081", cfg.ManagementListenAddress)
+			assert.Equal(t, "127.0.0.1:8080", cfg.Server.ListenAddress)
+			assert.Equal(t, "127.0.0.1:8081", cfg.Server.ManagementListenAddress)
 		})
 
 		t.Run("flags", func(t *testing.T) {
@@ -150,8 +150,8 @@ func TestServerFlags(t *testing.T) {
 			})
 
 			require.NoError(t, err)
-			assert.Equal(t, "0.0.0.0:9000", cfg.ApplicationListenAddress)
-			assert.Equal(t, "127.0.0.1:9001", cfg.ManagementListenAddress)
+			assert.Equal(t, "0.0.0.0:9000", cfg.Server.ListenAddress)
+			assert.Equal(t, "127.0.0.1:9001", cfg.Server.ManagementListenAddress)
 		})
 
 		t.Run("environment", func(t *testing.T) {
@@ -162,8 +162,8 @@ func TestServerFlags(t *testing.T) {
 			cfg, err := parseTestConfig(nil)
 
 			require.NoError(t, err)
-			assert.Equal(t, "0.0.0.0:9100", cfg.ApplicationListenAddress)
-			assert.Equal(t, "0.0.0.0:9101", cfg.ManagementListenAddress)
+			assert.Equal(t, "0.0.0.0:9100", cfg.Server.ListenAddress)
+			assert.Equal(t, "0.0.0.0:9101", cfg.Server.ManagementListenAddress)
 		})
 	})
 	t.Run("database max connections", func(t *testing.T) {
@@ -175,7 +175,7 @@ func TestServerFlags(t *testing.T) {
 			})
 
 			require.NoError(t, err)
-			assert.Zero(t, cfg.DatabaseMaxConns)
+			assert.Zero(t, cfg.Database.MaxConns)
 		})
 
 		t.Run("flag", func(t *testing.T) {
@@ -187,7 +187,7 @@ func TestServerFlags(t *testing.T) {
 			})
 
 			require.NoError(t, err)
-			assert.Equal(t, int32(36), cfg.DatabaseMaxConns)
+			assert.Equal(t, int32(36), cfg.Database.MaxConns)
 		})
 
 		t.Run("environment", func(t *testing.T) {
@@ -197,7 +197,7 @@ func TestServerFlags(t *testing.T) {
 			cfg, err := parseTestConfig(nil)
 
 			require.NoError(t, err)
-			assert.Equal(t, int32(24), cfg.DatabaseMaxConns)
+			assert.Equal(t, int32(24), cfg.Database.MaxConns)
 		})
 
 		t.Run("negative", func(t *testing.T) {
@@ -232,7 +232,7 @@ func TestServerFlags(t *testing.T) {
 			})
 
 			require.NoError(t, err)
-			assert.Zero(t, cfg.DatabaseMinIdleConns)
+			assert.Zero(t, cfg.Database.MinIdleConns)
 		})
 
 		t.Run("flag", func(t *testing.T) {
@@ -244,7 +244,7 @@ func TestServerFlags(t *testing.T) {
 			})
 
 			require.NoError(t, err)
-			assert.Equal(t, int32(4), cfg.DatabaseMinIdleConns)
+			assert.Equal(t, int32(4), cfg.Database.MinIdleConns)
 		})
 
 		t.Run("environment", func(t *testing.T) {
@@ -254,7 +254,7 @@ func TestServerFlags(t *testing.T) {
 			cfg, err := parseTestConfig(nil)
 
 			require.NoError(t, err)
-			assert.Equal(t, int32(3), cfg.DatabaseMinIdleConns)
+			assert.Equal(t, int32(3), cfg.Database.MinIdleConns)
 		})
 
 		t.Run("negative", func(t *testing.T) {
@@ -420,7 +420,7 @@ func TestServerFlags(t *testing.T) {
 			})
 
 			require.NoError(t, err)
-			assert.Nil(t, cfg.AllowUserRegistrationOverride)
+			assert.Nil(t, cfg.Authentication.AllowRegistrationOverride)
 		})
 
 		t.Run("environment can enable", func(t *testing.T) {
@@ -430,8 +430,8 @@ func TestServerFlags(t *testing.T) {
 			cfg, err := parseTestConfig(nil)
 
 			require.NoError(t, err)
-			require.NotNil(t, cfg.AllowUserRegistrationOverride)
-			assert.True(t, *cfg.AllowUserRegistrationOverride)
+			require.NotNil(t, cfg.Authentication.AllowRegistrationOverride)
+			assert.True(t, *cfg.Authentication.AllowRegistrationOverride)
 		})
 
 		t.Run("flag can disable", func(t *testing.T) {
@@ -443,8 +443,8 @@ func TestServerFlags(t *testing.T) {
 			})
 
 			require.NoError(t, err)
-			require.NotNil(t, cfg.AllowUserRegistrationOverride)
-			assert.False(t, *cfg.AllowUserRegistrationOverride)
+			require.NotNil(t, cfg.Authentication.AllowRegistrationOverride)
+			assert.False(t, *cfg.Authentication.AllowRegistrationOverride)
 		})
 
 		t.Run("flag requires explicit value", func(t *testing.T) {
@@ -478,7 +478,7 @@ func TestServerFlags(t *testing.T) {
 			})
 
 			require.NoError(t, err)
-			assert.False(t, cfg.DisableMetrics)
+			assert.False(t, cfg.Observability.DisableMetrics)
 		})
 
 		t.Run("disabled by flag", func(t *testing.T) {
@@ -490,7 +490,7 @@ func TestServerFlags(t *testing.T) {
 			})
 
 			require.NoError(t, err)
-			assert.True(t, cfg.DisableMetrics)
+			assert.True(t, cfg.Observability.DisableMetrics)
 		})
 
 		t.Run("disabled by environment", func(t *testing.T) {
@@ -500,7 +500,7 @@ func TestServerFlags(t *testing.T) {
 			cfg, err := parseTestConfig(nil)
 
 			require.NoError(t, err)
-			assert.True(t, cfg.DisableMetrics)
+			assert.True(t, cfg.Observability.DisableMetrics)
 		})
 	})
 
@@ -511,7 +511,7 @@ func TestServerFlags(t *testing.T) {
 		cfg, err := parseTestConfig(nil)
 
 		require.NoError(t, err)
-		assert.True(t, cfg.LocalLogin)
+		assert.True(t, cfg.Authentication.LocalLogin)
 	})
 }
 
@@ -524,7 +524,7 @@ func TestAuthFlags(t *testing.T) {
 		})
 
 		require.NoError(t, err)
-		assert.Empty(t, cfg.AuthModeOverride)
+		assert.Empty(t, cfg.AuthenticationModeOverride())
 	})
 
 	t.Run("rejects unknown value", func(t *testing.T) {
@@ -547,7 +547,19 @@ func TestAuthFlags(t *testing.T) {
 		})
 
 		require.NoError(t, err)
-		assert.Equal(t, domain.AuthModeLocal, cfg.AuthModeOverride)
+		assert.Equal(t, domain.AuthModeLocal, cfg.AuthenticationModeOverride())
+	})
+
+	t.Run("proxy alias uses the trusted-proxy domain mode", func(t *testing.T) {
+		t.Parallel()
+
+		cfg, err := parseTestConfig([]string{
+			"--database-url", "postgres://example/kumbuka",
+			"--auth-mode", "proxy",
+		})
+
+		require.NoError(t, err)
+		assert.Equal(t, domain.AuthModeTrustedProxy, cfg.AuthenticationModeOverride())
 	})
 
 	t.Run("local override from environment", func(t *testing.T) {
@@ -557,7 +569,7 @@ func TestAuthFlags(t *testing.T) {
 		cfg, err := parseTestConfig(nil)
 
 		require.NoError(t, err)
-		assert.Equal(t, domain.AuthModeLocal, cfg.AuthModeOverride)
+		assert.Equal(t, domain.AuthModeLocal, cfg.AuthenticationModeOverride())
 	})
 }
 
@@ -573,9 +585,9 @@ func TestTrustedProxyFlags(t *testing.T) {
 		assert.Equal(
 			t,
 			[]string{"X-Groups", "X-Teams"},
-			cfg.TrustedGroupHeaders,
+			cfg.Proxy.GroupHeaders,
 		)
-		assert.Equal(t, "platform-admins", cfg.TrustedAdminGroup)
+		assert.Equal(t, "platform-admins", cfg.Proxy.AdminGroup)
 	})
 }
 
@@ -597,12 +609,12 @@ func TestOIDCFlags(t *testing.T) {
 		assert.Equal(
 			t,
 			"0123456789abcdef0123456789abcdef",
-			cfg.OIDCSessionSecret,
+			cfg.OIDC.SessionSecret,
 		)
 		assert.Equal(
 			t,
 			"MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=",
-			cfg.EncryptionKey,
+			cfg.Authentication.EncryptionKey,
 		)
 	})
 
@@ -616,11 +628,11 @@ func TestOIDCFlags(t *testing.T) {
 		})
 
 		require.NoError(t, err)
-		assert.Equal(t, "client-secret", cfg.OIDCClientSecret)
+		assert.Equal(t, "client-secret", cfg.OIDC.ClientSecret)
 		assert.Equal(
 			t,
 			"0123456789abcdef0123456789abcdef",
-			cfg.OIDCSessionSecret,
+			cfg.OIDC.SessionSecret,
 		)
 	})
 
@@ -643,8 +655,8 @@ func TestOIDCFlags(t *testing.T) {
 		cfg, err := parseTestConfig(nil)
 
 		require.NoError(t, err)
-		assert.Equal(t, "roles", cfg.OIDCGroupClaim)
-		assert.Equal(t, "wiki-admins", cfg.OIDCAdminGroup)
+		assert.Equal(t, "roles", cfg.OIDC.GroupClaim)
+		assert.Equal(t, "wiki-admins", cfg.OIDC.AdminGroup)
 	})
 }
 
@@ -655,7 +667,7 @@ func TestPerformanceDiagnostics(t *testing.T) {
 		cfg, err := parseTestConfig([]string{"--database-url", "postgres://example/kumbuka"})
 
 		require.NoError(t, err)
-		assert.False(t, cfg.PerformanceDiagnostics)
+		assert.False(t, cfg.Observability.PerformanceDiagnostics)
 	})
 
 	t.Run("enabled from environment", func(t *testing.T) {
@@ -665,7 +677,7 @@ func TestPerformanceDiagnostics(t *testing.T) {
 		cfg, err := parseTestConfig(nil)
 
 		require.NoError(t, err)
-		assert.True(t, cfg.PerformanceDiagnostics)
+		assert.True(t, cfg.Observability.PerformanceDiagnostics)
 	})
 }
 
@@ -674,7 +686,7 @@ func TestRoutePrefix(t *testing.T) {
 		t.Run("valid "+value, func(t *testing.T) {
 			cfg, err := Parse([]string{"--database-url=postgres://example/db", "--route-prefix=" + value}, "test")
 			require.NoError(t, err)
-			assert.Equal(t, strings.TrimSuffix(value, "/"), cfg.RoutePrefix)
+			assert.Equal(t, strings.TrimSuffix(value, "/"), cfg.Server.RoutePrefix)
 		})
 	}
 	for _, value := range []string{"kumbuka", "https://example/kumbuka", "//kumbuka", "/a//b", "/a/../b", "/./a", "/a?b", "/a#b", "/a%2fb", "/a\\b", "/a b", " /a", "/a/ "} {
@@ -687,11 +699,11 @@ func TestRoutePrefix(t *testing.T) {
 		t.Setenv("KUMBUKA__ROUTE_PREFIX", "/kumbuka/")
 		cfg, err := Parse([]string{"--database-url=postgres://example/db"}, "test")
 		require.NoError(t, err)
-		assert.Equal(t, "/kumbuka", cfg.RoutePrefix)
+		assert.Equal(t, "/kumbuka", cfg.Server.RoutePrefix)
 		assert.Equal(t, "KUMBUKA__ROUTE_PREFIX", cfg.Overrides["route-prefix"].Origin.Key)
 		cfg, err = Parse([]string{"--database-url=postgres://example/db", "--route-prefix="}, "test")
 		require.NoError(t, err)
-		assert.Empty(t, cfg.RoutePrefix)
+		assert.Empty(t, cfg.Server.RoutePrefix)
 	})
 	t.Run("invalid environment", func(t *testing.T) {
 		t.Setenv("KUMBUKA__ROUTE_PREFIX", "/../bad")

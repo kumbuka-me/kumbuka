@@ -170,7 +170,7 @@ func (a *Application) composeUseCases(cfg flags.Config, infrastructure *Infrastr
 		database,
 		secretCipher,
 		logger.With("component", "webhooks"),
-		cfg.PublicURL,
+		cfg.Server.PublicURL,
 	).WithUserDirectory(database)
 
 	a.access = appaccess.NewAccess(database)
@@ -309,7 +309,7 @@ func (a *Application) configurePluginRuntime(
 		a.pageRender,
 		a.renderer,
 		logger.With("component", "page-render-rebuilds"),
-		cfg.RoutePrefix,
+		cfg.Server.RoutePrefix,
 	)
 	a.backgroundWorkers = append(a.backgroundWorkers, a.renderRebuilds)
 	return nil
@@ -372,25 +372,25 @@ func (a *Application) Close(logger *slog.Logger) {
 // newBrowserAuthConfig maps deployment configuration onto the authentication boundary.
 func newBrowserAuthConfig(cfg flags.Config) auth.BrowserConfig {
 	return auth.BrowserConfig{
-		ModeOverride: cfg.AuthModeOverride,
+		ModeOverride: cfg.AuthenticationModeOverride(),
 		TrustedProxy: auth.TrustedProxyHeaders{
-			Username:    cfg.TrustedUsernameHeaders,
-			Email:       cfg.TrustedEmailHeaders,
-			DisplayName: cfg.TrustedDisplayNameHeaders,
-			Groups:      cfg.TrustedGroupHeaders,
-			AdminGroup:  cfg.TrustedAdminGroup,
+			Username:    cfg.Proxy.UsernameHeaders,
+			Email:       cfg.Proxy.EmailHeaders,
+			DisplayName: cfg.Proxy.DisplayNameHeaders,
+			Groups:      cfg.Proxy.GroupHeaders,
+			AdminGroup:  cfg.Proxy.AdminGroup,
 		},
 		OIDC: auth.OIDCConfig{
-			ClientID:      cfg.OIDCClientID,
-			ClientSecret:  cfg.OIDCClientSecret,
-			Issuer:        cfg.OIDCIssuer,
-			SessionSecret: cfg.OIDCSessionSecret,
-			PublicURL:     cfg.PublicURL,
-			GroupClaim:    cfg.OIDCGroupClaim,
-			AdminGroup:    cfg.OIDCAdminGroup,
+			ClientID:      cfg.OIDC.ClientID,
+			ClientSecret:  cfg.OIDC.ClientSecret,
+			Issuer:        cfg.OIDC.Issuer,
+			SessionSecret: cfg.OIDC.SessionSecret,
+			PublicURL:     cfg.Server.PublicURL,
+			GroupClaim:    cfg.OIDC.GroupClaim,
+			AdminGroup:    cfg.OIDC.AdminGroup,
 		},
-		LocalLoginEnabled:             cfg.LocalLogin,
-		AllowUserRegistrationOverride: cfg.AllowUserRegistrationOverride,
+		LocalLoginEnabled:             cfg.Authentication.LocalLogin,
+		AllowUserRegistrationOverride: cfg.Authentication.AllowRegistrationOverride,
 	}
 }
 
