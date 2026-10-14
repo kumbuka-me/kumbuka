@@ -6,9 +6,10 @@ import (
 	"net/http"
 	"strconv"
 
+	httpprefix "github.com/containeroo/httpkit/prefix"
+	httpkitresponse "github.com/containeroo/httpkit/response"
 	"github.com/kumbuka-me/kumbuka/internal/http/auth"
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
-	"github.com/kumbuka-me/kumbuka/internal/route"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
 
@@ -56,12 +57,12 @@ func OpenNotification(notificationUseCases notificationService, logger *slog.Log
 			httpresponse.InternalServerError(logger, w, err)
 			return
 		}
-		if !httpresponse.IsLocalPath(destination) {
+		if !httpkitresponse.IsLocalPath(destination) {
 			destination = "/"
 		}
 
 		w.Header().Set("Cache-Control", "private, no-store")
-		route.Redirect(w, r, destination, http.StatusSeeOther)
+		httpprefix.Redirect(w, r, destination, http.StatusSeeOther)
 	}
 }
 

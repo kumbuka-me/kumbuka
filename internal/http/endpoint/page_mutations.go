@@ -8,10 +8,10 @@ import (
 	"strings"
 	"time"
 
+	httpprefix "github.com/containeroo/httpkit/prefix"
 	apppages "github.com/kumbuka-me/kumbuka/internal/application/pages"
 	"github.com/kumbuka-me/kumbuka/internal/http/auth"
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
-	"github.com/kumbuka-me/kumbuka/internal/route"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	md "github.com/kumbuka-me/kumbuka/pkg/markdown"
@@ -57,7 +57,7 @@ func SavePageForm(
 			return
 		}
 
-		route.Redirect(w, r, pageurl.Page(page.ID, page.Slug), http.StatusSeeOther)
+		httpprefix.Redirect(w, r, pageurl.Page(page.ID, page.Slug), http.StatusSeeOther)
 	}
 }
 
@@ -173,7 +173,7 @@ func DeletePageForm(
 			return
 		}
 
-		route.Redirect(w, r, "/", http.StatusSeeOther)
+		httpprefix.Redirect(w, r, "/", http.StatusSeeOther)
 	}
 }
 
@@ -200,7 +200,7 @@ func FavoritePage(catalogUseCases visiblePageActions, views *webview.Views) http
 			return
 		}
 
-		route.Redirect(w, r, pageurl.Page(page.ID, page.Slug), http.StatusSeeOther)
+		httpprefix.Redirect(w, r, pageurl.Page(page.ID, page.Slug), http.StatusSeeOther)
 	}
 }
 
@@ -221,7 +221,7 @@ func WatchPage(catalogUseCases visiblePageActions, views *webview.Views) http.Ha
 			return
 		}
 
-		route.Redirect(w, r, pageurl.Page(page.ID, page.Slug), http.StatusSeeOther)
+		httpprefix.Redirect(w, r, pageurl.Page(page.ID, page.Slug), http.StatusSeeOther)
 	}
 }
 

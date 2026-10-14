@@ -10,7 +10,7 @@ import (
 )
 
 // RecoverPanics converts handler panics into logged internal server errors.
-func RecoverPanics(logger *slog.Logger) Middleware {
+func RecoverPanics(logger *slog.Logger) httpkitmiddleware.Middleware {
 	return httpkitmiddleware.RecoverPanics(
 		func(w http.ResponseWriter, _ *http.Request, recovered any) {
 			httpresponse.InternalServerError(logger.With("operation", "request_panic"), w, fmt.Errorf("request panic: %v", recovered))

@@ -3,6 +3,8 @@ package server
 import (
 	"net/http"
 
+	httpkitmiddleware "github.com/containeroo/httpkit/middleware"
+
 	"github.com/kumbuka-me/kumbuka/internal/http/endpoint"
 	"github.com/kumbuka-me/kumbuka/internal/http/middleware"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
@@ -28,7 +30,7 @@ func registerAdminRoutes(mux *http.ServeMux, config Config) {
 func registerAdminPluginRoutes(
 	mux *http.ServeMux,
 	config Config,
-	protect middleware.Middleware,
+	protect httpkitmiddleware.Middleware,
 ) {
 	pluginManager := config.Renderer.PluginManager()
 	pluginsAdmin := endpoint.NewAdminPlugins(config.PluginAdmin, config.BrowserContext, config.Views).
@@ -45,7 +47,7 @@ func registerAdminPluginRoutes(
 }
 
 // registerAdminConfigurationRoutes registers application configuration and appearance administration.
-func registerAdminConfigurationRoutes(mux *http.ServeMux, config Config, protect middleware.Middleware) {
+func registerAdminConfigurationRoutes(mux *http.ServeMux, config Config, protect httpkitmiddleware.Middleware) {
 	pluginManager := config.Renderer.PluginManager()
 	mux.Handle("GET /admin", protect(endpoint.Administration(config.BrowserContext, config.Administration, config.System, config.Views)))
 	mux.Handle("GET /admin/configuration", protect(endpoint.AdminConfiguration(config.BrowserContext, config.Groups, config.Users, config.Settings, config.Views)))
@@ -67,7 +69,7 @@ func registerAdminConfigurationRoutes(mux *http.ServeMux, config Config, protect
 func registerAdminContentRoutes(
 	mux *http.ServeMux,
 	config Config,
-	protect middleware.Middleware,
+	protect httpkitmiddleware.Middleware,
 ) {
 	mux.Handle("GET /admin/templates", protect(endpoint.AdminPageTemplates(config.BrowserContext, config.Templates, config.Groups, config.Views)))
 	mux.Handle("GET /admin/permissions", protect(endpoint.AdminPageAccess(config.BrowserContext, config.Access, config.Groups, config.Navigation, config.Views)))
@@ -98,7 +100,7 @@ func registerAdminContentRoutes(
 }
 
 // registerAdminIdentityRoutes registers user, group, token, and external-identity administration.
-func registerAdminIdentityRoutes(mux *http.ServeMux, config Config, protect middleware.Middleware) {
+func registerAdminIdentityRoutes(mux *http.ServeMux, config Config, protect httpkitmiddleware.Middleware) {
 	mux.Handle("GET /admin/users", protect(endpoint.AdminUsers(config.BrowserContext, config.Users, config.Groups, config.Views)))
 	mux.Handle("GET /admin/groups", protect(endpoint.AdminGroups(config.BrowserContext, config.Groups, config.Views)))
 	mux.Handle("GET /admin/tokens", protect(endpoint.AdminTokens(config.BrowserContext, config.Users, config.Tokens, config.Views)))
@@ -117,7 +119,7 @@ func registerAdminIdentityRoutes(mux *http.ServeMux, config Config, protect midd
 }
 
 // registerAdminIntegrationRoutes registers webhook administration.
-func registerAdminIntegrationRoutes(mux *http.ServeMux, config Config, protect middleware.Middleware) {
+func registerAdminIntegrationRoutes(mux *http.ServeMux, config Config, protect httpkitmiddleware.Middleware) {
 	mux.Handle("GET /admin/webhooks", protect(endpoint.AdminWebhooks(config.BrowserContext, config.Webhooks, config.Views)))
 	mux.Handle("POST /admin/webhooks", protect(endpoint.SaveAdminWebhook(config.Webhooks, config.Logger)))
 	mux.Handle("POST /admin/webhooks/{id}", protect(endpoint.SaveAdminWebhook(config.Webhooks, config.Logger)))
@@ -127,7 +129,7 @@ func registerAdminIntegrationRoutes(mux *http.ServeMux, config Config, protect m
 }
 
 // registerAdminAPIRoutes registers administrator-only JSON API endpoints.
-func registerAdminAPIRoutes(mux *http.ServeMux, config Config, protect middleware.Middleware) {
+func registerAdminAPIRoutes(mux *http.ServeMux, config Config, protect httpkitmiddleware.Middleware) {
 	mux.Handle("GET /api/admin/users", protect(endpoint.SearchAdminUsers(config.Users, config.Logger)))
 	mux.Handle("GET /api/admin/groups/{id}/members", protect(endpoint.AdminGroupMembers(config.Groups, config.Logger)))
 	mux.Handle("POST /api/admin/groups/{id}/members", protect(endpoint.AddAdminGroupMember(config.Groups, config.Users, config.Logger)))

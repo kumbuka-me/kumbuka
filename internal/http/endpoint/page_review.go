@@ -6,9 +6,9 @@ import (
 	"strconv"
 	"strings"
 
+	httpprefix "github.com/containeroo/httpkit/prefix"
 	apppages "github.com/kumbuka-me/kumbuka/internal/application/pages"
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
-	"github.com/kumbuka-me/kumbuka/internal/route"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/kumbuka-me/kumbuka/pkg/pageurl"
@@ -96,7 +96,7 @@ func AddPageReviewComment(pageUseCases pageReviewDiscussionService, views *webvi
 		}
 
 		target := fmt.Sprintf("/reviews/%d/%s#review-comment-%d", reviewID, slug, comment.ID)
-		route.Redirect(w, r, target, http.StatusSeeOther)
+		httpprefix.Redirect(w, r, target, http.StatusSeeOther)
 	}
 }
 
@@ -119,7 +119,7 @@ func ApplyPageReviewSuggestion(pageUseCases pageReviewDiscussionService, views *
 			return
 		}
 
-		route.Redirect(w, r, pageurl.Page(page.ID, page.Slug), http.StatusSeeOther)
+		httpprefix.Redirect(w, r, pageurl.Page(page.ID, page.Slug), http.StatusSeeOther)
 	}
 }
 
@@ -138,7 +138,7 @@ func ApplyAllPageReviewSuggestions(pageUseCases pageReviewDiscussionService, vie
 			return
 		}
 
-		route.Redirect(w, r, pageurl.Page(page.ID, page.Slug), http.StatusSeeOther)
+		httpprefix.Redirect(w, r, pageurl.Page(page.ID, page.Slug), http.StatusSeeOther)
 	}
 }
 

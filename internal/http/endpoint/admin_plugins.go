@@ -11,9 +11,9 @@ import (
 	"sort"
 	"strings"
 
+	httpprefix "github.com/containeroo/httpkit/prefix"
 	appplugins "github.com/kumbuka-me/kumbuka/internal/application/plugins"
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
-	"github.com/kumbuka-me/kumbuka/internal/route"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 	md "github.com/kumbuka-me/kumbuka/pkg/markdown"
 	"github.com/kumbuka-me/kumbuka/pkg/plugin"
@@ -66,7 +66,7 @@ func (a *AdminPlugins) CheckUpdates(w http.ResponseWriter, r *http.Request) {
 	}
 
 	a.views.Logger().Info("plugin update catalog checked", "event", "plugin.catalog_check", "actor_id", currentUser(r).ID)
-	route.Redirect(w, r, "/admin/plugins", http.StatusSeeOther)
+	httpprefix.Redirect(w, r, "/admin/plugins", http.StatusSeeOther)
 }
 
 // pluginPermissionApprovalState carries operation-specific review prompts into one plugin administration render.
@@ -213,7 +213,7 @@ func (a *AdminPlugins) Install(w http.ResponseWriter, r *http.Request) {
 		a.renders.QueueAll("render-affecting plugin installed: " + item.Manifest.ID)
 	}
 	a.audit(r, "install", item.Manifest.ID)
-	route.Redirect(w, r, "/admin/plugins?plugin="+item.Manifest.ID, http.StatusSeeOther)
+	httpprefix.Redirect(w, r, "/admin/plugins?plugin="+item.Manifest.ID, http.StatusSeeOther)
 }
 
 // Action applies a plugin lifecycle action from an administration request.
@@ -247,7 +247,7 @@ func (a *AdminPlugins) Action(w http.ResponseWriter, r *http.Request) {
 	}
 
 	a.audit(r, action, id)
-	route.Redirect(w, r, pluginActionDestination(r, id, action), http.StatusSeeOther)
+	httpprefix.Redirect(w, r, pluginActionDestination(r, id, action), http.StatusSeeOther)
 }
 
 var errPluginActionHandled = errors.New("plugin action response already written")
@@ -279,7 +279,7 @@ func (a *AdminPlugins) handleBulkUpdate(w http.ResponseWriter, r *http.Request) 
 	}
 
 	if len(result.Failed) == 0 {
-		route.Redirect(w, r, "/admin/plugins", http.StatusSeeOther)
+		httpprefix.Redirect(w, r, "/admin/plugins", http.StatusSeeOther)
 		return
 	}
 

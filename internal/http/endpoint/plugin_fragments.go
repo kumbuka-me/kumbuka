@@ -7,9 +7,9 @@ import (
 	"regexp"
 	"strconv"
 
+	httpprefix "github.com/containeroo/httpkit/prefix"
 	"github.com/kumbuka-me/kumbuka/internal/http/auth"
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
-	"github.com/kumbuka-me/kumbuka/internal/route"
 	md "github.com/kumbuka-me/kumbuka/pkg/markdown"
 	"github.com/kumbuka-me/kumbuka/pkg/plugincap"
 )
@@ -49,7 +49,7 @@ func PluginMacroFragment(
 			return
 		}
 
-		pageNavigation, err := subpageNavigation(r.Context(), navigation, user, page.Slug, route.PrefixForRequest(r))
+		pageNavigation, err := subpageNavigation(r.Context(), navigation, user, page.Slug, httpprefix.PrefixForRequest(r))
 		if err != nil {
 			httpresponse.InternalServerError(logger, w, err)
 			return
@@ -66,7 +66,7 @@ func PluginMacroFragment(
 			return
 		}
 		options := md.DefaultOptions()
-		options.RoutePrefix = route.PrefixForRequest(r)
+		options.RoutePrefix = httpprefix.PrefixForRequest(r)
 		html, err := renderer.RenderDeferredMacro(
 			page.Markdown,
 			index,
@@ -78,7 +78,7 @@ func PluginMacroFragment(
 				Context:      r.Context(),
 				Locale:       locale,
 				PluginUsage:  page.PluginUsage,
-				Capabilities: plugincap.Capabilities(securedCatalog, pageNavigation, route.PrefixForRequest(r), renderer.IconCatalog()),
+				Capabilities: plugincap.Capabilities(securedCatalog, pageNavigation, httpprefix.PrefixForRequest(r), renderer.IconCatalog()),
 			},
 		)
 		if errors.Is(err, md.ErrDeferredMacroNotFound) {

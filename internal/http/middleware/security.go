@@ -10,7 +10,7 @@ import (
 )
 
 // SecurityHeaders adds Kumbuka security response headers.
-func SecurityHeaders() Middleware {
+func SecurityHeaders() httpkitmiddleware.Middleware {
 	cspDirectives := []string{
 		"default-src 'self'",
 		"script-src 'self' https://cdn.jsdelivr.net",
@@ -31,7 +31,7 @@ func SecurityHeaders() Middleware {
 }
 
 // RejectCrossSiteWrites blocks and logs cross-site state-changing browser requests.
-func RejectCrossSiteWrites(logger *slog.Logger) Middleware {
+func RejectCrossSiteWrites(logger *slog.Logger) httpkitmiddleware.Middleware {
 	return httpkitmiddleware.RejectCrossOriginWrites(logger, func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasPrefix(r.URL.Path, "/api/") {
 			httpresponse.Problem(w,
@@ -47,9 +47,4 @@ func RejectCrossSiteWrites(logger *slog.Logger) Middleware {
 
 		httpresponse.Problem(w, http.StatusForbidden, "Forbidden.")
 	})
-}
-
-// isSafeMethod reports whether an HTTP method is defined as safe for cross-site requests.
-func isSafeMethod(method string) bool {
-	return httpkitmiddleware.IsSafeMethod(method)
 }

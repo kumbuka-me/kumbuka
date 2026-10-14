@@ -9,10 +9,10 @@ import (
 	"strconv"
 	"strings"
 
+	httpprefix "github.com/containeroo/httpkit/prefix"
 	apppages "github.com/kumbuka-me/kumbuka/internal/application/pages"
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
 	"github.com/kumbuka-me/kumbuka/internal/importer"
-	"github.com/kumbuka-me/kumbuka/internal/route"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 )
 
@@ -79,7 +79,7 @@ func ImportPages(pageUseCases pageImportService, logger *slog.Logger) http.Handl
 			return
 		}
 
-		route.Redirect(w, r, "/admin/import?result="+strconv.Itoa(imported), http.StatusSeeOther)
+		httpprefix.Redirect(w, r, "/admin/import?result="+strconv.Itoa(imported), http.StatusSeeOther)
 	}
 }
 

@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"strconv"
 
+	httpprefix "github.com/containeroo/httpkit/prefix"
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
-	"github.com/kumbuka-me/kumbuka/internal/route"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/kumbuka-me/kumbuka/pkg/navigation"
@@ -79,7 +79,7 @@ func SaveAdminPageAccess(accessUseCases pageAccessAdmin, logger *slog.Logger) ht
 			writeAdminProblem(logger, w, err, "Page access rule")
 			return
 		}
-		route.Redirect(w, r, "/admin/permissions", http.StatusSeeOther)
+		httpprefix.Redirect(w, r, "/admin/permissions", http.StatusSeeOther)
 	}
 }
 
@@ -95,6 +95,6 @@ func DeleteAdminPageAccess(accessUseCases pageAccessAdmin, logger *slog.Logger) 
 			writeAdminProblem(logger, w, err, "Page access rule")
 			return
 		}
-		route.Redirect(w, r, "/admin/permissions", http.StatusSeeOther)
+		httpprefix.Redirect(w, r, "/admin/permissions", http.StatusSeeOther)
 	}
 }

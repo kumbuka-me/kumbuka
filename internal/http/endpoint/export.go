@@ -15,10 +15,10 @@ import (
 	"strings"
 	"time"
 
+	httpprefix "github.com/containeroo/httpkit/prefix"
 	"github.com/kumbuka-me/kumbuka/internal/application/portablearchive"
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
 	"github.com/kumbuka-me/kumbuka/internal/pdf"
-	"github.com/kumbuka-me/kumbuka/internal/route"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	md "github.com/kumbuka-me/kumbuka/pkg/markdown"
@@ -121,7 +121,7 @@ func ExportPagePDF(
 		}
 
 		rendered, err := renderExportHTML(r.Context(), catalogUseCases,
-			navigationUseCases, mediaUseCases, renderer, currentUser(r), pageData, parameters, route.PrefixForRequest(r))
+			navigationUseCases, mediaUseCases, renderer, currentUser(r), pageData, parameters, httpprefix.PrefixForRequest(r))
 		if err != nil {
 			writeRenderedExportProblem(logger, w, err)
 			return

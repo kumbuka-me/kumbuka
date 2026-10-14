@@ -8,9 +8,9 @@ import (
 	"strconv"
 	"strings"
 
+	httpprefix "github.com/containeroo/httpkit/prefix"
 	"github.com/kumbuka-me/kumbuka/internal/http/auth"
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
-	"github.com/kumbuka-me/kumbuka/internal/route"
 )
 
 // unauthorizedReason describes why an authentication attempt was denied.
@@ -129,7 +129,7 @@ func unauthorized(
 func browserUnauthorized(w http.ResponseWriter, r *http.Request, _ unauthorizedReason) {
 	next := url.QueryEscape(browserReturnDestination(r))
 
-	route.Redirect(w, r, "/auth/login?next="+next, http.StatusFound)
+	httpprefix.Redirect(w, r, "/auth/login?next="+next, http.StatusFound)
 }
 
 // browserReturnDestination chooses a readable page to open after authentication.

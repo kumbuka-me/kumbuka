@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/kumbuka-me/kumbuka/internal/route"
+	httpprefix "github.com/containeroo/httpkit/prefix"
 )
 
 // Assets serves embedded browser assets with content-versioned cache semantics.
@@ -56,7 +56,7 @@ func ServiceWorker(appFS fs.FS) http.Handler {
 
 		w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-cache")
-		w.Header().Set("Service-Worker-Allowed", route.ForRequest(r, "/"))
+		w.Header().Set("Service-Worker-Allowed", httpprefix.URLForRequest(r, "/"))
 
 		_, _ = w.Write(data)
 	})

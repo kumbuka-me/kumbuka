@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"strings"
 
+	httpprefix "github.com/containeroo/httpkit/prefix"
 	"github.com/kumbuka-me/kumbuka/internal/pagecontent"
-	"github.com/kumbuka-me/kumbuka/internal/route"
 )
 
 // RebuildAdminPageRender rebuilds one page render synchronously for an administrator.
@@ -22,7 +22,7 @@ func RebuildAdminPageRender(rebuilds *pagecontent.Rebuilds, logger *slog.Logger)
 			return
 		}
 		logger.Info("page render rebuilt", "event", "page_render_rebuild_manual", "slug", slug, "actor_id", currentUser(r).ID)
-		route.Redirect(w, r, "/admin/pages", http.StatusSeeOther)
+		httpprefix.Redirect(w, r, "/admin/pages", http.StatusSeeOther)
 	}
 }
 
@@ -35,7 +35,7 @@ func QueueAllAdminPageRenders(rebuilds *pagecontent.Rebuilds, logger *slog.Logge
 		}
 		rebuilds.QueueAll("administrator requested all pages")
 		logger.Info("page render rebuild queued", "event", "page_render_rebuild_queued", "actor_id", currentUser(r).ID)
-		route.Redirect(w, r, "/admin/pages", http.StatusSeeOther)
+		httpprefix.Redirect(w, r, "/admin/pages", http.StatusSeeOther)
 	}
 }
 

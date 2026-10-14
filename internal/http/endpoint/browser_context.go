@@ -8,9 +8,9 @@ import (
 	"sort"
 	"strings"
 
+	httpprefix "github.com/containeroo/httpkit/prefix"
 	"github.com/kumbuka-me/kumbuka/internal/application/viewer"
 	"github.com/kumbuka-me/kumbuka/internal/http/auth"
-	"github.com/kumbuka-me/kumbuka/internal/route"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	md "github.com/kumbuka-me/kumbuka/pkg/markdown"
@@ -202,8 +202,8 @@ func (l *BrowserContext) loadPluginData(
 		stop = measurePageStage(r.Context(), "view_sidebar_widgets")
 		source := l.query.PersonalLists(user)
 		capabilities := plugincap.MergeCapabilities(
-			plugincap.Capabilities(nil, nil, route.PrefixForRequest(r), l.renderer.IconCatalog()),
-			plugincap.PageListCapabilities(source, route.PrefixForRequest(r)),
+			plugincap.Capabilities(nil, nil, httpprefix.PrefixForRequest(r), l.renderer.IconCatalog()),
+			plugincap.PageListCapabilities(source, httpprefix.PrefixForRequest(r)),
 		)
 		rendered, err := l.renderer.RenderWidgets(
 			r.Context(),
@@ -221,7 +221,7 @@ func (l *BrowserContext) loadPluginData(
 		sidebarWidgets = webview.Widgets(rendered, "sidebar", "", r.URL.RequestURI())
 	}
 
-	modules, err := pluginModulesJSON(l.pluginManager, route.ForRequest(r, "/plugins"))
+	modules, err := pluginModulesJSON(l.pluginManager, httpprefix.URLForRequest(r, "/plugins"))
 	if err != nil {
 		return pluginData{}, err
 	}

@@ -3,6 +3,8 @@ package server
 import (
 	"net/http"
 
+	httpkitmiddleware "github.com/containeroo/httpkit/middleware"
+
 	"github.com/kumbuka-me/kumbuka/internal/http/endpoint"
 	"github.com/kumbuka-me/kumbuka/internal/http/middleware"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
@@ -24,7 +26,7 @@ func registerPageRoutes(mux *http.ServeMux, config Config) {
 }
 
 // registerPluginPageRoutes registers plugin actions and deferred page-fragment rendering.
-func registerPluginPageRoutes(mux *http.ServeMux, config Config, protect middleware.Middleware) {
+func registerPluginPageRoutes(mux *http.ServeMux, config Config, protect httpkitmiddleware.Middleware) {
 	mux.Handle(
 		"POST /plugins/actions/{pluginID}/{moduleID}/{actionID}",
 		protect(endpoint.PluginWidgetCommand(config.PageReports, config.PageMutations, config.Navigation, config.Renderer, config.Notifications)),
@@ -36,7 +38,7 @@ func registerPluginPageRoutes(mux *http.ServeMux, config Config, protect middlew
 }
 
 // registerPageExportRoutes registers Markdown, plugin, PDF, and preview export endpoints.
-func registerPageExportRoutes(mux *http.ServeMux, config Config, protect middleware.Middleware) {
+func registerPageExportRoutes(mux *http.ServeMux, config Config, protect httpkitmiddleware.Middleware) {
 	mux.Handle("GET /export/markdown/{slug...}", protect(endpoint.ExportPageMarkdown(config.PageLookup, config.Media, config.Logger)))
 	mux.Handle("POST /export/plugin/{pluginID}/{moduleID}/{slug...}", protect(endpoint.ExportPagePlugin(config.PageReports, config.Navigation, config.Renderer, config.Logger)))
 
@@ -68,8 +70,8 @@ func registerPageExportRoutes(mux *http.ServeMux, config Config, protect middlew
 func registerPageCollaborationRoutes(
 	mux *http.ServeMux,
 	config Config,
-	browserAuthn middleware.Middleware,
-	browserEditor middleware.Middleware,
+	browserAuthn httpkitmiddleware.Middleware,
+	browserEditor httpkitmiddleware.Middleware,
 ) {
 	mux.Handle("POST /pages/review/{slug...}", browserEditor(endpoint.ReviewPageForm(config.PageMutations, config.PageLookup, config.Logger)))
 	mux.Handle("POST /pages/approval/request/{slug...}", browserEditor(endpoint.RequestPageReview(config.PageReviews, config.PageLookup, config.Logger)))
@@ -89,9 +91,9 @@ func registerPageCollaborationRoutes(
 func registerPageEditingRoutes(
 	mux *http.ServeMux,
 	config Config,
-	browserAuthn middleware.Middleware,
-	browserEditor middleware.Middleware,
-	browserAdmin middleware.Middleware,
+	browserAuthn httpkitmiddleware.Middleware,
+	browserEditor httpkitmiddleware.Middleware,
+	browserAdmin httpkitmiddleware.Middleware,
 ) {
 	mux.Handle("POST /pages/delete/{slug...}", browserAdmin(endpoint.DeletePageForm(config.PageMutations, config.Views)))
 	mux.Handle("POST /pages/move/{slug...}", browserEditor(endpoint.MovePageForm(config.PageMutations, config.PageLookup, config.Logger)))
@@ -107,7 +109,7 @@ func registerPageEditingRoutes(
 }
 
 // registerPageViewRoutes registers canonical stable-ID pages and legacy slug redirects.
-func registerPageViewRoutes(mux *http.ServeMux, config Config, protect middleware.Middleware) {
+func registerPageViewRoutes(mux *http.ServeMux, config Config, protect httpkitmiddleware.Middleware) {
 	viewPage := endpoint.ViewPage(
 		config.BrowserContext,
 		config.PageReports,

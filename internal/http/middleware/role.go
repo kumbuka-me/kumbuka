@@ -5,30 +5,29 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/kumbuka-me/kumbuka/internal/http/auth"
+	appkithttpauth "github.com/containeroo/appkit/httpauth"
+	httpkitmiddleware "github.com/containeroo/httpkit/middleware"
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
 
 // RequireRole authorizes an authenticated request against one of the allowed roles.
-func RequireRole(roles ...domain.UserRole) Middleware {
+func RequireRole(roles ...domain.UserRole) httpkitmiddleware.Middleware {
 	allowed := slices.Clone(roles)
 
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			user, ok := auth.User(r)
-			if !ok {
-				roleUnauthorized(w, r)
-				return
-			}
-			if !slices.Contains(allowed, user.Role) {
-				roleForbidden(w, r)
-				return
-			}
+	return appkithttpauth.Authorize(
+		func(_ *http.Request, user domain.User) bool { return slices.Contains(allowed, user.Role) },
+		roleFailure,
+	)
+}
 
-			next.ServeHTTP(w, r)
-		})
+// roleFailure writes the application-specific response for an authorization denial.
+func roleFailure(w http.ResponseWriter, r *http.Request, status int) {
+	if status == http.StatusUnauthorized {
+		roleUnauthorized(w, r)
+		return
 	}
+	roleForbidden(w, r)
 }
 
 // roleUnauthorized writes a protocol-appropriate response when authentication middleware was omitted.

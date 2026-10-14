@@ -14,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kumbuka-me/kumbuka/internal/secrets"
+	appkitsecrets "github.com/containeroo/appkit/secrets"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -95,10 +95,10 @@ func (r *webhookRepositoryStub) WebhookDeliveries(context.Context, int) ([]domai
 	return append([]domain.WebhookDelivery(nil), r.deliveries...), nil
 }
 
-func testWebhookSecretCipher(t *testing.T) *secrets.Cipher {
+func testWebhookSecretCipher(t *testing.T) *appkitsecrets.Cipher {
 	t.Helper()
 	key := base64.StdEncoding.EncodeToString([]byte("01234567890123456789012345678901"))
-	cipher, err := secrets.New(key)
+	cipher, err := appkitsecrets.New(key)
 	require.NoError(t, err)
 	return cipher
 }

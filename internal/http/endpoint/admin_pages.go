@@ -6,10 +6,10 @@ import (
 	"strings"
 	"time"
 
+	httpprefix "github.com/containeroo/httpkit/prefix"
 	apppages "github.com/kumbuka-me/kumbuka/internal/application/pages"
 	"github.com/kumbuka-me/kumbuka/internal/application/portablearchive"
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
-	"github.com/kumbuka-me/kumbuka/internal/route"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
@@ -104,7 +104,7 @@ func BulkAdminPages(
 			return
 		}
 
-		route.Redirect(w, r, "/admin/pages", http.StatusSeeOther)
+		httpprefix.Redirect(w, r, "/admin/pages", http.StatusSeeOther)
 	}
 }
 

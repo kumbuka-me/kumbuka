@@ -7,7 +7,7 @@ import (
 	"log/slog"
 	"testing"
 
-	"github.com/kumbuka-me/kumbuka/internal/secrets"
+	appkitsecrets "github.com/containeroo/appkit/secrets"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/kumbuka-me/kumbuka/pkg/icons"
 	"github.com/stretchr/testify/assert"
@@ -265,7 +265,7 @@ func TestResolvePDFRequestHeadersUsesStoredSensitiveValue(t *testing.T) {
 func TestSavePDFSettingsRequiresEncryptionKeyForSensitiveValues(t *testing.T) {
 	t.Parallel()
 
-	cipher, err := secrets.New("")
+	cipher, err := appkitsecrets.New("")
 	require.NoError(t, err)
 	settings := NewSettings(&pdfSettingsRepositoryStub{}, cipher, slog.Default())
 
@@ -322,11 +322,11 @@ func TestRevealPDFHeaderDecryptsSensitiveValue(t *testing.T) {
 	assert.Equal(t, "secret-token", value)
 }
 
-func testSecretCipher(t *testing.T) *secrets.Cipher {
+func testSecretCipher(t *testing.T) *appkitsecrets.Cipher {
 	t.Helper()
 
 	key := base64.StdEncoding.EncodeToString([]byte("0123456789abcdef0123456789abcdef"))
-	cipher, err := secrets.New(key)
+	cipher, err := appkitsecrets.New(key)
 	require.NoError(t, err)
 
 	return cipher

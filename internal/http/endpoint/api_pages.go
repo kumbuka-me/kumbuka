@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
+	httpprefix "github.com/containeroo/httpkit/prefix"
 	apppages "github.com/kumbuka-me/kumbuka/internal/application/pages"
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
-	"github.com/kumbuka-me/kumbuka/internal/route"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	md "github.com/kumbuka-me/kumbuka/pkg/markdown"
 	"github.com/kumbuka-me/kumbuka/pkg/navigation"
@@ -79,7 +79,7 @@ func PreviewMarkdown(
 		}
 
 		options := md.DefaultOptions()
-		options.RoutePrefix = route.PrefixForRequest(r)
+		options.RoutePrefix = httpprefix.PrefixForRequest(r)
 
 		slug := md.Slug(request.Slug)
 		user := currentUser(r)
@@ -89,7 +89,7 @@ func PreviewMarkdown(
 			httpresponse.InternalServerError(logger, w, err)
 			return
 		}
-		pageNavigation, err := subpageNavigation(r.Context(), navigationUseCases, user, slug, route.PrefixForRequest(r))
+		pageNavigation, err := subpageNavigation(r.Context(), navigationUseCases, user, slug, httpprefix.PrefixForRequest(r))
 		if err != nil {
 			httpresponse.InternalServerError(logger, w, err)
 			return
@@ -101,7 +101,7 @@ func PreviewMarkdown(
 			options,
 			md.Functions{
 				Context:      r.Context(),
-				Capabilities: plugincap.Capabilities(securedCatalog, pageNavigation, route.PrefixForRequest(r), renderer.IconCatalog()),
+				Capabilities: plugincap.Capabilities(securedCatalog, pageNavigation, httpprefix.PrefixForRequest(r), renderer.IconCatalog()),
 			},
 		)
 		if err != nil {
@@ -177,7 +177,7 @@ func GetPage(catalogUseCases visiblePageLookupService, logger *slog.Logger) http
 			return
 		}
 		if alias != "" {
-			w.Header().Set("Content-Location", route.ForRequest(r, "/api/pages/"+alias))
+			w.Header().Set("Content-Location", httpprefix.URLForRequest(r, "/api/pages/"+alias))
 		}
 
 		httpresponse.Respond(w, http.StatusOK, page)
@@ -237,7 +237,7 @@ func SavePage(pageUseCases pageWriterService, logger *slog.Logger) http.HandlerF
 
 		if r.Method == http.MethodPost {
 			status = http.StatusCreated
-			w.Header().Set("Location", route.ForRequest(r, "/api/pages/"+page.Slug))
+			w.Header().Set("Location", httpprefix.URLForRequest(r, "/api/pages/"+page.Slug))
 		}
 
 		httpresponse.Respond(w, status, page)

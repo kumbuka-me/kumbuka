@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"strconv"
 
+	httpprefix "github.com/containeroo/httpkit/prefix"
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
-	"github.com/kumbuka-me/kumbuka/internal/route"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
@@ -29,6 +29,6 @@ func DeleteAdminAttachment(mediaUseCases attachmentAdminService, views *webview.
 			return
 		}
 
-		route.Redirect(w, r, "/admin/attachments", http.StatusSeeOther)
+		httpprefix.Redirect(w, r, "/admin/attachments", http.StatusSeeOther)
 	}
 }

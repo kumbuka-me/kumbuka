@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"strings"
 
+	httpprefix "github.com/containeroo/httpkit/prefix"
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
-	"github.com/kumbuka-me/kumbuka/internal/route"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/plugin"
 	"github.com/kumbuka-me/sdk/pluginpackage"
@@ -86,7 +86,7 @@ func (a *AdminPluginSettings) Action(w http.ResponseWriter, r *http.Request) {
 			"actor_id", currentUser(r).ID,
 		)
 	}
-	route.Redirect(w, r, "/admin/plugin-settings/"+pluginID, http.StatusSeeOther)
+	httpprefix.Redirect(w, r, "/admin/plugin-settings/"+pluginID, http.StatusSeeOther)
 }
 
 // writeActionError translates expected plugin-setting failures and logs unexpected ones.

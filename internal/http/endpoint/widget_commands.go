@@ -4,10 +4,10 @@ import (
 	"context"
 	"net/http"
 
+	httpprefix "github.com/containeroo/httpkit/prefix"
 	apppages "github.com/kumbuka-me/kumbuka/internal/application/pages"
 	"github.com/kumbuka-me/kumbuka/internal/http/auth"
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
-	"github.com/kumbuka-me/kumbuka/internal/route"
 	md "github.com/kumbuka-me/kumbuka/pkg/markdown"
 	"github.com/kumbuka-me/kumbuka/pkg/plugin"
 	"github.com/kumbuka-me/kumbuka/pkg/plugincap"
@@ -63,7 +63,7 @@ func PluginWidgetCommand(
 		}
 		var pageValue *sdk.Page
 		capabilities := plugincap.MergeCapabilities(
-			plugincap.Capabilities(nil, nil, route.PrefixForRequest(r), renderer.IconCatalog()),
+			plugincap.Capabilities(nil, nil, httpprefix.PrefixForRequest(r), renderer.IconCatalog()),
 			plugincap.NotificationCapabilities(notifications, user.ID, pluginID, pluginName),
 		)
 		if slug := pageSlug; slug != "" {
@@ -72,15 +72,15 @@ func PluginWidgetCommand(
 				httpresponse.Problem(w, http.StatusNotFound, "Page not found.")
 				return
 			}
-			pageValue = utils.ToPtr(plugincap.PageValue(page, route.PrefixForRequest(r)))
+			pageValue = utils.ToPtr(plugincap.PageValue(page, httpprefix.PrefixForRequest(r)))
 			securedCatalog := catalog.Accessible(user)
-			pageNavigation, err := subpageNavigation(r.Context(), navigation, user, slug, route.PrefixForRequest(r))
+			pageNavigation, err := subpageNavigation(r.Context(), navigation, user, slug, httpprefix.PrefixForRequest(r))
 			if err != nil {
 				httpresponse.Problem(w, http.StatusInternalServerError, "The request could not be processed.")
 				return
 			}
 			capabilities = plugincap.MergeCapabilities(
-				plugincap.Capabilities(securedCatalog, pageNavigation, route.PrefixForRequest(r), renderer.IconCatalog()),
+				plugincap.Capabilities(securedCatalog, pageNavigation, httpprefix.PrefixForRequest(r), renderer.IconCatalog()),
 				plugincap.PageContentUpdateCapability(page.Slug, func(ctx context.Context, update sdk.PageContentUpdate) (sdk.PageContent, error) {
 					updated, updateErr := pageUpdates.UpdateContent(ctx, apppages.PageContentUpdateInput{
 						Slug: update.Slug, Markdown: update.Markdown, Message: update.Message,
@@ -114,7 +114,7 @@ func PluginWidgetCommand(
 // respondPluginWidgetCommand returns JSON to in-place browser controls and redirects regular widget forms.
 func respondPluginWidgetCommand(w http.ResponseWriter, r *http.Request, result sdk.WidgetCommandResult) {
 	if r.PostForm.Get("response") == "json" {
-		httpresponse.Respond(w, http.StatusOK, pluginWidgetCommandResponse{Redirect: route.ForRequest(r, result.Redirect)})
+		httpresponse.Respond(w, http.StatusOK, pluginWidgetCommandResponse{Redirect: httpprefix.URLForRequest(r, result.Redirect)})
 		return
 	}
 
@@ -125,7 +125,7 @@ func respondPluginWidgetCommand(w http.ResponseWriter, r *http.Request, result s
 	if next == "" {
 		next = "/"
 	}
-	route.Redirect(w, r, next, http.StatusSeeOther)
+	httpprefix.Redirect(w, r, next, http.StatusSeeOther)
 }
 
 // activePluginName returns the enabled plugin's host-validated display name.

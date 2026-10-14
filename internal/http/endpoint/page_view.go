@@ -7,10 +7,10 @@ import (
 	"html/template"
 	"net/http"
 
+	httpprefix "github.com/containeroo/httpkit/prefix"
 	apppages "github.com/kumbuka-me/kumbuka/internal/application/pages"
 	"github.com/kumbuka-me/kumbuka/internal/http/auth"
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
-	"github.com/kumbuka-me/kumbuka/internal/route"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	md "github.com/kumbuka-me/kumbuka/pkg/markdown"
@@ -66,12 +66,12 @@ func ViewPage(
 		data.PageContentLanguage = cmp.Or(page.Language, data.PageContentLanguage)
 
 		stop = measurePageStage(r.Context(), "page_navigation")
-		pageNavigation := plugincap.Navigation(navigation.Children(data.Navigation, slug), route.PrefixForRequest(r))
-		capabilities := plugincap.Capabilities(securedCatalog, pageNavigation, route.PrefixForRequest(r), renderer.IconCatalog())
+		pageNavigation := plugincap.Navigation(navigation.Children(data.Navigation, slug), httpprefix.PrefixForRequest(r))
+		capabilities := plugincap.Capabilities(securedCatalog, pageNavigation, httpprefix.PrefixForRequest(r), renderer.IconCatalog())
 		stop()
 
 		options := md.DefaultOptions()
-		options.RoutePrefix = route.PrefixForRequest(r)
+		options.RoutePrefix = httpprefix.PrefixForRequest(r)
 		rendered, err := renderPageContent(r.Context(), data.Locale.Code, page, outgoingLinks, options, capabilities, renderer, renderArtifacts, views.Logger())
 		if err != nil {
 			httpresponse.InternalServerError(views.Logger(), w, err)
@@ -105,7 +105,7 @@ func ViewPage(
 			r.Context(),
 			data.Locale.Code,
 			"page.details",
-			utils.ToPtr(plugincap.PageValue(page, route.PrefixForRequest(r))),
+			utils.ToPtr(plugincap.PageValue(page, httpprefix.PrefixForRequest(r))),
 			data.PluginFeatures,
 			capabilities,
 			data.Preferences.HiddenPluginWidgets,

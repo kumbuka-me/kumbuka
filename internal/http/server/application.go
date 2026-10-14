@@ -3,7 +3,8 @@ package server
 import (
 	"net/http"
 
-	"github.com/containeroo/httpkit/prefix"
+	httpkitmiddleware "github.com/containeroo/httpkit/middleware"
+
 	"github.com/kumbuka-me/kumbuka/internal/http/endpoint"
 	"github.com/kumbuka-me/kumbuka/internal/http/middleware"
 )
@@ -19,7 +20,7 @@ func newApplication(config Config) http.Handler {
 	registerAPIRoutes(applicationMux, config)
 	registerFallbackRoutes(applicationMux, config)
 
-	middlewares := []middleware.Middleware{
+	middlewares := []httpkitmiddleware.Middleware{
 		middleware.SecurityHeaders(),
 		middleware.RequestContext(),
 	}
@@ -38,7 +39,7 @@ func newApplication(config Config) http.Handler {
 		middlewares = append(middlewares, middleware.ReadOnly())
 	}
 
-	application := middleware.Chain(applicationMux, middlewares...)
+	application := httpkitmiddleware.Chain(applicationMux, middlewares...)
 	application = endpoint.HTMLProblems(
 		application,
 		config.Views,
@@ -51,9 +52,5 @@ func newApplication(config Config) http.Handler {
 		application = config.Metrics.InstrumentHTTP(application)
 	}
 
-	return prefix.MountUnderPrefixWithOptions(
-		application,
-		config.RoutePrefix,
-		prefix.WithRedirectRewriting(),
-	)
+	return application
 }

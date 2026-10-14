@@ -7,9 +7,9 @@ import (
 	"strconv"
 	"strings"
 
+	httpprefix "github.com/containeroo/httpkit/prefix"
 	appusers "github.com/kumbuka-me/kumbuka/internal/application/users"
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
-	"github.com/kumbuka-me/kumbuka/internal/route"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
@@ -142,7 +142,7 @@ func UpdateAdminUser(
 			return
 		}
 
-		route.Redirect(w, r, "/admin/users", http.StatusSeeOther)
+		httpprefix.Redirect(w, r, "/admin/users", http.StatusSeeOther)
 	}
 }
 
@@ -174,7 +174,7 @@ func RelinkAdminTrustedProxyIdentity(userUseCases trustedProxyIdentityWriter, lo
 			writeAdminProblem(logger, w, err, "Trusted-proxy identity")
 			return
 		}
-		route.Redirect(w, r, "/admin/users", http.StatusSeeOther)
+		httpprefix.Redirect(w, r, "/admin/users", http.StatusSeeOther)
 	}
 }
 
@@ -192,7 +192,7 @@ func RevokeAdminUserSessions(userUseCases userManagementService, logger *slog.Lo
 			return
 		}
 
-		route.Redirect(w, r, "/admin/users", http.StatusSeeOther)
+		httpprefix.Redirect(w, r, "/admin/users", http.StatusSeeOther)
 	}
 }
 
@@ -212,7 +212,7 @@ func ApprovePendingOIDCIdentity(userUseCases oidcIdentityService, logger *slog.L
 			return
 		}
 
-		route.Redirect(w, r, "/admin/users#pending-identities", http.StatusSeeOther)
+		httpprefix.Redirect(w, r, "/admin/users#pending-identities", http.StatusSeeOther)
 	}
 }
 
@@ -246,7 +246,7 @@ func LinkPendingOIDCIdentity(userUseCases oidcIdentityService, logger *slog.Logg
 			return
 		}
 
-		route.Redirect(w, r, "/admin/users#pending-identities", http.StatusSeeOther)
+		httpprefix.Redirect(w, r, "/admin/users#pending-identities", http.StatusSeeOther)
 	}
 }
 
@@ -283,7 +283,7 @@ func pendingOIDCIdentityStatusHandler(
 			return
 		}
 
-		route.Redirect(w, r, "/admin/users#pending-identities", http.StatusSeeOther)
+		httpprefix.Redirect(w, r, "/admin/users#pending-identities", http.StatusSeeOther)
 	}
 }
 
@@ -328,7 +328,7 @@ func RemoveAdminOIDCIdentity(userUseCases oidcIdentityService, logger *slog.Logg
 			return
 		}
 
-		route.Redirect(w, r, "/admin/users#oidc-identities", http.StatusSeeOther)
+		httpprefix.Redirect(w, r, "/admin/users#oidc-identities", http.StatusSeeOther)
 	}
 }
 

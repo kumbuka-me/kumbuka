@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"log/slog"
 
+	appkitsecrets "github.com/containeroo/appkit/secrets"
 	appsystem "github.com/kumbuka-me/kumbuka/internal/application/system"
 	"github.com/kumbuka-me/kumbuka/internal/flags"
 	appmetrics "github.com/kumbuka-me/kumbuka/internal/metrics"
 	"github.com/kumbuka-me/kumbuka/internal/postgres"
-	"github.com/kumbuka-me/kumbuka/internal/secrets"
 	"github.com/kumbuka-me/kumbuka/pkg/themes"
 )
 
@@ -19,7 +19,7 @@ type Infrastructure struct {
 	// database owns the PostgreSQL-backed persistence store for the process.
 	database *postgres.Store
 	// cipher encrypts and decrypts persisted application secrets.
-	cipher *secrets.Cipher
+	cipher *appkitsecrets.Cipher
 	// themes contains the embedded and optional deployment-provided themes.
 	themes []themes.Theme
 	// setupState caches the one-time setup requirement for request-time checks.
@@ -40,7 +40,7 @@ func NewInfrastructure(
 		return nil, fmt.Errorf("load themes: %w", err)
 	}
 
-	secretCipher, err := secrets.New(cfg.EncryptionKey)
+	secretCipher, err := appkitsecrets.New(cfg.EncryptionKey)
 	if err != nil {
 		return nil, fmt.Errorf("configure application encryption: %w", err)
 	}

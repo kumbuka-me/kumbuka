@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	httpkitmiddleware "github.com/containeroo/httpkit/middleware"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -194,13 +195,13 @@ func TestRejectCrossSiteWrites(t *testing.T) {
 func TestIsSafeMethod(t *testing.T) {
 	t.Parallel()
 
-	assert.True(t, isSafeMethod(http.MethodGet))
-	assert.True(t, isSafeMethod(http.MethodHead))
-	assert.True(t, isSafeMethod(http.MethodOptions))
-	assert.False(t, isSafeMethod(http.MethodPost))
-	assert.False(t, isSafeMethod(http.MethodPut))
-	assert.False(t, isSafeMethod(http.MethodPatch))
-	assert.False(t, isSafeMethod(http.MethodDelete))
+	assert.True(t, httpkitmiddleware.IsSafeMethod(http.MethodGet))
+	assert.True(t, httpkitmiddleware.IsSafeMethod(http.MethodHead))
+	assert.True(t, httpkitmiddleware.IsSafeMethod(http.MethodOptions))
+	assert.False(t, httpkitmiddleware.IsSafeMethod(http.MethodPost))
+	assert.False(t, httpkitmiddleware.IsSafeMethod(http.MethodPut))
+	assert.False(t, httpkitmiddleware.IsSafeMethod(http.MethodPatch))
+	assert.False(t, httpkitmiddleware.IsSafeMethod(http.MethodDelete))
 }
 
 func discardLogger() *slog.Logger {

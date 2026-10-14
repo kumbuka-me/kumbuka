@@ -5,12 +5,13 @@ import (
 	"errors"
 	"strings"
 
+	"github.com/containeroo/appkit/auth/provisioning"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
 
 // trustedProxyRepository contains persistence required to refresh or create trusted-proxy users.
 type trustedProxyRepository interface {
-	registrationSettingsRepository
+	ApplicationSettings(context.Context) (domain.ApplicationSettings, error)
 	RefreshTrustedProxyUser(context.Context, string, string, string, bool, bool) (domain.User, error)
 	CreateTrustedProxyUser(context.Context, string, string, string, bool, bool) (domain.User, error)
 }
@@ -20,14 +21,20 @@ type TrustedProxy struct {
 	// repository refreshes existing accounts and creates permitted external identities.
 	repository trustedProxyRepository
 	// registration resolves whether unknown external identities may create accounts.
-	registration registrationPolicy
+	registration provisioning.RegistrationPolicy
 }
 
 // NewTrustedProxy constructs the trusted-proxy login application service.
 func NewTrustedProxy(repository trustedProxyRepository, registrationOverride *bool) *TrustedProxy {
 	return &TrustedProxy{
-		repository:   repository,
-		registration: newRegistrationPolicy(repository, registrationOverride),
+		repository: repository,
+		registration: provisioning.RegistrationPolicy{
+			Override: registrationOverride,
+			Load: func(ctx context.Context) (bool, error) {
+				settings, err := repository.ApplicationSettings(ctx)
+				return settings.AllowUserRegistration, err
+			},
+		},
 	}
 }
 
@@ -52,7 +59,7 @@ func (s *TrustedProxy) Login(
 		return domain.User{}, err
 	}
 
-	enabled, err := s.registration.enabled(ctx)
+	enabled, err := s.registration.Enabled(ctx)
 	if err != nil {
 		return domain.User{}, err
 	}

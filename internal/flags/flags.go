@@ -2,15 +2,14 @@
 package flags
 
 import (
-	"net"
 	"time"
 
-	httpprefix "github.com/containeroo/httpkit/prefix"
+	appkitconfig "github.com/containeroo/appkit/config"
+	appkitlogging "github.com/containeroo/appkit/logging"
+	appkitsecrets "github.com/containeroo/appkit/secrets"
 	"github.com/containeroo/tinyflags"
 	"github.com/kumbuka-me/kumbuka/internal/pdf"
-	"github.com/kumbuka-me/kumbuka/internal/secrets"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
-	"github.com/kumbuka-me/kumbuka/pkg/logging"
 	"github.com/kumbuka-me/kumbuka/pkg/utils"
 )
 
@@ -107,7 +106,7 @@ type Config struct {
 	// ThemeDirectory optionally overlays embedded themes with TOML files from disk.
 	ThemeDirectory string
 	// LogFormat selects structured text or JSON logging.
-	LogFormat logging.LogFormat
+	LogFormat appkitlogging.LogFormat
 	// Debug enables verbose diagnostic logging.
 	Debug bool
 	// PerformanceDiagnostics enables deployment-level request tracing and browser diagnostics.
@@ -163,36 +162,8 @@ func Parse(args []string, version string) (Config, error) {
 
 // registerServerFlags registers public and management server flags and returns address finalization.
 func registerServerFlags(tf *tinyflags.FlagSet, cfg *Config) func() {
-	tf.StringVar(&cfg.RoutePrefix, "route-prefix", "", "URL path prefix under which Kumbuka is served").
-		Section(sectionServer).
-		Validate(httpprefix.ValidateRoutePrefix).
-		Finalize(httpprefix.NormalizeRoutePrefix).
-		Value()
-
-	listen := tf.TCPAddr(
-		"listen-address",
-		&net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 8080},
-		"Address on which the application server listens",
-	).
-		Section(sectionServer).
-		Short("a").
-		Placeholder("ADDR").
-		Value()
-
-	management := tf.TCPAddr(
-		"management-listen-address",
-		&net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 8081},
-		"Address on which health, readiness, and metrics listen",
-	).
-		Section(sectionServer).
-		Short("m").
-		Placeholder("ADDR").
-		Value()
-
-	tf.StringVar(&cfg.PublicURL, "public-url", "http://localhost:8080", "Externally visible base URL").
-		Section(sectionServer).
-		Placeholder("URL").
-		Value()
+	var server appkitconfig.Server
+	finalizeServer := appkitconfig.RegisterServer(tf, &server, appkitconfig.ServerOptions{})
 
 	tf.BoolVar(
 		&cfg.ReadOnly,
@@ -214,8 +185,11 @@ func registerServerFlags(tf *tinyflags.FlagSet, cfg *Config) func() {
 		Value()
 
 	return func() {
-		cfg.ApplicationListenAddress = (*listen).String()
-		cfg.ManagementListenAddress = (*management).String()
+		finalizeServer()
+		cfg.RoutePrefix = server.RoutePrefix
+		cfg.ApplicationListenAddress = server.ListenAddress
+		cfg.ManagementListenAddress = server.ManagementListenAddress
+		cfg.PublicURL = server.PublicURL
 	}
 }
 
@@ -314,7 +288,7 @@ func registerAuthFlags(tf *tinyflags.FlagSet, cfg *Config) func() {
 	).
 		Section(sectionAuthentication).
 		OverriddenValueMaskFn(tinyflags.MaskFirstLast).
-		Validate(secrets.ValidateKey).
+		Validate(appkitsecrets.ValidateKey).
 		Value()
 
 	return func() {
@@ -461,10 +435,10 @@ func registerLoggingFlags(tf *tinyflags.FlagSet, cfg *Config) func() {
 	logFormat := tinyflags.Enum(
 		tf,
 		"log-format",
-		logging.LogFormatJSON,
+		appkitlogging.LogFormatJSON,
 		"Log output format",
-		logging.LogFormatText,
-		logging.LogFormatJSON,
+		appkitlogging.LogFormatText,
+		appkitlogging.LogFormatJSON,
 	).
 		Section(sectionLoggingDiagnostics).
 		Short("l").

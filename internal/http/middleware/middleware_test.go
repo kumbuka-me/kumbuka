@@ -5,6 +5,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	httpkitmiddleware "github.com/containeroo/httpkit/middleware"
+
 	"github.com/stretchr/testify/assert"
 )
 
@@ -12,7 +14,7 @@ func TestChain(t *testing.T) {
 	t.Parallel()
 
 	var calls []string
-	record := func(name string) Middleware {
+	record := func(name string) httpkitmiddleware.Middleware {
 		return func(next http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				calls = append(calls, name+":before")
@@ -24,7 +26,7 @@ func TestChain(t *testing.T) {
 		}
 	}
 
-	handler := Chain(
+	handler := httpkitmiddleware.Chain(
 		http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			calls = append(calls, "handler")
 			w.WriteHeader(http.StatusNoContent)

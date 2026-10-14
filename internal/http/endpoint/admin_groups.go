@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"strconv"
 
+	httpprefix "github.com/containeroo/httpkit/prefix"
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
-	"github.com/kumbuka-me/kumbuka/internal/route"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 )
 
@@ -48,7 +48,7 @@ func CreateAdminGroup(groupUseCases groupWriter, logger *slog.Logger) http.Handl
 			return
 		}
 
-		route.Redirect(w, r, "/admin/groups", http.StatusSeeOther)
+		httpprefix.Redirect(w, r, "/admin/groups", http.StatusSeeOther)
 	}
 }
 
@@ -69,7 +69,7 @@ func DeleteAdminGroup(groupUseCases groupWriter, logger *slog.Logger) http.Handl
 			return
 		}
 
-		route.Redirect(w, r, "/admin/groups", http.StatusSeeOther)
+		httpprefix.Redirect(w, r, "/admin/groups", http.StatusSeeOther)
 	}
 }
 

@@ -6,9 +6,10 @@ import (
 	"net/http"
 	"strings"
 
+	httpprefix "github.com/containeroo/httpkit/prefix"
+	httpkitresponse "github.com/containeroo/httpkit/response"
 	"github.com/kumbuka-me/kumbuka/internal/http/auth"
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
-	"github.com/kumbuka-me/kumbuka/internal/route"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
@@ -21,7 +22,7 @@ func LocalLogin(
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if systemUseCases.SetupRequired() {
-			route.Redirect(w, r, "/setup", http.StatusFound)
+			httpprefix.Redirect(w, r, "/setup", http.StatusFound)
 			return
 		}
 
@@ -46,7 +47,7 @@ func LocalLogin(
 			_, token, err := browserAuth.Local.SignIn(r.Context(), r.FormValue("username"), r.FormValue("password"))
 			if err == nil {
 				browserAuth.Local.WriteSessionCookie(w, token)
-				route.Redirect(w, r, cmp.Or(next, "/"), http.StatusSeeOther)
+				httpprefix.Redirect(w, r, cmp.Or(next, "/"), http.StatusSeeOther)
 				return
 			}
 			writeLocalLoginProblem(views, w, err, next)
@@ -145,7 +146,7 @@ func submitSetup(
 		browserAuth.Local.WriteSessionCookie(w, token)
 	}
 	systemUseCases.RecordSetupCompleted(r.Context(), user)
-	route.Redirect(w, r, "/admin/configuration", http.StatusSeeOther)
+	httpprefix.Redirect(w, r, "/admin/configuration", http.StatusSeeOther)
 }
 
 // renderSetupForm renders the setup form with the requested browser status.
@@ -164,7 +165,7 @@ func renderSetupForm(w http.ResponseWriter, views *webview.Views, status int, me
 // safeAuthNext accepts only local paths as post-authentication destinations.
 func safeAuthNext(value string) string {
 	value = strings.TrimSpace(value)
-	if !httpresponse.IsLocalPath(value) {
+	if !httpkitresponse.IsLocalPath(value) {
 		return ""
 	}
 

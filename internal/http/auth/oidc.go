@@ -14,9 +14,10 @@ import (
 	"strings"
 	"time"
 
+	httpprefix "github.com/containeroo/httpkit/prefix"
+	httpkitresponse "github.com/containeroo/httpkit/response"
 	"github.com/coreos/go-oidc/v3/oidc"
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
-	"github.com/kumbuka-me/kumbuka/internal/route"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"golang.org/x/oauth2"
 )
@@ -206,7 +207,7 @@ func (o *OIDC) login(w http.ResponseWriter, r *http.Request) {
 	state := base64.RawURLEncoding.EncodeToString(stateBytes)
 	verifier := oauth2.GenerateVerifier()
 	next := r.URL.Query().Get("next")
-	if !httpresponse.IsLocalPath(next) {
+	if !httpkitresponse.IsLocalPath(next) {
 		next = "/"
 	}
 
@@ -217,7 +218,7 @@ func (o *OIDC) login(w http.ResponseWriter, r *http.Request) {
 		Expires:  time.Now().Add(oidcLoginStateTTL).Unix(),
 	}, int(oidcLoginStateTTL.Seconds()))
 
-	route.Redirect(
+	httpprefix.Redirect(
 		w,
 		r,
 		o.oauth.AuthCodeURL(
@@ -272,7 +273,7 @@ func (o *OIDC) callback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	o.setSessionCookie(w, profile, user.SessionVersion)
-	route.Redirect(w, r, callbackDestination(saved.Next), http.StatusFound)
+	httpprefix.Redirect(w, r, callbackDestination(saved.Next), http.StatusFound)
 }
 
 // consumeCallbackState expires transient and legacy callback cookies after state validation.
@@ -344,7 +345,7 @@ func (o *OIDC) setSessionCookie(w http.ResponseWriter, profile oidcCallbackProfi
 
 // callbackDestination returns a safe local redirect destination for a completed login.
 func callbackDestination(next string) string {
-	if httpresponse.IsLocalPath(next) {
+	if httpkitresponse.IsLocalPath(next) {
 		return next
 	}
 	return "/"
@@ -513,14 +514,14 @@ func Logout(local *Local) http.HandlerFunc {
 			SameSite: http.SameSiteLaxMode,
 		})
 
-		route.Redirect(w, r, "/", http.StatusFound)
+		httpprefix.Redirect(w, r, "/", http.StatusFound)
 	}
 }
 
 // LoginUnavailable redirects to the home page when the configured auth mode has no login flow.
 func LoginUnavailable() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		route.Redirect(w, r, "/", http.StatusFound)
+		httpprefix.Redirect(w, r, "/", http.StatusFound)
 	}
 }
 

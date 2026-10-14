@@ -5,9 +5,10 @@ import (
 	"strconv"
 	"strings"
 
+	httpprefix "github.com/containeroo/httpkit/prefix"
+	httpkitresponse "github.com/containeroo/httpkit/response"
 	"github.com/kumbuka-me/kumbuka/internal/http/auth"
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
-	"github.com/kumbuka-me/kumbuka/internal/route"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/pageurl"
 )
@@ -51,7 +52,7 @@ func AddPageComment(pageUseCases pageDiscussionWriter, views *webview.Views) htt
 				return
 			}
 
-			route.Redirect(w, r, pageCommentTarget(comment.PageID, slug, comment.ID), http.StatusSeeOther)
+			httpprefix.Redirect(w, r, pageCommentTarget(comment.PageID, slug, comment.ID), http.StatusSeeOther)
 			return
 		}
 		if kind != "" && kind != "comment" {
@@ -67,7 +68,7 @@ func AddPageComment(pageUseCases pageDiscussionWriter, views *webview.Views) htt
 			return
 		}
 
-		route.Redirect(w, r, pageCommentTarget(comment.PageID, slug, comment.ID), http.StatusSeeOther)
+		httpprefix.Redirect(w, r, pageCommentTarget(comment.PageID, slug, comment.ID), http.StatusSeeOther)
 	}
 }
 
@@ -87,7 +88,7 @@ func ApplyPageCommentSuggestion(pageUseCases pageDiscussionWriter, views *webvie
 			return
 		}
 
-		route.Redirect(w, r, pageCommentTarget(page.ID, page.Slug, id), http.StatusSeeOther)
+		httpprefix.Redirect(w, r, pageCommentTarget(page.ID, page.Slug, id), http.StatusSeeOther)
 	}
 }
 
@@ -110,7 +111,7 @@ func ResolvePageComment(pageUseCases pageDiscussionWriter, views *webview.Views)
 		}
 
 		next := pageCommentReturnTarget(r.FormValue("next"))
-		route.Redirect(w, r, next, http.StatusSeeOther)
+		httpprefix.Redirect(w, r, next, http.StatusSeeOther)
 	}
 }
 
@@ -138,7 +139,7 @@ func pageCommentTarget(pageID int64, slug string, commentID int64) string {
 // pageCommentReturnTarget preserves an inline-comment fragment while defaulting page discussions to their section.
 func pageCommentReturnTarget(value string) string {
 	target := strings.TrimSpace(value)
-	if !httpresponse.IsLocalPath(target) || !isCanonicalPageReturnTarget(target) {
+	if !httpkitresponse.IsLocalPath(target) || !isCanonicalPageReturnTarget(target) {
 		return "/"
 	}
 	if strings.Contains(target, "#") {

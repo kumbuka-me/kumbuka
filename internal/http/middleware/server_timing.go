@@ -8,13 +8,14 @@ import (
 	"strings"
 	"time"
 
+	httpkitmiddleware "github.com/containeroo/httpkit/middleware"
 	"github.com/kumbuka-me/kumbuka/pkg/renderprofile"
 )
 
 const performanceTimingCookie = "kumbuka_perf"
 
 // PerformanceDiagnostics attaches one shared request trace, logs it, and optionally exposes Server-Timing to opted-in browsers.
-func PerformanceDiagnostics(logger *slog.Logger) Middleware {
+func PerformanceDiagnostics(logger *slog.Logger) httpkitmiddleware.Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
 			exposeServerTiming := performanceDiagnosticsRequested(request)

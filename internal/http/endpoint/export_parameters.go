@@ -9,9 +9,9 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	httpprefix "github.com/containeroo/httpkit/prefix"
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
 	"github.com/kumbuka-me/kumbuka/internal/pdf"
-	"github.com/kumbuka-me/kumbuka/internal/route"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	md "github.com/kumbuka-me/kumbuka/pkg/markdown"
 	"github.com/kumbuka-me/kumbuka/pkg/plugin"
@@ -170,7 +170,7 @@ func PreviewPageExport(
 			httpresponse.InternalServerError(logger, w, err)
 			return
 		}
-		rendered, err := renderExportHTML(r.Context(), catalog, navigation, media, renderer, currentUser(r), page, parameters, route.PrefixForRequest(r))
+		rendered, err := renderExportHTML(r.Context(), catalog, navigation, media, renderer, currentUser(r), page, parameters, httpprefix.PrefixForRequest(r))
 		if err != nil {
 			writeRenderedExportProblem(logger, w, err)
 			return

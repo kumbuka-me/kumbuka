@@ -11,9 +11,9 @@ import (
 	"sync"
 	"sync/atomic"
 
+	httpprefix "github.com/containeroo/httpkit/prefix"
 	appauthentication "github.com/kumbuka-me/kumbuka/internal/application/authentication"
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
-	"github.com/kumbuka-me/kumbuka/internal/route"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"golang.org/x/net/http/httpguts"
 )
@@ -165,7 +165,7 @@ func (b *browserAuthenticator) Authenticate(r *http.Request) (domain.User, error
 // login starts the configured interactive flow or redirects home for non-interactive modes.
 func (b *browserAuthenticator) login(w http.ResponseWriter, r *http.Request) {
 	if b.requiresSetup() {
-		route.Redirect(w, r, "/setup", http.StatusFound)
+		httpprefix.Redirect(w, r, "/setup", http.StatusFound)
 		return
 	}
 
@@ -183,7 +183,7 @@ func (b *browserAuthenticator) login(w http.ResponseWriter, r *http.Request) {
 			target += "?next=" + url.QueryEscape(next)
 		}
 
-		route.Redirect(w, r, target, http.StatusFound)
+		httpprefix.Redirect(w, r, target, http.StatusFound)
 		return
 	case domain.AuthModeOIDC:
 	case domain.AuthModeNone, domain.AuthModeTrustedProxy:

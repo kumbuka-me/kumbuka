@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
+	httpprefix "github.com/containeroo/httpkit/prefix"
 	appwebhooks "github.com/kumbuka-me/kumbuka/internal/application/webhooks"
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
-	"github.com/kumbuka-me/kumbuka/internal/route"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 )
 
@@ -89,7 +89,7 @@ func SaveAdminWebhook(webhookUseCases webhookAdminService, logger *slog.Logger) 
 			writeAdminProblem(logger, w, err, "Webhook")
 			return
 		}
-		route.Redirect(w, r, "/admin/webhooks", http.StatusSeeOther)
+		httpprefix.Redirect(w, r, "/admin/webhooks", http.StatusSeeOther)
 	}
 }
 
@@ -174,7 +174,7 @@ func DeleteAdminWebhook(webhookUseCases webhookAdminService, logger *slog.Logger
 			writeAdminProblem(logger, w, err, "Webhook")
 			return
 		}
-		route.Redirect(w, r, "/admin/webhooks", http.StatusSeeOther)
+		httpprefix.Redirect(w, r, "/admin/webhooks", http.StatusSeeOther)
 	}
 }
 
@@ -203,7 +203,7 @@ func TestAdminWebhook(webhookUseCases webhookAdminService, logger *slog.Logger) 
 			w.WriteHeader(http.StatusNoContent)
 			return
 		}
-		route.Redirect(w, r, "/admin/webhooks", http.StatusSeeOther)
+		httpprefix.Redirect(w, r, "/admin/webhooks", http.StatusSeeOther)
 	}
 }
 

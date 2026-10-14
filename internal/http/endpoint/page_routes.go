@@ -7,9 +7,9 @@ import (
 	"strconv"
 	"strings"
 
+	httpprefix "github.com/containeroo/httpkit/prefix"
 	"github.com/kumbuka-me/kumbuka/internal/http/auth"
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
-	"github.com/kumbuka-me/kumbuka/internal/route"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/kumbuka-me/kumbuka/pkg/pageurl"
 )
@@ -23,7 +23,7 @@ func CanonicalPage(pages canonicalPageService, logger *slog.Logger, render http.
 			return
 		}
 		if requestedSlug := strings.Trim(r.PathValue("slug"), "/"); requestedSlug != page.Slug {
-			route.Redirect(w, r, pageurl.Page(page.ID, page.Slug), http.StatusPermanentRedirect)
+			httpprefix.Redirect(w, r, pageurl.Page(page.ID, page.Slug), http.StatusPermanentRedirect)
 			return
 		}
 		r.SetPathValue("slug", page.Slug)
@@ -40,7 +40,7 @@ func LegacyPage(pages canonicalPageService, logger *slog.Logger) http.HandlerFun
 			writeCanonicalPageProblem(logger, w, err)
 			return
 		}
-		route.Redirect(w, r, pageurl.Page(page.ID, page.Slug), http.StatusPermanentRedirect)
+		httpprefix.Redirect(w, r, pageurl.Page(page.ID, page.Slug), http.StatusPermanentRedirect)
 	}
 }
 
@@ -52,7 +52,7 @@ func redirectToCanonicalPage(w http.ResponseWriter, r *http.Request, pages canon
 		writeCanonicalPageProblem(logger, w, err)
 		return
 	}
-	route.Redirect(w, r, pageurl.Page(page.ID, page.Slug), status)
+	httpprefix.Redirect(w, r, pageurl.Page(page.ID, page.Slug), status)
 }
 
 // canonicalPageForRequest resolves the stable page ID in the request for the authenticated actor.

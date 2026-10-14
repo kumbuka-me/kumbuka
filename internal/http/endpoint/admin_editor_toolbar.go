@@ -9,8 +9,8 @@ import (
 	"strconv"
 	"strings"
 
+	httpprefix "github.com/containeroo/httpkit/prefix"
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
-	"github.com/kumbuka-me/kumbuka/internal/route"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/kumbuka-me/kumbuka/pkg/plugin"
@@ -60,7 +60,7 @@ func SaveAdminEditorToolbar(settingsUseCases editorToolbarSettingsService, manag
 			return
 		}
 
-		route.Redirect(w, r, "/admin/editor-toolbar", http.StatusSeeOther)
+		httpprefix.Redirect(w, r, "/admin/editor-toolbar", http.StatusSeeOther)
 	}
 }
 

@@ -7,9 +7,10 @@ import (
 	"strconv"
 	"strings"
 
+	httpprefix "github.com/containeroo/httpkit/prefix"
+	httpkitresponse "github.com/containeroo/httpkit/response"
 	"github.com/kumbuka-me/kumbuka/internal/http/auth"
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
-	"github.com/kumbuka-me/kumbuka/internal/route"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
 
@@ -38,11 +39,11 @@ func CreateSavedSearch(knowledgeUseCases savedSearchService, logger *slog.Logger
 		}
 
 		next := strings.TrimSpace(r.FormValue("next"))
-		if !httpresponse.IsLocalPath(next) {
+		if !httpkitresponse.IsLocalPath(next) {
 			next = "/settings#saved-searches"
 		}
 
-		route.Redirect(w, r, next, http.StatusSeeOther)
+		httpprefix.Redirect(w, r, next, http.StatusSeeOther)
 	}
 }
 
@@ -65,7 +66,7 @@ func DeleteSavedSearch(knowledgeUseCases savedSearchService, logger *slog.Logger
 			return
 		}
 
-		route.Redirect(w, r, "/settings#saved-searches", http.StatusSeeOther)
+		httpprefix.Redirect(w, r, "/settings#saved-searches", http.StatusSeeOther)
 	}
 }
 
