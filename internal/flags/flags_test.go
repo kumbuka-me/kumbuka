@@ -711,3 +711,14 @@ func TestRoutePrefix(t *testing.T) {
 		require.Error(t, err)
 	})
 }
+
+// TestTrustedProxyWildcardFlag accepts an explicitly configured wildcard ingress.
+func TestTrustedProxyWildcardFlag(t *testing.T) {
+	t.Setenv("KUMBUKA__TRUSTED_PROXY_CIDRS", "")
+	cfg, err := parseTestConfig([]string{
+		"--database-url", "postgres://example/kumbuka",
+		"--trusted-proxy-cidrs", "*",
+	})
+	require.NoError(t, err)
+	assert.Equal(t, []string{"*"}, cfg.Proxy.TrustedCIDRs)
+}

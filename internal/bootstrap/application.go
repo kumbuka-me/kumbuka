@@ -7,6 +7,8 @@ import (
 	"sync"
 	"time"
 
+	appkitproxy "github.com/containeroo/appkit/auth/proxy"
+
 	appaccess "github.com/kumbuka-me/kumbuka/internal/application/access"
 	appadministration "github.com/kumbuka-me/kumbuka/internal/application/administration"
 	appgroups "github.com/kumbuka-me/kumbuka/internal/application/groups"
@@ -145,6 +147,10 @@ func NewApplication(
 	logger *slog.Logger,
 	version, commit string,
 ) (*Application, error) {
+	if appkitproxy.IsWildcardCIDRs(cfg.Proxy.TrustedCIDRs) {
+		logger.Warn("trusted proxy wildcard accepts identities from any valid peer; restrict ingress and strip untrusted identity headers",
+			"event", "trusted_proxy_wildcard_enabled")
+	}
 	application := &Application{}
 	application.composeUseCases(cfg, infrastructure, logger)
 

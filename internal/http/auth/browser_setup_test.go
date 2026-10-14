@@ -354,6 +354,34 @@ func TestConfigureBrowserAuthRejectsInvalidProxyCIDRs(t *testing.T) {
 	require.ErrorContains(t, err, "invalid trusted proxy CIDR")
 }
 
+// TestConfigureBrowserAuthWildcardPeers verifies explicitly trusted peers are not restricted to CIDRs.
+func TestConfigureBrowserAuthWildcardPeers(t *testing.T) {
+	t.Parallel()
+	repository := &setupBrowserRepository{settings: domain.ApplicationSettings{Authentication: domain.AuthenticationSettings{
+		Mode:                   domain.AuthModeTrustedProxy,
+		TrustedUsernameHeaders: []string{"X-User"},
+	}}, trustedProxyUser: domain.User{ID: 7, Username: "reader", Enabled: true}}
+	configured, err := ConfigureBrowserAuth(context.Background(), BrowserConfig{
+		TrustedProxyCIDRs: []string{"*"},
+	}, repository)
+	require.NoError(t, err)
+
+	request := httptest.NewRequest(http.MethodGet, "/api/pages/example", nil)
+	request.Header.Set("X-User", "reader")
+	request.RemoteAddr = "198.51.100.10:1234"
+	_, err = configured.Authenticator.Authenticate(request)
+	require.NoError(t, err)
+}
+
+// TestConfigureBrowserAuthRejectsMixedWildcard refuses accidentally broadened CIDR lists.
+func TestConfigureBrowserAuthRejectsMixedWildcard(t *testing.T) {
+	t.Parallel()
+	_, err := ConfigureBrowserAuth(context.Background(), BrowserConfig{
+		TrustedProxyCIDRs: []string{"*", "127.0.0.1/32"},
+	}, &setupBrowserRepository{})
+	require.ErrorContains(t, err, "alone")
+}
+
 // TestConfiguredLocalAuthenticationCachesSettings verifies local session validation is the only steady-state database lookup.
 func TestConfiguredLocalAuthenticationCachesSettings(t *testing.T) {
 	t.Parallel()
