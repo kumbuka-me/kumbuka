@@ -50,8 +50,11 @@ Kumbuka can be configured using command-line flags or environment variables. Env
 | `--route-prefix`              | `KUMBUKA__ROUTE_PREFIX`              | empty                   |
 | `--database-url`              | `KUMBUKA__DATABASE_URL`              | —                       |
 | `--read-only`                 | `KUMBUKA__READ_ONLY`                 | `false`                 |
+| `--trusted-proxy-cidrs`      | `KUMBUKA__TRUSTED_PROXY_CIDRS`      | empty                   |
 
 The management listener exposes `GET /healthz`, `GET /readyz`, and, unless disabled, `GET /metrics`. It is separate from the public application listener and is not mounted below `--route-prefix`.
+
+When using proxy authentication, configure `--trusted-proxy-cidrs` with the CIDRs of the **immediate trusted ingress peers**. Requests from any other peer cannot authenticate through identity headers. Your ingress must strip client-supplied identity headers before setting its own. Without a trusted CIDR list, proxy authentication cannot be enabled; local and OIDC modes are unaffected.
 
 For all available settings and deployment options, see **[kumbuka.me](https://kumbuka.me/configuration/runtime/)**.
 

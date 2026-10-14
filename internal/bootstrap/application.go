@@ -372,7 +372,8 @@ func (a *Application) Close(logger *slog.Logger) {
 // newBrowserAuthConfig maps deployment configuration onto the authentication boundary.
 func newBrowserAuthConfig(cfg flags.Config) auth.BrowserConfig {
 	return auth.BrowserConfig{
-		ModeOverride: cfg.AuthenticationModeOverride(),
+		ModeOverride:      cfg.AuthenticationModeOverride(),
+		TrustedProxyCIDRs: cfg.Proxy.TrustedCIDRs,
 		TrustedProxy: auth.TrustedProxyHeaders{
 			Username:    cfg.Proxy.UsernameHeaders,
 			Email:       cfg.Proxy.EmailHeaders,

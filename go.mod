@@ -4,8 +4,8 @@ go 1.27.0
 
 require (
 	github.com/aymerick/douceur v0.2.0
-	github.com/containeroo/appkit v0.0.5
-	github.com/containeroo/httpkit v0.0.2
+	github.com/containeroo/appkit v0.1.0
+	github.com/containeroo/httpkit v0.0.3
 	github.com/containeroo/notifykit v0.7.0
 	github.com/containeroo/tinyflags v0.5.0
 	github.com/coreos/go-oidc/v3 v3.21.0

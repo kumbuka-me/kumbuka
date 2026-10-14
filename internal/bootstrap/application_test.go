@@ -28,6 +28,7 @@ func TestNewBrowserAuthConfigMapsDeploymentSettings(t *testing.T) {
 			AllowRegistrationOverride: &allowRegistration,
 		},
 		Proxy: appkitconfig.Proxy{
+			TrustedCIDRs:       []string{"127.0.0.1/32"},
 			UsernameHeaders:    []string{"X-User", "Remote-User"},
 			EmailHeaders:       []string{"X-Email"},
 			DisplayNameHeaders: []string{"X-Name"},
@@ -46,7 +47,8 @@ func TestNewBrowserAuthConfigMapsDeploymentSettings(t *testing.T) {
 
 	got := newBrowserAuthConfig(cfg)
 	want := auth.BrowserConfig{
-		ModeOverride: domain.AuthModeOIDC,
+		ModeOverride:      domain.AuthModeOIDC,
+		TrustedProxyCIDRs: []string{"127.0.0.1/32"},
 		TrustedProxy: auth.TrustedProxyHeaders{
 			Username:    []string{"X-User", "Remote-User"},
 			Email:       []string{"X-Email"},

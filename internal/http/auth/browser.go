@@ -11,6 +11,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	appkitproxy "github.com/containeroo/appkit/auth/proxy"
 	httpprefix "github.com/containeroo/httpkit/prefix"
 	appauthentication "github.com/kumbuka-me/kumbuka/internal/application/authentication"
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
@@ -26,6 +27,8 @@ type browserAuthenticator struct {
 	modeOverride domain.AuthMode
 	// trustedProxy contains deployment-managed trusted-proxy header overrides.
 	trustedProxy TrustedProxyHeaders
+	// trustedProxyTrust checks only the immediate peer, never forwarded IP headers.
+	trustedProxyTrust appkitproxy.TrustFunc
 	// oidcConfig contains deployment-managed OIDC secrets and callback configuration.
 	oidcConfig OIDCConfig
 	// none authenticates the built-in administrator when authentication is disabled.
@@ -67,7 +70,17 @@ func ConfigureBrowserAuth(
 	config BrowserConfig,
 	repository browserRepository,
 ) (BrowserAuth, error) {
+	var trustedProxyTrust appkitproxy.TrustFunc
+	if len(config.TrustedProxyCIDRs) > 0 {
+		var err error
+		trustedProxyTrust, err = appkitproxy.TrustCIDRs(config.TrustedProxyCIDRs)
+		if err != nil {
+			return BrowserAuth{}, fmt.Errorf("configure trusted proxy peers: %w", err)
+		}
+	}
+
 	browser := &browserAuthenticator{
+		trustedProxyTrust: trustedProxyTrust,
 		repository:        repository,
 		modeOverride:      config.ModeOverride,
 		trustedProxy:      config.TrustedProxy,
@@ -381,7 +394,7 @@ func (b *browserAuthenticator) cachedAuthenticatorForSettings(settings domain.Au
 			DisplayName: settings.TrustedDisplayNameHeaders,
 			Groups:      settings.TrustedGroupHeaders,
 			AdminGroup:  settings.TrustedAdminGroup,
-		})
+		}, b.trustedProxyTrust)
 	case domain.AuthModeOIDC:
 		key := oidcSettingsFingerprint(settings)
 		b.mu.Lock()
@@ -424,7 +437,7 @@ func (b *browserAuthenticator) authenticatorForSettings(
 			DisplayName: settings.TrustedDisplayNameHeaders,
 			Groups:      settings.TrustedGroupHeaders,
 			AdminGroup:  settings.TrustedAdminGroup,
-		}), nil
+		}, b.trustedProxyTrust), nil
 	case domain.AuthModeOIDC:
 		return b.oidcFor(ctx, settings)
 	default:
@@ -441,6 +454,9 @@ func (b *browserAuthenticator) validateSettings(settings domain.AuthenticationSe
 		return nil
 	case domain.AuthModeTrustedProxy:
 		validateTrustedProxySettings(settings, validation)
+		if b.trustedProxyTrust == nil {
+			appendAuthenticationProblem(validation, "trusted_proxy_cidrs", "Configure KUMBUKA__TRUSTED_PROXY_CIDRS before enabling proxy authentication.")
+		}
 	case domain.AuthModeOIDC:
 		b.validateOIDCSettings(settings, validation)
 	default:

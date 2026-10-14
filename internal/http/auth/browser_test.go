@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"errors"
+	"net/http"
 	"testing"
 
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
@@ -128,7 +129,7 @@ func TestBrowserAuthenticationModesLocalLoginSmoke(t *testing.T) {
 func TestBrowserAuthenticatorForSettings(t *testing.T) {
 	t.Parallel()
 
-	browser := &browserAuthenticator{none: NewNone(nil), local: NewLocal(nil, "")}
+	browser := &browserAuthenticator{none: NewNone(nil), local: NewLocal(nil, ""), trustedProxyTrust: func(*http.Request) bool { return true }}
 
 	t.Run("no authentication", func(t *testing.T) {
 		authenticator, err := browser.authenticatorForSettings(
@@ -199,7 +200,7 @@ func TestBrowserAuthenticatorValidatesOIDCSecrets(t *testing.T) {
 // TestBrowserValidationRequiresAdministratorGroupSources verifies administrator elevation requires a matching group source.
 func TestBrowserValidationRequiresAdministratorGroupSources(t *testing.T) {
 	t.Parallel()
-	browser := &browserAuthenticator{oidcConfig: OIDCConfig{ClientSecret: "secret", SessionSecret: "0123456789abcdef0123456789abcdef"}}
+	browser := &browserAuthenticator{trustedProxyTrust: func(*http.Request) bool { return true }, oidcConfig: OIDCConfig{ClientSecret: "secret", SessionSecret: "0123456789abcdef0123456789abcdef"}}
 	assert.Error(t, browser.validateSettings(domain.AuthenticationSettings{Mode: "oidc", OIDCIssuer: "https://example.test", OIDCClientID: "kumbuka", OIDCAdminGroup: "/admins"}))
 	assert.Error(t, browser.validateSettings(domain.AuthenticationSettings{Mode: "trusted-proxy", TrustedUsernameHeaders: []string{"X-User"}, TrustedAdminGroup: "/admins"}))
 }
@@ -207,7 +208,7 @@ func TestBrowserValidationRequiresAdministratorGroupSources(t *testing.T) {
 func TestBrowserValidationCollectsOIDCProblems(t *testing.T) {
 	t.Parallel()
 
-	browser := &browserAuthenticator{oidcConfig: OIDCConfig{
+	browser := &browserAuthenticator{trustedProxyTrust: func(*http.Request) bool { return true }, oidcConfig: OIDCConfig{
 		ClientSecret:  "secret",
 		SessionSecret: "0123456789abcdef0123456789abcdef",
 	}}
@@ -232,7 +233,7 @@ func TestBrowserValidationCollectsOIDCProblems(t *testing.T) {
 func TestBrowserValidationChecksHeadersOnlyForTrustedProxyMode(t *testing.T) {
 	t.Parallel()
 
-	browser := &browserAuthenticator{oidcConfig: OIDCConfig{
+	browser := &browserAuthenticator{trustedProxyTrust: func(*http.Request) bool { return true }, oidcConfig: OIDCConfig{
 		ClientSecret:  "secret",
 		SessionSecret: "0123456789abcdef0123456789abcdef",
 	}}

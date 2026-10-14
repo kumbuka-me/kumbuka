@@ -5,20 +5,23 @@ import (
 	"net/http"
 	"strings"
 
+	httpkitassets "github.com/containeroo/httpkit/assets"
 	httpprefix "github.com/containeroo/httpkit/prefix"
 )
 
 // Assets serves embedded browser assets with content-versioned cache semantics.
 func Assets(appFS fs.FS) http.Handler {
-	files := http.FileServer(http.FS(appFS))
+	files := httpkitassets.Static(httpkitassets.StaticConfig{
+		Files: appFS,
+		// Every path accepted by Assets contains a content-version segment.
+		ImmutablePrefix: "/",
+	})
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		path, ok := assetPath(r.URL.Path)
 		if !ok {
 			http.NotFound(w, r)
 			return
 		}
-
-		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
 
 		request := r.Clone(r.Context())
 		request.URL.Path = "/" + path

@@ -25,7 +25,7 @@ func newApplication(config Config) http.Handler {
 		middleware.RequestContext(),
 	}
 	if config.AccessLog {
-		middlewares = append(middlewares, middleware.AccessLog(config.Logger))
+		middlewares = append(middlewares, httpkitmiddleware.AccessLogWithErrorReference(config.Logger))
 	}
 	middlewares = append(
 		middlewares,

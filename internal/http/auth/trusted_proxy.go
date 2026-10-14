@@ -1,23 +1,22 @@
 package auth
 
 import (
+	"context"
 	"errors"
 	"net/http"
-	"strings"
 
+	appkitauth "github.com/containeroo/appkit/auth"
+	appkitproxy "github.com/containeroo/appkit/auth/proxy"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
-	"github.com/kumbuka-me/kumbuka/pkg/utils"
 )
 
-// TrustedProxy authenticates requests using identity headers from a trusted proxy.
+// TrustedProxy authenticates verified proxy identity headers using Kumbuka's local account policy.
 type TrustedProxy struct {
-	// login resolves trusted identities through application registration policy.
-	login trustedProxyLoginService
-	// headers maps trusted proxy headers to Kumbuka identity fields.
-	headers TrustedProxyHeaders
+	// authenticator verifies the upstream and extracts external identity claims.
+	authenticator appkitproxy.Authenticator[domain.User]
 }
 
-// TrustedProxyHeaders contains ordered header candidates for each external identity field.
+// TrustedProxyHeaders contains ordered header candidates and external administrator group mapping.
 type TrustedProxyHeaders struct {
 	// Username lists trusted header names checked for the external username.
 	Username []string
@@ -31,66 +30,47 @@ type TrustedProxyHeaders struct {
 	AdminGroup string
 }
 
-// NewTrustedProxy creates a trusted-proxy authenticator.
+// NewTrustedProxy creates an authenticator that requires an explicitly trusted ingress.
 func NewTrustedProxy(
 	login trustedProxyLoginService,
 	headers TrustedProxyHeaders,
+	trust appkitproxy.TrustFunc,
 ) *TrustedProxy {
-	return &TrustedProxy{
-		login:   login,
-		headers: headers,
-	}
+	return &TrustedProxy{authenticator: appkitproxy.Authenticator[domain.User]{
+		Trust: trust,
+		Resolve: func(ctx context.Context, identity appkitauth.ExternalIdentity) (domain.User, error) {
+			adminObserved := headers.AdminGroup != ""
+			externalAdmin := adminObserved && containsGroup(identity.Groups, headers.AdminGroup)
+			user, err := login.Login(ctx, identity.Username, identity.Email, identity.DisplayName, adminObserved, externalAdmin)
+			if errors.Is(err, domain.ErrRegistrationDisabled) {
+				return domain.User{}, ErrRegistrationDisabled
+			}
+			if err != nil {
+				return domain.User{}, err
+			}
+			if !user.Enabled {
+				return domain.User{}, ErrInvalidCredentials
+			}
+			if adminObserved {
+				user.ExternalAdmin = externalAdmin
+				if externalAdmin {
+					user.Role = domain.UserRoleAdmin
+				}
+			}
+			return user, nil
+		},
+		Issuer:             "kumbuka-proxy",
+		UsernameHeaders:    headers.Username,
+		EmailHeaders:       headers.Email,
+		DisplayNameHeaders: headers.DisplayName,
+		GroupHeaders:       headers.Groups,
+	}}
 }
 
-// Authenticate resolves trusted identity headers in configured fallback order.
+// Authenticate authenticates only identities asserted by an allowed immediate network peer.
 func (a *TrustedProxy) Authenticate(r *http.Request) (domain.User, error) {
-	username := firstConfiguredHeaderValue(r, a.headers.Username)
-	if username == "" {
+	if a.authenticator.Trust == nil {
 		return domain.User{}, ErrUnauthenticated
 	}
-
-	adminObserved := a.headers.AdminGroup != ""
-	externalAdmin := false
-	if adminObserved {
-		groups := utils.SplitCommaSeparatedValues(firstConfiguredHeaderValue(r, a.headers.Groups))
-		externalAdmin = containsGroup(groups, a.headers.AdminGroup)
-	}
-
-	user, err := a.login.Login(
-		r.Context(),
-		username,
-		firstConfiguredHeaderValue(r, a.headers.Email),
-		firstConfiguredHeaderValue(r, a.headers.DisplayName),
-		adminObserved,
-		externalAdmin,
-	)
-	if errors.Is(err, domain.ErrRegistrationDisabled) {
-		return domain.User{}, ErrRegistrationDisabled
-	}
-	if err != nil {
-		return domain.User{}, err
-	}
-	if !user.Enabled {
-		return domain.User{}, ErrInvalidCredentials
-	}
-
-	if adminObserved {
-		user.ExternalAdmin = externalAdmin
-		if externalAdmin {
-			user.Role = domain.UserRoleAdmin
-		}
-	}
-
-	return user, nil
-}
-
-// firstConfiguredHeaderValue returns the first non-empty configured header.
-// Example: ["X-User", "X-Remote-User"] uses X-Remote-User only when X-User is blank.
-func firstConfiguredHeaderValue(r *http.Request, headers []string) string {
-	for _, header := range headers {
-		if value := strings.TrimSpace(r.Header.Get(header)); value != "" {
-			return value
-		}
-	}
-	return ""
+	return a.authenticator.Authenticate(r)
 }

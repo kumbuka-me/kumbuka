@@ -286,8 +286,9 @@ func TestRuntimeTrustedProxyAuthenticateDoesNotReadApplicationSettings(t *testin
 	configured, err := ConfigureBrowserAuth(
 		context.Background(),
 		BrowserConfig{
-			ModeOverride: domain.AuthModeTrustedProxy,
-			TrustedProxy: TrustedProxyHeaders{Username: []string{"X-User"}},
+			ModeOverride:      domain.AuthModeTrustedProxy,
+			TrustedProxyCIDRs: []string{"192.0.2.0/24"},
+			TrustedProxy:      TrustedProxyHeaders{Username: []string{"X-User"}},
 		},
 		repository,
 	)
@@ -314,7 +315,9 @@ func TestConfiguredPersistedTrustedProxyAuthenticationCachesSettings(t *testing.
 		}},
 		trustedProxyUser: domain.User{ID: 7, Username: "reader", Enabled: true},
 	}
-	configured, err := ConfigureBrowserAuth(context.Background(), BrowserConfig{}, repository)
+	configured, err := ConfigureBrowserAuth(context.Background(), BrowserConfig{
+		TrustedProxyCIDRs: []string{"192.0.2.0/24"},
+	}, repository)
 	require.NoError(t, err)
 	require.Equal(t, 1, repository.settingsCalls)
 
@@ -326,6 +329,29 @@ func TestConfiguredPersistedTrustedProxyAuthenticationCachesSettings(t *testing.
 	assert.Equal(t, int64(7), user.ID)
 	assert.Equal(t, 1, repository.trustedProxyRefreshes)
 	assert.Equal(t, 1, repository.settingsCalls)
+}
+
+// TestProxyAuthenticationRejectsMissingTrustedCIDRs prevents activating proxy mode without a trusted ingress.
+func TestProxyAuthenticationRejectsMissingTrustedCIDRs(t *testing.T) {
+	t.Parallel()
+	repository := &setupBrowserRepository{settings: domain.ApplicationSettings{Authentication: domain.AuthenticationSettings{
+		Mode:                   domain.AuthModeTrustedProxy,
+		TrustedUsernameHeaders: []string{"X-User"},
+	}}}
+	_, err := ConfigureBrowserAuth(context.Background(), BrowserConfig{}, repository)
+	var validation *domain.ValidationError
+	require.ErrorAs(t, err, &validation)
+	require.NotEmpty(t, validation.Fields)
+	assert.Equal(t, "trusted_proxy_cidrs", validation.Fields[0].Field)
+}
+
+// TestConfigureBrowserAuthRejectsInvalidProxyCIDRs rejects malformed peer ranges during setup.
+func TestConfigureBrowserAuthRejectsInvalidProxyCIDRs(t *testing.T) {
+	t.Parallel()
+	_, err := ConfigureBrowserAuth(context.Background(), BrowserConfig{
+		TrustedProxyCIDRs: []string{"invalid"},
+	}, &setupBrowserRepository{})
+	require.ErrorContains(t, err, "invalid trusted proxy CIDR")
 }
 
 // TestConfiguredLocalAuthenticationCachesSettings verifies local session validation is the only steady-state database lookup.

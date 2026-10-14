@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	httpkitmiddleware "github.com/containeroo/httpkit/middleware"
+	httpkitresponse "github.com/containeroo/httpkit/response"
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
 )
 
@@ -16,7 +17,7 @@ func RecoverPanics(logger *slog.Logger) httpkitmiddleware.Middleware {
 			httpresponse.InternalServerError(logger.With("operation", "request_panic"), w, fmt.Errorf("request panic: %v", recovered))
 		},
 		func(w http.ResponseWriter) bool {
-			response, ok := w.(*httpresponse.RequestWriter)
+			response, ok := w.(*httpkitresponse.RequestWriter)
 			return ok && response.Status != 0
 		},
 	)

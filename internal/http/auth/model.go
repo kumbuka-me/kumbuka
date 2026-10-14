@@ -13,6 +13,8 @@ type BrowserConfig struct {
 	ModeOverride domain.AuthMode
 	// TrustedProxy contains header overrides used with trusted-proxy recovery mode.
 	TrustedProxy TrustedProxyHeaders
+	// TrustedProxyCIDRs restricts which immediate peers may assert proxy identity headers.
+	TrustedProxyCIDRs []string
 	// OIDC contains deployment secrets plus OIDC overrides used with recovery mode.
 	OIDC OIDCConfig
 	// LocalLoginEnabled exposes local login alongside another configured mode for recovery.
