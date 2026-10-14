@@ -22,8 +22,11 @@ import "github.com/kumbuka-me/kumbuka/pkg/plugin"
 var catalog = []plugin.BuiltinPackage{
 `
 
+// pluginLockEntry identifies one pinned first-party plugin package.
 type pluginLockEntry struct {
-	name    string
+	// name is the package name recorded in plugins.lock.
+	name string
+	// version is the pinned package version.
 	version string
 }
 
