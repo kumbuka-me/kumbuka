@@ -16,6 +16,12 @@ test("plugin frames swap atomically and respect block presentation", async () =>
   });
   try {
     const page = await browser.newPage();
+    await page.addInitScript(() => {
+      addEventListener("message", (event) => {
+        if (event.data === "task-render-waiting")
+          document.documentElement.dataset.taskRenderWaiting = "";
+      });
+    });
     const module = {
       plugin_id: "me.kumbuka.tasks",
       module_id: "task-ui",
@@ -27,7 +33,7 @@ test("plugin frames swap atomically and respect block presentation", async () =>
       if (
         await pluginRoute(route, {
           module,
-          fakeJavaScript: `globalThis.kumbukaPlugin={async render(root,context){const template=document.createElement('template');template.innerHTML=context.html;if(!template.content.querySelector('.kumbuka-task-list'))throw new Error('missing task list root');await new Promise(resolve=>setTimeout(resolve,150));root.textContent='Interactive task';}};`,
+          fakeJavaScript: `globalThis.kumbukaPlugin={async render(root,context){const template=document.createElement('template');template.innerHTML=context.html;if(!template.content.querySelector('.kumbuka-task-list'))throw new Error('missing task list root');parent.postMessage('task-render-waiting','*');await new Promise(resolve=>addEventListener('message',function release(event){if(event.data!=='release-task-render')return;removeEventListener('message',release);resolve();}));root.textContent='Interactive task';}};`,
         })
       )
         return;
@@ -49,12 +55,27 @@ test("plugin frames swap atomically and respect block presentation", async () =>
     await page.goto("http://task.test/");
     const frame = page.locator("iframe");
     await frame.waitFor({ state: "attached" });
-    assert.equal(await frame.evaluate((node) => getComputedStyle(node).visibility), "hidden");
+    assert.equal(
+      await frame.evaluate((node) => getComputedStyle(node).visibility),
+      "hidden",
+    );
+    await page.locator("html[data-task-render-waiting]").waitFor();
     assert.equal(await page.getByText("Task fallback").isVisible(), true);
+    await frame.evaluate((node) =>
+      node.contentWindow?.postMessage("release-task-render", "*"),
+    );
     await page.locator("iframe[data-plugin-ready]").waitFor();
-    assert.equal(await frame.evaluate((node) => getComputedStyle(node).visibility), "visible");
+    assert.equal(
+      await frame.evaluate((node) => getComputedStyle(node).visibility),
+      "visible",
+    );
     assert.equal(await page.getByText("Task fallback").isVisible(), false);
-    assert.equal(await frame.evaluate((node) => node.classList.contains("kumbuka-plugin-frame-inline")), false);
+    assert.equal(
+      await frame.evaluate((node) =>
+        node.classList.contains("kumbuka-plugin-frame-inline"),
+      ),
+      false,
+    );
   } finally {
     await browser.close();
   }
@@ -112,13 +133,16 @@ test("plugin frames include outer content margins in their measured height", asy
     await page.goto("http://margin.test/");
     await page.locator("iframe[data-plugin-ready]").waitFor();
 
-    const frame = page.frames().find((candidate) => candidate !== page.mainFrame());
+    const frame = page
+      .frames()
+      .find((candidate) => candidate !== page.mainFrame());
     assert.ok(frame);
     const dimensions = await frame.evaluate(() => ({
       clientHeight: document.documentElement.clientHeight,
       scrollHeight: document.documentElement.scrollHeight,
-      rootHeight: document.getElementById("plugin-root")?.getBoundingClientRect()
-        .height,
+      rootHeight: document
+        .getElementById("plugin-root")
+        ?.getBoundingClientRect().height,
     }));
 
     assert.equal(dimensions.scrollHeight, dimensions.clientHeight);
