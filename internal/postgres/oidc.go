@@ -5,6 +5,8 @@ import (
 	"errors"
 	"strings"
 
+	appkitauth "github.com/containeroo/appkit/auth"
+
 	"github.com/jackc/pgx/v5"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
@@ -24,13 +26,13 @@ type oidcIdentityProfile struct {
 }
 
 // SetExternalAdminStatus records the most recently asserted external administrator state.
-func (s *Store) SetExternalAdminStatus(ctx context.Context, userID int64, method domain.AuthMode, admin bool) error {
+func (s *Store) SetExternalAdminStatus(ctx context.Context, userID int64, method appkitauth.Mode, admin bool) error {
 	var query string
 
 	switch method {
-	case domain.AuthModeOIDC:
+	case appkitauth.ModeOIDC:
 		query = `UPDATE users SET oidc_admin_observed=true,oidc_external_admin=$2 WHERE id=$1`
-	case domain.AuthModeProxy:
+	case appkitauth.ModeProxy:
 		query = `UPDATE users SET trusted_proxy_admin_observed=true,trusted_proxy_external_admin=$2 WHERE id=$1`
 	default:
 		return domain.NewValidationError("method", "Choose a supported external authentication method.")

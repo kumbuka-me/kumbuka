@@ -4,10 +4,11 @@ package flags
 import (
 	"time"
 
+	appkitauth "github.com/containeroo/appkit/auth"
+
 	appkitconfig "github.com/containeroo/appkit/config"
 	"github.com/containeroo/tinyflags"
 	"github.com/kumbuka-me/kumbuka/internal/pdf"
-	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
 
 // DefaultPluginUpdateCheckInterval is the default background plugin catalog refresh interval.
@@ -86,12 +87,12 @@ func Parse(args []string, version string) (Config, error) {
 	return cfg, nil
 }
 
-// AuthenticationModeOverride returns Kumbuka's domain value for the Appkit mode override.
-func (c Config) AuthenticationModeOverride() domain.AuthMode {
+// AuthenticationModeOverride returns the configured authentication mode or the zero value when database settings apply.
+func (c Config) AuthenticationModeOverride() appkitauth.Mode {
 	if c.Authentication.ModeOverride == nil {
 		return ""
 	}
-	return domain.AuthMode(*c.Authentication.ModeOverride)
+	return *c.Authentication.ModeOverride
 }
 
 // registerApplicationFlags registers Kumbuka-specific server behavior.

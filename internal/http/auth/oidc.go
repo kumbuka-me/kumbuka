@@ -14,6 +14,8 @@ import (
 	"strings"
 	"time"
 
+	appkitauth "github.com/containeroo/appkit/auth"
+
 	httpprefix "github.com/containeroo/httpkit/prefix"
 	httpkitresponse "github.com/containeroo/httpkit/response"
 	"github.com/coreos/go-oidc/v3/oidc"
@@ -377,7 +379,7 @@ func (o *OIDC) syncAuthorization(ctx context.Context, userID int64, groups []str
 		return nil
 	}
 
-	return o.repository.SetExternalAdminStatus(ctx, userID, domain.AuthModeOIDC, containsGroup(groups, o.adminGroup))
+	return o.repository.SetExternalAdminStatus(ctx, userID, appkitauth.ModeOIDC, containsGroup(groups, o.adminGroup))
 }
 
 // writeOIDCLoginProblem maps identity-registration failures to stable browser responses.

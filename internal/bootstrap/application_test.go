@@ -5,8 +5,9 @@ import (
 	"net/http"
 	"testing"
 
-	appkitproxy "github.com/containeroo/appkit/auth/proxy"
 	"time"
+
+	appkitproxy "github.com/containeroo/appkit/auth/proxy"
 
 	appkitauth "github.com/containeroo/appkit/auth"
 	appkitconfig "github.com/containeroo/appkit/config"
@@ -51,7 +52,7 @@ func TestNewBrowserAuthConfigMapsDeploymentSettings(t *testing.T) {
 	// Only values recorded in cfg.Overrides should be considered deployment overrides.
 	got := newBrowserAuthConfig(cfg)
 	want := auth.BrowserConfig{
-		ModeOverride:    domain.AuthModeOIDC,
+		ModeOverride:    appkitauth.ModeOIDC,
 		ProxyOverrides:  appkitproxy.Layer{},
 		ProxyAdminGroup: "admins",
 		OIDC: auth.OIDCConfig{

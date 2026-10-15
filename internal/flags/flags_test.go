@@ -5,8 +5,9 @@ import (
 	"testing"
 	"time"
 
+	appkitauth "github.com/containeroo/appkit/auth"
+
 	"github.com/containeroo/tinyflags"
-	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -19,13 +20,13 @@ func parseTestConfig(args []string) (Config, error) {
 func TestParse(t *testing.T) {
 	t.Run("environment prefix", func(t *testing.T) {
 		t.Setenv("KUMBUKA__DATABASE_URL", "postgres://example/kumbuka")
-		t.Setenv("KUMBUKA__AUTH_MODE", string(domain.AuthModeProxy))
+		t.Setenv("KUMBUKA__AUTH_MODE", string(appkitauth.ModeProxy))
 
 		cfg, err := parseTestConfig(nil)
 
 		require.NoError(t, err)
 		assert.Equal(t, "postgres://example/kumbuka", cfg.Database.URL)
-		assert.Equal(t, domain.AuthModeProxy, cfg.AuthenticationModeOverride())
+		assert.Equal(t, appkitauth.ModeProxy, cfg.AuthenticationModeOverride())
 	})
 
 	t.Run("overridden values mask secrets", func(t *testing.T) {
@@ -547,7 +548,7 @@ func TestAuthFlags(t *testing.T) {
 		})
 
 		require.NoError(t, err)
-		assert.Equal(t, domain.AuthModeLocal, cfg.AuthenticationModeOverride())
+		assert.Equal(t, appkitauth.ModeLocal, cfg.AuthenticationModeOverride())
 	})
 
 	t.Run("accepts the canonical proxy mode", func(t *testing.T) {
@@ -559,7 +560,7 @@ func TestAuthFlags(t *testing.T) {
 		})
 
 		require.NoError(t, err)
-		assert.Equal(t, domain.AuthModeProxy, cfg.AuthenticationModeOverride())
+		assert.Equal(t, appkitauth.ModeProxy, cfg.AuthenticationModeOverride())
 	})
 
 	t.Run("rejects removed proxy alias", func(t *testing.T) {
@@ -578,7 +579,7 @@ func TestAuthFlags(t *testing.T) {
 		cfg, err := parseTestConfig(nil)
 
 		require.NoError(t, err)
-		assert.Equal(t, domain.AuthModeLocal, cfg.AuthenticationModeOverride())
+		assert.Equal(t, appkitauth.ModeLocal, cfg.AuthenticationModeOverride())
 	})
 }
 

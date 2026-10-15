@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	appkitauth "github.com/containeroo/appkit/auth"
+
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -30,7 +32,7 @@ func (*oidcRepositoryStub) SyncOIDCGroups(context.Context, int64, []string, []do
 	return nil
 }
 
-func (*oidcRepositoryStub) SetExternalAdminStatus(context.Context, int64, domain.AuthMode, bool) error {
+func (*oidcRepositoryStub) SetExternalAdminStatus(context.Context, int64, appkitauth.Mode, bool) error {
 	return nil
 }
 

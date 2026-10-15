@@ -6,6 +6,8 @@ import (
 	"slices"
 	"strings"
 
+	appkitauth "github.com/containeroo/appkit/auth"
+
 	httpprefix "github.com/containeroo/httpkit/prefix"
 	"github.com/kumbuka-me/kumbuka/internal/http/auth"
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
@@ -122,7 +124,7 @@ func SaveAdminAuthentication(
 			field := "auth_mode"
 			message := "The authentication configuration could not be verified."
 
-			if effective.Mode == domain.AuthModeOIDC {
+			if effective.Mode == appkitauth.ModeOIDC {
 				field = "oidc_issuer"
 				message = "OIDC provider discovery failed. Check the issuer and server connectivity."
 			}
@@ -160,12 +162,12 @@ func preserveRuntimeManagedAuthenticationSettings(
 	settings.Mode = current.Mode
 
 	switch runtime.AuthModeOverride {
-	case domain.AuthModeOIDC:
+	case appkitauth.ModeOIDC:
 		settings.OIDCIssuer = current.OIDCIssuer
 		settings.OIDCClientID = current.OIDCClientID
 		settings.OIDCGroupClaim = current.OIDCGroupClaim
 		settings.OIDCAdminGroup = current.OIDCAdminGroup
-	case domain.AuthModeProxy:
+	case appkitauth.ModeProxy:
 		settings.TrustedUsernameHeaders = current.TrustedUsernameHeaders
 		settings.TrustedEmailHeaders = current.TrustedEmailHeaders
 		settings.TrustedDisplayNameHeaders = current.TrustedDisplayNameHeaders
@@ -185,12 +187,12 @@ func effectiveAuthenticationSettings(settings domain.AuthenticationSettings, run
 	settings.Mode = runtime.AuthModeOverride
 
 	switch runtime.AuthModeOverride {
-	case domain.AuthModeOIDC:
+	case appkitauth.ModeOIDC:
 		settings.OIDCIssuer = runtime.OIDCIssuerOverride
 		settings.OIDCClientID = runtime.OIDCClientIDOverride
 		settings.OIDCGroupClaim = runtime.OIDCGroupClaimOverride
 		settings.OIDCAdminGroup = runtime.OIDCAdminGroupOverride
-	case domain.AuthModeProxy:
+	case appkitauth.ModeProxy:
 		settings.TrustedUsernameHeaders = runtime.TrustedUsernameHeadersOverride
 		settings.TrustedEmailHeaders = runtime.TrustedEmailHeadersOverride
 		settings.TrustedDisplayNameHeaders = runtime.TrustedDisplayNameHeadersOverride
@@ -220,7 +222,7 @@ func authenticationSettingsFromForm(r *http.Request) (domain.AuthenticationSetti
 	}
 
 	return domain.AuthenticationSettings{
-		Mode:                      domain.AuthMode(strings.TrimSpace(r.FormValue("auth_mode"))),
+		Mode:                      appkitauth.Mode(strings.TrimSpace(r.FormValue("auth_mode"))),
 		OIDCIssuer:                strings.TrimSpace(r.FormValue("oidc_issuer")),
 		OIDCClientID:              strings.TrimSpace(r.FormValue("oidc_client_id")),
 		OIDCGroupClaim:            strings.TrimSpace(r.FormValue("oidc_group_claim")),

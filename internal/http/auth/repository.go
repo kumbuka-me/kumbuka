@@ -4,6 +4,8 @@ import (
 	"context"
 	"time"
 
+	appkitauth "github.com/containeroo/appkit/auth"
+
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
 
@@ -41,7 +43,7 @@ type oidcLoginService interface {
 type oidcRepository interface {
 	OIDCUser(context.Context, string, string) (domain.User, error)
 	SyncOIDCGroups(context.Context, int64, []string, []domain.OIDCGroupMapping, bool) error
-	SetExternalAdminStatus(context.Context, int64, domain.AuthMode, bool) error
+	SetExternalAdminStatus(context.Context, int64, appkitauth.Mode, bool) error
 }
 
 // browserRepository collects the persistence capabilities used by dynamic browser authentication.

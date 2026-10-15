@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	appkitauth "github.com/containeroo/appkit/auth"
+
 	"github.com/kumbuka-me/kumbuka/internal/http/auth"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
@@ -102,7 +104,7 @@ func TestLocalLoginRedirectsSetupWithRuntimeOIDCOverride(t *testing.T) {
 	t.Parallel()
 
 	system := &localAuthSystemStub{setupRequired: true}
-	views := testHandlerViews(t, webview.RuntimeInfo{AuthModeOverride: domain.AuthModeOIDC})
+	views := testHandlerViews(t, webview.RuntimeInfo{AuthModeOverride: appkitauth.ModeOIDC})
 	handler := LocalLogin(
 		system,
 		auth.BrowserAuth{LocalLoginAllowed: func(context.Context) (bool, error) { return true, nil }},
@@ -124,7 +126,7 @@ func TestSetupAllowsRuntimeOIDCOverrideAndCreatesBootstrapSession(t *testing.T) 
 	system := &localAuthSystemStub{setupRequired: true}
 	repository := &localAuthRepositoryStub{}
 	local := auth.NewLocal(repository, "http://localhost:8080")
-	views := testHandlerViews(t, webview.RuntimeInfo{AuthModeOverride: domain.AuthModeOIDC})
+	views := testHandlerViews(t, webview.RuntimeInfo{AuthModeOverride: appkitauth.ModeOIDC})
 	handler := Setup(system, auth.BrowserAuth{Local: local}, views)
 
 	form := url.Values{

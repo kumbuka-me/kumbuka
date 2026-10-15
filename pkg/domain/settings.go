@@ -1,6 +1,10 @@
 package domain
 
-import "strings"
+import (
+	"strings"
+
+	appkitauth "github.com/containeroo/appkit/auth"
+)
 
 // RenderingSettings contains application-wide content presentation defaults.
 type RenderingSettings struct {
@@ -10,8 +14,8 @@ type RenderingSettings struct {
 
 // AuthenticationSettings controls browser authentication without storing secrets.
 type AuthenticationSettings struct {
-	// Mode selects local, trusted-proxy, or OIDC authentication.
-	Mode AuthMode
+	// Mode selects local, proxy, or OIDC authentication.
+	Mode appkitauth.Mode
 	// OIDCIssuer is the OIDC discovery issuer URL.
 	OIDCIssuer string
 	// OIDCClientID is the public OIDC client identifier.

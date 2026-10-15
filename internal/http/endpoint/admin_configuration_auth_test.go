@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 
+	appkitauth "github.com/containeroo/appkit/auth"
+
 	"github.com/kumbuka-me/kumbuka/internal/http/auth"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
@@ -58,7 +60,7 @@ func TestSaveAdminAuthenticationAppliesRuntimeSettingsAfterPersistence(t *testin
 				},
 			}
 			form := url.Values{
-				"auth_mode":                {string(domain.AuthModeProxy)},
+				"auth_mode":                {string(appkitauth.ModeProxy)},
 				"trusted_username_headers": {"X-Forwarded-User"},
 			}
 			request := httptest.NewRequest(
@@ -73,7 +75,7 @@ func TestSaveAdminAuthenticationAppliesRuntimeSettingsAfterPersistence(t *testin
 			SaveAdminAuthentication(service, browserAuth, testHandlerViews(t, webview.RuntimeInfo{})).ServeHTTP(response, request)
 
 			require.Equal(t, test.wantStatus, response.Code)
-			assert.Equal(t, domain.AuthModeProxy, service.saved.Mode)
+			assert.Equal(t, appkitauth.ModeProxy, service.saved.Mode)
 			assert.Equal(t, test.wantApplyCall, applied)
 			if applied {
 				assert.Equal(t, service.saved, active)

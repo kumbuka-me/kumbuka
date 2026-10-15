@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"strings"
 
+	appkitauth "github.com/containeroo/appkit/auth"
+
 	httpprefix "github.com/containeroo/httpkit/prefix"
 	httpkitresponse "github.com/containeroo/httpkit/response"
 	"github.com/kumbuka-me/kumbuka/internal/http/auth"
@@ -113,7 +115,7 @@ func submitSetup(
 	}
 
 	bootstrapSession := views.Runtime().AuthModeOverride != "" &&
-		views.Runtime().AuthModeOverride != domain.AuthModeLocal
+		views.Runtime().AuthModeOverride != appkitauth.ModeLocal
 
 	var user domain.User
 	var token string

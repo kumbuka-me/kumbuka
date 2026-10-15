@@ -5,6 +5,8 @@ import (
 	"errors"
 	"testing"
 
+	appkitauth "github.com/containeroo/appkit/auth"
+
 	appkitproxy "github.com/containeroo/appkit/auth/proxy"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/stretchr/testify/assert"
@@ -18,7 +20,7 @@ func TestConfigureBrowserAuth(t *testing.T) {
 	repository := &setupBrowserRepository{}
 	configured, err := ConfigureBrowserAuth(
 		context.Background(),
-		BrowserConfig{ModeOverride: domain.AuthModeNone, SetupRequired: func() bool { return true }},
+		BrowserConfig{ModeOverride: appkitauth.ModeNone, SetupRequired: func() bool { return true }},
 		repository,
 	)
 
@@ -40,7 +42,7 @@ func TestBrowserAuthenticationModesLocalLoginSmoke(t *testing.T) {
 		t.Parallel()
 
 		browser := &browserAuthenticator{}
-		browser.applySettings(domain.AuthenticationSettings{Mode: domain.AuthModeNone})
+		browser.applySettings(domain.AuthenticationSettings{Mode: appkitauth.ModeNone})
 		allowed, err := browser.localLoginAllowed(context.Background())
 
 		require.NoError(t, err)
@@ -51,7 +53,7 @@ func TestBrowserAuthenticationModesLocalLoginSmoke(t *testing.T) {
 		t.Parallel()
 
 		browser := &browserAuthenticator{localLoginEnabled: true}
-		browser.applySettings(domain.AuthenticationSettings{Mode: domain.AuthModeNone})
+		browser.applySettings(domain.AuthenticationSettings{Mode: appkitauth.ModeNone})
 		allowed, err := browser.localLoginAllowed(context.Background())
 
 		require.NoError(t, err)
@@ -62,7 +64,7 @@ func TestBrowserAuthenticationModesLocalLoginSmoke(t *testing.T) {
 		t.Parallel()
 
 		browser := &browserAuthenticator{}
-		browser.applySettings(domain.AuthenticationSettings{Mode: domain.AuthModeLocal})
+		browser.applySettings(domain.AuthenticationSettings{Mode: appkitauth.ModeLocal})
 		allowed, err := browser.localLoginAllowed(context.Background())
 
 		require.NoError(t, err)
@@ -73,7 +75,7 @@ func TestBrowserAuthenticationModesLocalLoginSmoke(t *testing.T) {
 		t.Parallel()
 
 		browser := &browserAuthenticator{localLoginEnabled: true}
-		browser.applySettings(domain.AuthenticationSettings{Mode: domain.AuthModeLocal})
+		browser.applySettings(domain.AuthenticationSettings{Mode: appkitauth.ModeLocal})
 		allowed, err := browser.localLoginAllowed(context.Background())
 
 		require.NoError(t, err)
@@ -84,7 +86,7 @@ func TestBrowserAuthenticationModesLocalLoginSmoke(t *testing.T) {
 		t.Parallel()
 
 		browser := &browserAuthenticator{}
-		browser.applySettings(domain.AuthenticationSettings{Mode: domain.AuthModeProxy})
+		browser.applySettings(domain.AuthenticationSettings{Mode: appkitauth.ModeProxy})
 		allowed, err := browser.localLoginAllowed(context.Background())
 
 		require.NoError(t, err)
@@ -95,7 +97,7 @@ func TestBrowserAuthenticationModesLocalLoginSmoke(t *testing.T) {
 		t.Parallel()
 
 		browser := &browserAuthenticator{localLoginEnabled: true}
-		browser.applySettings(domain.AuthenticationSettings{Mode: domain.AuthModeProxy})
+		browser.applySettings(domain.AuthenticationSettings{Mode: appkitauth.ModeProxy})
 		allowed, err := browser.localLoginAllowed(context.Background())
 
 		require.NoError(t, err)
@@ -106,7 +108,7 @@ func TestBrowserAuthenticationModesLocalLoginSmoke(t *testing.T) {
 		t.Parallel()
 
 		browser := &browserAuthenticator{}
-		browser.applySettings(domain.AuthenticationSettings{Mode: domain.AuthModeOIDC})
+		browser.applySettings(domain.AuthenticationSettings{Mode: appkitauth.ModeOIDC})
 		allowed, err := browser.localLoginAllowed(context.Background())
 
 		require.NoError(t, err)
@@ -117,7 +119,7 @@ func TestBrowserAuthenticationModesLocalLoginSmoke(t *testing.T) {
 		t.Parallel()
 
 		browser := &browserAuthenticator{localLoginEnabled: true}
-		browser.applySettings(domain.AuthenticationSettings{Mode: domain.AuthModeOIDC})
+		browser.applySettings(domain.AuthenticationSettings{Mode: appkitauth.ModeOIDC})
 		allowed, err := browser.localLoginAllowed(context.Background())
 
 		require.NoError(t, err)
@@ -134,7 +136,7 @@ func TestBrowserAuthenticatorForSettings(t *testing.T) {
 	t.Run("no authentication", func(t *testing.T) {
 		authenticator, err := browser.authenticatorForSettings(
 			context.Background(),
-			domain.AuthenticationSettings{Mode: domain.AuthModeNone},
+			domain.AuthenticationSettings{Mode: appkitauth.ModeNone},
 		)
 
 		require.NoError(t, err)
@@ -144,7 +146,7 @@ func TestBrowserAuthenticatorForSettings(t *testing.T) {
 	t.Run("local", func(t *testing.T) {
 		authenticator, err := browser.authenticatorForSettings(
 			context.Background(),
-			domain.AuthenticationSettings{Mode: domain.AuthModeLocal},
+			domain.AuthenticationSettings{Mode: appkitauth.ModeLocal},
 		)
 
 		require.NoError(t, err)
@@ -155,7 +157,7 @@ func TestBrowserAuthenticatorForSettings(t *testing.T) {
 		authenticator, err := browser.authenticatorForSettings(
 			context.Background(),
 			domain.AuthenticationSettings{
-				Mode:                   domain.AuthModeProxy,
+				Mode:                   appkitauth.ModeProxy,
 				TrustedUsernameHeaders: []string{"X-User"},
 			},
 		)
@@ -178,7 +180,7 @@ func TestBrowserAuthenticatorValidatesOIDCSecrets(t *testing.T) {
 	t.Parallel()
 
 	settings := domain.AuthenticationSettings{
-		Mode:         domain.AuthModeOIDC,
+		Mode:         appkitauth.ModeOIDC,
 		OIDCIssuer:   "https://identity.example.com",
 		OIDCClientID: "kumbuka",
 	}
@@ -213,7 +215,7 @@ func TestBrowserValidationCollectsOIDCProblems(t *testing.T) {
 		SessionSecret: "0123456789abcdef0123456789abcdef",
 	}}
 	settings := domain.AuthenticationSettings{
-		Mode:          domain.AuthModeOIDC,
+		Mode:          appkitauth.ModeOIDC,
 		OIDCIssuer:    "https://identity.example.com",
 		OIDCClientID:  "kumbuka",
 		OIDCGroupSync: true,
@@ -239,7 +241,7 @@ func TestBrowserValidationChecksHeadersOnlyForTrustedProxyMode(t *testing.T) {
 	}}
 
 	oidcSettings := domain.AuthenticationSettings{
-		Mode:                   domain.AuthModeOIDC,
+		Mode:                   appkitauth.ModeOIDC,
 		OIDCIssuer:             "https://identity.example.com",
 		OIDCClientID:           "kumbuka",
 		TrustedUsernameHeaders: []string{"Invalid Header"},
@@ -247,7 +249,7 @@ func TestBrowserValidationChecksHeadersOnlyForTrustedProxyMode(t *testing.T) {
 	require.NoError(t, browser.validateSettings(oidcSettings))
 
 	trustedSettings := domain.AuthenticationSettings{
-		Mode:                   domain.AuthModeProxy,
+		Mode:                   appkitauth.ModeProxy,
 		TrustedUsernameHeaders: []string{"Invalid Header"},
 	}
 	validation, ok := errors.AsType[*domain.ValidationError](browser.validateSettings(trustedSettings))

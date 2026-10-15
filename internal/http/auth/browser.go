@@ -11,6 +11,8 @@ import (
 	"sync"
 	"sync/atomic"
 
+	appkitauth "github.com/containeroo/appkit/auth"
+
 	appkitproxy "github.com/containeroo/appkit/auth/proxy"
 	httpprefix "github.com/containeroo/httpkit/prefix"
 	appauthentication "github.com/kumbuka-me/kumbuka/internal/application/authentication"
@@ -23,7 +25,7 @@ type browserAuthenticator struct {
 	// repository loads authentication settings and persists authenticated identities.
 	repository browserRepository
 	// modeOverride forces one deployment-managed authentication mode when non-empty.
-	modeOverride domain.AuthMode
+	modeOverride appkitauth.Mode
 	// proxyOverrides identifies explicitly configured deployment values.
 	proxyOverrides appkitproxy.Layer
 	// proxyAdminGroup sets the administrator mapping in forced proxy mode.
@@ -134,7 +136,7 @@ func (b *browserAuthenticator) Authenticate(r *http.Request) (domain.User, error
 		}
 	}
 
-	if b.localLoginEnabled && b.modeOverride != domain.AuthModeLocal {
+	if b.localLoginEnabled && b.modeOverride != appkitauth.ModeLocal {
 		user, err := b.local.Authenticate(r)
 		if err == nil {
 			return user, nil
@@ -185,7 +187,7 @@ func (b *browserAuthenticator) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	switch settings.Mode {
-	case domain.AuthModeLocal:
+	case appkitauth.ModeLocal:
 		next := r.URL.Query().Get("next")
 		target := "/auth/local"
 
@@ -195,8 +197,8 @@ func (b *browserAuthenticator) login(w http.ResponseWriter, r *http.Request) {
 
 		httpprefix.Redirect(w, r, target, http.StatusFound)
 		return
-	case domain.AuthModeOIDC:
-	case domain.AuthModeNone, domain.AuthModeProxy:
+	case appkitauth.ModeOIDC:
+	case appkitauth.ModeNone, appkitauth.ModeProxy:
 		LoginUnavailable().ServeHTTP(w, r)
 		return
 	default:
@@ -221,7 +223,7 @@ func (b *browserAuthenticator) callback(w http.ResponseWriter, r *http.Request) 
 		httpresponse.Problem(w, http.StatusInternalServerError, "The request could not be processed.")
 		return
 	}
-	if settings.Mode != domain.AuthModeOIDC {
+	if settings.Mode != appkitauth.ModeOIDC {
 		httpresponse.Problem(w, http.StatusBadRequest, "OIDC authentication is not enabled.")
 		return
 	}
@@ -256,7 +258,7 @@ func (b *browserAuthenticator) validate(ctx context.Context, settings domain.Aut
 		return err
 	}
 
-	if settings.Mode == domain.AuthModeLocal {
+	if settings.Mode == appkitauth.ModeLocal {
 		configured, err := b.repository.HasLocalAdministratorCredential(ctx)
 		if err != nil {
 			return err
@@ -269,7 +271,7 @@ func (b *browserAuthenticator) validate(ctx context.Context, settings domain.Aut
 		}
 	}
 
-	if settings.Mode == domain.AuthModeOIDC {
+	if settings.Mode == appkitauth.ModeOIDC {
 		_, err := b.oidcFor(ctx, settings)
 		return err
 	}
@@ -288,7 +290,7 @@ func (b *browserAuthenticator) completeSetup() {
 		b.setupCompleted()
 	}
 	if b.modeOverride == "" {
-		b.applySettings(domain.AuthenticationSettings{Mode: domain.AuthModeLocal})
+		b.applySettings(domain.AuthenticationSettings{Mode: appkitauth.ModeLocal})
 	}
 }
 
@@ -309,10 +311,10 @@ func (b *browserAuthenticator) loadSettings(ctx context.Context) (domain.Authent
 	// Deployment-managed modes that do not depend on persisted OIDC group
 	// configuration need no settings query even during startup.
 	switch b.modeOverride {
-	case domain.AuthModeNone, domain.AuthModeLocal:
+	case appkitauth.ModeNone, appkitauth.ModeLocal:
 		return domain.AuthenticationSettings{Mode: b.modeOverride}, nil
-	case domain.AuthModeProxy:
-		settings := domain.AuthenticationSettings{Mode: domain.AuthModeProxy, TrustedAdminGroup: b.proxyAdminGroup}
+	case appkitauth.ModeProxy:
+		settings := domain.AuthenticationSettings{Mode: appkitauth.ModeProxy, TrustedAdminGroup: b.proxyAdminGroup}
 		if b.proxyOverrides.TrustedCIDRs != nil && len(*b.proxyOverrides.TrustedCIDRs) > 0 {
 			resolved, err := b.resolveProxyConfig(settings)
 			if err != nil {
@@ -335,8 +337,8 @@ func (b *browserAuthenticator) loadSettings(ctx context.Context) (domain.Authent
 
 	switch b.modeOverride {
 	case "":
-	case domain.AuthModeOIDC:
-		authentication.Mode = domain.AuthModeOIDC
+	case appkitauth.ModeOIDC:
+		authentication.Mode = appkitauth.ModeOIDC
 		authentication.OIDCIssuer = b.oidcConfig.Issuer
 		authentication.OIDCClientID = b.oidcConfig.ClientID
 		authentication.OIDCGroupClaim = b.oidcConfig.GroupClaim
@@ -375,7 +377,7 @@ func (b *browserAuthenticator) refreshOIDCGroupMappings(
 // applySettings replaces the effective authentication snapshot after persisted settings are saved.
 func (b *browserAuthenticator) applySettings(settings domain.AuthenticationSettings) {
 	settings = cloneAuthenticationSettings(settings)
-	if settings.Mode == domain.AuthModeProxy {
+	if settings.Mode == appkitauth.ModeProxy {
 		if resolved, err := b.resolveProxyConfig(settings); err == nil {
 			settings.TrustedUsernameHeaders = resolved.UsernameHeaders
 			settings.TrustedEmailHeaders = resolved.EmailHeaders
@@ -392,11 +394,11 @@ func (b *browserAuthenticator) applySettings(settings domain.AuthenticationSetti
 // cachedAuthenticatorForSettings returns an already-constructible steady-state authenticator without external I/O.
 func (b *browserAuthenticator) cachedAuthenticatorForSettings(settings domain.AuthenticationSettings) Authenticator {
 	switch settings.Mode {
-	case domain.AuthModeNone:
+	case appkitauth.ModeNone:
 		return b.none
-	case domain.AuthModeLocal:
+	case appkitauth.ModeLocal:
 		return b.local
-	case domain.AuthModeProxy:
+	case appkitauth.ModeProxy:
 		resolved, err := b.resolveProxyConfig(settings)
 		if err != nil {
 			return nil
@@ -406,7 +408,7 @@ func (b *browserAuthenticator) cachedAuthenticatorForSettings(settings domain.Au
 			return provider
 		}
 		return nil
-	case domain.AuthModeOIDC:
+	case appkitauth.ModeOIDC:
 		key := oidcSettingsFingerprint(settings)
 		b.mu.Lock()
 		defer b.mu.Unlock()
@@ -437,17 +439,17 @@ func (b *browserAuthenticator) authenticatorForSettings(
 	}
 
 	switch settings.Mode {
-	case domain.AuthModeNone:
+	case appkitauth.ModeNone:
 		return b.none, nil
-	case domain.AuthModeLocal:
+	case appkitauth.ModeLocal:
 		return b.local, nil
-	case domain.AuthModeProxy:
+	case appkitauth.ModeProxy:
 		resolved, err := b.resolveProxyConfig(settings)
 		if err != nil {
 			return nil, err
 		}
 		return NewTrustedProxy(b.trustedProxyLogin, resolved, settings.TrustedAdminGroup)
-	case domain.AuthModeOIDC:
+	case appkitauth.ModeOIDC:
 		return b.oidcFor(ctx, settings)
 	default:
 		return nil, fmt.Errorf("unsupported auth mode %q", settings.Mode)
@@ -459,9 +461,9 @@ func (b *browserAuthenticator) validateSettings(settings domain.AuthenticationSe
 	validation := &domain.ValidationError{}
 
 	switch settings.Mode {
-	case domain.AuthModeNone, domain.AuthModeLocal:
+	case appkitauth.ModeNone, appkitauth.ModeLocal:
 		return nil
-	case domain.AuthModeProxy:
+	case appkitauth.ModeProxy:
 		if b.proxyOverrides.TrustedCIDRs == nil || len(*b.proxyOverrides.TrustedCIDRs) == 0 {
 			appendAuthenticationProblem(validation, "trusted_proxy_cidrs", "Configure KUMBUKA__TRUSTED_PROXY_CIDRS before enabling proxy authentication.")
 		} else {
@@ -473,7 +475,7 @@ func (b *browserAuthenticator) validateSettings(settings domain.AuthenticationSe
 				appendAuthenticationProblem(validation, "trusted_group_headers", "Configure at least one group header for external administrator elevation.")
 			}
 		}
-	case domain.AuthModeOIDC:
+	case appkitauth.ModeOIDC:
 		b.validateOIDCSettings(settings, validation)
 	default:
 		return fmt.Errorf("unsupported auth mode %q", settings.Mode)
@@ -488,7 +490,7 @@ func (b *browserAuthenticator) validateSettings(settings domain.AuthenticationSe
 
 // oidcGroupMappingsEnabled reports whether persisted authentication settings require OIDC group mappings.
 func oidcGroupMappingsEnabled(settings domain.AuthenticationSettings) bool {
-	return settings.Mode == domain.AuthModeOIDC && settings.OIDCGroupSync
+	return settings.Mode == appkitauth.ModeOIDC && settings.OIDCGroupSync
 }
 
 // resolveProxyConfig delegates proxy header defaults and override precedence to AppKit.
@@ -600,7 +602,7 @@ func (b *browserAuthenticator) localLoginAllowed(ctx context.Context) (bool, err
 		return false, err
 	}
 
-	return settings.Mode == domain.AuthModeLocal || b.localLoginEnabled, nil
+	return settings.Mode == appkitauth.ModeLocal || b.localLoginEnabled, nil
 }
 
 // oidcFor returns a cached OIDC integration for the supplied public settings.

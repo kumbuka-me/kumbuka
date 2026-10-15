@@ -7,6 +7,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	appkitauth "github.com/containeroo/appkit/auth"
+
 	appkitproxy "github.com/containeroo/appkit/auth/proxy"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/stretchr/testify/assert"
@@ -86,7 +88,7 @@ func TestConfigureBrowserAuthAllowsSetupWithStaleLocalMode(t *testing.T) {
 
 	repository := &setupBrowserRepository{
 		settings: domain.ApplicationSettings{
-			Authentication: domain.AuthenticationSettings{Mode: domain.AuthModeLocal},
+			Authentication: domain.AuthenticationSettings{Mode: appkitauth.ModeLocal},
 		},
 	}
 
@@ -109,7 +111,7 @@ func TestConfigureBrowserAuthAllowsSetupWithRuntimeOIDCOverride(t *testing.T) {
 
 	configured, err := ConfigureBrowserAuth(
 		context.Background(),
-		BrowserConfig{ModeOverride: domain.AuthModeOIDC, SetupRequired: func() bool { return true }},
+		BrowserConfig{ModeOverride: appkitauth.ModeOIDC, SetupRequired: func() bool { return true }},
 		repository,
 	)
 
@@ -124,7 +126,7 @@ func TestBrowserLoginRedirectsSetupWithStaleLocalMode(t *testing.T) {
 
 	repository := &setupBrowserRepository{
 		settings: domain.ApplicationSettings{
-			Authentication: domain.AuthenticationSettings{Mode: domain.AuthModeLocal},
+			Authentication: domain.AuthenticationSettings{Mode: appkitauth.ModeLocal},
 		},
 	}
 	browser := &browserAuthenticator{repository: repository, setupRequired: func() bool { return true }}
@@ -144,7 +146,7 @@ func TestBrowserLoginRedirectsSetupWithRuntimeOIDCOverride(t *testing.T) {
 	repository := &setupBrowserRepository{}
 	browser := &browserAuthenticator{
 		repository:    repository,
-		modeOverride:  domain.AuthModeOIDC,
+		modeOverride:  appkitauth.ModeOIDC,
 		setupRequired: func() bool { return true },
 	}
 	response := httptest.NewRecorder()
@@ -170,7 +172,7 @@ func TestBrowserAuthenticateUsesBootstrapSessionWithRuntimeOverride(t *testing.T
 	}
 	browser := &browserAuthenticator{
 		repository:   repository,
-		modeOverride: domain.AuthModeOIDC,
+		modeOverride: appkitauth.ModeOIDC,
 		local:        NewLocal(repository, "http://localhost:8080"),
 	}
 	request := httptest.NewRequest(http.MethodGet, "/admin/configuration", nil)
@@ -191,7 +193,7 @@ func TestBrowserValidationStillRequiresLocalAdministratorAfterSetup(t *testing.T
 	repository := &setupBrowserRepository{}
 	browser := &browserAuthenticator{repository: repository}
 
-	err := browser.validate(context.Background(), domain.AuthenticationSettings{Mode: domain.AuthModeLocal})
+	err := browser.validate(context.Background(), domain.AuthenticationSettings{Mode: appkitauth.ModeLocal})
 
 	validation, ok := errors.AsType[*domain.ValidationError](err)
 	require.True(t, ok)
@@ -209,7 +211,7 @@ func TestBrowserCurrentSettingsOverlaysRuntimeManagedFields(t *testing.T) {
 
 		repository := &setupBrowserRepository{settings: domain.ApplicationSettings{
 			Authentication: domain.AuthenticationSettings{
-				Mode:           domain.AuthModeLocal,
+				Mode:           appkitauth.ModeLocal,
 				OIDCIssuer:     "https://stored.example.test",
 				OIDCClientID:   "stored-client",
 				OIDCGroupClaim: "groups",
@@ -218,7 +220,7 @@ func TestBrowserCurrentSettingsOverlaysRuntimeManagedFields(t *testing.T) {
 		}}
 		browser := &browserAuthenticator{
 			repository:   repository,
-			modeOverride: domain.AuthModeOIDC,
+			modeOverride: appkitauth.ModeOIDC,
 			oidcConfig: OIDCConfig{
 				Issuer:     "https://runtime.example.test",
 				ClientID:   "runtime-client",
@@ -230,7 +232,7 @@ func TestBrowserCurrentSettingsOverlaysRuntimeManagedFields(t *testing.T) {
 		settings, err := browser.currentSettings(context.Background())
 
 		require.NoError(t, err)
-		assert.Equal(t, domain.AuthModeOIDC, settings.Mode)
+		assert.Equal(t, appkitauth.ModeOIDC, settings.Mode)
 		assert.Equal(t, "https://runtime.example.test", settings.OIDCIssuer)
 		assert.Equal(t, "runtime-client", settings.OIDCClientID)
 		assert.Equal(t, "roles", settings.OIDCGroupClaim)
@@ -242,7 +244,7 @@ func TestBrowserCurrentSettingsOverlaysRuntimeManagedFields(t *testing.T) {
 
 		repository := &setupBrowserRepository{settings: domain.ApplicationSettings{
 			Authentication: domain.AuthenticationSettings{
-				Mode:                      domain.AuthModeLocal,
+				Mode:                      appkitauth.ModeLocal,
 				TrustedUsernameHeaders:    []string{"Stored-User"},
 				TrustedEmailHeaders:       []string{"Stored-Email"},
 				TrustedDisplayNameHeaders: []string{"Stored-Name"},
@@ -252,7 +254,7 @@ func TestBrowserCurrentSettingsOverlaysRuntimeManagedFields(t *testing.T) {
 		}}
 		browser := &browserAuthenticator{
 			repository:   repository,
-			modeOverride: domain.AuthModeProxy,
+			modeOverride: appkitauth.ModeProxy,
 			proxyOverrides: appkitproxy.Layer{
 				TrustedCIDRs:       &[]string{"192.0.2.0/24"},
 				UsernameHeaders:    &[]string{"Runtime-User"},
@@ -271,7 +273,7 @@ func TestBrowserCurrentSettingsOverlaysRuntimeManagedFields(t *testing.T) {
 		require.NoError(t, err)
 		assert.Zero(t, repository.settingsCalls)
 		assert.False(t, repository.oidcMappingsChecked)
-		assert.Equal(t, domain.AuthModeProxy, settings.Mode)
+		assert.Equal(t, appkitauth.ModeProxy, settings.Mode)
 		assert.Equal(t, []string{"Runtime-User"}, settings.TrustedUsernameHeaders)
 		assert.Equal(t, []string{"Runtime-Email"}, settings.TrustedEmailHeaders)
 		assert.Equal(t, []string{"Runtime-Name"}, settings.TrustedDisplayNameHeaders)
@@ -288,7 +290,7 @@ func TestRuntimeTrustedProxyAuthenticateDoesNotReadApplicationSettings(t *testin
 	configured, err := ConfigureBrowserAuth(
 		context.Background(),
 		BrowserConfig{
-			ModeOverride: domain.AuthModeProxy,
+			ModeOverride: appkitauth.ModeProxy,
 			ProxyOverrides: appkitproxy.Layer{
 				TrustedCIDRs:    &[]string{"192.0.2.0/24"},
 				UsernameHeaders: &[]string{"X-User"},
@@ -314,7 +316,7 @@ func TestConfiguredPersistedTrustedProxyAuthenticationCachesSettings(t *testing.
 
 	repository := &setupBrowserRepository{
 		settings: domain.ApplicationSettings{Authentication: domain.AuthenticationSettings{
-			Mode:                   domain.AuthModeProxy,
+			Mode:                   appkitauth.ModeProxy,
 			TrustedUsernameHeaders: []string{"X-User"},
 		}},
 		trustedProxyUser: domain.User{ID: 7, Username: "reader", Enabled: true},
@@ -339,7 +341,7 @@ func TestConfiguredPersistedTrustedProxyAuthenticationCachesSettings(t *testing.
 func TestProxyAuthenticationRejectsMissingTrustedCIDRs(t *testing.T) {
 	t.Parallel()
 	repository := &setupBrowserRepository{settings: domain.ApplicationSettings{Authentication: domain.AuthenticationSettings{
-		Mode:                   domain.AuthModeProxy,
+		Mode:                   appkitauth.ModeProxy,
 		TrustedUsernameHeaders: []string{"X-User"},
 	}}}
 	_, err := ConfigureBrowserAuth(context.Background(), BrowserConfig{}, repository)
@@ -362,7 +364,7 @@ func TestConfigureBrowserAuthRejectsInvalidProxyCIDRs(t *testing.T) {
 func TestConfigureBrowserAuthWildcardPeers(t *testing.T) {
 	t.Parallel()
 	repository := &setupBrowserRepository{settings: domain.ApplicationSettings{Authentication: domain.AuthenticationSettings{
-		Mode:                   domain.AuthModeProxy,
+		Mode:                   appkitauth.ModeProxy,
 		TrustedUsernameHeaders: []string{"X-User"},
 	}}, trustedProxyUser: domain.User{ID: 7, Username: "reader", Enabled: true}}
 	configured, err := ConfigureBrowserAuth(context.Background(), BrowserConfig{
@@ -390,7 +392,7 @@ func TestConfigureBrowserAuthRejectsMixedWildcard(t *testing.T) {
 func TestProxyDefaultsFromAppkit(t *testing.T) {
 	t.Parallel()
 	repository := &setupBrowserRepository{settings: domain.ApplicationSettings{Authentication: domain.AuthenticationSettings{
-		Mode: domain.AuthModeProxy,
+		Mode: appkitauth.ModeProxy,
 	}}, trustedProxyUser: domain.User{ID: 7, Enabled: true}}
 	configured, err := ConfigureBrowserAuth(context.Background(), BrowserConfig{
 		ProxyOverrides: appkitproxy.Layer{TrustedCIDRs: &[]string{"192.0.2.0/24"}},
@@ -408,7 +410,7 @@ func TestProxyDefaultsFromAppkit(t *testing.T) {
 func TestProxyDeploymentHeadersOverridePersisted(t *testing.T) {
 	t.Parallel()
 	repository := &setupBrowserRepository{settings: domain.ApplicationSettings{Authentication: domain.AuthenticationSettings{
-		Mode: domain.AuthModeProxy, TrustedUsernameHeaders: []string{"Stored-User"},
+		Mode: appkitauth.ModeProxy, TrustedUsernameHeaders: []string{"Stored-User"},
 	}}, trustedProxyUser: domain.User{ID: 7, Enabled: true}}
 	configured, err := ConfigureBrowserAuth(context.Background(), BrowserConfig{
 		ProxyOverrides: appkitproxy.Layer{
@@ -433,7 +435,7 @@ func TestConfiguredLocalAuthenticationCachesSettings(t *testing.T) {
 
 	const token = "local-session"
 	repository := &setupBrowserRepository{
-		settings:             domain.ApplicationSettings{Authentication: domain.AuthenticationSettings{Mode: domain.AuthModeLocal}},
+		settings:             domain.ApplicationSettings{Authentication: domain.AuthenticationSettings{Mode: appkitauth.ModeLocal}},
 		localAdminCredential: true,
 		sessionUser:          domain.User{ID: 7, Username: "reader", Enabled: true},
 	}
@@ -458,12 +460,12 @@ func TestApplySettingsReplacesCachedAuthentication(t *testing.T) {
 	repository := &setupBrowserRepository{}
 	browser := &browserAuthenticator{repository: repository}
 	browser.applySettings(domain.AuthenticationSettings{
-		Mode:                   domain.AuthModeProxy,
+		Mode:                   appkitauth.ModeProxy,
 		TrustedUsernameHeaders: []string{"X-Original"},
 	})
 
 	browser.applySettings(domain.AuthenticationSettings{
-		Mode:                   domain.AuthModeProxy,
+		Mode:                   appkitauth.ModeProxy,
 		TrustedUsernameHeaders: []string{"X-Replacement"},
 	})
 	settings, err := browser.currentSettings(context.Background())
@@ -479,12 +481,12 @@ func TestCompleteSetupSwitchesCachedDefaultModeToLocal(t *testing.T) {
 
 	completed := false
 	browser := &browserAuthenticator{setupCompleted: func() { completed = true }}
-	browser.applySettings(domain.AuthenticationSettings{Mode: domain.AuthModeNone})
+	browser.applySettings(domain.AuthenticationSettings{Mode: appkitauth.ModeNone})
 
 	browser.completeSetup()
 	settings, err := browser.currentSettings(context.Background())
 
 	require.NoError(t, err)
 	assert.True(t, completed)
-	assert.Equal(t, domain.AuthModeLocal, settings.Mode)
+	assert.Equal(t, appkitauth.ModeLocal, settings.Mode)
 }

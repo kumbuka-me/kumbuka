@@ -4,6 +4,8 @@ import (
 	"context"
 	"net/http"
 
+	appkitauth "github.com/containeroo/appkit/auth"
+
 	appkitproxy "github.com/containeroo/appkit/auth/proxy"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
@@ -11,7 +13,7 @@ import (
 // BrowserConfig contains deployment-level browser authentication configuration.
 type BrowserConfig struct {
 	// ModeOverride forces one authentication mode for recovery when non-empty.
-	ModeOverride domain.AuthMode
+	ModeOverride appkitauth.Mode
 	// ProxyOverrides contains explicitly set deployment proxy headers and trusted peers.
 	ProxyOverrides appkitproxy.Layer
 	// ProxyAdminGroup is the deployment-managed external administrator group.

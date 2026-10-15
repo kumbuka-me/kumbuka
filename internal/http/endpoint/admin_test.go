@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 
+	appkitauth "github.com/containeroo/appkit/auth"
+
 	"github.com/kumbuka-me/kumbuka/internal/http/auth"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
@@ -140,7 +142,7 @@ func TestAuthenticationSettingsFromForm(t *testing.T) {
 	settings, err := authenticationSettingsFromForm(request)
 
 	require.NoError(t, err)
-	assert.Equal(t, domain.AuthModeProxy, settings.Mode)
+	assert.Equal(t, appkitauth.ModeProxy, settings.Mode)
 	assert.Equal(t, "https://identity.example.com", settings.OIDCIssuer)
 	assert.Equal(t, "kumbuka", settings.OIDCClientID)
 	assert.Equal(t, "groups", settings.OIDCGroupClaim)
@@ -198,10 +200,10 @@ func TestPreserveRuntimeManagedAuthenticationSettings(t *testing.T) {
 		settings := preserveRuntimeManagedAuthenticationSettings(
 			submitted,
 			current,
-			webview.RuntimeInfo{AuthModeOverride: domain.AuthModeOIDC},
+			webview.RuntimeInfo{AuthModeOverride: appkitauth.ModeOIDC},
 		)
 
-		assert.Equal(t, domain.AuthModeLocal, settings.Mode)
+		assert.Equal(t, appkitauth.ModeLocal, settings.Mode)
 		assert.Equal(t, "https://stored.example.test", settings.OIDCIssuer)
 		assert.Equal(t, "stored-client", settings.OIDCClientID)
 		assert.Equal(t, "stored-groups", settings.OIDCGroupClaim)
@@ -212,7 +214,7 @@ func TestPreserveRuntimeManagedAuthenticationSettings(t *testing.T) {
 		t.Parallel()
 
 		current := domain.AuthenticationSettings{
-			Mode:                      domain.AuthModeLocal,
+			Mode:                      appkitauth.ModeLocal,
 			TrustedUsernameHeaders:    []string{"Stored-User"},
 			TrustedEmailHeaders:       []string{"Stored-Email"},
 			TrustedDisplayNameHeaders: []string{"Stored-Name"},
@@ -220,7 +222,7 @@ func TestPreserveRuntimeManagedAuthenticationSettings(t *testing.T) {
 			TrustedAdminGroup:         "stored-admins",
 		}
 		submitted := domain.AuthenticationSettings{
-			Mode:                      domain.AuthModeNone,
+			Mode:                      appkitauth.ModeNone,
 			TrustedUsernameHeaders:    []string{"Changed-User"},
 			TrustedEmailHeaders:       []string{"Changed-Email"},
 			TrustedDisplayNameHeaders: []string{"Changed-Name"},
@@ -231,10 +233,10 @@ func TestPreserveRuntimeManagedAuthenticationSettings(t *testing.T) {
 		settings := preserveRuntimeManagedAuthenticationSettings(
 			submitted,
 			current,
-			webview.RuntimeInfo{AuthModeOverride: domain.AuthModeProxy},
+			webview.RuntimeInfo{AuthModeOverride: appkitauth.ModeProxy},
 		)
 
-		assert.Equal(t, domain.AuthModeLocal, settings.Mode)
+		assert.Equal(t, appkitauth.ModeLocal, settings.Mode)
 		assert.Equal(t, []string{"Stored-User"}, settings.TrustedUsernameHeaders)
 		assert.Equal(t, []string{"Stored-Email"}, settings.TrustedEmailHeaders)
 		assert.Equal(t, []string{"Stored-Name"}, settings.TrustedDisplayNameHeaders)
@@ -254,14 +256,14 @@ func TestEffectiveAuthenticationSettings(t *testing.T) {
 	}
 
 	effective := effectiveAuthenticationSettings(settings, webview.RuntimeInfo{
-		AuthModeOverride:       domain.AuthModeOIDC,
+		AuthModeOverride:       appkitauth.ModeOIDC,
 		OIDCIssuerOverride:     "https://runtime.example.test",
 		OIDCClientIDOverride:   "runtime-client",
 		OIDCGroupClaimOverride: "roles",
 		OIDCAdminGroupOverride: "runtime-admins",
 	})
 
-	assert.Equal(t, domain.AuthModeOIDC, effective.Mode)
+	assert.Equal(t, appkitauth.ModeOIDC, effective.Mode)
 	assert.Equal(t, "https://runtime.example.test", effective.OIDCIssuer)
 	assert.Equal(t, "runtime-client", effective.OIDCClientID)
 	assert.Equal(t, "roles", effective.OIDCGroupClaim)
@@ -272,13 +274,13 @@ func TestAdminAuthenticationTemplates(t *testing.T) {
 	views := testHandlerViews(t, webview.RuntimeInfo{})
 
 	data := webview.Layout{Runtime: webview.RuntimeInfo{
-		AuthModeOverride:       domain.AuthModeOIDC,
+		AuthModeOverride:       appkitauth.ModeOIDC,
 		OIDCIssuerOverride:     "https://runtime.example.test",
 		OIDCClientIDOverride:   "runtime-client",
 		OIDCGroupClaimOverride: "roles",
 		OIDCAdminGroupOverride: "runtime-admins",
 	}}
-	data.ApplicationSettings.Authentication.Mode = domain.AuthModeNone
+	data.ApplicationSettings.Authentication.Mode = appkitauth.ModeNone
 	html, err := views.RenderHTML("admin_configuration", "content", webview.AdminConfigurationView{Layout: data})
 
 	require.NoError(t, err)
@@ -312,8 +314,8 @@ func TestAdminAuthenticationTemplates(t *testing.T) {
 func TestEffectiveTrustedProxyAuthenticationSettings(t *testing.T) {
 	t.Parallel()
 
-	effective := effectiveAuthenticationSettings(domain.AuthenticationSettings{Mode: domain.AuthModeLocal}, webview.RuntimeInfo{
-		AuthModeOverride:                  domain.AuthModeProxy,
+	effective := effectiveAuthenticationSettings(domain.AuthenticationSettings{Mode: appkitauth.ModeLocal}, webview.RuntimeInfo{
+		AuthModeOverride:                  appkitauth.ModeProxy,
 		TrustedUsernameHeadersOverride:    []string{"Runtime-User"},
 		TrustedEmailHeadersOverride:       []string{"Runtime-Email"},
 		TrustedDisplayNameHeadersOverride: []string{"Runtime-Name"},
@@ -321,7 +323,7 @@ func TestEffectiveTrustedProxyAuthenticationSettings(t *testing.T) {
 		TrustedAdminGroupOverride:         "runtime-admins",
 	})
 
-	assert.Equal(t, domain.AuthModeProxy, effective.Mode)
+	assert.Equal(t, appkitauth.ModeProxy, effective.Mode)
 	assert.Equal(t, []string{"Runtime-User"}, effective.TrustedUsernameHeaders)
 	assert.Equal(t, []string{"Runtime-Email"}, effective.TrustedEmailHeaders)
 	assert.Equal(t, []string{"Runtime-Name"}, effective.TrustedDisplayNameHeaders)

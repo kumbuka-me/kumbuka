@@ -6,6 +6,8 @@ import (
 	"log/slog"
 	"testing"
 
+	appkitauth "github.com/containeroo/appkit/auth"
+
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -20,7 +22,7 @@ type accountRepositoryStub struct {
 	// calls counts calls observed by the test double.
 	calls int
 	// mode configures or records the mode value used by the fixture.
-	mode domain.AuthMode
+	mode appkitauth.Mode
 	// failure configures or records the failure value used by the fixture.
 	failure error
 	// profile is the current profile returned to profile mutations.

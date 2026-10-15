@@ -11,6 +11,8 @@ import (
 	"slices"
 	"strings"
 
+	appkitauth "github.com/containeroo/appkit/auth"
+
 	httpprefix "github.com/containeroo/httpkit/prefix"
 	"github.com/kumbuka-me/kumbuka/internal/i18n"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
@@ -105,7 +107,7 @@ type RuntimeInfo struct {
 	// AllowUserRegistrationOverride is the deployment-managed registration value when configured.
 	AllowUserRegistrationOverride bool
 	// AuthModeOverride is the optional deployment-level recovery override.
-	AuthModeOverride domain.AuthMode
+	AuthModeOverride appkitauth.Mode
 	// OIDCIssuerOverride is the deployment-managed issuer used by the OIDC runtime override.
 	OIDCIssuerOverride string
 	// OIDCClientIDOverride is the deployment-managed client ID used by the OIDC runtime override.

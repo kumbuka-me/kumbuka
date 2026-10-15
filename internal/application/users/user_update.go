@@ -6,6 +6,8 @@ import (
 	"net/mail"
 	"strings"
 
+	appkitauth "github.com/containeroo/appkit/auth"
+
 	"github.com/kumbuka-me/kumbuka/internal/application/audit"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/kumbuka-me/kumbuka/pkg/utils"
@@ -42,7 +44,7 @@ type UserUpdateInput struct {
 	// LocalCredentialEnabled is the requested recovery-credential state when no new password is supplied.
 	LocalCredentialEnabled bool
 	// AuthModeOverride is the deployment-managed authentication mode, when configured.
-	AuthModeOverride domain.AuthMode
+	AuthModeOverride appkitauth.Mode
 }
 
 // changesProfile reports whether the request edits a profile value or restores provider ownership.
@@ -250,7 +252,7 @@ func (s *Users) prepareLocalCredentialUpdate(ctx context.Context, input UserUpda
 	if err != nil {
 		return err
 	}
-	if !domain.IsExternalAuthMode(mode) {
+	if !isExternalAuthenticationMode(mode) {
 		return domain.NewValidationError(
 			"local_credential_enabled",
 			"Local recovery credentials can only be enabled or disabled while external authentication is active.")
@@ -259,8 +261,13 @@ func (s *Users) prepareLocalCredentialUpdate(ctx context.Context, input UserUpda
 	return nil
 }
 
+// isExternalAuthenticationMode reports whether mode relies on an external identity boundary.
+func isExternalAuthenticationMode(mode appkitauth.Mode) bool {
+	return mode == appkitauth.ModeOIDC || mode == appkitauth.ModeProxy
+}
+
 // accountAuthenticationMode returns the deployment override or the persisted authentication mode.
-func (s *Users) accountAuthenticationMode(ctx context.Context, override domain.AuthMode) (domain.AuthMode, error) {
+func (s *Users) accountAuthenticationMode(ctx context.Context, override appkitauth.Mode) (appkitauth.Mode, error) {
 	if override != "" {
 		return override, nil
 	}
