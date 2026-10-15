@@ -10,6 +10,7 @@ import (
 
 	appkitauth "github.com/containeroo/appkit/auth"
 	appkitconfig "github.com/containeroo/appkit/config"
+	"github.com/containeroo/tinyflags"
 	"github.com/kumbuka-me/kumbuka/internal/flags"
 	"github.com/kumbuka-me/kumbuka/internal/http/auth"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
@@ -73,11 +74,18 @@ func TestNewBrowserAuthConfigMapsDeploymentSettings(t *testing.T) {
 // TestNewBrowserAuthConfigPreservesExplicitProxyOverrides verifies only selected flags reach appkit.
 func TestNewBrowserAuthConfigPreservesExplicitProxyOverrides(t *testing.T) {
 	t.Parallel()
-	cfg, err := flags.Parse([]string{
-		"--auth-mode=proxy", "--trusted-proxy-cidrs=*", "--trusted-username-headers=",
-		"--trusted-email-headers=X-Auth-Request-Email",
-	}, "test")
-	require.NoError(t, err)
+	cfg := flags.Config{
+		Proxy: appkitconfig.Proxy{
+			TrustedCIDRs:    []string{"*"},
+			UsernameHeaders: []string{},
+			EmailHeaders:    []string{"X-Auth-Request-Email"},
+		},
+		Overrides: tinyflags.Overrides{
+			"trusted-proxy-cidrs":      {},
+			"trusted-username-headers": {},
+			"trusted-email-headers":    {},
+		},
+	}
 	got := newBrowserAuthConfig(cfg)
 	require.NotNil(t, got.ProxyOverrides.TrustedCIDRs)
 	require.NotNil(t, got.ProxyOverrides.UsernameHeaders)

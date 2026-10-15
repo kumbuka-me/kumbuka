@@ -91,6 +91,7 @@ test("visual widget exactly-one fields switch modes and focus added rows", async
     );
     await statuses.last().fill("gay4");
     await dialog.getByRole("button", { name: "Apply" }).click();
+    await dialog.waitFor({ state: "hidden" });
 
     const source = page.locator("textarea[data-markdown-editor]");
     assert.match(await source.inputValue(), /options="gay1;gay2;gay3;gay4"/);
@@ -98,6 +99,7 @@ test("visual widget exactly-one fields switch modes and focus added rows", async
 
     await widget.click();
     const nextDialog = page.getByRole("dialog", { name: "Edit Status" });
+    await nextDialog.waitFor({ state: "visible" });
     const nextSet = nextDialog.getByLabel("Reusable set");
     await nextSet.fill("custom1");
     const nextStatuses = nextDialog.getByLabel("Status", { exact: true });
