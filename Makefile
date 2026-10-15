@@ -39,14 +39,18 @@ include $(call dev-tools-module,tag)
 include $(call dev-tools-module,port)
 include $(call dev-tools-module,browser)
 include $(call dev-tools-module,help)
-include	$(call dev-tools,favicon-generate)
-include	$(call dev-tools,svg-to-png)
 
 ## Project-local tools
 
 GOLANGCI_LINT := bin/golangci-lint
 FAVICON_GENERATE := $(DEV_TOOLS_BIN)/favicon-generate
 SVG_TO_PNG := $(DEV_TOOLS_BIN)/svg-to-png
+
+$(FAVICON_GENERATE): | $(DEV_TOOLS_BIN)
+	$(call download-dev-tool,favicon-generate,$@)
+
+$(SVG_TO_PNG): | $(DEV_TOOLS_BIN)
+	$(call download-dev-tool,svg-to-png,$@)
 
 ## Build Configuration
 
@@ -428,10 +432,6 @@ verify: check-generated check-format lint vet test ## Run the complete local ver
 
 .PHONY: lint-go
 lint-go: web golangci-lint ## Run golangci-lint.
-	@$(GO_INSTALL_TOOL) \
-		--target "$(GOLANGCI_LINT)" \
-		--package github.com/golangci/golangci-lint/v2/cmd/golangci-lint \
-		--tool-version "$(GOLANGCI_LINT_VERSION)"
 	$(GOLANGCI_LINT) run
 
 .PHONY: lint-fix
@@ -452,3 +452,4 @@ golangci-lint: $(GO_INSTALL_TOOL) ## Download golangci-lint locally if necessary
 		--target "$(GOLANGCI_LINT)" \
 		--package github.com/golangci/golangci-lint/v2/cmd/golangci-lint \
 		--tool-version "$(GOLANGCI_LINT_VERSION)"
+
