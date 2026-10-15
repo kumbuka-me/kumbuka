@@ -7,6 +7,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	appkitproxy "github.com/containeroo/appkit/auth/proxy"
+
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -252,13 +254,14 @@ func TestBrowserCurrentSettingsOverlaysRuntimeManagedFields(t *testing.T) {
 		browser := &browserAuthenticator{
 			repository:   repository,
 			modeOverride: domain.AuthModeTrustedProxy,
-			trustedProxy: TrustedProxyHeaders{
-				Username:    []string{"Runtime-User"},
-				Email:       []string{"Runtime-Email"},
-				DisplayName: []string{"Runtime-Name"},
-				Groups:      []string{"Runtime-Groups"},
-				AdminGroup:  "runtime-admins",
+			proxyOverrides: appkitproxy.Layer{
+				TrustedCIDRs:       &[]string{"192.0.2.0/24"},
+				UsernameHeaders:    &[]string{"Runtime-User"},
+				EmailHeaders:       &[]string{"Runtime-Email"},
+				DisplayNameHeaders: &[]string{"Runtime-Name"},
+				GroupHeaders:       &[]string{"Runtime-Groups"},
 			},
+			proxyAdminGroup: "runtime-admins",
 		}
 
 		repository.settings.Authentication.OIDCGroupSync = true
@@ -286,9 +289,11 @@ func TestRuntimeTrustedProxyAuthenticateDoesNotReadApplicationSettings(t *testin
 	configured, err := ConfigureBrowserAuth(
 		context.Background(),
 		BrowserConfig{
-			ModeOverride:      domain.AuthModeTrustedProxy,
-			TrustedProxyCIDRs: []string{"192.0.2.0/24"},
-			TrustedProxy:      TrustedProxyHeaders{Username: []string{"X-User"}},
+			ModeOverride: domain.AuthModeTrustedProxy,
+			ProxyOverrides: appkitproxy.Layer{
+				TrustedCIDRs:    &[]string{"192.0.2.0/24"},
+				UsernameHeaders: &[]string{"X-User"},
+			},
 		},
 		repository,
 	)
@@ -316,7 +321,7 @@ func TestConfiguredPersistedTrustedProxyAuthenticationCachesSettings(t *testing.
 		trustedProxyUser: domain.User{ID: 7, Username: "reader", Enabled: true},
 	}
 	configured, err := ConfigureBrowserAuth(context.Background(), BrowserConfig{
-		TrustedProxyCIDRs: []string{"192.0.2.0/24"},
+		ProxyOverrides: appkitproxy.Layer{TrustedCIDRs: &[]string{"192.0.2.0/24"}},
 	}, repository)
 	require.NoError(t, err)
 	require.Equal(t, 1, repository.settingsCalls)
@@ -349,7 +354,7 @@ func TestProxyAuthenticationRejectsMissingTrustedCIDRs(t *testing.T) {
 func TestConfigureBrowserAuthRejectsInvalidProxyCIDRs(t *testing.T) {
 	t.Parallel()
 	_, err := ConfigureBrowserAuth(context.Background(), BrowserConfig{
-		TrustedProxyCIDRs: []string{"invalid"},
+		ProxyOverrides: appkitproxy.Layer{TrustedCIDRs: &[]string{"invalid"}},
 	}, &setupBrowserRepository{})
 	require.ErrorContains(t, err, "invalid trusted proxy CIDR")
 }
@@ -362,7 +367,7 @@ func TestConfigureBrowserAuthWildcardPeers(t *testing.T) {
 		TrustedUsernameHeaders: []string{"X-User"},
 	}}, trustedProxyUser: domain.User{ID: 7, Username: "reader", Enabled: true}}
 	configured, err := ConfigureBrowserAuth(context.Background(), BrowserConfig{
-		TrustedProxyCIDRs: []string{"*"},
+		ProxyOverrides: appkitproxy.Layer{TrustedCIDRs: &[]string{"*"}},
 	}, repository)
 	require.NoError(t, err)
 
@@ -377,9 +382,50 @@ func TestConfigureBrowserAuthWildcardPeers(t *testing.T) {
 func TestConfigureBrowserAuthRejectsMixedWildcard(t *testing.T) {
 	t.Parallel()
 	_, err := ConfigureBrowserAuth(context.Background(), BrowserConfig{
-		TrustedProxyCIDRs: []string{"*", "127.0.0.1/32"},
+		ProxyOverrides: appkitproxy.Layer{TrustedCIDRs: &[]string{"*", "127.0.0.1/32"}},
 	}, &setupBrowserRepository{})
 	require.ErrorContains(t, err, "alone")
+}
+
+// TestProxyDefaultsFromAppkit verifies a persisted proxy mode inherits framework headers.
+func TestProxyDefaultsFromAppkit(t *testing.T) {
+	t.Parallel()
+	repository := &setupBrowserRepository{settings: domain.ApplicationSettings{Authentication: domain.AuthenticationSettings{
+		Mode: domain.AuthModeTrustedProxy,
+	}}, trustedProxyUser: domain.User{ID: 7, Enabled: true}}
+	configured, err := ConfigureBrowserAuth(context.Background(), BrowserConfig{
+		ProxyOverrides: appkitproxy.Layer{TrustedCIDRs: &[]string{"192.0.2.0/24"}},
+	}, repository)
+	require.NoError(t, err)
+	request := httptest.NewRequest(http.MethodGet, "/", nil)
+	request.Header.Set("X-Auth-Request-Email", "reader@example.test")
+	user, err := configured.Authenticator.Authenticate(request)
+	require.NoError(t, err)
+	assert.Equal(t, int64(7), user.ID)
+	assert.Equal(t, 1, repository.settingsCalls)
+}
+
+// TestProxyDeploymentHeadersOverridePersisted verifies explicit empty values are preserved.
+func TestProxyDeploymentHeadersOverridePersisted(t *testing.T) {
+	t.Parallel()
+	repository := &setupBrowserRepository{settings: domain.ApplicationSettings{Authentication: domain.AuthenticationSettings{
+		Mode: domain.AuthModeTrustedProxy, TrustedUsernameHeaders: []string{"Stored-User"},
+	}}, trustedProxyUser: domain.User{ID: 7, Enabled: true}}
+	configured, err := ConfigureBrowserAuth(context.Background(), BrowserConfig{
+		ProxyOverrides: appkitproxy.Layer{
+			TrustedCIDRs:    &[]string{"192.0.2.0/24"},
+			UsernameHeaders: &[]string{},
+			EmailHeaders:    &[]string{"X-Auth-Request-Email"},
+		},
+	}, repository)
+	require.NoError(t, err)
+	request := httptest.NewRequest(http.MethodGet, "/", nil)
+	request.Header.Set("Stored-User", "forged")
+	_, err = configured.Authenticator.Authenticate(request)
+	require.ErrorIs(t, err, ErrUnauthenticated)
+	request.Header.Set("X-Auth-Request-Email", "reader@example.test")
+	_, err = configured.Authenticator.Authenticate(request)
+	require.NoError(t, err)
 }
 
 // TestConfiguredLocalAuthenticationCachesSettings verifies local session validation is the only steady-state database lookup.

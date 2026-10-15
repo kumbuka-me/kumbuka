@@ -4,6 +4,8 @@ import (
 	"context"
 	"net/http"
 
+	appkitproxy "github.com/containeroo/appkit/auth/proxy"
+
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
 
@@ -11,10 +13,10 @@ import (
 type BrowserConfig struct {
 	// ModeOverride forces one authentication mode for recovery when non-empty.
 	ModeOverride domain.AuthMode
-	// TrustedProxy contains header overrides used with trusted-proxy recovery mode.
-	TrustedProxy TrustedProxyHeaders
-	// TrustedProxyCIDRs restricts which immediate peers may assert proxy identity headers.
-	TrustedProxyCIDRs []string
+	// ProxyOverrides contains explicitly set deployment proxy headers and trusted peers.
+	ProxyOverrides appkitproxy.Layer
+	// ProxyAdminGroup is the deployment-managed external administrator group.
+	ProxyAdminGroup string
 	// OIDC contains deployment secrets plus OIDC overrides used with recovery mode.
 	OIDC OIDCConfig
 	// LocalLoginEnabled exposes local login alongside another configured mode for recovery.

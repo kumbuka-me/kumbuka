@@ -4,6 +4,8 @@ import (
 	"context"
 	"net/http"
 	"testing"
+
+	appkitproxy "github.com/containeroo/appkit/auth/proxy"
 	"time"
 
 	appkitauth "github.com/containeroo/appkit/auth"
@@ -45,17 +47,12 @@ func TestNewBrowserAuthConfigMapsDeploymentSettings(t *testing.T) {
 		},
 	}
 
+	// Only values recorded in cfg.Overrides should be considered deployment overrides.
 	got := newBrowserAuthConfig(cfg)
 	want := auth.BrowserConfig{
-		ModeOverride:      domain.AuthModeOIDC,
-		TrustedProxyCIDRs: []string{"127.0.0.1/32"},
-		TrustedProxy: auth.TrustedProxyHeaders{
-			Username:    []string{"X-User", "Remote-User"},
-			Email:       []string{"X-Email"},
-			DisplayName: []string{"X-Name"},
-			Groups:      []string{"X-Groups"},
-			AdminGroup:  "admins",
-		},
+		ModeOverride:    domain.AuthModeOIDC,
+		ProxyOverrides:  appkitproxy.Layer{},
+		ProxyAdminGroup: "admins",
 		OIDC: auth.OIDCConfig{
 			ClientID:      "kumbuka",
 			ClientSecret:  "client-secret",
@@ -71,6 +68,24 @@ func TestNewBrowserAuthConfigMapsDeploymentSettings(t *testing.T) {
 
 	require.NotNil(t, got.AllowUserRegistrationOverride)
 	assert.Equal(t, want, got)
+}
+
+// TestNewBrowserAuthConfigPreservesExplicitProxyOverrides verifies only selected flags reach appkit.
+func TestNewBrowserAuthConfigPreservesExplicitProxyOverrides(t *testing.T) {
+	t.Parallel()
+	cfg, err := flags.Parse([]string{
+		"--auth-mode=proxy", "--trusted-proxy-cidrs=*", "--trusted-username-headers=",
+		"--trusted-email-headers=X-Auth-Request-Email",
+	}, "test")
+	require.NoError(t, err)
+	got := newBrowserAuthConfig(cfg)
+	require.NotNil(t, got.ProxyOverrides.TrustedCIDRs)
+	require.NotNil(t, got.ProxyOverrides.UsernameHeaders)
+	require.NotNil(t, got.ProxyOverrides.EmailHeaders)
+	assert.Equal(t, []string{"*"}, *got.ProxyOverrides.TrustedCIDRs)
+	assert.Empty(t, *got.ProxyOverrides.UsernameHeaders)
+	assert.Equal(t, []string{"X-Auth-Request-Email"}, *got.ProxyOverrides.EmailHeaders)
+	assert.Nil(t, got.ProxyOverrides.GroupHeaders)
 }
 
 func TestAuthenticatedPluginRequest(t *testing.T) {

@@ -3,9 +3,9 @@ package auth
 import (
 	"context"
 	"errors"
-	"net/http"
 	"testing"
 
+	appkitproxy "github.com/containeroo/appkit/auth/proxy"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -129,7 +129,7 @@ func TestBrowserAuthenticationModesLocalLoginSmoke(t *testing.T) {
 func TestBrowserAuthenticatorForSettings(t *testing.T) {
 	t.Parallel()
 
-	browser := &browserAuthenticator{none: NewNone(nil), local: NewLocal(nil, ""), trustedProxyTrust: func(*http.Request) bool { return true }}
+	browser := &browserAuthenticator{none: NewNone(nil), local: NewLocal(nil, ""), proxyOverrides: appkitproxy.Layer{TrustedCIDRs: proxyTestCIDRs()}}
 
 	t.Run("no authentication", func(t *testing.T) {
 		authenticator, err := browser.authenticatorForSettings(
@@ -200,7 +200,7 @@ func TestBrowserAuthenticatorValidatesOIDCSecrets(t *testing.T) {
 // TestBrowserValidationRequiresAdministratorGroupSources verifies administrator elevation requires a matching group source.
 func TestBrowserValidationRequiresAdministratorGroupSources(t *testing.T) {
 	t.Parallel()
-	browser := &browserAuthenticator{trustedProxyTrust: func(*http.Request) bool { return true }, oidcConfig: OIDCConfig{ClientSecret: "secret", SessionSecret: "0123456789abcdef0123456789abcdef"}}
+	browser := &browserAuthenticator{proxyOverrides: appkitproxy.Layer{TrustedCIDRs: proxyTestCIDRs(), GroupHeaders: proxyEmptyHeaders()}, oidcConfig: OIDCConfig{ClientSecret: "secret", SessionSecret: "0123456789abcdef0123456789abcdef"}}
 	assert.Error(t, browser.validateSettings(domain.AuthenticationSettings{Mode: "oidc", OIDCIssuer: "https://example.test", OIDCClientID: "kumbuka", OIDCAdminGroup: "/admins"}))
 	assert.Error(t, browser.validateSettings(domain.AuthenticationSettings{Mode: "trusted-proxy", TrustedUsernameHeaders: []string{"X-User"}, TrustedAdminGroup: "/admins"}))
 }
@@ -208,7 +208,7 @@ func TestBrowserValidationRequiresAdministratorGroupSources(t *testing.T) {
 func TestBrowserValidationCollectsOIDCProblems(t *testing.T) {
 	t.Parallel()
 
-	browser := &browserAuthenticator{trustedProxyTrust: func(*http.Request) bool { return true }, oidcConfig: OIDCConfig{
+	browser := &browserAuthenticator{proxyOverrides: appkitproxy.Layer{TrustedCIDRs: proxyTestCIDRs()}, oidcConfig: OIDCConfig{
 		ClientSecret:  "secret",
 		SessionSecret: "0123456789abcdef0123456789abcdef",
 	}}
@@ -233,7 +233,7 @@ func TestBrowserValidationCollectsOIDCProblems(t *testing.T) {
 func TestBrowserValidationChecksHeadersOnlyForTrustedProxyMode(t *testing.T) {
 	t.Parallel()
 
-	browser := &browserAuthenticator{trustedProxyTrust: func(*http.Request) bool { return true }, oidcConfig: OIDCConfig{
+	browser := &browserAuthenticator{proxyOverrides: appkitproxy.Layer{TrustedCIDRs: proxyTestCIDRs()}, oidcConfig: OIDCConfig{
 		ClientSecret:  "secret",
 		SessionSecret: "0123456789abcdef0123456789abcdef",
 	}}
@@ -254,4 +254,16 @@ func TestBrowserValidationChecksHeadersOnlyForTrustedProxyMode(t *testing.T) {
 	require.True(t, ok)
 	require.Len(t, validation.Fields, 1)
 	assert.Equal(t, "trusted_username_headers", validation.Fields[0].Field)
+}
+
+// proxyTestCIDRs returns the trusted range shared by proxy authentication tests.
+func proxyTestCIDRs() *[]string {
+	values := []string{"192.0.2.0/24"}
+	return &values
+}
+
+// proxyEmptyHeaders intentionally clears inherited group headers.
+func proxyEmptyHeaders() *[]string {
+	values := []string{}
+	return &values
 }

@@ -38,11 +38,11 @@ func TestTrustedProxyExternalAdministrator(t *testing.T) {
 	t.Parallel()
 
 	repository := &trustedProxyRepositoryStub{user: domain.User{ID: 7, Role: "viewer", Enabled: true}}
-	authenticator := NewTrustedProxy(repository, TrustedProxyHeaders{
+	authenticator := newTestTrustedProxy(t, repository, proxyTestHeaders{
 		Username:   []string{"X-User"},
 		Groups:     []string{"X-Groups"},
 		AdminGroup: "/kumbuka-admins",
-	}, trustedTestProxy())
+	})
 	request := httptest.NewRequest("GET", "/", nil)
 
 	request.Header.Set("X-User", "daniel")
@@ -61,10 +61,9 @@ func TestTrustedProxyDisabledAccount(t *testing.T) {
 	t.Parallel()
 
 	repository := &trustedProxyRepositoryStub{user: domain.User{ID: 7, Enabled: false}}
-	authenticator := NewTrustedProxy(
-		repository,
-		TrustedProxyHeaders{Username: []string{"X-User"}},
-		trustedTestProxy(),
+	authenticator := newTestTrustedProxy(
+		t, repository,
+		proxyTestHeaders{Username: []string{"X-User"}},
 	)
 	request := httptest.NewRequest("GET", "/", nil)
 
@@ -79,9 +78,9 @@ func TestTrustedProxyDisabledAccount(t *testing.T) {
 func TestTrustedProxyHeaderPriority(t *testing.T) {
 	t.Parallel()
 	repository := &trustedProxyRepositoryStub{user: domain.User{ID: 7, Enabled: true}}
-	authenticator := NewTrustedProxy(repository, TrustedProxyHeaders{
+	authenticator := newTestTrustedProxy(t, repository, proxyTestHeaders{
 		Username: []string{"X-Primary-User", "X-Secondary-User"},
-	}, trustedTestProxy())
+	})
 	request := httptest.NewRequest(http.MethodGet, "/", nil)
 	request.Header.Set("X-Secondary-User", "  daniel  ")
 	_, err := authenticator.Authenticate(request)
@@ -97,9 +96,9 @@ func TestTrustedProxyHeaderPriority(t *testing.T) {
 func TestTrustedProxyRejectsUntrustedPeer(t *testing.T) {
 	t.Parallel()
 	repository := &trustedProxyRepositoryStub{user: domain.User{ID: 7, Enabled: true}}
-	authenticator := NewTrustedProxy(repository, TrustedProxyHeaders{
+	authenticator := newTestTrustedProxy(t, repository, proxyTestHeaders{
 		Username: []string{"X-User"},
-	}, trustedTestProxy())
+	})
 	request := httptest.NewRequest(http.MethodGet, "/", nil)
 	request.RemoteAddr = "198.51.100.1:50000"
 	request.Header.Set("X-User", "admin")
@@ -118,27 +117,37 @@ func TestTrustedProxyRejectsUntrustedPeer(t *testing.T) {
 func TestTrustedProxyRequiresExplicitTrust(t *testing.T) {
 	t.Parallel()
 	repository := &trustedProxyRepositoryStub{user: domain.User{ID: 7, Enabled: true}}
-	authenticator := NewTrustedProxy(repository, TrustedProxyHeaders{Username: []string{"X-User"}}, nil)
-	request := httptest.NewRequest(http.MethodGet, "/", nil)
-	request.Header.Set("X-User", "admin")
-	_, err := authenticator.Authenticate(request)
-	require.ErrorIs(t, err, ErrUnauthenticated)
+	_, err := NewTrustedProxy(repository, appkitproxy.Config{UsernameHeaders: []string{"X-User"}}, "")
+	require.ErrorContains(t, err, "trusted-proxy-cidrs")
 	assert.Zero(t, repository.calls)
 }
 
-// trustedTestProxy trusts only the fixture's documented example network.
-func trustedTestProxy() appkitproxy.TrustFunc {
-	trust, err := appkitproxy.TrustCIDRs([]string{"192.0.2.0/24"})
-	if err != nil {
-		panic(err)
-	}
-	return trust
+// proxyTestHeaders contains test-specific identity header choices and admin mapping.
+type proxyTestHeaders struct {
+	Username []string
+	Email    []string
+	// DisplayName is the optional display-name assertion candidate.
+	DisplayName []string
+	Groups      []string
+	AdminGroup  string
+}
+
+// newTestTrustedProxy creates an appkit-backed authenticator with a trusted test ingress.
+func newTestTrustedProxy(t *testing.T, repository *trustedProxyRepositoryStub, headers proxyTestHeaders) *TrustedProxy {
+	t.Helper()
+	provider, err := NewTrustedProxy(repository, appkitproxy.Config{
+		TrustedCIDRs: []string{"192.0.2.0/24"}, UsernameHeaders: headers.Username,
+		EmailHeaders: headers.Email, DisplayNameHeaders: headers.DisplayName,
+		GroupHeaders: headers.Groups,
+	}, headers.AdminGroup)
+	require.NoError(t, err)
+	return provider
 }
 
 func TestTrustedProxyClearsReturnedExternalAdminStatus(t *testing.T) {
 	t.Parallel()
 	repository := &trustedProxyRepositoryStub{user: domain.User{ID: 7, Role: "viewer", Enabled: true, ExternalAdmin: true}}
-	authenticator := NewTrustedProxy(repository, TrustedProxyHeaders{Username: []string{"X-User"}, Groups: []string{"X-Groups"}, AdminGroup: "/admins"}, trustedTestProxy())
+	authenticator := newTestTrustedProxy(t, repository, proxyTestHeaders{Username: []string{"X-User"}, Groups: []string{"X-Groups"}, AdminGroup: "/admins"})
 	request := httptest.NewRequest("GET", "/", nil)
 	request.Header.Set("X-User", "example")
 	request.Header.Set("X-Groups", "/readers")

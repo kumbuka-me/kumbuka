@@ -16,7 +16,6 @@ import (
 	appauthentication "github.com/kumbuka-me/kumbuka/internal/application/authentication"
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
-	"golang.org/x/net/http/httpguts"
 )
 
 // browserAuthenticator resolves the effective browser authentication mode while reusing deployment-fixed adapters.
@@ -25,10 +24,10 @@ type browserAuthenticator struct {
 	repository browserRepository
 	// modeOverride forces one deployment-managed authentication mode when non-empty.
 	modeOverride domain.AuthMode
-	// trustedProxy contains deployment-managed trusted-proxy header overrides.
-	trustedProxy TrustedProxyHeaders
-	// trustedProxyTrust checks only the immediate peer, never forwarded IP headers.
-	trustedProxyTrust appkitproxy.TrustFunc
+	// proxyOverrides identifies only explicitly configured deployment values.
+	proxyOverrides appkitproxy.Layer
+	// proxyAdminGroup sets the administrator mapping for forced proxy mode.
+	proxyAdminGroup string
 	// oidcConfig contains deployment-managed OIDC secrets and callback configuration.
 	oidcConfig OIDCConfig
 	// none authenticates the built-in administrator when authentication is disabled.
@@ -70,20 +69,18 @@ func ConfigureBrowserAuth(
 	config BrowserConfig,
 	repository browserRepository,
 ) (BrowserAuth, error) {
-	var trustedProxyTrust appkitproxy.TrustFunc
-	if len(config.TrustedProxyCIDRs) > 0 {
-		var err error
-		trustedProxyTrust, err = appkitproxy.TrustCIDRs(config.TrustedProxyCIDRs)
-		if err != nil {
+	// Reject malformed explicitly supplied peers even when proxy mode is not active.
+	if cidrs := config.ProxyOverrides.TrustedCIDRs; cidrs != nil && len(*cidrs) != 0 {
+		if _, err := appkitproxy.TrustCIDRs(*cidrs); err != nil {
 			return BrowserAuth{}, fmt.Errorf("configure trusted proxy peers: %w", err)
 		}
 	}
 
 	browser := &browserAuthenticator{
-		trustedProxyTrust: trustedProxyTrust,
 		repository:        repository,
 		modeOverride:      config.ModeOverride,
-		trustedProxy:      config.TrustedProxy,
+		proxyOverrides:    config.ProxyOverrides,
+		proxyAdminGroup:   config.ProxyAdminGroup,
 		oidcConfig:        config.OIDC,
 		none:              NewNone(repository),
 		oidcLogin:         appauthentication.NewOIDC(repository, config.AllowUserRegistrationOverride),
@@ -315,14 +312,20 @@ func (b *browserAuthenticator) loadSettings(ctx context.Context) (domain.Authent
 	case domain.AuthModeNone, domain.AuthModeLocal:
 		return domain.AuthenticationSettings{Mode: b.modeOverride}, nil
 	case domain.AuthModeTrustedProxy:
-		return domain.AuthenticationSettings{
-			Mode:                      domain.AuthModeTrustedProxy,
-			TrustedUsernameHeaders:    slices.Clone(b.trustedProxy.Username),
-			TrustedEmailHeaders:       slices.Clone(b.trustedProxy.Email),
-			TrustedDisplayNameHeaders: slices.Clone(b.trustedProxy.DisplayName),
-			TrustedGroupHeaders:       slices.Clone(b.trustedProxy.Groups),
-			TrustedAdminGroup:         b.trustedProxy.AdminGroup,
-		}, nil
+		settings := domain.AuthenticationSettings{Mode: domain.AuthModeTrustedProxy, TrustedAdminGroup: b.proxyAdminGroup}
+		// A forced proxy mode never loads persisted settings. Materialize only
+		// the effective appkit headers for the process-resident snapshot.
+		if b.proxyOverrides.TrustedCIDRs != nil && len(*b.proxyOverrides.TrustedCIDRs) > 0 {
+			resolved, err := b.resolveProxyConfig(settings)
+			if err != nil {
+				return domain.AuthenticationSettings{}, proxyConfigurationError(err)
+			}
+			settings.TrustedUsernameHeaders = resolved.UsernameHeaders
+			settings.TrustedEmailHeaders = resolved.EmailHeaders
+			settings.TrustedDisplayNameHeaders = resolved.DisplayNameHeaders
+			settings.TrustedGroupHeaders = resolved.GroupHeaders
+		}
+		return settings, nil
 	}
 
 	settings, err := b.repository.ApplicationSettings(ctx)
@@ -374,6 +377,14 @@ func (b *browserAuthenticator) refreshOIDCGroupMappings(
 // applySettings replaces the effective authentication snapshot after persisted settings are saved.
 func (b *browserAuthenticator) applySettings(settings domain.AuthenticationSettings) {
 	settings = cloneAuthenticationSettings(settings)
+	if settings.Mode == domain.AuthModeTrustedProxy {
+		if resolved, err := b.resolveProxyConfig(settings); err == nil {
+			settings.TrustedUsernameHeaders = resolved.UsernameHeaders
+			settings.TrustedEmailHeaders = resolved.EmailHeaders
+			settings.TrustedDisplayNameHeaders = resolved.DisplayNameHeaders
+			settings.TrustedGroupHeaders = resolved.GroupHeaders
+		}
+	}
 	b.settings.Store(&authenticationSettingsSnapshot{
 		value:         settings,
 		authenticator: b.cachedAuthenticatorForSettings(settings),
@@ -388,13 +399,15 @@ func (b *browserAuthenticator) cachedAuthenticatorForSettings(settings domain.Au
 	case domain.AuthModeLocal:
 		return b.local
 	case domain.AuthModeTrustedProxy:
-		return NewTrustedProxy(b.trustedProxyLogin, TrustedProxyHeaders{
-			Username:    settings.TrustedUsernameHeaders,
-			Email:       settings.TrustedEmailHeaders,
-			DisplayName: settings.TrustedDisplayNameHeaders,
-			Groups:      settings.TrustedGroupHeaders,
-			AdminGroup:  settings.TrustedAdminGroup,
-		}, b.trustedProxyTrust)
+		resolved, err := b.resolveProxyConfig(settings)
+		if err != nil {
+			return nil
+		}
+		provider, err := NewTrustedProxy(b.trustedProxyLogin, resolved, settings.TrustedAdminGroup)
+		if err == nil {
+			return provider
+		}
+		return nil
 	case domain.AuthModeOIDC:
 		key := oidcSettingsFingerprint(settings)
 		b.mu.Lock()
@@ -431,13 +444,11 @@ func (b *browserAuthenticator) authenticatorForSettings(
 	case domain.AuthModeLocal:
 		return b.local, nil
 	case domain.AuthModeTrustedProxy:
-		return NewTrustedProxy(b.trustedProxyLogin, TrustedProxyHeaders{
-			Username:    settings.TrustedUsernameHeaders,
-			Email:       settings.TrustedEmailHeaders,
-			DisplayName: settings.TrustedDisplayNameHeaders,
-			Groups:      settings.TrustedGroupHeaders,
-			AdminGroup:  settings.TrustedAdminGroup,
-		}, b.trustedProxyTrust), nil
+		resolved, err := b.resolveProxyConfig(settings)
+		if err != nil {
+			return nil, err
+		}
+		return NewTrustedProxy(b.trustedProxyLogin, resolved, settings.TrustedAdminGroup)
 	case domain.AuthModeOIDC:
 		return b.oidcFor(ctx, settings)
 	default:
@@ -453,9 +464,16 @@ func (b *browserAuthenticator) validateSettings(settings domain.AuthenticationSe
 	case domain.AuthModeNone, domain.AuthModeLocal:
 		return nil
 	case domain.AuthModeTrustedProxy:
-		validateTrustedProxySettings(settings, validation)
-		if b.trustedProxyTrust == nil {
+		if b.proxyOverrides.TrustedCIDRs == nil || len(*b.proxyOverrides.TrustedCIDRs) == 0 {
 			appendAuthenticationProblem(validation, "trusted_proxy_cidrs", "Configure KUMBUKA__TRUSTED_PROXY_CIDRS before enabling proxy authentication.")
+		} else {
+			resolved, err := b.resolveProxyConfig(settings)
+			if err != nil {
+				return proxyConfigurationError(err)
+			}
+			if strings.TrimSpace(settings.TrustedAdminGroup) != "" && len(resolved.GroupHeaders) == 0 {
+				appendAuthenticationProblem(validation, "trusted_group_headers", "Configure at least one group header for external administrator elevation.")
+			}
 		}
 	case domain.AuthModeOIDC:
 		b.validateOIDCSettings(settings, validation)
@@ -475,40 +493,41 @@ func oidcGroupMappingsEnabled(settings domain.AuthenticationSettings) bool {
 	return settings.Mode == domain.AuthModeOIDC && settings.OIDCGroupSync
 }
 
-// trustedAdminGroupMissingHeaders reports whether administrator elevation is configured without any trusted group source.
-func trustedAdminGroupMissingHeaders(settings domain.AuthenticationSettings) bool {
-	return strings.TrimSpace(settings.TrustedAdminGroup) != "" && len(settings.TrustedGroupHeaders) == 0
+// resolveProxyConfig delegates default, persisted and deployment setting precedence to appkit.
+func (b *browserAuthenticator) resolveProxyConfig(settings domain.AuthenticationSettings) (appkitproxy.Config, error) {
+	var persisted appkitproxy.Layer
+	// Kumbuka stores empty SQL arrays for missing settings; only nonempty lists
+	// are explicit persisted choices in the existing schema.
+	if len(settings.TrustedUsernameHeaders) != 0 {
+		persisted.UsernameHeaders = &settings.TrustedUsernameHeaders
+	}
+	if len(settings.TrustedEmailHeaders) != 0 {
+		persisted.EmailHeaders = &settings.TrustedEmailHeaders
+	}
+	if len(settings.TrustedDisplayNameHeaders) != 0 {
+		persisted.DisplayNameHeaders = &settings.TrustedDisplayNameHeaders
+	}
+	if len(settings.TrustedGroupHeaders) != 0 {
+		persisted.GroupHeaders = &settings.TrustedGroupHeaders
+	}
+	return appkitproxy.Resolve(appkitproxy.Options{Persisted: persisted, Overrides: b.proxyOverrides})
 }
 
-// validateTrustedProxySettings appends all static trusted-proxy configuration failures.
-func validateTrustedProxySettings(settings domain.AuthenticationSettings, validation *domain.ValidationError) {
-	if len(settings.TrustedUsernameHeaders) == 0 {
-		appendAuthenticationProblem(validation, "trusted_username_headers", "Configure at least one username header.")
+// proxyConfigurationError converts framework configuration failures into Kumbuka field errors.
+func proxyConfigurationError(err error) error {
+	message := err.Error()
+	field := "trusted_username_headers"
+	switch {
+	case strings.Contains(message, "CIDR"), strings.Contains(message, "wildcard"), strings.Contains(message, "--trusted-proxy-cidrs"):
+		field = "trusted_proxy_cidrs"
+	case strings.Contains(message, "email header"):
+		field = "trusted_email_headers"
+	case strings.Contains(message, "display name header"):
+		field = "trusted_display_name_headers"
+	case strings.Contains(message, "group header"):
+		field = "trusted_group_headers"
 	}
-	if trustedAdminGroupMissingHeaders(settings) {
-		appendAuthenticationProblem(
-			validation,
-			"trusted_group_headers",
-			"Configure at least one group header for external administrator elevation.",
-		)
-	}
-
-	validateAuthenticationHeaders(validation, "trusted_username_headers", settings.TrustedUsernameHeaders)
-	validateAuthenticationHeaders(validation, "trusted_email_headers", settings.TrustedEmailHeaders)
-	validateAuthenticationHeaders(validation, "trusted_display_name_headers", settings.TrustedDisplayNameHeaders)
-	validateAuthenticationHeaders(validation, "trusted_group_headers", settings.TrustedGroupHeaders)
-}
-
-// validateAuthenticationHeaders appends one problem when an active trusted header list contains an invalid name.
-func validateAuthenticationHeaders(validation *domain.ValidationError, field string, headers []string) {
-	for _, header := range headers {
-		if httpguts.ValidHeaderFieldName(header) {
-			continue
-		}
-
-		appendAuthenticationProblem(validation, field, "Use valid HTTP header names separated by commas.")
-		return
-	}
+	return domain.NewValidationError(field, message)
 }
 
 // validateOIDCSettings appends all static OIDC configuration failures.
