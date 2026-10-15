@@ -13,9 +13,8 @@ import (
 // DefaultPluginUpdateCheckInterval is the default background plugin catalog refresh interval.
 const DefaultPluginUpdateCheckInterval = 60 * time.Minute
 
-const (
-	sectionServices = "Services"
-)
+// sectionServices groups deployment-level overrides for external services.
+const sectionServices = "Services"
 
 // Config contains deployment-level runtime configuration for Kumbuka.
 type Config struct {
