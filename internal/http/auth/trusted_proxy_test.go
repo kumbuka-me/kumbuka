@@ -110,15 +110,14 @@ func TestTrustedProxyRejectsUntrustedPeer(t *testing.T) {
 	assert.Zero(t, repository.calls)
 }
 
-// TestTrustedProxyRequiresExplicitTrust verifies a missing allowlist cannot authenticate anyone.
+// TestTrustedProxyRequiresExplicitTrust verifies an empty allowlist prevents creating an authenticator.
 func TestTrustedProxyRequiresExplicitTrust(t *testing.T) {
 	t.Parallel()
 	repository := &trustedProxyRepositoryStub{user: domain.User{ID: 7, Enabled: true}}
-	authenticator := newTestTrustedProxy(t, repository, proxyTestHeaders{Username: []string{"X-User"}})
-	request := httptest.NewRequest(http.MethodGet, "/", nil)
-	request.Header.Set("X-User", "admin")
-	_, err := authenticator.Authenticate(request)
-	require.ErrorIs(t, err, ErrUnauthenticated)
+	_, err := NewTrustedProxy(repository, appkitproxy.Config{
+		UsernameHeaders: []string{"X-User"},
+	}, "")
+	require.ErrorContains(t, err, "trusted-proxy-cidrs")
 	assert.Zero(t, repository.calls)
 }
 
