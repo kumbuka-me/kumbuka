@@ -206,6 +206,9 @@ for (const failFirst of [false, true])
       await page.getByRole("button", { name: "Markdown", exact: true }).click();
       await source.fill("Text");
       await page.getByRole("button", { name: "Visual", exact: true }).click();
+      await page.waitForFunction(
+        () => document.querySelector(".tiptap")?.textContent === "Text",
+      );
       await visual.locator("p").click();
       await page.keyboard.press("End");
       page.once("dialog", (dialog) => dialog.accept("https://example.com"));

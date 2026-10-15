@@ -72,6 +72,9 @@ test("visual widget exactly-one fields switch modes and focus added rows", async
     await page.getByRole("button", { name: "Visual", exact: true }).click();
     const widget = page.locator("[data-visual-widget]");
     await widget.waitFor({ state: "visible" });
+    await page.waitForFunction(
+      () => !document.querySelector("[data-markdown-toolbar]").inert,
+    );
     await widget.click();
 
     const dialog = page.getByRole("dialog", { name: "Edit Status" });
