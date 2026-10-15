@@ -6,6 +6,14 @@ import { sitePages } from "./lib/site.js";
 
 export const options = { vus: 1, iterations: 1 };
 
+const workloadUsers = [
+  "smoke-reader",
+  "stress-reader",
+  "search-stress-reader",
+  "render-stress-reader",
+  ...Array.from({ length: 10 }, (_, index) => `reader-${index + 1}`),
+];
+
 function request(method, path, body) {
   return http.request(method, `${baseURL}${path}`, body, {
     headers: headers("seed", true),
@@ -38,6 +46,17 @@ function architectureImage() {
   return uploaded.json("url");
 }
 
+function registerWorkloadUsers() {
+  for (const user of workloadUsers) {
+    const response = http.get(`${baseURL}/api/pages`, {
+      headers: headers(user),
+    });
+    check(response, {
+      [`register ${user}`]: (result) => result.status === 200,
+    });
+  }
+}
+
 export default function () {
   let health;
   for (let attempt = 0; attempt < 30; attempt += 1) {
@@ -68,4 +87,5 @@ export default function () {
         r.status === 201 || r.status === 409,
     });
   }
+  registerWorkloadUsers();
 }

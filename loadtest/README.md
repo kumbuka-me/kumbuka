@@ -15,7 +15,7 @@ make loadtest-search-stress
 make loadtest-render-stress
 ```
 
-The stack uses Kumbuka's trusted-proxy authentication override solely inside its private Compose network. The k6 scripts provide synthetic identity headers; `seed` is an administrator and workload users are ordinary registered users. The seed reads documentation from this checkout rather than fetching a mutable public site, so benchmark inputs stay reproducible.
+The stack uses Kumbuka's trusted-proxy authentication override solely inside its internal-only Compose network. Kumbuka has no published host port in this stack, so the load-test configuration explicitly trusts all peers on that controlled network. The k6 scripts provide synthetic identity headers; `seed` is an administrator and preparation registers the ordinary workload users sequentially before concurrent requests begin. The seed reads documentation from this checkout rather than fetching a mutable public site, so benchmark inputs stay reproducible.
 
 ## Preparation lifecycle
 
