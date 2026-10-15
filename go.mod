@@ -9,7 +9,7 @@ require (
 	github.com/containeroo/notifykit v0.7.0
 	github.com/containeroo/tinyflags v0.5.0
 	github.com/coreos/go-oidc/v3 v3.21.0
-	github.com/go-jose/go-jose/v4 v4.1.5
+	github.com/go-jose/go-jose/v4 v4.1.6
 	github.com/jackc/pgx/v5 v5.11.0
 	github.com/kaugesaar/lucide-go v0.34.0
 	github.com/kumbuka-me/sdk v0.27.1
