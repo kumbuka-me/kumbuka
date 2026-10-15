@@ -112,7 +112,7 @@
                       {{ len .OIDCIdentities }} OIDC {{ if eq (len .OIDCIdentities) 1 }}identity{{ else }}identities{{ end }}
                     </small>
                   {{ end }}
-                  {{ if eq .Profile.Source "trusted-proxy" }}
+                  {{ if eq .Profile.Source "proxy" }}
                     <small class="admin-user-identity-state">
                       {{ icon "key-round-lucide" 12 }} Trusted proxy: {{ .Profile.TrustedProxyUsername }}
                     </small>
@@ -158,7 +158,7 @@
                       {{ end }}">
                       {{ icon "pencil-lucide" 15 }}<span>Edit</span>
                     </button>
-                    {{ if eq .Profile.Source "trusted-proxy" }}
+                    {{ if eq .Profile.Source "proxy" }}
                       <button class="button compact"
                               type="button"
                               data-trusted-proxy-relink
@@ -238,7 +238,7 @@
   </section>
 <dialog class="app-dialog admin-user-dialog"
         data-admin-user-dialog
-        data-external-auth-active="{{ if .Runtime.AuthModeOverride }}{{ or (eq .Runtime.AuthModeOverride "oidc") (eq .Runtime.AuthModeOverride "trusted-proxy") }}{{ else }}{{ or (eq .ApplicationSettings.Authentication.Mode "oidc") (eq .ApplicationSettings.Authentication.Mode "trusted-proxy") }}{{ end }}"
+        data-external-auth-active="{{ if .Runtime.AuthModeOverride }}{{ or (eq .Runtime.AuthModeOverride "oidc") (eq .Runtime.AuthModeOverride "proxy") }}{{ else }}{{ or (eq .ApplicationSettings.Authentication.Mode "oidc") (eq .ApplicationSettings.Authentication.Mode "proxy") }}{{ end }}"
         aria-labelledby="admin-user-dialog-title">
   <form method="post" data-admin-user-form data-validate-form novalidate>
     <div class="app-dialog-header">

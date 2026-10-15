@@ -58,7 +58,7 @@ func TestSaveAdminAuthenticationAppliesRuntimeSettingsAfterPersistence(t *testin
 				},
 			}
 			form := url.Values{
-				"auth_mode":                {string(domain.AuthModeTrustedProxy)},
+				"auth_mode":                {string(domain.AuthModeProxy)},
 				"trusted_username_headers": {"X-Forwarded-User"},
 			}
 			request := httptest.NewRequest(
@@ -73,7 +73,7 @@ func TestSaveAdminAuthenticationAppliesRuntimeSettingsAfterPersistence(t *testin
 			SaveAdminAuthentication(service, browserAuth, testHandlerViews(t, webview.RuntimeInfo{})).ServeHTTP(response, request)
 
 			require.Equal(t, test.wantStatus, response.Code)
-			assert.Equal(t, domain.AuthModeTrustedProxy, service.saved.Mode)
+			assert.Equal(t, domain.AuthModeProxy, service.saved.Mode)
 			assert.Equal(t, test.wantApplyCall, applied)
 			if applied {
 				assert.Equal(t, service.saved, active)

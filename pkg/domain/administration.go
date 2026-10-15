@@ -48,9 +48,9 @@ type AdminUser struct {
 type ProfileSource string
 
 const (
-	ProfileSourceLocal        ProfileSource = "local"
-	ProfileSourceOIDC         ProfileSource = "oidc"
-	ProfileSourceTrustedProxy ProfileSource = "trusted-proxy"
+	ProfileSourceLocal ProfileSource = "local"
+	ProfileSourceOIDC  ProfileSource = "oidc"
+	ProfileSourceProxy ProfileSource = "proxy"
 )
 
 // UserProfile contains local values and the latest external values used by administration.

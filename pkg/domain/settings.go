@@ -59,7 +59,8 @@ func ExternalLinkHoverEffects() []string {
 	return []string{string(ExternalLinkHoverHighlight), string(ExternalLinkHoverLift), string(ExternalLinkHoverNone)}
 }
 
-// ValidExternalLinkHoverEffect reports whether value is a supported hover presentation. Empty selects the default highlight presentation.
+// ValidExternalLinkHoverEffect reports whether value is a supported hover presentation.
+// Empty selects the default highlight presentation.
 func ValidExternalLinkHoverEffect(value ExternalLinkHoverEffect) bool {
 	switch value {
 	case "", ExternalLinkHoverHighlight, ExternalLinkHoverLift, ExternalLinkHoverNone:

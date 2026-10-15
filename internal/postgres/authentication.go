@@ -95,7 +95,7 @@ WITH current AS MATERIALIZED (
   UPDATE users u
   SET email=CASE WHEN u.email_overridden THEN u.email ELSE $2 END,
       display_name=CASE WHEN u.display_name_overridden THEN u.display_name ELSE $3 END,
-      profile_source='trusted-proxy',
+      profile_source='proxy',
       last_login=CASE
         WHEN u.enabled AND current.last_seen_at < now() - ($6 * interval '1 second') THEN now()
         ELSE u.last_login
@@ -107,7 +107,7 @@ WITH current AS MATERIALIZED (
     AND (
       (NOT u.email_overridden AND u.email IS DISTINCT FROM $2) OR
       (NOT u.display_name_overridden AND u.display_name IS DISTINCT FROM $3) OR
-      u.profile_source IS DISTINCT FROM 'trusted-proxy' OR
+      u.profile_source IS DISTINCT FROM 'proxy' OR
       ($4 AND (NOT u.trusted_proxy_admin_observed OR u.trusted_proxy_external_admin IS DISTINCT FROM $5)) OR
       current.last_seen_at < now() - ($6 * interval '1 second')
     )
@@ -213,7 +213,7 @@ INSERT INTO users(
   username,email,display_name,profile_source,last_login,
   trusted_proxy_admin_observed,trusted_proxy_external_admin
 )
-VALUES($1,$2,$3,'trusted-proxy',now(),$4,$5)
+VALUES($1,$2,$3,'proxy',now(),$4,$5)
 RETURNING id,username,email,display_name,role,enabled,session_version`,
 		username, email, displayName, adminObserved, externalAdmin,
 	).Scan(

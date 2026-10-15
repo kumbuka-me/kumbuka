@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	appkitproxy "github.com/containeroo/appkit/auth/proxy"
-
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -253,7 +252,7 @@ func TestBrowserCurrentSettingsOverlaysRuntimeManagedFields(t *testing.T) {
 		}}
 		browser := &browserAuthenticator{
 			repository:   repository,
-			modeOverride: domain.AuthModeTrustedProxy,
+			modeOverride: domain.AuthModeProxy,
 			proxyOverrides: appkitproxy.Layer{
 				TrustedCIDRs:       &[]string{"192.0.2.0/24"},
 				UsernameHeaders:    &[]string{"Runtime-User"},
@@ -272,7 +271,7 @@ func TestBrowserCurrentSettingsOverlaysRuntimeManagedFields(t *testing.T) {
 		require.NoError(t, err)
 		assert.Zero(t, repository.settingsCalls)
 		assert.False(t, repository.oidcMappingsChecked)
-		assert.Equal(t, domain.AuthModeTrustedProxy, settings.Mode)
+		assert.Equal(t, domain.AuthModeProxy, settings.Mode)
 		assert.Equal(t, []string{"Runtime-User"}, settings.TrustedUsernameHeaders)
 		assert.Equal(t, []string{"Runtime-Email"}, settings.TrustedEmailHeaders)
 		assert.Equal(t, []string{"Runtime-Name"}, settings.TrustedDisplayNameHeaders)
@@ -289,7 +288,7 @@ func TestRuntimeTrustedProxyAuthenticateDoesNotReadApplicationSettings(t *testin
 	configured, err := ConfigureBrowserAuth(
 		context.Background(),
 		BrowserConfig{
-			ModeOverride: domain.AuthModeTrustedProxy,
+			ModeOverride: domain.AuthModeProxy,
 			ProxyOverrides: appkitproxy.Layer{
 				TrustedCIDRs:    &[]string{"192.0.2.0/24"},
 				UsernameHeaders: &[]string{"X-User"},
@@ -315,7 +314,7 @@ func TestConfiguredPersistedTrustedProxyAuthenticationCachesSettings(t *testing.
 
 	repository := &setupBrowserRepository{
 		settings: domain.ApplicationSettings{Authentication: domain.AuthenticationSettings{
-			Mode:                   domain.AuthModeTrustedProxy,
+			Mode:                   domain.AuthModeProxy,
 			TrustedUsernameHeaders: []string{"X-User"},
 		}},
 		trustedProxyUser: domain.User{ID: 7, Username: "reader", Enabled: true},
@@ -340,7 +339,7 @@ func TestConfiguredPersistedTrustedProxyAuthenticationCachesSettings(t *testing.
 func TestProxyAuthenticationRejectsMissingTrustedCIDRs(t *testing.T) {
 	t.Parallel()
 	repository := &setupBrowserRepository{settings: domain.ApplicationSettings{Authentication: domain.AuthenticationSettings{
-		Mode:                   domain.AuthModeTrustedProxy,
+		Mode:                   domain.AuthModeProxy,
 		TrustedUsernameHeaders: []string{"X-User"},
 	}}}
 	_, err := ConfigureBrowserAuth(context.Background(), BrowserConfig{}, repository)
@@ -363,7 +362,7 @@ func TestConfigureBrowserAuthRejectsInvalidProxyCIDRs(t *testing.T) {
 func TestConfigureBrowserAuthWildcardPeers(t *testing.T) {
 	t.Parallel()
 	repository := &setupBrowserRepository{settings: domain.ApplicationSettings{Authentication: domain.AuthenticationSettings{
-		Mode:                   domain.AuthModeTrustedProxy,
+		Mode:                   domain.AuthModeProxy,
 		TrustedUsernameHeaders: []string{"X-User"},
 	}}, trustedProxyUser: domain.User{ID: 7, Username: "reader", Enabled: true}}
 	configured, err := ConfigureBrowserAuth(context.Background(), BrowserConfig{
@@ -387,11 +386,11 @@ func TestConfigureBrowserAuthRejectsMixedWildcard(t *testing.T) {
 	require.ErrorContains(t, err, "alone")
 }
 
-// TestProxyDefaultsFromAppkit verifies a persisted proxy mode inherits framework headers.
+// TestProxyDefaultsFromAppkit verifies a persisted proxy mode inherits AppKit header defaults.
 func TestProxyDefaultsFromAppkit(t *testing.T) {
 	t.Parallel()
 	repository := &setupBrowserRepository{settings: domain.ApplicationSettings{Authentication: domain.AuthenticationSettings{
-		Mode: domain.AuthModeTrustedProxy,
+		Mode: domain.AuthModeProxy,
 	}}, trustedProxyUser: domain.User{ID: 7, Enabled: true}}
 	configured, err := ConfigureBrowserAuth(context.Background(), BrowserConfig{
 		ProxyOverrides: appkitproxy.Layer{TrustedCIDRs: &[]string{"192.0.2.0/24"}},
@@ -405,11 +404,11 @@ func TestProxyDefaultsFromAppkit(t *testing.T) {
 	assert.Equal(t, 1, repository.settingsCalls)
 }
 
-// TestProxyDeploymentHeadersOverridePersisted verifies explicit empty values are preserved.
+// TestProxyDeploymentHeadersOverridePersisted verifies explicit empty header lists take precedence.
 func TestProxyDeploymentHeadersOverridePersisted(t *testing.T) {
 	t.Parallel()
 	repository := &setupBrowserRepository{settings: domain.ApplicationSettings{Authentication: domain.AuthenticationSettings{
-		Mode: domain.AuthModeTrustedProxy, TrustedUsernameHeaders: []string{"Stored-User"},
+		Mode: domain.AuthModeProxy, TrustedUsernameHeaders: []string{"Stored-User"},
 	}}, trustedProxyUser: domain.User{ID: 7, Enabled: true}}
 	configured, err := ConfigureBrowserAuth(context.Background(), BrowserConfig{
 		ProxyOverrides: appkitproxy.Layer{
@@ -459,12 +458,12 @@ func TestApplySettingsReplacesCachedAuthentication(t *testing.T) {
 	repository := &setupBrowserRepository{}
 	browser := &browserAuthenticator{repository: repository}
 	browser.applySettings(domain.AuthenticationSettings{
-		Mode:                   domain.AuthModeTrustedProxy,
+		Mode:                   domain.AuthModeProxy,
 		TrustedUsernameHeaders: []string{"X-Original"},
 	})
 
 	browser.applySettings(domain.AuthenticationSettings{
-		Mode:                   domain.AuthModeTrustedProxy,
+		Mode:                   domain.AuthModeProxy,
 		TrustedUsernameHeaders: []string{"X-Replacement"},
 	})
 	settings, err := browser.currentSettings(context.Background())

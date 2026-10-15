@@ -4,7 +4,6 @@ package flags
 import (
 	"time"
 
-	appkitauth "github.com/containeroo/appkit/auth"
 	appkitconfig "github.com/containeroo/appkit/config"
 	"github.com/containeroo/tinyflags"
 	"github.com/kumbuka-me/kumbuka/internal/pdf"
@@ -92,9 +91,6 @@ func Parse(args []string, version string) (Config, error) {
 func (c Config) AuthenticationModeOverride() domain.AuthMode {
 	if c.Authentication.ModeOverride == nil {
 		return ""
-	}
-	if *c.Authentication.ModeOverride == appkitauth.ModeProxy {
-		return domain.AuthModeTrustedProxy
 	}
 	return domain.AuthMode(*c.Authentication.ModeOverride)
 }

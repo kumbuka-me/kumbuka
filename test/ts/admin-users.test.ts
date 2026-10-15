@@ -32,12 +32,12 @@ test("OIDC fields expose provider ownership and per-field revert", () => {
 });
 
 test("trusted-proxy username requires relinking while mutable fields can be overridden", () => {
-  const username = profileFieldPresentation("trusted-proxy", "username", true);
+  const username = profileFieldPresentation("proxy", "username", true);
   assert.equal(username.editable, false);
   assert.equal(username.revertVisible, false);
 
   const displayName = profileFieldPresentation(
-    "trusted-proxy",
+    "proxy",
     "displayName",
     true,
   );

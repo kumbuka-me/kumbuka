@@ -30,9 +30,9 @@ SELECT
   u.username_overridden,
   u.email_overridden,
   u.display_name_overridden,
-  CASE WHEN u.profile_source='oidc' THEN coalesce(oi.username,'') WHEN u.profile_source='trusted-proxy' THEN coalesce(tp.username,'') ELSE '' END,
-  CASE WHEN u.profile_source='oidc' THEN coalesce(oi.email,'') WHEN u.profile_source='trusted-proxy' THEN coalesce(tp.email,'') ELSE '' END,
-  CASE WHEN u.profile_source='oidc' THEN coalesce(oi.display_name,'') WHEN u.profile_source='trusted-proxy' THEN coalesce(tp.display_name,'') ELSE '' END,
+  CASE WHEN u.profile_source='oidc' THEN coalesce(oi.username,'') WHEN u.profile_source='proxy' THEN coalesce(tp.username,'') ELSE '' END,
+  CASE WHEN u.profile_source='oidc' THEN coalesce(oi.email,'') WHEN u.profile_source='proxy' THEN coalesce(tp.email,'') ELSE '' END,
+  CASE WHEN u.profile_source='oidc' THEN coalesce(oi.display_name,'') WHEN u.profile_source='proxy' THEN coalesce(tp.display_name,'') ELSE '' END,
   coalesce(tp.username,'')
 FROM users u
 LEFT JOIN local_credentials lc ON lc.user_id=u.id
@@ -117,7 +117,7 @@ func (s *Store) RelinkTrustedProxyIdentity(ctx context.Context, userID int64, us
 	if err != nil {
 		return err
 	}
-	if profile.Source != domain.ProfileSourceTrustedProxy || profile.TrustedProxyUsername == "" {
+	if profile.Source != domain.ProfileSourceProxy || profile.TrustedProxyUsername == "" {
 		return domain.NewValidationError("trusted_proxy_username", "This account has no trusted-proxy identity to relink.")
 	}
 	available, err := usernameAvailable(ctx, tx, username, userID)
@@ -250,7 +250,7 @@ WHERE id=$1`,
 
 // validateStoredProfileOwnership rejects persistence requests that violate identity-source ownership rules.
 func validateStoredProfileOwnership(input domain.UserAccountUpdate, profile domain.UserProfile) error {
-	if profile.Source == domain.ProfileSourceTrustedProxy && (input.Username != nil || input.RevertUsername) {
+	if profile.Source == domain.ProfileSourceProxy && (input.Username != nil || input.RevertUsername) {
 		return domain.NewValidationError("username", "Relink the trusted-proxy identity to change its username.")
 	}
 	if profile.Source == domain.ProfileSourceLocal && revertsStoredProviderProfile(input) {
@@ -306,9 +306,9 @@ func userProfile(ctx context.Context, queryer userProfileQuerier, userID int64, 
 	query := `
 SELECT u.id,u.profile_source,u.username,u.email,u.display_name,
        u.username_overridden,u.email_overridden,u.display_name_overridden,
-       CASE WHEN u.profile_source='oidc' THEN coalesce(oi.username,'') WHEN u.profile_source='trusted-proxy' THEN coalesce(tp.username,'') ELSE '' END,
-       CASE WHEN u.profile_source='oidc' THEN coalesce(oi.email,'') WHEN u.profile_source='trusted-proxy' THEN coalesce(tp.email,'') ELSE '' END,
-       CASE WHEN u.profile_source='oidc' THEN coalesce(oi.display_name,'') WHEN u.profile_source='trusted-proxy' THEN coalesce(tp.display_name,'') ELSE '' END,
+       CASE WHEN u.profile_source='oidc' THEN coalesce(oi.username,'') WHEN u.profile_source='proxy' THEN coalesce(tp.username,'') ELSE '' END,
+       CASE WHEN u.profile_source='oidc' THEN coalesce(oi.email,'') WHEN u.profile_source='proxy' THEN coalesce(tp.email,'') ELSE '' END,
+       CASE WHEN u.profile_source='oidc' THEN coalesce(oi.display_name,'') WHEN u.profile_source='proxy' THEN coalesce(tp.display_name,'') ELSE '' END,
        coalesce(tp.username,'')
 FROM users u
 LEFT JOIN LATERAL (

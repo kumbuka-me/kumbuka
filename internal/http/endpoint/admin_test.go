@@ -117,7 +117,7 @@ func TestAuthenticationSettingsFromForm(t *testing.T) {
 	t.Parallel()
 
 	form := url.Values{
-		"auth_mode":                    {"trusted-proxy"},
+		"auth_mode":                    {"proxy"},
 		"oidc_issuer":                  {" https://identity.example.com "},
 		"oidc_client_id":               {" kumbuka "},
 		"oidc_group_claim":             {" groups "},
@@ -140,7 +140,7 @@ func TestAuthenticationSettingsFromForm(t *testing.T) {
 	settings, err := authenticationSettingsFromForm(request)
 
 	require.NoError(t, err)
-	assert.Equal(t, domain.AuthModeTrustedProxy, settings.Mode)
+	assert.Equal(t, domain.AuthModeProxy, settings.Mode)
 	assert.Equal(t, "https://identity.example.com", settings.OIDCIssuer)
 	assert.Equal(t, "kumbuka", settings.OIDCClientID)
 	assert.Equal(t, "groups", settings.OIDCGroupClaim)
@@ -231,7 +231,7 @@ func TestPreserveRuntimeManagedAuthenticationSettings(t *testing.T) {
 		settings := preserveRuntimeManagedAuthenticationSettings(
 			submitted,
 			current,
-			webview.RuntimeInfo{AuthModeOverride: domain.AuthModeTrustedProxy},
+			webview.RuntimeInfo{AuthModeOverride: domain.AuthModeProxy},
 		)
 
 		assert.Equal(t, domain.AuthModeLocal, settings.Mode)
@@ -313,7 +313,7 @@ func TestEffectiveTrustedProxyAuthenticationSettings(t *testing.T) {
 	t.Parallel()
 
 	effective := effectiveAuthenticationSettings(domain.AuthenticationSettings{Mode: domain.AuthModeLocal}, webview.RuntimeInfo{
-		AuthModeOverride:                  domain.AuthModeTrustedProxy,
+		AuthModeOverride:                  domain.AuthModeProxy,
 		TrustedUsernameHeadersOverride:    []string{"Runtime-User"},
 		TrustedEmailHeadersOverride:       []string{"Runtime-Email"},
 		TrustedDisplayNameHeadersOverride: []string{"Runtime-Name"},
@@ -321,7 +321,7 @@ func TestEffectiveTrustedProxyAuthenticationSettings(t *testing.T) {
 		TrustedAdminGroupOverride:         "runtime-admins",
 	})
 
-	assert.Equal(t, domain.AuthModeTrustedProxy, effective.Mode)
+	assert.Equal(t, domain.AuthModeProxy, effective.Mode)
 	assert.Equal(t, []string{"Runtime-User"}, effective.TrustedUsernameHeaders)
 	assert.Equal(t, []string{"Runtime-Email"}, effective.TrustedEmailHeaders)
 	assert.Equal(t, []string{"Runtime-Name"}, effective.TrustedDisplayNameHeaders)
@@ -335,7 +335,7 @@ func TestAdminUserTemplateExposesProfileOwnershipAndTrustedProxyRelink(t *testin
 	data := webview.AdminUsersView{AdminUsers: []domain.AdminUser{{
 		User: domain.User{ID: 7, Username: "proxy-alice", Email: "local@example.test", DisplayName: "Alice", Role: domain.UserRoleViewer, Enabled: true},
 		Profile: domain.UserProfile{
-			UserID: 7, Source: domain.ProfileSourceTrustedProxy, TrustedProxyUsername: "proxy-alice",
+			UserID: 7, Source: domain.ProfileSourceProxy, TrustedProxyUsername: "proxy-alice",
 			ProviderUsername: "proxy-alice", ProviderEmail: "provider@example.test", ProviderDisplayName: "Provider Alice",
 			EmailOverridden: true,
 		},
@@ -344,7 +344,7 @@ func TestAdminUserTemplateExposesProfileOwnershipAndTrustedProxyRelink(t *testin
 	html, err := views.RenderHTML("admin_users", "content", data)
 	require.NoError(t, err)
 	rendered := string(html)
-	assert.Contains(t, rendered, `data-profile-source="trusted-proxy"`)
+	assert.Contains(t, rendered, `data-profile-source="proxy"`)
 	assert.Contains(t, rendered, `data-email-overridden="true"`)
 	assert.Contains(t, rendered, `data-provider-email="provider@example.test"`)
 	assert.Contains(t, rendered, `data-trusted-proxy-relink`)
@@ -358,7 +358,7 @@ func TestAdminTrustedProxyRuntimeTemplate(t *testing.T) {
 	views := testHandlerViews(t, webview.RuntimeInfo{})
 
 	data := webview.Layout{Runtime: webview.RuntimeInfo{
-		AuthModeOverride:                  "trusted-proxy",
+		AuthModeOverride:                  "proxy",
 		TrustedUsernameHeadersOverride:    []string{"Runtime-User"},
 		TrustedEmailHeadersOverride:       []string{"Runtime-Email"},
 		TrustedDisplayNameHeadersOverride: []string{"Runtime-Name"},

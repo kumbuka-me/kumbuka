@@ -141,7 +141,7 @@ func prepareProfileUpdate(input UserUpdateInput, current domain.UserProfile, upd
 
 // validateProfileUpdateOwnership rejects profile operations that conflict with the active identity source.
 func validateProfileUpdateOwnership(input UserUpdateInput, current domain.UserProfile) error {
-	if current.Source == domain.ProfileSourceTrustedProxy && (input.Username != nil || input.RevertUsername) {
+	if current.Source == domain.ProfileSourceProxy && (input.Username != nil || input.RevertUsername) {
 		return domain.NewValidationError("username", "Use the trusted-proxy relink action to change this identity.")
 	}
 	if current.Source == domain.ProfileSourceLocal && revertsProviderProfile(input) {

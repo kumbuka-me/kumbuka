@@ -54,6 +54,8 @@ Kumbuka can be configured using command-line flags or environment variables. Env
 
 The management listener exposes `GET /healthz`, `GET /readyz`, and, unless disabled, `GET /metrics`. It is separate from the public application listener and is not mounted below `--route-prefix`.
 
+When using proxy authentication, configure `--trusted-proxy-cidrs` with the CIDRs of the **immediate trusted ingress peers**. Requests from any other peer cannot authenticate through identity headers. Your ingress must strip client-supplied identity headers before setting its own. Without a trusted CIDR list, proxy authentication cannot be enabled; local and OIDC modes are unaffected. A sole `*` permits every valid immediate peer (never mix it with CIDRs). **Only use `*` when network policy prevents direct access except through the identity-verifying proxy.** A startup warning is logged for wildcard trust.
+
 For all available settings and deployment options, see **[kumbuka.me](https://kumbuka.me/configuration/runtime/)**.
 
 ## Ecosystem
@@ -65,3 +67,12 @@ For all available settings and deployment options, see **[kumbuka.me](https://ku
 ## License
 
 Licensed under the [Apache License, Version 2.0](LICENSE).
+
+### Canonical proxy authentication (AppKit v0.6.0)
+
+Use `--auth-mode=proxy` or `KUMBUKA__AUTH_MODE=proxy`. The former
+`trusted-proxy` authentication **mode** is no longer accepted. Migration 020
+translates existing stored authentication modes and user profile-source values
+at startup. Back up PostgreSQL before upgrading and avoid running old and new
+releases against the same database during this migration. Trusted proxy identity
+records and the `--trusted-proxy-cidrs` ingress trust flag are unchanged.

@@ -14,7 +14,7 @@ function selectedGroupIDs(button: HTMLElement): Set<string> {
   );
 }
 
-type ProfileSource = "local" | "oidc" | "trusted-proxy";
+type ProfileSource = "local" | "oidc" | "proxy";
 type ProfileField = "username" | "email" | "displayName";
 
 // Describes the ownership controls rendered for one administrator profile field.
@@ -29,7 +29,7 @@ export function profileFieldPresentation(
   editable: boolean;
 } {
   const external = source !== "local";
-  const editable = source !== "trusted-proxy" || field !== "username";
+  const editable = source !== "proxy" || field !== "username";
   return {
     state: external
       ? overridden
@@ -185,7 +185,7 @@ export function setupAdminUserEditor(dialog: HTMLDialogElement): void {
     const displayName = button.dataset.userName || username;
     const sourceValue = button.dataset.profileSource;
     const profileSource: ProfileSource =
-      sourceValue === "oidc" || sourceValue === "trusted-proxy"
+      sourceValue === "oidc" || sourceValue === "proxy"
         ? sourceValue
         : "local";
     const externalProfile = profileSource !== "local";

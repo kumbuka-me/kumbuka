@@ -51,7 +51,7 @@ func (s *Users) RelinkTrustedProxyIdentity(ctx context.Context, userID int64, us
 	if err != nil {
 		return fmt.Errorf("load trusted-proxy identity: %w", err)
 	}
-	if profile.Source == domain.ProfileSourceTrustedProxy && profile.TrustedProxyUsername == username {
+	if profile.Source == domain.ProfileSourceProxy && profile.TrustedProxyUsername == username {
 		return nil
 	}
 	if err := s.repository.RelinkTrustedProxyIdentity(ctx, userID, username); err != nil {

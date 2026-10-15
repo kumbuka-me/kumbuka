@@ -202,11 +202,7 @@ func (a *Application) composeUseCases(cfg flags.Config, infrastructure *Infrastr
 	a.drafts = apppages.NewDrafts(database)
 	a.groups = appgroups.NewGroups(database)
 	a.knowledge = appsearch.NewKnowledge(database, a.access)
-	a.notifications = appnotifications.NewNotifications(
-		database,
-		logger.With("component", "notifications"),
-		a.webhooks,
-	)
+	a.notifications = appnotifications.NewNotifications(database, logger.With("component", "notifications"), a.webhooks)
 	a.media = appmedia.NewMedia(database)
 	a.portableImport = appportablearchive.NewImporter(
 		newPortableImportTransactionRunner(database),

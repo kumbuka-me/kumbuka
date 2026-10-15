@@ -24,9 +24,9 @@ type browserAuthenticator struct {
 	repository browserRepository
 	// modeOverride forces one deployment-managed authentication mode when non-empty.
 	modeOverride domain.AuthMode
-	// proxyOverrides identifies only explicitly configured deployment values.
+	// proxyOverrides identifies explicitly configured deployment values.
 	proxyOverrides appkitproxy.Layer
-	// proxyAdminGroup sets the administrator mapping for forced proxy mode.
+	// proxyAdminGroup sets the administrator mapping in forced proxy mode.
 	proxyAdminGroup string
 	// oidcConfig contains deployment-managed OIDC secrets and callback configuration.
 	oidcConfig OIDCConfig
@@ -69,7 +69,7 @@ func ConfigureBrowserAuth(
 	config BrowserConfig,
 	repository browserRepository,
 ) (BrowserAuth, error) {
-	// Reject malformed explicitly supplied peers even when proxy mode is not active.
+	// Reject malformed explicitly supplied peers even when proxy mode is inactive.
 	if cidrs := config.ProxyOverrides.TrustedCIDRs; cidrs != nil && len(*cidrs) != 0 {
 		if _, err := appkitproxy.TrustCIDRs(*cidrs); err != nil {
 			return BrowserAuth{}, fmt.Errorf("configure trusted proxy peers: %w", err)
@@ -196,7 +196,7 @@ func (b *browserAuthenticator) login(w http.ResponseWriter, r *http.Request) {
 		httpprefix.Redirect(w, r, target, http.StatusFound)
 		return
 	case domain.AuthModeOIDC:
-	case domain.AuthModeNone, domain.AuthModeTrustedProxy:
+	case domain.AuthModeNone, domain.AuthModeProxy:
 		LoginUnavailable().ServeHTTP(w, r)
 		return
 	default:
@@ -311,10 +311,8 @@ func (b *browserAuthenticator) loadSettings(ctx context.Context) (domain.Authent
 	switch b.modeOverride {
 	case domain.AuthModeNone, domain.AuthModeLocal:
 		return domain.AuthenticationSettings{Mode: b.modeOverride}, nil
-	case domain.AuthModeTrustedProxy:
-		settings := domain.AuthenticationSettings{Mode: domain.AuthModeTrustedProxy, TrustedAdminGroup: b.proxyAdminGroup}
-		// A forced proxy mode never loads persisted settings. Materialize only
-		// the effective appkit headers for the process-resident snapshot.
+	case domain.AuthModeProxy:
+		settings := domain.AuthenticationSettings{Mode: domain.AuthModeProxy, TrustedAdminGroup: b.proxyAdminGroup}
 		if b.proxyOverrides.TrustedCIDRs != nil && len(*b.proxyOverrides.TrustedCIDRs) > 0 {
 			resolved, err := b.resolveProxyConfig(settings)
 			if err != nil {
@@ -377,7 +375,7 @@ func (b *browserAuthenticator) refreshOIDCGroupMappings(
 // applySettings replaces the effective authentication snapshot after persisted settings are saved.
 func (b *browserAuthenticator) applySettings(settings domain.AuthenticationSettings) {
 	settings = cloneAuthenticationSettings(settings)
-	if settings.Mode == domain.AuthModeTrustedProxy {
+	if settings.Mode == domain.AuthModeProxy {
 		if resolved, err := b.resolveProxyConfig(settings); err == nil {
 			settings.TrustedUsernameHeaders = resolved.UsernameHeaders
 			settings.TrustedEmailHeaders = resolved.EmailHeaders
@@ -398,7 +396,7 @@ func (b *browserAuthenticator) cachedAuthenticatorForSettings(settings domain.Au
 		return b.none
 	case domain.AuthModeLocal:
 		return b.local
-	case domain.AuthModeTrustedProxy:
+	case domain.AuthModeProxy:
 		resolved, err := b.resolveProxyConfig(settings)
 		if err != nil {
 			return nil
@@ -443,7 +441,7 @@ func (b *browserAuthenticator) authenticatorForSettings(
 		return b.none, nil
 	case domain.AuthModeLocal:
 		return b.local, nil
-	case domain.AuthModeTrustedProxy:
+	case domain.AuthModeProxy:
 		resolved, err := b.resolveProxyConfig(settings)
 		if err != nil {
 			return nil, err
@@ -463,7 +461,7 @@ func (b *browserAuthenticator) validateSettings(settings domain.AuthenticationSe
 	switch settings.Mode {
 	case domain.AuthModeNone, domain.AuthModeLocal:
 		return nil
-	case domain.AuthModeTrustedProxy:
+	case domain.AuthModeProxy:
 		if b.proxyOverrides.TrustedCIDRs == nil || len(*b.proxyOverrides.TrustedCIDRs) == 0 {
 			appendAuthenticationProblem(validation, "trusted_proxy_cidrs", "Configure KUMBUKA__TRUSTED_PROXY_CIDRS before enabling proxy authentication.")
 		} else {
@@ -493,11 +491,9 @@ func oidcGroupMappingsEnabled(settings domain.AuthenticationSettings) bool {
 	return settings.Mode == domain.AuthModeOIDC && settings.OIDCGroupSync
 }
 
-// resolveProxyConfig delegates default, persisted and deployment setting precedence to appkit.
+// resolveProxyConfig delegates proxy header defaults and override precedence to AppKit.
 func (b *browserAuthenticator) resolveProxyConfig(settings domain.AuthenticationSettings) (appkitproxy.Config, error) {
 	var persisted appkitproxy.Layer
-	// Kumbuka stores empty SQL arrays for missing settings; only nonempty lists
-	// are explicit persisted choices in the existing schema.
 	if len(settings.TrustedUsernameHeaders) != 0 {
 		persisted.UsernameHeaders = &settings.TrustedUsernameHeaders
 	}
@@ -513,7 +509,7 @@ func (b *browserAuthenticator) resolveProxyConfig(settings domain.Authentication
 	return appkitproxy.Resolve(appkitproxy.Options{Persisted: persisted, Overrides: b.proxyOverrides})
 }
 
-// proxyConfigurationError converts framework configuration failures into Kumbuka field errors.
+// proxyConfigurationError converts framework proxy errors into Kumbuka field validation errors.
 func proxyConfigurationError(err error) error {
 	message := err.Error()
 	field := "trusted_username_headers"

@@ -214,7 +214,7 @@ func TestAccountUpdateRevertsOIDCField(t *testing.T) {
 func TestAccountUpdateRejectsGenericTrustedProxyUsername(t *testing.T) {
 	t.Parallel()
 	repo := &accountRepositoryStub{profile: domain.UserProfile{
-		UserID: 7, Source: domain.ProfileSourceTrustedProxy, Username: "proxy-user",
+		UserID: 7, Source: domain.ProfileSourceProxy, Username: "proxy-user",
 	}}
 	input := accountInput()
 	username := "renamed"

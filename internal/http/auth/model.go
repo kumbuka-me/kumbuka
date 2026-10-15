@@ -5,7 +5,6 @@ import (
 	"net/http"
 
 	appkitproxy "github.com/containeroo/appkit/auth/proxy"
-
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
 

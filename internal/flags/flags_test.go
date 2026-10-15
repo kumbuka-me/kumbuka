@@ -19,13 +19,13 @@ func parseTestConfig(args []string) (Config, error) {
 func TestParse(t *testing.T) {
 	t.Run("environment prefix", func(t *testing.T) {
 		t.Setenv("KUMBUKA__DATABASE_URL", "postgres://example/kumbuka")
-		t.Setenv("KUMBUKA__AUTH_MODE", string(domain.AuthModeTrustedProxy))
+		t.Setenv("KUMBUKA__AUTH_MODE", string(domain.AuthModeProxy))
 
 		cfg, err := parseTestConfig(nil)
 
 		require.NoError(t, err)
 		assert.Equal(t, "postgres://example/kumbuka", cfg.Database.URL)
-		assert.Equal(t, domain.AuthModeTrustedProxy, cfg.AuthenticationModeOverride())
+		assert.Equal(t, domain.AuthModeProxy, cfg.AuthenticationModeOverride())
 	})
 
 	t.Run("overridden values mask secrets", func(t *testing.T) {
@@ -550,7 +550,7 @@ func TestAuthFlags(t *testing.T) {
 		assert.Equal(t, domain.AuthModeLocal, cfg.AuthenticationModeOverride())
 	})
 
-	t.Run("proxy alias uses the trusted-proxy domain mode", func(t *testing.T) {
+	t.Run("accepts the canonical proxy mode", func(t *testing.T) {
 		t.Parallel()
 
 		cfg, err := parseTestConfig([]string{
@@ -559,7 +559,16 @@ func TestAuthFlags(t *testing.T) {
 		})
 
 		require.NoError(t, err)
-		assert.Equal(t, domain.AuthModeTrustedProxy, cfg.AuthenticationModeOverride())
+		assert.Equal(t, domain.AuthModeProxy, cfg.AuthenticationModeOverride())
+	})
+
+	t.Run("rejects removed proxy alias", func(t *testing.T) {
+		t.Parallel()
+		_, err := parseTestConfig([]string{
+			"--database-url", "postgres://example/kumbuka",
+			"--auth-mode", "trusted-proxy",
+		})
+		require.Error(t, err)
 	})
 
 	t.Run("local override from environment", func(t *testing.T) {

@@ -84,7 +84,7 @@ func TestBrowserAuthenticationModesLocalLoginSmoke(t *testing.T) {
 		t.Parallel()
 
 		browser := &browserAuthenticator{}
-		browser.applySettings(domain.AuthenticationSettings{Mode: domain.AuthModeTrustedProxy})
+		browser.applySettings(domain.AuthenticationSettings{Mode: domain.AuthModeProxy})
 		allowed, err := browser.localLoginAllowed(context.Background())
 
 		require.NoError(t, err)
@@ -95,7 +95,7 @@ func TestBrowserAuthenticationModesLocalLoginSmoke(t *testing.T) {
 		t.Parallel()
 
 		browser := &browserAuthenticator{localLoginEnabled: true}
-		browser.applySettings(domain.AuthenticationSettings{Mode: domain.AuthModeTrustedProxy})
+		browser.applySettings(domain.AuthenticationSettings{Mode: domain.AuthModeProxy})
 		allowed, err := browser.localLoginAllowed(context.Background())
 
 		require.NoError(t, err)
@@ -155,7 +155,7 @@ func TestBrowserAuthenticatorForSettings(t *testing.T) {
 		authenticator, err := browser.authenticatorForSettings(
 			context.Background(),
 			domain.AuthenticationSettings{
-				Mode:                   domain.AuthModeTrustedProxy,
+				Mode:                   domain.AuthModeProxy,
 				TrustedUsernameHeaders: []string{"X-User"},
 			},
 		)
@@ -202,7 +202,7 @@ func TestBrowserValidationRequiresAdministratorGroupSources(t *testing.T) {
 	t.Parallel()
 	browser := &browserAuthenticator{proxyOverrides: appkitproxy.Layer{TrustedCIDRs: proxyTestCIDRs(), GroupHeaders: proxyEmptyHeaders()}, oidcConfig: OIDCConfig{ClientSecret: "secret", SessionSecret: "0123456789abcdef0123456789abcdef"}}
 	assert.Error(t, browser.validateSettings(domain.AuthenticationSettings{Mode: "oidc", OIDCIssuer: "https://example.test", OIDCClientID: "kumbuka", OIDCAdminGroup: "/admins"}))
-	assert.Error(t, browser.validateSettings(domain.AuthenticationSettings{Mode: "trusted-proxy", TrustedUsernameHeaders: []string{"X-User"}, TrustedAdminGroup: "/admins"}))
+	assert.Error(t, browser.validateSettings(domain.AuthenticationSettings{Mode: "proxy", TrustedUsernameHeaders: []string{"X-User"}, TrustedAdminGroup: "/admins"}))
 }
 
 func TestBrowserValidationCollectsOIDCProblems(t *testing.T) {
@@ -247,7 +247,7 @@ func TestBrowserValidationChecksHeadersOnlyForTrustedProxyMode(t *testing.T) {
 	require.NoError(t, browser.validateSettings(oidcSettings))
 
 	trustedSettings := domain.AuthenticationSettings{
-		Mode:                   domain.AuthModeTrustedProxy,
+		Mode:                   domain.AuthModeProxy,
 		TrustedUsernameHeaders: []string{"Invalid Header"},
 	}
 	validation, ok := errors.AsType[*domain.ValidationError](browser.validateSettings(trustedSettings))
@@ -256,13 +256,13 @@ func TestBrowserValidationChecksHeadersOnlyForTrustedProxyMode(t *testing.T) {
 	assert.Equal(t, "trusted_username_headers", validation.Fields[0].Field)
 }
 
-// proxyTestCIDRs returns the trusted range shared by proxy authentication tests.
+// proxyTestCIDRs returns the trusted range used by proxy authentication tests.
 func proxyTestCIDRs() *[]string {
 	values := []string{"192.0.2.0/24"}
 	return &values
 }
 
-// proxyEmptyHeaders intentionally clears inherited group headers.
+// proxyEmptyHeaders intentionally clears inherited group header defaults.
 func proxyEmptyHeaders() *[]string {
 	values := []string{}
 	return &values

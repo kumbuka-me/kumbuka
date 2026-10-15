@@ -513,7 +513,7 @@
       <div class="auth-mode-field auth-managed-setting">
         <span class="auth-managed-label">Authentication mode</span>
         <div class="auth-managed-value">
-          <strong>{{ if eq .Runtime.AuthModeOverride "oidc" }}OpenID Connect (OIDC){{ else if eq .Runtime.AuthModeOverride "local" }}Local account{{ else if eq .Runtime.AuthModeOverride "trusted-proxy" }}Trusted proxy{{ else }}No authentication (development only){{ end }}</strong>
+          <strong>{{ if eq .Runtime.AuthModeOverride "oidc" }}OpenID Connect (OIDC){{ else if eq .Runtime.AuthModeOverride "local" }}Local account{{ else if eq .Runtime.AuthModeOverride "proxy" }}Trusted proxy{{ else }}No authentication (development only){{ end }}</strong>
           <span class="config-status managed">Managed by deployment</span>
         </div>
         <small>
@@ -532,8 +532,8 @@
           </option>
           <option value="local"
                   {{ if eq .ApplicationSettings.Authentication.Mode "local" }}selected{{ end }}>Local account</option>
-          <option value="trusted-proxy"
-                  {{ if eq .ApplicationSettings.Authentication.Mode "trusted-proxy" }}selected{{ end }}>
+          <option value="proxy"
+                  {{ if eq .ApplicationSettings.Authentication.Mode "proxy" }}selected{{ end }}>
             Trusted proxy
           </option>
           <option value="oidc"
@@ -556,8 +556,8 @@
       <p class="settings-note">At least one administrator must have a local password before this mode can be enabled.</p>
     </div>
     <div class="auth-mode-options"
-         data-auth-fields="trusted-proxy"
-         {{ if or (and .Runtime.AuthModeOverride (ne .Runtime.AuthModeOverride "trusted-proxy")) (and (not .Runtime.AuthModeOverride) (ne .ApplicationSettings.Authentication.Mode "trusted-proxy")) }}hidden{{ end }}>
+         data-auth-fields="proxy"
+         {{ if or (and .Runtime.AuthModeOverride (ne .Runtime.AuthModeOverride "proxy")) (and (not .Runtime.AuthModeOverride) (ne .ApplicationSettings.Authentication.Mode "proxy")) }}hidden{{ end }}>
       <div class="admin-card-heading auth-mode-heading">
         <div>
           <h3>Trusted proxy headers</h3>
@@ -568,82 +568,82 @@
         <label>
           <span class="auth-managed-label-row">
             <span>Username headers</span>
-            {{ if eq .Runtime.AuthModeOverride "trusted-proxy" }}<span class="config-status managed">Managed by deployment</span>{{ end }}
+            {{ if eq .Runtime.AuthModeOverride "proxy" }}<span class="config-status managed">Managed by deployment</span>{{ end }}
           </span>
           <input type="text"
-                 {{ if ne .Runtime.AuthModeOverride "trusted-proxy" }}name="trusted_username_headers"
+                 {{ if ne .Runtime.AuthModeOverride "proxy" }}name="trusted_username_headers"
                  {{ end }}
-                 value="{{ if eq .Runtime.AuthModeOverride "trusted-proxy" }}{{ join .Runtime.TrustedUsernameHeadersOverride ", " }}{{ else }}{{ join .ApplicationSettings.Authentication.TrustedUsernameHeaders ", " }}{{ end }}"
+                 value="{{ if eq .Runtime.AuthModeOverride "proxy" }}{{ join .Runtime.TrustedUsernameHeadersOverride ", " }}{{ else }}{{ join .ApplicationSettings.Authentication.TrustedUsernameHeaders ", " }}{{ end }}"
                  placeholder="X-Forwarded-User, X-Auth-Request-User"
                  autocomplete="off"
-                 {{ if eq .Runtime.AuthModeOverride "trusted-proxy" }}readonly
+                 {{ if eq .Runtime.AuthModeOverride "proxy" }}readonly
                  aria-readonly="true"
                  {{ end }} />
-          <small>{{ if eq .Runtime.AuthModeOverride "trusted-proxy" }}Configured by <code>KUMBUKA__TRUSTED_USERNAME_HEADERS</code>.{{ else }}Required. Checked from left to right.{{ end }}</small>
+          <small>{{ if eq .Runtime.AuthModeOverride "proxy" }}Configured by <code>KUMBUKA__TRUSTED_USERNAME_HEADERS</code>.{{ else }}Required. Checked from left to right.{{ end }}</small>
         </label>
         <label>
           <span class="auth-managed-label-row">
             <span>Email headers</span>
-            {{ if eq .Runtime.AuthModeOverride "trusted-proxy" }}<span class="config-status managed">Managed by deployment</span>{{ end }}
+            {{ if eq .Runtime.AuthModeOverride "proxy" }}<span class="config-status managed">Managed by deployment</span>{{ end }}
           </span>
           <input type="text"
-                 {{ if ne .Runtime.AuthModeOverride "trusted-proxy" }}name="trusted_email_headers"
+                 {{ if ne .Runtime.AuthModeOverride "proxy" }}name="trusted_email_headers"
                  {{ end }}
-                 value="{{ if eq .Runtime.AuthModeOverride "trusted-proxy" }}{{ join .Runtime.TrustedEmailHeadersOverride ", " }}{{ else }}{{ join .ApplicationSettings.Authentication.TrustedEmailHeaders ", " }}{{ end }}"
+                 value="{{ if eq .Runtime.AuthModeOverride "proxy" }}{{ join .Runtime.TrustedEmailHeadersOverride ", " }}{{ else }}{{ join .ApplicationSettings.Authentication.TrustedEmailHeaders ", " }}{{ end }}"
                  placeholder="X-Forwarded-Email"
                  autocomplete="off"
-                 {{ if eq .Runtime.AuthModeOverride "trusted-proxy" }}readonly
+                 {{ if eq .Runtime.AuthModeOverride "proxy" }}readonly
                  aria-readonly="true"
                  {{ end }} />
-          <small>{{ if eq .Runtime.AuthModeOverride "trusted-proxy" }}Configured by <code>KUMBUKA__TRUSTED_EMAIL_HEADERS</code>.{{ else }}Optional identity metadata.{{ end }}</small>
+          <small>{{ if eq .Runtime.AuthModeOverride "proxy" }}Configured by <code>KUMBUKA__TRUSTED_EMAIL_HEADERS</code>.{{ else }}Optional identity metadata.{{ end }}</small>
         </label>
         <label>
           <span class="auth-managed-label-row">
             <span>Display-name headers</span>
-            {{ if eq .Runtime.AuthModeOverride "trusted-proxy" }}<span class="config-status managed">Managed by deployment</span>{{ end }}
+            {{ if eq .Runtime.AuthModeOverride "proxy" }}<span class="config-status managed">Managed by deployment</span>{{ end }}
           </span>
           <input type="text"
-                 {{ if ne .Runtime.AuthModeOverride "trusted-proxy" }}name="trusted_display_name_headers"
+                 {{ if ne .Runtime.AuthModeOverride "proxy" }}name="trusted_display_name_headers"
                  {{ end }}
-                 value="{{ if eq .Runtime.AuthModeOverride "trusted-proxy" }}{{ join .Runtime.TrustedDisplayNameHeadersOverride ", " }}{{ else }}{{ join .ApplicationSettings.Authentication.TrustedDisplayNameHeaders ", " }}{{ end }}"
+                 value="{{ if eq .Runtime.AuthModeOverride "proxy" }}{{ join .Runtime.TrustedDisplayNameHeadersOverride ", " }}{{ else }}{{ join .ApplicationSettings.Authentication.TrustedDisplayNameHeaders ", " }}{{ end }}"
                  placeholder="X-Forwarded-Name"
                  autocomplete="off"
-                 {{ if eq .Runtime.AuthModeOverride "trusted-proxy" }}readonly
+                 {{ if eq .Runtime.AuthModeOverride "proxy" }}readonly
                  aria-readonly="true"
                  {{ end }} />
-          <small>{{ if eq .Runtime.AuthModeOverride "trusted-proxy" }}Configured by <code>KUMBUKA__TRUSTED_DISPLAY_NAME_HEADERS</code>.{{ else }}Optional identity metadata.{{ end }}</small>
+          <small>{{ if eq .Runtime.AuthModeOverride "proxy" }}Configured by <code>KUMBUKA__TRUSTED_DISPLAY_NAME_HEADERS</code>.{{ else }}Optional identity metadata.{{ end }}</small>
         </label>
         <label>
           <span class="auth-managed-label-row">
             <span>Group headers</span>
-            {{ if eq .Runtime.AuthModeOverride "trusted-proxy" }}<span class="config-status managed">Managed by deployment</span>{{ end }}
+            {{ if eq .Runtime.AuthModeOverride "proxy" }}<span class="config-status managed">Managed by deployment</span>{{ end }}
           </span>
           <input type="text"
-                 {{ if ne .Runtime.AuthModeOverride "trusted-proxy" }}name="trusted_group_headers"
+                 {{ if ne .Runtime.AuthModeOverride "proxy" }}name="trusted_group_headers"
                  {{ end }}
-                 value="{{ if eq .Runtime.AuthModeOverride "trusted-proxy" }}{{ join .Runtime.TrustedGroupHeadersOverride ", " }}{{ else }}{{ join .ApplicationSettings.Authentication.TrustedGroupHeaders ", " }}{{ end }}"
+                 value="{{ if eq .Runtime.AuthModeOverride "proxy" }}{{ join .Runtime.TrustedGroupHeadersOverride ", " }}{{ else }}{{ join .ApplicationSettings.Authentication.TrustedGroupHeaders ", " }}{{ end }}"
                  placeholder="X-Forwarded-Groups"
                  autocomplete="off"
-                 {{ if eq .Runtime.AuthModeOverride "trusted-proxy" }}readonly
+                 {{ if eq .Runtime.AuthModeOverride "proxy" }}readonly
                  aria-readonly="true"
                  {{ end }} />
-          <small>{{ if eq .Runtime.AuthModeOverride "trusted-proxy" }}Configured by <code>KUMBUKA__TRUSTED_GROUP_HEADERS</code>.{{ else }}Comma-separated header names supplied and sanitized by the trusted proxy.{{ end }}</small>
+          <small>{{ if eq .Runtime.AuthModeOverride "proxy" }}Configured by <code>KUMBUKA__TRUSTED_GROUP_HEADERS</code>.{{ else }}Comma-separated header names supplied and sanitized by the trusted proxy.{{ end }}</small>
         </label>
         <label>
           <span class="auth-managed-label-row">
             <span>Administrator group</span>
-            {{ if eq .Runtime.AuthModeOverride "trusted-proxy" }}<span class="config-status managed">Managed by deployment</span>{{ end }}
+            {{ if eq .Runtime.AuthModeOverride "proxy" }}<span class="config-status managed">Managed by deployment</span>{{ end }}
           </span>
           <input type="text"
-                 {{ if ne .Runtime.AuthModeOverride "trusted-proxy" }}name="trusted_admin_group"
+                 {{ if ne .Runtime.AuthModeOverride "proxy" }}name="trusted_admin_group"
                  {{ end }}
-                 value="{{ if eq .Runtime.AuthModeOverride "trusted-proxy" }}{{ .Runtime.TrustedAdminGroupOverride }}{{ else }}{{ .ApplicationSettings.Authentication.TrustedAdminGroup }}{{ end }}"
+                 value="{{ if eq .Runtime.AuthModeOverride "proxy" }}{{ .Runtime.TrustedAdminGroupOverride }}{{ else }}{{ .ApplicationSettings.Authentication.TrustedAdminGroup }}{{ end }}"
                  placeholder="admins"
                  autocomplete="off"
-                 {{ if eq .Runtime.AuthModeOverride "trusted-proxy" }}readonly
+                 {{ if eq .Runtime.AuthModeOverride "proxy" }}readonly
                  aria-readonly="true"
                  {{ end }} />
-          <small>{{ if eq .Runtime.AuthModeOverride "trusted-proxy" }}Configured by <code>KUMBUKA__TRUSTED_ADMIN_GROUP</code>.{{ else }}A matching value grants administrator access for each trusted request without changing the manually assigned role.{{ end }}</small>
+          <small>{{ if eq .Runtime.AuthModeOverride "proxy" }}Configured by <code>KUMBUKA__TRUSTED_ADMIN_GROUP</code>.{{ else }}A matching value grants administrator access for each trusted request without changing the manually assigned role.{{ end }}</small>
         </label>
       </div>
     </div>

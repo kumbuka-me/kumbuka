@@ -30,7 +30,7 @@ func (s *Store) SetExternalAdminStatus(ctx context.Context, userID int64, method
 	switch method {
 	case domain.AuthModeOIDC:
 		query = `UPDATE users SET oidc_admin_observed=true,oidc_external_admin=$2 WHERE id=$1`
-	case domain.AuthModeTrustedProxy:
+	case domain.AuthModeProxy:
 		query = `UPDATE users SET trusted_proxy_admin_observed=true,trusted_proxy_external_admin=$2 WHERE id=$1`
 	default:
 		return domain.NewValidationError("method", "Choose a supported external authentication method.")

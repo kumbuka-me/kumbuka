@@ -61,10 +61,7 @@ func TestTrustedProxyDisabledAccount(t *testing.T) {
 	t.Parallel()
 
 	repository := &trustedProxyRepositoryStub{user: domain.User{ID: 7, Enabled: false}}
-	authenticator := newTestTrustedProxy(
-		t, repository,
-		proxyTestHeaders{Username: []string{"X-User"}},
-	)
+	authenticator := newTestTrustedProxy(t, repository, proxyTestHeaders{Username: []string{"X-User"}})
 	request := httptest.NewRequest("GET", "/", nil)
 
 	request.Header.Set("X-User", "daniel")
@@ -117,8 +114,11 @@ func TestTrustedProxyRejectsUntrustedPeer(t *testing.T) {
 func TestTrustedProxyRequiresExplicitTrust(t *testing.T) {
 	t.Parallel()
 	repository := &trustedProxyRepositoryStub{user: domain.User{ID: 7, Enabled: true}}
-	_, err := NewTrustedProxy(repository, appkitproxy.Config{UsernameHeaders: []string{"X-User"}}, "")
-	require.ErrorContains(t, err, "trusted-proxy-cidrs")
+	authenticator := newTestTrustedProxy(t, repository, proxyTestHeaders{Username: []string{"X-User"}})
+	request := httptest.NewRequest(http.MethodGet, "/", nil)
+	request.Header.Set("X-User", "admin")
+	_, err := authenticator.Authenticate(request)
+	require.ErrorIs(t, err, ErrUnauthenticated)
 	assert.Zero(t, repository.calls)
 }
 
@@ -132,7 +132,7 @@ type proxyTestHeaders struct {
 	AdminGroup  string
 }
 
-// newTestTrustedProxy creates an appkit-backed authenticator with a trusted test ingress.
+// newTestTrustedProxy creates an AppKit-backed authenticator with a trusted test ingress.
 func newTestTrustedProxy(t *testing.T, repository *trustedProxyRepositoryStub, headers proxyTestHeaders) *TrustedProxy {
 	t.Helper()
 	provider, err := NewTrustedProxy(repository, appkitproxy.Config{

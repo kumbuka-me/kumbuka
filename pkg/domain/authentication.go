@@ -8,13 +8,13 @@ const (
 	AuthModeNone AuthMode = "none"
 	// AuthModeLocal authenticates browser requests with Kumbuka-managed credentials.
 	AuthModeLocal AuthMode = "local"
-	// AuthModeTrustedProxy authenticates users from trusted proxy headers.
-	AuthModeTrustedProxy AuthMode = "trusted-proxy"
+	// AuthModeProxy authenticates users from trusted proxy headers.
+	AuthModeProxy AuthMode = "proxy"
 	// AuthModeOIDC authenticates users through an OIDC provider.
 	AuthModeOIDC AuthMode = "oidc"
 )
 
 // IsExternalAuthMode reports whether mode relies on an external identity boundary.
 func IsExternalAuthMode(mode AuthMode) bool {
-	return mode == AuthModeOIDC || mode == AuthModeTrustedProxy
+	return mode == AuthModeOIDC || mode == AuthModeProxy
 }
