@@ -84,7 +84,8 @@ CREATE TABLE public.application_settings (
     brand_logo_content_type text DEFAULT ''::text NOT NULL,
     brand_logo_data bytea,
     editor_toolbar_overrides jsonb DEFAULT '[]'::jsonb NOT NULL,
-    CONSTRAINT application_settings_auth_mode_check CHECK ((auth_mode = ANY (ARRAY['none'::text, 'local'::text, 'trusted-proxy'::text, 'oidc'::text]))),
+    setup_completed_at timestamp with time zone,
+    CONSTRAINT application_settings_auth_mode_check CHECK ((auth_mode = ANY (ARRAY['none'::text, 'local'::text, 'oidc'::text, 'proxy'::text]))),
     CONSTRAINT application_settings_brand_logo_pair_check CHECK ((((brand_logo_content_type = ''::text) AND (brand_logo_data IS NULL)) OR ((brand_logo_content_type <> ''::text) AND (brand_logo_data IS NOT NULL)))),
     CONSTRAINT application_settings_default_typography_size_check CHECK ((default_typography_size = ANY (ARRAY['compact'::text, 'standard'::text, 'large'::text]))),
     CONSTRAINT application_settings_external_links_check CHECK ((jsonb_typeof(external_links) = 'array'::text)),
@@ -269,7 +270,13 @@ CREATE TABLE public.notifications (
     body text DEFAULT ''::text NOT NULL,
     url text DEFAULT ''::text NOT NULL,
     read_at timestamp with time zone,
-    created_at timestamp with time zone DEFAULT now() NOT NULL
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    actor_id bigint,
+    source_type text DEFAULT 'core'::text NOT NULL,
+    source_id text DEFAULT ''::text NOT NULL,
+    source_name text DEFAULT 'Kumbuka'::text NOT NULL,
+    idempotency_key text DEFAULT ''::text NOT NULL,
+    CONSTRAINT notifications_source_type_check CHECK ((source_type = ANY (ARRAY['core'::text, 'plugin'::text])))
 );
 
 
@@ -310,7 +317,11 @@ CREATE TABLE public.oidc_identities (
     issuer text NOT NULL,
     subject text NOT NULL,
     user_id bigint NOT NULL,
-    created_at timestamp with time zone DEFAULT now() NOT NULL
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    username text DEFAULT ''::text NOT NULL,
+    email text DEFAULT ''::text NOT NULL,
+    display_name text DEFAULT ''::text NOT NULL,
+    last_seen_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
 
@@ -876,17 +887,70 @@ ALTER SEQUENCE public.pending_oidc_identities_id_seq OWNED BY public.pending_oid
 
 
 --
+-- Name: plugin_content_changes; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.plugin_content_changes (
+    id bigint NOT NULL,
+    plugin_id text NOT NULL,
+    actor_id bigint NOT NULL,
+    page_snapshot jsonb NOT NULL,
+    previous_markdown text NOT NULL,
+    markdown text NOT NULL,
+    attempts integer DEFAULT 0 NOT NULL,
+    available_at timestamp with time zone DEFAULT now() NOT NULL,
+    claimed_until timestamp with time zone,
+    last_error text DEFAULT ''::text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT plugin_content_changes_attempts_check CHECK ((attempts >= 0))
+);
+
+
+--
+-- Name: plugin_content_changes_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.plugin_content_changes_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: plugin_content_changes_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.plugin_content_changes_id_seq OWNED BY public.plugin_content_changes.id;
+
+
+--
 -- Name: plugin_installations; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.plugin_installations (
     plugin_id text NOT NULL,
-    source text NOT NULL,
     enabled boolean NOT NULL,
-    package bytea,
-    CONSTRAINT plugin_installations_check CHECK ((((source = 'bundled'::text) AND (package IS NULL)) OR ((source = 'installed'::text) AND (package IS NOT NULL) AND ((octet_length(package) >= 1) AND (octet_length(package) <= 16777216))))),
-    CONSTRAINT plugin_installations_plugin_id_check CHECK (((octet_length(plugin_id) >= 1) AND (octet_length(plugin_id) <= 128))),
-    CONSTRAINT plugin_installations_source_check CHECK ((source = ANY (ARRAY['bundled'::text, 'installed'::text])))
+    manifest jsonb NOT NULL,
+    digest bytea NOT NULL,
+    readme text NOT NULL,
+    CONSTRAINT plugin_installations_digest_check CHECK ((octet_length(digest) = 32)),
+    CONSTRAINT plugin_installations_manifest_check CHECK (((COALESCE((manifest ->> 'ID'::text), ''::text) = plugin_id) AND (COALESCE((manifest ->> 'Version'::text), ''::text) <> ''::text))),
+    CONSTRAINT plugin_installations_plugin_id_check CHECK (((octet_length(plugin_id) >= 1) AND (octet_length(plugin_id) <= 128)))
+);
+
+
+--
+-- Name: plugin_packages; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.plugin_packages (
+    plugin_id text NOT NULL,
+    digest bytea NOT NULL,
+    package bytea NOT NULL,
+    CONSTRAINT plugin_packages_digest_check CHECK ((octet_length(digest) = 32)),
+    CONSTRAINT plugin_packages_package_check CHECK (((octet_length(package) >= 1) AND (octet_length(package) <= 16777216)))
 );
 
 
@@ -934,6 +998,17 @@ CREATE TABLE public.plugin_values (
     CONSTRAINT plugin_values_key_check CHECK (((octet_length(key) >= 1) AND (octet_length(key) <= 256))),
     CONSTRAINT plugin_values_namespace_check CHECK ((namespace = ANY (ARRAY['settings'::text, 'data'::text]))),
     CONSTRAINT plugin_values_value_check CHECK ((octet_length(value) <= 65536))
+);
+
+
+--
+-- Name: retired_trusted_proxy_identities; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.retired_trusted_proxy_identities (
+    username text NOT NULL,
+    user_id bigint,
+    retired_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
 
@@ -1000,6 +1075,20 @@ ALTER SEQUENCE public.tags_id_seq OWNED BY public.tags.id;
 
 
 --
+-- Name: trusted_proxy_identities; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.trusted_proxy_identities (
+    username text NOT NULL,
+    user_id bigint NOT NULL,
+    email text DEFAULT ''::text NOT NULL,
+    display_name text DEFAULT ''::text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    last_seen_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
 -- Name: user_groups; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1027,6 +1116,7 @@ CREATE TABLE public.user_preferences (
     expanded_navigation text[] DEFAULT '{}'::text[] NOT NULL,
     hidden_plugin_widgets text[] DEFAULT '{}'::text[] NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    locale text DEFAULT ''::text NOT NULL,
     CONSTRAINT user_preferences_navigation_density_check CHECK ((navigation_density = ANY (ARRAY['comfortable'::text, 'compact'::text]))),
     CONSTRAINT user_preferences_navigation_style_check CHECK ((navigation_style = ANY (ARRAY['sidebar'::text, 'topbar'::text, 'tree'::text]))),
     CONSTRAINT user_preferences_sidebar_width_check CHECK (((sidebar_width >= 220) AND (sidebar_width <= 420))),
@@ -1052,6 +1142,11 @@ CREATE TABLE public.users (
     trusted_proxy_external_admin boolean DEFAULT false NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     last_login timestamp with time zone,
+    profile_source text DEFAULT 'local'::text NOT NULL,
+    username_overridden boolean DEFAULT false NOT NULL,
+    email_overridden boolean DEFAULT false NOT NULL,
+    display_name_overridden boolean DEFAULT false NOT NULL,
+    CONSTRAINT users_profile_source_check CHECK ((profile_source = ANY (ARRAY['local'::text, 'oidc'::text, 'proxy'::text]))),
     CONSTRAINT users_role_check CHECK ((role = ANY (ARRAY['admin'::text, 'editor'::text, 'viewer'::text])))
 );
 
@@ -1162,6 +1257,7 @@ CREATE TABLE public.webhooks (
     retry_jitter boolean DEFAULT true NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    include_user_details boolean DEFAULT false NOT NULL,
     CONSTRAINT webhooks_retry_backoff_ms_check CHECK ((retry_backoff_ms >= 0)),
     CONSTRAINT webhooks_retry_count_check CHECK ((retry_count >= 0)),
     CONSTRAINT webhooks_retry_max_backoff_ms_check CHECK ((retry_max_backoff_ms >= 0))
@@ -1323,6 +1419,13 @@ ALTER TABLE ONLY public.pending_oidc_identities ALTER COLUMN id SET DEFAULT next
 
 
 --
+-- Name: plugin_content_changes id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.plugin_content_changes ALTER COLUMN id SET DEFAULT nextval('public.plugin_content_changes_id_seq'::regclass);
+
+
+--
 -- Name: saved_searches id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -1381,7 +1484,7 @@ ALTER TABLE ONLY public.wiki_groups ALTER COLUMN id SET DEFAULT nextval('public.
 -- Data for Name: application_settings; Type: TABLE DATA; Schema: public; Owner: -
 --
 
-INSERT INTO public.application_settings VALUES (true, true, 'en', true, 'none', '', '', 'groups', false, true, '', '{X-Forwarded-User,X-Auth-Request-User,Remote-User}', '{X-Forwarded-Email,X-Auth-Request-Email,X-Authentik-Email}', '{X-Forwarded-Name,X-Auth-Request-Preferred-Username,X-Authentik-Name}', '{X-Forwarded-Groups,X-Auth-Request-Groups}', '', '', '[]', 'compact', 'disallow', '2026-09-24 15:12:29.758812+00', '', NULL, '[]');
+INSERT INTO public.application_settings VALUES (true, true, 'en', true, 'none', '', '', 'groups', false, true, '', '{X-Forwarded-User,X-Auth-Request-User,Remote-User}', '{X-Forwarded-Email,X-Auth-Request-Email,X-Authentik-Email}', '{X-Forwarded-Name,X-Auth-Request-Preferred-Username,X-Authentik-Name}', '{X-Forwarded-Groups,X-Auth-Request-Groups}', '', '', '[]', 'compact', 'disallow', '2026-09-24 15:12:29.758812+00', '', NULL, '[]', NULL);
 
 
 --
@@ -1559,7 +1662,19 @@ INSERT INTO public.application_settings VALUES (true, true, 'en', true, 'none', 
 
 
 --
+-- Data for Name: plugin_content_changes; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
 -- Data for Name: plugin_installations; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
+-- Data for Name: plugin_packages; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 
@@ -1577,6 +1692,12 @@ INSERT INTO public.application_settings VALUES (true, true, 'en', true, 'none', 
 
 
 --
+-- Data for Name: retired_trusted_proxy_identities; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
 -- Data for Name: saved_searches; Type: TABLE DATA; Schema: public; Owner: -
 --
 
@@ -1584,6 +1705,12 @@ INSERT INTO public.application_settings VALUES (true, true, 'en', true, 'none', 
 
 --
 -- Data for Name: tags; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+
+
+--
+-- Data for Name: trusted_proxy_identities; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 
@@ -1733,6 +1860,13 @@ SELECT pg_catalog.setval('public.pdf_headers_id_seq', 1, false);
 --
 
 SELECT pg_catalog.setval('public.pending_oidc_identities_id_seq', 1, false);
+
+
+--
+-- Name: plugin_content_changes_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
+--
+
+SELECT pg_catalog.setval('public.plugin_content_changes_id_seq', 1, false);
 
 
 --
@@ -2097,11 +2231,27 @@ ALTER TABLE ONLY public.pending_oidc_identities
 
 
 --
+-- Name: plugin_content_changes plugin_content_changes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.plugin_content_changes
+    ADD CONSTRAINT plugin_content_changes_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: plugin_installations plugin_installations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.plugin_installations
     ADD CONSTRAINT plugin_installations_pkey PRIMARY KEY (plugin_id);
+
+
+--
+-- Name: plugin_packages plugin_packages_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.plugin_packages
+    ADD CONSTRAINT plugin_packages_pkey PRIMARY KEY (plugin_id, digest);
 
 
 --
@@ -2118,6 +2268,14 @@ ALTER TABLE ONLY public.plugin_update_announcements
 
 ALTER TABLE ONLY public.plugin_values
     ADD CONSTRAINT plugin_values_pkey PRIMARY KEY (plugin_id, namespace, key);
+
+
+--
+-- Name: retired_trusted_proxy_identities retired_trusted_proxy_identities_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.retired_trusted_proxy_identities
+    ADD CONSTRAINT retired_trusted_proxy_identities_pkey PRIMARY KEY (username);
 
 
 --
@@ -2150,6 +2308,22 @@ ALTER TABLE ONLY public.tags
 
 ALTER TABLE ONLY public.tags
     ADD CONSTRAINT tags_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: trusted_proxy_identities trusted_proxy_identities_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.trusted_proxy_identities
+    ADD CONSTRAINT trusted_proxy_identities_pkey PRIMARY KEY (username);
+
+
+--
+-- Name: trusted_proxy_identities trusted_proxy_identities_user_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.trusted_proxy_identities
+    ADD CONSTRAINT trusted_proxy_identities_user_id_key UNIQUE (user_id);
 
 
 --
@@ -2272,6 +2446,13 @@ CREATE INDEX local_sessions_expiry_idx ON public.local_sessions USING btree (exp
 --
 
 CREATE INDEX local_sessions_user_idx ON public.local_sessions USING btree (user_id);
+
+
+--
+-- Name: notifications_plugin_idempotency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX notifications_plugin_idempotency ON public.notifications USING btree (source_id, user_id, idempotency_key) WHERE ((source_type = 'plugin'::text) AND (idempotency_key <> ''::text));
 
 
 --
@@ -2471,10 +2652,24 @@ CREATE INDEX pending_oidc_identities_status_idx ON public.pending_oidc_identitie
 
 
 --
+-- Name: plugin_content_changes_ready; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX plugin_content_changes_ready ON public.plugin_content_changes USING btree (available_at, id);
+
+
+--
 -- Name: saved_searches_user_name_ci_idx; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE UNIQUE INDEX saved_searches_user_name_ci_idx ON public.saved_searches USING btree (user_id, lower(name));
+
+
+--
+-- Name: trusted_proxy_identities_user_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX trusted_proxy_identities_user_idx ON public.trusted_proxy_identities USING btree (user_id);
 
 
 --
@@ -2582,6 +2777,14 @@ ALTER TABLE ONLY public.local_credentials
 
 ALTER TABLE ONLY public.local_sessions
     ADD CONSTRAINT local_sessions_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: notifications notifications_actor_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.notifications
+    ADD CONSTRAINT notifications_actor_id_fkey FOREIGN KEY (actor_id) REFERENCES public.users(id) ON DELETE SET NULL;
 
 
 --
@@ -2889,11 +3092,35 @@ ALTER TABLE ONLY public.pages
 
 
 --
+-- Name: plugin_installations plugin_installations_package_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.plugin_installations
+    ADD CONSTRAINT plugin_installations_package_fk FOREIGN KEY (plugin_id, digest) REFERENCES public.plugin_packages(plugin_id, digest);
+
+
+--
+-- Name: retired_trusted_proxy_identities retired_trusted_proxy_identities_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.retired_trusted_proxy_identities
+    ADD CONSTRAINT retired_trusted_proxy_identities_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE SET NULL;
+
+
+--
 -- Name: saved_searches saved_searches_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.saved_searches
     ADD CONSTRAINT saved_searches_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: trusted_proxy_identities trusted_proxy_identities_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.trusted_proxy_identities
+    ADD CONSTRAINT trusted_proxy_identities_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
 
 
 --
