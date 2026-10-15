@@ -1,9 +1,6 @@
 package server
 
 import (
-	"net/http"
-	"strings"
-
 	appkithttpserver "github.com/containeroo/appkit/httpserver"
 )
 
@@ -29,13 +26,5 @@ func New(config Config) appkithttpserver.Handlers {
 		Application: newApplication(config),
 		Management:  newManagement(config),
 		RoutePrefix: config.RoutePrefix,
-	})
-}
-
-// methodNotAllowed rejects unsupported methods on operational endpoints.
-func methodNotAllowed(methods ...string) http.Handler {
-	return http.HandlerFunc(func(response http.ResponseWriter, _ *http.Request) {
-		response.Header().Set("Allow", strings.Join(methods, ", "))
-		http.Error(response, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 	})
 }
