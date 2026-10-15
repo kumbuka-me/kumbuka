@@ -39,6 +39,8 @@ include $(call dev-tools-module,tag)
 include $(call dev-tools-module,port)
 include $(call dev-tools-module,browser)
 include $(call dev-tools-module,help)
+include	$(call dev-tools,favicon-generate)
+include	$(call dev-tools,svg-to-png)
 
 ## Project-local tools
 
@@ -440,12 +442,6 @@ lint-fix: web golangci-lint ## Run golangci-lint and apply fixes.
 
 $(NODE_MODULES): package.json package-lock.json
 	$(NPM) ci
-
-$(FAVICON_GENERATE): | $(DEV_TOOLS_BIN)
-	$(call download-dev-tool,favicon-generate,$@)
-
-$(SVG_TO_PNG): | $(DEV_TOOLS_BIN)
-	$(call download-dev-tool,svg-to-png,$@)
 
 .PHONY: dev-tools
 dev-tools: $(DEV_PORT) $(OPEN_BROWSER) $(DEV_TAG) $(MAKE_HELP) $(GO_INSTALL_TOOL) $(FAVICON_GENERATE) $(SVG_TO_PNG) ## Download the pinned development tools.
