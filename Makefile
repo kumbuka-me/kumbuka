@@ -27,7 +27,7 @@ GH ?= gh
 ## Tool Versions
 
 # renovate: datasource=github-releases depName=golangci/golangci-lint
-GOLANGCI_LINT_VERSION ?= v2.14.0
+GOLANGCI_LINT_VERSION ?= v2.15.0
 
 # renovate: datasource=github-releases depName=gi8lino/dev-tools
 DEV_TOOLS_VERSION ?= v0.9.0
