@@ -6,9 +6,10 @@ import (
 	"io"
 	"io/fs"
 
+	httpkitgrace "github.com/containeroo/httpkit/grace"
+
 	appkithttpserver "github.com/containeroo/appkit/httpserver"
 	appkitlogging "github.com/containeroo/appkit/logging"
-	server "github.com/containeroo/httpkit/grace"
 	"github.com/containeroo/tinyflags"
 	"github.com/kumbuka-me/kumbuka/internal/bootstrap"
 	"github.com/kumbuka-me/kumbuka/internal/flags"
@@ -48,7 +49,7 @@ func Run(
 	}
 
 	// Bind the process lifetime to operating-system shutdown signals.
-	ctx, stop := server.SignalContext(ctx)
+	ctx, stop := httpkitgrace.SignalContext(ctx)
 	defer stop()
 
 	// Construct process infrastructure and own its lifetime here.
