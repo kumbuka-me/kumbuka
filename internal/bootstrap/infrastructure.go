@@ -4,6 +4,7 @@ package bootstrap
 import (
 	"context"
 	"fmt"
+	"io/fs"
 	"log/slog"
 
 	appkitsecrets "github.com/containeroo/appkit/secrets"
@@ -31,11 +32,12 @@ type Infrastructure struct {
 // NewInfrastructure initializes process-level dependencies in startup order.
 func NewInfrastructure(
 	ctx context.Context,
+	themeFS fs.FS,
 	cfg flags.Config,
 	logger *slog.Logger,
 	version, commit string,
 ) (*Infrastructure, error) {
-	availableThemes, err := themes.Load(themes.Files, cfg.ThemeDirectory)
+	availableThemes, err := themes.Load(themeFS, cfg.ThemeDirectory)
 	if err != nil {
 		return nil, fmt.Errorf("load themes: %w", err)
 	}

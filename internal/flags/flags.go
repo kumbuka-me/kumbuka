@@ -72,6 +72,7 @@ func Parse(args []string, version string) (Config, error) {
 	appkitconfig.RegisterOIDC(tf, &cfg.OIDC)
 	finalizeLogging := appkitconfig.RegisterLogging(tf, &cfg.Logging)
 	appkitconfig.RegisterObservability(tf, &cfg.Observability)
+
 	registerApplicationFlags(tf, &cfg)
 	registerServiceFlags(tf, &cfg)
 

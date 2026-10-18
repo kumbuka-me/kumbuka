@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/kumbuka-me/kumbuka/internal/app"
+	"github.com/kumbuka-me/kumbuka/pkg/themes"
 	"github.com/kumbuka-me/kumbuka/web"
 )
 
@@ -19,6 +20,7 @@ func main() {
 		context.Background(),
 		os.Args[1:],
 		web.Assets,
+		themes.Files,
 		Version,
 		Commit,
 		os.Stdout,

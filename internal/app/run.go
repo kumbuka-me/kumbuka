@@ -20,7 +20,7 @@ import (
 func Run(
 	ctx context.Context,
 	args []string,
-	appFS fs.FS,
+	webFS, themeFS fs.FS,
 	version, commit string,
 	stdout, stderr io.Writer,
 ) error {
@@ -53,7 +53,7 @@ func Run(
 	defer stop()
 
 	// Construct process infrastructure and own its lifetime here.
-	infrastructure, err := bootstrap.NewInfrastructure(ctx, cfg, logger, version, commit)
+	infrastructure, err := bootstrap.NewInfrastructure(ctx, themeFS, cfg, logger, version, commit)
 	if err != nil {
 		setupLogger.Error("initialize infrastructure", "event", "infrastructure_init_failed", "error", err)
 		return err
@@ -70,7 +70,7 @@ func Run(
 
 	// Build the passive HTTP adapter after the application graph is complete.
 	serverConfig, err := bootstrap.NewHTTPConfig(
-		appFS,
+		webFS,
 		cfg,
 		infrastructure,
 		application,
