@@ -326,6 +326,14 @@ test-web: check-web ## Compile and run the TypeScript frontend unit tests.
 test-browser: check-web $(PLUGIN_STAMP) ## Run browser regressions in Chrome.
 	$(NODE) --test --test-concurrency=$(BROWSER_TEST_CONCURRENCY) test/browser/*.test.mjs
 
+.PHONY: test-e2e
+test-e2e: ## Build and run disposable OIDC and trusted-proxy end-to-end tests.
+	sh dev/run-e2e.sh
+
+.PHONY: test-e2e-existing
+test-e2e-existing: ## Run authentication E2E tests against separately managed test instances.
+	$(NPM) run test:e2e
+
 .PHONY: test-go
 test-go: web plugins ## Run backend unit tests.
 	go test -count=1 -timeout=3m ./...

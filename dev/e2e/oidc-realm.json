@@ -1,0 +1,67 @@
+{
+  "realm": "kumbuka",
+  "enabled": true,
+  "registrationAllowed": false,
+  "groups": [{ "name": "kumbuka-admins" }],
+  "clients": [
+    {
+      "clientId": "kumbuka-test",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "local-test-client-secret",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "redirectUris": ["${E2E_OIDC_REDIRECT_URI}"],
+      "attributes": { "pkce.code.challenge.method": "S256" },
+      "protocolMappers": [
+        {
+          "name": "groups",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-group-membership-mapper",
+          "consentRequired": false,
+          "config": {
+            "full.path": "false",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "claim.name": "groups"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "oidc-admin",
+      "firstName": "OIDC",
+      "lastName": "Administrator",
+      "enabled": true,
+      "email": "oidc-admin@example.test",
+      "emailVerified": true,
+      "groups": ["kumbuka-admins"],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "local-test-password",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "username": "oidc-viewer",
+      "firstName": "OIDC",
+      "lastName": "Viewer",
+      "enabled": true,
+      "email": "oidc-viewer@example.test",
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "local-test-password",
+          "temporary": false
+        }
+      ]
+    }
+  ]
+}

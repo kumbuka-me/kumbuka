@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "build:ts": "tsc -p tsconfig.json && sh scripts/web/build-visual.sh && tsc -p web/src/ts/service-worker/tsconfig.json",
+    "test:e2e": "playwright test --config test/e2e/playwright.config.js",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p web/src/ts/service-worker/tsconfig.json --noEmit && tsc -p test/ts/tsconfig.json --noEmit"
   },
   "dependencies": {
@@ -15,6 +16,7 @@
     "@tiptap/starter-kit": "3.32.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "esbuild": "0.28.2",
     "playwright": "^1.63.0",
     "typescript": "7.0.2"

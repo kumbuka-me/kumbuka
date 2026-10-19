@@ -10,6 +10,7 @@ coverage.out
 /web/dist/
 /node_modules/
 /build/
+/test-results/
 
 /plugins/*.kumbukaplugin
 /plugins/.downloaded
