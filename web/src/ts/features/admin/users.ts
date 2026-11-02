@@ -185,9 +185,7 @@ export function setupAdminUserEditor(dialog: HTMLDialogElement): void {
     const displayName = button.dataset.userName || username;
     const sourceValue = button.dataset.profileSource;
     const profileSource: ProfileSource =
-      sourceValue === "oidc" || sourceValue === "proxy"
-        ? sourceValue
-        : "local";
+      sourceValue === "oidc" || sourceValue === "proxy" ? sourceValue : "local";
     const externalProfile = profileSource !== "local";
 
     editorName.textContent = displayName || username || "Edit user";

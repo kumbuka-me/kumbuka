@@ -279,20 +279,28 @@ test("editor accepts Markdown widget fields and tab table columns", () => {
           { name: "titles", type: "list", required: true },
           { name: "bodies", type: "list", required: true },
         ],
-        settings: [{
-          type: "table", label: "Tabs", attributes: ["titles", "bodies"],
-          columns: [
-            { type: "text", label: "Title" },
-            { type: "markdown", label: "Content" },
-          ],
-        }],
+        settings: [
+          {
+            type: "table",
+            label: "Tabs",
+            attributes: ["titles", "bodies"],
+            columns: [
+              { type: "text", label: "Title" },
+              { type: "markdown", label: "Content" },
+            ],
+          },
+        ],
         preview: {
           kind: "tabs",
           tabs: {
-            class: "markdown-tabs", list_class: "markdown-tab-list",
-            tab_class: "markdown-tab", panels_class: "markdown-tab-panels",
-            panel_class: "markdown-tab-panel", titles_attribute: "titles",
-            bodies_attribute: "bodies", body_format: "markdown",
+            class: "markdown-tabs",
+            list_class: "markdown-tab-list",
+            tab_class: "markdown-tab",
+            panels_class: "markdown-tab-panels",
+            panel_class: "markdown-tab-panel",
+            titles_attribute: "titles",
+            bodies_attribute: "bodies",
+            body_format: "markdown",
           },
         },
       },

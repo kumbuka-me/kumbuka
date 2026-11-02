@@ -3,7 +3,10 @@
 import { formatMarkdownDocument } from "./formatter.ts";
 import { dispatchEditorEvent } from "./events.ts";
 import { openCodeLanguagePicker } from "./code-language-picker.ts";
-import { headingNumberingEnabled, renumberMarkdownHeadings } from "./heading-numbering.ts";
+import {
+  headingNumberingEnabled,
+  renumberMarkdownHeadings,
+} from "./heading-numbering.ts";
 
 function insertIntoVisualEditor(
   textarea: HTMLTextAreaElement,
@@ -194,7 +197,10 @@ function setupMarkdownToolbar(toolbar: HTMLElement): void {
     const start = editor.selectionStart ?? 0;
     const end = editor.selectionEnd ?? start;
     editor.value = numbered;
-    editor.setSelectionRange(Math.min(start, numbered.length), Math.min(end, numbered.length));
+    editor.setSelectionRange(
+      Math.min(start, numbered.length),
+      Math.min(end, numbered.length),
+    );
   }
 
   function syncHeadingLabel(): void {
@@ -203,14 +209,20 @@ function setupMarkdownToolbar(toolbar: HTMLElement): void {
     const headingMenu = toolbar.querySelector<HTMLElement>(
       ".markdown-toolbar-heading-menu",
     );
-    const label = headingMenu?.querySelector<HTMLElement>("[data-heading-label]");
+    const label = headingMenu?.querySelector<HTMLElement>(
+      "[data-heading-label]",
+    );
     const summary = headingMenu?.querySelector<HTMLElement>("summary");
     if (!headingMenu || !label || !summary) return;
 
     const selection = editor.selectionStart ?? 0;
-    const lineStart = editor.value.lastIndexOf("\n", Math.max(0, selection - 1)) + 1;
+    const lineStart =
+      editor.value.lastIndexOf("\n", Math.max(0, selection - 1)) + 1;
     const lineEnd = editor.value.indexOf("\n", selection);
-    const line = editor.value.slice(lineStart, lineEnd < 0 ? undefined : lineEnd);
+    const line = editor.value.slice(
+      lineStart,
+      lineEnd < 0 ? undefined : lineEnd,
+    );
     const level = /^(#{1,6})\s+/.exec(line)?.[1].length;
     const headingLabel = level ? `H${level}` : "Heading";
 
@@ -281,7 +293,9 @@ function setupMarkdownToolbar(toolbar: HTMLElement): void {
       return;
     const numberedHeading = /^numbered-heading-([1-6])$/.exec(action);
     if (numberedHeading) {
-      const numbering = form?.querySelector<HTMLInputElement>("[data-heading-numbering]");
+      const numbering = form?.querySelector<HTMLInputElement>(
+        "[data-heading-numbering]",
+      );
       if (numbering) numbering.checked = true;
       action = `heading-${numberedHeading[1]}`;
     }
@@ -336,7 +350,8 @@ function setupMarkdownToolbar(toolbar: HTMLElement): void {
       case "clear-formatting": {
         const start = editor.selectionStart ?? 0;
         const end = editor.selectionEnd ?? start;
-        const lineStart = editor.value.lastIndexOf("\n", Math.max(0, start - 1)) + 1;
+        const lineStart =
+          editor.value.lastIndexOf("\n", Math.max(0, start - 1)) + 1;
         const lineEnd = editor.value.indexOf("\n", end);
         const replacement = editor.value
           .slice(lineStart, lineEnd < 0 ? undefined : lineEnd)
@@ -419,10 +434,12 @@ function setupMarkdownToolbar(toolbar: HTMLElement): void {
   editor.addEventListener("keyup", syncHeadingLabel);
   editor.addEventListener("select", syncHeadingLabel);
   syncHeadingLabel();
-  form?.querySelector<HTMLInputElement>("[data-heading-numbering]")?.addEventListener("change", () => {
-    renumberIfEnabled();
-    editor.dispatchEvent(new Event("input", { bubbles: true }));
-  });
+  form
+    ?.querySelector<HTMLInputElement>("[data-heading-numbering]")
+    ?.addEventListener("change", () => {
+      renumberIfEnabled();
+      editor.dispatchEvent(new Event("input", { bubbles: true }));
+    });
 
   editor.addEventListener("keydown", (event: KeyboardEvent) => {
     if (!(event.ctrlKey || event.metaKey)) return;

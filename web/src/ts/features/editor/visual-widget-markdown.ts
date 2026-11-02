@@ -77,10 +77,22 @@ export function createMarkdownControl(
   const commands: Array<{ label: string; run: () => void }> = [
     { label: "Bold", run: () => editor.chain().focus().toggleBold().run() },
     { label: "Italic", run: () => editor.chain().focus().toggleItalic().run() },
-    { label: "Bullet list", run: () => editor.chain().focus().toggleBulletList().run() },
-    { label: "Numbered list", run: () => editor.chain().focus().toggleOrderedList().run() },
-    { label: "Quote", run: () => editor.chain().focus().toggleBlockquote().run() },
-    { label: "Code block", run: () => editor.chain().focus().toggleCodeBlock().run() },
+    {
+      label: "Bullet list",
+      run: () => editor.chain().focus().toggleBulletList().run(),
+    },
+    {
+      label: "Numbered list",
+      run: () => editor.chain().focus().toggleOrderedList().run(),
+    },
+    {
+      label: "Quote",
+      run: () => editor.chain().focus().toggleBlockquote().run(),
+    },
+    {
+      label: "Code block",
+      run: () => editor.chain().focus().toggleCodeBlock().run(),
+    },
   ];
   for (const command of commands) {
     const button = document.createElement("button");

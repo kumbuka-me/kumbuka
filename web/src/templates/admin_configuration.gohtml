@@ -533,9 +533,7 @@
           <option value="local"
                   {{ if eq .ApplicationSettings.Authentication.Mode "local" }}selected{{ end }}>Local account</option>
           <option value="proxy"
-                  {{ if eq .ApplicationSettings.Authentication.Mode "proxy" }}selected{{ end }}>
-            Trusted proxy
-          </option>
+                  {{ if eq .ApplicationSettings.Authentication.Mode "proxy" }}selected{{ end }}>Trusted proxy</option>
           <option value="oidc"
                   {{ if eq .ApplicationSettings.Authentication.Mode "oidc" }}selected{{ end }}>
             OpenID Connect (OIDC)

@@ -50,7 +50,7 @@
         <p class="settings-note">{{ $locale.Text "settings.user.identity_note" }}</p>
         {{ if eq .User.Role "admin" }}
           <p><a class="button"
-   href="{{ route "/admin" }}">{{ $locale.Text "settings.user.open_administration" }}</a></p>
+                href="{{ route "/admin" }}">{{ $locale.Text "settings.user.open_administration" }}</a></p>
         {{ end }}
       </section>
       {{ if .LocalCredentialAuthenticated }}
@@ -289,18 +289,18 @@
               method="post">
           <label>
             {{ $locale.Text "settings.saved_searches.name" }}<input name="name"
-       required
-       placeholder="{{ $locale.Text "settings.saved_searches.name_placeholder" }}" />
+                                                                    required
+                                                                    placeholder="{{ $locale.Text "settings.saved_searches.name_placeholder" }}" />
           </label>
           <label>
             {{ $locale.Text "settings.saved_searches.query" }}<input name="query"
-       required
-       placeholder="{{ $locale.Text "settings.saved_searches.query_placeholder" }}" />
+                                                                     required
+                                                                     placeholder="{{ $locale.Text "settings.saved_searches.query_placeholder" }}" />
           </label>
           <label class="toggle-row compact">
             <span><strong>{{ $locale.Text "settings.saved_searches.pin" }}</strong></span><input type="checkbox"
-       name="pinned"
-       checked />
+                                                                                                 name="pinned"
+                                                                                                 checked />
           </label>
           <button class="button primary" type="submit">{{ icon "bookmark-plus-lucide" 15 }}<span>{{ $locale.Text "settings.saved_searches.save" }}</span></button>
         </form>
@@ -334,9 +334,9 @@
               method="post">
           <label>
             {{ $locale.Text "settings.tokens.name" }}<input name="name"
-       required
-       maxlength="120"
-       placeholder="{{ $locale.Text "settings.tokens.name_placeholder" }}" />
+                                                            required
+                                                            maxlength="120"
+                                                            placeholder="{{ $locale.Text "settings.tokens.name_placeholder" }}" />
           </label>
           <label>
             {{ $locale.Text "settings.tokens.expires" }} <span class="optional">{{ $locale.Text "settings.tokens.optional" }}</span><input type="date" name="expires" />

@@ -3,7 +3,10 @@
 export const headingNumberingProperty = "kumbuka.heading-numbering";
 
 export function headingNumberingEnabled(form: HTMLFormElement | null): boolean {
-  return form?.querySelector<HTMLInputElement>("[data-heading-numbering]")?.checked ?? false;
+  return (
+    form?.querySelector<HTMLInputElement>("[data-heading-numbering]")
+      ?.checked ?? false
+  );
 }
 
 export function renumberMarkdownHeadings(source: string): string {

@@ -55,8 +55,8 @@
          name="expected_updated_at"
          value="{{ if .Page }}{{ .Page.UpdatedAt.UnixNano }}{{ end }}" />
   {{ if and (not .Page) .EditorTemplate }}<input type="hidden"
-       name="template_id"
-       value="{{ .EditorTemplate.ID }}" />{{ end }}
+                                                 name="template_id"
+                                                 value="{{ .EditorTemplate.ID }}" />{{ end }}
   <header class="editor-chrome">
     <div class="editor-chrome-left">
       <a class="editor-back"
@@ -326,8 +326,7 @@
   </label>
   <label class="toggle-row compact">
     <span><strong>Automatic heading numbering</strong><small>Writes outline numbers into Markdown so copied content keeps them.</small></span>
-    <input type="checkbox" name="heading_numbering" value="true" data-heading-numbering
-           {{ if .Page }}{{ range .Page.Properties }}{{ if and (eq .Key "kumbuka.heading-numbering") (eq .Value "true") }}checked{{ end }}{{ end }}{{ end }} />
+    <input type="checkbox" name="heading_numbering" value="true" data-heading-numbering {{ if .Page }}{{ range .Page.Properties }}{{ if and (eq .Key "kumbuka.heading-numbering") (eq .Value "true") }}checked{{ end }}{{ end }}{{ end }} />
   </label>
   <fieldset class="editor-properties" data-page-properties>
     <legend>Properties <span class="optional">optional</span></legend>
@@ -336,33 +335,33 @@
         {{ range .Page.Properties }}{{ if ne .Key "kumbuka.heading-numbering" }}
           <div class="editor-property-row">
             <input name="property_key" value="{{ .Key }}" placeholder="Environment" /><input name="property_value" value="{{ .Value }}" placeholder="Production" /><button class="icon-button"
-        type="button"
-        data-page-property-remove
-        aria-label="Remove property">{{ icon "x-lucide" 15 }}</button>
-          </div>
-        {{ end }}
-        {{ end }}
-      {{ else if .EditorTemplate }}
-        {{ range $key, $value := .EditorTemplate.Properties }}
-          <div class="editor-property-row">
-            <input name="property_key" value="{{ $key }}" placeholder="Environment" /><input name="property_value" value="{{ $value }}" placeholder="Production" /><button class="icon-button"
-        type="button"
-        data-page-property-remove
-        aria-label="Remove property">{{ icon "x-lucide" 15 }}</button>
+                                                                                                                                                                           type="button"
+                                                                                                                                                                           data-page-property-remove
+                                                                                                                                                                           aria-label="Remove property">{{ icon "x-lucide" 15 }}</button>
           </div>
         {{ end }}
       {{ end }}
-    </div>
-    <button class="button compact editor-property-add"
-            type="button"
-            data-page-property-add>
-      {{ icon "plus-lucide" 14 }}<span>Add property</span>
-    </button>
-    <small>Search with <code>property:Environment=Production</code>.</small>
-  </fieldset>
-  <label>
-    Revision message <span class="optional">optional</span><input name="message" placeholder="What changed?" />
-  </label>
+    {{ else if .EditorTemplate }}
+      {{ range $key, $value := .EditorTemplate.Properties }}
+        <div class="editor-property-row">
+          <input name="property_key" value="{{ $key }}" placeholder="Environment" /><input name="property_value" value="{{ $value }}" placeholder="Production" /><button class="icon-button"
+                                                                                                                                                                         type="button"
+                                                                                                                                                                         data-page-property-remove
+                                                                                                                                                                         aria-label="Remove property">{{ icon "x-lucide" 15 }}</button>
+        </div>
+      {{ end }}
+    {{ end }}
+  </div>
+  <button class="button compact editor-property-add"
+          type="button"
+          data-page-property-add>
+    {{ icon "plus-lucide" 14 }}<span>Add property</span>
+  </button>
+  <small>Search with <code>property:Environment=Production</code>.</small>
+</fieldset>
+<label>
+  Revision message <span class="optional">optional</span><input name="message" placeholder="What changed?" />
+</label>
 </div>
 </details>
 <section class="editor-writing">
@@ -815,9 +814,9 @@
   <div class="media-upload">
     <label class="button">
       {{ icon "upload-lucide" 16 }}<span>Upload file</span><input type="file"
-       accept=".pdf,.txt,.md,.json,.yaml,.yml,.csv,.log,.toml,.zip"
-       data-attachment-upload
-       hidden />
+                                                                  accept=".pdf,.txt,.md,.json,.yaml,.yml,.csv,.log,.toml,.zip"
+                                                                  data-attachment-upload
+                                                                  hidden />
     </label>
     <span class="muted" data-attachment-status>PDF, text, Markdown, JSON, YAML, CSV, TOML or ZIP · max 25 MiB</span>
   </div>

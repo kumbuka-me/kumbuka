@@ -429,8 +429,8 @@
                     data-plugin-update-pending="Applying approved update…">
                 {{ template "plugin-permission-hidden" . }}
                 {{ if $plugin.Builtin }}{{ if eq .Version $plugin.Builtin.Version }}<input type="hidden"
-       name="source"
-       value="builtin">{{ end }}{{ end }}
+                                                                                           name="source"
+                                                                                           value="builtin">{{ end }}{{ end }}
                 <button class="button primary" type="submit" data-plugin-update-submit>
                   <span class="plugin-update-spinner"
                         data-plugin-update-spinner

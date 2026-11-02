@@ -37,7 +37,9 @@ test("visual editor does not consume ordinary Markdown braces", () => {
 
 test("automatic heading numbering preserves Markdown source and fenced code", () => {
   assert.equal(
-    renumberMarkdownHeadings("# Introduction\n\n## Install\n\n```md\n# Literal\n```\n"),
+    renumberMarkdownHeadings(
+      "# Introduction\n\n## Install\n\n```md\n# Literal\n```\n",
+    ),
     "# 1. Introduction\n\n## 1.1 Install\n\n```md\n# Literal\n```\n",
   );
 });

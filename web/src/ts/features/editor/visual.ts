@@ -14,7 +14,10 @@ import {
 import { TableKit } from "./visual-deps/table.ts";
 import { Markdown } from "./visual-deps/markdown.ts";
 import { StarterKit } from "./visual-deps/starter.ts";
-import { headingNumberingEnabled, renumberMarkdownHeadings } from "./heading-numbering.ts";
+import {
+  headingNumberingEnabled,
+  renumberMarkdownHeadings,
+} from "./heading-numbering.ts";
 
 import type { EditorInsertAction } from "./toolbar.ts";
 import { markdownTables, rewriteTableDirectiveSource } from "./tables.ts";
@@ -396,7 +399,8 @@ export function setupVisualEditor(form: HTMLFormElement): void {
       markdown = rewriteTableDirectiveSource(markdown, parsed, directive);
       return false;
     });
-    if (headingNumberingEnabled(form)) markdown = renumberMarkdownHeadings(markdown);
+    if (headingNumberingEnabled(form))
+      markdown = renumberMarkdownHeadings(markdown);
     if (markdown === markdownSource.value) {
       return;
     }
@@ -560,7 +564,9 @@ export function setupVisualEditor(form: HTMLFormElement): void {
     }
     const numberedHeading = /^numbered-heading-([1-6])$/.exec(action);
     if (numberedHeading) {
-      const numbering = form.querySelector<HTMLInputElement>("[data-heading-numbering]");
+      const numbering = form.querySelector<HTMLInputElement>(
+        "[data-heading-numbering]",
+      );
       if (numbering) numbering.checked = true;
       chain.setHeading({ level: Number(numberedHeading[1]) }).run();
       syncMarkdown();

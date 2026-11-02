@@ -445,7 +445,8 @@ function clearFormAttribute(
     HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
   >(`[data-widget-attribute="${CSS.escape(attribute)}"]`);
   if (scalar) {
-    if (scalar instanceof HTMLTextAreaElement) setMarkdownControlValue(scalar, "");
+    if (scalar instanceof HTMLTextAreaElement)
+      setMarkdownControlValue(scalar, "");
     else scalar.value = "";
   }
 
@@ -637,7 +638,9 @@ export function createSettingsPopover(
 
   // Opening a rich editor or changing tabs must not normalize untouched source.
   const sourceForValues = (next: Record<string, string>): string =>
-    Object.entries(next).every(([name, value]) => value === (values[name] || ""))
+    Object.entries(next).every(
+      ([name, value]) => value === (values[name] || ""),
+    )
       ? raw
       : rewriteWidgetSource(raw, widget, next);
 

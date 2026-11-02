@@ -36,11 +36,7 @@ test("trusted-proxy username requires relinking while mutable fields can be over
   assert.equal(username.editable, false);
   assert.equal(username.revertVisible, false);
 
-  const displayName = profileFieldPresentation(
-    "proxy",
-    "displayName",
-    true,
-  );
+  const displayName = profileFieldPresentation("proxy", "displayName", true);
   assert.equal(displayName.editable, true);
   assert.equal(displayName.revertVisible, true);
 });

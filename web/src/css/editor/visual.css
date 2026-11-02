@@ -900,7 +900,9 @@
 /* Rendered Markdown uses normal block whitespace; only text-only fallbacks preserve it. */
 .visual-widget-node-block .visual-widget-markdown-rendered,
 .visual-widget-node-block .visual-widget-markdown-rendered .callout-body,
-.visual-widget-node-block .visual-widget-markdown-rendered .markdown-details-body,
+.visual-widget-node-block
+  .visual-widget-markdown-rendered
+  .markdown-details-body,
 .visual-widget-node-block .visual-widget-markdown-rendered .markdown-tab-panel {
   white-space: normal;
 }
