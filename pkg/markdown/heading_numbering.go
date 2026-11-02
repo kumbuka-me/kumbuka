@@ -70,6 +70,7 @@ func RenumberHeadings(source string) string {
 	return strings.Join(lines, "")
 }
 
+// fenceMarker returns the opening marker for a fenced code block line.
 func fenceMarker(line string) string {
 	if len(line) < 3 {
 		return ""
@@ -88,6 +89,7 @@ func fenceMarker(line string) string {
 	return strings.Repeat(string(marker), count)
 }
 
+// stripGeneratedHeadingNumber removes a leading outline number emitted by RenumberHeadings.
 func stripGeneratedHeadingNumber(title string) string {
 	index := 0
 	hasDigit := false
