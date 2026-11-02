@@ -170,6 +170,16 @@
   line-height: 1.35;
 }
 
+.markdown-toolbar-heading-menu [data-markdown-action="heading-5"] span {
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.markdown-toolbar-heading-menu [data-markdown-action="heading-6"] span {
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 .editor.focus-mode .markdown-toolbar {
   top: 66px;
 }

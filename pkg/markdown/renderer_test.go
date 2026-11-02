@@ -206,6 +206,23 @@ func TestRenderPageExtractsHeadingTextWithoutHTMLMarkup(t *testing.T) {
 	assert.Equal(t, "Child code", rendered.Contents[1].Title)
 }
 
+func TestRenderPagePreservesManualNumberedHeadings(t *testing.T) {
+	t.Parallel()
+
+	rendered, err := testRenderer(t).RenderPageResolved(
+		"# 1. Introduction\n\n## 1.1 Installation\n",
+		Slug,
+	)
+
+	require.NoError(t, err)
+	assert.Contains(t, rendered.HTML, `<h1 id="1-introduction">1. Introduction</h1>`)
+	assert.Contains(t, rendered.HTML, `<h2 id="11-installation">1.1 Installation</h2>`)
+	assert.Equal(t, []Heading{
+		{Level: 1, ID: "1-introduction", Title: "1. Introduction"},
+		{Level: 2, ID: "11-installation", Title: "1.1 Installation"},
+	}, rendered.Contents)
+}
+
 func TestExtractHeadingsReadsSanitizedDocument(t *testing.T) {
 	t.Parallel()
 

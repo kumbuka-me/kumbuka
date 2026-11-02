@@ -80,7 +80,11 @@ for (const failFirst of [false, true])
           <div class="markdown-toolbar" data-markdown-toolbar role="toolbar">
             <button type="button" data-markdown-action="bold">Bold</button>
             <button type="button" data-markdown-action="italic">Italic</button>
+            <details class="markdown-toolbar-menu markdown-toolbar-heading-menu">
+              <summary aria-label="Heading"><span data-heading-label>Heading</span></summary>
+            </details>
             <button type="button" data-markdown-action="heading-4">Heading 4</button>
+            <button type="button" data-markdown-action="clear-formatting">Clear formatting</button>
             <button type="button" data-markdown-action="quote">Quote</button>
             <button type="button" data-markdown-action="code-block">Code block</button>
             <button type="button" data-markdown-action="link">Link</button>
@@ -167,8 +171,20 @@ for (const failFirst of [false, true])
         .getByRole("button", { name: "Heading 4", exact: true })
         .click();
       assert.equal(await visual.locator("h4").textContent(), "Original");
+      assert.equal(
+        await toolbar.locator("[data-heading-label]").textContent(),
+        "H4",
+      );
+      await page
+        .getByRole("button", { name: "Clear formatting", exact: true })
+        .click();
+      assert.equal(await visual.locator("p").first().textContent(), "Original");
+      assert.equal(
+        await toolbar.locator("[data-heading-label]").textContent(),
+        "Heading",
+      );
       await page.getByRole("button", { name: "Markdown", exact: true }).click();
-      assert.match(await source.inputValue(), /^#### /);
+      assert.equal((await source.inputValue()).trimEnd(), "Original");
       assert.equal(
         await toolbar.locator("[data-markdown-action].active").count(),
         0,
@@ -317,6 +333,24 @@ for (const failFirst of [false, true])
       assert.match(await firstCell.getAttribute("colwidth"), /\d+/);
       assert.ok(
         Math.abs((await firstCell.boundingBox()).width - resizedWidth) < 3,
+      );
+      await page.evaluate((markdown) => {
+        const editor = document.querySelector("textarea[data-markdown-editor]");
+        editor.value = markdown;
+        editor.dispatchEvent(new Event("input", { bubbles: true }));
+      }, "# 1. Introduction\n\n## 1.1 Installation");
+      await page.waitForFunction(
+        () =>
+          document.querySelector(".tiptap h1")?.textContent ===
+            "1. Introduction" &&
+          document.querySelector(".tiptap h2")?.textContent ===
+            "1.1 Installation",
+      );
+      await page.getByRole("button", { name: "Markdown", exact: true }).click();
+      assert.equal(
+        await source.inputValue(),
+        "# 1. Introduction\n\n## 1.1 Installation",
+        "switching to visual editing and back must preserve manual heading numbers",
       );
       assert.equal(
         visualRequests,

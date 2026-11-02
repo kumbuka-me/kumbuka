@@ -186,6 +186,35 @@ function setupMarkdownToolbar(toolbar: HTMLElement): void {
   const editor = textarea;
   setupToolbarIconNameReveal(toolbar);
 
+  function syncHeadingLabel(): void {
+    if (form?.dataset.editorMode === "visual") return;
+
+    const headingMenu = toolbar.querySelector<HTMLElement>(
+      ".markdown-toolbar-heading-menu",
+    );
+    const label = headingMenu?.querySelector<HTMLElement>("[data-heading-label]");
+    const summary = headingMenu?.querySelector<HTMLElement>("summary");
+    if (!headingMenu || !label || !summary) return;
+
+    const selection = editor.selectionStart ?? 0;
+    const lineStart = editor.value.lastIndexOf("\n", Math.max(0, selection - 1)) + 1;
+    const lineEnd = editor.value.indexOf("\n", selection);
+    const line = editor.value.slice(lineStart, lineEnd < 0 ? undefined : lineEnd);
+    const level = /^(#{1,6})\s+/.exec(line)?.[1].length;
+    const headingLabel = level ? `H${level}` : "Heading";
+
+    label.textContent = headingLabel;
+    summary.title = headingLabel;
+    summary.setAttribute("aria-label", headingLabel);
+    for (const button of headingMenu.querySelectorAll<HTMLButtonElement>(
+      "[data-markdown-action^=heading-]",
+    )) {
+      const active = button.dataset.markdownAction === `heading-${level}`;
+      button.classList.toggle("active", active);
+      button.setAttribute("aria-pressed", String(active));
+    }
+  }
+
   function visualCommand(
     action: string,
     detail: Record<string, unknown> = {},
@@ -287,6 +316,21 @@ function setupMarkdownToolbar(toolbar: HTMLElement): void {
       case "horizontal-rule":
         insertMarkdownAtSelection(editor, "---");
         break;
+      case "clear-formatting": {
+        const start = editor.selectionStart ?? 0;
+        const end = editor.selectionEnd ?? start;
+        const lineStart = editor.value.lastIndexOf("\n", Math.max(0, start - 1)) + 1;
+        const lineEnd = editor.value.indexOf("\n", end);
+        const replacement = editor.value
+          .slice(lineStart, lineEnd < 0 ? undefined : lineEnd)
+          .replace(/^#{1,6}\s+/, "")
+          .replace(/^>\s?/, "");
+        const originalEnd = lineEnd < 0 ? editor.value.length : lineEnd;
+        editor.setRangeText(replacement, lineStart, originalEnd, "select");
+        editor.focus();
+        editor.dispatchEvent(new Event("input", { bubbles: true }));
+        break;
+      }
       case "find":
         if (form) dispatchEditorEvent(form, "editor:find");
         break;
@@ -346,8 +390,15 @@ function setupMarkdownToolbar(toolbar: HTMLElement): void {
     if (!button) return;
 
     applyAction(button.dataset.markdownAction);
+    syncHeadingLabel();
     closeToolbarMenus(toolbar);
   });
+
+  editor.addEventListener("input", syncHeadingLabel);
+  editor.addEventListener("click", syncHeadingLabel);
+  editor.addEventListener("keyup", syncHeadingLabel);
+  editor.addEventListener("select", syncHeadingLabel);
+  syncHeadingLabel();
 
   editor.addEventListener("keydown", (event: KeyboardEvent) => {
     if (!(event.ctrlKey || event.metaKey)) return;

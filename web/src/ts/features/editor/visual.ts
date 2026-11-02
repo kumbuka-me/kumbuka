@@ -252,13 +252,35 @@ export function setupVisualEditor(form: HTMLFormElement): void {
       return;
     }
 
+    const currentBlock = editor!.state.selection.$from?.parent;
+    const currentHeadingLevel = Number(currentBlock?.attrs?.level);
+    const headingLevel =
+      currentBlock?.type?.name === "heading" &&
+      currentHeadingLevel >= 1 &&
+      currentHeadingLevel <= 6
+        ? currentHeadingLevel
+        : undefined;
+    const headingMenu = toolbar.querySelector<HTMLElement>(
+      ".markdown-toolbar-heading-menu",
+    );
+    const headingLabel = headingMenu?.querySelector<HTMLElement>(
+      "[data-heading-label]",
+    );
+    const headingSummary = headingMenu?.querySelector<HTMLElement>("summary");
+    const headingText = headingLevel ? `H${headingLevel}` : "Heading";
+    if (headingLabel) headingLabel.textContent = headingText;
+    if (headingSummary) {
+      headingSummary.title = headingText;
+      headingSummary.setAttribute("aria-label", headingText);
+    }
+
     const active: Record<string, boolean> = {
       quote: editor.isActive("blockquote"),
       "code-block": editor.isActive("codeBlock"),
       ...Object.fromEntries(
         [1, 2, 3, 4, 5, 6].map((level) => [
           `heading-${level}`,
-          editor!.isActive("heading", { level }),
+          headingLevel === level,
         ]),
       ),
       bold: editor.isActive("bold"),
@@ -581,6 +603,9 @@ export function setupVisualEditor(form: HTMLFormElement): void {
         break;
       case "horizontal-rule":
         chain.setHorizontalRule().run();
+        break;
+      case "clear-formatting":
+        chain.clearNodes().unsetAllMarks().run();
         break;
       case "undo":
         chain.undo().run();

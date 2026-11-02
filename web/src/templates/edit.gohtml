@@ -383,14 +383,20 @@
               aria-label="Italic">{{ icon "italic-lucide" 16 }}</button>
       <details class="markdown-toolbar-menu markdown-toolbar-heading-menu">
         <summary title="Heading"
-                 aria-label="Heading">{{ icon "heading-lucide" 16 }}{{ icon "chevron-down-lucide" 12 }}</summary>
+                 aria-label="Heading"><span data-heading-label>Heading</span>{{ icon "chevron-down-lucide" 12 }}</summary>
         <div class="markdown-toolbar-popover">
           <button type="button" data-markdown-action="heading-1"><span>Heading 1</span></button>
           <button type="button" data-markdown-action="heading-2"><span>Heading 2</span></button>
           <button type="button" data-markdown-action="heading-3"><span>Heading 3</span></button>
           <button type="button" data-markdown-action="heading-4"><span>Heading 4</span></button>
+          <button type="button" data-markdown-action="heading-5"><span>Heading 5</span></button>
+          <button type="button" data-markdown-action="heading-6"><span>Heading 6</span></button>
         </div>
       </details>
+      <button type="button"
+              data-markdown-action="clear-formatting"
+              title="Clear formatting"
+              aria-label="Clear formatting">{{ icon "remove-formatting-lucide" 16 }}</button>
       {{ range .EditorToolbar }}
         {{ if eq .ID "text" }}{{ template "editor-toolbar-contributions" .Contributions }}{{ end }}
       {{ end }}
