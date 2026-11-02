@@ -159,6 +159,24 @@ func TestSavePersistsDerivedPluginUsage(t *testing.T) {
 	assert.Equal(t, want, *repository.metadata.PluginUsage)
 }
 
+func TestSaveRenumbersHeadingsWhenEnabled(t *testing.T) {
+	t.Parallel()
+
+	repository := &pageSaveRepositoryStub{}
+	pages := NewMutations(repository, nil, nil, slog.Default(), navigationIconInvalidatorStub{}).WithContentPreparer(pageContentPreparerStub{})
+
+	page, err := pages.save(context.Background(), PageSaveInput{
+		Slug:       "guide",
+		Title:      "Guide",
+		Markdown:   "# Introduction\n\n## Install\n\n# Operations\n",
+		Status:     domain.PageStatusVerified,
+		Properties: map[string]string{"kumbuka.heading-numbering": "true"},
+	})
+
+	require.NoError(t, err)
+	assert.Equal(t, "# 1. Introduction\n\n## 1.1 Install\n\n# 2. Operations\n", page.Markdown)
+}
+
 func TestSaveInvalidatesNavigationIconsOnlyAfterPersistenceSucceeds(t *testing.T) {
 	t.Parallel()
 

@@ -6,6 +6,7 @@ import {
   matchKumbukaInlineSyntax,
   visualSyntaxLabel,
 } from "../../web/src/ts/features/editor/visual-syntax.ts";
+import { renumberMarkdownHeadings } from "../../web/src/ts/features/editor/heading-numbering.ts";
 
 test("visual editor preserves Kumbuka macros as atomic inline syntax", () => {
   assert.equal(
@@ -32,4 +33,11 @@ test("visual editor preserves standalone directives", () => {
 test("visual editor does not consume ordinary Markdown braces", () => {
   assert.equal(matchKumbukaInlineSyntax("{ordinary text}"), null);
   assert.equal(matchKumbukaBlockSyntax("some {ordinary text}"), null);
+});
+
+test("automatic heading numbering preserves Markdown source and fenced code", () => {
+  assert.equal(
+    renumberMarkdownHeadings("# Introduction\n\n## Install\n\n```md\n# Literal\n```\n"),
+    "# 1. Introduction\n\n## 1.1 Install\n\n```md\n# Literal\n```\n",
+  );
 });

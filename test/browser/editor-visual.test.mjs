@@ -84,6 +84,7 @@ for (const failFirst of [false, true])
               <summary aria-label="Heading"><span data-heading-label>Heading</span></summary>
             </details>
             <button type="button" data-markdown-action="heading-4">Heading 4</button>
+            <button type="button" data-markdown-action="numbered-heading-1">Numbered heading 1</button>
             <button type="button" data-markdown-action="clear-formatting">Clear formatting</button>
             <button type="button" data-markdown-action="quote">Quote</button>
             <button type="button" data-markdown-action="code-block">Code block</button>
@@ -109,6 +110,7 @@ for (const failFirst of [false, true])
             <div class="editor-source-pane"><textarea data-markdown-editor>Original</textarea></div>
             <section data-editor-preview hidden><div data-editor-preview-status></div><div data-editor-preview-content></div></section>
           </div>
+          <input type="checkbox" name="heading_numbering" value="true" data-heading-numbering>
         </form>
         <script type="module">
           import { initMarkdownToolbar, insertMarkdownAtSelection } from '/assets/js/features/editor/toolbar.js';
@@ -333,6 +335,28 @@ for (const failFirst of [false, true])
       assert.match(await firstCell.getAttribute("colwidth"), /\d+/);
       assert.ok(
         Math.abs((await firstCell.boundingBox()).width - resizedWidth) < 3,
+      );
+      await page.evaluate((markdown) => {
+        const editor = document.querySelector("textarea[data-markdown-editor]");
+        editor.value = markdown;
+        editor.dispatchEvent(new Event("input", { bubbles: true }));
+      }, "# Authentication\n\n## Configure credentials");
+      await page.waitForFunction(
+        () => document.querySelector(".tiptap h1")?.textContent === "Authentication",
+      );
+      await visual.locator("h1").click();
+      await page
+        .getByRole("button", { name: "Numbered heading 1", exact: true })
+        .click();
+      await page.waitForFunction(
+        () =>
+          document
+            .querySelector("textarea[data-markdown-editor]")
+            ?.value.includes("# 1. Authentication\n\n## 1.1 Configure credentials"),
+      );
+      assert.equal(
+        await page.locator("[data-heading-numbering]").isChecked(),
+        true,
       );
       await page.evaluate((markdown) => {
         const editor = document.querySelector("textarea[data-markdown-editor]");

@@ -292,6 +292,9 @@ func (s *Mutations) savePortable(ctx context.Context, repository PortablePageSav
 
 // preparePageSave normalizes, validates, and derives persistence metadata for one page save.
 func (s *Mutations) preparePageSave(ctx context.Context, input PageSaveInput) (PageSaveInput, domain.PageMetadata, domain.PageRender, error) {
+	if md.HeadingNumberingEnabled(input.Properties) {
+		input.Markdown = md.RenumberHeadings(input.Markdown)
+	}
 	input = normalizePageSaveInput(input)
 	if err := s.validatePageSaveInput(input); err != nil {
 		return PageSaveInput{}, domain.PageMetadata{}, domain.PageRender{}, err

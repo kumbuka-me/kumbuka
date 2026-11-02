@@ -319,6 +319,11 @@ func pagePropertiesFromForm(r *http.Request) map[string]string {
 			properties[key] = value
 		}
 	}
+	if r.FormValue("heading_numbering") == "true" {
+		properties[md.HeadingNumberingProperty] = "true"
+	} else {
+		delete(properties, md.HeadingNumberingProperty)
+	}
 
 	return properties
 }

@@ -324,17 +324,23 @@
     <span><strong>Mark reviewed now</strong><small>Record today as the latest documentation review.</small></span>
     <input type="checkbox" name="mark_reviewed" />
   </label>
+  <label class="toggle-row compact">
+    <span><strong>Automatic heading numbering</strong><small>Writes outline numbers into Markdown so copied content keeps them.</small></span>
+    <input type="checkbox" name="heading_numbering" value="true" data-heading-numbering
+           {{ if .Page }}{{ range .Page.Properties }}{{ if and (eq .Key "kumbuka.heading-numbering") (eq .Value "true") }}checked{{ end }}{{ end }}{{ end }} />
+  </label>
   <fieldset class="editor-properties" data-page-properties>
     <legend>Properties <span class="optional">optional</span></legend>
     <div class="editor-property-list" data-page-property-list>
       {{ if .Page }}
-        {{ range .Page.Properties }}
+        {{ range .Page.Properties }}{{ if ne .Key "kumbuka.heading-numbering" }}
           <div class="editor-property-row">
             <input name="property_key" value="{{ .Key }}" placeholder="Environment" /><input name="property_value" value="{{ .Value }}" placeholder="Production" /><button class="icon-button"
         type="button"
         data-page-property-remove
         aria-label="Remove property">{{ icon "x-lucide" 15 }}</button>
           </div>
+        {{ end }}
         {{ end }}
       {{ else if .EditorTemplate }}
         {{ range $key, $value := .EditorTemplate.Properties }}
@@ -391,6 +397,12 @@
           <button type="button" data-markdown-action="heading-4"><span>Heading 4</span></button>
           <button type="button" data-markdown-action="heading-5"><span>Heading 5</span></button>
           <button type="button" data-markdown-action="heading-6"><span>Heading 6</span></button>
+          <button type="button" data-markdown-action="numbered-heading-1"><span>Numbered heading 1</span></button>
+          <button type="button" data-markdown-action="numbered-heading-2"><span>Numbered heading 2</span></button>
+          <button type="button" data-markdown-action="numbered-heading-3"><span>Numbered heading 3</span></button>
+          <button type="button" data-markdown-action="numbered-heading-4"><span>Numbered heading 4</span></button>
+          <button type="button" data-markdown-action="numbered-heading-5"><span>Numbered heading 5</span></button>
+          <button type="button" data-markdown-action="numbered-heading-6"><span>Numbered heading 6</span></button>
         </div>
       </details>
       <button type="button"
