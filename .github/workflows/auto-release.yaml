@@ -12,6 +12,7 @@ permissions:
   actions: write
   contents: write
   issues: write
+  pull-requests: write
 
 concurrency:
   group: autorelease-${{ github.event.pull_request.number }}
