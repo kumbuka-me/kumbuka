@@ -341,3 +341,12 @@ func TestNotificationMutationsDelegateExplicitly(t *testing.T) {
 		assert.Equal(t, int64(7), repository.openedID)
 	})
 }
+
+func TestNotificationDestinationMustStartWithALiteralLocalPath(t *testing.T) {
+	for _, value := range []string{"", "/", "/p/1?mode=read#section", "/p/a%20b"} {
+		assert.True(t, validNotificationURL(value), "%q", value)
+	}
+	for _, value := range []string{"%2Fexternal", "//external", "/\\external", "/bad%escape", "/bad\npath"} {
+		assert.False(t, validNotificationURL(value), "%q", value)
+	}
+}

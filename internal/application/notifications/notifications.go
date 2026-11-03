@@ -385,8 +385,11 @@ func validNotificationURL(value string) bool {
 	if len(value) > maxNotificationURLBytes || !utf8.ValidString(value) {
 		return false
 	}
-	parsed, err := url.Parse(value)
-	return err == nil && !parsed.IsAbs() && parsed.Host == "" && strings.HasPrefix(parsed.Path, "/") && !strings.HasPrefix(value, "//")
+	if !strings.HasPrefix(value, "/") || strings.HasPrefix(value, "//") || strings.ContainsRune(value, '\\') {
+		return false
+	}
+	_, err := url.ParseRequestURI(value)
+	return err == nil
 }
 
 // emitCreated delivers one committed notification event as a best-effort side effect.
