@@ -31,7 +31,7 @@ test("boat indicator waits before appearing and cleans up on completion", async 
     await page.route("http://loading.test/**", async (route) => {
       if (await serveAsset(route)) return;
       await route.fulfill({
-        contentType: "text/html",
+        contentType: "text/html; charset=utf-8",
         body: `<link rel="stylesheet" href="/assets/css/app.css">
           <body><main id="loading"></main><script type="module">
           import { showDelayedLoading } from "/assets/js/core/loading.js";
@@ -45,7 +45,7 @@ test("boat indicator waits before appearing and cleans up on completion", async 
     await page.goto("http://loading.test/");
     await page.locator("html[data-ready]").waitFor();
     assert.equal(await page.locator(".kumbuka-loading").count(), 0);
-    await page.getByRole("status", { name: "Preparing diagram…" }).waitFor();
+    await page.getByRole("status").filter({ hasText: "Preparing diagram…" }).waitFor();
     assert.equal(await page.getByText("Fast task").count(), 0);
     assert.match(
       await page.locator(".kumbuka-boat-spinner").evaluate((element) =>
@@ -94,7 +94,7 @@ test("Mermaid shows the host boat while its sandbox is rendering", async () => {
       if (await pluginRoute(route, { module, fakeJavaScript })) return;
       if (await serveAsset(route)) return;
       await route.fulfill({
-        contentType: "text/html",
+        contentType: "text/html; charset=utf-8",
         body: `<link rel="stylesheet" href="/assets/css/app.css"><body>
           ${pluginCatalog(module)}
           <div class="kumbuka-plugin-block" data-kumbuka-plugin="me.kumbuka.mermaid" data-kumbuka-module="diagrams">
@@ -107,7 +107,7 @@ test("Mermaid shows the host boat while its sandbox is rendering", async () => {
     });
     await page.goto("http://mermaid-boat.test/");
     await page.locator("html[data-mermaid-waiting]").waitFor();
-    await page.getByRole("status", { name: "Rendering diagram…" }).waitFor();
+    await page.getByRole("status").filter({ hasText: "Rendering diagram…" }).waitFor();
     assert.equal(await page.locator(".kumbuka-plugin-loading").count(), 1);
     assert.equal(await page.locator("pre").isVisible(), false);
     await page.locator("iframe").evaluate((frame) =>
