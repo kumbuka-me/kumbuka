@@ -43,7 +43,7 @@ func ImportPagesWithPortableArchive(
 
 		headers := r.MultipartForm.File["files"]
 		portableSelected := strings.TrimSpace(r.FormValue("format")) == portable.Format
-		if !portableSelected && (len(headers) != 1 || !strings.EqualFold(path.Ext(headers[0].Filename), ".zip")) {
+		if !portableSelected && !singleZIPUpload(headers) {
 			legacy.ServeHTTP(w, r)
 			return
 		}
@@ -83,9 +83,19 @@ func ImportPagesWithPortableArchive(
 	}
 }
 
+// singleZIPUpload reports whether automatic archive detection applies to this batch.
+func singleZIPUpload(headers []*multipart.FileHeader) bool {
+	return len(headers) == 1 && isZIPUpload(headers[0])
+}
+
+// isZIPUpload reports whether the uploaded filename has a ZIP extension.
+func isZIPUpload(header *multipart.FileHeader) bool {
+	return strings.EqualFold(path.Ext(header.Filename), ".zip")
+}
+
 // readPortableArchiveUpload reads one uploaded ZIP within the compressed size limit.
 func readPortableArchiveUpload(header *multipart.FileHeader) ([]byte, error) {
-	if strings.ToLower(path.Ext(header.Filename)) != ".zip" {
+	if !isZIPUpload(header) {
 		return nil, newRequestError(
 			"files",
 			"Kumbuka imports require a .zip export archive.",
