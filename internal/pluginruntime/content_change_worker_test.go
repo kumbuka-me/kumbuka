@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"strings"
 	"testing"
 	"time"
 
@@ -189,4 +190,11 @@ func TestContentChangeRetryDelayCapsExponentialBackoff(t *testing.T) {
 	assert.Equal(t, time.Second, contentChangeRetryDelay(1))
 	assert.Equal(t, 4*time.Second, contentChangeRetryDelay(3))
 	assert.Equal(t, contentChangeMaxBackoff, contentChangeRetryDelay(100))
+}
+
+func TestBoundedContentChangeErrorProducesStorableText(t *testing.T) {
+	assert.Equal(t, "bad�byte�end", boundedContentChangeError(" bad\xffbyte\x00end "))
+	prefix := strings.Repeat("a", contentChangeMaxErrorBytes-1)
+	assert.Equal(t, prefix, boundedContentChangeError(prefix+"😀"))
+	assert.Equal(t, prefix+"!", boundedContentChangeError(prefix+"!"))
 }

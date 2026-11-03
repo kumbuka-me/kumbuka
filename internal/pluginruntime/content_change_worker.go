@@ -228,18 +228,18 @@ func contentChangeRetryDelay(attempts int) time.Duration {
 	return delay
 }
 
-// boundedContentChangeError returns a trimmed error message capped at the
-// persisted diagnostic byte limit without splitting a UTF-8 sequence.
+// boundedContentChangeError prepares a byte-limited UTF-8 diagnostic for PostgreSQL text storage.
 func boundedContentChangeError(message string) string {
 	message = strings.TrimSpace(message)
-	if len(message) <= contentChangeMaxErrorBytes {
-		return message
+	var diagnostic strings.Builder
+	for _, character := range message {
+		if character == 0 {
+			character = utf8.RuneError
+		}
+		if diagnostic.Len()+utf8.RuneLen(character) > contentChangeMaxErrorBytes {
+			break
+		}
+		diagnostic.WriteRune(character)
 	}
-
-	limit := contentChangeMaxErrorBytes
-	for limit > 0 && !utf8.ValidString(message[:limit]) {
-		limit--
-	}
-
-	return message[:limit]
+	return diagnostic.String()
 }
