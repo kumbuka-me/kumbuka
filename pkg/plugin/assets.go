@@ -102,17 +102,13 @@ func (m *Manager) IconResources() ([]icons.Resource, error) {
 
 	resources := make([]icons.Resource, 0)
 	for _, item := range items {
-		var pkg *pluginpackage.Package
+		pkg, err := m.readAssetPackage(ctx, item, true)
+		if err != nil {
+			return nil, err
+		}
 		for _, module := range item.metadata.Manifest.Modules {
 			if ModuleType(module.Type) != ModuleTypeIconResource {
 				continue
-			}
-			if pkg == nil {
-				loaded, err := m.readAssetPackage(ctx, item, true)
-				if err != nil {
-					return nil, err
-				}
-				pkg = loaded
 			}
 			data, err := pkg.Asset(module.Asset)
 			if err != nil {
@@ -278,8 +274,8 @@ func activePluginWithModule(item managedPlugin, found bool, moduleType ModuleTyp
 }
 
 // activePluginVersion reports whether a loaded plugin is enabled and matches the requested content digest.
-func activePluginVersion(item managedPlugin, found bool, digest string) bool {
-	return found && item.metadata.Enabled && fmt.Sprintf("%x", item.metadata.Digest) == digest
+func activePluginVersion(item managedPlugin, digest string) bool {
+	return item.metadata.Enabled && fmt.Sprintf("%x", item.metadata.Digest) == digest
 }
 
 // moduleDeclaresAsset reports whether a module of the requested type owns the named browser asset.
@@ -293,14 +289,7 @@ func (m *Manager) BrowserAsset(ctx context.Context, id, digest, name string) ([]
 	if err != nil {
 		return nil, err
 	}
-	hasBrowser := false
-	for _, module := range item.metadata.Manifest.Modules {
-		if ModuleType(module.Type) == ModuleTypeBrowserModule {
-			hasBrowser = true
-			break
-		}
-	}
-	if !hasBrowser {
+	if !hasModuleType(item.metadata.Manifest, ModuleTypeBrowserModule) {
 		return nil, fs.ErrNotExist
 	}
 	pkg, err := m.readAssetPackage(ctx, item, true)
@@ -364,7 +353,7 @@ func (m *Manager) assetSnapshot(id, digest string, active bool) (managedPlugin, 
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	item, ok := m.loaded[id]
-	if m.closed || !ok || (active && !activePluginVersion(item, ok, digest)) {
+	if m.closed || !ok || (active && !activePluginVersion(item, digest)) {
 		return managedPlugin{}, fs.ErrNotExist
 	}
 	return managedPlugin{metadata: cloneLoaded(item.metadata)}, nil
