@@ -21,3 +21,14 @@ func TestRenumberHeadingsPreservesCodeAndLineEndings(t *testing.T) {
 	want := "    # indented\r\n\t# tab\r\n~~~\r\n~~~ text\r\n# fenced\r\n~~~~\r\n# 1. 2026 report\r\n"
 	assert.Equal(t, want, RenumberHeadings(source))
 }
+
+func TestRomanHeadingNumbersSurviveSavingAgain(t *testing.T) {
+	source := "# One\n## Two\n# Three\n# Four\n# Five"
+	for format, want := range map[string]string{
+		"roman":       "# I. One\n## I.I Two\n# II. Three\n# III. Four\n# IV. Five",
+		"roman-lower": "# i. One\n## i.i Two\n# ii. Three\n# iii. Four\n# iv. Five",
+	} {
+		assert.Equal(t, want, RenumberHeadingsWithFormat(source, format))
+		assert.Equal(t, want, RenumberHeadingsWithFormat(want, format))
+	}
+}

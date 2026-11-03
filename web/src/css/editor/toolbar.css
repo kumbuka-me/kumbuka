@@ -146,6 +146,25 @@
   text-align: left;
 }
 
+.markdown-toolbar-heading-menu > summary {
+  box-sizing: border-box;
+  width: 4.75rem;
+}
+
+.markdown-toolbar[data-show-icon-names]
+  .markdown-toolbar-heading-menu
+  > summary[aria-label]::after {
+  content: none;
+}
+
+.heading-numbering-option {
+  display: grid;
+  gap: 0.5rem;
+  padding: 7px 9px;
+  border-top: 1px solid var(--border);
+  cursor: pointer;
+}
+
 .markdown-toolbar-heading-menu .markdown-toolbar-popover {
   min-width: 190px;
 }

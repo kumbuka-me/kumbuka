@@ -80,11 +80,7 @@ for (const failFirst of [false, true])
           <div class="markdown-toolbar" data-markdown-toolbar role="toolbar">
             <button type="button" data-markdown-action="bold">Bold</button>
             <button type="button" data-markdown-action="italic">Italic</button>
-            <details class="markdown-toolbar-menu markdown-toolbar-heading-menu">
-              <summary aria-label="Heading"><span data-heading-label>Heading</span></summary>
-            </details>
-            <button type="button" data-markdown-action="heading-4">Heading 4</button>
-            <button type="button" data-markdown-action="numbered-heading-1">Numbered heading 1</button>
+            ${template.match(/<details class="markdown-toolbar-menu markdown-toolbar-heading-menu">[\s\S]*?<\/details>/)[0].replace(/\{\{[\s\S]*?\}\}/g, "").replaceAll("selected", "")}
             <button type="button" data-markdown-action="clear-formatting">Clear formatting</button>
             <button type="button" data-markdown-action="quote">Quote</button>
             <button type="button" data-markdown-action="code-block">Code block</button>
@@ -110,7 +106,6 @@ for (const failFirst of [false, true])
             <div class="editor-source-pane"><textarea data-markdown-editor>Original</textarea></div>
             <section data-editor-preview hidden><div data-editor-preview-status></div><div data-editor-preview-content></div></section>
           </div>
-          <input type="checkbox" name="heading_numbering" value="true" data-heading-numbering>
         </form>
         <script type="module">
           import { initMarkdownToolbar, insertMarkdownAtSelection } from '/assets/js/features/editor/toolbar.js';
@@ -169,10 +164,15 @@ for (const failFirst of [false, true])
         await visual.locator("strong em, em strong").textContent(),
         "Original",
       );
+      const headingPicker = toolbar.locator(".markdown-toolbar-heading-menu summary");
+      const clearFormatting = toolbar.locator('[data-markdown-action="clear-formatting"]');
+      const initialPosition = (await clearFormatting.boundingBox()).x;
+      await headingPicker.click();
       await page
         .getByRole("button", { name: "Heading 4", exact: true })
         .click();
       assert.equal(await visual.locator("h4").textContent(), "Original");
+      assert.equal((await clearFormatting.boundingBox()).x, initialPosition);
       assert.equal(
         await toolbar.locator("[data-heading-label]").textContent(),
         "H4",
@@ -345,19 +345,54 @@ for (const failFirst of [false, true])
         () => document.querySelector(".tiptap h1")?.textContent === "Authentication",
       );
       await visual.locator("h1").click();
-      await page
-        .getByRole("button", { name: "Numbered heading 1", exact: true })
-        .click();
+      await headingPicker.click();
+      await page.getByRole("combobox", { name: /Number headings/ }).selectOption("roman");
+      await headingPicker.click();
       await page.waitForFunction(
         () =>
           document
             .querySelector("textarea[data-markdown-editor]")
-            ?.value.includes("# 1. Authentication\n\n## 1.1 Configure credentials"),
+            ?.value.includes("# I. Authentication\n\n## I.I Configure credentials"),
       );
       assert.equal(
-        await page.locator("[data-heading-numbering]").isChecked(),
-        true,
+        await page.locator("[data-heading-numbering]").inputValue(),
+        "roman",
       );
+      await headingPicker.click();
+      await page.getByRole("combobox", { name: /Number headings/ }).selectOption("true");
+      await headingPicker.click();
+      await page.evaluate(() => {
+        const source = document.querySelector("[data-markdown-editor]");
+        source.value = "# 1. Configuration\n\n# 2. 1enable notification\n\n# 9. Stale number\n\n" + "More text\n\n".repeat(150);
+        source.dispatchEvent(new Event("input", { bubbles: true }));
+      });
+      const notificationHeading = visual.getByRole("heading", { name: "2. 1enable notification" });
+      await notificationHeading.click();
+      const readPosition = () => page.evaluate(() => ({
+        windowY: window.scrollY,
+        editorY: document.querySelector(".tiptap").getBoundingClientRect().top,
+        headingY: document.querySelectorAll(".tiptap h1")[1].getBoundingClientRect().top,
+      }));
+      await notificationHeading.evaluate((heading) => {
+        window.getSelection().collapse(heading.firstChild, 4);
+      });
+      const beforeDeletion = await readPosition();
+      await page.keyboard.press("Backspace");
+      await page.waitForFunction(() => document.querySelectorAll(".tiptap h1")[1]?.textContent === "2. enable notification");
+      assert.equal(await visual.getByRole("heading", { name: "3. Stale number" }).count(), 1);
+      assert.deepEqual(await readPosition(), beforeDeletion);
+      assert.deepEqual(await page.evaluate(() => {
+        const selection = window.getSelection();
+        return [selection.anchorNode.parentElement.textContent, selection.anchorOffset];
+      }), ["2. enable notification", 3]);
+      // Force a numbering correction during the edit itself.
+      await visual.getByRole("heading", { name: "2. enable notification" }).evaluate((heading) => {
+        window.getSelection().setBaseAndExtent(heading.firstChild, 0, heading.firstChild, 1);
+      });
+      await page.keyboard.insertText("9");
+      await page.waitForFunction(() => document.querySelectorAll(".tiptap h1")[1]?.textContent === "2. enable notification");
+      assert.deepEqual(await readPosition(), beforeDeletion);
+      assert.equal(await page.evaluate(() => window.getSelection().anchorNode.parentElement.closest("h1")?.textContent), "2. enable notification");
       await page.evaluate((markdown) => {
         const editor = document.querySelector("textarea[data-markdown-editor]");
         editor.value = markdown;

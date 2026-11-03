@@ -11,11 +11,25 @@ const HeadingNumberingProperty = "kumbuka.heading-numbering"
 
 // HeadingNumberingEnabled reports whether a page's saved properties enable automatic heading numbering.
 func HeadingNumberingEnabled(properties map[string]string) bool {
-	return properties[HeadingNumberingProperty] == "true"
+	switch properties[HeadingNumberingProperty] {
+	case "true", "roman", "roman-lower":
+		return true
+	default:
+		return false
+	}
 }
 
 // RenumberHeadings rewrites ATX headings with deterministic outline numbers. It leaves fenced code and all non-heading source unchanged.
 func RenumberHeadings(source string) string {
+	return RenumberHeadingsWithFormat(source, "true")
+}
+
+// RenumberHeadingsWithFormat applies decimal or Roman outline numbers to Markdown headings.
+func RenumberHeadingsWithFormat(source, format string) string {
+	prefixPattern := generatedHeadingNumber
+	if format == "roman" || format == "roman-lower" {
+		prefixPattern = romanHeadingNumber
+	}
 	lines := strings.SplitAfter(source, "\n")
 	counters := [6]int{}
 	inFence := ""
@@ -49,8 +63,8 @@ func RenumberHeadings(source string) string {
 		if title == "" {
 			continue
 		}
-		title = strings.TrimSpace(stripGeneratedHeadingNumber(title))
-		prefix := nextHeadingNumber(&counters, level)
+		title = strings.TrimSpace(prefixPattern.ReplaceAllString(title, ""))
+		prefix := nextHeadingNumber(&counters, level, format)
 		lines[index] = body[:indentLength] + strings.Repeat("#", level) + " " + prefix + " " + title + ending
 	}
 
@@ -58,7 +72,7 @@ func RenumberHeadings(source string) string {
 }
 
 // nextHeadingNumber advances the outline at level and clears its descendant counters.
-func nextHeadingNumber(counters *[6]int, level int) string {
+func nextHeadingNumber(counters *[6]int, level int, format string) string {
 	counters[level-1]++
 	for deeper := level; deeper < len(counters); deeper++ {
 		counters[deeper] = 0
@@ -66,7 +80,7 @@ func nextHeadingNumber(counters *[6]int, level int) string {
 	parts := make([]string, 0, level)
 	for _, counter := range counters[:level] {
 		if counter != 0 {
-			parts = append(parts, strconv.Itoa(counter))
+			parts = append(parts, formatHeadingCounter(counter, format))
 		}
 	}
 	prefix := strings.Join(parts, ".")
@@ -123,7 +137,23 @@ func fenceMarker(line string) string {
 // generatedHeadingNumber matches the single-level and nested prefixes emitted by RenumberHeadings.
 var generatedHeadingNumber = regexp.MustCompile(`^[0-9]+(?:\.|(?:\.[0-9]+)+)[ \t]+`)
 
-// stripGeneratedHeadingNumber removes a leading outline number emitted by RenumberHeadings.
-func stripGeneratedHeadingNumber(title string) string {
-	return generatedHeadingNumber.ReplaceAllString(title, "")
+// romanHeadingNumber matches Roman outline prefixes in pages using Roman numbering.
+var romanHeadingNumber = regexp.MustCompile(`(?i)^[ivxlcdm]+(?:\.|(?:\.[ivxlcdm]+)+)[ \t]+`)
+
+// formatHeadingCounter renders one outline component in the selected numeral style.
+func formatHeadingCounter(value int, format string) string {
+	if format != "roman" && format != "roman-lower" {
+		return strconv.Itoa(value)
+	}
+	values := [...]int{1000, 900, 500, 400, 100, 90, 50, 40, 10, 9, 5, 4, 1}
+	symbols := [...]string{"M", "CM", "D", "CD", "C", "XC", "L", "XL", "X", "IX", "V", "IV", "I"}
+	var result strings.Builder
+	for i, unit := range values {
+		result.WriteString(strings.Repeat(symbols[i], value/unit))
+		value %= unit
+	}
+	if format == "roman-lower" {
+		return strings.ToLower(result.String())
+	}
+	return result.String()
 }

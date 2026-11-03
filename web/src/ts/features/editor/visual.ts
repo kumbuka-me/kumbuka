@@ -15,8 +15,9 @@ import { TableKit } from "./visual-deps/table.ts";
 import { Markdown } from "./visual-deps/markdown.ts";
 import { StarterKit } from "./visual-deps/starter.ts";
 import {
-  headingNumberingEnabled,
-  renumberMarkdownHeadings,
+  headingNumberFormat,
+  headingPrefixPattern,
+  nextHeadingNumber,
 } from "./heading-numbering.ts";
 
 import type { EditorInsertAction } from "./toolbar.ts";
@@ -366,8 +367,35 @@ export function setupVisualEditor(form: HTMLFormElement): void {
     }
   }
 
+  function numberVisualHeadings(format: string): void {
+    if (!editor || !format) return;
+    const transaction = editor.state.tr;
+    const counters = [0, 0, 0, 0, 0, 0];
+    const pattern = headingPrefixPattern(format);
+    editor.state.doc.forEach((node: any, offset: number) => {
+      if (node.type.name !== "heading" || !node.content.size) return;
+      const prefix =
+        pattern.exec(
+          node.firstChild?.isText ? node.firstChild.text : "",
+        )?.[0] ?? "";
+      const expected =
+        nextHeadingNumber(counters, node.attrs.level, format) + " ";
+      if (prefix === expected) return;
+      const start = transaction.mapping.map(offset + 1);
+      transaction.insertText(expected, start, start + prefix.length);
+    });
+    if (transaction.docChanged) {
+      editor.view.dispatch(
+        transaction
+          .setMeta("preventUpdate", true)
+          .setMeta("addToHistory", false),
+      );
+    }
+  }
+
   function syncMarkdown(): void {
     if (!editor) return;
+    numberVisualHeadings(headingNumberFormat(form));
     let markdown = editor.getMarkdown();
     let tableIndex = 0;
     editor.state.doc.descendants((table: any) => {
@@ -399,8 +427,6 @@ export function setupVisualEditor(form: HTMLFormElement): void {
       markdown = rewriteTableDirectiveSource(markdown, parsed, directive);
       return false;
     });
-    if (headingNumberingEnabled(form))
-      markdown = renumberMarkdownHeadings(markdown);
     if (markdown === markdownSource.value) {
       return;
     }
@@ -409,11 +435,6 @@ export function setupVisualEditor(form: HTMLFormElement): void {
     markdownSource.value = markdown;
     markdownSource.dispatchEvent(new Event("input", { bubbles: true }));
     syncingFromVisual = false;
-    if (headingNumberingEnabled(form))
-      editor.commands.setContent(markdown, {
-        contentType: "markdown",
-        emitUpdate: false,
-      });
   }
 
   function refreshSlashMenu(): void {
@@ -559,17 +580,6 @@ export function setupVisualEditor(form: HTMLFormElement): void {
     const chain = editor.chain().focus();
     if (/^heading-[1-6]$/.test(action)) {
       chain.toggleHeading({ level: Number(action.slice(-1)) }).run();
-      syncToolbar();
-      return;
-    }
-    const numberedHeading = /^numbered-heading-([1-6])$/.exec(action);
-    if (numberedHeading) {
-      const numbering = form.querySelector<HTMLInputElement>(
-        "[data-heading-numbering]",
-      );
-      if (numbering) numbering.checked = true;
-      chain.setHeading({ level: Number(numberedHeading[1]) }).run();
-      syncMarkdown();
       syncToolbar();
       return;
     }

@@ -4,7 +4,7 @@ import { formatMarkdownDocument } from "./formatter.ts";
 import { dispatchEditorEvent } from "./events.ts";
 import { openCodeLanguagePicker } from "./code-language-picker.ts";
 import {
-  headingNumberingEnabled,
+  headingNumberFormat,
   renumberMarkdownHeadings,
 } from "./heading-numbering.ts";
 
@@ -190,9 +190,16 @@ function setupMarkdownToolbar(toolbar: HTMLElement): void {
   const editor = textarea;
   setupToolbarIconNameReveal(toolbar);
 
+  let previousFormat = headingNumberFormat(form);
   function renumberIfEnabled(): void {
-    if (!headingNumberingEnabled(form)) return;
-    const numbered = renumberMarkdownHeadings(editor.value);
+    const format = headingNumberFormat(form);
+    if (!format) return;
+    const numbered = renumberMarkdownHeadings(
+      editor.value,
+      format,
+      previousFormat || format,
+    );
+    previousFormat = format;
     if (numbered === editor.value) return;
     const start = editor.selectionStart ?? 0;
     const end = editor.selectionEnd ?? start;
@@ -291,14 +298,7 @@ function setupMarkdownToolbar(toolbar: HTMLElement): void {
       visualCommand(action)
     )
       return;
-    const numberedHeading = /^numbered-heading-([1-6])$/.exec(action);
-    if (numberedHeading) {
-      const numbering = form?.querySelector<HTMLInputElement>(
-        "[data-heading-numbering]",
-      );
-      if (numbering) numbering.checked = true;
-      action = `heading-${numberedHeading[1]}`;
-    }
+
     if (action.startsWith("heading-")) {
       const level = Number(action.slice("heading-".length));
 
@@ -435,7 +435,7 @@ function setupMarkdownToolbar(toolbar: HTMLElement): void {
   editor.addEventListener("select", syncHeadingLabel);
   syncHeadingLabel();
   form
-    ?.querySelector<HTMLInputElement>("[data-heading-numbering]")
+    ?.querySelector<HTMLSelectElement>("[data-heading-numbering]")
     ?.addEventListener("change", () => {
       renumberIfEnabled();
       editor.dispatchEvent(new Event("input", { bubbles: true }));
