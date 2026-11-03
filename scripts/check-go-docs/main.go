@@ -106,9 +106,10 @@ func checkFile(set *token.FileSet, file *ast.File) []string {
 					continue
 				}
 
-				if _, ok := named.Type.(*ast.StructType); ok &&
-					!described(named.Doc) &&
-					!(len(declaration.Specs) == 1 && described(declaration.Doc)) {
+				if _, ok := named.Type.(*ast.StructType); !ok {
+					continue
+				}
+				if !structDescription(named, declaration) {
 					report(
 						named.Pos(),
 						"struct "+named.Name.Name+" needs a description",
@@ -128,6 +129,11 @@ func checkFile(set *token.FileSet, file *ast.File) []string {
 	})
 
 	return problems
+}
+
+// structDescription accepts a declaration-level description only when it belongs to a single type.
+func structDescription(named *ast.TypeSpec, declaration *ast.GenDecl) bool {
+	return described(named.Doc) || (len(declaration.Specs) == 1 && described(declaration.Doc))
 }
 
 // described reports whether a comment contains prose rather than only compiler directives.
