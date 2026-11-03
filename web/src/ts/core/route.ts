@@ -10,19 +10,24 @@ export function route(target: string, prefix = routePrefix()): string {
   if (!target.startsWith("/")) return target;
   try {
     const path = decodeURIComponent(target.split(/[?#]/, 1)[0]!);
-    if (
-      path.startsWith("//") ||
-      /[\\\r\n]/.test(path) ||
-      path.split("/").some((part) => part === "." || part === "..")
-    )
-      return prefix + "/";
+    if (unsafeLocalPath(path)) return prefix + "/";
     return prefix + target;
   } catch {
     return prefix + "/";
   }
 }
 
+// Rejects decoded path segments that browsers can reinterpret outside the mount.
+function unsafeLocalPath(path: string): boolean {
+  return (
+    path.startsWith("//") ||
+    /[\\\t\r\n]/.test(path) ||
+    path.split("/").some((part) => part === "." || part === "..")
+  );
+}
+
 // Returns the application-local canonical URL for a persisted page.
 export function pageURL(id: number, slug: string): string {
-  return `/p/${id}/${slug.replace(/^\/+|\/+$/g, "")}`;
+  const path = slug.trim().replace(/^\/+|\/+$/g, "");
+  return path ? `/p/${id}/${path}` : `/p/${id}`;
 }

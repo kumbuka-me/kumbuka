@@ -16,6 +16,8 @@ for (const prefix of ["", "/kumbuka"]) {
     }
     for (const target of [
       "//evil.test",
+      "/\t/evil.test",
+      "/.%09./escape",
       "/../escape",
       "/pages/%2e%2e/escape",
       "/%5cevil",
@@ -35,6 +37,8 @@ for (const prefix of ["", "/kumbuka"]) {
 }
 
 test("page URLs combine stable identity with the readable slug", () => {
+  assert.equal(pageURL(123, " /// "), "/p/123");
+  assert.equal(pageURL(123, " /guide/ "), "/p/123/guide");
   assert.equal(pageURL(123, "guide/install"), "/p/123/guide/install");
   assert.equal(
     route(pageURL(123, "guide/install"), "/kumbuka"),
