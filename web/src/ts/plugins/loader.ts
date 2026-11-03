@@ -1,4 +1,5 @@
 import { route, routePrefix } from "../core/route.ts";
+import { mermaidAlignment } from "../core/mermaid-alignment.ts";
 // Only core code runs in Kumbuka's document. Browser modules receive their own
 // marked block's text inside a sandboxed frame and cannot return host HTML.
 type Root = Document | HTMLElement;
@@ -24,6 +25,8 @@ type Active = {
   restoreSource: () => void;
 };
 const active = new Map<HTMLElement, Active>();
+const deferred = new Map<HTMLElement, Module>();
+let visibilityObserver: IntersectionObserver | undefined;
 let catalog: Module[] | undefined;
 let watching = false;
 const identifier = /^[a-z0-9][a-z0-9._-]{0,127}$/;
@@ -174,6 +177,8 @@ function remove(block: HTMLElement): void {
   state.cleanup();
   state.frame.remove();
   state.restoreSource();
+  block.classList.remove("kumbuka-plugin-loading");
+  block.removeAttribute("aria-busy");
   state.finish();
   active.delete(block);
 }
@@ -232,6 +237,10 @@ function mount(block: HTMLElement, module: Module): Promise<void> {
       1_000_000
   )
     return Promise.resolve();
+  const isMermaid = !!source.querySelector(":scope > code.language-mermaid");
+  const alignment = isMermaid
+    ? mermaidAlignment(source.textContent || "")
+    : undefined;
   const transfer = new AbortController();
   const html = htmlInput
     ? prepareHTML(source, transfer.signal).catch(() => null)
@@ -284,6 +293,7 @@ function mount(block: HTMLElement, module: Module): Promise<void> {
           type: "kumbuka-plugin-render",
           token,
           source: source.textContent || "",
+          alignment,
           html: content,
           locale: document.documentElement.lang || "en",
           colors: themeColors(),
@@ -327,6 +337,8 @@ function mount(block: HTMLElement, module: Module): Promise<void> {
         frame.style.width = `${Math.min(480, Math.max(72, data.width))}px`;
       source.hidden = true;
       source.style.setProperty("display", "none", "important");
+      block.classList.remove("kumbuka-plugin-loading");
+      block.removeAttribute("aria-busy");
       frame.style.visibility = "visible";
       frame.dataset.pluginReady = "true";
       clearTimeout(timeout);
@@ -349,14 +361,56 @@ function mount(block: HTMLElement, module: Module): Promise<void> {
     },
     restoreSource,
   });
+  if (isMermaid) {
+    block.classList.add("kumbuka-plugin-loading");
+    block.setAttribute("aria-busy", "true");
+  }
   block.append(frame);
   return ready;
 }
+// Large Mermaid bundles are parsed separately in each sandbox. Keep distant
+// browser modules out of the critical path until they approach the viewport.
+function cancelDeferred(block: HTMLElement): void {
+  deferred.delete(block);
+  visibilityObserver?.unobserve(block);
+}
+
+function mountWhenNear(block: HTMLElement, module: Module): Promise<void> {
+  // Preview staging is intentionally offscreen and must finish rendering before
+  // it is swapped into view. Other browsers without IntersectionObserver render
+  // eagerly as before.
+  if (
+    block.closest("[data-editor-preview]") ||
+    typeof IntersectionObserver === "undefined"
+  )
+    return mount(block, module);
+  if (!visibilityObserver) {
+    visibilityObserver = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+          const block = entry.target as HTMLElement;
+          const module = deferred.get(block);
+          cancelDeferred(block);
+          if (module && block.isConnected && !active.has(block))
+            void mount(block, module);
+        }
+      },
+      { rootMargin: "600px 0px" },
+    );
+  }
+  deferred.set(block, module);
+  visibilityObserver.observe(block);
+  return Promise.resolve();
+}
+
 function watch(): void {
   if (watching) return;
   watching = true;
   new MutationObserver(() => {
     for (const block of active.keys()) if (!block.isConnected) remove(block);
+    for (const block of deferred.keys())
+      if (!block.isConnected) cancelDeferred(block);
   }).observe(document.body, { childList: true, subtree: true });
 }
 export async function renderPluginModules(
@@ -367,7 +421,7 @@ export async function renderPluginModules(
       "[data-kumbuka-plugin][data-kumbuka-module]",
     ),
   ];
-  if (!blocks.length && !active.size) return;
+  if (!blocks.length && !active.size && !deferred.size) return;
   watch();
   const enabled = modules();
   const find = (block: HTMLElement) =>
@@ -379,11 +433,17 @@ export async function renderPluginModules(
   for (const [block, state] of active)
     if (!block.isConnected || find(block)?.digest !== state.version)
       remove(block);
+  for (const [block, module] of deferred)
+    if (!block.isConnected || find(block)?.digest !== module.digest)
+      cancelDeferred(block);
   await Promise.all(
     blocks.map((block) => {
       const module = find(block);
       if (!module) return Promise.resolve();
-      return active.get(block)?.ready || mount(block, module);
+      return (
+        active.get(block)?.ready ||
+        (deferred.has(block) ? Promise.resolve() : mountWhenNear(block, module))
+      );
     }),
   );
 }

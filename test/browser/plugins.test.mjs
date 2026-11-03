@@ -338,3 +338,94 @@ test("trusted browser-module changes relay only same-plugin widget commands", as
     await browser.close();
   }
 });
+
+test("Mermaid layout directives control the rendered diagram alignment", async () => {
+  const browser = await chromium.launch({
+    channel: process.env.BROWSER_CHANNEL || "chrome",
+    headless: true,
+  });
+  try {
+    const page = await browser.newPage();
+    const fakeJavaScript = `
+      globalThis.kumbukaPlugin = {
+        async render(root) {
+          const style = document.createElement('style');
+          style.textContent = '.mermaid { text-align: center }';
+          document.head.append(style);
+          const diagram = document.createElement('div');
+          diagram.className = 'mermaid';
+          diagram.innerHTML = '<svg width="120" height="60"></svg>';
+          root.append(diagram);
+        },
+      };
+    `;
+    await page.route("http://mermaid-alignment.test/**", async (route) => {
+      const path = new URL(route.request().url()).pathname;
+      if (await pluginRoute(route, { fakeJavaScript })) return;
+      if (path.startsWith("/assets/")) {
+        await route.fulfill({
+          contentType: "text/javascript",
+          body: await readFile(
+            new URL("../../web/dist/" + path.slice(8), import.meta.url),
+          ),
+        });
+        return;
+      }
+      await route.fulfill({
+        contentType: "text/html",
+        body: `<body>${pluginCatalog()}<div id="right" data-kumbuka-plugin="me.kumbuka.mermaid" data-kumbuka-module="diagrams"><pre><code class="language-mermaid">%% kumbuka-align: right\nflowchart LR</code></pre></div><div id="center" data-kumbuka-plugin="me.kumbuka.mermaid" data-kumbuka-module="diagrams"><pre><code class="language-mermaid">flowchart LR</code></pre></div><script type="module">import { renderPluginModules } from '/assets/js/plugins/loader.js'; await renderPluginModules();</script></body>`,
+      });
+    });
+    await page.goto("http://mermaid-alignment.test/");
+    await page.locator("#right iframe[data-plugin-ready]").waitFor();
+    await page.locator("#center iframe[data-plugin-ready]").waitFor();
+    assert.equal(
+      await page.frameLocator("#right iframe").locator(".mermaid").evaluate(
+        (element) => getComputedStyle(element).textAlign,
+      ),
+      "right",
+    );
+    assert.equal(
+      await page.frameLocator("#center iframe").locator(".mermaid").evaluate(
+        (element) => getComputedStyle(element).textAlign,
+      ),
+      "center",
+    );
+  } finally {
+    await browser.close();
+  }
+});
+
+test("offscreen browser modules start only when approaching the viewport", async () => {
+  const browser = await chromium.launch({
+    channel: process.env.BROWSER_CHANNEL || "chrome",
+    headless: true,
+  });
+  try {
+    const page = await browser.newPage({ viewport: { width: 1000, height: 700 } });
+    await page.route("http://deferred-plugins.test/**", async (route) => {
+      const path = new URL(route.request().url()).pathname;
+      if (await pluginRoute(route, { fake: true })) return;
+      if (path.startsWith("/assets/")) {
+        await route.fulfill({
+          contentType: "text/javascript",
+          body: await readFile(
+            new URL("../../web/dist/" + path.slice(8), import.meta.url),
+          ),
+        });
+        return;
+      }
+      await route.fulfill({
+        contentType: "text/html",
+        body: `<body>${pluginCatalog()}<div id="near">${block}</div><div style="height:2200px"></div><div id="far">${block}</div><script type="module">import { renderPluginModules } from '/assets/js/plugins/loader.js'; await renderPluginModules();</script></body>`,
+      });
+    });
+    await page.goto("http://deferred-plugins.test/");
+    await page.locator("#near iframe[data-plugin-ready]").waitFor();
+    assert.equal(await page.locator("#far iframe").count(), 0);
+    await page.locator("#far").scrollIntoViewIfNeeded();
+    await page.locator("#far iframe[data-plugin-ready]").waitFor();
+  } finally {
+    await browser.close();
+  }
+});

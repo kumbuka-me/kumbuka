@@ -42,15 +42,15 @@ kumbuka \
 
 Kumbuka can be configured using command-line flags or environment variables. Environment variables use the `KUMBUKA__` prefix.
 
-| Flag                          | Environment variable                 | Default                 |
-| ----------------------------- | ------------------------------------ | ----------------------- |
-| `--listen-address`            | `KUMBUKA__LISTEN_ADDRESS`            | `127.0.0.1:8080`        |
-| `--management-listen-address` | `KUMBUKA__MANAGEMENT_LISTEN_ADDRESS` | `127.0.0.1:8081`        |
-| `--public-url`                | `KUMBUKA__PUBLIC_URL`                | `http://localhost:8080` |
-| `--route-prefix`              | `KUMBUKA__ROUTE_PREFIX`              | empty                   |
-| `--database-url`              | `KUMBUKA__DATABASE_URL`              | —                       |
-| `--read-only`                 | `KUMBUKA__READ_ONLY`                 | `false`                 |
-| `--trusted-proxy-cidrs`       | `KUMBUKA__TRUSTED_PROXY_CIDRS`       | empty                   |
+| Flag | Environment variable | Default |
+| --- | --- | --- |
+| `--listen-address` | `KUMBUKA__LISTEN_ADDRESS` | `127.0.0.1:8080` |
+| `--management-listen-address` | `KUMBUKA__MANAGEMENT_LISTEN_ADDRESS` | `127.0.0.1:8081` |
+| `--public-url` | `KUMBUKA__PUBLIC_URL` | `http://localhost:8080` |
+| `--route-prefix` | `KUMBUKA__ROUTE_PREFIX` | empty |
+| `--database-url` | `KUMBUKA__DATABASE_URL` | — |
+| `--read-only` | `KUMBUKA__READ_ONLY` | `false` |
+| `--trusted-proxy-cidrs` | `KUMBUKA__TRUSTED_PROXY_CIDRS` | empty |
 
 The management listener exposes `GET /healthz`, `GET /readyz`, and, unless disabled, `GET /metrics`. It is separate from the public application listener and is not mounted below `--route-prefix`.
 

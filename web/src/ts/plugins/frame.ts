@@ -21,6 +21,7 @@
     source: string;
     html?: string;
     locale?: string;
+    alignment?: "left" | "center" | "right";
   } =>
     input.type === "kumbuka-plugin-render" &&
     typeof input.token === "string" &&
@@ -30,7 +31,11 @@
       (typeof input.locale === "string" &&
         /^[A-Za-z0-9-]{1,35}$/.test(input.locale))) &&
     (input.html === undefined ||
-      (typeof input.html === "string" && input.html.length <= 1_000_000));
+      (typeof input.html === "string" && input.html.length <= 1_000_000)) &&
+    (input.alignment === undefined ||
+      input.alignment === "left" ||
+      input.alignment === "center" ||
+      input.alignment === "right");
 
   const isTrustedPluginCommandClick = (
     event: MouseEvent,
@@ -155,6 +160,10 @@
         locale: input.locale || "en",
         theme: input.theme === "dark" ? "dark" : "light",
       });
+      // The host owns block placement; plugins still own their SVG and styles.
+      // Inline alignment wins over a plugin's default centered text treatment.
+      if (input.alignment && root.firstElementChild instanceof HTMLElement)
+        root.firstElementChild.style.textAlign = input.alignment;
       const measure = () =>
         send(
           "kumbuka-plugin-ready",
