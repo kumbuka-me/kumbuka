@@ -2,6 +2,7 @@ package icons
 
 import (
 	"errors"
+	"math"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -104,8 +105,12 @@ func TestInvalidPluginIconResourceFailsClosed(t *testing.T) {
 	assert.True(t, catalog.IsIcon("search-lucide"))
 	assert.Len(t, catalog.Search("Override", 10), 0)
 
-	failed := NewCatalog(&testResourceProvider{version: "error", err: errors.New("boom")})
+	provider := testPluginCatalog().provider.(*testResourceProvider)
+	provider.err = errors.New("temporary failure")
+	failed := NewCatalog(provider)
 	assert.True(t, failed.IsIcon("search-lucide"))
+	provider.err = nil
+	assert.True(t, failed.IsIcon("github-simple"))
 }
 
 func TestPluginIconCannotOverrideBuiltin(t *testing.T) {
@@ -138,6 +143,9 @@ func TestSearchCatalogPagination(t *testing.T) {
 	assert.NotEqual(t, first[len(first)-1].Name, second[0].Name)
 
 	all := catalog.Options()
+	unlimited, more := catalog.SearchPage("", 0, math.MaxInt)
+	assert.Equal(t, all, unlimited)
+	assert.False(t, more)
 	last, hasMore := catalog.SearchPage("", len(all)-1, 3)
 	assert.Len(t, last, 1)
 	assert.False(t, hasMore)

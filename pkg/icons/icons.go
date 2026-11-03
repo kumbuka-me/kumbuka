@@ -35,9 +35,9 @@ type Option struct {
 
 // Resource is one plugin-owned icon catalog declared by an icon-resource module.
 type Resource struct {
-	// Source records the source associated with resource.
+	// Source names the plugin icon collection shown in the picker.
 	Source string
-	// Data contains the data associated with resource.
+	// Data holds the encoded icon-resource document.
 	Data []byte
 }
 
@@ -50,18 +50,18 @@ type ResourceProvider interface {
 
 // Catalog combines Kumbuka's built-in Lucide icons with enabled plugin resources.
 type Catalog struct {
-	// provider stores the provider value used by catalog.
+	// provider supplies enabled plugin resources, or is nil for built-in icons only.
 	provider ResourceProvider
 
-	// mu protects concurrent access to catalog.
+	// mu protects the published options, SVG definitions and their generation.
 	mu sync.RWMutex
-	// loaded reports whether loaded applies to catalog.
+	// loaded reports whether the published generation was read successfully.
 	loaded bool
-	// version stores the version value used by catalog.
+	// version identifies the provider generation used for the last rebuild.
 	version string
-	// options contains the options associated with catalog.
+	// options contains picker entries sorted by persisted icon name.
 	options []Option
-	// icons maps keys to icons values used by catalog.
+	// icons indexes plugin SVG definitions by persisted icon name.
 	icons map[string]pluginpackage.Icon
 }
 
@@ -147,7 +147,7 @@ func (c *Catalog) SearchPage(query string, offset, limit int) (options []Option,
 
 	offset = max(offset, 0)
 	query = strings.ToLower(strings.TrimSpace(query))
-	options = make([]Option, 0, min(limit+1, len(catalog)))
+	options = make([]Option, 0, min(limit, len(catalog)))
 	matched := 0
 
 	for _, option := range catalog {
@@ -159,14 +159,10 @@ func (c *Catalog) SearchPage(query string, offset, limit int) (options []Option,
 			continue
 		}
 
-		options = append(options, option)
-		if len(options) > limit {
-			break
+		if len(options) == limit {
+			return options, true
 		}
-	}
-
-	if len(options) > limit {
-		return options[:limit], true
+		options = append(options, option)
 	}
 
 	return options, false
@@ -202,10 +198,10 @@ func (c *Catalog) ensure() {
 		return
 	}
 
-	options, resources := catalogContents(c.provider)
+	options, resources, err := catalogContents(c.provider)
 
 	c.mu.Lock()
-	c.loaded = true
+	c.loaded = err == nil
 	c.version = version
 	c.options = options
 	c.icons = resources
@@ -213,7 +209,7 @@ func (c *Catalog) ensure() {
 }
 
 // catalogContents merges valid contributed icons into a fresh copy of the built-in catalog.
-func catalogContents(provider ResourceProvider) ([]Option, map[string]pluginpackage.Icon) {
+func catalogContents(provider ResourceProvider) ([]Option, map[string]pluginpackage.Icon, error) {
 	options := slices.Clone(lucideOptions)
 	registered := make(map[string]bool, len(options))
 	for _, option := range options {
@@ -221,9 +217,11 @@ func catalogContents(provider ResourceProvider) ([]Option, map[string]pluginpack
 	}
 	resources := make(map[string]pluginpackage.Icon)
 
+	var loadErr error
 	if provider != nil {
-		contributed, err := provider.IconResources()
-		if err == nil {
+		var contributed []Resource
+		contributed, loadErr = provider.IconResources()
+		if loadErr == nil {
 			options = mergeIconResources(options, resources, registered, contributed)
 		}
 	}
@@ -231,7 +229,7 @@ func catalogContents(provider ResourceProvider) ([]Option, map[string]pluginpack
 	slices.SortFunc(options, func(left, right Option) int {
 		return cmp.Compare(left.Name, right.Name)
 	})
-	return options, resources
+	return options, resources, loadErr
 }
 
 // mergeIconResources appends valid, non-conflicting plugin icons to the catalog contents.
