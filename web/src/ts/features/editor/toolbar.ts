@@ -152,10 +152,10 @@ export function applyEditorInsertAction(
   }
 }
 
-// Closes open Markdown toolbar menus.
-function closeToolbarMenus(toolbar: HTMLElement): void {
+// Closes open toolbar menus except the one containing the click target.
+function closeToolbarMenus(toolbar: HTMLElement, target?: Node): void {
   for (const menu of toolbar.querySelectorAll(".markdown-toolbar-menu[open]")) {
-    menu.removeAttribute("open");
+    if (!target || !menu.contains(target)) menu.removeAttribute("open");
   }
 }
 
@@ -189,6 +189,10 @@ function setupMarkdownToolbar(toolbar: HTMLElement): void {
 
   const editor = textarea;
   setupToolbarIconNameReveal(toolbar);
+  document.addEventListener("click", (event) => {
+    if (event.target instanceof Node) closeToolbarMenus(toolbar, event.target);
+  }, { capture: true });
+
 
   let previousFormat = headingNumberFormat(form);
   function renumberIfEnabled(): void {

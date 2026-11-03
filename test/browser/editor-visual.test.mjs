@@ -127,6 +127,12 @@ for (const failFirst of [false, true])
       );
       assert.equal(visualRequests, 0, "Markdown must not download Tiptap");
       const source = page.locator("textarea");
+      const headingMenu = toolbar.locator(".markdown-toolbar-heading-menu");
+      const headingPicker = headingMenu.locator("summary");
+      await headingPicker.click();
+      assert.equal(await headingMenu.evaluate((menu) => menu.open), true);
+      await source.click();
+      assert.equal(await headingMenu.evaluate((menu) => menu.open), false);
       await source.selectText();
       await page.getByRole("button", { name: "Bold", exact: true }).click();
       assert.equal(await source.inputValue(), "**Original**");
@@ -164,7 +170,10 @@ for (const failFirst of [false, true])
         await visual.locator("strong em, em strong").textContent(),
         "Original",
       );
-      const headingPicker = toolbar.locator(".markdown-toolbar-heading-menu summary");
+      await headingPicker.click();
+      await visual.click();
+      assert.equal(await headingMenu.evaluate((menu) => menu.open), false);
+      await visual.selectText();
       const clearFormatting = toolbar.locator('[data-markdown-action="clear-formatting"]');
       const initialPosition = (await clearFormatting.boundingBox()).x;
       await headingPicker.click();
