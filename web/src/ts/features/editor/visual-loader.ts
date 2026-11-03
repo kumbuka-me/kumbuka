@@ -1,5 +1,6 @@
 // Keep Tiptap out of the initial editor module graph.
 import { loadEditorCatalog } from "./catalog.ts";
+import { showDelayedLoading } from "../../core/loading.ts";
 import { visualPane } from "./visual-pane.ts";
 
 export function initLazyVisualEditor(): void {
@@ -18,6 +19,20 @@ export function initLazyVisualEditor(): void {
     let attempts = 0;
     let pending = false;
     let editorPending = false;
+    let stopLoading: (() => void) | undefined;
+    const endLoading = () => {
+      stopLoading?.();
+      stopLoading = undefined;
+      status.classList.remove("is-loading");
+    };
+    const beginLoading = () => {
+      endLoading();
+      status.hidden = false;
+      status.classList.remove("error");
+      status.classList.add("is-loading");
+      status.replaceChildren();
+      stopLoading = showDelayedLoading(status, "Loading visual editor…");
+    };
     const syncToolbar = () => {
       if (toolbar)
         toolbar.inert =
@@ -27,9 +42,7 @@ export function initLazyVisualEditor(): void {
       if (ready || pending) return;
       pending = true;
       syncToolbar();
-      status.hidden = false;
-      status.classList.remove("error");
-      status.textContent = "Loading visual editor…";
+      beginLoading();
       try {
         // A failed module fetch can be cached by the browser, so retries use a fresh URL.
         const module =
@@ -41,6 +54,7 @@ export function initLazyVisualEditor(): void {
         if (form.dataset.editorMode === "visual")
           form.dispatchEvent(new CustomEvent("editor:visual-activate"));
       } catch (error) {
+        endLoading();
         console.error("visual editor failed to download", error);
         status.classList.add("error");
         status.textContent =
@@ -52,6 +66,10 @@ export function initLazyVisualEditor(): void {
         status.append(retry);
       } finally {
         pending = false;
+        if (!editorPending) {
+          endLoading();
+          if (ready) status.hidden = true;
+        }
         syncToolbar();
       }
     }
@@ -59,6 +77,7 @@ export function initLazyVisualEditor(): void {
     form.addEventListener("editor:visual-loading", (event) => {
       if (!(event instanceof CustomEvent)) return;
       editorPending = event.detail === true;
+      if (!editorPending) endLoading();
       syncToolbar();
     });
     form.addEventListener("editor:mode-change", syncToolbar);

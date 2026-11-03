@@ -1,5 +1,6 @@
 import { route, routePrefix } from "../core/route.ts";
 import { mermaidAlignment } from "../core/mermaid-alignment.ts";
+import { showDelayedLoading } from "../core/loading.ts";
 // Only core code runs in Kumbuka's document. Browser modules receive their own
 // marked block's text inside a sandboxed frame and cannot return host HTML.
 type Root = Document | HTMLElement;
@@ -23,6 +24,7 @@ type Active = {
   ready: Promise<void>;
   cleanup: () => void;
   restoreSource: () => void;
+  stopLoading: () => void;
 };
 const active = new Map<HTMLElement, Active>();
 const deferred = new Map<HTMLElement, Module>();
@@ -175,6 +177,7 @@ function remove(block: HTMLElement): void {
   const state = active.get(block);
   if (!state) return;
   state.cleanup();
+  state.stopLoading();
   state.frame.remove();
   state.restoreSource();
   block.classList.remove("kumbuka-plugin-loading");
@@ -337,6 +340,7 @@ function mount(block: HTMLElement, module: Module): Promise<void> {
         frame.style.width = `${Math.min(480, Math.max(72, data.width))}px`;
       source.hidden = true;
       source.style.setProperty("display", "none", "important");
+      active.get(block)?.stopLoading();
       block.classList.remove("kumbuka-plugin-loading");
       block.removeAttribute("aria-busy");
       frame.style.visibility = "visible";
@@ -347,6 +351,15 @@ function mount(block: HTMLElement, module: Module): Promise<void> {
       remove(block);
     }
   };
+  // Code-rendering plugins have no useful static fallback while the sandbox loads.
+  // HTML plugins keep their authored fallback visible until the frame is ready.
+  const needsPlaceholder = !htmlInput && !inline;
+  const stopLoading = needsPlaceholder
+    ? showDelayedLoading(
+        block,
+        isMermaid ? "Rendering diagram…" : "Loading plugin…",
+      )
+    : () => {};
   window.addEventListener("message", message);
   active.set(block, {
     frame,
@@ -360,8 +373,9 @@ function mount(block: HTMLElement, module: Module): Promise<void> {
       window.removeEventListener("message", message);
     },
     restoreSource,
+    stopLoading,
   });
-  if (isMermaid) {
+  if (needsPlaceholder) {
     block.classList.add("kumbuka-plugin-loading");
     block.setAttribute("aria-busy", "true");
   }

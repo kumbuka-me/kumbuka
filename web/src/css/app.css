@@ -47,6 +47,8 @@
 
 @import "./components/form-validation.css";
 
+@import "./components/loading.css";
+
 @import "./components/plugin-frame.css";
 
 @import "./components/plugin-inspectors.css";

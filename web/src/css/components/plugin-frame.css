@@ -37,45 +37,21 @@
   background: var(--surface-elevated);
 }
 
-.kumbuka-deferred-spinner {
-  width: 1rem;
-  height: 1rem;
-  flex: 0 0 auto;
-  border: 2px solid var(--border);
-  border-top-color: var(--accent);
-  border-radius: 50%;
-  animation: kumbuka-deferred-spin 650ms linear infinite;
-}
-
 .kumbuka-deferred-fragment-error {
   color: var(--text);
   border-color: var(--danger);
 }
 
-@keyframes kumbuka-deferred-spin {
-  to {
-    transform: rotate(360deg);
-  }
+/* Hide fallback code during sandbox startup; use the shared host-owned boat
+   after a short delay and restore the original source on error/timeout. */
+.kumbuka-plugin-block.kumbuka-plugin-loading {
+  min-height: 5rem;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .kumbuka-deferred-spinner {
-    animation: none;
-  }
-}
-
-/* Leave the original source available if scripts or rendering fail; show a
-   lightweight progress state only while the Mermaid frame is mounting. */
 .kumbuka-plugin-block.kumbuka-plugin-loading > pre {
   display: none;
 }
 
-.kumbuka-plugin-block.kumbuka-plugin-loading::before {
-  content: "Rendering diagram…";
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.kumbuka-plugin-block.kumbuka-plugin-loading > .kumbuka-loading {
   min-height: 5rem;
-  color: var(--text-secondary);
-  font-size: 0.85rem;
 }

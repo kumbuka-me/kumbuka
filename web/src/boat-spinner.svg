@@ -1,0 +1,149 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 1280" width="100" height="100" role="img" aria-labelledby="spinner-title spinner-desc">
+  <title id="spinner-title">Loading</title>
+  <desc id="spinner-desc">The Kumbuka dhow gently rocks on rolling waves while content loads.</desc>
+  <defs>
+  <linearGradient id="sail" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#fffaf0"/>
+    <stop offset="1" stop-color="#f5ead4"/>
+  </linearGradient>
+  <linearGradient id="teal" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#08798d"/>
+    <stop offset="1" stop-color="#07566c"/>
+  </linearGradient>
+  <linearGradient id="wood" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#71301f"/>
+    <stop offset="1" stop-color="#572519"/>
+  </linearGradient>
+
+  </defs>
+  <style>
+    /* Keep the dhow recognizable; motion comes from the sea, not a spinning logo. */
+    #dhow {
+      transform-box: view-box;
+      transform-origin: 50% 74%;
+      animation: kumbuka-rock 3.4s ease-in-out infinite;
+    }
+    #wave-front { animation: kumbuka-wave-front 3.4s ease-in-out infinite; }
+    #wave-back { animation: kumbuka-wave-back 2.7s ease-in-out infinite; }
+    #spray-a { animation: kumbuka-spray 3.4s ease-out infinite; }
+    #spray-b { animation: kumbuka-spray 3.4s ease-out .4s infinite; }
+    #spray-c { animation: kumbuka-spray 3.4s ease-out .8s infinite; }
+
+    @keyframes kumbuka-rock {
+      0%, 100% { transform: translateY(0) rotate(-2deg); }
+      25% { transform: translateY(-13px) rotate(1.5deg); }
+      50% { transform: translateY(2px) rotate(2.5deg); }
+      75% { transform: translateY(-10px) rotate(-1deg); }
+    }
+    @keyframes kumbuka-wave-front {
+      0%, 100% { transform: translate(8px, 0); }
+      50% { transform: translate(-12px, -9px); }
+    }
+    @keyframes kumbuka-wave-back {
+      0%, 100% { transform: translate(-10px, 2px); }
+      50% { transform: translate(14px, -5px); }
+    }
+    @keyframes kumbuka-spray {
+      0%, 18% { opacity: 0; transform: translate(0, 6px) scale(.45); }
+      38% { opacity: .8; }
+      60%, 100% { opacity: 0; transform: translate(7px, -24px) scale(1); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      #dhow, #wave-front, #wave-back, #spray-a, #spray-b, #spray-c { animation: none; }
+      #spray-a, #spray-b, #spray-c { opacity: 0; }
+    }
+  </style>
+
+  <g id="dhow">
+    <!-- Original Kumbuka mast, K sail, and wooden hull. -->
+<path d="M438 378L199 883M438 379L252 885" fill="none" stroke="#063e54" stroke-width="17" stroke-linecap="round"/>
+
+<!-- mast -->
+<path d="M424 114h39l10 797h-52z" fill="#063e54"/>
+<circle cx="443" cy="115" r="24" fill="#063e54"/>
+
+<!-- cream sail -->
+<path d="M466 146
+ C596 225 782 205 1057 102
+ C914 227 777 356 648 486
+ C771 583 871 706 951 858
+ C768 792 607 790 474 866
+ C491 617 490 378 466 146Z"
+ fill="url(#sail)" stroke="#ead5b1" stroke-width="14" stroke-linejoin="round"/>
+
+<!-- upper teal K field -->
+<path d="M476 161
+ C506 205 531 280 543 374
+ L548 374
+ L950 185
+ L484 579
+ C486 428 483 285 476 161Z"
+ fill="url(#teal)"/>
+
+<!-- lower teal K field -->
+<path d="M494 594
+ L596 518
+ L861 792
+ C727 725 604 658 494 594Z"
+ fill="url(#teal)"/>
+
+<!-- hull upper rail -->
+<path d="M119 875
+ C388 915 666 923 887 897
+ C1005 883 1097 844 1167 777
+ C1147 825 1117 874 1079 919
+ C821 975 483 976 171 929Z"
+ fill="#d77a20"/>
+
+<!-- hull body -->
+<path d="M132 897
+ C405 934 671 938 891 913
+ C1004 900 1080 871 1130 837
+ C1100 902 1044 974 962 1027
+ C688 1003 450 1043 200 1001Z"
+ fill="url(#wood)"/>
+
+<!-- darker hull facet -->
+<path d="M166 935
+ C421 965 680 967 899 941
+ C982 931 1043 913 1091 890
+ L1013 971
+ C755 1010 489 1007 211 980Z"
+ fill="#64291d" opacity=".75"/>
+
+<!-- cream hull stripe -->
+<path d="M137 905
+ C397 940 663 945 887 921
+ C966 912 1034 896 1091 874"
+ fill="none" stroke="#f4dfb7" stroke-width="12" stroke-linecap="round"/>
+
+<!-- orange gunwale -->
+<path d="M121 876
+ C393 917 668 924 890 898
+ C1007 884 1099 844 1166 778"
+ fill="none" stroke="#dc7c1e" stroke-width="15" stroke-linecap="round"/>
+
+
+  </g>
+  <g id="wave-back"><path d="M78 1042
+ C202 995 300 1048 415 1057
+ C548 1067 635 1007 761 1011
+ C887 1015 993 1088 1168 1038
+ C1110 1095 1015 1112 918 1092
+ C789 1065 711 1045 600 1076
+ C421 1127 277 1108 78 1042Z"
+ fill="#078c9d"/></g>
+  <g id="wave-front"><path d="M273 1090
+ C388 1128 472 1132 574 1102
+ C691 1068 779 1065 888 1097
+ C956 1117 1018 1120 1077 1094
+ C1014 1142 938 1152 853 1130
+ C748 1103 679 1107 588 1138
+ C473 1177 366 1157 273 1090Z"
+ fill="#50b8c1"/></g>
+  <g fill="#50b8c1">
+    <circle id="spray-a" cx="1161" cy="1000" r="13" />
+    <circle id="spray-b" cx="1190" cy="1037" r="8" />
+    <circle id="spray-c" cx="1108" cy="1020" r="9" />
+  </g>
+</svg>

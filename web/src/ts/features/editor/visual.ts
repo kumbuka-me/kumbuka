@@ -670,7 +670,6 @@ export function setupVisualEditor(form: HTMLFormElement): void {
     );
     visualStatus.hidden = false;
     visualStatus.classList.remove("error");
-    visualStatus.textContent = "Loading visual editor…";
 
     loading = (async () => {
       try {

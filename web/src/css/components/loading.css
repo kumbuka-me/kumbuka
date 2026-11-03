@@ -1,0 +1,40 @@
+/* Kumbuka's shared boat indicator. The SVG owns its animation and reduced-motion behavior. */
+.kumbuka-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  min-width: 0;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.kumbuka-loading--small {
+  flex-direction: row;
+  gap: 0.6rem;
+  font-size: 0.8rem;
+}
+
+.kumbuka-boat-spinner {
+  display: inline-block;
+  flex: none;
+  width: 60px;
+  height: 60px;
+  background: url("../boat-spinner.svg") center / contain no-repeat;
+}
+
+.kumbuka-boat-spinner--small {
+  width: 30px;
+  height: 30px;
+}
+
+.kumbuka-boat-spinner--large {
+  width: 90px;
+  height: 90px;
+}
+
+.kumbuka-loading-label {
+  min-width: 0;
+}

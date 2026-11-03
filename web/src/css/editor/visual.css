@@ -293,6 +293,14 @@
   font-size: 11px;
 }
 
+.visual-editor-status.is-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 9rem;
+  padding: 1.25rem;
+}
+
 .visual-editor-status.error {
   background: color-mix(in srgb, var(--danger) 7%, var(--surface));
   color: var(--danger);
