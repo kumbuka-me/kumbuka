@@ -108,7 +108,7 @@ func checkFile(set *token.FileSet, file *ast.File) []string {
 
 				if _, ok := named.Type.(*ast.StructType); ok &&
 					!described(named.Doc) &&
-					!described(declaration.Doc) {
+					!(len(declaration.Specs) == 1 && described(declaration.Doc)) {
 					report(
 						named.Pos(),
 						"struct "+named.Name.Name+" needs a description",
@@ -138,7 +138,7 @@ func described(comment *ast.CommentGroup) bool {
 // functionSummaryStartsWithName reports whether the first prose line begins with the function name.
 func functionSummaryStartsWithName(comment *ast.CommentGroup, name string) bool {
 	summary := firstDescriptionLine(comment)
-	return summary == name || strings.HasPrefix(summary, name+" ")
+	return strings.HasPrefix(summary, name+" ")
 }
 
 // firstDescriptionLine returns the first prose line from a documentation comment.

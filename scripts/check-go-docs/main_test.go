@@ -122,3 +122,24 @@ func TestCheckTreeSkipsTestsGeneratedCodeAndDependencies(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, problems)
 }
+
+func TestCheckFileRequiresIndividualDescriptions(t *testing.T) {
+	set := token.NewFileSet()
+	file, err := parser.ParseFile(set, "input.go", `package example
+
+// Response models.
+type (
+	// Success records a completed operation.
+	Success struct{}
+	Failure struct{}
+)
+
+// Run
+func Run() {}
+`, parser.ParseComments)
+	require.NoError(t, err)
+	problems := checkFile(set, file)
+	require.Len(t, problems, 2)
+	assert.Contains(t, problems[0], "struct Failure needs a description")
+	assert.Contains(t, problems[1], "function Run")
+}
