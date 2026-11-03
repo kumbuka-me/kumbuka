@@ -8,6 +8,7 @@ import {
 import { showNotice } from "../../core/dialogs.ts";
 import { requiredAttribute, requiredElement } from "../../core/dom.ts";
 import { isRecord, requireArrayOf } from "../../core/guards.ts";
+import { showDelayedLoading } from "../../core/loading.ts";
 import { errorMessage, requestJSON } from "../../core/http.ts";
 
 interface GroupMember {
@@ -117,6 +118,7 @@ export function setupGroupMemberPicker(card: HTMLElement): void {
 
   // Loads members.
   async function loadMembers(): Promise<void> {
+    const stopLoading = showDelayedLoading(renderedMembers, "", "small");
     try {
       members = groupMembers(await requestJSON(groupMembersURL));
       renderMembers();
@@ -124,6 +126,8 @@ export function setupGroupMemberPicker(card: HTMLElement): void {
       console.error("group members failed", error);
       renderedMembers.innerHTML =
         '<p class="revision-dialog-error">Members could not be loaded.</p>';
+    } finally {
+      stopLoading();
     }
   }
 

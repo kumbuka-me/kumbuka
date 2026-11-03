@@ -61,31 +61,8 @@
   align-items: center;
 }
 
-.import-submit-spinner:not([hidden]) {
-  display: inline-block;
-  width: 14px;
-  height: 14px;
-  flex: 0 0 14px;
-  border: 2px solid currentColor;
-  border-right-color: transparent;
-  border-radius: 50%;
-  animation: import-spinner 650ms linear infinite;
-}
-
 .import-progress {
   font-size: 11px;
-}
-
-@keyframes import-spinner {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .import-submit-spinner {
-    animation-duration: 1.4s;
-  }
 }
 
 @media (max-width: 980px) {

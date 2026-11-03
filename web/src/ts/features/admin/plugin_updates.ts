@@ -310,7 +310,7 @@ function availablePluginUpdates(): PluginUpdateProgress[] {
       progress.hidden = true;
 
       const spinner = document.createElement("span");
-      spinner.className = "plugin-update-spinner";
+      spinner.className = "kumbuka-boat-spinner kumbuka-boat-spinner--inline";
       spinner.dataset.pluginUpdateProgressSpinner = "";
       spinner.setAttribute("aria-hidden", "true");
       spinner.hidden = true;
@@ -526,7 +526,40 @@ function bindPluginUpdateForms(root: ParentNode = document): void {
   }
 }
 
-// initPluginUpdateProgress enables persistent single-update feedback and independent bulk progress.
+// bindPluginUpdateCheck keeps the slow, full-page catalog refresh visibly pending.
+function bindPluginUpdateCheck(): void {
+  const form = document.querySelector<HTMLFormElement>(
+    "[data-plugin-update-check]",
+  );
+  if (!form) return;
+
+  const submit = form.querySelector<HTMLButtonElement>(
+    "[data-plugin-update-check-submit]",
+  );
+  const spinner = form.querySelector<HTMLElement>(
+    "[data-plugin-update-check-spinner]",
+  );
+  const label = form.querySelector<HTMLElement>(
+    "[data-plugin-update-check-label]",
+  );
+  if (!submit || !spinner || !label) return;
+
+  form.addEventListener("submit", (event: SubmitEvent) => {
+    event.preventDefault();
+    if (form.getAttribute("aria-busy") === "true") return;
+
+    form.setAttribute("aria-busy", "true");
+    submit.disabled = true;
+    spinner.hidden = false;
+    label.textContent = "Checking for updates…";
+
+    // Paint the pending state before the regular form navigation starts.
+    requestAnimationFrame(() => HTMLFormElement.prototype.submit.call(form));
+  });
+}
+
+// initPluginUpdateProgress enables catalog checks and persistent single/bulk update feedback.
 export function initPluginUpdateProgress(): void {
+  bindPluginUpdateCheck();
   bindPluginUpdateForms();
 }

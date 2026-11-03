@@ -87,21 +87,6 @@
   display: none;
 }
 
-.spinner {
-  width: 15px;
-  height: 15px;
-  border: 2px solid var(--border-strong);
-  border-top-color: var(--accent);
-  border-radius: 50%;
-  animation: kumbuka-spin 0.75s linear infinite;
-}
-
-@keyframes kumbuka-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
 .share-options-divider {
   display: flex;
   align-items: center;

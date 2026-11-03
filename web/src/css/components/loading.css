@@ -35,6 +35,29 @@
   height: 90px;
 }
 
+/* Keep button feedback compact; reveal the boat only if work lasts 250 ms. */
+.kumbuka-boat-spinner--inline {
+  width: 22px;
+  height: 22px;
+}
+
+.kumbuka-boat-spinner[hidden] {
+  display: none;
+}
+
+.kumbuka-boat-spinner--inline:not([hidden]) {
+  animation: kumbuka-loading-appear 0s 250ms both;
+}
+
+@keyframes kumbuka-loading-appear {
+  from {
+    visibility: hidden;
+  }
+  to {
+    visibility: visible;
+  }
+}
+
 .kumbuka-loading-label {
   min-width: 0;
 }

@@ -385,6 +385,9 @@
 }
 
 .pdf-test-status[data-state="testing"] {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
   color: var(--text-secondary);
 }
 

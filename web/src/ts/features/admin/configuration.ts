@@ -2,6 +2,7 @@
 
 import { requiredElement } from "../../core/dom.ts";
 import { errorMessage, responseProblem } from "../../core/http.ts";
+import { showDelayedLoading } from "../../core/loading.ts";
 import {
   clearPerformance,
   collectPerformanceReport,
@@ -116,6 +117,7 @@ async function testPDFEndpoint(controls: PDFTestControls): Promise<void> {
     "testing",
     "Rendering the two-page PDF test document…",
   );
+  const stopLoading = showDelayedLoading(controls.status, "", "small");
 
   try {
     const response = await fetch(route("/admin/pdf/test"), {
@@ -151,6 +153,7 @@ async function testPDFEndpoint(controls: PDFTestControls): Promise<void> {
   } catch (error: unknown) {
     setPDFTestStatus(controls, "error", errorMessage(error));
   } finally {
+    stopLoading();
     controls.button.disabled = false;
   }
 }
