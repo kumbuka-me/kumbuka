@@ -189,10 +189,14 @@ function setupMarkdownToolbar(toolbar: HTMLElement): void {
 
   const editor = textarea;
   setupToolbarIconNameReveal(toolbar);
-  document.addEventListener("click", (event) => {
-    if (event.target instanceof Node) closeToolbarMenus(toolbar, event.target);
-  }, { capture: true });
-
+  document.addEventListener(
+    "click",
+    (event) => {
+      if (event.target instanceof Node)
+        closeToolbarMenus(toolbar, event.target);
+    },
+    { capture: true },
+  );
 
   let previousFormat = headingNumberFormat(form);
   function renumberIfEnabled(): void {

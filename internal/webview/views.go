@@ -17,6 +17,7 @@ import (
 	"github.com/kumbuka-me/kumbuka/internal/i18n"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/kumbuka-me/kumbuka/pkg/icons"
+	"github.com/kumbuka-me/kumbuka/pkg/markdown"
 	"github.com/kumbuka-me/kumbuka/pkg/pageurl"
 	"github.com/kumbuka-me/kumbuka/pkg/themes"
 )
@@ -203,20 +204,21 @@ func New(
 	browserTranslations := precomputeBrowserTranslations(translations, localeOptions)
 
 	funcs := template.FuncMap{
-		"route":              func(target string) string { return httpprefix.RouteURL(runtime.RoutePrefix, target) },
-		"pageURL":            pageurl.Page,
-		"join":               strings.Join,
-		"timeago":            timeAgo,
-		"filesize":           fileSize,
-		"hasgroup":           hasGroup,
-		"hasgroupid":         hasGroupID,
-		"hasstring":          slices.Contains[[]string, string],
-		"templateproperties": templatePropertiesText,
-		"templatefields":     templateFieldsText,
-		"blueprintcontext":   pageTemplateContext,
-		"blankblueprint":     blankPageTemplate,
-		"webhookcontext":     webhookContext,
-		"externalhover":      domain.ExternalLinkHoverTitle,
+		"route":                 func(target string) string { return httpprefix.RouteURL(runtime.RoutePrefix, target) },
+		"pageURL":               pageurl.Page,
+		"join":                  strings.Join,
+		"timeago":               timeAgo,
+		"filesize":              fileSize,
+		"hasgroup":              hasGroup,
+		"hasgroupid":            hasGroupID,
+		"hasstring":             slices.Contains[[]string, string],
+		"templateproperties":    templatePropertiesText,
+		"visiblePageProperties": visiblePageProperties,
+		"templatefields":        templateFieldsText,
+		"blueprintcontext":      pageTemplateContext,
+		"blankblueprint":        blankPageTemplate,
+		"webhookcontext":        webhookContext,
+		"externalhover":         domain.ExternalLinkHoverTitle,
 		"externalhovereffect": func(link domain.ExternalLink) string {
 			return string(domain.EffectiveExternalLinkHoverEffect(link.HoverEffect))
 		},
@@ -403,4 +405,15 @@ func (v *Views) RenderHTML(page, name string, data Screen) (template.HTML, error
 // Route generates a deployment-local URL.
 func (v *Views) Route(target string) string {
 	return httpprefix.RouteURL(v.runtime.RoutePrefix, target)
+}
+
+// visiblePageProperties returns reader-facing metadata in its original display order.
+func visiblePageProperties(properties []domain.PageProperty) []domain.PageProperty {
+	var visible []domain.PageProperty
+	for _, property := range properties {
+		if property.Key != markdown.HeadingNumberingProperty {
+			visible = append(visible, property)
+		}
+	}
+	return visible
 }

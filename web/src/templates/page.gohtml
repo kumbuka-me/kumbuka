@@ -23,9 +23,9 @@
                       title="Documentation owner">{{ icon "shield-check-lucide" 13 }}<span>{{ .Page.OwnerGroup }}</span></span>
               {{ end }}
             </div>
-            {{ if .Page.Properties }}
+            {{ with visiblePageProperties .Page.Properties }}
               <dl class="page-property-strip">
-                {{ range .Page.Properties }}
+                {{ range . }}
                   <div>
                     <dt>{{ .Key }}</dt>
                     <dd>
