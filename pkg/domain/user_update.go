@@ -1,5 +1,7 @@
 package domain
 
+import "strings"
+
 // UserAccountUpdate contains one atomic account mutation. Nil profile fields and an empty password hash preserve existing values.
 type UserAccountUpdate struct {
 	// UserID identifies the account to update.
@@ -26,4 +28,34 @@ type UserAccountUpdate struct {
 	LocalCredentialEnabled *bool
 	// PasswordHash replaces the local password hash when nonempty.
 	PasswordHash string
+}
+
+// UpdatedProfile resolves the effective account fields and override flags against the current provider values.
+func (u UserAccountUpdate) UpdatedProfile(profile UserProfile) UserProfile {
+	providerManaged := profile.Source != ProfileSourceLocal
+	profile.Username, profile.UsernameOverridden = updatedProfileField(
+		profile.Username, profile.UsernameOverridden, profile.ProviderUsername,
+		u.Username, u.RevertUsername, providerManaged,
+	)
+	profile.Email, profile.EmailOverridden = updatedProfileField(
+		profile.Email, profile.EmailOverridden, profile.ProviderEmail,
+		u.Email, u.RevertEmail, providerManaged,
+	)
+	profile.DisplayName, profile.DisplayNameOverridden = updatedProfileField(
+		profile.DisplayName, profile.DisplayNameOverridden, profile.ProviderDisplayName,
+		u.DisplayName, u.RevertDisplayName, providerManaged,
+	)
+	return profile
+}
+
+// updatedProfileField gives a provider revert precedence over an explicit replacement.
+func updatedProfileField(current string, overridden bool, provider string, replacement *string, revert, providerManaged bool) (string, bool) {
+	switch {
+	case revert:
+		return provider, false
+	case replacement != nil:
+		return strings.TrimSpace(*replacement), providerManaged
+	default:
+		return current, overridden
+	}
 }

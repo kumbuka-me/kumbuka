@@ -199,14 +199,12 @@ func updateUserAccountRecord(ctx context.Context, tx pgx.Tx, input domain.UserAc
 		return err
 	}
 
-	username, usernameOverridden := resolvedStoredUsername(input, profile)
-	email, emailOverridden := resolvedStoredEmail(input, profile)
-	displayName, displayNameOverridden := resolvedStoredDisplayName(input, profile)
-	if username == "" {
+	profile = input.UpdatedProfile(profile)
+	if profile.Username == "" {
 		return domain.NewValidationError("username", "Username is required.")
 	}
 
-	available, err := usernameAvailable(ctx, tx, username, input.UserID)
+	available, err := usernameAvailable(ctx, tx, profile.Username, input.UserID)
 	if err != nil {
 		return err
 	}
@@ -227,12 +225,12 @@ SET username=$2,
     session_version=CASE WHEN enabled AND NOT $9 THEN session_version+1 ELSE session_version END
 WHERE id=$1`,
 		input.UserID,
-		username,
-		email,
-		displayName,
-		usernameOverridden,
-		emailOverridden,
-		displayNameOverridden,
+		profile.Username,
+		profile.Email,
+		profile.DisplayName,
+		profile.UsernameOverridden,
+		profile.EmailOverridden,
+		profile.DisplayNameOverridden,
 		string(input.Role),
 		input.Enabled,
 	)
@@ -262,39 +260,6 @@ func validateStoredProfileOwnership(input domain.UserAccountUpdate, profile doma
 // revertsStoredProviderProfile reports whether a persistence request restores any provider-managed profile field.
 func revertsStoredProviderProfile(input domain.UserAccountUpdate) bool {
 	return input.RevertUsername || input.RevertEmail || input.RevertDisplayName
-}
-
-// resolvedStoredUsername resolves the effective username and whether it remains locally overridden.
-func resolvedStoredUsername(input domain.UserAccountUpdate, profile domain.UserProfile) (string, bool) {
-	if input.RevertUsername {
-		return profile.ProviderUsername, false
-	}
-	if input.Username != nil {
-		return strings.TrimSpace(*input.Username), profile.Source != domain.ProfileSourceLocal
-	}
-	return profile.Username, profile.UsernameOverridden
-}
-
-// resolvedStoredEmail resolves the effective email and whether it remains locally overridden.
-func resolvedStoredEmail(input domain.UserAccountUpdate, profile domain.UserProfile) (string, bool) {
-	if input.RevertEmail {
-		return profile.ProviderEmail, false
-	}
-	if input.Email != nil {
-		return strings.TrimSpace(*input.Email), profile.Source != domain.ProfileSourceLocal
-	}
-	return profile.Email, profile.EmailOverridden
-}
-
-// resolvedStoredDisplayName resolves the effective display name and whether it remains locally overridden.
-func resolvedStoredDisplayName(input domain.UserAccountUpdate, profile domain.UserProfile) (string, bool) {
-	if input.RevertDisplayName {
-		return profile.ProviderDisplayName, false
-	}
-	if input.DisplayName != nil {
-		return strings.TrimSpace(*input.DisplayName), profile.Source != domain.ProfileSourceLocal
-	}
-	return profile.DisplayName, profile.DisplayNameOverridden
 }
 
 type userProfileQuerier interface {
