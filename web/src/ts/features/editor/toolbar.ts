@@ -327,6 +327,9 @@ function setupMarkdownToolbar(toolbar: HTMLElement): void {
       case "italic":
         wrapMarkdownSelection(editor, "*", "*", "italic text");
         break;
+      case "underline":
+        wrapMarkdownSelection(editor, "<u>", "</u>", "underlined text");
+        break;
       case "link": {
         const label = selectedText("link text");
         const replacement = `[${label}](https://example.com)`;
