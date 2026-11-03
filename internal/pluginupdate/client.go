@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/kumbuka-me/kumbuka/pkg/pluginversion"
 	"io"
 	"net"
 	"net/http"
@@ -19,6 +18,7 @@ import (
 	"time"
 
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
+	"github.com/kumbuka-me/kumbuka/pkg/pluginversion"
 	"github.com/kumbuka-me/sdk"
 	"github.com/kumbuka-me/sdk/pluginpackage"
 )
@@ -212,7 +212,7 @@ func (c *Client) Download(ctx context.Context, pluginID, version string) ([]byte
 	if err := validateDownloadedPackage(data, pluginID, release.Version); err != nil {
 		return nil, err
 	}
-	return bytes.Clone(data), nil
+	return data, nil
 }
 
 // validatedPackageURL parses and enforces the first-party package URL policy.
@@ -317,12 +317,9 @@ func (c *Client) fetchCatalog(ctx context.Context) (catalog, error) {
 
 // release returns one validated cached release selected by plugin ID and exact version.
 func (c *Client) release(pluginID, version string) (release, error) {
-	c.mu.RLock()
-	available := c.cached
-	ready := c.ready
-	c.mu.RUnlock()
-	if !ready {
-		return release{}, ErrCatalogUnavailable
+	available, err := c.cachedCatalog()
+	if err != nil {
+		return release{}, err
 	}
 
 	for _, item := range available.Plugins {

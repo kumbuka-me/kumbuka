@@ -103,6 +103,12 @@ func TestTrustedProxyRelinkRejectsDuplicatesAndUsesOnlyIdentityKey(t *testing.T)
 	assert.ErrorIs(t, database.RelinkTrustedProxyIdentity(ctx, alice.ID, "proxy-dave"), domain.ErrAlreadyExists)
 	require.NoError(t, database.RelinkTrustedProxyIdentity(ctx, alice.ID, "proxy-carol-new"))
 
+	require.NoError(t, database.RelinkTrustedProxyIdentity(ctx, alice.ID, "proxy-carol-new"))
+	var retired bool
+	require.NoError(t, database.pool.QueryRow(ctx, `
+SELECT EXISTS(SELECT 1 FROM retired_trusted_proxy_identities WHERE username=$1)`, "proxy-carol-new").Scan(&retired))
+	assert.False(t, retired, "the active key must not be retired")
+
 	_, err = database.RefreshTrustedProxyUser(ctx, "proxy-carol", "dave@example.test", "Spoof", false, false)
 	assert.ErrorIs(t, err, domain.ErrRegistrationDisabled)
 	_, err = database.CreateTrustedProxyUser(ctx, "proxy-carol", "dave@example.test", "Spoof", false, false)

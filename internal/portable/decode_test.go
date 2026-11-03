@@ -135,3 +135,9 @@ func TestDetectLargeManifestWithinImportBudget(t *testing.T) {
 	assert.False(t, Detect(data, manifestSize-1))
 	assert.False(t, Detect(data, 0))
 }
+
+func TestGroupNamesDistinguishMissingOwnerFromEmptyMembership(t *testing.T) {
+	require.NoError(t, validateGroupNames(PageMetadata{Groups: []string{"Editors"}}))
+	require.Error(t, validateGroupNames(PageMetadata{Groups: []string{""}}))
+	require.Error(t, validateGroupNames(PageMetadata{OwnerGroup: " "}))
+}

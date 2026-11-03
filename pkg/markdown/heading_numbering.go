@@ -1,6 +1,7 @@
 package markdown
 
 import (
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -20,26 +21,28 @@ func RenumberHeadings(source string) string {
 	inFence := ""
 
 	for index, line := range lines {
-		body, ending := strings.CutSuffix(line, "\n")
-		trimmed := strings.TrimLeft(body, " \t")
-		if fence := fenceMarker(trimmed); fence != "" {
-			if inFence == "" {
-				inFence = fence
-			} else if strings.HasPrefix(trimmed, inFence) {
+		body := strings.TrimSuffix(line, "\n")
+		body = strings.TrimSuffix(body, "\r")
+		ending := line[len(body):]
+		trimmed := strings.TrimLeft(body, " ")
+		indentLength := len(body) - len(trimmed)
+		if indentLength > 3 {
+			continue
+		}
+		marker := fenceMarker(trimmed)
+		if inFence != "" {
+			if closesNumberingFence(trimmed, marker, inFence) {
 				inFence = ""
 			}
 			continue
 		}
-		if inFence != "" {
+		if opensNumberingFence(trimmed, marker) {
+			inFence = marker
 			continue
 		}
 
-		indentLength := len(body) - len(trimmed)
-		level := 0
-		for level < len(trimmed) && trimmed[level] == '#' {
-			level++
-		}
-		if level == 0 || level > 6 || level == len(trimmed) || (trimmed[level] != ' ' && trimmed[level] != '\t') {
+		level := headingLevel(trimmed)
+		if level == 0 {
 			continue
 		}
 		title := strings.TrimSpace(trimmed[level:])
@@ -47,27 +50,55 @@ func RenumberHeadings(source string) string {
 			continue
 		}
 		title = strings.TrimSpace(stripGeneratedHeadingNumber(title))
-		counters[level-1]++
-		for deeper := level; deeper < len(counters); deeper++ {
-			counters[deeper] = 0
-		}
-		parts := make([]string, 0, level)
-		for _, counter := range counters[:level] {
-			if counter != 0 {
-				parts = append(parts, strconv.Itoa(counter))
-			}
-		}
-		prefix := strings.Join(parts, ".")
-		if len(parts) == 1 {
-			prefix += "."
-		}
-		lines[index] = body[:indentLength] + strings.Repeat("#", level) + " " + prefix + " " + title
-		if ending {
-			lines[index] += "\n"
-		}
+		prefix := nextHeadingNumber(&counters, level)
+		lines[index] = body[:indentLength] + strings.Repeat("#", level) + " " + prefix + " " + title + ending
 	}
 
 	return strings.Join(lines, "")
+}
+
+// nextHeadingNumber advances the outline at level and clears its descendant counters.
+func nextHeadingNumber(counters *[6]int, level int) string {
+	counters[level-1]++
+	for deeper := level; deeper < len(counters); deeper++ {
+		counters[deeper] = 0
+	}
+	parts := make([]string, 0, level)
+	for _, counter := range counters[:level] {
+		if counter != 0 {
+			parts = append(parts, strconv.Itoa(counter))
+		}
+	}
+	prefix := strings.Join(parts, ".")
+	if len(parts) == 1 {
+		prefix += "."
+	}
+	return prefix
+}
+
+// opensNumberingFence reports whether the marker and its info string start a fenced block.
+func opensNumberingFence(line, marker string) bool {
+	if marker == "" {
+		return false
+	}
+	return marker[0] == '~' || !strings.Contains(line[len(marker):], "`")
+}
+
+// closesNumberingFence accepts a matching marker followed only by optional indentation whitespace.
+func closesNumberingFence(line, marker, opening string) bool {
+	return strings.HasPrefix(marker, opening) && strings.Trim(line[len(marker):], " \t") == ""
+}
+
+// headingLevel returns the ATX heading depth, or zero for ordinary text.
+func headingLevel(line string) int {
+	hashes := len(line) - len(strings.TrimLeft(line, "#"))
+	if hashes < 1 || hashes > 6 || hashes == len(line) {
+		return 0
+	}
+	if line[hashes] != ' ' && line[hashes] != '\t' {
+		return 0
+	}
+	return hashes
 }
 
 // fenceMarker returns the opening marker for a fenced code block line.
@@ -89,24 +120,10 @@ func fenceMarker(line string) string {
 	return strings.Repeat(string(marker), count)
 }
 
+// generatedHeadingNumber matches the single-level and nested prefixes emitted by RenumberHeadings.
+var generatedHeadingNumber = regexp.MustCompile(`^[0-9]+(?:\.|(?:\.[0-9]+)+)[ \t]+`)
+
 // stripGeneratedHeadingNumber removes a leading outline number emitted by RenumberHeadings.
 func stripGeneratedHeadingNumber(title string) string {
-	index := 0
-	hasDigit := false
-	for index < len(title) {
-		if title[index] >= '0' && title[index] <= '9' {
-			hasDigit = true
-			index++
-			continue
-		}
-		if title[index] == '.' {
-			index++
-			continue
-		}
-		break
-	}
-	if !hasDigit || index == 0 || index == len(title) || (title[index] != ' ' && title[index] != '\t') {
-		return title
-	}
-	return strings.TrimLeft(title[index:], " \t")
+	return generatedHeadingNumber.ReplaceAllString(title, "")
 }

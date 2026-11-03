@@ -15,3 +15,9 @@ func TestRenumberHeadings(t *testing.T) {
 	assert.True(t, HeadingNumberingEnabled(map[string]string{HeadingNumberingProperty: "true"}))
 	assert.False(t, HeadingNumberingEnabled(nil))
 }
+
+func TestRenumberHeadingsPreservesCodeAndLineEndings(t *testing.T) {
+	source := "    # indented\r\n\t# tab\r\n~~~\r\n~~~ text\r\n# fenced\r\n~~~~\r\n# 2026 report\r\n"
+	want := "    # indented\r\n\t# tab\r\n~~~\r\n~~~ text\r\n# fenced\r\n~~~~\r\n# 1. 2026 report\r\n"
+	assert.Equal(t, want, RenumberHeadings(source))
+}

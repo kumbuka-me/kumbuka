@@ -141,8 +141,8 @@ DELETE FROM retired_trusted_proxy_identities WHERE username=$1`, username); err 
 	}
 	if _, err := tx.Exec(ctx, `
 INSERT INTO retired_trusted_proxy_identities(username,user_id)
-VALUES($1,$2)
-ON CONFLICT(username) DO UPDATE SET user_id=EXCLUDED.user_id,retired_at=now()`, profile.TrustedProxyUsername, userID); err != nil {
+SELECT $1,$2 WHERE $1::text <> $3
+ON CONFLICT(username) DO UPDATE SET user_id=EXCLUDED.user_id,retired_at=now()`, profile.TrustedProxyUsername, userID, username); err != nil {
 		return err
 	}
 	if _, err := tx.Exec(ctx, `

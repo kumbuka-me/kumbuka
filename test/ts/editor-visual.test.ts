@@ -43,3 +43,11 @@ test("automatic heading numbering preserves Markdown source and fenced code", ()
     "# 1. Introduction\n\n## 1.1 Install\n\n```md\n# Literal\n```\n",
   );
 });
+
+test("heading numbering preserves code, line endings, and years in titles", () => {
+  const source =
+    "    # indented\r\n~~~\r\n~~~ text\r\n# fenced\r\n~~~~\r\n# 2026 report\r\n";
+  const want = source.replace("# 2026 report", "# 1. 2026 report");
+  assert.equal(renumberMarkdownHeadings(source), want);
+  assert.equal(renumberMarkdownHeadings(want), want);
+});

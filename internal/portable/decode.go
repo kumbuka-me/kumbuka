@@ -407,15 +407,19 @@ func validSlug(slug string) bool {
 
 // validateGroupNames rejects blank collaboration group references before any groups are created.
 func validateGroupNames(metadata PageMetadata) error {
-	for _, name := range append(slices.Clone(metadata.Groups), metadata.OwnerGroup) {
-		if name != "" && strings.TrimSpace(name) == "" {
-			return validationError(
-				"The Kumbuka archive contains an invalid collaboration group name.",
-				errors.New("portable archive contains blank group name"),
-			)
-		}
+	invalidOwner := metadata.OwnerGroup != "" && blankGroupName(metadata.OwnerGroup)
+	if invalidOwner || slices.ContainsFunc(metadata.Groups, blankGroupName) {
+		return validationError(
+			"The Kumbuka archive contains an invalid collaboration group name.",
+			errors.New("portable archive contains blank group name"),
+		)
 	}
 	return nil
+}
+
+// blankGroupName reports whether a supplied group name has no visible characters.
+func blankGroupName(name string) bool {
+	return strings.TrimSpace(name) == ""
 }
 
 // validationError creates one typed safe archive validation failure.

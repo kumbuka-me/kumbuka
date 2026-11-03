@@ -43,16 +43,9 @@ func ImportPagesWithPortableArchive(
 
 		headers := r.MultipartForm.File["files"]
 		portableSelected := strings.TrimSpace(r.FormValue("format")) == portable.Format
-		if !portableSelected {
-			detected, err := detectPortableArchiveUpload(headers)
-			if err != nil {
-				writePortableArchiveImportProblem(logger, w, err)
-				return
-			}
-			if !detected {
-				legacy.ServeHTTP(w, r)
-				return
-			}
+		if !portableSelected && (len(headers) != 1 || !strings.EqualFold(path.Ext(headers[0].Filename), ".zip")) {
+			legacy.ServeHTTP(w, r)
+			return
 		}
 
 		if len(headers) != 1 {
@@ -64,7 +57,17 @@ func ImportPagesWithPortableArchive(
 			return
 		}
 
-		archive, err := readPortableArchiveUpload(headers[0])
+		data, err := readPortableArchiveUpload(headers[0])
+		if err != nil {
+			writePortableArchiveImportProblem(logger, w, err)
+			return
+		}
+
+		if !portableSelected && !portable.Detect(data, importer.MaxBytes) {
+			legacy.ServeHTTP(w, r)
+			return
+		}
+		archive, err := portable.Parse(data, importer.MaxBytes)
 		if err != nil {
 			writePortableArchiveImportProblem(logger, w, err)
 			return
@@ -80,37 +83,10 @@ func ImportPagesWithPortableArchive(
 	}
 }
 
-// detectPortableArchiveUpload reports whether one uploaded ZIP declares the Kumbuka portable format.
-func detectPortableArchiveUpload(headers []*multipart.FileHeader) (bool, error) {
-	if len(headers) != 1 || strings.ToLower(path.Ext(headers[0].Filename)) != ".zip" {
-		return false, nil
-	}
-
-	file, err := headers[0].Open()
-	if err != nil {
-		return false, err
-	}
-	defer file.Close() // nolint:errcheck
-
-	data, err := io.ReadAll(io.LimitReader(file, importer.MaxBytes+1))
-	if err != nil {
-		return false, err
-	}
-	if int64(len(data)) > importer.MaxBytes {
-		return false, newRequestError(
-			"files",
-			"Kumbuka archive exceeds 100 MiB.",
-			errors.New("portable archive exceeds 100 MiB"),
-		)
-	}
-
-	return portable.Detect(data, importer.MaxBytes), nil
-}
-
-// readPortableArchiveUpload reads and validates one uploaded Kumbuka archive.
-func readPortableArchiveUpload(header *multipart.FileHeader) (portable.Archive, error) {
+// readPortableArchiveUpload reads one uploaded ZIP within the compressed size limit.
+func readPortableArchiveUpload(header *multipart.FileHeader) ([]byte, error) {
 	if strings.ToLower(path.Ext(header.Filename)) != ".zip" {
-		return portable.Archive{}, newRequestError(
+		return nil, newRequestError(
 			"files",
 			"Kumbuka imports require a .zip export archive.",
 			errors.New("portable archive is not a ZIP"),
@@ -119,23 +95,23 @@ func readPortableArchiveUpload(header *multipart.FileHeader) (portable.Archive, 
 
 	file, err := header.Open()
 	if err != nil {
-		return portable.Archive{}, err
+		return nil, err
 	}
 	defer file.Close() // nolint:errcheck
 
 	data, err := io.ReadAll(io.LimitReader(file, importer.MaxBytes+1))
 	if err != nil {
-		return portable.Archive{}, err
+		return nil, err
 	}
 	if int64(len(data)) > importer.MaxBytes {
-		return portable.Archive{}, newRequestError(
+		return nil, newRequestError(
 			"files",
 			"Kumbuka archive exceeds 100 MiB.",
 			errors.New("portable archive exceeds 100 MiB"),
 		)
 	}
 
-	return portable.Parse(data, importer.MaxBytes)
+	return data, nil
 }
 
 // writePortableArchiveImportProblem writes safe validation problems and logs unexpected restore failures.

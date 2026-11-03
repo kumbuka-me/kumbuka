@@ -1272,13 +1272,20 @@ func validEditorWidgetResourceSetting(setting EditorWidgetSetting, attribute Edi
 
 // validEditorWidgetTableShape reports whether a table control has a bounded one-to-one attribute and column layout.
 func validEditorWidgetTableShape(setting EditorWidgetSetting) bool {
-	compound := setting.RowSeparator != "" && len(setting.Attributes) == 1 && len(setting.Columns) >= 2
-	parallel := setting.RowSeparator == "" && len(setting.Attributes) == len(setting.Columns)
-	return setting.Attribute == "" && len(setting.Attributes) > 0 && (compound || parallel) &&
-		len(setting.Columns) <= 4 && len(setting.Fields) == 0 && len(setting.Suggestions) == 0 && setting.CompletionModuleID == "" &&
-		setting.IDAttribute == "" && setting.ParentAttribute == "" && setting.TitleAttribute == "" && setting.DescriptionAttribute == "" &&
-		setting.EmptyValue == "" && setting.IDPrefix == "" && setting.MaxDepth == 0 &&
-		(setting.RowSeparator == "" || setting.RowSeparator == ":")
+	if setting.Attribute != "" || len(setting.Attributes) == 0 || len(setting.Columns) > 4 {
+		return false
+	}
+	if len(setting.Fields) != 0 || len(setting.Suggestions) != 0 || setting.CompletionModuleID != "" || !editorWidgetWithoutTreeOptions(setting) {
+		return false
+	}
+	switch setting.RowSeparator {
+	case "":
+		return len(setting.Attributes) == len(setting.Columns)
+	case ":":
+		return len(setting.Attributes) == 1 && len(setting.Columns) >= 2
+	default:
+		return false
+	}
 }
 
 // validEditorWidgetFirstTableColumn reports whether the first table column is textual and backed by a list.

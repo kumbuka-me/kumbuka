@@ -15,29 +15,6 @@ type Range struct {
 	End int
 }
 
-// Ranges returns the destinations of Markdown links and supported HTML attributes outside code.
-func Ranges(source string) []Range {
-	locations := markdownResourceURLRanges(source)
-	result := make([]Range, len(locations))
-	for index, location := range locations {
-		result[index] = Range{Start: location.start, End: location.end}
-	}
-	return result
-}
-
-// Rewrite replaces recognized destinations while preserving other Markdown source bytes.
-func Rewrite(source string, replace func(string) (string, bool, error)) (string, error) {
-	return rewriteMarkdownResourceURLs(source, replace)
-}
-
-// markdownURLRange identifies a link destination without including its Markdown delimiters.
-type markdownURLRange struct {
-	// start is the first byte of the URL in the original source.
-	start int
-	// end is the byte immediately after the URL in the original source.
-	end int
-}
-
 // markdownURLScanner preserves code and fence state while locating resource destinations.
 type markdownURLScanner struct {
 	// fence is the marker used by the current fenced code block.
@@ -51,17 +28,17 @@ type markdownURLScanner struct {
 	// inHTMLCode reports whether a raw HTML code or pre element is open.
 	inHTMLCode bool
 	// ranges contains the destinations discovered in source order.
-	ranges []markdownURLRange
+	ranges []Range
 }
 
-// rewriteMarkdownResourceURLs changes recognized destinations while preserving all other source bytes.
-func rewriteMarkdownResourceURLs(source string, replace func(string) (string, bool, error)) (string, error) {
-	ranges := markdownResourceURLRanges(source)
+// Rewrite changes recognized destinations while preserving all other source bytes.
+func Rewrite(source string, replace func(string) (string, bool, error)) (string, error) {
+	ranges := Ranges(source)
 	var output strings.Builder
 	previous := 0
 
 	for _, location := range ranges {
-		url := source[location.start:location.end]
+		url := source[location.Start:location.End]
 		replacement, changed, err := replace(url)
 		if err != nil {
 			return "", err
@@ -69,17 +46,20 @@ func rewriteMarkdownResourceURLs(source string, replace func(string) (string, bo
 		if !changed {
 			continue
 		}
-		output.WriteString(source[previous:location.start])
+		output.WriteString(source[previous:location.Start])
 		output.WriteString(replacement)
-		previous = location.end
+		previous = location.End
+	}
+	if previous == 0 {
+		return source, nil
 	}
 	output.WriteString(source[previous:])
 	return output.String(), nil
 }
 
-// markdownResourceURLRanges finds inline links, reference definitions, and HTML media attributes outside code.
-func markdownResourceURLRanges(source string) []markdownURLRange {
-	scanner := markdownURLScanner{}
+// Ranges finds inline links, reference definitions, and HTML media attributes outside code.
+func Ranges(source string) []Range {
+	scanner := markdownURLScanner{ranges: []Range{}}
 	for start := 0; start < len(source); {
 		end := indexAtOrAfter(source, start, "\n")
 		if end < 0 {
@@ -219,7 +199,7 @@ func (s *markdownURLScanner) consumeInlineLink(line string, offset, index int) (
 		return index, false
 	}
 	s.ranges = append(s.ranges, location)
-	return location.end - offset, true
+	return location.End - offset, true
 }
 
 // isInlineLinkDestinationStart reports whether index closes a Markdown link label followed by a destination.
@@ -323,24 +303,24 @@ func isEscapedMarkdownByte(line string, index int) bool {
 }
 
 // markdownDestination reads a simple URL or angle-wrapped URL after a link delimiter.
-func markdownDestination(line string, offset, start int) (markdownURLRange, bool) {
+func markdownDestination(line string, offset, start int) (Range, bool) {
 	start = skipHorizontalSpace(line, start, len(line))
 	if start >= len(line) {
-		return markdownURLRange{}, false
+		return Range{}, false
 	}
 	if line[start] == '<' {
 		start++
 		end := indexAtOrAfter(line, start, ">")
 		if end <= start {
-			return markdownURLRange{}, false
+			return Range{}, false
 		}
-		return markdownURLRange{start: offset + start, end: offset + end}, true
+		return Range{Start: offset + start, End: offset + end}, true
 	}
 	end := start
 	for end < len(line) && !isMarkdownDestinationTerminator(line[end]) {
 		end++
 	}
-	return markdownURLRange{start: offset + start, end: offset + end}, end > start
+	return Range{Start: offset + start, End: offset + end}, end > start
 }
 
 // indexAtOrAfter returns the absolute index of target at or after offset.
@@ -418,7 +398,7 @@ func (s *markdownURLScanner) scanHTMLAttributes(line string, offset, start, end 
 		if valueStart == valueEnd || !isHTMLResourceAttribute(element, attribute) {
 			continue
 		}
-		s.ranges = append(s.ranges, markdownURLRange{start: offset + valueStart, end: offset + valueEnd})
+		s.ranges = append(s.ranges, Range{Start: offset + valueStart, End: offset + valueEnd})
 	}
 }
 
