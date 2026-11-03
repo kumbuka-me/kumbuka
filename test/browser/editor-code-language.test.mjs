@@ -114,6 +114,11 @@ test("visual code blocks choose a supported fenced language", async () => {
     );
     assert.ok((await copy.boundingBox()).x > languageBox.x);
     assert.match(await source.inputValue(), /```python/);
+    await language.click();
+    await dialog.getByLabel("Search code languages").fill("mermaid");
+    await dialog.getByRole("option", { name: "Mermaid", exact: true }).click();
+    assert.equal(await language.textContent(), "Mermaid");
+    assert.match(await source.inputValue(), /^```mermaid/m);
     assert.deepEqual(errors, []);
   } finally {
     await browser.close();

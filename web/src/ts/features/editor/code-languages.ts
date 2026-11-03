@@ -40,6 +40,9 @@ webvtt whiley xml xorg yaml yaml_jinja yang z80_assembly zed zig
   .trim()
   .split(/\s+/);
 
+// Mermaid fences are rendered by the bundled diagram plugin.
+const FENCE_LANGUAGES = [...CHROMA_LANGUAGES, "mermaid"].sort();
+
 const LABEL_OVERRIDES: Record<string, string> = {
   "": "Plain text",
   "c#": "C#",
@@ -140,7 +143,7 @@ export function canonicalCodeLanguage(value: string): string {
 export function supportedCodeLanguages(): CodeLanguage[] {
   return [
     { label: "Plain text", value: "" },
-    ...CHROMA_LANGUAGES.filter((value) => value !== "plaintext").map(
+    ...FENCE_LANGUAGES.filter((value) => value !== "plaintext").map(
       (value) => ({ label: languageLabel(value), value }),
     ),
   ];
@@ -152,9 +155,7 @@ export function codeLanguageLabel(value: string): string {
   if (!normalized) return "Plain text";
   const canonical = canonicalCodeLanguage(normalized);
   if (!canonical || canonical === "plaintext") return "Plain text";
-  return CHROMA_LANGUAGES.includes(canonical)
-    ? languageLabel(canonical)
-    : value;
+  return FENCE_LANGUAGES.includes(canonical) ? languageLabel(canonical) : value;
 }
 
 // filterCodeLanguages filters supported languages by label, identifier, and common aliases.
