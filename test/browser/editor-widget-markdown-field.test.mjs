@@ -108,6 +108,10 @@ test("callout Markdown fields render and edit code blocks independently", async 
     await page.getByRole("button", { name: "Visual", exact: true }).click();
     const widget = page.locator("[data-visual-widget]");
     await widget.waitFor({ state: "visible" });
+    assert.equal(
+      (await page.locator("textarea[data-markdown-editor]").inputValue()).trimEnd(),
+      source,
+    );
     await widget.click();
     const dialog = page.getByRole("dialog", { name: "Edit Callout" });
     const rich = dialog.locator(".visual-widget-markdown-content");
@@ -121,6 +125,13 @@ test("callout Markdown fields render and edit code blocks independently", async 
     assert.match(await markdown.inputValue(), /```bash/);
     await dialog.getByRole("button", { name: "Visual", exact: true }).click();
     await rich.locator("pre code").waitFor({ state: "visible" });
+    // Switching modes without editing must preserve both the nested field and the page.
+    await dialog.getByRole("button", { name: "Markdown", exact: true }).click();
+    assert.equal(
+      await markdown.inputValue(),
+      "send only for backups:\n```bash\n--send-mail-any-operation=false\n```",
+    );
+    await dialog.getByRole("button", { name: "Visual", exact: true }).click();
     await dialog.getByRole("button", { name: "Apply" }).click();
     assert.equal((await page.locator("textarea[data-markdown-editor]").inputValue()).trimEnd(), source);
 

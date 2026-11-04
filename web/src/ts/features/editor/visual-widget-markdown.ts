@@ -11,6 +11,7 @@ import { visualCodeLanguages } from "./visual-code-languages.ts";
 interface MarkdownField {
   editor: Editor;
   source: HTMLTextAreaElement;
+  resetDocument: () => void;
 }
 
 const fields = new WeakMap<HTMLTextAreaElement, MarkdownField>();
@@ -48,6 +49,34 @@ export function createMarkdownControl(
   source.hidden = true;
   field.append(modes, toolbar, surface, source);
 
+  // Only user edits may replace the original Markdown. Tiptap can reserialize
+  // equivalent content while initializing or switching between editor modes.
+  let userEditPending = false;
+  let lastDocument = "";
+  const markUserEdit = () => {
+    userEditPending = true;
+  };
+  surface.addEventListener("keydown", (event) => {
+    if (
+      event.key.length === 1 ||
+      ["Backspace", "Delete", "Enter", "Tab"].includes(event.key) ||
+      event.ctrlKey ||
+      event.metaKey
+    )
+      markUserEdit();
+  });
+  surface.addEventListener("beforeinput", markUserEdit);
+  surface.addEventListener("paste", markUserEdit);
+  surface.addEventListener("drop", markUserEdit);
+  surface.addEventListener("cut", markUserEdit);
+  surface.addEventListener("click", (event) => {
+    if (
+      event.target instanceof Element &&
+      event.target.closest(".visual-code-language")
+    )
+      markUserEdit();
+  });
+
   const editor = new Editor({
     element: surface,
     extensions: [
@@ -68,11 +97,24 @@ export function createMarkdownControl(
       },
     },
     onUpdate: ({ editor: current }) => {
+      const currentDocument = JSON.stringify(current.getJSON());
+      if (currentDocument === lastDocument) return;
+      lastDocument = currentDocument;
+      if (!userEditPending) return;
+      userEditPending = false;
       source.value = current.getMarkdown();
       source.dispatchEvent(new Event("input", { bubbles: true }));
     },
   });
-  fields.set(source, { editor, source });
+  lastDocument = JSON.stringify(editor.getJSON());
+  fields.set(source, {
+    editor,
+    source,
+    resetDocument: () => {
+      lastDocument = JSON.stringify(editor.getJSON());
+      userEditPending = false;
+    },
+  });
 
   const commands: Array<{ label: string; run: () => void }> = [
     { label: "Bold", run: () => editor.chain().focus().toggleBold().run() },
@@ -99,7 +141,10 @@ export function createMarkdownControl(
     button.type = "button";
     button.textContent = command.label;
     button.addEventListener("mousedown", (event) => event.preventDefault());
-    button.addEventListener("click", command.run);
+    button.addEventListener("click", () => {
+      markUserEdit();
+      command.run();
+    });
     toolbar.append(button);
   }
 
@@ -116,6 +161,8 @@ export function createMarkdownControl(
         contentType: "markdown",
         emitUpdate: false,
       });
+      lastDocument = JSON.stringify(editor.getJSON());
+      userEditPending = false;
       source.hidden = true;
       surface.hidden = false;
       toolbar.hidden = false;
@@ -135,10 +182,12 @@ export function setMarkdownControlValue(
   value: string,
 ): void {
   source.value = value;
-  fields.get(source)?.editor.commands.setContent(value, {
+  const field = fields.get(source);
+  field?.editor.commands.setContent(value, {
     contentType: "markdown",
     emitUpdate: false,
   });
+  field?.resetDocument();
 }
 
 // disposeMarkdownControls releases nested editors before their dialog or row is removed.
