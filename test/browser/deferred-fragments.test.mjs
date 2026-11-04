@@ -39,7 +39,7 @@ test("network macro fragments load after the page shell", async () => {
       }
       await route.fulfill({
         contentType: "text/html",
-        body: `<body data-current-page="guide" data-route-prefix=""><main><h1>Guide</h1><div class="kumbuka-deferred-fragment" role="status" aria-live="polite" data-kumbuka-deferred-plugin="me.kumbuka.external-files" data-kumbuka-deferred-module="external-files" data-kumbuka-deferred-index="0" data-kumbuka-deferred-version="1234" data-kumbuka-deferred-locale="en"><span class="kumbuka-boat-spinner kumbuka-boat-spinner--small"></span><span>Loading external content…</span></div></main><script type="module" src="/assets/js/plugin-init.js"></script></body>`,
+        body: `<body data-current-page="guide" data-route-prefix=""><main><h1>Guide</h1><div class="kumbuka-deferred-fragment" role="status" aria-live="polite" data-kumbuka-deferred-plugin="me.kumbuka.external-files" data-kumbuka-deferred-module="external-files" data-kumbuka-deferred-index="0" data-kumbuka-deferred-version="1234" data-kumbuka-deferred-locale="en"><span class="kumbuka-spinner kumbuka-spinner--small"></span><span>Loading external content…</span></div></main><script type="module" src="/assets/js/plugin-init.js"></script></body>`,
       });
     });
 
@@ -55,7 +55,7 @@ test("network macro fragments load after the page shell", async () => {
     assert.equal(fragmentRequested, true);
     releaseFragment();
     await page.getByText("Loaded README").waitFor();
-    assert.equal(await page.locator(".kumbuka-boat-spinner").count(), 0);
+    assert.equal(await page.locator(".kumbuka-spinner").count(), 0);
   } finally {
     releaseFragment?.();
     await browser.close();

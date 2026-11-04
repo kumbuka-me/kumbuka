@@ -11,9 +11,7 @@ const browserOptions = {
 async function serveAsset(route) {
   const pathname = new URL(route.request().url()).pathname;
   if (!pathname.startsWith("/assets/")) return false;
-  const source = pathname === "/assets/boat-spinner.svg"
-    ? new URL("../../web/src/boat-spinner.svg", import.meta.url)
-    : new URL(`../../web/dist/${pathname.slice(8)}`, import.meta.url);
+  const source = new URL(`../../web/dist/${pathname.slice(8)}`, import.meta.url);
   const contentType = pathname.endsWith(".svg")
     ? "image/svg+xml"
     : pathname.endsWith(".css") ? "text/css" : "text/javascript";
@@ -22,7 +20,7 @@ async function serveAsset(route) {
 }
 
 async function openAdminFixture(page, body, initializer) {
-  await page.route("http://admin-boat.test/**", async (route) => {
+  await page.route("http://admin-loading.test/**", async (route) => {
     if (await serveAsset(route)) return;
     await route.fulfill({
       contentType: "text/html",
@@ -34,11 +32,11 @@ async function openAdminFixture(page, body, initializer) {
         </script></body>`,
     });
   });
-  await page.goto("http://admin-boat.test/");
+  await page.goto("http://admin-loading.test/");
   await page.locator("html[data-ready]").waitFor();
 }
 
-test("Check for updates displays the boat while the form submits", async () => {
+test("Check for updates displays the spinner while the form submits", async () => {
   const browser = await chromium.launch(browserOptions);
   try {
     const page = await browser.newPage();
@@ -51,7 +49,7 @@ test("Check for updates displays the boat while the form submits", async () => {
     });
     await openAdminFixture(page, `<form method="post" action="/admin/plugins/check-updates" data-plugin-update-check>
       <button type="submit" data-plugin-update-check-submit>
-        <span class="kumbuka-boat-spinner kumbuka-boat-spinner--inline" data-plugin-update-check-spinner aria-hidden="true" hidden></span>
+        <span class="kumbuka-spinner kumbuka-spinner--inline" data-plugin-update-check-spinner aria-hidden="true" hidden></span>
         <span data-plugin-update-check-label>Check for updates</span>
       </button></form>`, `
       import { initPluginUpdateProgress } from "/assets/js/features/admin/plugin_updates.js";
@@ -63,13 +61,13 @@ test("Check for updates displays the boat while the form submits", async () => {
     assert.equal(await page.getByText("Checking for updates…").count(), 1);
     const spinner = page.locator("[data-plugin-update-check-spinner]");
     await spinner.waitFor({ state: "visible" });
-    assert.match(await spinner.evaluate((node) => getComputedStyle(node).backgroundImage), /boat-spinner\.svg/u);
+    assert.match(await spinner.evaluate((node) => getComputedStyle(node).animationName), /kumbuka-spinner-rotate/u);
   } finally {
     await browser.close();
   }
 });
 
-test("Failed plugin update clears the boat and restores the button", async () => {
+test("Failed plugin update clears the spinner and restores the button", async () => {
   const browser = await chromium.launch(browserOptions);
   try {
     const page = await browser.newPage();
@@ -86,7 +84,7 @@ test("Failed plugin update clears the boat and restores the button", async () =>
     await openAdminFixture(page, `<section class="settings-panel">
       <form action="/admin/plugins/me.kumbuka.mermaid/update" method="post" data-plugin-update>
         <button type="submit" data-plugin-update-submit>
-          <span class="kumbuka-boat-spinner kumbuka-boat-spinner--inline" data-plugin-update-spinner aria-hidden="true" hidden></span>
+          <span class="kumbuka-spinner kumbuka-spinner--inline" data-plugin-update-spinner aria-hidden="true" hidden></span>
           <span data-plugin-update-label>Update plugin</span>
         </button>
       </form></section>`, `
@@ -106,7 +104,7 @@ test("Failed plugin update clears the boat and restores the button", async () =>
   }
 });
 
-test("Page import uses the boat and preserves progress feedback", async () => {
+test("Page import uses the spinner and preserves progress feedback", async () => {
   const browser = await chromium.launch(browserOptions);
   try {
     const page = await browser.newPage();
@@ -118,7 +116,7 @@ test("Page import uses the boat and preserves progress feedback", async () => {
     await openAdminFixture(page, `<form data-import-form method="post" action="/admin/import">
       <button type="submit" data-import-submit>
         <span data-import-submit-icon>Upload</span>
-        <span class="kumbuka-boat-spinner kumbuka-boat-spinner--inline" data-import-submit-spinner aria-hidden="true" hidden></span>
+        <span class="kumbuka-spinner kumbuka-spinner--inline" data-import-submit-spinner aria-hidden="true" hidden></span>
         <span data-import-submit-label>Import pages</span>
       </button>
       <span data-import-progress hidden role="status"></span>

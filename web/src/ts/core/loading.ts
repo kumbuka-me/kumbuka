@@ -1,7 +1,7 @@
 // Shared, host-owned loading indicator. Feature code owns when loading starts and stops.
 export type LoadingSize = "small" | "medium" | "large";
 
-// createLoadingIndicator builds an accessible boat and optional progress text.
+// createLoadingIndicator builds an accessible spinner and optional progress text.
 export function createLoadingIndicator(
   label: string,
   size: LoadingSize = "medium",
@@ -10,10 +10,10 @@ export function createLoadingIndicator(
   indicator.className = `kumbuka-loading kumbuka-loading--${size}`;
   indicator.setAttribute("role", "status");
 
-  const boat = document.createElement("span");
-  boat.className = `kumbuka-boat-spinner kumbuka-boat-spinner--${size}`;
-  boat.setAttribute("aria-hidden", "true");
-  indicator.append(boat);
+  const spinner = document.createElement("span");
+  spinner.className = `kumbuka-spinner kumbuka-spinner--${size}`;
+  spinner.setAttribute("aria-hidden", "true");
+  indicator.append(spinner);
 
   if (label) {
     const message = document.createElement("span");

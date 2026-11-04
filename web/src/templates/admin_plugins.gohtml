@@ -152,7 +152,7 @@
                   action="{{ route "/admin/plugins/check-updates" }}"
                   data-plugin-update-check>
               <button class="button compact" type="submit" data-plugin-update-check-submit>
-                <span class="kumbuka-boat-spinner kumbuka-boat-spinner--inline"
+                <span class="kumbuka-spinner kumbuka-spinner--inline"
                       data-plugin-update-check-spinner
                       aria-hidden="true"
                       hidden></span>
@@ -167,7 +167,7 @@
                 <button class="button compact primary"
                         type="submit"
                         data-plugin-update-submit>
-                  <span class="kumbuka-boat-spinner kumbuka-boat-spinner--inline"
+                  <span class="kumbuka-spinner kumbuka-spinner--inline"
                         data-plugin-update-spinner
                         aria-hidden="true"
                         hidden></span>
@@ -428,7 +428,7 @@
                   data-plugin-update-pending="Applying offline update…">
               <input type="hidden" name="source" value="builtin">
               <button class="button" type="submit" data-plugin-update-submit>
-                <span class="kumbuka-boat-spinner kumbuka-boat-spinner--inline"
+                <span class="kumbuka-spinner kumbuka-spinner--inline"
                       data-plugin-update-spinner
                       aria-hidden="true"
                       hidden></span>
@@ -448,7 +448,7 @@
                                                                                            name="source"
                                                                                            value="builtin">{{ end }}{{ end }}
                 <button class="button primary" type="submit" data-plugin-update-submit>
-                  <span class="kumbuka-boat-spinner kumbuka-boat-spinner--inline"
+                  <span class="kumbuka-spinner kumbuka-spinner--inline"
                         data-plugin-update-spinner
                         aria-hidden="true"
                         hidden></span>
@@ -466,7 +466,7 @@
                         action="{{ route "/admin/plugins/" }}{{ $plugin.Manifest.ID }}/update?return=detail"
                         data-plugin-update>
                     <button class="button primary" type="submit" data-plugin-update-submit>
-                      <span class="kumbuka-boat-spinner kumbuka-boat-spinner--inline"
+                      <span class="kumbuka-spinner kumbuka-spinner--inline"
                             data-plugin-update-spinner
                             aria-hidden="true"
                             hidden></span>

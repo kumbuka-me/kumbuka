@@ -310,7 +310,7 @@ function availablePluginUpdates(): PluginUpdateProgress[] {
       progress.hidden = true;
 
       const spinner = document.createElement("span");
-      spinner.className = "kumbuka-boat-spinner kumbuka-boat-spinner--inline";
+      spinner.className = "kumbuka-spinner kumbuka-spinner--inline";
       spinner.dataset.pluginUpdateProgressSpinner = "";
       spinner.setAttribute("aria-hidden", "true");
       spinner.hidden = true;

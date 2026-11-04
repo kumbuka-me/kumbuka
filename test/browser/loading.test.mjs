@@ -24,7 +24,7 @@ async function serveAsset(route) {
   return true;
 }
 
-test("boat indicator waits before appearing and cleans up on completion", async () => {
+test("ring indicator waits before appearing and cleans up on completion", async () => {
   const browser = await chromium.launch(browserOptions);
   try {
     const page = await browser.newPage();
@@ -48,10 +48,17 @@ test("boat indicator waits before appearing and cleans up on completion", async 
     await page.getByRole("status").filter({ hasText: "Preparing diagram…" }).waitFor();
     assert.equal(await page.getByText("Fast task").count(), 0);
     assert.match(
-      await page.locator(".kumbuka-boat-spinner").evaluate((element) =>
-        getComputedStyle(element).backgroundImage,
+      await page.locator(".kumbuka-spinner").evaluate((element) =>
+        getComputedStyle(element).animationName,
       ),
-      /boat-spinner\.svg/u,
+      /kumbuka-spinner-rotate/u,
+    );
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    assert.equal(
+      await page.locator(".kumbuka-spinner").evaluate((element) =>
+        getComputedStyle(element).animationName,
+      ),
+      "none",
     );
     await page.evaluate(() => window.stopLoading());
     assert.equal(await page.locator(".kumbuka-loading").count(), 0);
@@ -60,7 +67,7 @@ test("boat indicator waits before appearing and cleans up on completion", async 
   }
 });
 
-test("Mermaid shows the host boat while its sandbox is rendering", async () => {
+test("Mermaid shows the host spinner while its sandbox is rendering", async () => {
   const browser = await chromium.launch(browserOptions);
   try {
     const page = await browser.newPage();
@@ -90,7 +97,7 @@ test("Mermaid shows the host boat while its sandbox is rendering", async () => {
         root.textContent = "Rendered diagram";
       }
     };`;
-    await page.route("http://mermaid-boat.test/**", async (route) => {
+    await page.route("http://mermaid-loading.test/**", async (route) => {
       if (await pluginRoute(route, { module, fakeJavaScript })) return;
       if (await serveAsset(route)) return;
       await route.fulfill({
@@ -105,7 +112,7 @@ test("Mermaid shows the host boat while its sandbox is rendering", async () => {
           </script></body>`,
       });
     });
-    await page.goto("http://mermaid-boat.test/");
+    await page.goto("http://mermaid-loading.test/");
     await page.locator("html[data-mermaid-waiting]").waitFor();
     await page.getByRole("status").filter({ hasText: "Rendering diagram…" }).waitFor();
     assert.equal(await page.locator(".kumbuka-plugin-loading").count(), 1);

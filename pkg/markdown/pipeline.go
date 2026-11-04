@@ -375,7 +375,7 @@ func deferredMacroPlaceholder(invocation macroInvocation, index int, version, lo
 		` data-kumbuka-deferred-index="` + strconv.Itoa(index) + `"` +
 		` data-kumbuka-deferred-version="` + version + `"` +
 		` data-kumbuka-deferred-locale="` + locale + `">` +
-		`<span class="kumbuka-boat-spinner kumbuka-boat-spinner--small" aria-hidden="true"></span>` +
+		`<span class="kumbuka-spinner kumbuka-spinner--small" aria-hidden="true"></span>` +
 		`<span>Loading external content…</span></div>`
 }
 

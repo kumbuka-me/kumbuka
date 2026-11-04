@@ -1,4 +1,4 @@
-/* Kumbuka's shared boat indicator. The SVG owns its animation and reduced-motion behavior. */
+/* Shared rotating ring with reduced-motion support. */
 .kumbuka-loading {
   display: flex;
   flex-direction: column;
@@ -17,36 +17,42 @@
   font-size: 0.8rem;
 }
 
-.kumbuka-boat-spinner {
+.kumbuka-spinner {
   display: inline-block;
   flex: none;
-  width: 60px;
-  height: 60px;
-  background: url("../boat-spinner.svg") center / contain no-repeat;
+  width: 32px;
+  height: 32px;
+  box-sizing: border-box;
+  border: 3px solid color-mix(in srgb, currentColor 25%, transparent);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: kumbuka-spinner-rotate 0.8s linear infinite;
 }
 
-.kumbuka-boat-spinner--small {
-  width: 30px;
-  height: 30px;
+.kumbuka-spinner--small {
+  width: 18px;
+  height: 18px;
 }
 
-.kumbuka-boat-spinner--large {
-  width: 90px;
-  height: 90px;
+.kumbuka-spinner--large {
+  width: 48px;
+  height: 48px;
 }
 
-/* Keep button feedback compact; reveal the boat only if work lasts 250 ms. */
-.kumbuka-boat-spinner--inline {
-  width: 22px;
-  height: 22px;
+/* Keep button feedback compact; reveal the ring only if work lasts 250 ms. */
+.kumbuka-spinner--inline {
+  width: 16px;
+  height: 16px;
 }
 
-.kumbuka-boat-spinner[hidden] {
+.kumbuka-spinner[hidden] {
   display: none;
 }
 
-.kumbuka-boat-spinner--inline:not([hidden]) {
-  animation: kumbuka-loading-appear 0s 250ms both;
+.kumbuka-spinner--inline:not([hidden]) {
+  animation:
+    kumbuka-spinner-rotate 0.8s linear infinite,
+    kumbuka-loading-appear 0s 250ms both;
 }
 
 @keyframes kumbuka-loading-appear {
@@ -60,4 +66,20 @@
 
 .kumbuka-loading-label {
   min-width: 0;
+}
+
+@keyframes kumbuka-spinner-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kumbuka-spinner {
+    animation: none;
+  }
+
+  .kumbuka-spinner--inline:not([hidden]) {
+    animation: kumbuka-loading-appear 0s 250ms both;
+  }
 }
