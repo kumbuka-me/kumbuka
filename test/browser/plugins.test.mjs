@@ -339,7 +339,7 @@ test("trusted browser-module changes relay only same-plugin widget commands", as
   }
 });
 
-test("Mermaid layout directives control the rendered diagram alignment", async () => {
+test("plugin controls its own diagram alignment", async () => {
   const browser = await chromium.launch({
     channel: process.env.BROWSER_CHANNEL || "chrome",
     headless: true,
@@ -348,12 +348,13 @@ test("Mermaid layout directives control the rendered diagram alignment", async (
     const page = await browser.newPage();
     const fakeJavaScript = `
       globalThis.kumbukaPlugin = {
-        async render(root) {
+        async render(root, context) {
           const style = document.createElement('style');
           style.textContent = '.mermaid { text-align: center }';
           document.head.append(style);
           const diagram = document.createElement('div');
           diagram.className = 'mermaid';
+          diagram.style.textAlign = context.source.startsWith('%% kumbuka-align: right') ? 'right' : 'center';
           diagram.innerHTML = '<svg width="120" height="60"></svg>';
           root.append(diagram);
         },

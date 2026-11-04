@@ -74,7 +74,14 @@ export function createBrowserSetting(
   );
   if (!frameURL) return wrapper;
 
-  control.hidden = true;
+  control.dataset.widgetBrowserValid = "pending";
+  const setValidity = (valid: boolean, message = "") => {
+    control.dataset.widgetBrowserValid = String(valid);
+    control.dataset.widgetBrowserProblem = message;
+    control.dispatchEvent(
+      new CustomEvent("widget:validity", { bubbles: true }),
+    );
+  };
   const frame = document.createElement("iframe");
   frame.className = "kumbuka-plugin-frame visual-widget-browser-frame";
   frame.title = `${widget.name} editor`;
@@ -90,8 +97,21 @@ export function createBrowserSetting(
   const token = Array.from(crypto.getRandomValues(new Uint8Array(16)), (byte) =>
     byte.toString(16).padStart(2, "0"),
   ).join("");
+  let failed = false;
+  const fallback = () => {
+    failed = true;
+    control.hidden = false;
+    frame.remove();
+    setValidity(true);
+  };
+  const startup = window.setTimeout(fallback, 10000);
+  frame.addEventListener("error", () => {
+    clearTimeout(startup);
+    fallback();
+  });
   const onMessage = (event: MessageEvent<unknown>) => {
     if (
+      failed ||
       event.source !== frame.contentWindow ||
       !event.data ||
       typeof event.data !== "object"
@@ -115,6 +135,15 @@ export function createBrowserSetting(
     }
     if (data.token !== token) return;
     if (
+      data.type === "kumbuka-plugin-editor-validity" &&
+      typeof data.valid === "boolean"
+    ) {
+      setValidity(
+        data.valid,
+        typeof data.message === "string" ? data.message.slice(0, 1024) : "",
+      );
+    }
+    if (
       data.type === "kumbuka-plugin-editor-change" &&
       typeof data.source === "string" &&
       data.source.length <= 65536
@@ -127,13 +156,20 @@ export function createBrowserSetting(
       typeof data.height === "number" &&
       Number.isFinite(data.height)
     ) {
+      clearTimeout(startup);
+      control.hidden = true;
+      if (control.dataset.widgetBrowserValid === "pending") setValidity(true);
       frame.style.height = `${Math.max(180, Math.min(10000, data.height))}px`;
     }
-    if (data.type === "kumbuka-plugin-error") control.hidden = false;
+    if (data.type === "kumbuka-plugin-error") {
+      clearTimeout(startup);
+      fallback();
+    }
   };
   window.addEventListener("message", onMessage);
   const observer = new MutationObserver(() => {
     if (!wrapper.isConnected) {
+      clearTimeout(startup);
       window.removeEventListener("message", onMessage);
       observer.disconnect();
     }

@@ -1,5 +1,4 @@
 import { route, routePrefix } from "../core/route.ts";
-import { mermaidAlignment } from "../core/mermaid-alignment.ts";
 import { showDelayedLoading } from "../core/loading.ts";
 // Only core code runs in Kumbuka's document. Browser modules receive their own
 // marked block's text inside a sandboxed frame and cannot return host HTML.
@@ -240,10 +239,6 @@ function mount(block: HTMLElement, module: Module): Promise<void> {
       1_000_000
   )
     return Promise.resolve();
-  const isMermaid = !!source.querySelector(":scope > code.language-mermaid");
-  const alignment = isMermaid
-    ? mermaidAlignment(source.textContent || "")
-    : undefined;
   const transfer = new AbortController();
   const html = htmlInput
     ? prepareHTML(source, transfer.signal).catch(() => null)
@@ -296,7 +291,6 @@ function mount(block: HTMLElement, module: Module): Promise<void> {
           type: "kumbuka-plugin-render",
           token,
           source: source.textContent || "",
-          alignment,
           html: content,
           locale: document.documentElement.lang || "en",
           colors: themeColors(),
@@ -355,10 +349,7 @@ function mount(block: HTMLElement, module: Module): Promise<void> {
   // HTML plugins keep their authored fallback visible until the frame is ready.
   const needsPlaceholder = !htmlInput && !inline;
   const stopLoading = needsPlaceholder
-    ? showDelayedLoading(
-        block,
-        isMermaid ? "Rendering diagram…" : "Loading plugin…",
-      )
+    ? showDelayedLoading(block, `Loading ${module.name || "plugin"}…`)
     : () => {};
   window.addEventListener("message", message);
   active.set(block, {

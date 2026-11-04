@@ -16,6 +16,8 @@ type EditorCodeLanguage struct {
 	Value string `json:"value"`
 	// Label is the name presented in the editor language picker.
 	Label string `json:"label"`
+	// Aliases are plugin-owned alternate fence names.
+	Aliases []string `json:"aliases,omitempty"`
 }
 
 // editorCodeLanguagesFromPackage reads the SDK-validated plugin language catalog.
@@ -37,6 +39,7 @@ func editorCodeLanguagesFromPackage(pkg *pluginpackage.Package) ([]EditorCodeLan
 			PluginID: pkg.Manifest().ID,
 			Value:    language.Value,
 			Label:    language.Label,
+			Aliases:  append([]string(nil), language.Aliases...),
 		})
 	}
 	return languages, ""

@@ -21,7 +21,6 @@
     source: string;
     html?: string;
     locale?: string;
-    alignment?: "left" | "center" | "right";
   } =>
     (input.type === "kumbuka-plugin-render" ||
       input.type === "kumbuka-plugin-edit") &&
@@ -32,11 +31,7 @@
       (typeof input.locale === "string" &&
         /^[A-Za-z0-9-]{1,35}$/.test(input.locale))) &&
     (input.html === undefined ||
-      (typeof input.html === "string" && input.html.length <= 1_000_000)) &&
-    (input.alignment === undefined ||
-      input.alignment === "left" ||
-      input.alignment === "center" ||
-      input.alignment === "right");
+      (typeof input.html === "string" && input.html.length <= 1_000_000));
 
   const isTrustedPluginCommandClick = (
     event: MouseEvent,
@@ -84,6 +79,24 @@
           { type: "kumbuka-plugin-editor-change", token: input.token, source },
           "*",
         );
+    };
+    const sendEditorValidity = (state: {
+      valid: boolean;
+      message?: string;
+    }) => {
+      if (typeof state?.valid !== "boolean") return;
+      parent.postMessage(
+        {
+          type: "kumbuka-plugin-editor-validity",
+          token: input.token,
+          valid: state.valid,
+          message:
+            typeof state.message === "string"
+              ? state.message.slice(0, 1024)
+              : "",
+        },
+        "*",
+      );
     };
     const sendCommand = (module: string, action: string) =>
       parent.postMessage(
@@ -175,6 +188,7 @@
           source: input.source,
           theme: input.theme === "dark" ? "dark" : "light",
           onChange: sendEditorChange,
+          onValidity: sendEditorValidity,
         });
       } else {
         await module.render(root, {
@@ -184,10 +198,6 @@
           theme: input.theme === "dark" ? "dark" : "light",
         });
       }
-      // The host owns block placement; plugins still own their SVG and styles.
-      // Inline alignment wins over a plugin's default centered text treatment.
-      if (input.alignment && root.firstElementChild instanceof HTMLElement)
-        root.firstElementChild.style.textAlign = input.alignment;
       const measure = () =>
         send(
           "kumbuka-plugin-ready",

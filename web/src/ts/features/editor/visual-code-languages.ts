@@ -18,51 +18,7 @@ import {
   pluginCodeLanguages,
   type CodeLanguage,
 } from "./code-languages.ts";
-import {
-  mermaidAlignment,
-  withMermaidAlignment,
-  type MermaidAlignment,
-} from "../../core/mermaid-alignment.ts";
 import { openCodeLanguagePicker } from "./code-language-picker.ts";
-
-// mermaidAlignmentControl edits an optional first-line Mermaid presentation comment.
-function mermaidAlignmentControl(
-  view: EditorView,
-  position: number,
-  node: ProseMirrorNode,
-): HTMLSelectElement {
-  const select = document.createElement("select");
-  select.className = "visual-mermaid-align";
-  select.contentEditable = "false";
-  select.setAttribute("aria-label", "Mermaid alignment");
-  select.title = "Position Mermaid diagram";
-  for (const alignment of ["left", "center", "right"] as const) {
-    const option = document.createElement("option");
-    option.value = alignment;
-    option.textContent = alignment[0].toUpperCase() + alignment.slice(1);
-    select.append(option);
-  }
-  select.value = mermaidAlignment(node.textContent);
-  select.addEventListener("mousedown", (event) => {
-    event.stopPropagation();
-  });
-  select.addEventListener("change", (event) => {
-    event.stopPropagation();
-    const current = view.state.doc.nodeAt(position);
-    if (!current || current.type.name !== "codeBlock") return;
-    const value = select.value as MermaidAlignment;
-    const next = withMermaidAlignment(current.textContent, value);
-    if (next === current.textContent) return;
-    view.dispatch(
-      view.state.tr.insertText(
-        next,
-        position + 1,
-        position + current.nodeSize - 1,
-      ),
-    );
-  });
-  return select;
-}
 
 // visualCodeLanguages decorates existing codeBlock nodes without replacing their schema or node view.
 export function visualCodeLanguages(): AnyExtension {
@@ -88,10 +44,7 @@ export function visualCodeLanguages(): AnyExtension {
                   const language = String(node.attrs?.language || "");
                   decorations.push(
                     Decoration.node(position, position + node.nodeSize, {
-                      class:
-                        language.toLowerCase() === "mermaid"
-                          ? "visual-code-block visual-mermaid-code-block"
-                          : "visual-code-block",
+                      class: "visual-code-block",
                     }),
                   );
                   decorations.push(
@@ -177,20 +130,6 @@ export function visualCodeLanguages(): AnyExtension {
                       },
                     ),
                   );
-                  if (language.toLowerCase() === "mermaid") {
-                    decorations.push(
-                      Decoration.widget(
-                        position + 1,
-                        (view: EditorView) =>
-                          mermaidAlignmentControl(view, position, node),
-                        {
-                          key: `mermaid-alignment-${position}-${mermaidAlignment(node.textContent)}`,
-                          ignoreSelection: true,
-                          side: 0,
-                        },
-                      ),
-                    );
-                  }
                   decorations.push(
                     Decoration.widget(
                       position + 1,

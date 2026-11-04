@@ -175,8 +175,10 @@ See the SDK repository at `https://github.com/kumbuka-me/sdk` for project scaffo
 
 ### Plugin-contributed code languages
 
-The editor language selector combines built-in syntax highlighter languages
-with the SDK-validated `assets/code-languages.json` declarations from enabled
-plugins. The editor catalog publishes only active languages, and does not
-know Runbook or Mermaid as built-in language definitions. Invalid declaration
-assets are ignored; plugins are still able to render existing fenced content.
+The editor language selector uses plain text plus the SDK-validated `assets/code-languages.json` declarations from enabled plugins. The editor catalog publishes only active languages, and does not know Runbook or Mermaid as built-in language definitions. Invalid declaration assets are ignored; plugins are still able to render existing fenced content.
+
+### Plugin-owned browser editors
+
+A browser widget mounts its module's `edit(root, context)` inside the existing sandbox. Plugins own their grammar, controls, styling and validation. Core owns source storage, isolation and the generic Apply action. The context provides `source`, `theme`, `onChange(source)` and optional `onValidity({valid, message})`. Report initial validity and every subsequent validation change; invalid drafts may be emitted through `onChange` while Apply remains disabled. Modules without a validity callback remain compatible. A failed editor exposes the raw source fallback.
+
+Language labels and aliases come exclusively from enabled plugins' declarations. Syntax Highlighting owns its Chroma catalog; Mermaid owns its alignment directive and editor. Core does not parse either plugin's private syntax.

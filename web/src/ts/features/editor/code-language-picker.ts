@@ -69,7 +69,7 @@ export async function openCodeLanguagePicker(
     };
 
     const render = (): void => {
-      const currentLanguage = canonicalCodeLanguage(current);
+      const currentLanguage = canonicalCodeLanguage(current, pluginLanguages);
       const languages = filterCodeLanguages(search.value, pluginLanguages);
       list.replaceChildren();
 

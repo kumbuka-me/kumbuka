@@ -37,6 +37,8 @@ github.com/klauspost/compress v1.20.1 h1:T7kKElXUMXrUJ2E9QhQhxFtcK5rPyLdsGZvdbLM
 github.com/klauspost/compress v1.20.1/go.mod h1:LUdAzn7YLVvxLpc7y3V1m40wESHTgc1422pwwBSKYuI=
 github.com/kumbuka-me/sdk v0.28.0 h1:3a/XAD63WU9hHKMPj8iKC635BF7RZWRcPEGIoCZJ3XA=
 github.com/kumbuka-me/sdk v0.28.0/go.mod h1:tjfokW8dnaOSToNwgsbtS+ZbjMvvxB09QV3Weaf8KfI=
+github.com/kumbuka-me/sdk v0.29.0 h1:I4fyxoY+TIB9o+c67nTzG9RYptz4OIwiKlZ5vAfI3QY=
+github.com/kumbuka-me/sdk v0.29.0/go.mod h1:tjfokW8dnaOSToNwgsbtS+ZbjMvvxB09QV3Weaf8KfI=
 github.com/kylelemons/godebug v1.1.0 h1:RPNrshWIDI6G2gRW9EHilWtl7Z6Sb1BR0xunSBf0SNc=
 github.com/kylelemons/godebug v1.1.0/go.mod h1:9/0rRGxNHcop5bhtWyNeEfOS8JIWk580+fNqagV/RAw=
 github.com/microcosm-cc/bluemonday v1.0.27 h1:MpEUotklkwCSLeH+Qdx1VJgNqLlpY2KXwXFM08ygZfk=

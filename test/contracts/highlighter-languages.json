@@ -1,0 +1,1208 @@
+{
+  "version": 1,
+  "languages": [
+    {
+      "value": "abap",
+      "label": "ABAP"
+    },
+    {
+      "value": "abnf",
+      "label": "Abnf"
+    },
+    {
+      "value": "actionscript",
+      "label": "Actionscript"
+    },
+    {
+      "value": "actionscript_3",
+      "label": "Actionscript 3"
+    },
+    {
+      "value": "ada",
+      "label": "Ada"
+    },
+    {
+      "value": "agda",
+      "label": "Agda"
+    },
+    {
+      "value": "al",
+      "label": "Al"
+    },
+    {
+      "value": "alloy",
+      "label": "Alloy"
+    },
+    {
+      "value": "ampl",
+      "label": "Ampl"
+    },
+    {
+      "value": "angular2",
+      "label": "Angular2"
+    },
+    {
+      "value": "antlr",
+      "label": "Antlr"
+    },
+    {
+      "value": "apacheconf",
+      "label": "Apacheconf"
+    },
+    {
+      "value": "apl",
+      "label": "Apl"
+    },
+    {
+      "value": "applescript",
+      "label": "Applescript"
+    },
+    {
+      "value": "arangodb_aql",
+      "label": "Arangodb Aql"
+    },
+    {
+      "value": "arduino",
+      "label": "Arduino"
+    },
+    {
+      "value": "armasm",
+      "label": "Armasm"
+    },
+    {
+      "value": "arturo",
+      "label": "Arturo"
+    },
+    {
+      "value": "atl",
+      "label": "Atl"
+    },
+    {
+      "value": "autohotkey",
+      "label": "Autohotkey"
+    },
+    {
+      "value": "autoit",
+      "label": "Autoit"
+    },
+    {
+      "value": "awk",
+      "label": "Awk"
+    },
+    {
+      "value": "ballerina",
+      "label": "Ballerina"
+    },
+    {
+      "value": "bash",
+      "label": "Bash",
+      "aliases": [
+        "sh",
+        "shell",
+        "zsh"
+      ]
+    },
+    {
+      "value": "bash_session",
+      "label": "Bash Session"
+    },
+    {
+      "value": "batchfile",
+      "label": "Batchfile"
+    },
+    {
+      "value": "beef",
+      "label": "Beef"
+    },
+    {
+      "value": "bibtex",
+      "label": "Bibtex"
+    },
+    {
+      "value": "bicep",
+      "label": "Bicep"
+    },
+    {
+      "value": "blitzbasic",
+      "label": "Blitzbasic"
+    },
+    {
+      "value": "bnf",
+      "label": "Bnf"
+    },
+    {
+      "value": "bqn",
+      "label": "Bqn"
+    },
+    {
+      "value": "brainfuck",
+      "label": "Brainfuck"
+    },
+    {
+      "value": "c",
+      "label": "C"
+    },
+    {
+      "value": "c#",
+      "label": "C#",
+      "aliases": [
+        "csharp"
+      ]
+    },
+    {
+      "value": "c++",
+      "label": "C++",
+      "aliases": [
+        "cpp"
+      ]
+    },
+    {
+      "value": "c3",
+      "label": "C3"
+    },
+    {
+      "value": "caddyfile",
+      "label": "Caddyfile"
+    },
+    {
+      "value": "cap_n_proto",
+      "label": "Cap N Proto"
+    },
+    {
+      "value": "cassandra_cql",
+      "label": "Cassandra Cql"
+    },
+    {
+      "value": "ceylon",
+      "label": "Ceylon"
+    },
+    {
+      "value": "cfengine3",
+      "label": "Cfengine3"
+    },
+    {
+      "value": "cfstatement",
+      "label": "Cfstatement"
+    },
+    {
+      "value": "chaiscript",
+      "label": "Chaiscript"
+    },
+    {
+      "value": "chapel",
+      "label": "Chapel"
+    },
+    {
+      "value": "cheetah",
+      "label": "Cheetah"
+    },
+    {
+      "value": "clojure",
+      "label": "Clojure"
+    },
+    {
+      "value": "cmake",
+      "label": "Cmake"
+    },
+    {
+      "value": "cobol",
+      "label": "Cobol"
+    },
+    {
+      "value": "coffeescript",
+      "label": "Coffeescript",
+      "aliases": [
+        "coffee"
+      ]
+    },
+    {
+      "value": "common_lisp",
+      "label": "Common Lisp"
+    },
+    {
+      "value": "coq",
+      "label": "Coq"
+    },
+    {
+      "value": "core",
+      "label": "Core"
+    },
+    {
+      "value": "crystal",
+      "label": "Crystal"
+    },
+    {
+      "value": "css",
+      "label": "CSS"
+    },
+    {
+      "value": "csv",
+      "label": "CSV"
+    },
+    {
+      "value": "cue",
+      "label": "Cue"
+    },
+    {
+      "value": "cython",
+      "label": "Cython"
+    },
+    {
+      "value": "d",
+      "label": "D"
+    },
+    {
+      "value": "dart",
+      "label": "Dart"
+    },
+    {
+      "value": "dax",
+      "label": "Dax"
+    },
+    {
+      "value": "desktop_entry",
+      "label": "Desktop Entry"
+    },
+    {
+      "value": "devicetree",
+      "label": "Devicetree"
+    },
+    {
+      "value": "diff",
+      "label": "Diff"
+    },
+    {
+      "value": "django_jinja",
+      "label": "Django Jinja"
+    },
+    {
+      "value": "dns",
+      "label": "DNS"
+    },
+    {
+      "value": "docker",
+      "label": "Docker",
+      "aliases": [
+        "dockerfile"
+      ]
+    },
+    {
+      "value": "dtd",
+      "label": "Dtd"
+    },
+    {
+      "value": "dylan",
+      "label": "Dylan"
+    },
+    {
+      "value": "ebnf",
+      "label": "Ebnf"
+    },
+    {
+      "value": "elixir",
+      "label": "Elixir"
+    },
+    {
+      "value": "elm",
+      "label": "Elm"
+    },
+    {
+      "value": "emacslisp",
+      "label": "Emacslisp"
+    },
+    {
+      "value": "erb",
+      "label": "Erb"
+    },
+    {
+      "value": "erlang",
+      "label": "Erlang"
+    },
+    {
+      "value": "factor",
+      "label": "Factor"
+    },
+    {
+      "value": "fennel",
+      "label": "Fennel"
+    },
+    {
+      "value": "fish",
+      "label": "Fish"
+    },
+    {
+      "value": "forth",
+      "label": "Forth"
+    },
+    {
+      "value": "fortran",
+      "label": "Fortran"
+    },
+    {
+      "value": "fortranfixed",
+      "label": "Fortranfixed"
+    },
+    {
+      "value": "fsharp",
+      "label": "Fsharp"
+    },
+    {
+      "value": "gas",
+      "label": "Gas"
+    },
+    {
+      "value": "gdscript",
+      "label": "Gdscript"
+    },
+    {
+      "value": "gdscript3",
+      "label": "Gdscript3"
+    },
+    {
+      "value": "gemfile_lock",
+      "label": "Gemfile Lock"
+    },
+    {
+      "value": "gemtext",
+      "label": "Gemtext"
+    },
+    {
+      "value": "gettext",
+      "label": "Gettext"
+    },
+    {
+      "value": "gherkin",
+      "label": "Gherkin"
+    },
+    {
+      "value": "gleam",
+      "label": "Gleam"
+    },
+    {
+      "value": "glsl",
+      "label": "GLSL"
+    },
+    {
+      "value": "gnuplot",
+      "label": "Gnuplot"
+    },
+    {
+      "value": "go",
+      "label": "Go",
+      "aliases": [
+        "golang"
+      ]
+    },
+    {
+      "value": "go_template",
+      "label": "Go Template"
+    },
+    {
+      "value": "graphql",
+      "label": "GraphQL"
+    },
+    {
+      "value": "groff",
+      "label": "Groff"
+    },
+    {
+      "value": "groovy",
+      "label": "Groovy"
+    },
+    {
+      "value": "handlebars",
+      "label": "Handlebars"
+    },
+    {
+      "value": "hare",
+      "label": "Hare"
+    },
+    {
+      "value": "haskell",
+      "label": "Haskell"
+    },
+    {
+      "value": "haxe",
+      "label": "Haxe"
+    },
+    {
+      "value": "hcl",
+      "label": "HCL"
+    },
+    {
+      "value": "hexdump",
+      "label": "Hexdump"
+    },
+    {
+      "value": "hlb",
+      "label": "Hlb"
+    },
+    {
+      "value": "hlsl",
+      "label": "HLSL"
+    },
+    {
+      "value": "holyc",
+      "label": "Holyc"
+    },
+    {
+      "value": "html",
+      "label": "HTML"
+    },
+    {
+      "value": "http",
+      "label": "Http"
+    },
+    {
+      "value": "hy",
+      "label": "Hy"
+    },
+    {
+      "value": "idris",
+      "label": "Idris"
+    },
+    {
+      "value": "igor",
+      "label": "Igor"
+    },
+    {
+      "value": "ini",
+      "label": "INI"
+    },
+    {
+      "value": "io",
+      "label": "Io"
+    },
+    {
+      "value": "iscdhcpd",
+      "label": "Iscdhcpd"
+    },
+    {
+      "value": "j",
+      "label": "J"
+    },
+    {
+      "value": "janet",
+      "label": "Janet"
+    },
+    {
+      "value": "java",
+      "label": "Java"
+    },
+    {
+      "value": "javascript",
+      "label": "JavaScript",
+      "aliases": [
+        "js"
+      ]
+    },
+    {
+      "value": "json",
+      "label": "JSON"
+    },
+    {
+      "value": "jsonata",
+      "label": "JSONata"
+    },
+    {
+      "value": "jsonnet",
+      "label": "Jsonnet"
+    },
+    {
+      "value": "julia",
+      "label": "Julia"
+    },
+    {
+      "value": "jungle",
+      "label": "Jungle"
+    },
+    {
+      "value": "kakoune",
+      "label": "Kakoune"
+    },
+    {
+      "value": "kdl",
+      "label": "Kdl"
+    },
+    {
+      "value": "kotlin",
+      "label": "Kotlin"
+    },
+    {
+      "value": "lateralus",
+      "label": "Lateralus"
+    },
+    {
+      "value": "lean",
+      "label": "Lean"
+    },
+    {
+      "value": "lighttpd_configuration_file",
+      "label": "Lighttpd Configuration File"
+    },
+    {
+      "value": "lilypond",
+      "label": "Lilypond"
+    },
+    {
+      "value": "llvm",
+      "label": "LLVM"
+    },
+    {
+      "value": "lox",
+      "label": "Lox"
+    },
+    {
+      "value": "lua",
+      "label": "Lua"
+    },
+    {
+      "value": "luau",
+      "label": "Luau"
+    },
+    {
+      "value": "makefile",
+      "label": "Makefile"
+    },
+    {
+      "value": "mako",
+      "label": "Mako"
+    },
+    {
+      "value": "markdown",
+      "label": "Markdown",
+      "aliases": [
+        "md"
+      ]
+    },
+    {
+      "value": "markless",
+      "label": "Markless"
+    },
+    {
+      "value": "mason",
+      "label": "Mason"
+    },
+    {
+      "value": "materialize_sql_dialect",
+      "label": "Materialize Sql Dialect"
+    },
+    {
+      "value": "mathematica",
+      "label": "Mathematica"
+    },
+    {
+      "value": "matlab",
+      "label": "MATLAB"
+    },
+    {
+      "value": "mcfunction",
+      "label": "Mcfunction"
+    },
+    {
+      "value": "meson",
+      "label": "Meson"
+    },
+    {
+      "value": "metal",
+      "label": "Metal"
+    },
+    {
+      "value": "microcad",
+      "label": "Microcad"
+    },
+    {
+      "value": "minizinc",
+      "label": "Minizinc"
+    },
+    {
+      "value": "mlir",
+      "label": "Mlir"
+    },
+    {
+      "value": "modelica",
+      "label": "Modelica"
+    },
+    {
+      "value": "modula-2",
+      "label": "Modula 2"
+    },
+    {
+      "value": "mojo",
+      "label": "Mojo"
+    },
+    {
+      "value": "monkeyc",
+      "label": "Monkeyc"
+    },
+    {
+      "value": "moonbit",
+      "label": "Moonbit"
+    },
+    {
+      "value": "moonscript",
+      "label": "Moonscript"
+    },
+    {
+      "value": "morrowindscript",
+      "label": "Morrowindscript"
+    },
+    {
+      "value": "myghty",
+      "label": "Myghty"
+    },
+    {
+      "value": "mysql",
+      "label": "MySQL"
+    },
+    {
+      "value": "nasm",
+      "label": "Nasm"
+    },
+    {
+      "value": "natural",
+      "label": "Natural"
+    },
+    {
+      "value": "ndisasm",
+      "label": "Ndisasm"
+    },
+    {
+      "value": "newspeak",
+      "label": "Newspeak"
+    },
+    {
+      "value": "nginx_configuration_file",
+      "label": "Nginx configuration"
+    },
+    {
+      "value": "nim",
+      "label": "Nim"
+    },
+    {
+      "value": "nix",
+      "label": "Nix"
+    },
+    {
+      "value": "nsis",
+      "label": "Nsis"
+    },
+    {
+      "value": "nu",
+      "label": "Nu"
+    },
+    {
+      "value": "objective-c",
+      "label": "Objective-C"
+    },
+    {
+      "value": "objectpascal",
+      "label": "Objectpascal"
+    },
+    {
+      "value": "ocaml",
+      "label": "OCaml"
+    },
+    {
+      "value": "octave",
+      "label": "Octave"
+    },
+    {
+      "value": "odin",
+      "label": "Odin"
+    },
+    {
+      "value": "onesenterprise",
+      "label": "Onesenterprise"
+    },
+    {
+      "value": "openedge_abl",
+      "label": "Openedge Abl"
+    },
+    {
+      "value": "openscad",
+      "label": "Openscad"
+    },
+    {
+      "value": "org_mode",
+      "label": "Org Mode"
+    },
+    {
+      "value": "pacmanconf",
+      "label": "Pacmanconf"
+    },
+    {
+      "value": "perl",
+      "label": "Perl"
+    },
+    {
+      "value": "php",
+      "label": "PHP"
+    },
+    {
+      "value": "pig",
+      "label": "Pig"
+    },
+    {
+      "value": "pkgconfig",
+      "label": "Pkgconfig"
+    },
+    {
+      "value": "pl_pgsql",
+      "label": "PL/pgSQL"
+    },
+    {
+      "value": "plutus_core",
+      "label": "Plutus Core"
+    },
+    {
+      "value": "pony",
+      "label": "Pony"
+    },
+    {
+      "value": "postgresql_sql_dialect",
+      "label": "PostgreSQL SQL"
+    },
+    {
+      "value": "postscript",
+      "label": "Postscript"
+    },
+    {
+      "value": "povray",
+      "label": "Povray"
+    },
+    {
+      "value": "powerquery",
+      "label": "Powerquery"
+    },
+    {
+      "value": "powershell",
+      "label": "PowerShell"
+    },
+    {
+      "value": "prolog",
+      "label": "Prolog"
+    },
+    {
+      "value": "promela",
+      "label": "Promela"
+    },
+    {
+      "value": "promql",
+      "label": "PromQL"
+    },
+    {
+      "value": "properties",
+      "label": "Properties"
+    },
+    {
+      "value": "protocol_buffer",
+      "label": "Protocol Buffers"
+    },
+    {
+      "value": "prql",
+      "label": "Prql"
+    },
+    {
+      "value": "psl",
+      "label": "Psl"
+    },
+    {
+      "value": "puppet",
+      "label": "Puppet"
+    },
+    {
+      "value": "python",
+      "label": "Python",
+      "aliases": [
+        "py"
+      ]
+    },
+    {
+      "value": "python_2",
+      "label": "Python 2"
+    },
+    {
+      "value": "qbasic",
+      "label": "Qbasic"
+    },
+    {
+      "value": "qml",
+      "label": "QML"
+    },
+    {
+      "value": "r",
+      "label": "R"
+    },
+    {
+      "value": "racket",
+      "label": "Racket"
+    },
+    {
+      "value": "ragel",
+      "label": "Ragel"
+    },
+    {
+      "value": "raku",
+      "label": "Raku"
+    },
+    {
+      "value": "react",
+      "label": "React",
+      "aliases": [
+        "jsx",
+        "tsx"
+      ]
+    },
+    {
+      "value": "reasonml",
+      "label": "Reasonml"
+    },
+    {
+      "value": "reg",
+      "label": "Reg"
+    },
+    {
+      "value": "rego",
+      "label": "Rego"
+    },
+    {
+      "value": "rexx",
+      "label": "Rexx"
+    },
+    {
+      "value": "rgbasm",
+      "label": "Rgbasm"
+    },
+    {
+      "value": "ring",
+      "label": "Ring"
+    },
+    {
+      "value": "rpgle",
+      "label": "Rpgle"
+    },
+    {
+      "value": "rpm_spec",
+      "label": "RPM spec"
+    },
+    {
+      "value": "rst",
+      "label": "Rst"
+    },
+    {
+      "value": "ruby",
+      "label": "Ruby",
+      "aliases": [
+        "rb"
+      ]
+    },
+    {
+      "value": "rust",
+      "label": "Rust",
+      "aliases": [
+        "rs"
+      ]
+    },
+    {
+      "value": "sas",
+      "label": "Sas"
+    },
+    {
+      "value": "sass",
+      "label": "Sass"
+    },
+    {
+      "value": "scala",
+      "label": "Scala"
+    },
+    {
+      "value": "scdoc",
+      "label": "Scdoc"
+    },
+    {
+      "value": "scheme",
+      "label": "Scheme"
+    },
+    {
+      "value": "scilab",
+      "label": "Scilab"
+    },
+    {
+      "value": "scss",
+      "label": "SCSS"
+    },
+    {
+      "value": "sed",
+      "label": "Sed"
+    },
+    {
+      "value": "sieve",
+      "label": "Sieve"
+    },
+    {
+      "value": "smali",
+      "label": "Smali"
+    },
+    {
+      "value": "smalltalk",
+      "label": "Smalltalk"
+    },
+    {
+      "value": "smarty",
+      "label": "Smarty"
+    },
+    {
+      "value": "snbt",
+      "label": "Snbt"
+    },
+    {
+      "value": "snobol",
+      "label": "Snobol"
+    },
+    {
+      "value": "solidity",
+      "label": "Solidity"
+    },
+    {
+      "value": "sourcepawn",
+      "label": "Sourcepawn"
+    },
+    {
+      "value": "spade",
+      "label": "Spade"
+    },
+    {
+      "value": "sparql",
+      "label": "Sparql"
+    },
+    {
+      "value": "sql",
+      "label": "SQL"
+    },
+    {
+      "value": "squidconf",
+      "label": "Squidconf"
+    },
+    {
+      "value": "standard_ml",
+      "label": "Standard Ml"
+    },
+    {
+      "value": "stas",
+      "label": "Stas"
+    },
+    {
+      "value": "stylus",
+      "label": "Stylus"
+    },
+    {
+      "value": "svelte",
+      "label": "Svelte"
+    },
+    {
+      "value": "swift",
+      "label": "Swift"
+    },
+    {
+      "value": "systemd",
+      "label": "Systemd"
+    },
+    {
+      "value": "systemverilog",
+      "label": "SystemVerilog"
+    },
+    {
+      "value": "tablegen",
+      "label": "Tablegen"
+    },
+    {
+      "value": "tal",
+      "label": "Tal"
+    },
+    {
+      "value": "tasm",
+      "label": "Tasm"
+    },
+    {
+      "value": "tcl",
+      "label": "Tcl"
+    },
+    {
+      "value": "tcsh",
+      "label": "Tcsh"
+    },
+    {
+      "value": "templ",
+      "label": "Templ"
+    },
+    {
+      "value": "termcap",
+      "label": "Termcap"
+    },
+    {
+      "value": "terminfo",
+      "label": "Terminfo"
+    },
+    {
+      "value": "terraform",
+      "label": "Terraform"
+    },
+    {
+      "value": "tex",
+      "label": "TeX / LaTeX"
+    },
+    {
+      "value": "thrift",
+      "label": "Thrift"
+    },
+    {
+      "value": "toml",
+      "label": "TOML"
+    },
+    {
+      "value": "tradingview",
+      "label": "Tradingview"
+    },
+    {
+      "value": "transact-sql",
+      "label": "Transact-SQL"
+    },
+    {
+      "value": "turing",
+      "label": "Turing"
+    },
+    {
+      "value": "turtle",
+      "label": "Turtle"
+    },
+    {
+      "value": "twig",
+      "label": "Twig"
+    },
+    {
+      "value": "txtpb",
+      "label": "Txtpb"
+    },
+    {
+      "value": "typescript",
+      "label": "TypeScript",
+      "aliases": [
+        "ts"
+      ]
+    },
+    {
+      "value": "typoscript",
+      "label": "Typoscript"
+    },
+    {
+      "value": "typoscriptcssdata",
+      "label": "Typoscriptcssdata"
+    },
+    {
+      "value": "typoscripthtmldata",
+      "label": "Typoscripthtmldata"
+    },
+    {
+      "value": "typst",
+      "label": "Typst"
+    },
+    {
+      "value": "ucode",
+      "label": "Ucode"
+    },
+    {
+      "value": "v",
+      "label": "V"
+    },
+    {
+      "value": "v_shell",
+      "label": "V Shell"
+    },
+    {
+      "value": "vala",
+      "label": "Vala"
+    },
+    {
+      "value": "vb_net",
+      "label": "VB.NET"
+    },
+    {
+      "value": "verilog",
+      "label": "Verilog"
+    },
+    {
+      "value": "vhdl",
+      "label": "VHDL"
+    },
+    {
+      "value": "vhs",
+      "label": "Vhs"
+    },
+    {
+      "value": "viml",
+      "label": "Vim script",
+      "aliases": [
+        "vim"
+      ]
+    },
+    {
+      "value": "vue",
+      "label": "Vue"
+    },
+    {
+      "value": "wat",
+      "label": "WebAssembly text"
+    },
+    {
+      "value": "wdte",
+      "label": "Wdte"
+    },
+    {
+      "value": "webgpu_shading_language",
+      "label": "WebGPU shading language",
+      "aliases": [
+        "wgsl"
+      ]
+    },
+    {
+      "value": "webvtt",
+      "label": "Webvtt"
+    },
+    {
+      "value": "whiley",
+      "label": "Whiley"
+    },
+    {
+      "value": "xml",
+      "label": "XML"
+    },
+    {
+      "value": "xorg",
+      "label": "Xorg"
+    },
+    {
+      "value": "yaml",
+      "label": "YAML",
+      "aliases": [
+        "yml"
+      ]
+    },
+    {
+      "value": "yang",
+      "label": "Yang"
+    },
+    {
+      "value": "z80_assembly",
+      "label": "Z80 assembly"
+    },
+    {
+      "value": "zed",
+      "label": "Zed"
+    },
+    {
+      "value": "zig",
+      "label": "Zig"
+    }
+  ]
+}

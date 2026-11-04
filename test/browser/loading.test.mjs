@@ -114,7 +114,7 @@ test("Mermaid shows the host spinner while its sandbox is rendering", async () =
     });
     await page.goto("http://mermaid-loading.test/");
     await page.locator("html[data-mermaid-waiting]").waitFor();
-    await page.getByRole("status").filter({ hasText: "Rendering diagram…" }).waitFor();
+    await page.getByRole("status").filter({ hasText: "Loading Mermaid…" }).waitFor();
     assert.equal(await page.locator(".kumbuka-plugin-loading").count(), 1);
     assert.equal(await page.locator("pre").isVisible(), false);
     await page.locator("iframe").evaluate((frame) =>

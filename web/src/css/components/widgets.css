@@ -83,7 +83,9 @@
   background: var(--surface-hover);
 }
 
-.plugin-widget:has(> .widget-entry--clickable):has(.widget-action:focus-visible) {
+.plugin-widget:has(> .widget-entry--clickable):has(
+    .widget-action:focus-visible
+  ) {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
@@ -97,7 +99,8 @@
   margin: 0;
 }
 
-.plugin-widget:has(> .widget-entry--clickable) .widget-action[data-widget-dialog-open] {
+.plugin-widget:has(> .widget-entry--clickable)
+  .widget-action[data-widget-dialog-open] {
   position: absolute;
   inset: 0;
   z-index: 1;
@@ -111,7 +114,8 @@
   color: var(--text-secondary);
 }
 
-.plugin-widget:has(> .widget-entry--clickable) .widget-action[data-widget-dialog-open]:hover {
+.plugin-widget:has(> .widget-entry--clickable)
+  .widget-action[data-widget-dialog-open]:hover {
   color: var(--accent);
 }
 

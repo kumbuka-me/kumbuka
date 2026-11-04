@@ -688,8 +688,33 @@ export function createSettingsPopover(
     });
   });
   cancel.addEventListener("click", () => close(true));
+  const browserProblem = (): string => {
+    const invalid = form.querySelector<HTMLTextAreaElement>(
+      '[data-widget-browser-valid="false"], [data-widget-browser-valid="pending"]',
+    );
+    if (!invalid) return "";
+    return (
+      invalid.dataset.widgetBrowserProblem ||
+      (invalid.dataset.widgetBrowserValid === "pending"
+        ? "Wait for the plugin editor to load."
+        : "Correct the plugin editor errors before applying changes.")
+    );
+  };
+  form.addEventListener("widget:validity", () => {
+    const problem = browserProblem();
+    submit.disabled = Boolean(problem);
+    error.textContent = problem;
+    error.hidden = !problem;
+  });
+  submit.disabled = Boolean(browserProblem());
   form.addEventListener("submit", (event) => {
     event.preventDefault();
+    const pluginProblem = browserProblem();
+    if (pluginProblem) {
+      error.textContent = pluginProblem;
+      error.hidden = false;
+      return;
+    }
     const treeProblem = treeFormProblem(form, widget);
     if (treeProblem) {
       error.textContent = treeProblem;

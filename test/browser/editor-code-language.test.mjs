@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 import { chromium } from "playwright";
 
 test("visual code blocks choose a supported fenced language", async () => {
+  const languages = JSON.parse(await readFile(new URL("../contracts/highlighter-languages.json", import.meta.url), "utf8")).languages;
   const template = await readFile(
     new URL("../../web/src/templates/edit.gohtml", import.meta.url),
     "utf8",
@@ -36,7 +37,7 @@ test("visual code blocks choose a supported fenced language", async () => {
             completion_providers: [],
             inserts: [],
             widgets: [],
-            code_languages: [{ plugin_id: "me.kumbuka.mermaid", value: "mermaid", label: "Mermaid" }],
+            code_languages: [...languages.map(language => ({...language, plugin_id: "me.kumbuka.syntax-highlighting"})), { plugin_id: "me.kumbuka.mermaid", value: "mermaid", label: "Mermaid" }],
     widget_problems: [],
           }),
         });

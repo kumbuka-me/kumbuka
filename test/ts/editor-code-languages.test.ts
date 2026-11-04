@@ -1,4 +1,5 @@
 import test from "node:test";
+import { readFileSync } from "node:fs";
 import assert from "node:assert/strict";
 import {
   canonicalCodeLanguage,
@@ -7,8 +8,14 @@ import {
   supportedCodeLanguages,
 } from "../../web/src/ts/features/editor/code-languages.ts";
 
+const languages = JSON.parse(
+  readFileSync("test/contracts/highlighter-languages.json", "utf8"),
+).languages;
+
 test("code language catalog includes bundled highlighter languages", () => {
-  const values = supportedCodeLanguages().map((language) => language.value);
+  const values = supportedCodeLanguages(languages).map(
+    (language) => language.value,
+  );
 
   assert.ok(values.includes("go"));
   assert.ok(values.includes("python"));
@@ -18,19 +25,19 @@ test("code language catalog includes bundled highlighter languages", () => {
 });
 
 test("code language labels normalize common fence aliases", () => {
-  assert.equal(canonicalCodeLanguage(" js "), "javascript");
-  assert.equal(codeLanguageLabel("js"), "JavaScript");
-  assert.equal(codeLanguageLabel("yml"), "YAML");
+  assert.equal(canonicalCodeLanguage(" js ", languages), "javascript");
+  assert.equal(codeLanguageLabel("js", languages), "JavaScript");
+  assert.equal(codeLanguageLabel("yml", languages), "YAML");
   assert.equal(codeLanguageLabel(""), "Plain text");
 });
 
 test("code language filtering searches labels identifiers and aliases", () => {
   assert.deepEqual(
-    filterCodeLanguages("python").map((language) => language.value),
+    filterCodeLanguages("python", languages).map((language) => language.value),
     ["python", "python_2"],
   );
   assert.ok(
-    filterCodeLanguages("js").some(
+    filterCodeLanguages("js", languages).some(
       (language) => language.value === "javascript",
     ),
   );

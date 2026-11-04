@@ -63,6 +63,7 @@ export interface CatalogInsert {
 }
 
 export interface CatalogCodeLanguage {
+  aliases?: string[];
   plugin_id: string;
   label: string;
   value: string;
@@ -162,7 +163,14 @@ function isCatalogCodeLanguage(value: unknown): value is CatalogCodeLanguage {
     typeof value.plugin_id === "string" &&
     typeof value.label === "string" &&
     typeof value.value === "string" &&
-    /^[a-z][a-z0-9_+-]{0,63}$/.test(value.value)
+    /^[a-z][a-z0-9_+#.-]{0,63}$/.test(value.value) &&
+    (value.aliases === undefined ||
+      (Array.isArray(value.aliases) &&
+        value.aliases.every(
+          (alias) =>
+            typeof alias === "string" &&
+            /^[a-z][a-z0-9_+#.-]{0,63}$/.test(alias),
+        )))
   );
 }
 
