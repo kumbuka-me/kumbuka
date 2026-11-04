@@ -320,6 +320,8 @@ function widgetNodeView(
     if (restorePreview) render();
   };
   const apply = (raw: string) => {
+    // Applying an unchanged widget must not reserialize the surrounding Markdown.
+    if (raw === String(node.attrs?.raw || "")) return;
     const position = context.getPos();
     if (typeof position !== "number") return;
     const transaction = context.editor.state.tr.setNodeMarkup(
