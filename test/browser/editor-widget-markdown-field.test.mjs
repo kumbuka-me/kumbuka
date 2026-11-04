@@ -26,7 +26,8 @@ test("callout Markdown fields render and edit code blocks independently", async 
 
   const catalog = {
     pages: [], aliases: {}, completions: [], completion_providers: [],
-    inserts: [], widget_problems: [],
+    inserts: [], code_languages: [],
+    widget_problems: [],
     widgets: [{
       id: "callout", name: "Callout", plugin_id: "me.kumbuka.callouts",
       inline: false, syntax: { kind: "callout" },

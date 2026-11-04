@@ -16,6 +16,20 @@ func validateEditorWidgetCompletionReferences(widgets []EditorWidgetContribution
 	}
 	for _, widget := range widgets {
 		for _, setting := range widget.Settings {
+			if setting.Type == EditorWidgetSettingBrowser {
+				found := false
+				for _, module := range manifest.Modules {
+					if module.ID == setting.BrowserModuleID && ModuleType(module.Type) == ModuleTypeBrowserModule {
+						found = true
+						break
+					}
+				}
+				if !found {
+					return fmt.Errorf("visual editor widget %q references unknown browser module %q", widget.ID, setting.BrowserModuleID)
+				}
+			} else if setting.BrowserModuleID != "" {
+				return fmt.Errorf("visual editor widget %q supplies browser module on non-browser setting", widget.ID)
+			}
 			if setting.Type == EditorWidgetSettingResource && !completionModules[setting.CompletionModuleID] {
 				return fmt.Errorf("visual editor widget %q references unknown editor-completion module %q", widget.ID, setting.CompletionModuleID)
 			}

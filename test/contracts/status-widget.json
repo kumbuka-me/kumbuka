@@ -67,7 +67,10 @@
           "name": "style",
           "type": "enum",
           "default": "solid",
-          "values": ["solid", "outline"]
+          "values": [
+            "solid",
+            "outline"
+          ]
         }
       ],
       "settings": [
@@ -82,12 +85,18 @@
           "label": "Reusable set",
           "attribute": "set",
           "placeholder": "workflow",
-          "suggestions": ["workflow", "approval"]
+          "suggestions": [
+            "workflow",
+            "approval"
+          ]
         },
         {
           "type": "table",
           "label": "Page-local statuses",
-          "attributes": ["options", "colors"],
+          "attributes": [
+            "options",
+            "colors"
+          ],
           "columns": [
             {
               "label": "Status",
@@ -120,16 +129,25 @@
       "constraints": [
         {
           "kind": "exactly-one",
-          "attributes": ["set", "options"]
+          "attributes": [
+            "set",
+            "options"
+          ]
         },
         {
           "kind": "same-length",
-          "attributes": ["options", "colors"],
+          "attributes": [
+            "options",
+            "colors"
+          ],
           "optional": true
         },
         {
           "kind": "member-of",
-          "attributes": ["initial", "options"],
+          "attributes": [
+            "initial",
+            "options"
+          ],
           "optional": true
         }
       ],
@@ -174,5 +192,6 @@
       "plugin_id": "me.kumbuka.status-dropdowns"
     }
   ],
-  "widget_problems": []
+  "widget_problems": [],
+  "code_languages": []
 }

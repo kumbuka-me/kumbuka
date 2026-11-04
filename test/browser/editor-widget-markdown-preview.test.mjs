@@ -38,6 +38,7 @@ test("callout visual preview renders fenced Markdown without changing source", a
   const catalog = {
     pages: [], aliases: {}, completions: [], completion_providers: [], inserts: [],
     widgets: [{ ...callouts.widgets[0], plugin_id: "me.kumbuka.callouts" }],
+    code_languages: [],
     widget_problems: [],
   };
   const markdown = [

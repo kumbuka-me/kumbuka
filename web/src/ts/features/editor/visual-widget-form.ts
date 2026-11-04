@@ -1,3 +1,4 @@
+import { createBrowserSetting } from "./visual-widget-browser.ts";
 // Form controls for plugin-provided visual-editor widgets.
 
 import type { CatalogCompletion } from "./catalog.ts";
@@ -576,11 +577,13 @@ export function createSettingsPopover(
     activateExclusiveAttribute(form, widget, attribute);
   for (const setting of widget.settings) {
     form.append(
-      setting.type === "table"
-        ? createTableSetting(setting, widget, values, activate)
-        : setting.type === "tree"
-          ? createTreeSetting(setting, widget, values)
-          : createScalarSetting(setting, widget, values, completions),
+      setting.type === "browser"
+        ? createBrowserSetting(setting, widget, values)
+        : setting.type === "table"
+          ? createTableSetting(setting, widget, values, activate)
+          : setting.type === "tree"
+            ? createTreeSetting(setting, widget, values)
+            : createScalarSetting(setting, widget, values, completions),
     );
   }
   if (initialAnnotation) {

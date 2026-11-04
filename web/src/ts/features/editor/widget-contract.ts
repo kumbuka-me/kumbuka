@@ -1,3 +1,4 @@
+import { matchWidgetFence, serializeWidgetFence } from "./widget-fence.ts";
 // Shared declarative visual-editor widget contract and Markdown mapping helpers.
 
 import { isRecord, isStringRecord } from "../../core/guards.ts";
@@ -153,6 +154,10 @@ function isWidgetSetting(value: unknown): value is CatalogWidgetSetting {
       : value.completion_module_id === undefined;
   return (
     resourceSetting &&
+    (value.type === "browser"
+      ? typeof value.browser_module_id === "string" &&
+        identifier.test(value.browser_module_id)
+      : value.browser_module_id === undefined) &&
     (value.type === "text" ||
       value.type === "textarea" ||
       value.type === "markdown" ||
@@ -161,7 +166,8 @@ function isWidgetSetting(value: unknown): value is CatalogWidgetSetting {
       value.type === "mention" ||
       value.type === "date" ||
       value.type === "table" ||
-      value.type === "tree") &&
+      value.type === "tree" ||
+      value.type === "browser") &&
     typeof value.label === "string" &&
     optionalString(value.attribute) &&
     (value.attributes === undefined || strings(value.attributes)) &&
@@ -320,7 +326,7 @@ function isWidgetPreview(value: unknown): value is CatalogWidgetPreview {
 export function isCatalogWidget(value: unknown): value is CatalogWidget {
   if (!isRecord(value) || !isRecord(value.syntax)) return false;
   const kind = value.syntax.kind;
-  const named = kind === "macro" || kind === "substitution";
+  const named = kind === "macro" || kind === "substitution" || kind === "fence";
   return (
     typeof value.plugin_id === "string" &&
     identifier.test(value.plugin_id) &&
@@ -332,7 +338,8 @@ export function isCatalogWidget(value: unknown): value is CatalogWidget {
       kind === "substitution" ||
       kind === "callout" ||
       kind === "details" ||
-      kind === "tabs") &&
+      kind === "tabs" ||
+      kind === "fence") &&
     (named
       ? typeof value.syntax.name === "string" &&
         identifier.test(value.syntax.name)
@@ -564,6 +571,8 @@ function sourceForWidget(source: string, widget: CatalogWidget): string | null {
     }
     case "substitution":
       return matchSubstitution(source, widget);
+    case "fence":
+      return matchWidgetFence(source, widget.syntax.name || "")?.raw ?? null;
     case "callout":
       return matchCallout(source);
     case "details":
@@ -721,6 +730,12 @@ export function widgetValues(
   }
 
   switch (widget.syntax.kind) {
+    case "fence":
+      result.body =
+        matchWidgetFence(raw, widget.syntax.name || "")?.body ??
+        result.body ??
+        "";
+      break;
     case "macro":
       macroWidgetValues(raw, widget, result);
       break;
@@ -854,6 +869,8 @@ export function rewriteWidgetSource(
   values: Record<string, string>,
 ): string {
   switch (widget.syntax.kind) {
+    case "fence":
+      return serializeWidgetFence(widget.syntax.name || "", values.body || "");
     case "macro":
       return rewriteWidgetMacro(raw, widget, values);
     case "substitution":

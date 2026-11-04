@@ -3,7 +3,7 @@ export type WidgetAttributeType =
   "string" | "identifier" | "enum" | "list" | "color-list";
 
 export type WidgetSyntaxKind =
-  "macro" | "substitution" | "callout" | "details" | "tabs";
+  "macro" | "substitution" | "callout" | "details" | "tabs" | "fence";
 
 export interface CatalogWidgetAttribute {
   name: string;
@@ -62,7 +62,8 @@ export interface CatalogWidgetSetting {
     | "mention"
     | "date"
     | "table"
-    | "tree";
+    | "tree"
+    | "browser";
   label: string;
   attribute?: string;
   attributes?: string[];
@@ -71,6 +72,7 @@ export interface CatalogWidgetSetting {
   placeholder?: string;
   suggestions?: string[];
   completion_module_id?: string;
+  browser_module_id?: string;
   fields?: CatalogWidgetTreeField[];
   id_attribute?: string;
   parent_attribute?: string;

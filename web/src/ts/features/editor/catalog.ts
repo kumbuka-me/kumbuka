@@ -62,6 +62,12 @@ export interface CatalogInsert {
   inline: boolean;
 }
 
+export interface CatalogCodeLanguage {
+  plugin_id: string;
+  label: string;
+  value: string;
+}
+
 export interface EditorCatalog {
   pages: CatalogPage[];
   aliases: Record<string, string>;
@@ -69,6 +75,7 @@ export interface EditorCatalog {
   completion_providers: CatalogCompletionProvider[];
   inserts: CatalogInsert[];
   widgets: CatalogWidget[];
+  code_languages: CatalogCodeLanguage[];
   widget_problems: CatalogWidgetProblem[];
 }
 
@@ -149,6 +156,16 @@ function isCatalogInsert(value: unknown): value is CatalogInsert {
   );
 }
 
+function isCatalogCodeLanguage(value: unknown): value is CatalogCodeLanguage {
+  return (
+    isRecord(value) &&
+    typeof value.plugin_id === "string" &&
+    typeof value.label === "string" &&
+    typeof value.value === "string" &&
+    /^[a-z][a-z0-9_+-]{0,63}$/.test(value.value)
+  );
+}
+
 export function parseEditorCatalog(value: unknown): EditorCatalog {
   if (!isRecord(value) || !isStringRecord(value.aliases)) {
     throw new Error("Invalid editor catalog response.");
@@ -174,6 +191,11 @@ export function parseEditorCatalog(value: unknown): EditorCatalog {
       value.widgets ?? [],
       isCatalogWidget,
       "editor catalog widgets",
+    ),
+    code_languages: requireArrayOf(
+      value.code_languages,
+      isCatalogCodeLanguage,
+      "editor code languages",
     ),
     widget_problems: requireArrayOf(
       value.widget_problems ?? [],

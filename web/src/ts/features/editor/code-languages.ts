@@ -40,8 +40,7 @@ webvtt whiley xml xorg yaml yaml_jinja yang z80_assembly zed zig
   .trim()
   .split(/\s+/);
 
-// Mermaid fences are rendered by the bundled diagram plugin.
-const FENCE_LANGUAGES = [...CHROMA_LANGUAGES, "mermaid"].sort();
+const FENCE_LANGUAGES = CHROMA_LANGUAGES.sort();
 
 const LABEL_OVERRIDES: Record<string, string> = {
   "": "Plain text",
@@ -150,18 +149,33 @@ export function supportedCodeLanguages(): CodeLanguage[] {
 }
 
 // codeLanguageLabel returns readable copy for a stored fence language.
-export function codeLanguageLabel(value: string): string {
+export function codeLanguageLabel(
+  value: string,
+  pluginLanguages: CodeLanguage[] = [],
+): string {
   const normalized = value.trim().toLowerCase();
   if (!normalized) return "Plain text";
   const canonical = canonicalCodeLanguage(normalized);
   if (!canonical || canonical === "plaintext") return "Plain text";
-  return FENCE_LANGUAGES.includes(canonical) ? languageLabel(canonical) : value;
+  return (
+    pluginLanguages.find((language) => language.value === canonical)?.label ??
+    (FENCE_LANGUAGES.includes(canonical) ? languageLabel(canonical) : value)
+  );
 }
 
 // filterCodeLanguages filters supported languages by label, identifier, and common aliases.
-export function filterCodeLanguages(query: string): CodeLanguage[] {
+export function filterCodeLanguages(
+  query: string,
+  pluginLanguages: CodeLanguage[] = [],
+): CodeLanguage[] {
   const normalized = query.trim().toLowerCase();
-  const languages = supportedCodeLanguages();
+  const overrides = new Map(
+    pluginLanguages.map((language) => [language.value, language]),
+  );
+  const languages = [
+    ...supportedCodeLanguages().filter((item) => !overrides.has(item.value)),
+    ...overrides.values(),
+  ].sort((a, b) => a.label.localeCompare(b.label));
   if (!normalized) return languages;
 
   return languages.filter((language) => {
@@ -176,4 +190,14 @@ export function filterCodeLanguages(query: string): CodeLanguage[] {
         canonical === language.value && alias.includes(normalized),
     );
   });
+}
+
+// pluginCodeLanguages reads only explicit plugin language declarations.
+export function pluginCodeLanguages(
+  catalog: { code_languages?: { value: string; label: string }[] } | null,
+): CodeLanguage[] {
+  return (catalog?.code_languages ?? []).map(({ value, label }) => ({
+    value,
+    label,
+  }));
 }

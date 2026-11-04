@@ -1,14 +1,18 @@
+import { loadEditorCatalog } from "./catalog.ts";
 // Searchable custom dialog for choosing fenced-code languages.
 
 import {
   canonicalCodeLanguage,
   filterCodeLanguages,
+  pluginCodeLanguages,
 } from "./code-languages.ts";
 
 // openCodeLanguagePicker opens the visual code-language chooser.
-export function openCodeLanguagePicker(
+export async function openCodeLanguagePicker(
   current: string,
 ): Promise<string | null> {
+  const catalog = await loadEditorCatalog().catch(() => null);
+  const pluginLanguages = pluginCodeLanguages(catalog);
   const dialog = document.createElement("dialog");
   dialog.className = "app-dialog code-language-dialog";
   dialog.setAttribute("aria-label", "Code block language");
@@ -66,7 +70,7 @@ export function openCodeLanguagePicker(
 
     const render = (): void => {
       const currentLanguage = canonicalCodeLanguage(current);
-      const languages = filterCodeLanguages(search.value);
+      const languages = filterCodeLanguages(search.value, pluginLanguages);
       list.replaceChildren();
 
       for (const language of languages) {

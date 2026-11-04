@@ -27,9 +27,9 @@ var editorWidgetClass = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_-]{0,127}$`)
 
 // EditorWidgetSyntax declares the Markdown construct recognized by one visual-editor widget.
 type EditorWidgetSyntax struct {
-	// Kind selects macro, substitution, callout, details, or tabs source mapping.
+	// Kind selects the Markdown construct, including plugin-named code fences.
 	Kind EditorWidgetSyntaxKind `json:"kind"`
-	// Name identifies a macro name or substitution prefix when the syntax kind uses one.
+	// Name identifies a macro name, substitution prefix, or fenced language.
 	Name string `json:"name,omitempty"`
 	// Multiline allows a macro invocation to span multiple source lines.
 	Multiline bool `json:"multiline,omitempty"`
@@ -137,6 +137,8 @@ type EditorWidgetSetting struct {
 	Placeholder string `json:"placeholder,omitempty"`
 	// Suggestions supplies optional text-input choices without restricting custom values.
 	Suggestions []string `json:"suggestions,omitempty"`
+	// BrowserModuleID identifies the owning plugin's isolated browser module for a rich editor.
+	BrowserModuleID string `json:"browser_module_id,omitempty"`
 	// CompletionModuleID identifies the owning plugin's editor-completion module for a resource control.
 	CompletionModuleID string `json:"completion_module_id,omitempty"`
 	// Fields declares visible controls for one hierarchical tree item.
@@ -379,6 +381,9 @@ func (m *Manager) EditorWidgets() ([]EditorWidgetContribution, []EditorWidgetPro
 			continue
 		}
 
+		if item.codeLanguageProblem != "" {
+			problems = append(problems, editorWidgetProblem(id, "invalid code-language catalog: "+item.codeLanguageProblem))
+		}
 		if item.editorWidgetProblem != "" {
 			problems = append(problems, editorWidgetProblem(id, item.editorWidgetProblem))
 			continue
@@ -481,6 +486,9 @@ func validateEditorWidget(widget *EditorWidgetContribution) error {
 	if err != nil {
 		return err
 	}
+	if widget.Syntax.Kind == EditorWidgetSyntaxFence && (len(attributes) != 1 || attributes["body"].Type != EditorWidgetAttributeString) {
+		return errors.New("fence syntax requires one string body attribute")
+	}
 	validator := editorWidgetValidator{attributes: attributes}
 	if err := validator.validateSettings(widget.Settings); err != nil {
 		return err
@@ -514,6 +522,10 @@ func validateEditorWidgetDeclaration(widget *EditorWidgetContribution) error {
 // validateEditorWidgetSyntax validates the source syntax declaration for one widget.
 func validateEditorWidgetSyntax(syntax EditorWidgetSyntax, inline bool) error {
 	switch syntax.Kind {
+	case EditorWidgetSyntaxFence:
+		if inline || syntax.Multiline || !validID.MatchString(syntax.Name) {
+			return errors.New("fence syntax requires a language and must be a block")
+		}
 	case EditorWidgetSyntaxMacro, EditorWidgetSyntaxSubstitution:
 		if !validID.MatchString(syntax.Name) {
 			return errors.New("syntax must declare a valid macro name or substitution prefix")
@@ -651,12 +663,15 @@ func validateEditorWidgetSetting(setting EditorWidgetSetting, attributes map[str
 	switch setting.Type {
 	case EditorWidgetSettingText, EditorWidgetSettingTextarea, EditorWidgetSettingMention, EditorWidgetSettingDate:
 		return validateEditorWidgetTextSettingDeclaration(setting, attributes)
-	case EditorWidgetSettingMarkdown:
+	case EditorWidgetSettingMarkdown, EditorWidgetSettingBrowser:
+		if setting.Type == EditorWidgetSettingBrowser && !validID.MatchString(setting.BrowserModuleID) {
+			return fmt.Errorf("browser setting %q requires a browser module", setting.Label)
+		}
 		if err := validateEditorWidgetTextSettingDeclaration(setting, attributes); err != nil {
 			return err
 		}
 		if attributes[setting.Attribute].Type != EditorWidgetAttributeString {
-			return fmt.Errorf("markdown setting %q must reference a string attribute", setting.Label)
+			return fmt.Errorf("%s setting %q must reference a string attribute", setting.Type, setting.Label)
 		}
 		return nil
 	case EditorWidgetSettingSelect:
@@ -1252,14 +1267,14 @@ func editorWidgetWithoutTreeOptions(setting EditorWidgetSetting) bool {
 // validEditorWidgetTextSetting reports whether a text control targets one scalar attribute.
 func validEditorWidgetTextSetting(setting EditorWidgetSetting, attribute EditorWidgetAttribute, found bool) bool {
 	return found && editorWidgetScalarAttribute(attribute) && editorWidgetSingleAttributeSetting(setting) &&
-		setting.CompletionModuleID == "" && editorWidgetWithoutTreeOptions(setting) &&
+		setting.CompletionModuleID == "" && (setting.Type == EditorWidgetSettingBrowser || setting.BrowserModuleID == "") && editorWidgetWithoutTreeOptions(setting) &&
 		setting.ChoiceSource == nil && len(setting.Choices) == 0
 }
 
 // validEditorWidgetSelectSetting reports whether a select control targets one enum attribute without extra control data.
 func validEditorWidgetSelectSetting(setting EditorWidgetSetting, attribute EditorWidgetAttribute, found bool) bool {
 	return found && attribute.Type == EditorWidgetAttributeEnum && editorWidgetSingleAttributeSetting(setting) &&
-		len(setting.Suggestions) == 0 && setting.CompletionModuleID == "" && editorWidgetWithoutTreeOptions(setting) &&
+		len(setting.Suggestions) == 0 && setting.CompletionModuleID == "" && (setting.Type == EditorWidgetSettingBrowser || setting.BrowserModuleID == "") && editorWidgetWithoutTreeOptions(setting) &&
 		setting.ChoiceSource == nil
 }
 

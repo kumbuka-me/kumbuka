@@ -36,7 +36,8 @@ test("visual code blocks choose a supported fenced language", async () => {
             completion_providers: [],
             inserts: [],
             widgets: [],
-            widget_problems: [],
+            code_languages: [{ plugin_id: "me.kumbuka.mermaid", value: "mermaid", label: "Mermaid" }],
+    widget_problems: [],
           }),
         });
         return;

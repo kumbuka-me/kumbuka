@@ -172,3 +172,11 @@ Wiki links remain core, alongside CommonMark. Page mutations extract canonical t
 The public `github.com/kumbuka-me/sdk` module owns Go reactor exports, guest buffers, typed capabilities, macro serialization, package validation, and the `kumbuka-plugin` CLI. First-party plugin source lives in the separate `github.com/kumbuka-me/plugins` repository. Kumbuka pins released plugin versions in `plugins.lock`, downloads their verified `.kumbukaplugin` assets, and embeds those distribution bytes through the ordinary bootstrap path.
 
 See the SDK repository at `https://github.com/kumbuka-me/sdk` for project scaffolding, testing, wire contracts, and deterministic packaging.
+
+### Plugin-contributed code languages
+
+The editor language selector combines built-in syntax highlighter languages
+with the SDK-validated `assets/code-languages.json` declarations from enabled
+plugins. The editor catalog publishes only active languages, and does not
+know Runbook or Mermaid as built-in language definitions. Invalid declaration
+assets are ignored; plugins are still able to render existing fenced content.

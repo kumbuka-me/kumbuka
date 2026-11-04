@@ -72,6 +72,7 @@ func EditorCatalog(
 			"inserts":              jsonSlice(pluginData.inserts),
 			"toolbar":              jsonSlice(pluginData.toolbar),
 			"widgets":              jsonSlice(pluginData.widgets),
+			"code_languages":       jsonSlice(pluginsCodeLanguages(plugins)),
 			"widget_problems":      jsonSlice(pluginData.widgetProblems),
 			"aliases":              aliases,
 		})
@@ -141,4 +142,12 @@ func scopeEditorCompletionProviders(
 		providers[index].Fields = []plugin.EditorCompletionField{}
 	}
 	return providers
+}
+
+// pluginsCodeLanguages returns only languages declared by enabled plugins.
+func pluginsCodeLanguages(manager *plugin.Manager) []plugin.EditorCodeLanguage {
+	if manager == nil {
+		return nil
+	}
+	return manager.EditorCodeLanguages()
 }

@@ -47,7 +47,8 @@ test("visual editor preserves mixed bullet and task items in one Markdown list",
             completion_providers: [],
             inserts: [],
             widgets: [],
-            widget_problems: [],
+            code_languages: [],
+    widget_problems: [],
           }),
         });
         return;

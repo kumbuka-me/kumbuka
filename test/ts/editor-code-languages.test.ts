@@ -35,3 +35,17 @@ test("code language filtering searches labels identifiers and aliases", () => {
     ),
   );
 });
+
+test("disabled plugin languages are absent unless explicitly contributed", () => {
+  const runbook = { value: "runbook", label: "Runbook" };
+  const mermaid = { value: "mermaid", label: "Mermaid" };
+  assert.ok(
+    !supportedCodeLanguages().some((language) => language.value === "runbook"),
+  );
+  assert.ok(
+    !supportedCodeLanguages().some((language) => language.value === "mermaid"),
+  );
+  assert.deepEqual(filterCodeLanguages("runbook", [runbook]), [runbook]);
+  assert.deepEqual(filterCodeLanguages("mermaid", [mermaid]), [mermaid]);
+  assert.equal(codeLanguageLabel("runbook", [runbook]), "Runbook");
+});

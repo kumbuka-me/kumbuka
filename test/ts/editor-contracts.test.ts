@@ -20,6 +20,7 @@ test("editor accepts the empty Go catalog contract", () => {
     completion_providers: [],
     inserts: [],
     widgets: [],
+    code_languages: [],
     widget_problems: [],
   });
 });
@@ -32,6 +33,7 @@ test("editor catalog checks every field used by both consumers", () => {
     completion_providers: [],
     inserts: [],
     widgets: [],
+    code_languages: [],
     widget_problems: [],
   };
   for (const value of [
@@ -110,6 +112,7 @@ test("editor accepts declarative plugin action metadata", () => {
       },
     ],
     widgets: [],
+    code_languages: [],
     widget_problems: [],
   });
 
@@ -148,6 +151,7 @@ test("editor accepts resource-backed completion provider metadata", () => {
     ],
     inserts: [],
     widgets: [],
+    code_languages: [],
     widget_problems: [],
   });
 
@@ -189,6 +193,7 @@ test("editor accepts a visual widget resource setting", () => {
         },
       },
     ],
+    code_languages: [],
     widget_problems: [],
   });
 
@@ -228,6 +233,7 @@ test("editor rejects a visual widget resource setting without a completion modul
           },
         },
       ],
+      code_languages: [],
       widget_problems: [],
     });
   } catch (error) {
@@ -305,6 +311,7 @@ test("editor accepts Markdown widget fields and tab table columns", () => {
         },
       },
     ],
+    code_languages: [],
     widget_problems: [],
   });
 

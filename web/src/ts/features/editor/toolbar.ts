@@ -1,3 +1,5 @@
+import { loadEditorCatalog } from "./catalog.ts";
+import { rewriteWidgetSource, widgetValues } from "./widget-contract.ts";
 // Markdown toolbar selection and insertion helpers.
 
 import { formatMarkdownDocument } from "./formatter.ts";
@@ -280,6 +282,22 @@ function setupMarkdownToolbar(toolbar: HTMLElement): void {
   async function insertCodeBlock(): Promise<void> {
     const language = await openCodeLanguagePicker("");
     if (language === null) return;
+    const catalog = await loadEditorCatalog().catch(() => null);
+    const widget = catalog?.widgets.find(
+      (item) => item.syntax.kind === "fence" && item.syntax.name === language,
+    );
+    if (widget) {
+      const values = widgetValues("", widget);
+      // Empty source uses the plugin's default, while selected source is preserved.
+      const selected = selectedText("");
+      if (form?.dataset.editorMode !== "visual" && selected)
+        values.body = selected;
+      insertMarkdownAtSelection(
+        editor,
+        rewriteWidgetSource("", widget, values),
+      );
+      return;
+    }
     if (visualCommand("code-block", { language })) return;
 
     const content = selectedText("command");

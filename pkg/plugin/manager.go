@@ -52,6 +52,10 @@ type managedPlugin struct {
 	metadata LoadedPlugin
 	// editorWidgets contains the validated optional visual-editor contributions.
 	editorWidgets []EditorWidgetContribution
+	// editorCodeLanguages holds optional fenced languages declared by this plugin.
+	editorCodeLanguages []EditorCodeLanguage
+	// codeLanguageProblem records a non-fatal invalid language catalog.
+	codeLanguageProblem string
 	// editorWidgetProblem contains a bounded non-fatal contract diagnostic.
 	editorWidgetProblem string
 	// instance owns the active executable plugin instance.

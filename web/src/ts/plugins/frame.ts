@@ -16,14 +16,15 @@
   const isPluginRenderInput = (
     input: Record<string, unknown>,
   ): input is Record<string, unknown> & {
-    type: "kumbuka-plugin-render";
+    type: "kumbuka-plugin-render" | "kumbuka-plugin-edit";
     token: string;
     source: string;
     html?: string;
     locale?: string;
     alignment?: "left" | "center" | "right";
   } =>
-    input.type === "kumbuka-plugin-render" &&
+    (input.type === "kumbuka-plugin-render" ||
+      input.type === "kumbuka-plugin-edit") &&
     typeof input.token === "string" &&
     typeof input.source === "string" &&
     input.source.length <= 1_000_000 &&
@@ -77,6 +78,13 @@
     started = true;
     const send = (type: string, height = 0, width = 0) =>
       parent.postMessage({ type, token: input.token, height, width }, "*");
+    const sendEditorChange = (source: string) => {
+      if (source.length <= 65536)
+        parent.postMessage(
+          { type: "kumbuka-plugin-editor-change", token: input.token, source },
+          "*",
+        );
+    };
     const sendCommand = (module: string, action: string) =>
       parent.postMessage(
         {
@@ -154,12 +162,28 @@
             document.documentElement.style.setProperty("--" + name, value);
         }
       }
-      await module.render(root, {
-        source: input.source,
-        html: input.html || "",
-        locale: input.locale || "en",
-        theme: input.theme === "dark" ? "dark" : "light",
-      });
+      if (input.type === "kumbuka-plugin-edit") {
+        const editor = module as {
+          edit?: (
+            root: HTMLElement,
+            options: Record<string, unknown>,
+          ) => unknown;
+        };
+        if (typeof editor.edit !== "function")
+          throw new Error("Plugin has no editor");
+        await editor.edit(root, {
+          source: input.source,
+          theme: input.theme === "dark" ? "dark" : "light",
+          onChange: sendEditorChange,
+        });
+      } else {
+        await module.render(root, {
+          source: input.source,
+          html: input.html || "",
+          locale: input.locale || "en",
+          theme: input.theme === "dark" ? "dark" : "light",
+        });
+      }
       // The host owns block placement; plugins still own their SVG and styles.
       // Inline alignment wins over a plugin's default centered text treatment.
       if (input.alignment && root.firstElementChild instanceof HTMLElement)

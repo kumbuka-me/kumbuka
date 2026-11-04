@@ -136,6 +136,7 @@ func (m *Manager) metadataFromPackage(ctx context.Context, pkg *pluginpackage.Pa
 		return managedPlugin{}, err
 	}
 	widgets, problem := editorWidgetsFromPackage(pkg)
+	languages, languageProblem := editorCodeLanguagesFromPackage(pkg)
 	return managedPlugin{
 		metadata: LoadedPlugin{
 			Manifest: pkg.Manifest(),
@@ -143,7 +144,7 @@ func (m *Manager) metadataFromPackage(ctx context.Context, pkg *pluginpackage.Pa
 			Settings: settings,
 			Digest:   pkg.Digest(),
 			Enabled:  enabled,
-		}, editorWidgets: widgets, editorWidgetProblem: problem,
+		}, editorWidgets: widgets, editorWidgetProblem: problem, editorCodeLanguages: languages, codeLanguageProblem: languageProblem,
 	}, nil
 }
 
@@ -229,6 +230,7 @@ func (m *Manager) prepareBootstrapInstances(
 		}
 
 		item.editorWidgets, item.editorWidgetProblem = editorWidgetsFromPackage(pkg)
+		item.editorCodeLanguages, item.codeLanguageProblem = editorCodeLanguagesFromPackage(pkg)
 		item.instance = instance
 		catalog[id] = item
 	}

@@ -34,7 +34,7 @@ interface WidgetNodeViewContext {
   node: any;
 }
 
-const sourceMarkers = ["{{", "!!! ", "???", '=== "'];
+const sourceMarkers = ["{{", "!!! ", "???", '=== "', "```", "~~~"];
 
 function firstWidgetSourceIndex(
   source: string,

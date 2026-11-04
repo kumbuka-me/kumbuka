@@ -55,6 +55,7 @@ test("visual widget source editing uses an application modal", async () => {
         plugin_id: "me.kumbuka.callouts",
       },
     ],
+    code_languages: [],
     widget_problems: [],
   };
 

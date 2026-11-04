@@ -189,6 +189,7 @@ test("callout widget previews type and content changes before apply", async () =
         plugin_id: "me.kumbuka.callouts",
       },
     ],
+    code_languages: [],
     widget_problems: [],
   };
   const browser = await chromium.launch({
@@ -385,6 +386,7 @@ test("visual resource widget uses its declared completion module", async () => {
         },
       },
     ],
+    code_languages: [],
     widget_problems: [],
   };
   const browser = await chromium.launch({

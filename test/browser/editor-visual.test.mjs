@@ -57,7 +57,8 @@ for (const failFirst of [false, true])
               completion_providers: [],
               inserts: [],
               widgets: [],
-              widget_problems: [],
+              code_languages: [],
+    widget_problems: [],
             }),
           });
           return;

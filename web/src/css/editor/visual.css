@@ -1111,3 +1111,16 @@
 .code-language-empty {
   padding: 6px 2px;
 }
+
+/* Plugin-owned visual editors render in an isolated browser frame. */
+.visual-widget-browser-frame {
+  display: block;
+  border: 1px solid var(--border, #d1d5db);
+  border-radius: 8px;
+  background: transparent;
+  box-sizing: border-box;
+}
+.visual-widget-browser textarea:not([hidden]) {
+  width: 100%;
+  min-height: 180px;
+}

@@ -54,6 +54,7 @@ const catalog: EditorCatalog = {
   completion_providers: [provider],
   inserts: [],
   widgets: [],
+  code_languages: [],
   widget_problems: [],
 };
 

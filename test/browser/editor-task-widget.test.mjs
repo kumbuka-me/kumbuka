@@ -30,7 +30,8 @@ test("task assignee suggestions open as soon as @ is typed", async () => {
       card: { class: "kumbuka-task", title: "Task", subtitle_attribute: "text", metadata_attributes: ["assignee"] },
     },
   };
-  const catalog = { pages: [], aliases: {}, completions: [], completion_providers: [], inserts: [], widgets: [task], widget_problems: [] };
+  const catalog = { pages: [], aliases: {}, completions: [], completion_providers: [], inserts: [], widgets: [task], code_languages: [],
+    widget_problems: [] };
   const browser = await chromium.launch({ channel: process.env.BROWSER_CHANNEL || "chrome", headless: true });
   try {
     const page = await browser.newPage();

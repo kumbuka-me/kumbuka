@@ -92,6 +92,7 @@ async function externalFilesCatalog() {
       },
     ],
     widgets: [{ plugin_id: pluginID, ...(await packagedExternalFileWidget()) }],
+    code_languages: [],
     widget_problems: [],
   };
 }

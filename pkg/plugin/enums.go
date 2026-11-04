@@ -98,6 +98,7 @@ const (
 	EditorWidgetSyntaxCallout      EditorWidgetSyntaxKind = "callout"
 	EditorWidgetSyntaxDetails      EditorWidgetSyntaxKind = "details"
 	EditorWidgetSyntaxTabs         EditorWidgetSyntaxKind = "tabs"
+	EditorWidgetSyntaxFence        EditorWidgetSyntaxKind = "fence"
 )
 
 // EditorWidgetAttributeType identifies one visual-editor source attribute shape.
@@ -122,6 +123,7 @@ const (
 	EditorWidgetSettingResource EditorWidgetSettingType = "resource"
 	EditorWidgetSettingTable    EditorWidgetSettingType = "table"
 	EditorWidgetSettingTree     EditorWidgetSettingType = "tree"
+	EditorWidgetSettingBrowser  EditorWidgetSettingType = "browser"
 	EditorWidgetSettingMention  EditorWidgetSettingType = "mention"
 	EditorWidgetSettingDate     EditorWidgetSettingType = "date"
 )
