@@ -321,6 +321,7 @@ function setupIntelligence(form: HTMLFormElement): void {
     completion_providers: [],
     inserts: [],
     widgets: [],
+    code_languages: [],
     widget_problems: [],
   };
   let diagnostics: Diagnostic[] = [];

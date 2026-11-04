@@ -7,6 +7,7 @@ import {
   markdownHeadings,
   wikiLinkRanges,
 } from "../../web/src/ts/features/editor/intelligence.ts";
+import type { EditorCatalog } from "../../web/src/ts/features/editor/catalog.ts";
 
 test("editorSlug follows Kumbuka page path rules", () => {
   assert.equal(editorSlug(" PostgreSQL Restore "), "postgresql-restore");
@@ -62,7 +63,10 @@ test("editorDiagnostics reports broken links, heading jumps, and link suggestion
     ],
     completion_providers: [],
     inserts: [],
-  };
+    widgets: [],
+    code_languages: [],
+    widget_problems: [],
+  } satisfies EditorCatalog;
   const source = [
     "# Runbook",
     "### Procedure",
