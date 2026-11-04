@@ -26,7 +26,10 @@ test("callout Markdown fields render and edit code blocks independently", async 
 
   const catalog = {
     pages: [], aliases: {}, completions: [], completion_providers: [],
-    inserts: [], code_languages: [],
+    inserts: [],
+    code_languages: [{
+      plugin_id: "me.kumbuka.syntax-highlighting", value: "bash", label: "Bash",
+    }],
     widget_problems: [],
     widgets: [{
       id: "callout", name: "Callout", plugin_id: "me.kumbuka.callouts",
@@ -110,7 +113,7 @@ test("callout Markdown fields render and edit code blocks independently", async 
     const rich = dialog.locator(".visual-widget-markdown-content");
     await rich.locator("pre code").waitFor({ state: "visible" });
     assert.equal(await codeBlockText(rich.locator("pre code")), "--send-mail-any-operation=false");
-    assert.equal(await dialog.getByRole("button", { name: /Code language: Bash/ }).count(), 1);
+    await dialog.getByRole("button", { name: /Code language: Bash/ }).waitFor({ state: "visible" });
     assert.equal(await dialog.getByRole("button", { name: "Copy code to clipboard" }).count(), 1);
 
     await dialog.getByRole("button", { name: "Markdown", exact: true }).click();

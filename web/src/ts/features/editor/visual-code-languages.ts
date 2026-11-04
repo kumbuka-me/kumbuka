@@ -23,16 +23,27 @@ import { openCodeLanguagePicker } from "./code-language-picker.ts";
 // visualCodeLanguages decorates existing codeBlock nodes without replacing their schema or node view.
 export function visualCodeLanguages(): AnyExtension {
   let extraLanguages: CodeLanguage[] = [];
-  void loadEditorCatalog()
-    .then((catalog) => {
-      extraLanguages = pluginCodeLanguages(catalog);
-    })
-    .catch(() => {});
   return Extension.create({
     name: "visualCodeLanguages",
     addProseMirrorPlugins() {
       return [
         new Plugin({
+          view(view: EditorView) {
+            let destroyed = false;
+            void loadEditorCatalog()
+              .then((catalog) => {
+                if (destroyed) return;
+                extraLanguages = pluginCodeLanguages(catalog);
+                // Rebuild code-block decorations once plugin labels are available.
+                view.dispatch(view.state.tr.setMeta("addToHistory", false));
+              })
+              .catch(() => {});
+            return {
+              destroy() {
+                destroyed = true;
+              },
+            };
+          },
           props: {
             decorations(state: EditorState) {
               const decorations: Decoration[] = [];
@@ -42,6 +53,7 @@ export function visualCodeLanguages(): AnyExtension {
                   if (node.type.name !== "codeBlock") return true;
 
                   const language = String(node.attrs?.language || "");
+                  const label = codeLanguageLabel(language, extraLanguages);
                   decorations.push(
                     Decoration.node(position, position + node.nodeSize, {
                       class: "visual-code-block",
@@ -55,13 +67,10 @@ export function visualCodeLanguages(): AnyExtension {
                         button.type = "button";
                         button.className = "visual-code-language";
                         button.contentEditable = "false";
-                        button.textContent = codeLanguageLabel(
-                          language,
-                          extraLanguages,
-                        );
+                        button.textContent = label;
                         button.setAttribute(
                           "aria-label",
-                          `Code language: ${codeLanguageLabel(language, extraLanguages)}. Change language`,
+                          `Code language: ${label}. Change language`,
                         );
                         button.title = "Change code block language";
 
@@ -124,7 +133,7 @@ export function visualCodeLanguages(): AnyExtension {
                         return button;
                       },
                       {
-                        key: `code-language-${position}-${language}`,
+                        key: `code-language-${position}-${language}-${label}`,
                         ignoreSelection: true,
                         side: -1,
                       },
