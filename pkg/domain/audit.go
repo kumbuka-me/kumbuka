@@ -14,6 +14,8 @@ type AuditEvent struct {
 	ObjectType string
 	// ObjectKey identifies the affected domain object.
 	ObjectKey string
+	// RevisionNumber identifies the exact page revision when the event is a page save.
+	RevisionNumber int
 	// Detail is a human-readable description of the change.
 	Detail string
 	// CreatedAt records the created at timestamp for audit event.

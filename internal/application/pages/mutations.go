@@ -59,12 +59,17 @@ type PageSaveInput struct {
 type pageContentRepository interface {
 	DeletePage(context.Context, string, int64) error
 	GetPage(context.Context, string) (domain.Page, error)
-	MarkPageReviewed(context.Context, string) error
+	MarkPageReviewed(context.Context, string, int64) error
 	MovePage(context.Context, string, string, domain.MovePageOptions, domain.User) error
 	Revision(context.Context, string, int) (revision.Revision, error)
 	LatestRevision(context.Context, string) (revision.Revision, int, error)
 	SavePage(context.Context, string, string, string, string, string, string, string, []string, []string, []int64, domain.PageMetadata, map[string]string, domain.PageRender, domain.User) (domain.Page, error)
 	SavePageIfUnchanged(context.Context, time.Time, string, string, string, string, string, string, string, []string, []string, []int64, domain.PageMetadata, map[string]string, domain.PageRender, domain.User) (domain.Page, error)
+}
+
+// transactionalPageSaveAudit marks repositories that atomically persist their page-save audit events.
+type transactionalPageSaveAudit interface {
+	PageSaveAuditTransactional()
 }
 
 // PortablePageSaveRepository contains only the page write used by portable imports.
@@ -181,14 +186,21 @@ func (s *Mutations) Save(ctx context.Context, input PageSaveInput) (domain.Page,
 	}
 	input = normalized
 
-	previousMarkdown, err := s.previousPageMarkdown(ctx, input.PreviousSlug)
-	if err != nil {
-		return domain.Page{}, err
+	previousPage := domain.Page{}
+	var err error
+	if input.PreviousSlug != "" {
+		previousPage, err = s.repository.GetPage(ctx, input.PreviousSlug)
+		if err != nil {
+			return domain.Page{}, err
+		}
 	}
-
+	previousMarkdown := previousPage.Markdown
 	page, err := s.save(ctx, input)
 	if err != nil {
 		return domain.Page{}, err
+	}
+	if previousPage.ID != 0 && previousPage.ID == page.ID && previousPage.UpdatedAt.Equal(page.UpdatedAt) {
+		return page, nil
 	}
 
 	action := "page.updated"
@@ -200,7 +212,11 @@ func (s *Mutations) Save(ctx context.Context, input PageSaveInput) (domain.Page,
 		action = "page.renamed"
 	}
 
-	s.effects.recordAudit(ctx, input.Actor.ID, action, "page", page.Slug, page.Title)
+	if _, transactional := s.repository.(transactionalPageSaveAudit); transactional {
+		s.effects.sendEvent(ctx, input.Actor.ID, action, "page", page.Slug, page.Title)
+	} else {
+		s.effects.recordAudit(ctx, input.Actor.ID, action, "page", page.Slug, page.Title)
+	}
 	s.effects.notifyMentions(
 		ctx,
 		input.Actor.ID,
@@ -219,17 +235,13 @@ func (s *Mutations) Save(ctx context.Context, input PageSaveInput) (domain.Page,
 	return page, nil
 }
 
-// previousPageMarkdown returns the source present before an edit and an empty source for creation.
-func (s *Mutations) previousPageMarkdown(ctx context.Context, previousSlug string) (string, error) {
-	previousSlug = strings.TrimSpace(previousSlug)
-	if previousSlug == "" {
-		return "", nil
+// recordCommittedPageAction sends events without duplicating a page audit persisted transactionally.
+func (s *Mutations) recordCommittedPageAction(ctx context.Context, actorID int64, action, slug, detail string) {
+	if _, transactional := s.repository.(transactionalPageSaveAudit); transactional {
+		s.effects.sendEvent(ctx, actorID, action, "page", slug, detail)
+		return
 	}
-	page, err := s.repository.GetPage(ctx, previousSlug)
-	if err != nil {
-		return "", err
-	}
-	return page.Markdown, nil
+	s.effects.recordAudit(ctx, actorID, action, "page", slug, detail)
 }
 
 // notifyContentChanged invokes post-commit hooks only when canonical Markdown changed.
@@ -404,7 +416,7 @@ func (s *Mutations) Delete(ctx context.Context, slug string, actor domain.User) 
 		return err
 	}
 
-	s.effects.recordAudit(ctx, actor.ID, "page.deleted", "page", slug, "Moved page to recycle bin")
+	s.recordCommittedPageAction(ctx, actor.ID, "page.deleted", slug, "Moved page to recycle bin")
 	s.effects.notifyWatchers(ctx, actor.ID, slug, "Page deleted: "+slug, "A watched page was moved to the recycle bin.", "/")
 
 	return nil
@@ -438,7 +450,7 @@ func (s *Mutations) Move(
 		return err
 	}
 
-	s.effects.recordAudit(ctx, actor.ID, "page.moved", "page", newSlug, oldSlug+" → "+newSlug)
+	s.recordCommittedPageAction(ctx, actor.ID, "page.moved", newSlug, oldSlug+" → "+newSlug)
 	s.effects.notifyWatchers(ctx, actor.ID, oldSlug, "Page moved: "+oldSlug, "The watched page moved to "+newSlug+".", pageurl.Page(page.ID, page.Slug))
 
 	return nil
@@ -455,7 +467,7 @@ func (s *Mutations) Review(ctx context.Context, slug string, actor domain.User) 
 	if err := s.authorization.requireEdit(ctx, actor, slug); err != nil {
 		return err
 	}
-	if err := s.repository.MarkPageReviewed(ctx, slug); err != nil {
+	if err := s.repository.MarkPageReviewed(ctx, slug, actor.ID); err != nil {
 		return err
 	}
 	page, err := s.repository.GetPage(ctx, slug)
@@ -463,7 +475,7 @@ func (s *Mutations) Review(ctx context.Context, slug string, actor domain.User) 
 		return err
 	}
 
-	s.effects.recordAudit(ctx, actor.ID, "page.reviewed", "page", slug, "Documentation review completed")
+	s.recordCommittedPageAction(ctx, actor.ID, "page.reviewed", slug, "Documentation review completed")
 	s.effects.notifyWatchers(ctx, actor.ID, slug, "Page reviewed: "+slug, "A watched page was reviewed.", pageurl.Page(page.ID, page.Slug))
 
 	return nil
@@ -484,6 +496,7 @@ func (s *Mutations) RestoreRevision(ctx context.Context, slug string, number int
 	}
 
 	previousMarkdown := page.Markdown
+	previousUpdatedAt := page.UpdatedAt
 	record, err := s.repository.Revision(ctx, slug, number)
 	if err != nil {
 		return domain.Page{}, err
@@ -501,35 +514,54 @@ func (s *Mutations) RestoreRevision(ctx context.Context, slug string, number int
 		properties[property.Key] = property.Value
 	}
 
+	restoredSlug := page.Slug
+	title, icon, language := page.Title, page.Icon, page.Language
+	status, owner, interval := page.Status, page.OwnerGroupID, page.ReviewIntervalDays
+	deprecated := page.DeprecatedTarget
+	tags := page.Tags
+	if snapshot := record.Snapshot; snapshot != nil {
+		restoredSlug = snapshot.Slug
+		title, icon, language = snapshot.Title, snapshot.Icon, snapshot.Language
+		status, owner, interval = domain.PageStatus(snapshot.Status), snapshot.OwnerGroupID, snapshot.ReviewIntervalDays
+		deprecated = snapshot.DeprecatedTarget
+		tags = snapshot.Tags
+		groupIDs = append([]int64(nil), snapshot.GroupIDs...)
+		properties = snapshot.Properties
+	}
+	if err := s.authorization.requireEdit(ctx, actor, restoredSlug); err != nil {
+		return domain.Page{}, err
+	}
 	page, err = s.save(ctx, PageSaveInput{
 		PreviousSlug:       page.Slug,
-		Slug:               page.Slug,
-		Title:              page.Title,
-		Icon:               page.Icon,
-		Language:           page.Language,
+		ExpectedUpdatedAt:  page.UpdatedAt,
+		Slug:               restoredSlug,
+		Title:              title,
+		Icon:               icon,
+		Language:           language,
 		Markdown:           record.Markdown,
 		Message:            "Restore revision " + fmt.Sprint(number),
-		Tags:               page.Tags,
+		Tags:               tags,
 		GroupIDs:           groupIDs,
-		Status:             page.Status,
-		OwnerGroupID:       page.OwnerGroupID,
-		ReviewIntervalDays: page.ReviewIntervalDays,
-		DeprecatedTarget:   page.DeprecatedTarget,
+		Status:             status,
+		OwnerGroupID:       owner,
+		ReviewIntervalDays: interval,
+		DeprecatedTarget:   deprecated,
 		Properties:         properties,
 		Actor:              actor,
 	})
 	if err != nil {
 		return domain.Page{}, err
 	}
+	// Restoring the current state is a no-op and must not advertise a new revision.
+	if page.UpdatedAt.Equal(previousUpdatedAt) {
+		return page, nil
+	}
 
-	s.effects.recordAudit(
-		ctx,
-		actor.ID,
-		"page.revision_restored",
-		"page",
-		page.Slug,
-		"Restored revision "+fmt.Sprint(number),
-	)
+	if _, transactional := s.repository.(transactionalPageSaveAudit); transactional {
+		s.effects.sendEvent(ctx, actor.ID, "page.revision_restored", "page", page.Slug, "Restored revision "+fmt.Sprint(number))
+	} else {
+		s.effects.recordAudit(ctx, actor.ID, "page.revision_restored", "page", page.Slug, "Restored revision "+fmt.Sprint(number))
+	}
 	s.effects.notifyWatchers(ctx, actor.ID, page.Slug, "Revision restored: "+page.Title, "A watched page restored an older revision.", pageurl.Page(page.ID, page.Slug))
 	s.notifyContentChanged(ctx, PageContentChange{
 		Page:             page,

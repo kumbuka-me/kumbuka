@@ -165,3 +165,12 @@
   padding: 5px 8px;
   font-size: 11px;
 }
+
+/* Safe, textual metadata comparisons complement the Markdown patch. */
+.revision-metadata-diff { margin: 0 0 1rem; padding: .85rem 1rem; border: 1px solid var(--border); border-radius: .6rem; }
+.revision-metadata-diff > strong { display: block; margin-bottom: .6rem; }
+.revision-metadata-diff dl { display: grid; grid-template-columns: minmax(7rem, 1fr) minmax(0, 3fr); gap: .45rem .9rem; margin: 0; }
+.revision-metadata-diff dt { font-weight: 600; }
+.revision-metadata-diff dd { margin: 0; overflow-wrap: anywhere; }
+.revision-metadata-diff del { opacity: .75; }
+.revision-metadata-diff ins { text-decoration: none; font-weight: 600; }

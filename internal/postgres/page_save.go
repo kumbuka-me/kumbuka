@@ -159,17 +159,15 @@ func preparePageSaveTransaction(
 
 // executePageSaveTransaction performs the shared ordered page write inside an existing transaction.
 func executePageSaveTransaction(ctx context.Context, tx pgx.Tx, mutation pageSaveTransaction) error {
+	before, err := previousPageForSave(ctx, tx, mutation.record)
+	if err != nil {
+		return err
+	}
 	id, err := savePageRecord(ctx, tx, mutation.record)
 	if err != nil {
 		return err
 	}
 	if err := savePageIcon(ctx, tx, mutation.slug, mutation.icon); err != nil {
-		return err
-	}
-	if err := appendPageRevision(ctx, tx, id, mutation.markdown, mutation.message, mutation.user.ID); err != nil {
-		return err
-	}
-	if err := supersedePageReviews(ctx, tx, id); err != nil {
 		return err
 	}
 	if err := replacePageTags(ctx, tx, id, mutation.tags); err != nil {
@@ -181,7 +179,24 @@ func executePageSaveTransaction(ctx context.Context, tx pgx.Tx, mutation pageSav
 	if err := replacePageProperties(ctx, tx, id, mutation.properties); err != nil {
 		return err
 	}
-	return replacePageLinks(ctx, tx, id, mutation.links)
+	if err := replacePageLinks(ctx, tx, id, mutation.links); err != nil {
+		return err
+	}
+
+	after, err := getPage(ctx, tx, mutation.slug)
+	if err != nil {
+		return err
+	}
+	changed, err := persistPageRevision(ctx, tx, before, after, mutation.message, mutation.user.ID)
+	if err != nil {
+		return err
+	}
+	if !changed {
+		// A no-op save must not advance the optimistic-concurrency token or emit a revision.
+		_, err := tx.Exec(ctx, `UPDATE pages SET updated_at=$2,updated_by=$3 WHERE id=$1`, id, before.UpdatedAt, before.UpdatedBy)
+		return err
+	}
+	return supersedePageReviews(ctx, tx, id)
 }
 
 // preparePageSave validates page metadata and encodes derived JSON values for persistence.
@@ -406,17 +421,15 @@ ON CONFLICT(path) DO UPDATE SET icon=EXCLUDED.icon`, slug, icon)
 
 // appendPageRevision appends the next immutable revision for a saved page.
 func appendPageRevision(ctx context.Context, tx pgx.Tx, pageID int64, markdown, message string, userID int64) error {
-	var revision int
-	if err := tx.QueryRow(ctx, `
-SELECT coalesce(max(revision_number),0)+1
-FROM page_revisions
-WHERE page_id=$1`, pageID).Scan(&revision); err != nil {
+	var slug string
+	if err := tx.QueryRow(ctx, `SELECT slug FROM pages WHERE id=$1`, pageID).Scan(&slug); err != nil {
 		return err
 	}
-
-	_, err := tx.Exec(ctx, `
-INSERT INTO page_revisions(page_id,revision_number,markdown_content,created_by,message)
-VALUES($1,$2,$3,$4,$5)`, pageID, revision, markdown, userID, message)
+	page, err := getPage(ctx, tx, slug)
+	if err != nil {
+		return err
+	}
+	_, err = insertPageRevision(ctx, tx, pageID, markdown, message, userID, snapshotPage(page), nil)
 	return err
 }
 

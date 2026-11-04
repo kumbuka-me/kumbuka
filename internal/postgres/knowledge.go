@@ -116,14 +116,24 @@ LIMIT $2`, userID, limit)
 }
 
 // MarkPageReviewed records a documentation review timestamp.
-func (s *Store) MarkPageReviewed(ctx context.Context, slug string) error {
-	tag, err := s.pool.Exec(ctx, `
-UPDATE pages
-SET last_reviewed_at=now()
+func (s *Store) MarkPageReviewed(ctx context.Context, slug string, actorID int64) error {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return mutationError(err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	tag, err := tx.Exec(ctx, `
+UPDATE pages SET last_reviewed_at=now()
 WHERE slug=$1 AND deleted_at IS NULL`, slug)
-	if err == nil && tag.RowsAffected() == 0 {
+	if err != nil {
+		return mutationError(err)
+	}
+	if tag.RowsAffected() == 0 {
 		return domain.ErrNotFound
 	}
-
-	return err
+	if err := insertPageActionAudit(ctx, tx, actorID, "page.reviewed", slug, "Documentation review completed"); err != nil {
+		return mutationError(err)
+	}
+	return mutationError(tx.Commit(ctx))
 }

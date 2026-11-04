@@ -8,20 +8,25 @@ import (
 
 // DeletePage moves a page into the recycle bin.
 func (s *Store) DeletePage(ctx context.Context, slug string, userID int64) error {
-	tag, err := s.pool.Exec(
-		ctx,
-		`
-UPDATE pages
-SET deleted_at=now(),deleted_by=$2
-WHERE slug=$1 AND deleted_at IS NULL`,
-		slug,
-		userID,
-	)
-	if err == nil && tag.RowsAffected() == 0 {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return mutationError(err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	tag, err := tx.Exec(ctx, `
+UPDATE pages SET deleted_at=now(),deleted_by=$2
+WHERE slug=$1 AND deleted_at IS NULL`, slug, userID)
+	if err != nil {
+		return mutationError(err)
+	}
+	if tag.RowsAffected() == 0 {
 		return domain.ErrNotFound
 	}
-
-	return err
+	if err := insertPageActionAudit(ctx, tx, userID, "page.deleted", slug, "Moved page to recycle bin"); err != nil {
+		return mutationError(err)
+	}
+	return mutationError(tx.Commit(ctx))
 }
 
 // DeletedPages returns pages currently held in the recycle bin, newest deletion first.

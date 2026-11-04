@@ -14,6 +14,9 @@
               <strong>{{ .Actor }}</strong> <span>{{ .Action }}</span>{{ if .ObjectKey }}
               <a href="{{ if eq .ObjectType "page" }}{{ route "/pages/" }}{{ .ObjectKey }}{{ else }}#{{ end }}">{{ .ObjectKey }}</a>
               {{ end }}{{ if .Detail }}<small>{{ .Detail }}</small>{{ end }}
+              {{ if and (eq .ObjectType "page") .RevisionNumber }}
+                <a href="{{ route "/revisions/" }}{{ .ObjectKey }}" class="audit-revision-link">Revision r{{ .RevisionNumber }} · View changes</a>
+              {{ end }}
             </div>
             <time title="{{ .CreatedAt }}">{{ timeago .CreatedAt }}</time>
           </article>

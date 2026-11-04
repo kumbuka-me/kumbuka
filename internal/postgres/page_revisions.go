@@ -20,7 +20,9 @@ SELECT
   r.message,
   r.markdown_content,
   coalesce((SELECT previous.markdown_content FROM page_revisions previous WHERE previous.page_id=r.page_id AND previous.revision_number=r.revision_number-1),''),
-  count(*) OVER()
+  count(*) OVER(),
+  r.metadata_snapshot,
+  r.metadata_changes
 FROM page_revisions r
 JOIN pages p ON p.id=r.page_id
 LEFT JOIN users u ON u.id=r.created_by
@@ -29,6 +31,7 @@ ORDER BY r.revision_number DESC
 LIMIT 1`
 
 	var markdown, previous string
+	var snapshot []byte
 	err = s.pool.QueryRow(ctx, query, slug).Scan(
 		&record.ID,
 		&record.Number,
@@ -38,6 +41,8 @@ LIMIT 1`
 		&markdown,
 		&previous,
 		&count,
+		&snapshot,
+		&record.MetadataChanges,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return revision.Revision{}, 0, nil
@@ -46,16 +51,17 @@ LIMIT 1`
 	if err == nil {
 		record.Markdown = markdown
 		record.PreviousMarkdown = previous
+		err = decodeRevisionSnapshot(&record, snapshot)
 	}
-
 	return record, count, err
 }
 
 // Revision returns one persisted page revision by revision number.
 func (s *Store) Revision(ctx context.Context, slug string, number int) (revision.Revision, error) {
 	var record revision.Revision
+	var snapshot []byte
 	err := s.pool.QueryRow(ctx, `
-SELECT r.id,r.revision_number,coalesce(u.display_name,u.username,''),r.created_at,r.message,r.markdown_content
+SELECT r.id,r.revision_number,coalesce(u.display_name,u.username,''),r.created_at,r.message,r.markdown_content,r.metadata_snapshot,r.metadata_changes
 FROM page_revisions r
 JOIN pages p ON p.id=r.page_id
 LEFT JOIN users u ON u.id=r.created_by
@@ -66,11 +72,16 @@ WHERE p.slug=$1 AND p.deleted_at IS NULL AND r.revision_number=$2`, slug, number
 		&record.CreatedAt,
 		&record.Message,
 		&record.Markdown,
+		&snapshot,
+		&record.MetadataChanges,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return revision.Revision{}, domain.ErrRevisionNotFound
 	}
 
+	if err == nil {
+		err = decodeRevisionSnapshot(&record, snapshot)
+	}
 	return record, err
 }
 
@@ -85,12 +96,14 @@ WITH history AS (
     r.created_at,
     r.message,
     r.markdown_content,
-    lag(r.markdown_content,1,'') OVER (ORDER BY r.revision_number) AS previous_markdown
+    lag(r.markdown_content,1,'') OVER (ORDER BY r.revision_number) AS previous_markdown,
+    r.metadata_snapshot,
+    r.metadata_changes
   FROM page_revisions r
   JOIN pages p ON p.id=r.page_id
   WHERE p.slug=$1 AND p.deleted_at IS NULL
 )
-SELECT h.id,h.revision_number,coalesce(u.display_name,u.username,''),h.created_at,h.message,h.markdown_content,h.previous_markdown
+SELECT h.id,h.revision_number,coalesce(u.display_name,u.username,''),h.created_at,h.message,h.markdown_content,h.previous_markdown,h.metadata_snapshot,h.metadata_changes
 FROM history h
 LEFT JOIN users u ON u.id=h.created_by
 ORDER BY h.revision_number DESC`
@@ -106,6 +119,7 @@ ORDER BY h.revision_number DESC`
 
 	for rows.Next() {
 		var record revision.Revision
+		var snapshot []byte
 		if err := rows.Scan(
 			&record.ID,
 			&record.Number,
@@ -114,10 +128,14 @@ ORDER BY h.revision_number DESC`
 			&record.Message,
 			&record.Markdown,
 			&record.PreviousMarkdown,
+			&snapshot,
+			&record.MetadataChanges,
 		); err != nil {
 			return nil, err
 		}
-
+		if err := decodeRevisionSnapshot(&record, snapshot); err != nil {
+			return nil, err
+		}
 		revisions = append(revisions, record)
 	}
 

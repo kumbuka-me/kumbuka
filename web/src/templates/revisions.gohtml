@@ -11,8 +11,13 @@
         <span class="revision-diff"><span class="revision-added">+{{ .AddedLines }}</span><span class="revision-removed">−{{ .RemovedLines }}</span> lines</span>
       {{ else if eq .Number 1 }}
         <span>created page</span>
+      {{ else if .MetadataChanges }}
+        <span>Metadata updated</span>
       {{ else }}
-        <span>metadata-only save</span>
+        <span>No Markdown changes</span>
+      {{ end }}
+      {{ if .MetadataChanges }}
+        <span>Changed: {{ range $index, $field := .MetadataChanges }}{{ if $index }}, {{ end }}{{ $field }}{{ end }}</span>
       {{ end }}
     </small>
   </div>
@@ -31,7 +36,7 @@
       </div>
     {{ end }}
     {{ range $index, $revision := .Revisions }}
-      <article class="revision-entry{{ if eq $index 0 }}is-open{{ end }}"
+      <article class="revision-entry{{ if eq $index 0 }} is-open{{ end }}"
                data-revision-entry
                data-revision-number="{{ $revision.Number }}">
         <div class="revision-entry-heading">
@@ -58,7 +63,7 @@
           {{ if $root.CanEdit }}
             <form action="{{ route "/revisions/" }}{{ $revision.Number }}/restore/{{ $root.RevisionSlug }}"
                   method="post"
-                  data-confirm="Restore revision {{ $revision.Number }}? Kumbuka will create a new revision with this content."
+                  data-confirm="Restore revision {{ $revision.Number }}? Kumbuka will create a new revision. Metadata can only be restored when the historical revision has a metadata snapshot; review timestamps are not restored."
                   data-confirm-title="Restore revision"
                   data-confirm-label="Restore revision">
               <button class="button revision-restore-button" type="submit">
@@ -71,6 +76,19 @@
              id="revision-content-{{ $revision.Number }}"
              data-revision-content
              {{ if ne $index 0 }}hidden{{ end }}>
+          {{ if $revision.MetadataDiff }}
+            <div class="revision-metadata-diff">
+              <strong>Metadata changes</strong>
+              <dl>
+                {{ range $revision.MetadataDiff }}
+                  <dt>{{ .Name }}</dt>
+                  <dd><del>{{ .Before }}</del> <span aria-hidden="true">→</span> <ins>{{ .After }}</ins></dd>
+                {{ end }}
+              </dl>
+            </div>
+          {{ else if $revision.MetadataChanges }}
+            <p class="revision-no-changes">Metadata changed: {{ range $index, $field := $revision.MetadataChanges }}{{ if $index }}, {{ end }}{{ $field }}{{ end }}. An earlier metadata snapshot is unavailable for comparison.</p>
+          {{ end }}
           {{ if $revision.Diff }}
             <div class="revision-patch"
                  role="region"
@@ -82,7 +100,7 @@
               {{ end }}
             </div>
           {{ else }}
-            <p class="revision-no-changes">No content changes.</p>
+            <p class="revision-no-changes">No Markdown changes.{{ if $revision.MetadataChanges }} Metadata changes are listed above.{{ end }}</p>
           {{ end }}
         </div>
       </article>

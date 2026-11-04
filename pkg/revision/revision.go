@@ -22,6 +22,12 @@ type Revision struct {
 	CreatedAt time.Time `json:"created_at"`
 	// Message describes the change recorded by this revision.
 	Message string `json:"message"`
+	// Snapshot contains the historical editable metadata, if collected for this revision.
+	Snapshot *PageSnapshot `json:"-"`
+	// MetadataChanges lists the names of metadata fields changed by this revision.
+	MetadataChanges []string `json:"metadata_changes,omitempty"`
+	// MetadataDiff contains safe before/after metadata values when both revision snapshots exist.
+	MetadataDiff []MetadataDifference `json:"metadata_diff,omitempty"`
 	// Markdown is the stored content at this revision.
 	Markdown string `json:"-"`
 	// PreviousMarkdown is the stored content of the preceding revision.
@@ -79,7 +85,11 @@ func AnalyzeAll(records []Revision) []Revision {
 	result := make([]Revision, len(records))
 
 	for index, record := range records {
-		result[index] = Analyze(record)
+		analyzed := Analyze(record)
+		if index+1 < len(records) && record.Snapshot != nil && records[index+1].Snapshot != nil {
+			analyzed.MetadataDiff = CompareSnapshots(*records[index+1].Snapshot, *record.Snapshot)
+		}
+		result[index] = analyzed
 	}
 
 	return result

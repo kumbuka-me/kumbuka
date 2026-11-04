@@ -54,6 +54,19 @@ func (e *pageEffects) withNotifications(sender NotificationSender) *pageEffects 
 	return e
 }
 
+// sendEvent delivers webhooks for an audit event already persisted in the page transaction.
+func (e *pageEffects) sendEvent(ctx context.Context, actorID int64, action, objectType, objectKey, detail string) {
+	if e == nil {
+		return
+	}
+	event := webhooks.OutgoingEvent{Event: action, ActorID: actorID, ObjectType: objectType, ObjectKey: objectKey, Detail: detail}
+	for _, sink := range e.eventSinks {
+		if err := sink.Emit(ctx, event); err != nil {
+			e.logger.ErrorContext(ctx, "outgoing event delivery failed", "event", "page_side_effect_failed", "operation", "webhook", "action", action, "error", err)
+		}
+	}
+}
+
 // recordAudit is best effort after the primary mutation commits. Failures are observable, but must not turn a successful mutation into a retryable HTTP failure.
 func (e *pageEffects) recordAudit(ctx context.Context, actorID int64, action, objectType, objectKey, detail string) {
 	if e == nil || e.repository == nil {
@@ -61,12 +74,7 @@ func (e *pageEffects) recordAudit(ctx context.Context, actorID int64, action, ob
 	}
 	audit.Record(ctx, e.logger, e.repository, actorID, action, objectType, objectKey, detail)
 
-	event := webhooks.OutgoingEvent{Event: action, ActorID: actorID, ObjectType: objectType, ObjectKey: objectKey, Detail: detail}
-	for _, sink := range e.eventSinks {
-		if err := sink.Emit(ctx, event); err != nil {
-			e.logger.ErrorContext(ctx, "outgoing event delivery failed", "event", "page_side_effect_failed", "operation", "webhook", "action", action, "error", err)
-		}
-	}
+	e.sendEvent(ctx, actorID, action, objectType, objectKey, detail)
 }
 
 // notifyMentions reports delivery failures without logging the page or comment body.

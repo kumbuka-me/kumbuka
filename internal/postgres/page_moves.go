@@ -106,7 +106,11 @@ func movePage(ctx context.Context, tx pgx.Tx, oldSlug, newSlug string, options d
 			return err
 		}
 	}
-
+	for _, page := range moved {
+		if err := insertPageActionAudit(ctx, tx, user.ID, "page.moved", page.newSlug, page.oldSlug+" → "+page.newSlug); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 

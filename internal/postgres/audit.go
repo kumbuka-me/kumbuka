@@ -3,6 +3,8 @@ package postgres
 import (
 	"context"
 
+	"github.com/jackc/pgx/v5"
+
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 )
 
@@ -17,7 +19,7 @@ VALUES(NULLIF($1,0),$2,$3,$4,$5)`, userID, action, objectType, objectKey, detail
 // AuditEvents returns recent audit events newest first.
 func (s *Store) AuditEvents(ctx context.Context, limit int) ([]domain.AuditEvent, error) {
 	rows, err := s.pool.Query(ctx, `
-SELECT e.id,coalesce(u.display_name,u.username,'System'),e.action,e.object_type,e.object_key,e.detail,e.created_at
+SELECT e.id,coalesce(u.display_name,u.username,'System'),e.action,e.object_type,e.object_key,e.detail,coalesce(e.revision_number,0),e.created_at
 FROM audit_events e
 LEFT JOIN users u ON u.id=e.user_id
 ORDER BY e.created_at DESC,e.id DESC
@@ -32,7 +34,7 @@ LIMIT $1`, limit)
 
 	for rows.Next() {
 		var event domain.AuditEvent
-		if err := rows.Scan(&event.ID, &event.Actor, &event.Action, &event.ObjectType, &event.ObjectKey, &event.Detail, &event.CreatedAt); err != nil {
+		if err := rows.Scan(&event.ID, &event.Actor, &event.Action, &event.ObjectType, &event.ObjectKey, &event.Detail, &event.RevisionNumber, &event.CreatedAt); err != nil {
 			return nil, err
 		}
 
@@ -40,4 +42,12 @@ LIMIT $1`, limit)
 	}
 
 	return events, rows.Err()
+}
+
+// insertPageActionAudit records a nonrevision page action in its owning transaction.
+func insertPageActionAudit(ctx context.Context, tx pgx.Tx, actorID int64, action, slug, detail string) error {
+	_, err := tx.Exec(ctx, `
+INSERT INTO audit_events(user_id,action,object_type,object_key,detail)
+VALUES(NULLIF($1,0),$2,'page',$3,$4)`, actorID, action, slug, detail)
+	return err
 }
