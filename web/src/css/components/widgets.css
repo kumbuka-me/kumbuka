@@ -71,6 +71,103 @@
   font-size: 12px;
 }
 
+/* Compact widget summaries share their entire surface with the host dialog button.
+   The button remains a real, focusable control; plugin HTML never owns navigation. */
+.plugin-widget:has(> .widget-entry--clickable) {
+  position: relative;
+  border-radius: 8px;
+  transition: background-color 140ms ease;
+}
+
+.plugin-widget:has(> .widget-entry--clickable):hover {
+  background: var(--surface-hover);
+}
+
+.plugin-widget:has(> .widget-entry--clickable):has(
+    .widget-action:focus-visible
+  ) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.widget-entry--clickable {
+  gap: 8px;
+  padding: 7px 8px 34px;
+}
+
+.widget-entry--clickable .widget-entry-heading {
+  gap: 12px;
+}
+
+.widget-entry--clickable .widget-entry-heading strong {
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.widget-revision-number {
+  color: var(--text-tertiary);
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.widget-revision-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.widget-revision-date {
+  font-variant-numeric: tabular-nums;
+}
+
+.widget-revision-diff {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 5px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.widget-revision-unit,
+.widget-revision-fields {
+  color: var(--text-tertiary);
+  font-weight: 400;
+}
+
+.widget-revision-fields {
+  overflow-wrap: anywhere;
+}
+
+.plugin-widget:has(> .widget-entry--clickable) .plugin-widget-actions {
+  margin: 0;
+}
+
+.plugin-widget:has(> .widget-entry--clickable)
+  .widget-action[data-widget-dialog-open] {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  box-sizing: border-box;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  width: 100%;
+  padding: 0 8px 8px;
+  border-radius: inherit;
+  color: var(--text-secondary);
+}
+
+.plugin-widget:has(> .widget-entry--clickable)
+  .widget-action[data-widget-dialog-open]:hover {
+  color: var(--accent);
+}
+
 .widget-diff {
   display: inline-flex;
   gap: 4px;
