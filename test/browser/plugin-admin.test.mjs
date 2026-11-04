@@ -86,10 +86,10 @@ test("plugin administration forms drive the real runtime lifecycle", async () =>
 
     const detailNavigations = mainNavigations;
     await tablesDialog
-      .getByRole("button", { name: "Disable plugin", exact: true })
+      .getByRole("switch", { name: "Enable Tables", exact: true, checked: true })
       .click();
     await tablesDialog
-      .getByRole("button", { name: "Enable plugin", exact: true })
+      .getByRole("switch", { name: "Enable Tables", exact: true, checked: false })
       .waitFor();
     assert.equal(mainNavigations, detailNavigations);
     assert.equal(page.url(), url + "/admin/plugins?plugin=me.kumbuka.tables");
@@ -100,10 +100,10 @@ test("plugin administration forms drive the real runtime lifecycle", async () =>
     );
 
     await tablesDialog
-      .getByRole("button", { name: "Enable plugin", exact: true })
+      .getByRole("switch", { name: "Enable Tables", exact: true, checked: false })
       .click();
     await tablesDialog
-      .getByRole("button", { name: "Disable plugin", exact: true })
+      .getByRole("switch", { name: "Enable Tables", exact: true, checked: true })
       .waitFor();
     assert.equal(mainNavigations, detailNavigations);
     assert.ok(
@@ -123,8 +123,8 @@ test("plugin administration forms drive the real runtime lifecycle", async () =>
     const listScroll = await page.evaluate(() => window.scrollY);
     const listNavigations = mainNavigations;
 
-    await tablesRow.getByRole("button", { name: "Disable", exact: true }).click();
-    await tablesRow.getByRole("button", { name: "Enable", exact: true }).waitFor();
+    await tablesRow.getByRole("switch", { name: "Enable Tables", exact: true, checked: true }).click();
+    await tablesRow.getByRole("switch", { name: "Enable Tables", exact: true, checked: false }).waitFor();
     assert.equal(mainNavigations, listNavigations);
     assert.equal(await page.evaluate(() => window.scrollY), listScroll);
     assert.equal(page.url(), url + "/admin/plugins");
@@ -134,8 +134,8 @@ test("plugin administration forms drive the real runtime lifecycle", async () =>
       ).includes("<table"),
     );
 
-    await tablesRow.getByRole("button", { name: "Enable", exact: true }).click();
-    await tablesRow.getByRole("button", { name: "Disable", exact: true }).waitFor();
+    await tablesRow.getByRole("switch", { name: "Enable Tables", exact: true, checked: false }).click();
+    await tablesRow.getByRole("switch", { name: "Enable Tables", exact: true, checked: true }).waitFor();
     assert.equal(mainNavigations, listNavigations);
     assert.equal(await page.evaluate(() => window.scrollY), listScroll);
     assert.ok(
@@ -143,6 +143,32 @@ test("plugin administration forms drive the real runtime lifecycle", async () =>
         "<table",
       ),
     );
+
+    // Saving locks both surfaces; a failed request preserves the saved state.
+    let releaseToggle;
+    const toggleReleased = new Promise((resolve) => { releaseToggle = resolve; });
+    await page.route("**/admin/plugins/me.kumbuka.tables/disable", async (route) => {
+      await toggleReleased;
+      await route.abort();
+    });
+    const enabledSwitch = tablesRow.getByRole("switch", {
+      name: "Enable Tables", exact: true, checked: true,
+    });
+    await enabledSwitch.focus();
+    await enabledSwitch.press("Space");
+    await page.waitForFunction(() =>
+      document.querySelector('tr[data-plugin-detail-open="me.kumbuka.tables"] [role="switch"]').disabled,
+    );
+    assert.equal(await tablesDialog.getByRole("switch", { includeHidden: true }).isDisabled(), true);
+    assert.equal(await tablesDialog.isVisible(), false);
+    releaseToggle();
+    await page.locator("[data-plugin-toggle-problem]").waitFor();
+    await page.waitForFunction(() =>
+      !document.querySelector('tr[data-plugin-detail-open="me.kumbuka.tables"] [role="switch"]').disabled,
+    );
+    assert.equal(await enabledSwitch.getAttribute("aria-checked"), "true");
+    assert.equal(mainNavigations, listNavigations);
+    await page.unroute("**/admin/plugins/me.kumbuka.tables/disable");
 
     const installForm = page.locator("[data-plugin-install]");
     const installButton = installForm.getByRole("button", {

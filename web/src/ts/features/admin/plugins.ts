@@ -600,7 +600,7 @@ async function togglePlugin(form: HTMLFormElement): Promise<void> {
   const pluginID = form.dataset.pluginToggle;
   const surface = form.closest<HTMLElement>("[data-plugin-state-control]")
     ?.dataset.pluginStateSurface;
-  if (!pluginID || !surface) return;
+  if (!pluginID || !surface || form.closest("[aria-busy='true']")) return;
 
   clearPluginToggleProblem(form);
   setPluginTogglePending(pluginID, true);
@@ -628,6 +628,7 @@ async function togglePlugin(form: HTMLFormElement): Promise<void> {
       return;
     }
 
+    setPluginTogglePending(pluginID, false);
     pluginStateControl(document, pluginID, surface)
       ?.querySelector<HTMLButtonElement>("button[type='submit']")
       ?.focus({ preventScroll: true });

@@ -1,3 +1,13 @@
+{{ define "plugin-state-switch" }}
+  <button class="plugin-state-switch"
+          type="submit"
+          role="switch"
+          aria-checked="{{ .Enabled }}"
+          aria-label="Enable {{ .Manifest.Name }}">
+    <span class="plugin-state-switch-track" aria-hidden="true"></span>
+    <span aria-hidden="true">{{ if .Enabled }}Enabled{{ else }}Disabled{{ end }}</span>
+  </button>
+{{ end }}
 {{ define "plugin-upload-field" }}
   <div class="plugin-upload-picker">
     <label class="plugin-upload-dropzone" data-plugin-upload-dropzone>
@@ -211,15 +221,14 @@
                   <div class="plugin-state-control"
                        data-plugin-state-control="{{ .Manifest.ID }}"
                        data-plugin-state-surface="list">
-                    <span class="plugin-state {{ if .Enabled }}enabled{{ else }}disabled{{ end }}">{{ if .Enabled }}Enabled{{ else }}Disabled{{ end }}</span>
                     {{ if index $.PluginRequiredIDs .Manifest.ID }}
+                      <span class="plugin-state {{ if .Enabled }}enabled{{ else }}disabled{{ end }}">{{ if .Enabled }}Enabled{{ else }}Disabled{{ end }}</span>
                       <span class="muted">Required</span>
                     {{ else }}
                     <form method="post"
                           action="{{ route "/admin/plugins/" }}{{ .Manifest.ID }}/{{ if .Enabled }}disable{{ else }}enable{{ end }}"
                           data-plugin-toggle="{{ .Manifest.ID }}">
-                      <button class="button compact"
-                              type="submit">{{ if .Enabled }}Disable{{ else }}Enable{{ end }}</button>
+                      {{ template "plugin-state-switch" . }}
                       </form>
                     {{ end }}
                   </div>
@@ -296,15 +305,14 @@
             <div class="plugin-state-control"
                  data-plugin-state-control="{{ .Manifest.ID }}"
                  data-plugin-state-surface="detail">
-              <span class="plugin-state {{ if .Enabled }}enabled{{ else }}disabled{{ end }}">{{ if .Enabled }}Enabled{{ else }}Disabled{{ end }}</span>
               {{ if index $.PluginRequiredIDs .Manifest.ID }}
+                <span class="plugin-state {{ if .Enabled }}enabled{{ else }}disabled{{ end }}">{{ if .Enabled }}Enabled{{ else }}Disabled{{ end }}</span>
                 <span class="muted">Required system plugin</span>
               {{ else }}
               <form method="post"
                     action="{{ route "/admin/plugins/" }}{{ .Manifest.ID }}/{{ if .Enabled }}disable{{ else }}enable{{ end }}?return=detail"
                     data-plugin-toggle="{{ .Manifest.ID }}">
-                <button class="button compact"
-                        type="submit">{{ if .Enabled }}Disable{{ else }}Enable{{ end }} plugin</button>
+                {{ template "plugin-state-switch" . }}
                 </form>
               {{ end }}
             </div>

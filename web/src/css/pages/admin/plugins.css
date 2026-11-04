@@ -7,6 +7,63 @@
   gap: 8px;
 }
 
+/* The button retains native form submission and keyboard activation. */
+.plugin-state-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 4px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.plugin-state-switch-track {
+  display: inline-flex;
+  align-items: center;
+  width: 34px;
+  height: 20px;
+  padding: 2px;
+  box-sizing: border-box;
+  border: 1px solid var(--text-tertiary);
+  border-radius: 999px;
+  background: var(--surface-elevated);
+}
+
+.plugin-state-switch-track::before {
+  content: "";
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--text-tertiary);
+}
+
+.plugin-state-switch[aria-checked="true"] .plugin-state-switch-track {
+  border-color: var(--success);
+  background: var(--success);
+}
+
+.plugin-state-switch[aria-checked="true"] .plugin-state-switch-track::before {
+  transform: translateX(14px);
+  background: white;
+}
+
+.plugin-state-switch:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.plugin-state-switch:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
 .plugin-state {
   display: inline-flex;
   align-items: center;
