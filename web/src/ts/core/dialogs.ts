@@ -301,10 +301,12 @@ function hasConfirmation(form: HTMLFormElement): boolean {
 }
 
 // Initializes confirmation handling for forms and submitter-specific destructive actions.
-export function initConfirmForms(): void {
+export function initConfirmForms(root?: ParentNode): void {
   if (typeof document === "undefined") return;
 
-  for (const form of document.querySelectorAll<HTMLFormElement>("form")) {
+  for (const form of (root ?? document).querySelectorAll<HTMLFormElement>(
+    "form",
+  )) {
     if (!hasConfirmation(form)) continue;
 
     form.addEventListener("submit", async (event: SubmitEvent) => {

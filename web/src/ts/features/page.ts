@@ -6,6 +6,10 @@ import {
   requiredElements,
 } from "../core/dom.ts";
 import { initPageComments } from "./page-comments.ts";
+import {
+  activateRevisionList,
+  revisionNumberFromURL,
+} from "./revision-history.ts";
 
 export function initPage(): void {
   const pageHeading = document.querySelector<HTMLElement>(".page-heading");
@@ -295,6 +299,7 @@ function setupWidgetDialog(dialog: HTMLDialogElement): void {
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
       body.innerHTML = await response.text();
+      activateRevisionList(body, revisionNumberFromURL(url));
       loadedURL = url;
     } catch (error) {
       console.error("failed to load widget dialog", error);

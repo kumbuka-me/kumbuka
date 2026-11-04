@@ -37,3 +37,87 @@
   color: var(--text-tertiary);
   font-size: 10px;
 }
+
+.audit-row-description {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.audit-event-heading {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 6px;
+}
+
+.audit-object-key {
+  color: var(--text-secondary);
+}
+
+.audit-inspect-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 5px 9px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface-elevated);
+  color: var(--accent);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.audit-inspect-button:hover {
+  border-color: var(--accent);
+  background: var(--surface-hover);
+}
+
+.audit-inspect-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.audit-detail-dialog {
+  --dialog-width: 1100px;
+}
+
+.audit-event-details {
+  display: grid;
+  gap: 9px;
+  margin: 2px 0 18px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface-elevated);
+}
+
+.audit-event-details > div {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  gap: 12px;
+}
+
+.audit-event-details dt {
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+
+.audit-event-details dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.audit-revision-history {
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+@media (max-width: 600px) {
+  .audit-event-details > div {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+}

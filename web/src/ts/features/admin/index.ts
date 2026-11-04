@@ -1,5 +1,6 @@
 // Administrator feature bootstrap.
 
+import { initAdminAudit } from "./audit.ts";
 import { initAdminConfiguration } from "./configuration.ts";
 import { setupGroupMemberPicker } from "./groups.ts";
 import { initAdminImport } from "./import.ts";
@@ -33,6 +34,7 @@ export function initAdmin(): void {
   );
   if (identityEditor) setupPendingOIDCEditor(identityEditor);
 
+  initAdminAudit();
   initAdminConfiguration();
   initAdminImport();
   initAdminPages();

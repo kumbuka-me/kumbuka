@@ -43,22 +43,10 @@
           <button class="revision-entry-toggle"
                   type="button"
                   data-revision-toggle
-                  aria-expanded="{{ if eq $index 0 }}
-              true
-            {{ else }}
-              false
-            {{ end }}"
+                  aria-expanded="{{ if eq $index 0 }}true{{ else }}false{{ end }}"
                   aria-controls="revision-content-{{ $revision.Number }}"
-                  aria-label="{{ if eq $index 0 }}
-              Hide
-            {{ else }}
-              Show
-            {{ end }} changes for revision {{ $revision.Number }}"
-                  title="{{ if eq $index 0 }}
-              Hide
-            {{ else }}
-              Show
-            {{ end }} changes">{{ icon "chevron-right-lucide" 16 }}</button>
+                  aria-label="{{ if eq $index 0 }}Hide{{ else }}Show{{ end }} changes for revision {{ $revision.Number }}"
+                  title="{{ if eq $index 0 }}Hide{{ else }}Show{{ end }} changes">{{ icon "chevron-right-lucide" 16 }}</button>
           {{ template "revision-item" $revision }}
           {{ if $root.CanEdit }}
             <form action="{{ route "/revisions/" }}{{ $revision.Number }}/restore/{{ $root.RevisionSlug }}"
@@ -82,7 +70,9 @@
               <dl>
                 {{ range $revision.MetadataDiff }}
                   <dt>{{ .Name }}</dt>
-                  <dd><del>{{ .Before }}</del> <span aria-hidden="true">→</span> <ins>{{ .After }}</ins></dd>
+                  <dd>
+                    <del>{{ .Before }}</del> <span aria-hidden="true">→</span> <ins>{{ .After }}</ins>
+                  </dd>
                 {{ end }}
               </dl>
             </div>
@@ -90,15 +80,35 @@
             <p class="revision-no-changes">Metadata changed: {{ range $index, $field := $revision.MetadataChanges }}{{ if $index }}, {{ end }}{{ $field }}{{ end }}. An earlier metadata snapshot is unavailable for comparison.</p>
           {{ end }}
           {{ if $revision.Diff }}
-            <div class="revision-patch"
-                 role="region"
-                 aria-label="Changes in revision {{ $revision.Number }}">
-              {{ range $revision.Diff }}
-                <div class="revision-patch-line revision-patch-{{ .Kind }}">
-                  <span class="revision-patch-marker" aria-hidden="true">{{ .Marker }}</span><code>{{ .Text }}</code>
+            <section class="revision-comparison"
+                     aria-label="Markdown changes in revision {{ $revision.Number }}">
+              <div class="revision-comparison-heading">
+                <h3>Markdown changes</h3>
+                <div class="revision-change-counts"
+                     aria-label="{{ $revision.AddedLines }} added lines, {{ $revision.RemovedLines }} removed lines">
+                  <span class="revision-count-added">+{{ $revision.AddedLines }} added</span>
+                  <span class="revision-count-removed">−{{ $revision.RemovedLines }} removed</span>
                 </div>
-              {{ end }}
-            </div>
+              </div>
+              <p class="revision-diff-legend">Old and new line numbers · Green lines were added · Red lines were removed</p>
+              <div class="revision-patch"
+                   role="region"
+                   tabindex="0"
+                   aria-label="Line-by-line Markdown changes for revision {{ $revision.Number }}">
+                {{ range $revision.Diff }}
+                  {{ if ne .Kind "header" }}
+                    <div class="revision-patch-line revision-patch-{{ .Kind }}">
+                      <span class="revision-patch-line-number"
+                            aria-label="Old line number">{{ if .OldLine }}{{ .OldLine }}{{ end }}</span>
+                      <span class="revision-patch-line-number"
+                            aria-label="New line number">{{ if .NewLine }}{{ .NewLine }}{{ end }}</span>
+                      <span class="revision-patch-marker" aria-hidden="true">{{ .Marker }}</span>
+                      <code>{{ .Text }}</code>
+                    </div>
+                  {{ end }}
+                {{ end }}
+              </div>
+            </section>
           {{ else }}
             <p class="revision-no-changes">No Markdown changes.{{ if $revision.MetadataChanges }} Metadata changes are listed above.{{ end }}</p>
           {{ end }}

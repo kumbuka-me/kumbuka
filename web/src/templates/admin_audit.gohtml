@@ -3,20 +3,44 @@
     <div class="settings-heading">
       <p class="eyebrow">Administration</p>
       <h1>Audit log</h1>
-      <p class="muted">Recent page and configuration changes performed through Kumbuka.</p>
+      <p class="muted">Recent page and configuration changes performed through Kumbuka. Select an event to inspect its recorded details.</p>
     </div>
     <section class="panel settings-panel audit-panel">
       <div class="audit-list">
         {{ range .AuditEvents }}
           <article class="audit-row">
             <span class="audit-icon" aria-hidden="true">{{ icon "activity-lucide" 16 }}</span>
-            <div>
-              <strong>{{ .Actor }}</strong> <span>{{ .Action }}</span>{{ if .ObjectKey }}
-              <a href="{{ if eq .ObjectType "page" }}{{ route "/pages/" }}{{ .ObjectKey }}{{ else }}#{{ end }}">{{ .ObjectKey }}</a>
-              {{ end }}{{ if .Detail }}<small>{{ .Detail }}</small>{{ end }}
-              {{ if and (eq .ObjectType "page") .RevisionNumber }}
-                <a href="{{ route "/revisions/" }}{{ .ObjectKey }}" class="audit-revision-link">Revision r{{ .RevisionNumber }} · View changes</a>
+            <div class="audit-row-description">
+              <div class="audit-event-heading">
+                <strong>{{ .Actor }}</strong>
+                <span>{{ .Action }}</span>
+              </div>
+              {{ if .ObjectKey }}
+                {{ if eq .ObjectType "page" }}
+                  <a href="{{ route "/pages/" }}{{ .ObjectKey }}">{{ .ObjectKey }}</a>
+                {{ else }}
+                  <span class="audit-object-key">{{ .ObjectKey }}</span>
+                {{ end }}
               {{ end }}
+              {{ if .Detail }}<small>{{ .Detail }}</small>{{ end }}
+              <button class="audit-inspect-button"
+                      type="button"
+                      data-audit-detail-open
+                      data-audit-action="{{ .Action }}"
+                      data-audit-actor="{{ .Actor }}"
+                      data-audit-target="{{ .ObjectType }}{{ if .ObjectKey }} · {{ .ObjectKey }}{{ end }}"
+                      data-audit-time="{{ .CreatedAt.Format "2006-01-02 15:04:05" }}"
+                      data-audit-detail="{{ .Detail }}"
+                      {{ if and (eq .ObjectType "page") .RevisionNumber }}
+                      data-audit-revision-url="{{ route "/revisions/" }}{{ .ObjectKey }}"
+                      data-audit-revision-number="{{ .RevisionNumber }}"
+                      {{ end }}>
+                {{ if and (eq .ObjectType "page") .RevisionNumber }}
+                  {{ icon "git-compare-lucide" 14 }}<span>View changes in r{{ .RevisionNumber }}</span>
+                {{ else }}
+                  {{ icon "info-lucide" 14 }}<span>View details</span>
+                {{ end }}
+              </button>
             </div>
             <time title="{{ .CreatedAt }}">{{ timeago .CreatedAt }}</time>
           </article>
@@ -25,5 +49,44 @@
         {{ end }}
       </div>
     </section>
+    <dialog class="widget-dialog audit-detail-dialog"
+            data-audit-detail-dialog
+            aria-labelledby="audit-dialog-title">
+      <div class="widget-dialog-header">
+        <div>
+          <p class="eyebrow">Audit event</p>
+          <h2 id="audit-dialog-title" data-audit-dialog-title>Change details</h2>
+        </div>
+        <button class="icon-button widget-dialog-close"
+                type="button"
+                data-audit-dialog-close
+                aria-label="Close dialog">{{ icon "x-lucide" 20 }}</button>
+      </div>
+      <div class="widget-dialog-body">
+        <dl class="audit-event-details">
+          <div>
+            <dt>Actor</dt>
+            <dd data-audit-dialog-actor>
+            </dd>
+          </div>
+          <div>
+            <dt>Target</dt>
+            <dd data-audit-dialog-target>
+            </dd>
+          </div>
+          <div>
+            <dt>When</dt>
+            <dd data-audit-dialog-time>
+            </dd>
+          </div>
+          <div>
+            <dt>Recorded changes</dt>
+            <dd data-audit-dialog-summary>
+            </dd>
+          </div>
+        </dl>
+        <div class="audit-revision-history" data-audit-dialog-history hidden></div>
+      </div>
+    </dialog>
   </section>
 {{ end }}
