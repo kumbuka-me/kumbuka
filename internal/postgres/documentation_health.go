@@ -18,7 +18,7 @@ WHERE target.id IS NULL AND alias_target.id IS NULL
 ORDER BY source.slug,links.target_slug`
 
 const orphanPagesQuery = `
-SELECT p.slug,p.title
+SELECT p.id,p.slug,p.title
 FROM pages p
 WHERE p.deleted_at IS NULL AND NOT EXISTS (
   SELECT 1
@@ -30,38 +30,38 @@ WHERE p.deleted_at IS NULL AND NOT EXISTS (
 ORDER BY p.slug`
 
 const untaggedPagesQuery = `
-SELECT p.slug,p.title
+SELECT p.id,p.slug,p.title
 FROM pages p
 WHERE p.deleted_at IS NULL AND NOT EXISTS (SELECT 1 FROM page_tags pt WHERE pt.page_id=p.id)
 ORDER BY p.slug`
 
 const uniconedPagesQuery = `
-SELECT p.slug,p.title
+SELECT p.id,p.slug,p.title
 FROM pages p
 LEFT JOIN navigation_icons i ON i.path=p.slug
 WHERE p.deleted_at IS NULL AND coalesce(i.icon,'')=''
 ORDER BY p.slug`
 
 const stalePagesQuery = `
-SELECT p.slug,p.title
+SELECT p.id,p.slug,p.title
 FROM pages p
 WHERE p.deleted_at IS NULL AND p.updated_at<$1
 ORDER BY p.updated_at,p.slug`
 
 const reviewDuePagesQuery = `
-SELECT p.slug,p.title
+SELECT p.id,p.slug,p.title
 FROM pages p
 WHERE p.deleted_at IS NULL AND p.review_interval_days>0 AND coalesce(p.last_reviewed_at,p.created_at)+(p.review_interval_days || ' days')::interval <= now()
 ORDER BY coalesce(p.last_reviewed_at,p.created_at),p.slug`
 
 const draftPagesQuery = `
-SELECT p.slug,p.title
+SELECT p.id,p.slug,p.title
 FROM pages p
 WHERE p.deleted_at IS NULL AND p.status='draft'
 ORDER BY p.slug`
 
 const deprecatedPagesQuery = `
-SELECT p.slug,p.title
+SELECT p.id,p.slug,p.title
 FROM pages p
 WHERE p.deleted_at IS NULL AND p.status='deprecated'
 ORDER BY p.slug`
@@ -140,7 +140,7 @@ func (s *Store) documentationHealthPages(ctx context.Context, statement string, 
 	var pages []domain.Page
 	for rows.Next() {
 		var page domain.Page
-		if err := rows.Scan(&page.Slug, &page.Title); err != nil {
+		if err := rows.Scan(&page.ID, &page.Slug, &page.Title); err != nil {
 			return nil, err
 		}
 

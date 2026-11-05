@@ -28,7 +28,10 @@
         <div class="panel-title">
           <h2>Broken wiki links</h2>
         </div>
-        <div class="health-page-list">
+        <div class="health-page-list"{{ if gt (len .DocumentationHealth.BrokenLinks) 15 }}
+             role="region"
+             tabindex="0"
+             aria-label="Broken wiki links"{{ end }}>
           {{ range .DocumentationHealth.BrokenLinks }}
             <a class="health-page-row"
                href="{{ route "/edit/" }}{{ .SourceSlug }}"><strong>{{ .SourceTitle }}</strong><small>Missing → {{ .TargetSlug }}</small></a>
@@ -41,43 +44,64 @@
         <div class="panel-title">
           <h2>Orphan pages</h2>
         </div>
-        <div class="health-page-list">{{ template "health-page-list" .DocumentationHealth.OrphanPages }}</div>
+        <div class="health-page-list"{{ if gt (len .DocumentationHealth.OrphanPages) 15 }}
+             role="region"
+             tabindex="0"
+             aria-label="Orphan pages"{{ end }}>{{ template "health-page-list" .DocumentationHealth.OrphanPages }}</div>
       </section>
       <section class="panel settings-panel" id="untagged">
         <div class="panel-title">
           <h2>Pages without tags</h2>
         </div>
-        <div class="health-page-list">{{ template "health-page-list" .DocumentationHealth.UntaggedPages }}</div>
+        <div class="health-page-list"{{ if gt (len .DocumentationHealth.UntaggedPages) 15 }}
+             role="region"
+             tabindex="0"
+             aria-label="Pages without tags"{{ end }}>{{ template "health-page-list" .DocumentationHealth.UntaggedPages }}</div>
       </section>
       <section class="panel settings-panel" id="icons">
         <div class="panel-title">
           <h2>Pages without icons</h2>
         </div>
-        <div class="health-page-list">{{ template "health-page-list" .DocumentationHealth.UniconedPages }}</div>
+        <div class="health-page-list"{{ if gt (len .DocumentationHealth.UniconedPages) 15 }}
+             role="region"
+             tabindex="0"
+             aria-label="Pages without icons"{{ end }}>{{ template "health-page-list" .DocumentationHealth.UniconedPages }}</div>
       </section>
       <section class="panel settings-panel" id="review">
         <div class="panel-title">
           <h2>Review due</h2>
         </div>
-        <div class="health-page-list">{{ template "health-page-list" .DocumentationHealth.ReviewDue }}</div>
+        <div class="health-page-list"{{ if gt (len .DocumentationHealth.ReviewDue) 15 }}
+             role="region"
+             tabindex="0"
+             aria-label="Review due"{{ end }}>{{ template "health-page-list" .DocumentationHealth.ReviewDue }}</div>
       </section>
       <section class="panel settings-panel" id="drafts">
         <div class="panel-title">
           <h2>Draft pages</h2>
         </div>
-        <div class="health-page-list">{{ template "health-page-list" .DocumentationHealth.DraftPages }}</div>
+        <div class="health-page-list"{{ if gt (len .DocumentationHealth.DraftPages) 15 }}
+             role="region"
+             tabindex="0"
+             aria-label="Draft pages"{{ end }}>{{ template "health-page-list" .DocumentationHealth.DraftPages }}</div>
       </section>
       <section class="panel settings-panel" id="deprecated">
         <div class="panel-title">
           <h2>Deprecated pages</h2>
         </div>
-        <div class="health-page-list">{{ template "health-page-list" .DocumentationHealth.Deprecated }}</div>
+        <div class="health-page-list"{{ if gt (len .DocumentationHealth.Deprecated) 15 }}
+             role="region"
+             tabindex="0"
+             aria-label="Deprecated pages"{{ end }}>{{ template "health-page-list" .DocumentationHealth.Deprecated }}</div>
       </section>
       <section class="panel settings-panel" id="stale">
         <div class="panel-title">
           <h2>Stale pages</h2>
         </div>
-        <div class="health-page-list">{{ template "health-page-list" .DocumentationHealth.StalePages }}</div>
+        <div class="health-page-list"{{ if gt (len .DocumentationHealth.StalePages) 15 }}
+             role="region"
+             tabindex="0"
+             aria-label="Stale pages"{{ end }}>{{ template "health-page-list" .DocumentationHealth.StalePages }}</div>
       </section>
     </div>
   </section>
