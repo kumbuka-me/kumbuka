@@ -532,7 +532,11 @@ function collectFormValues(
 }
 
 function positionPopover(popover: HTMLElement, anchor: HTMLElement): void {
-  if (popover.classList.contains("visual-widget-popover-tree")) {
+  if (
+    popover.matches(
+      ".visual-widget-popover-tree, .visual-widget-popover-browser",
+    )
+  ) {
     popover.style.left = "50%";
     popover.style.top = "50%";
     popover.style.transform = "translate(-50%, -50%)";
@@ -563,6 +567,8 @@ export function createSettingsPopover(
   popover.className = "visual-widget-popover";
   if (widget.settings.some((setting) => setting.type === "tree"))
     popover.classList.add("visual-widget-popover-tree");
+  if (widget.settings.some((setting) => setting.type === "browser"))
+    popover.classList.add("visual-widget-popover-browser");
   popover.setAttribute("role", "dialog");
   popover.setAttribute("aria-label", `Edit ${widget.name}`);
 

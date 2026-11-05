@@ -675,3 +675,16 @@
 .visual-widget-table .visual-widget-markdown-content {
   min-height: 100px;
 }
+
+.visual-widget-popover-browser {
+  width: min(740px, calc(100vw - 24px));
+  max-height: calc(100dvh - 24px);
+}
+.visual-widget-popover-browser .visual-widget-popover-header {
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+.visual-widget-popover-browser .visual-widget-popover-header:active {
+  cursor: grabbing;
+}

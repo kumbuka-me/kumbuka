@@ -105,6 +105,31 @@ function enhancePopover(popover: HTMLElement): void {
   heading.before(header);
   header.append(heading, close);
 
+  if (popover.classList.contains("visual-widget-popover-browser")) {
+    header.addEventListener("pointerdown", (event) => {
+      if (
+        event.button !== 0 ||
+        (event.target instanceof Element && event.target.closest("button"))
+      )
+        return;
+      const bounds = popover.getBoundingClientRect();
+      const dx = event.clientX - bounds.left;
+      const dy = event.clientY - bounds.top;
+      header.setPointerCapture(event.pointerId);
+      const move = (pointer: PointerEvent) => {
+        if (pointer.pointerId !== event.pointerId) return;
+        popover.style.transform = "none";
+        popover.style.left = `${Math.max(8, Math.min(innerWidth - bounds.width - 8, pointer.clientX - dx))}px`;
+        popover.style.top = `${Math.max(8, Math.min(innerHeight - bounds.height - 8, pointer.clientY - dy))}px`;
+      };
+      header.addEventListener("pointermove", move);
+      header.addEventListener(
+        "lostpointercapture",
+        () => header.removeEventListener("pointermove", move),
+        { once: true },
+      );
+    });
+  }
   const initialSignature = formSignature(form);
   let closing = false;
 

@@ -74,6 +74,7 @@ export function createBrowserSetting(
   );
   if (!frameURL) return wrapper;
 
+  control.hidden = true;
   control.dataset.widgetBrowserValid = "pending";
   const setValidity = (valid: boolean, message = "") => {
     control.dataset.widgetBrowserValid = String(valid);
