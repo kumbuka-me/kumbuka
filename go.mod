@@ -12,7 +12,7 @@ require (
 	github.com/go-jose/go-jose/v4 v4.1.8
 	github.com/jackc/pgx/v5 v5.12.0
 	github.com/kaugesaar/lucide-go v0.41.0
-	github.com/kumbuka-me/sdk v0.29.0
+	github.com/kumbuka-me/sdk v0.29.1
 	github.com/microcosm-cc/bluemonday v1.0.27
 	github.com/pelletier/go-toml/v2 v2.4.3
 	github.com/pmezard/go-difflib v1.0.0
@@ -40,6 +40,7 @@ require (
 	github.com/prometheus/common v0.72.0 // indirect
 	github.com/prometheus/procfs v0.22.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.6 // indirect
+	go.yaml.in/yaml/v4 v4.0.0 // indirect
 	golang.org/x/sys v0.49.0 // indirect
 	google.golang.org/protobuf v1.36.12 // indirect
 )
