@@ -8,12 +8,12 @@
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p web/src/ts/service-worker/tsconfig.json --noEmit && tsc -p test/ts/tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@tiptap/core": "3.32.3",
-    "@tiptap/extension-image": "3.32.3",
-    "@tiptap/extension-table": "3.32.3",
-    "@tiptap/markdown": "3.32.3",
-    "@tiptap/pm": "3.32.3",
-    "@tiptap/starter-kit": "3.32.3"
+    "@tiptap/core": "3.33.0",
+    "@tiptap/extension-image": "3.33.0",
+    "@tiptap/extension-table": "3.33.0",
+    "@tiptap/markdown": "3.33.0",
+    "@tiptap/pm": "3.33.0",
+    "@tiptap/starter-kit": "3.33.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",
