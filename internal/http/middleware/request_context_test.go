@@ -26,7 +26,12 @@ func TestRequestFailureCorrelation(t *testing.T) {
 				}
 				httpresponse.InternalServerError(logger, w, errors.New("private diagnostic"))
 			})
-			httpkitmiddleware.Chain(handler, RequestContext(), httpkitmiddleware.AccessLogWithErrorReference(logger), RecoverPanics(logger)).ServeHTTP(response, httptest.NewRequest("GET", "/pages/example?secret=hidden", nil))
+			httpkitmiddleware.Chain(
+				handler,
+				RequestContext(),
+				httpkitmiddleware.AccessLogWithErrorReference(logger),
+				RecoverPanics(logger),
+			).ServeHTTP(response, httptest.NewRequest("GET", "/pages/example?secret=hidden", nil))
 			require.Equal(t, 500, response.Code)
 			assert.NotContains(t, response.Body.String(), "private diagnostic")
 			assert.Contains(t, logs.String(), `"method":"GET"`)
@@ -45,7 +50,11 @@ func TestPanicAfterResponseAbortsWithoutAppendingProblem(t *testing.T) {
 		panic("failed after write")
 	})
 	assert.PanicsWithValue(t, http.ErrAbortHandler, func() {
-		httpkitmiddleware.Chain(handler, RequestContext(), RecoverPanics(slog.Default())).ServeHTTP(response, httptest.NewRequest("GET", "/", nil))
+		httpkitmiddleware.Chain(
+			handler,
+			RequestContext(),
+			RecoverPanics(slog.Default()),
+		).ServeHTTP(response, httptest.NewRequest("GET", "/", nil))
 	})
 	assert.Equal(t, "started", response.Body.String())
 }
