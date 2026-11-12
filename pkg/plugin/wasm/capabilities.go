@@ -137,6 +137,9 @@ func (r *Runtime) authorizeCapabilityCall(ctx context.Context, module api.Module
 // dispatchBuiltinCapability handles capabilities implemented directly by the WASM runtime.
 func (r *Runtime) dispatchBuiltinCapability(ctx context.Context, caller *Instance, request sdk.CapabilityRequest) (any, bool, error) {
 	switch {
+	case request.Method == "artifacts.render":
+		value, err := r.renderArtifact(ctx, caller, request.Params)
+		return value, true, err
 	case request.Method == "http.do":
 		value, err := r.httpCall(ctx, caller, request.Params)
 		return value, true, err

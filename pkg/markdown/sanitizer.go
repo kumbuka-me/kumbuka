@@ -17,6 +17,7 @@ func newSanitizer() *bluemonday.Policy {
 			"pre",
 			"code",
 			"span",
+			"img",
 			"div",
 			"button",
 			"details",

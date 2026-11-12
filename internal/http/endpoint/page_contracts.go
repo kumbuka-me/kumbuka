@@ -88,6 +88,12 @@ type pageRenderArtifactStore interface {
 	SavePageRender(context.Context, int64, time.Time, domain.PageRender) error
 }
 
+// pageSVGArtifactStore stores passive images inside a specific page revision.
+type pageSVGArtifactStore interface {
+	PutPageSVG(context.Context, int64, time.Time, []byte) (string, error)
+	GetPageSVG(context.Context, int64, string) ([]byte, bool, error)
+}
+
 // pagePresenceService owns active editor presence for one page.
 type pagePresenceService interface {
 	PageEditors(context.Context, string, domain.User) ([]domain.PageEditorPresence, error)

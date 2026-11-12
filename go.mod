@@ -10,9 +10,10 @@ require (
 	github.com/containeroo/tinyflags v0.11.0
 	github.com/coreos/go-oidc/v3 v3.21.0
 	github.com/go-jose/go-jose/v4 v4.1.9
+	github.com/go-quickjs/go-quickjs v0.37.3
 	github.com/jackc/pgx/v5 v5.13.0
 	github.com/kaugesaar/lucide-go v0.43.0
-	github.com/kumbuka-me/sdk v0.29.1
+	github.com/kumbuka-me/sdk v0.32.0
 	github.com/microcosm-cc/bluemonday v1.0.27
 	github.com/pelletier/go-toml/v2 v2.4.3
 	github.com/pmezard/go-difflib v1.0.0
@@ -31,6 +32,7 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/containeroo/tmplfuncs v0.0.2 // indirect
+	github.com/go-quickjs/go-intl v0.9.0 // indirect
 	github.com/gorilla/css v1.0.1 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect

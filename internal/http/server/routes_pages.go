@@ -23,6 +23,7 @@ func registerPageRoutes(mux *http.ServeMux, config Config) {
 	registerPageCollaborationRoutes(mux, config, browserAuthn, browserEditor)
 	registerPageEditingRoutes(mux, config, browserAuthn, browserEditor, browserAdmin)
 	registerPageViewRoutes(mux, config, browserAuthn)
+	mux.Handle("GET /api/render-artifacts/{pageID}/{digest}", browserAuthn(endpoint.PageRenderArtifact(config.PageLookup, config.PageRender)))
 }
 
 // registerPluginPageRoutes registers plugin actions and deferred page-fragment rendering.

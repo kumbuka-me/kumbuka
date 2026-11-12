@@ -238,7 +238,7 @@ func (r *Runtime) Load(ctx context.Context, pkg *pluginpackage.Package) (loaded 
 		}
 	}
 
-	instance := &Instance{runtime: r, manifest: manifest, gate: make(chan struct{}, 1)}
+	instance := &Instance{runtime: r, manifest: manifest, gate: make(chan struct{}, 1), packageAssets: pkg}
 	if !manifest.RequiresWASM() {
 		return instance, nil
 	}

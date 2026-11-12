@@ -7,11 +7,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/kumbuka-me/kumbuka/pkg/ascii"
 	"github.com/kumbuka-me/kumbuka/pkg/plugin"
+	"github.com/kumbuka-me/kumbuka/pkg/renderartifact"
 	"github.com/kumbuka-me/kumbuka/pkg/renderprofile"
 	"github.com/kumbuka-me/sdk"
 	"github.com/kumbuka-me/sdk/pluginpackage"
@@ -20,6 +22,10 @@ import (
 
 // Instance serializes calls into a reactor. The gate is released before host Markdown rendering, so recursive blocks never re-enter a suspended guest.
 type Instance struct {
+	// packageAssets is the caller's verified plugin package for private renderer scripts.
+	packageAssets *pluginpackage.Package
+	// artifactEngine owns the caller's isolated and reusable JavaScript runtime.
+	artifactEngine *renderartifact.Engine
 	// runtime owns executable plugin runtime operations.
 	runtime *Runtime
 	// compiled keeps the shared compiled module leased while this instance is alive.
@@ -244,6 +250,9 @@ func (i *Instance) Close(ctx context.Context) error {
 		return nil
 	}
 	i.closed = true
+	if i.artifactEngine != nil {
+		i.artifactEngine.Close()
+	}
 
 	var err error
 	if i.module != nil {
@@ -274,7 +283,11 @@ func (i *Instance) invoke(ctx context.Context, request sdk.RenderRequest) (resul
 	metrics, finishProfile := i.beginInvocationProfile(ctx, request)
 	defer func() { finishProfile(err) }()
 
-	ctx, cancel := context.WithTimeout(ctx, i.runtime.limits.CallTimeout)
+	timeout := i.runtime.limits.CallTimeout
+	if slices.Contains(i.manifest.Permissions, "artifacts:write") && timeout < 20*time.Second {
+		timeout = 20 * time.Second
+	}
+	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	release, err := i.acquireInvocationGate(ctx, metrics)
 	if err != nil {

@@ -10,6 +10,8 @@ import (
 
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	md "github.com/kumbuka-me/kumbuka/pkg/markdown"
+	"github.com/kumbuka-me/kumbuka/pkg/plugin"
+	"github.com/kumbuka-me/kumbuka/pkg/renderartifact"
 )
 
 // Rebuilds coordinates administrator-triggered and plugin-triggered page render rebuilds.
@@ -98,14 +100,19 @@ func (c *Rebuilds) rebuildPage(ctx context.Context, slug string) error {
 		if linkErr != nil {
 			return linkErr
 		}
+		capabilities := map[string]plugin.Capability{}
+		if store, ok := c.artifacts.(renderartifact.PageStore); ok {
+			capabilities["artifacts.put"] = renderartifact.PageCapability(store, page.ID, page.UpdatedAt, c.routePrefix)
+		}
 		rendered, renderErr := c.renderer.RenderPageResolvedWithFunctions(
 			page.Markdown,
 			md.WikiLinkResolver(links),
 			options,
 			md.Functions{
-				Context:     ctx,
-				Locale:      "en",
-				PluginUsage: &usage,
+				Context:      ctx,
+				Locale:       "en",
+				PluginUsage:  &usage,
+				Capabilities: capabilities,
 			},
 		)
 		if renderErr != nil {

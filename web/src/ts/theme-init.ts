@@ -22,4 +22,5 @@
   }
   root.style.colorScheme = theme.color_scheme;
   root.dataset.theme = theme.title;
+  root.dataset.colorScheme = theme.color_scheme;
 })();

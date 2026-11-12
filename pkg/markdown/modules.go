@@ -35,7 +35,7 @@ func newWithPluginPackages(
 	runtimeOptions ...wasm.Option,
 ) (*Renderer, error) {
 	registry := &plugin.Registry{}
-	options := []wasm.Option{wasm.WithPermissions("pages:read", "pages:content", "pages:write", "browser:render")}
+	options := []wasm.Option{wasm.WithPermissions("pages:read", "pages:content", "pages:write", "browser:render", "artifacts:write")}
 	options = append(options, runtimeOptions...)
 	runtime, err := wasm.New(ctx, wasm.Limits{}, options...)
 	if err != nil {

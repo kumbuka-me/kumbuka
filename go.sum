@@ -19,6 +19,10 @@ github.com/coreos/go-oidc/v3 v3.21.0/go.mod h1:DYCf24+ncYi+XkIH97GY1+dqoRlbaSI26
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/go-jose/go-jose/v4 v4.1.9 h1:pKfeQkig1NmgK4hJrZYXLEYURXfoJB61Larw0uIW4gY=
 github.com/go-jose/go-jose/v4 v4.1.9/go.mod h1:x4oUasVrzR7071A4TnHLGSPpNOm2a21K9Kf04k1rs08=
+github.com/go-quickjs/go-intl v0.9.0 h1:flAmmWD5QL4UfQ/YgeRlUV9UUEnh67ocYw4rlIEIbmo=
+github.com/go-quickjs/go-intl v0.9.0/go.mod h1:/Kn3soBxkmtIHevMspxdnTc5Br6+wHbzxM312CdeupM=
+github.com/go-quickjs/go-quickjs v0.37.3 h1:FNEvge2QCPr2Yw75GQOf8+dfkwB0DMjgalpI0PJF4Io=
+github.com/go-quickjs/go-quickjs v0.37.3/go.mod h1:q6Zkn+wp3IAmnsc3bekcorjXlGaR3U3ZKXtHCB6Enn0=
 github.com/google/go-cmp v0.7.0 h1:wk8382ETsv4JYUZwIsn6YpYiWiBsYLSJiTsyBybVuN8=
 github.com/google/go-cmp v0.7.0/go.mod h1:pXiqmnSA92OHEEa9HXL2W4E7lf9JzCmGVUdgjX3N/iU=
 github.com/gorilla/css v1.0.1 h1:ntNaBIghp6JmvWnxbZKANoLyuXTPZ4cAMlo6RyhlbO8=
@@ -35,8 +39,8 @@ github.com/kaugesaar/lucide-go v0.43.0 h1:Qz+0heVEwkLvxkt0lahDAGdI3P9sk93WbkJXFX
 github.com/kaugesaar/lucide-go v0.43.0/go.mod h1:XewB1pV8an9xmQ3+x7riCwjCtCrwfeUTaI3fiBhfjbY=
 github.com/klauspost/compress v1.20.1 h1:T7kKElXUMXrUJ2E9QhQhxFtcK5rPyLdsGZvdbLMPdiQ=
 github.com/klauspost/compress v1.20.1/go.mod h1:LUdAzn7YLVvxLpc7y3V1m40wESHTgc1422pwwBSKYuI=
-github.com/kumbuka-me/sdk v0.29.1 h1:Q+h/kra08fyXk0kF7KDkduvb+axHxVKt1i81fK5Kxdk=
-github.com/kumbuka-me/sdk v0.29.1/go.mod h1:JO5EgY4A+JeedjXcmVELmG6M7+EaiExLyyagM8/AQOE=
+github.com/kumbuka-me/sdk v0.32.0 h1:F+jgWZswlt9ZI0LjvKTi2IkIZtCUm9qapqWh9lt5/Ao=
+github.com/kumbuka-me/sdk v0.32.0/go.mod h1:tWUpyhjG8ms3sOi/wN+J9zM6Hhk4txRY9uqLHaaTXaE=
 github.com/kylelemons/godebug v1.1.0 h1:RPNrshWIDI6G2gRW9EHilWtl7Z6Sb1BR0xunSBf0SNc=
 github.com/kylelemons/godebug v1.1.0/go.mod h1:9/0rRGxNHcop5bhtWyNeEfOS8JIWk580+fNqagV/RAw=
 github.com/microcosm-cc/bluemonday v1.0.27 h1:MpEUotklkwCSLeH+Qdx1VJgNqLlpY2KXwXFM08ygZfk=

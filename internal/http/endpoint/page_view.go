@@ -17,6 +17,7 @@ import (
 	"github.com/kumbuka-me/kumbuka/pkg/navigation"
 	"github.com/kumbuka-me/kumbuka/pkg/pageurl"
 	"github.com/kumbuka-me/kumbuka/pkg/plugincap"
+	"github.com/kumbuka-me/kumbuka/pkg/renderartifact"
 	"github.com/kumbuka-me/kumbuka/pkg/utils"
 )
 
@@ -68,6 +69,9 @@ func ViewPage(
 		stop = measurePageStage(r.Context(), "page_navigation")
 		pageNavigation := plugincap.Navigation(navigation.Children(data.Navigation, slug), httpprefix.PrefixForRequest(r))
 		capabilities := plugincap.Capabilities(securedCatalog, pageNavigation, httpprefix.PrefixForRequest(r), renderer.IconCatalog())
+		if svgStore, ok := renderArtifacts.(pageSVGArtifactStore); ok {
+			capabilities["artifacts.put"] = renderartifact.PageCapability(svgStore, page.ID, page.UpdatedAt, httpprefix.PrefixForRequest(r))
+		}
 		stop()
 
 		options := md.DefaultOptions()

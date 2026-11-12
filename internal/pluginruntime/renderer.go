@@ -53,6 +53,7 @@ func NewRenderer(
 			"storage:write",
 			"users:read",
 			"notifications:send",
+			"artifacts:write",
 		),
 		wasm.WithLogger(logger),
 	)

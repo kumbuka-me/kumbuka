@@ -140,3 +140,12 @@
   color: var(--danger);
   text-decoration-style: dashed;
 }
+
+/* Generated passive diagram pairs; only the selected palette is visible. */
+.kumbuka-rendered-artifact { display: block; text-align: center; }
+.kumbuka-rendered-artifact.kumbuka-artifact-align-left { text-align: left; }
+.kumbuka-rendered-artifact.kumbuka-artifact-align-right { text-align: right; }
+.kumbuka-rendered-artifact img { max-width: 100%; height: auto; }
+.kumbuka-rendered-artifact .kumbuka-artifact-dark { display: none; }
+html[data-color-scheme="dark"] .kumbuka-rendered-artifact .kumbuka-artifact-light { display: none; }
+html[data-color-scheme="dark"] .kumbuka-rendered-artifact .kumbuka-artifact-dark { display: inline; }
