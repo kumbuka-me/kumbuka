@@ -8,6 +8,7 @@ import (
 	"time"
 
 	quickjs "github.com/go-quickjs/go-quickjs"
+	"github.com/kumbuka-me/sdk/renderartifact"
 )
 
 const renderTimeout = 15 * time.Second
@@ -33,14 +34,14 @@ func (e *Engine) Render(ctx context.Context, script []byte, source, theme string
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
-	digest := Digest(script)
+	digest := renderartifact.Digest(script)
 	if e.runtime == nil || e.digest != digest {
 		if e.runtime != nil {
-			e.runtime.Close()
+			e.runtime.Close() // nolint:errcheck
 		}
 		e.runtime = quickjs.New(quickjs.WithMemoryLimit(256 << 20))
 		if _, err := e.runtime.EvalFileContext(ctx, "plugin-headless.js", string(script)); err != nil {
-			e.runtime.Close()
+			e.runtime.Close() // nolint:errcheck
 			e.runtime = nil
 			return nil, fmt.Errorf("initialize plugin renderer: %w", err)
 		}
@@ -72,7 +73,7 @@ func (e *Engine) Close() {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	if e.runtime != nil {
-		e.runtime.Close()
+		e.runtime.Close() // nolint:errcheck
 		e.runtime = nil
 	}
 }

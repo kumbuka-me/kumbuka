@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/kumbuka-me/kumbuka/internal/http/auth"
+	"github.com/kumbuka-me/kumbuka/pkg/ascii"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/kumbuka-me/sdk/renderartifact"
 )
@@ -14,7 +15,8 @@ import (
 // PageRenderArtifact delivers passive SVGs only after authorizing access to the owning page.
 func PageRenderArtifact(pages interface {
 	PageByIDFor(context.Context, domain.User, int64) (domain.Page, error)
-}, store pageSVGArtifactStore) http.HandlerFunc {
+}, store pageSVGArtifactStore,
+) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, err := strconv.ParseInt(r.PathValue("pageID"), 10, 64)
 		digest := strings.TrimSuffix(r.PathValue("digest"), ".svg")
@@ -50,11 +52,14 @@ func validArtifactDigest(value string) bool {
 	if len(value) != 64 {
 		return false
 	}
+
 	for i := 0; i < len(value); i++ {
 		c := value[i]
-		if !(c >= '0' && c <= '9' || c >= 'a' && c <= 'f') {
-			return false
+		if ascii.IsHexDigit(c) && !ascii.IsUppercaseLetter(c) {
+			continue
 		}
+		return false
 	}
+
 	return true
 }

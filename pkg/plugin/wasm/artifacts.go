@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/kumbuka-me/kumbuka/pkg/ascii"
 	"github.com/kumbuka-me/kumbuka/pkg/plugin"
 	"github.com/kumbuka-me/kumbuka/pkg/renderartifact"
 	sdk "github.com/kumbuka-me/sdk"
@@ -50,11 +51,15 @@ func validArtifactScriptName(name string) bool {
 	if len(name) < 4 || len(name) > 80 || !strings.HasSuffix(name, ".js") {
 		return false
 	}
+
 	for i := 0; i < len(name); i++ {
 		c := name[i]
-		if !(c >= 'a' && c <= 'z' || c >= '0' && c <= '9' || c == '-' || c == '_' || c == '.') {
-			return false
+		if ascii.IsLowercaseLetter(c) || ascii.IsDigit(c) ||
+			c == '-' || c == '_' || c == '.' {
+			continue
 		}
+		return false
 	}
+
 	return !strings.Contains(name, "..")
 }
