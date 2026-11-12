@@ -152,13 +152,80 @@ test("plugin frames include outer content margins in their measured height", asy
   }
 });
 
-test("real Mermaid is isolated and plugin changes require a page reload", async () => {
+test("pre-rendered SVGs do not initialize browser plugin frames", async () => {
   const browser = await chromium.launch({
     channel: process.env.BROWSER_CHANNEL || "chrome",
     headless: true,
   });
   try {
     const page = await browser.newPage();
+    let pluginRequests = 0;
+    await page.route("http://static-mermaid.test/**", async (route) => {
+      const path = new URL(route.request().url()).pathname;
+      if (path.startsWith("/plugins/")) {
+        pluginRequests++;
+        await route.fulfill({ status: 404 });
+        return;
+      }
+      if (path.startsWith("/assets/")) {
+        await route.fulfill({
+          contentType: "text/javascript",
+          body: await readFile(
+            new URL("../../web/dist/" + path.slice(8), import.meta.url),
+          ),
+        });
+        return;
+      }
+      await route.fulfill({
+        contentType: "text/html",
+        body: `<body>${pluginCatalog()}<span class="kumbuka-rendered-artifact"><img class="kumbuka-artifact-light" alt="Mermaid diagram" src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3C%2Fsvg%3E"></span><script type="module">import {renderPluginModules} from '/assets/js/plugins/loader.js';await renderPluginModules();</script></body>`,
+      });
+    });
+
+    await page.goto("http://static-mermaid.test/");
+    await page.waitForLoadState("networkidle");
+    await page.locator("img.kumbuka-artifact-light").waitFor();
+    assert.equal(await page.locator("iframe").count(), 0);
+    assert.equal(pluginRequests, 0);
+  } finally {
+    await browser.close();
+  }
+});
+
+test("interactive Mermaid is sandboxed and plugin enablement requires a reload", async () => {
+  const browser = await chromium.launch({
+    channel: process.env.BROWSER_CHANNEL || "chrome",
+    headless: true,
+  });
+  try {
+    const page = await browser.newPage();
+    const errors = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    page.on("console", (message) => {
+      if (message.type() === "error") errors.push(message.text());
+    });
+    page.on("requestfailed", (request) => {
+      errors.push(`${request.url()}: ${request.failure()?.errorText || "failed"}`);
+    });
+    await page.addInitScript(() => {
+      window.addEventListener("message", (event) => {
+        if (event.data?.type === "kumbuka-plugin-error") {
+          document.documentElement.dataset.mermaidRenderError = "true";
+        }
+      });
+    });
+    const expectInteractiveDiagram = async () => {
+      await page
+        .locator('iframe[data-plugin-ready], html[data-mermaid-render-error]')
+        .first()
+        .waitFor({ timeout: 15000 });
+      assert.equal(
+        await page.locator("html[data-mermaid-render-error]").count(),
+        0,
+        `Mermaid sandbox failed to render: ${errors.join("; ") || "plugin returned an error"}`,
+      );
+      assert.equal(await page.frameLocator("iframe").locator("svg").count(), 1);
+    };
     let enabled = true;
     let assetRequests = 0;
     await page.route("http://plugins.test/**", async (route) => {
@@ -180,8 +247,7 @@ test("real Mermaid is isolated and plugin changes require a page reload", async 
       });
     });
     await page.goto("http://plugins.test/");
-    await page.locator("iframe[data-plugin-ready]").waitFor();
-    assert.equal(await page.frameLocator("iframe").locator("svg").count(), 1);
+    await expectInteractiveDiagram();
     const frame = page.frames().find((f) => f !== page.mainFrame());
     assert.equal(
       await frame.evaluate(() => {
@@ -224,9 +290,8 @@ test("real Mermaid is isolated and plugin changes require a page reload", async 
 
     enabled = true;
     await page.reload();
-    await page.locator("iframe[data-plugin-ready]").waitFor();
+    await expectInteractiveDiagram();
     assert.ok(assetRequests > stopped);
-    assert.equal(await page.frameLocator("iframe").locator("svg").count(), 1);
   } finally {
     await browser.close();
   }

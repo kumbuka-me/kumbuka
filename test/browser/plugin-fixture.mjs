@@ -10,7 +10,7 @@ export const plugin = {
 };
 export const base = `/plugins/${plugin.plugin_id}/${plugin.digest}/`;
 export const block =
-  '<div data-kumbuka-plugin="me.kumbuka.mermaid" data-kumbuka-module="diagrams"><pre><code class="language-mermaid">graph LR; A --> B</code></pre></div>';
+  '<div data-kumbuka-plugin="me.kumbuka.mermaid" data-kumbuka-module="diagrams"><pre><code class="language-mermaid">%% kumbuka-interactive: true\nflowchart LR\n  A --> B</code></pre></div>';
 
 const coreStyles = await readFile(
   new URL("../../pkg/pluginbrowser/core.css", import.meta.url),
@@ -82,26 +82,26 @@ export async function pluginRoute(
   if (path === framePath) {
     const policy = `default-src 'none'; script-src ${url.origin}${base}assets/ ${url.origin}/plugins/runtime.js; style-src 'unsafe-inline' ${url.origin}${base}assets/; img-src data:; font-src data:; connect-src 'none'; sandbox allow-scripts`;
     await route.fulfill({
-      contentType: "text/html",
+      contentType: "text/html; charset=utf-8",
       headers: { "Content-Security-Policy": policy },
-      body: `<html><head><link rel="stylesheet" href="${base}assets/plugin.css"><style>${coreStyles}</style><script defer src="/plugins/runtime.js"></script></head><body data-plugin-javascript="${base}assets/plugin.js"><main id="plugin-root"></main></body></html>`,
+      body: `<html><head><meta charset="utf-8"><link rel="stylesheet" href="${base}assets/plugin.css"><style>${coreStyles}</style><script defer src="/plugins/runtime.js"></script></head><body data-plugin-javascript="${base}assets/plugin.js"><main id="plugin-root"></main></body></html>`,
     });
   } else if (path === "/plugins/runtime.js") {
     const { readFile } = await import("node:fs/promises");
     await route.fulfill({
-      contentType: "text/javascript",
+      contentType: "text/javascript; charset=utf-8",
       body: await readFile(
         new URL("../../web/dist/js/plugins/frame.js", import.meta.url),
       ),
     });
   } else if (path === base + "assets/plugin.css" && fakeJavaScript) {
-    await route.fulfill({ contentType: "text/css", body: "" });
+    await route.fulfill({ contentType: "text/css; charset=utf-8", body: "" });
   } else if (
     path === base + "assets/plugin.js" &&
     (fake || fakeJavaScript)
   ) {
     await route.fulfill({
-      contentType: "text/javascript",
+      contentType: "text/javascript; charset=utf-8",
       body:
         fakeJavaScript ||
         `globalThis.kumbukaPlugin={async render(root){await new Promise(r=>setTimeout(r,150));root.innerHTML='<svg height="80" aria-label="Diagram"></svg>';}};`,
@@ -113,7 +113,9 @@ export async function pluginRoute(
       return true;
     }
     await route.fulfill({
-      contentType: name.endsWith(".css") ? "text/css" : "text/javascript",
+      contentType: name.endsWith(".css")
+        ? "text/css; charset=utf-8"
+        : "text/javascript; charset=utf-8",
       body: await readPluginAsset(assetDirectory, name),
     });
   } else {
