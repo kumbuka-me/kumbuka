@@ -12,7 +12,7 @@ require (
 	github.com/go-jose/go-jose/v4 v4.1.9
 	github.com/go-quickjs/go-quickjs v0.37.3
 	github.com/jackc/pgx/v5 v5.13.0
-	github.com/kaugesaar/lucide-go v0.43.0
+	github.com/kaugesaar/lucide-go v0.44.0
 	github.com/kumbuka-me/sdk v0.32.0
 	github.com/microcosm-cc/bluemonday v1.0.27
 	github.com/pelletier/go-toml/v2 v2.4.3
