@@ -80,7 +80,9 @@ COPY --from=prep /workspace/kumbuka /kumbuka
 COPY --from=prep /outfs/app /app
 COPY --from=prep /outfs/tmp /tmp
 
-ENV HOME=/tmp
+ENV HOME=/tmp \
+  KUMBUKA__LISTEN_ADDRESS=:8080 \
+  KUMBUKA__MANAGEMENT_LISTEN_ADDRESS=:8081
 
 WORKDIR /app
 

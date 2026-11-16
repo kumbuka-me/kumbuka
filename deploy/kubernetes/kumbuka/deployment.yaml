@@ -25,10 +25,6 @@ spec:
                 secretKeyRef:
                   name: kumbuka-db
                   key: database-url
-            - name: KUMBUKA__LISTEN_ADDRESS
-              value: 0.0.0.0:8080
-            - name: KUMBUKA__MANAGEMENT_LISTEN_ADDRESS
-              value: 0.0.0.0:8081
             - name: KUMBUKA__PUBLIC_URL
               value: https://kumbuka.example.test
             - name: KUMBUKA__PDF_URL
