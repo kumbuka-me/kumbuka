@@ -24,7 +24,7 @@ func TestInstalledBrowserPluginUsesSameRuntimeAndAssets(t *testing.T) {
 	_, err = denied.Load(ctx, pkg)
 	require.ErrorContains(t, err, "browser:render")
 	require.NoError(t, denied.Close(ctx))
-	runtime, err := wasm.New(ctx, wasm.Limits{}, wasm.WithPermissions("browser:render"))
+	runtime, err := wasm.New(ctx, wasm.Limits{}, wasm.WithPermissions("browser:render", "artifacts:write"))
 	require.NoError(t, err)
 	registry := &plugin.Registry{}
 	manager := plugin.NewManager(registry, runtime)
@@ -32,7 +32,7 @@ func TestInstalledBrowserPluginUsesSameRuntimeAndAssets(t *testing.T) {
 	_, err = manager.Install(ctx, archive)
 	require.NoError(t, err)
 	renderer := markdown.NewWithRegistry(registry)
-	html, err := renderer.Render("```mermaid\ngraph LR; A --> B\n```")
+	html, err := renderer.Render("```mermaid\n%% kumbuka-interactive: true\ngraph LR; A --> B\n```")
 	require.NoError(t, err)
 	assert.Contains(t, html, `data-kumbuka-plugin="me.kumbuka.mermaid"`)
 	modules := manager.BrowserModules()

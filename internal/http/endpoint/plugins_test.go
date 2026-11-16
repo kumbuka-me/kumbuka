@@ -68,7 +68,7 @@ func TestPluginPreviewAllowsSameOriginEmbedding(t *testing.T) {
 
 func TestBrowserPluginLifecycleAndAssetBoundary(t *testing.T) {
 	ctx := context.Background()
-	runtime, err := wasm.New(ctx, wasm.Limits{InitTimeout: 30 * time.Second}, wasm.WithPermissions("browser:render"), wasm.WithInterpreter())
+	runtime, err := wasm.New(ctx, wasm.Limits{InitTimeout: 30 * time.Second}, wasm.WithPermissions("browser:render", "artifacts:write"), wasm.WithInterpreter())
 	require.NoError(t, err)
 	manager := plugin.NewManager(&plugin.Registry{}, runtime)
 	t.Cleanup(func() { require.NoError(t, manager.Close(context.Background())) })

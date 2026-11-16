@@ -11,7 +11,7 @@ import (
 func TestMermaidUsesRuntimeRegistryAndCentralSanitizer(t *testing.T) {
 	ctx := context.Background()
 	r := isolatedTestRenderer(t, "mermaid")
-	source := "```mermaid\ngraph LR; A --> B\n```"
+	source := "```mermaid\n%% kumbuka-interactive: true\ngraph LR; A --> B\n```"
 	rendered, err := r.Render(source)
 	require.NoError(t, err)
 	assert.Contains(t, rendered, `data-kumbuka-plugin="me.kumbuka.mermaid"`)
