@@ -15,6 +15,7 @@ import (
 	"time"
 
 	appkitauth "github.com/containeroo/appkit/auth"
+	"github.com/containeroo/appkit/auth/browser"
 
 	httpprefix "github.com/containeroo/httpkit/prefix"
 	httpkitresponse "github.com/containeroo/httpkit/response"
@@ -191,7 +192,8 @@ func (o *OIDC) validSession(current session) bool {
 	if current.Expires <= time.Now().Unix() {
 		return false
 	}
-	if current.Issuer != o.issuer {
+	policy := browser.Policy{Mode: appkitauth.ModeOIDC, Issuer: o.issuer}
+	if !policy.Accepts(browser.Origin{Mode: appkitauth.ModeOIDC, Issuer: current.Issuer}) {
 		return false
 	}
 

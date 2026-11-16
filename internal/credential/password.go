@@ -31,12 +31,20 @@ func LocalPasswordProblem(password string) string {
 
 // HashLocalPassword validates and hashes one local password with bcrypt.
 func HashLocalPassword(password string) (string, error) {
-	if problem := LocalPasswordProblem(password); problem != "" {
-		return "", domain.NewValidationError("password", problem)
+	if err := ValidateLocalPassword(password); err != nil {
+		return "", err
 	}
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	return string(hash), err
+}
+
+// ValidateLocalPassword reports a field error when the password violates local policy.
+func ValidateLocalPassword(password string) error {
+	if problem := LocalPasswordProblem(password); problem != "" {
+		return domain.NewValidationError("password", problem)
+	}
+	return nil
 }
 
 // Passwords adapts local password policy and hashing for application use cases.

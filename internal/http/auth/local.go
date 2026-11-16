@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	appkitlocal "github.com/containeroo/appkit/auth/local"
 	"github.com/kumbuka-me/kumbuka/internal/credential"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"golang.org/x/crypto/bcrypt"
@@ -170,18 +171,13 @@ func (l *Local) setup(
 	username, email, displayName, password string,
 	hashToken func(string) string,
 ) (user domain.User, token string, err error) {
-	passwordHash, err := credential.HashLocalPassword(password)
-	if err != nil {
-		return domain.User{}, "", err
+	setup := appkitlocal.Setup[domain.User]{
+		Validate: func(_, password string) error { return credential.ValidateLocalPassword(password) },
+		Create: func(ctx context.Context, name, hash string) (domain.User, error) {
+			return l.repository.CreateInitialLocalAdministrator(ctx, name, email, displayName, hash)
+		},
 	}
-
-	user, err = l.repository.CreateInitialLocalAdministrator(
-		ctx,
-		username,
-		email,
-		displayName,
-		passwordHash,
-	)
+	user, err = setup.Bootstrap(ctx, "", username, password)
 	if err != nil {
 		return domain.User{}, "", err
 	}

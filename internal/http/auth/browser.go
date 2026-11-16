@@ -12,6 +12,7 @@ import (
 	"sync/atomic"
 
 	appkitauth "github.com/containeroo/appkit/auth"
+	"github.com/containeroo/appkit/auth/browser"
 
 	appkitproxy "github.com/containeroo/appkit/auth/proxy"
 	httpprefix "github.com/containeroo/httpkit/prefix"
@@ -602,7 +603,8 @@ func (b *browserAuthenticator) localLoginAllowed(ctx context.Context) (bool, err
 		return false, err
 	}
 
-	return settings.Mode == appkitauth.ModeLocal || b.localLoginEnabled, nil
+	policy := browser.Policy{Mode: settings.Mode, Recovery: b.localLoginEnabled}
+	return policy.LocalEnabled(), nil
 }
 
 // oidcFor returns a cached OIDC integration for the supplied public settings.
