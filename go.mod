@@ -22,7 +22,7 @@ require (
 	github.com/tetratelabs/wazero v1.12.0
 	github.com/yuin/goldmark/v2 v2.1.16
 	golang.org/x/crypto v0.59.0
-	golang.org/x/net v0.62.0
+	golang.org/x/net v0.63.0
 	golang.org/x/oauth2 v0.38.0
 	golang.org/x/sync v0.25.0
 	golang.org/x/text v0.44.0
