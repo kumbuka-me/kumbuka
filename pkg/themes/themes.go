@@ -176,6 +176,25 @@ func sortThemes(available []Theme) {
 	slices.SortFunc(available, compareThemes)
 }
 
+// isHexColor accepts CSS hexadecimal RGB and RGBA literals in short or full form.
+func isHexColor(value string) bool {
+	switch len(value) {
+	case 4, 5, 7, 9:
+	default:
+		return false
+	}
+	if value[0] != '#' {
+		return false
+	}
+
+	for _, digit := range value[1:] {
+		if !strings.ContainsRune("0123456789abcdefABCDEF", digit) {
+			return false
+		}
+	}
+	return true
+}
+
 // validate ensures a theme provides every required semantic color.
 func validate(theme Theme) error {
 	if theme.ColorScheme != ColorSchemeLight && theme.ColorScheme != ColorSchemeDark {
@@ -209,6 +228,11 @@ func validate(theme Theme) error {
 		if strings.TrimSpace(value) == "" {
 			return fmt.Errorf("colors.%s is required", name)
 		}
+
+		if !isHexColor(value) {
+			return fmt.Errorf("colors.%s must be a hex color", name)
+		}
+
 	}
 
 	return nil
