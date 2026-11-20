@@ -11,6 +11,14 @@ Kumbuka is a self-hosted knowledge platform backed by PostgreSQL. It provides a 
 
 For installation, configuration, authentication, plugins, and administration, see the **[Kumbuka documentation](https://kumbuka.me/)**.
 
+## PostgreSQL compatibility
+
+- **Minimum required major version: PostgreSQL 17.** The baseline migration uses `transaction_timeout`, introduced in PostgreSQL 17; PostgreSQL 16 and older cannot initialize the current schema.
+- **Recommended deployment version: PostgreSQL 18.** The supplied deployment and test configurations use this version.
+- **Maximum tested major version: PostgreSQL 19 (provisional).** Compatibility checks on 2026-11-20 exercised PostgreSQL 17, 18, and 19. See the [installation requirements](https://kumbuka.me/installation/) for validation coverage and limitations.
+
+There is no enforced maximum server version. Versions above the tested maximum have unverified compatibility. Use the latest maintenance release of your selected major version.
+
 ## Quick start
 
 Start Kumbuka with Docker Compose:
