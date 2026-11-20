@@ -10,7 +10,7 @@ require (
 	github.com/containeroo/tinyflags v0.12.0
 	github.com/coreos/go-oidc/v3 v3.21.0
 	github.com/go-jose/go-jose/v4 v4.1.9
-	github.com/go-quickjs/go-quickjs v0.40.0
+	github.com/go-quickjs/go-quickjs v0.41.0
 	github.com/jackc/pgx/v5 v5.13.0
 	github.com/kaugesaar/lucide-go v0.46.0
 	github.com/kumbuka-me/sdk v0.32.0
