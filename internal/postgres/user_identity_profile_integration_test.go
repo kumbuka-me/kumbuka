@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
-	"github.com/kumbuka-me/kumbuka/pkg/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -34,7 +33,7 @@ func TestOIDCProfileSyncOverrideAndRevert(t *testing.T) {
 	assert.False(t, profile.DisplayNameOverridden)
 
 	require.NoError(t, database.UpdateUserAccount(ctx, domain.UserAccountUpdate{
-		UserID: user.ID, Email: utils.ToPtr("local@example.test"), Role: user.Role, Enabled: true,
+		UserID: user.ID, Email: new("local@example.test"), Role: user.Role, Enabled: true,
 	}))
 	user, err = database.ResolveOIDCLogin(ctx, "https://issuer.example", "stable-subject", "alice-new", "provider-new@example.test", "Alice New", true)
 	require.NoError(t, err)
@@ -68,7 +67,7 @@ func TestTrustedProxyProfileSyncOverrideAndRevert(t *testing.T) {
 	assert.Equal(t, "Alice New", user.DisplayName)
 
 	require.NoError(t, database.UpdateUserAccount(ctx, domain.UserAccountUpdate{
-		UserID: user.ID, Email: utils.ToPtr("local@example.test"), DisplayName: utils.ToPtr("Local Alice"), Role: user.Role, Enabled: true,
+		UserID: user.ID, Email: new("local@example.test"), DisplayName: new("Local Alice"), Role: user.Role, Enabled: true,
 	}))
 	user, err = database.RefreshTrustedProxyUser(ctx, "proxy-alice", "provider@example.test", "Provider Alice", false, false)
 	require.NoError(t, err)
@@ -126,8 +125,8 @@ func TestLocalProfileChangesRemainStraightforward(t *testing.T) {
 	require.NoError(t, database.pool.QueryRow(ctx, `
 INSERT INTO users(username,email,display_name) VALUES('local-old','old@example.test','Old') RETURNING id`).Scan(&userID))
 	require.NoError(t, database.UpdateUserAccount(ctx, domain.UserAccountUpdate{
-		UserID: userID, Username: utils.ToPtr("local-new"), Email: utils.ToPtr("new@example.test"),
-		DisplayName: utils.ToPtr("New"), Role: domain.UserRoleEditor, Enabled: true,
+		UserID: userID, Username: new("local-new"), Email: new("new@example.test"),
+		DisplayName: new("New"), Role: domain.UserRoleEditor, Enabled: true,
 	}))
 	profile, err := database.UserProfile(ctx, userID)
 	require.NoError(t, err)

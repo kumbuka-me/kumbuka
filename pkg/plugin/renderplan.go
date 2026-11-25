@@ -5,8 +5,6 @@ import (
 	"encoding/hex"
 	"slices"
 	"sort"
-
-	"github.com/kumbuka-me/kumbuka/pkg/utils"
 )
 
 // RenderSelector identifies one contribution and whether its execution can be limited to pages whose source usage index contains the module.
@@ -204,7 +202,7 @@ func (b *renderPlanBuilder) addEntry(entry Entry) {
 		})
 	}
 	for _, module := range entry.Contributions.CodeHighlighters {
-		b.plan.CodeHighlighter = utils.ToPtr(CodeHighlighterBinding{
+		b.plan.CodeHighlighter = new(CodeHighlighterBinding{
 			Selector: b.selector(pluginID, module.Highlighter),
 			Module:   module,
 		})

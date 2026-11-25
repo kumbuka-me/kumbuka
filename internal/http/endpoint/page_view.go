@@ -18,7 +18,6 @@ import (
 	"github.com/kumbuka-me/kumbuka/pkg/pageurl"
 	"github.com/kumbuka-me/kumbuka/pkg/plugincap"
 	"github.com/kumbuka-me/kumbuka/pkg/renderartifact"
-	"github.com/kumbuka-me/kumbuka/pkg/utils"
 )
 
 // ViewPage renders one readable page and its active plugin detail widgets.
@@ -109,7 +108,7 @@ func ViewPage(
 			r.Context(),
 			data.Locale.Code,
 			"page.details",
-			utils.ToPtr(plugincap.PageValue(page, httpprefix.PrefixForRequest(r))),
+			new(plugincap.PageValue(page, httpprefix.PrefixForRequest(r))),
 			data.PluginFeatures,
 			capabilities,
 			data.Preferences.HiddenPluginWidgets,

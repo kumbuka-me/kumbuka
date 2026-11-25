@@ -8,7 +8,6 @@ import (
 
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/kumbuka-me/kumbuka/pkg/pluginusage"
-	"github.com/kumbuka-me/kumbuka/pkg/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -93,7 +92,7 @@ func (s *pageContentChangeSinkStub) ContentChanged(_ context.Context, change Pag
 }
 
 func (s pageContentPreparerStub) Prepare(context.Context, string) (*pluginusage.Index, domain.PageRender, error) {
-	return utils.ToPtr(s.usage), s.render, nil
+	return new(s.usage), s.render, nil
 }
 
 // denyingPageAccess provides test state for denying page access behavior.

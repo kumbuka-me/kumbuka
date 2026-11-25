@@ -1,7 +1,5 @@
 package plugin
 
-import "github.com/kumbuka-me/kumbuka/pkg/utils"
-
 // cloneEditorWidget copies mutable contract fields before they leave the manager.
 func cloneEditorWidget(widget EditorWidgetContribution) EditorWidgetContribution {
 	clone := widget
@@ -35,24 +33,24 @@ func cloneEditorWidget(widget EditorWidgetContribution) EditorWidgetContribution
 		clone.Preview.Badge = &badge
 	}
 	if widget.Preview.Reference != nil {
-		clone.Preview.Reference = utils.ToPtr(*widget.Preview.Reference)
+		clone.Preview.Reference = new(*widget.Preview.Reference)
 	}
 	if widget.Preview.Card != nil {
 		card := *widget.Preview.Card
 		card.MetadataAttributes = append([]string(nil), widget.Preview.Card.MetadataAttributes...)
 		if widget.Preview.Card.LineAnnotations != nil {
-			card.LineAnnotations = utils.ToPtr(*widget.Preview.Card.LineAnnotations)
+			card.LineAnnotations = new(*widget.Preview.Card.LineAnnotations)
 		}
 		clone.Preview.Card = &card
 	}
 	if widget.Preview.Callout != nil {
-		clone.Preview.Callout = utils.ToPtr(*widget.Preview.Callout)
+		clone.Preview.Callout = new(*widget.Preview.Callout)
 	}
 	if widget.Preview.Details != nil {
-		clone.Preview.Details = utils.ToPtr(*widget.Preview.Details)
+		clone.Preview.Details = new(*widget.Preview.Details)
 	}
 	if widget.Preview.Tabs != nil {
-		clone.Preview.Tabs = utils.ToPtr(*widget.Preview.Tabs)
+		clone.Preview.Tabs = new(*widget.Preview.Tabs)
 	}
 	return clone
 }

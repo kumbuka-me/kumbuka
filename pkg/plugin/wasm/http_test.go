@@ -56,6 +56,41 @@ func TestPluginHTTPRequestValidation(t *testing.T) {
 	}
 }
 
+// TestPluginHTTPHeaderValidation exercises HTTP token syntax and host-specific restrictions.
+func TestPluginHTTPHeaderValidation(t *testing.T) {
+	t.Parallel()
+
+	t.Run("valid token punctuation", func(t *testing.T) {
+		t.Parallel()
+
+		assert.True(t, validPluginHTTPHeader("X-Custom!#$%&'*+.^_`|~-9", "value\twith tab"))
+	})
+
+	t.Run("invalid header name", func(t *testing.T) {
+		t.Parallel()
+
+		assert.False(t, validPluginHTTPHeader("Invalid Header", "value"))
+	})
+
+	t.Run("invalid header value", func(t *testing.T) {
+		t.Parallel()
+
+		assert.False(t, validPluginHTTPHeader("X-Custom", "first\r\nInjected: yes"))
+	})
+
+	t.Run("transport header is forbidden", func(t *testing.T) {
+		t.Parallel()
+
+		assert.False(t, validPluginHTTPHeader("CoNnEcTiOn", "keep-alive"))
+	})
+
+	t.Run("oversized value", func(t *testing.T) {
+		t.Parallel()
+
+		assert.False(t, validPluginHTTPHeader("X-Custom", strings.Repeat("a", maxHTTPHeaderValue+1)))
+	})
+}
+
 // TestPluginHTTPConventionalProxyEnvironment verifies standard proxy variables are honored without accepting unsupported proxy schemes.
 func TestPluginHTTPConventionalProxyEnvironment(t *testing.T) {
 	clearPluginHTTPEnv(t)

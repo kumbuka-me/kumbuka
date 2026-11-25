@@ -10,7 +10,6 @@ import (
 
 	"github.com/kumbuka-me/kumbuka/internal/application/audit"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
-	"github.com/kumbuka-me/kumbuka/pkg/utils"
 )
 
 // UserUpdateInput describes the administrator's intended account change. Password confirmation belongs to the form; password policy belongs to this operation.
@@ -171,7 +170,7 @@ func prepareUsernameUpdate(input UserUpdateInput, current domain.UserProfile, up
 		return domain.NewValidationError("username", "Use at most 128 characters.")
 	}
 	if username != current.Username {
-		update.Username = utils.ToPtr(username)
+		update.Username = new(username)
 	}
 	return nil
 }
@@ -187,7 +186,7 @@ func prepareEmailUpdate(input UserUpdateInput, current domain.UserProfile, updat
 		return domain.NewValidationError("email", "Enter a valid email address.")
 	}
 	if email != current.Email {
-		update.Email = utils.ToPtr(email)
+		update.Email = new(email)
 	}
 	return nil
 }
@@ -206,7 +205,7 @@ func prepareDisplayNameUpdate(input UserUpdateInput, current domain.UserProfile,
 		}
 	}
 	if displayName != current.DisplayName {
-		update.DisplayName = utils.ToPtr(displayName)
+		update.DisplayName = new(displayName)
 	}
 }
 
@@ -257,7 +256,7 @@ func (s *Users) prepareLocalCredentialUpdate(ctx context.Context, input UserUpda
 			"local_credential_enabled",
 			"Local recovery credentials can only be enabled or disabled while external authentication is active.")
 	}
-	update.LocalCredentialEnabled = utils.ToPtr(input.Password != "" || input.LocalCredentialEnabled)
+	update.LocalCredentialEnabled = new(input.Password != "" || input.LocalCredentialEnabled)
 	return nil
 }
 

@@ -6,7 +6,6 @@ import (
 
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/kumbuka-me/kumbuka/pkg/revision"
-	"github.com/kumbuka-me/kumbuka/pkg/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -18,7 +17,7 @@ func TestPartitionPageComments(t *testing.T) {
 	comments := []domain.PageComment{
 		{ID: 3, ParentID: 1, Body: "inline reply"},
 		{ID: 2, Body: "page root"},
-		{ID: 1, Anchor: "selected text", Body: "inline root", Resolved: utils.ToPtr(time.Now())},
+		{ID: 1, Anchor: "selected text", Body: "inline root", Resolved: new(time.Now())},
 		{ID: 4, ParentID: 2, Body: "page reply"},
 		{ID: 5, ParentID: 3, Body: "nested inline reply"},
 	}
@@ -93,7 +92,7 @@ func TestOpenReviewSuggestionCountIgnoresAppliedSuggestions(t *testing.T) {
 
 	comments := []domain.PageReviewComment{
 		{ID: 1, IsSuggestion: true},
-		{ID: 2, IsSuggestion: true, AppliedAt: utils.ToPtr(time.Now())},
+		{ID: 2, IsSuggestion: true, AppliedAt: new(time.Now())},
 		{ID: 3},
 	}
 

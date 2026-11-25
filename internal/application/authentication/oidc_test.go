@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
-	"github.com/kumbuka-me/kumbuka/pkg/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -69,7 +68,7 @@ func TestOIDCLoginUsesDeploymentRegistrationOverride(t *testing.T) {
 	t.Parallel()
 	repository := &oidcRepositoryStub{settings: domain.ApplicationSettings{AllowUserRegistration: true}}
 
-	_, err := NewOIDC(repository, utils.ToPtr(false)).Login(context.Background(), "issuer", "subject", "alice", "", "")
+	_, err := NewOIDC(repository, new(false)).Login(context.Background(), "issuer", "subject", "alice", "", "")
 
 	require.NoError(t, err)
 	assert.False(t, repository.registrationEnabled)

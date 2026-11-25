@@ -7,7 +7,6 @@ import (
 	appkitconfig "github.com/containeroo/appkit/config"
 	"github.com/containeroo/tinyflags"
 	"github.com/kumbuka-me/kumbuka/internal/flags"
-	"github.com/kumbuka-me/kumbuka/pkg/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -71,7 +70,7 @@ func TestNewRegistrationOverride(t *testing.T) {
 		t.Parallel()
 
 		info := New(flags.Config{
-			Authentication: appkitconfig.Authentication{AllowRegistrationOverride: utils.ToPtr(true)},
+			Authentication: appkitconfig.Authentication{AllowRegistrationOverride: new(true)},
 		}, false)
 
 		assert.True(t, info.UserRegistrationOverrideConfigured)
@@ -82,7 +81,7 @@ func TestNewRegistrationOverride(t *testing.T) {
 		t.Parallel()
 
 		info := New(flags.Config{
-			Authentication: appkitconfig.Authentication{AllowRegistrationOverride: utils.ToPtr(false)},
+			Authentication: appkitconfig.Authentication{AllowRegistrationOverride: new(false)},
 		}, false)
 
 		assert.True(t, info.UserRegistrationOverrideConfigured)

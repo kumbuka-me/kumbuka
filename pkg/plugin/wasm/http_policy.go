@@ -93,7 +93,9 @@ func parsePluginHTTPDestination(raw string) (*url.URL, bool) {
 
 // validPluginHTTPHeader accepts application headers while rejecting transport-controlled fields.
 func validPluginHTTPHeader(name, value string) bool {
-	if !validPluginHTTPHeaderSyntax(name, value) {
+	if !httpguts.ValidHeaderFieldName(name) ||
+		!httpguts.ValidHeaderFieldValue(value) ||
+		len(value) > maxHTTPHeaderValue {
 		return false
 	}
 	switch strings.ToLower(name) {
@@ -107,11 +109,6 @@ func validPluginHTTPHeader(name, value string) bool {
 // validPluginHTTPAuthority reports whether a parsed plugin destination has a host and no authority tricks or credentials.
 func validPluginHTTPAuthority(parsed *url.URL) bool {
 	return parsed.Hostname() != "" && parsed.User == nil && !strings.ContainsAny(parsed.Host, "%\\")
-}
-
-// validPluginHTTPHeaderSyntax reports whether a plugin header has valid syntax and a bounded value.
-func validPluginHTTPHeaderSyntax(name, value string) bool {
-	return httpguts.ValidHeaderFieldName(name) && httpguts.ValidHeaderFieldValue(value) && len(value) <= maxHTTPHeaderValue
 }
 
 // isPublicUnicastHTTPAddress reports whether an address passes the basic public-unicast network checks.
