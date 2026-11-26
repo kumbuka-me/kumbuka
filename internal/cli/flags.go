@@ -1,5 +1,5 @@
 // Package flags parses deployment-level configuration for the Kumbuka server.
-package flags
+package cli
 
 import (
 	"time"
@@ -17,8 +17,8 @@ const DefaultPluginUpdateCheckInterval = 60 * time.Minute
 // sectionServices groups deployment-level overrides for external services.
 const sectionServices = "Services"
 
-// Config contains deployment-level runtime configuration for Kumbuka.
-type Config struct {
+// Flags contains deployment-level runtime configuration for Kumbuka.
+type Flags struct {
 	// Server contains shared HTTP listener configuration.
 	Server appkitconfig.Server
 	// Database contains shared PostgreSQL configuration.
@@ -46,9 +46,7 @@ type Config struct {
 }
 
 // Parse parses command-line arguments into application configuration.
-func Parse(args []string, version string) (Config, error) {
-	cfg := Config{}
-
+func Parse(args []string, version string) (flags Flags, err error) {
 	tf := appkitconfig.NewFlagSet("kumbuka", "KUMBUKA", version)
 	tf.SectionOrder(
 		appkitconfig.SectionServer,
@@ -61,35 +59,35 @@ func Parse(args []string, version string) (Config, error) {
 		tinyflags.UnnamedSection,
 	)
 
-	finalizeServer := appkitconfig.RegisterServer(tf, &cfg.Server, appkitconfig.ServerOptions{})
-	appkitconfig.RegisterPostgres(tf, &cfg.Database, appkitconfig.PostgresOptions{})
+	finalizeServer := appkitconfig.RegisterServer(tf, &flags.Server, appkitconfig.ServerOptions{})
+	appkitconfig.RegisterPostgres(tf, &flags.Database, appkitconfig.PostgresOptions{})
 	finalizeAuthentication := appkitconfig.RegisterAuthentication(
 		tf,
-		&cfg.Authentication,
+		&flags.Authentication,
 		appkitconfig.AuthenticationOptions{},
 	)
-	appkitconfig.RegisterProxy(tf, &cfg.Proxy)
-	appkitconfig.RegisterOIDC(tf, &cfg.OIDC)
-	finalizeLogging := appkitconfig.RegisterLogging(tf, &cfg.Logging)
-	appkitconfig.RegisterObservability(tf, &cfg.Observability)
+	appkitconfig.RegisterProxy(tf, &flags.Proxy)
+	appkitconfig.RegisterOIDC(tf, &flags.OIDC)
+	finalizeLogging := appkitconfig.RegisterLogging(tf, &flags.Logging)
+	appkitconfig.RegisterObservability(tf, &flags.Observability)
 
-	registerApplicationFlags(tf, &cfg)
-	registerServiceFlags(tf, &cfg)
+	registerApplicationFlags(tf, &flags)
+	registerServiceFlags(tf, &flags)
 
 	if err := tf.Parse(args); err != nil {
-		return Config{}, err
+		return Flags{}, err
 	}
 
 	finalizeServer()
 	finalizeAuthentication()
 	finalizeLogging()
-	cfg.Overrides = tf.Overrides()
+	flags.Overrides = tf.Overrides()
 
-	return cfg, nil
+	return flags, nil
 }
 
 // AuthenticationModeOverride returns the configured authentication mode or the zero value when database settings apply.
-func (c Config) AuthenticationModeOverride() appkitauth.Mode {
+func (c Flags) AuthenticationModeOverride() appkitauth.Mode {
 	if c.Authentication.ModeOverride == nil {
 		return ""
 	}
@@ -97,7 +95,7 @@ func (c Config) AuthenticationModeOverride() appkitauth.Mode {
 }
 
 // registerApplicationFlags registers Kumbuka-specific server behavior.
-func registerApplicationFlags(tf *tinyflags.FlagSet, cfg *Config) {
+func registerApplicationFlags(tf *tinyflags.FlagSet, cfg *Flags) {
 	tf.BoolVar(
 		&cfg.ReadOnly,
 		"read-only",
@@ -119,7 +117,7 @@ func registerApplicationFlags(tf *tinyflags.FlagSet, cfg *Config) {
 }
 
 // registerServiceFlags registers deployment overrides for external application services.
-func registerServiceFlags(tf *tinyflags.FlagSet, cfg *Config) {
+func registerServiceFlags(tf *tinyflags.FlagSet, cfg *Flags) {
 	tf.StringVar(
 		&cfg.PDFURL,
 		"pdf-url",

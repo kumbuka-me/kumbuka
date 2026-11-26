@@ -28,8 +28,8 @@ import (
 	appusers "github.com/kumbuka-me/kumbuka/internal/application/users"
 	"github.com/kumbuka-me/kumbuka/internal/application/viewer"
 	appwebhooks "github.com/kumbuka-me/kumbuka/internal/application/webhooks"
+	"github.com/kumbuka-me/kumbuka/internal/cli"
 	"github.com/kumbuka-me/kumbuka/internal/credential"
-	"github.com/kumbuka-me/kumbuka/internal/flags"
 	"github.com/kumbuka-me/kumbuka/internal/http/auth"
 	"github.com/kumbuka-me/kumbuka/internal/http/endpoint"
 	"github.com/kumbuka-me/kumbuka/internal/pagecontent"
@@ -142,7 +142,7 @@ type Application struct {
 // NewApplication composes application services around initialized process infrastructure.
 func NewApplication(
 	ctx context.Context,
-	cfg flags.Config,
+	cfg cli.Flags,
 	infrastructure *Infrastructure,
 	logger *slog.Logger,
 	version, commit string,
@@ -166,7 +166,7 @@ func NewApplication(
 }
 
 // composeUseCases constructs persistence-backed application services and their application-level dependencies.
-func (a *Application) composeUseCases(cfg flags.Config, infrastructure *Infrastructure, logger *slog.Logger) {
+func (a *Application) composeUseCases(cfg cli.Flags, infrastructure *Infrastructure, logger *slog.Logger) {
 	database := infrastructure.database
 	secretCipher := infrastructure.cipher
 
@@ -232,7 +232,7 @@ func (a *Application) composeUseCases(cfg flags.Config, infrastructure *Infrastr
 }
 
 // configureAuthentication constructs API and browser authentication after repository-backed settings are available.
-func (a *Application) configureAuthentication(ctx context.Context, cfg flags.Config, infrastructure *Infrastructure) error {
+func (a *Application) configureAuthentication(ctx context.Context, cfg cli.Flags, infrastructure *Infrastructure) error {
 	database := infrastructure.database
 	a.bearerAuth = auth.NewBearer(database)
 
@@ -251,7 +251,7 @@ func (a *Application) configureAuthentication(ctx context.Context, cfg flags.Con
 // configurePluginRuntime constructs plugin execution, wires runtime-derived capabilities, and prepares background workers.
 func (a *Application) configurePluginRuntime(
 	ctx context.Context,
-	cfg flags.Config,
+	cfg cli.Flags,
 	infrastructure *Infrastructure,
 	logger *slog.Logger,
 	version, commit string,
@@ -372,7 +372,7 @@ func (a *Application) Close(logger *slog.Logger) {
 }
 
 // newBrowserAuthConfig maps deployment configuration onto the authentication boundary.
-func newBrowserAuthConfig(cfg flags.Config) auth.BrowserConfig {
+func newBrowserAuthConfig(cfg cli.Flags) auth.BrowserConfig {
 	return auth.BrowserConfig{
 		ModeOverride:    cfg.AuthenticationModeOverride(),
 		ProxyOverrides:  cfg.Proxy.DeploymentOverrides(cfg.Overrides),

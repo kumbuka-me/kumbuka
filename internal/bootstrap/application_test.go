@@ -4,7 +4,6 @@ import (
 	"context"
 	"net/http"
 	"testing"
-
 	"time"
 
 	appkitproxy "github.com/containeroo/appkit/auth/proxy"
@@ -12,7 +11,7 @@ import (
 	appkitauth "github.com/containeroo/appkit/auth"
 	appkitconfig "github.com/containeroo/appkit/config"
 	"github.com/containeroo/tinyflags"
-	"github.com/kumbuka-me/kumbuka/internal/flags"
+	"github.com/kumbuka-me/kumbuka/internal/cli"
 	"github.com/kumbuka-me/kumbuka/internal/http/auth"
 	"github.com/kumbuka-me/kumbuka/pkg/domain"
 	"github.com/stretchr/testify/assert"
@@ -24,7 +23,7 @@ func TestNewBrowserAuthConfigMapsDeploymentSettings(t *testing.T) {
 
 	allowRegistration := true
 	authMode := appkitauth.ModeOIDC
-	cfg := flags.Config{
+	cfg := cli.Flags{
 		Server: appkitconfig.Server{PublicURL: "https://wiki.example"},
 		Authentication: appkitconfig.Authentication{
 			ModeOverride:              &authMode,
@@ -75,7 +74,7 @@ func TestNewBrowserAuthConfigMapsDeploymentSettings(t *testing.T) {
 // TestNewBrowserAuthConfigPreservesExplicitProxyOverrides verifies only selected flags reach appkit.
 func TestNewBrowserAuthConfigPreservesExplicitProxyOverrides(t *testing.T) {
 	t.Parallel()
-	cfg := flags.Config{
+	cfg := cli.Flags{
 		Proxy: appkitconfig.Proxy{
 			TrustedCIDRs:    []string{"*"},
 			UsernameHeaders: []string{},

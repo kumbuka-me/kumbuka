@@ -9,7 +9,7 @@ import (
 
 	appkitsecrets "github.com/containeroo/appkit/secrets"
 	appsystem "github.com/kumbuka-me/kumbuka/internal/application/system"
-	"github.com/kumbuka-me/kumbuka/internal/flags"
+	"github.com/kumbuka-me/kumbuka/internal/cli"
 	appmetrics "github.com/kumbuka-me/kumbuka/internal/metrics"
 	"github.com/kumbuka-me/kumbuka/internal/postgres"
 	"github.com/kumbuka-me/kumbuka/pkg/themes"
@@ -33,7 +33,7 @@ type Infrastructure struct {
 func NewInfrastructure(
 	ctx context.Context,
 	themeFS fs.FS,
-	cfg flags.Config,
+	cfg cli.Flags,
 	logger *slog.Logger,
 	version, commit string,
 ) (*Infrastructure, error) {

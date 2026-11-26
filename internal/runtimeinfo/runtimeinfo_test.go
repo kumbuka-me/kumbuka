@@ -6,7 +6,7 @@ import (
 
 	appkitconfig "github.com/containeroo/appkit/config"
 	"github.com/containeroo/tinyflags"
-	"github.com/kumbuka-me/kumbuka/internal/flags"
+	"github.com/kumbuka-me/kumbuka/internal/cli"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -14,7 +14,7 @@ import (
 func TestManagedConfigurationUsesExactOrigins(t *testing.T) {
 	t.Parallel()
 
-	cfg := flags.Config{
+	cfg := cli.Flags{
 		Server: appkitconfig.Server{
 			ListenAddress:           "127.0.0.1:9090",
 			ManagementListenAddress: "127.0.0.1:9091",
@@ -60,7 +60,7 @@ func TestNewRegistrationOverride(t *testing.T) {
 	t.Run("unset", func(t *testing.T) {
 		t.Parallel()
 
-		info := New(flags.Config{}, false)
+		info := New(cli.Flags{}, false)
 
 		assert.False(t, info.UserRegistrationOverrideConfigured)
 		assert.False(t, info.AllowUserRegistrationOverride)
@@ -69,7 +69,7 @@ func TestNewRegistrationOverride(t *testing.T) {
 	t.Run("enabled", func(t *testing.T) {
 		t.Parallel()
 
-		info := New(flags.Config{
+		info := New(cli.Flags{
 			Authentication: appkitconfig.Authentication{AllowRegistrationOverride: new(true)},
 		}, false)
 
@@ -80,7 +80,7 @@ func TestNewRegistrationOverride(t *testing.T) {
 	t.Run("disabled", func(t *testing.T) {
 		t.Parallel()
 
-		info := New(flags.Config{
+		info := New(cli.Flags{
 			Authentication: appkitconfig.Authentication{AllowRegistrationOverride: new(false)},
 		}, false)
 
@@ -92,7 +92,7 @@ func TestNewRegistrationOverride(t *testing.T) {
 func TestManagedConfigurationReportsDatabaseMaxConns(t *testing.T) {
 	t.Parallel()
 
-	cfg := flags.Config{
+	cfg := cli.Flags{
 		Database: appkitconfig.Postgres{MaxConns: 36},
 		Overrides: tinyflags.Overrides{
 			"database-max-conns": {
@@ -122,7 +122,7 @@ func TestManagedConfigurationReportsDatabaseMaxConns(t *testing.T) {
 func TestManagedConfigurationReportsDatabaseMinIdleConns(t *testing.T) {
 	t.Parallel()
 
-	cfg := flags.Config{
+	cfg := cli.Flags{
 		Database: appkitconfig.Postgres{MinIdleConns: 4},
 		Overrides: tinyflags.Overrides{
 			"database-min-idle-conns": {
@@ -152,7 +152,7 @@ func TestManagedConfigurationReportsDatabaseMinIdleConns(t *testing.T) {
 func TestNewRedactsManagedSecrets(t *testing.T) {
 	t.Parallel()
 
-	cfg := flags.Config{
+	cfg := cli.Flags{
 		Database:                  appkitconfig.Postgres{URL: "postgres://secret@example/kumbuka"},
 		OIDC:                      appkitconfig.OIDC{ClientSecret: "client-secret", SessionSecret: "01234567890123456789012345678901"},
 		PluginUpdateCheckInterval: 15 * time.Minute,
@@ -182,7 +182,7 @@ func TestNewRedactsManagedSecrets(t *testing.T) {
 func TestManagedConfigurationReportsDisabledMetrics(t *testing.T) {
 	t.Parallel()
 
-	cfg := flags.Config{
+	cfg := cli.Flags{
 		Observability: appkitconfig.Observability{DisableMetrics: true},
 		Overrides: tinyflags.Overrides{
 			"disable-metrics": {
@@ -213,7 +213,7 @@ func TestManagedConfigurationReportsDisabledMetrics(t *testing.T) {
 func TestNewReportsPerformanceDiagnostics(t *testing.T) {
 	t.Parallel()
 
-	cfg := flags.Config{
+	cfg := cli.Flags{
 		Observability: appkitconfig.Observability{PerformanceDiagnostics: true},
 		Overrides: tinyflags.Overrides{
 			"performance-diagnostics": {

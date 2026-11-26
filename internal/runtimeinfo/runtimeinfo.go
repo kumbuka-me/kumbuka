@@ -6,12 +6,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kumbuka-me/kumbuka/internal/flags"
+	"github.com/kumbuka-me/kumbuka/internal/cli"
 	"github.com/kumbuka-me/kumbuka/internal/webview"
 )
 
 // New returns administrator-safe runtime information for the active deployment.
-func New(cfg flags.Config, encryptionKeyConfigured bool) webview.RuntimeInfo {
+func New(cfg cli.Flags, encryptionKeyConfigured bool) webview.RuntimeInfo {
 	return webview.RuntimeInfo{
 		ApplicationListenAddress:           cfg.Server.ListenAddress,
 		ManagementListenAddress:            cfg.Server.ManagementListenAddress,
@@ -43,7 +43,7 @@ func New(cfg flags.Config, encryptionKeyConfigured bool) webview.RuntimeInfo {
 }
 
 // managedConfiguration returns deployment-owned configuration using only administrator-safe values.
-func managedConfiguration(cfg flags.Config, encryptionKeyConfigured bool) []webview.ManagedConfigurationGroup {
+func managedConfiguration(cfg cli.Flags, encryptionKeyConfigured bool) []webview.ManagedConfigurationGroup {
 	return []webview.ManagedConfigurationGroup{
 		{
 			Name: "Server",
@@ -95,7 +95,7 @@ func managedConfiguration(cfg flags.Config, encryptionKeyConfigured bool) []webv
 }
 
 // managedConfigurationItem builds one safe deployment configuration row and source label.
-func managedConfigurationItem(cfg flags.Config, name, flagName, value string) webview.ManagedConfigurationItem {
+func managedConfigurationItem(cfg cli.Flags, name, flagName, value string) webview.ManagedConfigurationItem {
 	return webview.ManagedConfigurationItem{
 		Name:   name,
 		Value:  value,

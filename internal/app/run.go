@@ -12,7 +12,7 @@ import (
 	appkitlogging "github.com/containeroo/appkit/logging"
 	"github.com/containeroo/tinyflags"
 	"github.com/kumbuka-me/kumbuka/internal/bootstrap"
-	"github.com/kumbuka-me/kumbuka/internal/flags"
+	"github.com/kumbuka-me/kumbuka/internal/cli"
 	httpserver "github.com/kumbuka-me/kumbuka/internal/http/server"
 )
 
@@ -25,7 +25,7 @@ func Run(
 	stdout, stderr io.Writer,
 ) error {
 	// Parse deployment configuration before constructing runtime dependencies.
-	cfg, err := flags.Parse(args, version)
+	flags, err := cli.Parse(args, version)
 	if err != nil {
 		if tinyflags.IsHelpRequested(err) || tinyflags.IsVersionRequested(err) {
 			fmt.Fprint(stdout, err.Error()) // nolint:errcheck
@@ -36,7 +36,7 @@ func Run(
 	}
 
 	// Configure process logging and record the effective application identity.
-	logger := appkitlogging.Setup(cfg.Logging.Format, cfg.Logging.Debug, stdout)
+	logger := appkitlogging.Setup(flags.Logging.Format, flags.Logging.Debug, stdout)
 	setupLogger := logger.With("component", "setup")
 	setupLogger.Info(
 		"starting Kumbuka",
@@ -44,8 +44,8 @@ func Run(
 		"version", version,
 		"commit", commit,
 	)
-	if len(cfg.Overrides) > 0 {
-		setupLogger.Info("CLI Overrides", "event", "cli_overrides", "overrides", cfg.Overrides.Values())
+	if len(flags.Overrides) > 0 {
+		setupLogger.Info("CLI Overrides", "event", "cli_overrides", "overrides", flags.Overrides.Values())
 	}
 
 	// Bind the process lifetime to operating-system shutdown signals.
@@ -53,7 +53,7 @@ func Run(
 	defer stop()
 
 	// Construct process infrastructure and own its lifetime here.
-	infrastructure, err := bootstrap.NewInfrastructure(ctx, themeFS, cfg, logger, version, commit)
+	infrastructure, err := bootstrap.NewInfrastructure(ctx, themeFS, flags, logger, version, commit)
 	if err != nil {
 		setupLogger.Error("initialize infrastructure", "event", "infrastructure_init_failed", "error", err)
 		return err
@@ -61,7 +61,7 @@ func Run(
 	defer infrastructure.Close()
 
 	// Compose application capabilities around the initialized infrastructure.
-	application, err := bootstrap.NewApplication(ctx, cfg, infrastructure, logger, version, commit)
+	application, err := bootstrap.NewApplication(ctx, flags, infrastructure, logger, version, commit)
 	if err != nil {
 		setupLogger.Error("initialize application", "event", "application_init_failed", "error", err)
 		return err
@@ -71,7 +71,7 @@ func Run(
 	// Build the passive HTTP adapter after the application graph is complete.
 	serverConfig, err := bootstrap.NewHTTPConfig(
 		webFS,
-		cfg,
+		flags,
 		infrastructure,
 		application,
 		logger.With("component", "server"),
@@ -90,8 +90,8 @@ func Run(
 	handlers := httpserver.New(serverConfig)
 	if err := appkithttpserver.Run(
 		ctx,
-		cfg.Server.ListenAddress,
-		cfg.Server.ManagementListenAddress,
+		flags.Server.ListenAddress,
+		flags.Server.ManagementListenAddress,
 		handlers,
 		logger.With("server", "application"),
 		logger.With("server", "management"),

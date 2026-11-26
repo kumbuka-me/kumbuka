@@ -1,4 +1,4 @@
-package flags
+package cli
 
 import (
 	"strings"
@@ -13,7 +13,7 @@ import (
 )
 
 // parseTestConfig parses one isolated flag test configuration.
-func parseTestConfig(args []string) (Config, error) {
+func parseTestConfig(args []string) (Flags, error) {
 	return Parse(args, "test")
 }
 

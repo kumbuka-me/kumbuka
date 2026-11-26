@@ -4,7 +4,7 @@ import (
 	"io/fs"
 	"log/slog"
 
-	"github.com/kumbuka-me/kumbuka/internal/flags"
+	"github.com/kumbuka-me/kumbuka/internal/cli"
 	httpresponse "github.com/kumbuka-me/kumbuka/internal/http/response"
 	httpserver "github.com/kumbuka-me/kumbuka/internal/http/server"
 	"github.com/kumbuka-me/kumbuka/internal/runtimeinfo"
@@ -14,7 +14,7 @@ import (
 // NewHTTPConfig constructs the passive HTTP adapter from the completed application graph.
 func NewHTTPConfig(
 	appFS fs.FS,
-	cfg flags.Config,
+	cfg cli.Flags,
 	infrastructure *Infrastructure,
 	application *Application,
 	logger *slog.Logger,
